@@ -10,6 +10,10 @@ One screen of what moved outside India that Indian markets react to, from source
     crude (U.S. EIA). All are US government series without a copyright note, so FRED's terms let them be shown.
   * USD/INR: the FBIL reference rate the macro job already stores.
 
+  * From Yahoo Finance's public chart endpoint (founder, 26 Nov 2026: the Lab is internal and invite-only, so all data is used; see
+    docs/GLOBAL-MARKETS.md): world indices (US, Europe, Asia, emerging), US index futures, the US VIX, gold, silver and copper. Read when the
+    page asks, about 20 small calls together, kept for five minutes for everyone.
+
 Facts only: "US 10-year yield up 0.08 points", never what it means for a share. The daily series are loaded by the `global-cues` job
 (command refresh-global-cues) after the US close and again in the evening; the ETF quotes are read when the page asks, one shared Dhan call
 kept for a minute.
@@ -59,8 +63,108 @@ ETFS: Dict[str, Tuple[str, str, str]] = {
 }
 VIX_ID = "21"
 LIVE_KEY, LIVE_TTL = "lab:global:live", 60
-GROUPS = [("etf", "Global markets on NSE"), ("rates", "US interest rates"), ("fx", "Dollar and currencies"), ("oil", "Crude oil"), ("india", "India")]
+# Yahoo symbol -> (key, label, group, unit, what)
+YAHOO: Dict[str, Tuple[str, str, str, str, str]] = {
+    "^GSPC": ("sp500", "S&P 500", "us", "pts", "The 500 largest US companies, weighted by size."),
+    "^IXIC": ("nasdaq", "Nasdaq Composite", "us", "pts", "Every share on the Nasdaq exchange; heavy in technology."),
+    "^DJI": ("dow", "Dow Jones", "us", "pts", "30 large US companies, weighted by share price."),
+    "^RUT": ("russell2000", "Russell 2000", "us", "pts", "2,000 smaller US companies."),
+    "^VIX": ("usvix", "US VIX", "us", "index", "The expected 30-day move of the S&P 500, from its option prices: the US counterpart of India VIX."),
+    "ES=F": ("esf", "S&P 500 futures", "futures", "pts", "The S&P 500 futures contract, which trades almost round the clock: how the US is set to open."),
+    "NQ=F": ("nqf", "Nasdaq 100 futures", "futures", "pts", "The Nasdaq 100 futures contract, trading almost round the clock."),
+    "YM=F": ("ymf", "Dow futures", "futures", "pts", "The Dow Jones futures contract, trading almost round the clock."),
+    "^FTSE": ("ftse", "FTSE 100", "europe", "pts", "The 100 largest companies listed in London."),
+    "^GDAXI": ("dax", "DAX", "europe", "pts", "The 40 largest German companies."),
+    "^FCHI": ("cac", "CAC 40", "europe", "pts", "The 40 largest French companies."),
+    "^STOXX50E": ("stoxx50", "Euro Stoxx 50", "europe", "pts", "50 large companies across the euro area."),
+    "^N225": ("nikkei", "Nikkei 225", "asia", "pts", "225 large Japanese companies."),
+    "^HSI": ("hangseng", "Hang Seng", "asia", "pts", "The largest companies listed in Hong Kong."),
+    "000001.SS": ("shanghai", "Shanghai Composite", "asia", "pts", "Every share on the Shanghai exchange."),
+    "^KS11": ("kospi", "KOSPI", "asia", "pts", "Every share on Korea's main market."),
+    "^TWII": ("taiex", "Taiwan Weighted", "asia", "pts", "Every share on the Taiwan exchange; heavy in chipmakers."),
+    "^AXJO": ("asx200", "ASX 200", "asia", "pts", "The 200 largest Australian companies."),
+    "^STI": ("sti", "Straits Times", "asia", "pts", "30 large Singapore companies."),
+    "^BVSP": ("bovespa", "Bovespa (Brazil)", "em", "pts", "The main index of Brazil's stock exchange."),
+    "^MXX": ("ipc", "IPC (Mexico)", "em", "pts", "The main index of Mexico's stock exchange."),
+    "^JKSE": ("jakarta", "Jakarta Composite", "em", "pts", "Every share on the Indonesia stock exchange."),
+    "EEM": ("eem", "Emerging markets ETF (EEM)", "em", "US$", "A US fund holding large companies across emerging markets, India included; a common gauge of emerging-market shares."),
+    "GC=F": ("gold", "Gold", "metals", "US$/oz", "Gold futures (COMEX), US dollars an ounce."),
+    "SI=F": ("silver", "Silver", "metals", "US$/oz", "Silver futures (COMEX), US dollars an ounce."),
+    "HG=F": ("copper", "Copper", "metals", "US$/lb", "Copper futures (COMEX), US dollars a pound: a gauge of industrial demand."),
+    "NG=F": ("natgas", "Natural gas", "metals", "US$/mmBtu", "US natural gas futures (Henry Hub), US dollars per mmBtu."),
+}
+YAHOO_URL = "https://query1.finance.yahoo.com/v8/finance/chart/"
+YAHOO_KEY, YAHOO_TTL = "lab:global:yahoo", 300
+GROUPS = [("etf", "Global markets on NSE"), ("futures", "US futures (round the clock)"), ("us", "United States"), ("europe", "Europe"),
+          ("asia", "Asia and Pacific"), ("em", "Emerging markets"), ("rates", "US interest rates"), ("fx", "Dollar and currencies"),
+          ("oil", "Crude oil"), ("metals", "Metals and gas"), ("india", "India")]
 SPARK_DAYS = 120
+
+
+def parse_chart(symbol: str, body: dict) -> Optional[dict]:
+    """One Yahoo chart answer (range 6mo, interval 1d) as a cue: the latest price, the previous session's close, the day's range, the 52-week
+    range and a line of daily closes. None when the answer has no price."""
+    try:
+        r = body["chart"]["result"][0]
+        m = r["meta"]
+    except (KeyError, IndexError, TypeError):
+        return None
+    price = m.get("regularMarketPrice")
+    if not isinstance(price, (int, float)) or price <= 0:
+        return None
+    tz = m.get("exchangeTimezoneName") or "UTC"
+    try:
+        from zoneinfo import ZoneInfo
+        zone = ZoneInfo(tz)
+    except Exception:
+        zone = timezone.utc
+    closes = (((r.get("indicators") or {}).get("quote") or [{}])[0].get("close")) or []
+    pts = [(datetime.fromtimestamp(t, zone).date(), round(c, 4)) for t, c in zip(r.get("timestamp") or [], closes) if isinstance(c, (int, float))]
+    at = datetime.fromtimestamp(m["regularMarketTime"], zone) if m.get("regularMarketTime") else None
+    prior = [c for d, c in pts if at is None or d < at.date()]
+    prev = prior[-1] if prior else None
+    key, label, group, unit, what = YAHOO[symbol]
+    ch = None if prev is None else round(price - prev, 4)
+    return {"key": key, "symbol": symbol, "label": label, "unit": unit, "group": group, "what": what, "source": "Yahoo Finance",
+            "sourceUrl": "https://finance.yahoo.com/quote/" + symbol, "value": round(price, 4), "prev": prev, "change": ch,
+            "changePct": None if not prev else round(ch / prev * 100, 2), "date": at.date().isoformat() if at else None,
+            "asOf": at.isoformat(timespec="minutes") if at else None, "dayLow": m.get("regularMarketDayLow"), "dayHigh": m.get("regularMarketDayHigh"),
+            "yearLow": m.get("fiftyTwoWeekLow"), "yearHigh": m.get("fiftyTwoWeekHigh"),
+            "spark": [[d.isoformat(), c] for d, c in pts[-SPARK_DAYS:]]}
+
+
+async def yahoo_cues(client: httpx.AsyncClient) -> Tuple[List[dict], List[str]]:
+    """Every Yahoo symbol, five at a time; a symbol that does not answer is listed by name and left out, never filled in."""
+    import asyncio
+    sem = asyncio.Semaphore(5)
+
+    async def one(sym: str) -> Tuple[str, Optional[dict]]:
+        async with sem:
+            try:
+                r = await client.get(YAHOO_URL + sym, params={"range": "6mo", "interval": "1d"})
+                return sym, parse_chart(sym, r.json()) if r.status_code == 200 else None
+            except (httpx.HTTPError, ValueError):
+                return sym, None
+    got = await asyncio.gather(*(one(s) for s in YAHOO))
+    return [c for _s, c in got if c], [YAHOO[s][1] for s, c in got if c is None]
+
+
+async def _yahoo(app) -> Tuple[List[dict], List[str]]:
+    redis = app.state.store.redis
+    try:
+        raw = await redis.get(YAHOO_KEY)
+        if raw:
+            body = orjson.loads(raw)
+            return body["items"], body["missing"]
+    except Exception:
+        pass
+    async with httpx.AsyncClient(timeout=15, follow_redirects=True, headers={"User-Agent": "FinLit (finlitventures.com) market data"}) as c:
+        items, missing = await yahoo_cues(c)
+    try:
+        await redis.set(YAHOO_KEY, orjson.dumps({"items": items, "missing": missing}), ex=YAHOO_TTL if items else 60)
+    except Exception:
+        pass
+    return items, missing
 
 
 def parse_csv(text: str) -> Dict[date, float]:
@@ -201,10 +305,14 @@ async def global_cues(request: Request, _ctx: Ctx = Depends(lab_ctx)):
     async with request.app.state.store.pool.acquire() as conn:
         daily = await daily_cues(conn)
         live, note = await _live(request.app, conn)
-    items = live + daily
+    world, missing = await _yahoo(request.app)
+    # the FRED Brent and WTI stay (daily official prices); the rest of the world comes from Yahoo
+    items = live + world + daily
     body = {"groups": [{"key": k, "name": n, "items": [i for i in items if i["group"] == k]} for k, n in GROUPS],
             "asOf": datetime.now(timezone.utc).astimezone(IST).isoformat(timespec="seconds"), "notes": [note] if note else []}
     if not daily:
         body["notes"].append("The daily global series load after the US close each day; none is stored yet.")
+    if missing:
+        body["notes"].append("Not answering right now: " + ", ".join(missing) + ". They come back by themselves.")
     body["groups"] = [g for g in body["groups"] if g["items"]]
     return Response(content=orjson.dumps(body), media_type="application/json", headers={"Cache-Control": "no-store"})

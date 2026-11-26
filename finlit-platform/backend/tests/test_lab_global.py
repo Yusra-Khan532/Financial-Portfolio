@@ -26,10 +26,29 @@ def test_a_rate_changes_in_points_and_a_price_also_in_per_cent():
     assert G.cue("x", "x", "%", "rates", "w", "s", "u", {}) is None
 
 
-def test_no_index_level_and_no_copyrighted_series_is_read():
-    ids = {v[0] for v in G.FRED.values()}
-    assert not ids & {"SP500", "NASDAQCOM", "DJIA", "NIKKEI225", "VIXCLS"}      # these carry their owners' copyright on FRED
-    assert all(not k.startswith(("sp", "nasdaq", "dow", "nikkei")) for k in G.FRED)
+def test_a_yahoo_chart_answer_becomes_a_cue_against_the_previous_session():
+    import json
+    from pathlib import Path
+    body = json.loads((Path(__file__).parent / "fixtures/global/yahoo_gspc.json").read_text())   # a real answer of 26 Nov 2026, trimmed
+    c = G.parse_chart("^GSPC", body)
+    assert (c["key"], c["group"], c["value"]) == ("sp500", "us", 7182.78)
+    assert c["prev"] == 7201.0898 and c["change"] == round(7182.78 - 7201.0898, 4) and c["changePct"] == round((7182.78 - 7201.0898) / 7201.0898 * 100, 2)
+    assert c["date"] == "2026-11-25" and c["spark"][-1] == ["2026-11-25", 7182.7798] and len(c["spark"]) == 8
+    assert (c["yearLow"], c["yearHigh"], c["dayLow"], c["dayHigh"]) == (6316.91, 7844.52, 6970.11, 7199.31)
+    assert G.parse_chart("^GSPC", {"chart": {"result": None}}) is None
+    assert G.parse_chart("^GSPC", {"chart": {"result": [{"meta": {"regularMarketPrice": None}}]}}) is None
+
+
+async def test_yahoo_symbols_that_do_not_answer_are_named_and_left_out():
+    import json
+    from pathlib import Path
+    body = json.loads((Path(__file__).parent / "fixtures/global/yahoo_gspc.json").read_text())
+
+    def h(req):
+        return httpx.Response(200, json=body) if req.url.path.endswith("%5EGSPC") or req.url.path.endswith("^GSPC") else httpx.Response(404)
+    async with httpx.AsyncClient(transport=httpx.MockTransport(h)) as c:
+        items, missing = await G.yahoo_cues(c)
+    assert [i["key"] for i in items] == ["sp500"] and "Nikkei 225" in missing and len(missing) == len(G.YAHOO) - 1
 
 
 def test_live_cues_read_the_etfs_and_india_vix_from_one_quote_answer():
@@ -97,9 +116,14 @@ async def test_the_route_is_for_lab_members_and_shows_the_stored_series(app, mon
         raise RuntimeError("Dhan off")
     import finlit.options as O
     monkeypatch.setattr(O, "_ask", no_dhan)
+
+    async def no_yahoo(_app):
+        return [], ["S&P 500"]
+    monkeypatch.setattr(G, "_yahoo", no_yahoo)
     admin = await admin_with_mfa(app, "global-boss@example.com")
     body = (await admin.get("/api/lab/global")).json()
     groups = {g["key"]: {i["key"]: i for i in g["items"]} for g in body["groups"]}
     assert groups["rates"]["us10y"]["change"] == -0.08 and groups["rates"]["spread"]["value"] == 0.43
     assert groups["india"]["usdinr"]["value"] == 84.3
-    assert "etf" not in groups and body["notes"] == ["Live ETF prices could not be read right now; they come back by themselves."]
+    assert "etf" not in groups and body["notes"] == ["Live ETF prices could not be read right now; they come back by themselves.",
+                                                     "Not answering right now: S&P 500. They come back by themselves."]

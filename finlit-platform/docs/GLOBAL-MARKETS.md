@@ -70,3 +70,35 @@ of Twelve Data and EODHD are for personal or internal use. Global cues does not 
 moving live needs share prices of many foreign companies with display rights: no free source gives them. Two honest routes: (1) a paid data plan
 with display rights (founder's choice); (2) free and allowed now: the international ETFs on NSE (live), and a **fundamentals** board of large US
 companies from SEC filings (who grew revenue and profit most last quarter, by sector), which is step 4 above.
+
+## Founder's decision (26 Nov 2026, chat): internal use, all data, free path
+
+"We are not going to show it publicly ... first use it for ourselves ... ignore the copyright thing ... we want all data ... select the free
+path." The Trading Lab is invite-only (admin-granted, never indexed), so for the Lab the display-rights limits above are set aside by the
+founder. Anything moved to a public page later needs this file's licence check again. Requests stay honest: FinLit names itself in the
+User-Agent; no browser impersonation, no getting round a site's bot protection, no login scraping.
+
+Checked live from the build machine on 26 Nov 2026 (FinLit User-Agent):
+
+| Source (free, no key) | What it gives | Use |
+|---|---|---|
+| Yahoo Finance chart endpoint (`query1.finance.yahoo.com/v8/finance/chart/<symbol>`) | Every world index (S&P 500 ^GSPC, Nasdaq ^IXIC, Dow ^DJI, Nikkei ^N225, FTSE ^FTSE, DAX ^GDAXI, Hang Seng ^HSI, Shanghai 000001.SS, KOSPI ^KS11, Bovespa ^BVSP, ...), US futures (ES=F, NQ=F, CL=F, GC=F), US VIX, any US or foreign share (JPM, 7203.T Toyota, 2330.TW TSMC, 005930.KS Samsung, ASML.AS, 0700.HK Tencent, NESN.SW, SHEL.L), sector and country ETFs (XLK, EEM); daily and 5-minute bars | Global cues, global flow board, emerging markets |
+| Nasdaq screener (`api.nasdaq.com/api/screener/stocks?download=true`) | All 7,374 US-listed shares in ONE call: price, change, % change, market cap, volume, sector, industry, country | The US flow board (sectors, boxes sized by the move, the biggest movers as big cards) |
+| UN Comtrade public preview (no key) and free key (500 calls/day) | World trade by country and product, monthly | Global trade |
+| Google News RSS (`news.google.com/rss/search`) | Headlines for any query (Nifty, Fed, crude, a company), scored by FinLit's own FinBERT model | Market mood |
+| SEC EDGAR, World Bank, IMF, WTO, FRED, ECB, US Treasury, TradeStat | as above | as above |
+
+Not found free: GIFT Nifty live (NSE IX's pages load their numbers by script; no open feed found yet), posts from X, LinkedIn posts. Reddit
+gives a free API to an app the team registers (non-commercial tier); public JSON scraping is not used.
+
+### What a paid plan would add beyond the free path
+1. **X (Twitter) posts** for social mood (pay per post read). No free route exists.
+2. **GIFT Nifty** live from NSE IX (NSE's paid delayed-data product), unless a free feed turns up.
+3. **A contract**: the free endpoints above are unofficial and can change, slow down or stop without notice; a paid vendor promises uptime and
+   support. The pages are built so that a source that stops answering says so and the rest keeps working.
+Everything else the founder asked for is covered by the free path.
+
+### Build order (revised)
+1. Global cues (adds world indices, US futures, US VIX, gold via Yahoo to the FRED rates and the NSE ETFs). 2. Market mood. 3. Global flow
+board (US whole market from the Nasdaq screener + the world's largest companies via Yahoo). 4. Global trade. 5. Emerging markets.
+6. Global company financials (SEC). One PR each.
