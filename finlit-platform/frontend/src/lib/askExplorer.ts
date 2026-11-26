@@ -55,3 +55,23 @@ export const loadSaved = () => read(KEY.saved);
 export const pushRecent = (list: string[], text: string): string[] => { const n = [text, ...list.filter((x) => x !== text)].slice(0, 20); write(KEY.recent, n); return n; };
 export const toggleSaved = (list: string[], text: string): string[] => { const n = list.includes(text) ? list.filter((x) => x !== text) : [text, ...list].slice(0, 30); write(KEY.saved, n); return n; };
 export const clearRecent = () => { write(KEY.recent, []); return [] as string[]; };
+
+// The ⋯ menu on a History chat (owner, 25 Nov 2026): pin it to the top, rename it, take it out of History. Kept in this browser, like the list itself.
+const PIN = "finlit-ai-pinned", NAMES = "finlit-ai-names";
+export const loadPinned = () => read(PIN);
+export const togglePinned = (list: string[], text: string): string[] => { const n = list.includes(text) ? list.filter((x) => x !== text) : [text, ...list].slice(0, 30); write(PIN, n); return n; };
+export const loadNames = (): Record<string, string> => {
+  try { const v = JSON.parse(localStorage.getItem(NAMES) || "{}"); return v && typeof v === "object" && !Array.isArray(v) ? Object.fromEntries(Object.entries(v).filter(([k, x]) => typeof k === "string" && typeof x === "string").slice(0, 60)) as Record<string, string> : {}; } catch { return {}; }
+};
+const writeNames = (v: Record<string, string>) => { try { localStorage.setItem(NAMES, JSON.stringify(v)); } catch { /* a private window */ } };
+/** A name of its own for a chat (at most 80 characters); an empty name brings back the question itself. */
+export const renameChat = (names: Record<string, string>, text: string, name: string): Record<string, string> => {
+  const n = { ...names }; const t = name.trim().slice(0, 80);
+  if (!t || t === text) delete n[text]; else n[text] = t;
+  writeNames(n); return n;
+};
+/** Delete takes the chat out of History, the pins and the names (Saved Questions are kept: they have their own ×). */
+export const removeRecent = (list: string[], text: string): string[] => { const n = list.filter((x) => x !== text); write(KEY.recent, n); return n; };
+/** The side list: pinned chats first (kept even when newer questions push them out of the newest 20), then the newest others, `limit` of them. */
+export const sideList = (recent: string[], pinned: string[], limit = 5): { text: string; pinned: boolean }[] =>
+  [...pinned.map((text) => ({ text, pinned: true })), ...recent.filter((x) => !pinned.includes(x)).slice(0, limit).map((text) => ({ text, pinned: false }))];

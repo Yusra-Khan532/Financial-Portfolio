@@ -38,6 +38,7 @@ const OWN: { file: string; needle: RegExp; why: string }[] = [
 
 /** Drawings with nothing to enlarge: sparklines, gauges and rings that show one figure, decorative art, icons, tiny inline bars. */
 const EXEMPT: Record<string, string> = {
+  "components/AskChatMenu.tsx": "only the pin mark on a pinned FinLit AI chat (owner, 25 Nov 2026); no data",
   "components/mobile/MobileApp.tsx": "icons only: the Menu sheet's close mark and the Tools button's plus (docs/MOBILE-APP.md)",
   "portfolio/kit/AddBox.tsx": "the add box's magnifier icon (task #276); no data",
   "pages/IpoHistory.tsx": "only the toolbar's icons on All IPOs (task #308): magnifier, chevrons, More filters, ×, tick; no data",

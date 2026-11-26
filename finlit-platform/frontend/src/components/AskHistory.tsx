@@ -1,7 +1,7 @@
 // Task #349 PR 2: the Chat History view of the FinLit AI panel, and the one-line notice under its input.
 // A signed-in Silver or Gold member sees the questions FinLit AI keeps on the server (date, subject, question; tap to ask again; delete one).
 // Visitors and Basic members keep the list held in this browser only (askExplorer.loadRecent), exactly as before.
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Link } from "react-router";
 import { Icon } from "../lib/icons";
 import { Button } from "./ui";
@@ -17,9 +17,13 @@ type Props = {
   onClearLocal: () => void;
   /** closes the panel when the member follows the link to Account */
   onLeave?: () => void;
+  /** the browser list's rows with their ⋯ menu (Pin, Rename, Save, Copy, Delete; owner, 25 Nov 2026), so a phone, which has no side list, has the menu too */
+  item?: (question: string) => ReactNode;
+  /** the browser list in its order on the page (pinned first) */
+  order?: string[];
 };
 
-export function AskHistoryView({ server, recent, onAsk, onClearLocal, onLeave }: Props) {
+export function AskHistoryView({ server, recent, onAsk, onClearLocal, onLeave, item, order }: Props) {
   const [data, setData] = useState<History | null>(null);
   const [failed, setFailed] = useState(false);
   const [gone, setGone] = useState<number[]>([]);
@@ -34,7 +38,8 @@ export function AskHistoryView({ server, recent, onAsk, onClearLocal, onLeave }:
 
   const local = (note?: string) => <>
     <div className="aif-h"><h2>Chat History</h2><p>{note ?? "Your recent questions, kept in this browser only."}</p></div>
-    {recent.length ? <><ul className="aif-qs" aria-label="Recent questions">{recent.map((t) => <li key={t}><button type="button" className="aif-q" onClick={() => onAsk(t)}><Icon name="chat" /><span>{t}</span><Icon name="arrow" /></button></li>)}</ul>
+    {recent.length || order?.length ? <>{item ? <ul className="aif-hist aif-hist-page" aria-label="Recent questions">{(order ?? recent).map((t) => item(t))}</ul>
+      : <ul className="aif-qs" aria-label="Recent questions">{recent.map((t) => <li key={t}><button type="button" className="aif-q" onClick={() => onAsk(t)}><Icon name="chat" /><span>{t}</span><Icon name="arrow" /></button></li>)}</ul>}
       <button type="button" className="aif-clear" onClick={onClearLocal}>Clear history</button></> : <p className="aif-none">No questions yet. Ask one and it appears here.</p>}
   </>;
   if (!server) return local();
