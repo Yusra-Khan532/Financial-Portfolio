@@ -591,3 +591,12 @@ a.oflow-tab:hover:not([aria-current]) { background: color-mix(in srgb, var(--gol
 .opul-legend .sw.zon-fvg { background: color-mix(in srgb, var(--c1) 30%, transparent); }
 .opul-legend .sw.zon-vw { background: var(--info); height: 3px; }
 .zon-pop-note { font-size: var(--fs-12); margin: 8px 0 0; max-width: 340px; }
+
+/* Liquidity map inside Stock zones: the option walls as long dashed lines, put green and call red as in Option Pulse. */
+.zon-wall line { stroke-width: 1.6; stroke-dasharray: 10 4; } .zon-wall.put line { stroke: var(--gain); } .zon-wall.call line { stroke: var(--loss); }
+.zon-wall line.hit { stroke: transparent; stroke-width: 10; stroke-dasharray: none; }
+.zon-wall text { font-size: var(--fs-12); font-weight: 600; paint-order: stroke; stroke: var(--s1); stroke-width: 3px; } .zon-wall.put text { fill: var(--gain); } .zon-wall.call text { fill: var(--loss); }
+.zon-wall:hover line:not(.hit) { stroke-width: 2.6; }
+.zon-wlbl rect.hit { fill: transparent; } .zon-wlbl { cursor: default; }
+.zon-wtag { font-weight: 600; } .zon-wtag.put { color: var(--gain); } .zon-wtag.call { color: var(--loss); }
+.sw.zon-wput { background: var(--gain); } .sw.zon-wcall { background: var(--loss); }

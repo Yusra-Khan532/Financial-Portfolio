@@ -59,3 +59,9 @@ export function zonesLine(z: Zones): string {
     b.below && b.above ? `between ${b.below.label} ${p(b.below.price)} and ${b.above.label} ${p(b.above.price)}` : null,
   ].filter(Boolean).join(" · ");
 }
+
+/** Liquidity map (backend finlit/lab/walls.py, /api/lab/zones/{symbol}/walls): the strikes with the most put and call OI in the nearest
+ *  expiry, from the site's own option chain. Where open positions sit, never "the price will stop here". */
+export type Wall = { rank: number; strike: number; oi: number; oiChange: number | null; oiChangePct: number | null; distancePct: number | null };
+export type Walls = { status: string; symbol: string; expiry: string; asOf: string; state: string; spot: number | null; pcrOi: number | null;
+  maxPain: number | null; put: Wall[]; call: Wall[]; detail?: string };

@@ -134,3 +134,17 @@ describe-only (calls such as "likely cap", "what's next" or strangle picks stay 
 4. **Liquidity map**: price with option walls, inside Stock zones (Order Flow step 4).
 5. **Stock radar**: the five facts drawn as a radar.
 6. **F&O Academy**: lessons with quizzes, inside Learn.
+
+## Liquidity map (built: inside Stock zones, MarketPulse idea 4)
+
+An F&O stock's **option walls** are drawn on its Stock zones chart. A wall is simply a strike where open interest is concentrated: the three strikes with the most put OI, and the three with the most call OI, in the stock's nearest unexpired expiry.
+
+- **Data:** `GET /api/lab/zones/{symbol}/walls` (`backend/finlit/lab/walls.py`, Lab members only). It reads the site's own option chain through `options.cached` with key `oc:chain:<symbol>:<expiry>`, so it shares Option Pulse's cache and Dhan pacing. It adds no new Dhan caller and no job.
+  - Each wall carries its OI, today's change in that OI, and its distance from the last price. The PCR (OI) of the expiry is shown too.
+  - Answers: busy gives 503 with Retry-After; Dhan down gives 502; a stock without options gives 404 `not_fno`. In every one of these cases the zones still show.
+- **Chart:**
+  - A wall inside the drawn price range is a dashed line: green for put walls, red for call walls.
+  - Its label sits above the candles, so it can always be hovered; the line itself stays behind them.
+  - Every wall, near or far, is listed in the side panel's "Option walls".
+  - The "Option walls" button switches them off.
+- **Wording:** the hover card says where open positions sit, "not a level the price is bound to respect". There is no support or resistance language, and no advice.

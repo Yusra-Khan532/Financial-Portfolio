@@ -4,14 +4,15 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ApiError, apiGet } from "../../lib/api";
-import { matchUnderlyings, type Underlyings } from "../../lib/options";
+import { compact, matchUnderlyings, strikeText, type Underlyings } from "../../lib/options";
 import { inr } from "../../lib/flow";
-import { KIND, STATUS_NOTE, ZONE_RULE, between, nearest, zoneName, zonesLine, type Zone, type ZoneLevel, type Zones } from "../../lib/zones";
+import { KIND, STATUS_NOTE, ZONE_RULE, between, nearest, zoneName, zonesLine, type Wall, type Walls, type Zone, type ZoneLevel, type Zones } from "../../lib/zones";
 import { useTip } from "./FlowTips";
 import { ChartZoom } from "../ChartZoom";
 
 const getUnderlyings = () => apiGet<Underlyings>("/api/options/lab/underlyings");
 const getZones = (s: string) => apiGet<Zones>(`/api/lab/zones/${encodeURIComponent(s)}`);
+const getWalls = (s: string) => apiGet<Walls>(`/api/lab/zones/${encodeURIComponent(s)}/walls`);   // Liquidity map: option walls
 const QUICK = ["RELIANCE", "HDFCBANK", "ICICIBANK", "INFY", "SBIN", "TCS"];
 const hm = (iso: string) => iso.slice(11, 16);
 const dmy = (iso: string) => new Date(iso.slice(0, 10) + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short" });
@@ -61,10 +62,25 @@ function CandlePop({ z, i }: { z: Zones; i: number }) {
   );
 }
 
+/** Liquidity map: one option wall (a strike where open interest sits), in facts only. */
+function WallPop({ w, side, walls }: { w: Wall; side: "put" | "call"; walls: Walls }) {
+  return (
+    <>
+      <header className="oflow-pop-h"><div><b>{side === "put" ? "Put" : "Call"} wall {w.rank} · {strikeText(w.strike)}</b><small>Expiry {dmy(walls.expiry)} · {walls.symbol} options</small></div>
+        <div className="r"><small>open interest</small><b>{compact(w.oi)}</b></div></header>
+      <dl className="oflow-pop-t">
+        <div><dt>OI change today</dt><dd className={w.oiChange == null ? "" : w.oiChange >= 0 ? "gain" : "loss"}>{w.oiChange == null ? "—" : `${w.oiChange > 0 ? "+" : ""}${compact(w.oiChange)}`}</dd></div>
+        <div><dt>From the price</dt><dd className={(w.distancePct ?? 0) >= 0 ? "gain" : "loss"}>{pct(w.distancePct)}</dd></div>
+      </dl>
+      <p className="muted">The strike with the {w.rank === 1 ? "most" : w.rank === 2 ? "second most" : "third most"} {side} open interest in the nearest expiry: where open positions sit, not a level the price is bound to respect.</p>
+    </>
+  );
+}
+
 const GROUP_CLASS: Record<ZoneLevel["group"], string> = { previous: "prev", pivot: "piv", opening: "or", vwap: "vw" };
 
 /** The candles with the zones as bands from where they formed to the right edge, and the levels as lines. */
-export function ZoneChart({ z, show }: { z: Zones; show: { ob: boolean; fvg: boolean; levels: boolean } }) {
+export function ZoneChart({ z, show, walls }: { z: Zones; show: { ob: boolean; fvg: boolean; levels: boolean; walls?: boolean }; walls?: Walls | null }) {
   const tip = useTip();
   const [hot, setHot] = useState<number | null>(null);
   const k = z.candles!, n = k.t.length;
@@ -73,7 +89,9 @@ export function ZoneChart({ z, show }: { z: Zones; show: { ob: boolean; fvg: boo
   const lv = show.levels ? (z.levels ?? []) : [];
   const lo0 = Math.min(...k.l), hi0 = Math.max(...k.h), reach = (hi0 - lo0) * 0.25;
   const near = lv.filter((l) => l.price >= lo0 - reach && l.price <= hi0 + reach);   // far-off levels would squash the candles; the list shows all
-  const vals = [...k.l, ...k.h, ...near.map((l) => l.price), ...zs.flatMap((x) => [x.lo, x.hi])];
+  const wl = show.walls && walls ? [...walls.put.map((w) => ({ w, side: "put" as const })), ...walls.call.map((w) => ({ w, side: "call" as const }))] : [];
+  const nearW = wl.filter(({ w }) => w.strike >= lo0 - reach && w.strike <= hi0 + reach);   // the list shows walls too far off to draw
+  const vals = [...k.l, ...k.h, ...near.map((l) => l.price), ...zs.flatMap((x) => [x.lo, x.hi]), ...nearW.map(({ w }) => w.strike)];
   const lo = Math.min(...vals), hi = Math.max(...vals), sp = hi - lo || 1;
   const y = (v: number) => T + ((hi - v) / sp) * (H - T - B);
   const cw = (W - L - R) / n, x = (i: number) => L + i * cw + cw / 2, bw = Math.max(1.5, cw * 0.66);
@@ -100,6 +118,10 @@ export function ZoneChart({ z, show }: { z: Zones; show: { ob: boolean; fvg: boo
           <text x={W - R + 6} y={ly + 4}>{l.key} {l.price.toFixed(l.price >= 1000 ? 0 : 1)}</text>
         </g>
       ))}
+      {nearW.map(({ w, side }) => (
+        <g key={side + w.strike} className={`zon-wall ${side}`} onPointerMove={(e) => tip.show(e, <WallPop w={w} side={side} walls={walls!} />)} onPointerLeave={() => tip.hide()}>
+          <line x1={L} x2={W - R} y1={y(w.strike)} y2={y(w.strike)} /><line className="hit" x1={L} x2={W - R} y1={y(w.strike)} y2={y(w.strike)} />
+        </g>))}
       {vwD && <path className="zon-vwap" d={vwD} />}
       {k.t.map((t, i) => {
         const up = k.c[i] >= k.o[i], top = y(Math.max(k.o[i], k.c[i])), bot = y(Math.min(k.o[i], k.c[i]));
@@ -112,6 +134,15 @@ export function ZoneChart({ z, show }: { z: Zones; show: { ob: boolean; fvg: boo
           </g>
         );
       })}
+      {/* each wall's label sits above the candles, so it can always be pointed at; the line stays behind them */}
+      {nearW.map(({ w, side }) => {
+        const text = `${side === "put" ? "Put" : "Call"} wall ${strikeText(w.strike)} · ${compact(w.oi)}`;
+        return (
+          <g key={"t" + side + w.strike} className={`zon-wall zon-wlbl ${side}`} onPointerMove={(e) => tip.show(e, <WallPop w={w} side={side} walls={walls!} />)} onPointerLeave={() => tip.hide()}>
+            <rect className="hit" x={L + 2} y={y(w.strike) - 17} width={text.length * 7 + 8} height={16} />
+            <text x={L + 6} y={y(w.strike) - 4}>{text}</text>
+          </g>);
+      })}
       {z.last != null && <g className="zon-last"><line x1={L} x2={W - R} y1={y(z.last)} y2={y(z.last)} />
         <rect x={W - R + 2} y={y(z.last) - 10} width={R - 4} height={20} rx={4} /><text x={W - R + 8} y={y(z.last) + 4}>{inr(z.last)}</text></g>}
     </svg>
@@ -121,13 +152,15 @@ export function ZoneChart({ z, show }: { z: Zones; show: { ob: boolean; fvg: boo
 export function StockZones() {
   const [sym, setSym] = useState("RELIANCE");
   const [find, setFind] = useState("");
-  const [show, setShow] = useState({ ob: true, fvg: true, levels: true });
+  const [show, setShow] = useState({ ob: true, fvg: true, levels: true, walls: true });
   const tip = useTip();
   const und = useQuery({ queryKey: ["opul-und"], queryFn: getUnderlyings, retry: false, staleTime: 3600_000 });
   const q = useQuery({ queryKey: ["lab-zones", sym], queryFn: () => getZones(sym), retry: false,
     refetchInterval: (s) => (s.state.data?.phase === "open" ? 60_000 : false) });
+  const wq = useQuery({ queryKey: ["lab-walls", sym], queryFn: () => getWalls(sym), retry: false,
+    refetchInterval: (s) => (q.data?.phase === "open" && s.state.data ? 60_000 : false) });
   const matches = useMemo(() => (find.trim() && und.data ? matchUnderlyings(und.data.stocks, find, 8) : []), [find, und.data]);
-  const z = q.data;
+  const z = q.data, walls = wq.data ?? null;
   const ok = !!z?.available && !!z.candles && z.candles.t.length > 1;
   const pick = (s: string) => { setSym(s); setFind(""); };
   const b = ok ? between(z!.levels, z!.last) : { above: null, below: null };
@@ -145,13 +178,14 @@ export function StockZones() {
         <div className="oflow-bchips" role="group" aria-label="Show on the chart">
           {(["ob", "fvg"] as const).map((kd) => <button key={kd} type="button" className={`oflow-bchip zon-t ${kd}`} aria-pressed={show[kd]} onClick={() => setShow({ ...show, [kd]: !show[kd] })}>{KIND[kd]}s</button>)}
           <button type="button" className="oflow-bchip" aria-pressed={show.levels} onClick={() => setShow({ ...show, levels: !show.levels })}>Levels</button>
+          <button type="button" className="oflow-bchip" aria-pressed={show.walls} onClick={() => setShow({ ...show, walls: !show.walls })}>Option walls</button>
         </div>
       </div>
       {q.isPending && <div className="skeleton" style={{ height: 440 }} aria-label="Loading the candles" />}
       {(q.isError || (z && !z.available)) && <div className="formerr" role="alert">{z?.detail || (q.error instanceof ApiError && q.error.body.detail) || `The candles for ${sym} could not be read right now. Try again in a minute.`}</div>}
       {ok && <div className="opul-grid">
-        <div className="opul-main"><ChartZoom label={`${z!.symbol} zones`}><ZoneChart z={z!} show={show} /></ChartZoom>
-          <p className="muted opul-legend"><i className="sw zon-ob" /> order block · <i className="sw zon-fvg" /> fair-value gap · faded: filled or broken · <i className="sw zon-vw" /> VWAP · lines: previous day, opening range, pivots</p></div>
+        <div className="opul-main"><ChartZoom label={`${z!.symbol} zones`}><ZoneChart z={z!} show={show} walls={walls} /></ChartZoom>
+          <p className="muted opul-legend"><i className="sw zon-ob" /> order block · <i className="sw zon-fvg" /> fair-value gap · faded: filled or broken · <i className="sw zon-vw" /> VWAP · lines: previous day, opening range, pivots · <i className="sw zon-wput" /> put wall · <i className="sw zon-wcall" /> call wall</p></div>
         <aside className="opul-side">
           <dl className="opul-stats">
             <div><dt>Last</dt><dd>{inr(z!.last)}</dd></div>
@@ -167,6 +201,13 @@ export function StockZones() {
                 <b className={`zon-tag ${x.kind} ${x.side}`}>{x.kind === "ob" ? "OB" : "FVG"} {x.side === "up" ? "▲" : "▼"}</b>
                 <span>{inr(x.lo)}–{inr(x.hi).replace("₹", "")}</span><small className={(x.distancePct ?? 0) >= 0 ? "gain" : "loss"}>{pct(x.distancePct)}</small></li>))}</ol>
               : <p className="muted">Every zone on the chart has been filled or broken.</p>}</div>
+          <div className="opul-movers"><h3>Option walls</h3>
+            {walls ? <><ol aria-label="Option walls">{(["put", "call"] as const).flatMap((sd) => walls[sd].map((w) => (
+              <li key={sd + w.strike} className="zon-li" onPointerMove={(e) => tip.show(e, <WallPop w={w} side={sd} walls={walls} />)} onPointerLeave={() => tip.hide()}>
+                <b className={`zon-wtag ${sd}`}>{sd === "put" ? "Put" : "Call"} {w.rank}</b><span>{strikeText(w.strike)} · {compact(w.oi)}</span><small className={(w.distancePct ?? 0) >= 0 ? "gain" : "loss"}>{pct(w.distancePct)}</small></li>)))}</ol>
+              <p className="muted opul-asof">Nearest expiry {walls.expiry}{walls.pcrOi != null ? ` · PCR ${walls.pcrOi.toFixed(2)}` : ""}</p></>
+              : wq.isPending ? <p className="muted">Reading the option chain…</p>
+              : <p className="muted">{(wq.error instanceof ApiError && wq.error.body.detail) || "The option chain could not be read right now; the walls follow on the next refresh."}</p>}</div>
           <div className="opul-movers"><h3>Levels</h3>
             <ol aria-label="Levels">{(z!.levels ?? []).map((l) => (
               <li key={l.key} className="zon-li" onPointerMove={(e) => tip.show(e, <LevelPop l={l} last={z!.last} />)} onPointerLeave={() => tip.hide()}>
@@ -175,7 +216,7 @@ export function StockZones() {
         </aside>
       </div>}
       {ok && z!.stale && z!.detail && <p className="muted oflow-note">{z!.detail}</p>}
-      <details className="oflow-how"><summary>How it is worked out</summary><p className="muted oflow-method">From 5-minute candles of the last five sessions; the chart shows the latest two. Order block: {ZONE_RULE.ob} Fair-value gap: {ZONE_RULE.fvg} Gaps narrower than 0.1% of the price are left out. Previous day: that session's high, low and last close. Opening range: the high and low of the first 15 minutes. VWAP: the volume-weighted average of each candle's (high + low + close) / 3 since the open. Pivots: P = (H + L + C) / 3 of the previous session, R1 = 2P − L, S1 = 2P − H, R2 = P + (H − L), S2 = P − (H − L). These describe where prices traded; they are not a forecast.</p></details>
+      <details className="oflow-how"><summary>How it is worked out</summary><p className="muted oflow-method">From 5-minute candles of the last five sessions; the chart shows the latest two. Order block: {ZONE_RULE.ob} Fair-value gap: {ZONE_RULE.fvg} Gaps narrower than 0.1% of the price are left out. Previous day: that session's high, low and last close. Opening range: the high and low of the first 15 minutes. VWAP: the volume-weighted average of each candle's (high + low + close) / 3 since the open. Pivots: P = (H + L + C) / 3 of the previous session, R1 = 2P − L, S1 = 2P − H, R2 = P + (H − L), S2 = P − (H − L). Option walls: the three strikes with the most put open interest and the three with the most call open interest in the nearest expiry, from the same option chain as Option Pulse, with today's change in OI and the distance from the last price; walls far outside the chart are listed but not drawn. These describe where prices traded and where open positions sit; they are not a forecast.</p></details>
     </section>
   );
 }

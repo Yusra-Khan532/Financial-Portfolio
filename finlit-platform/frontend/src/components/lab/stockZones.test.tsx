@@ -28,10 +28,16 @@ const Z: Zones = {
   zones: [zone({}), zone({ kind: "fvg", lo: 1411, hi: 1413, index: 7, at: T[7], status: "open", moveAvg: null, distancePct: -0.6 }),
     zone({ kind: "ob", side: "down", lo: 1403, hi: 1406, index: 3, at: T[3], status: "broken", distancePct: -1.1 })],
 };
+// Liquidity map: put walls 1,400 / 1,380 (the second outside the drawn range: listed only), call walls 1,430 / 1,500
+const WALLS = { status: "ok", symbol: "RELIANCE", expiry: "2026-12-30", asOf: "26 Nov 15:30", state: "fresh", spot: 1421.5, pcrOi: 0.91, maxPain: 1420,
+  put: [{ rank: 1, strike: 1400, oi: 1_240_000, oiChange: 85_000, oiChangePct: 7.4, distancePct: -1.51 }, { rank: 2, strike: 1300, oi: 900_000, oiChange: -20_000, oiChangePct: -2.2, distancePct: -8.55 }],
+  call: [{ rank: 1, strike: 1430, oi: 1_610_000, oiChange: 120_000, oiChangePct: 8.0, distancePct: 0.6 }, { rank: 2, strike: 1500, oi: 700_000, oiChange: null, oiChangePct: null, distancePct: 5.52 }] };
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 const urls: string[] = [];
 beforeEach(() => { urls.length = 0; vi.stubGlobal("fetch", vi.fn(async (url: string) => { urls.push(String(url));
   if (String(url).includes("/underlyings")) return json({ indices: [], stocks: [{ key: "TATAMOTORS", name: "Tata Motors", securityId: 1, lotSize: 1 }, { key: "NOPE", name: "Delisted Ltd", securityId: 2, lotSize: 1 }], connected: true });
+  if (String(url).endsWith("/walls")) return String(url).includes("/NOPE/") ? json({ status: "not_fno", symbol: "NOPE", detail: "NOPE has no listed options, so it has no option walls." }, 404)
+    : json(WALLS);
   if (String(url).includes("/NOPE")) return json({ status: "not_found", symbol: "NOPE", detail: "We could not find that company." }, 404);
   return json({ ...Z, symbol: String(url).split("/").pop() }); })); });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
@@ -98,5 +104,28 @@ describe("Stock zones, the tab", () => {
     wrap(); await settle();
     const text = (document.body.textContent ?? "").toLowerCase();
     for (const w of ["buy", "sell", "target", "stop loss", "entry", "bullish", "bearish", "best"]) expect(text).not.toContain(w);
+  });
+});
+
+describe("Stock zones, the Liquidity map (option walls)", () => {
+  it("draws the walls near the price on the chart, lists every wall, and shows each one's facts", async () => {
+    urls.length = 0; wrap(); await settle();
+    expect(urls.some((u) => u.endsWith("/api/lab/zones/RELIANCE/walls"))).toBe(true);
+    expect([...document.querySelectorAll(".zon-wall text")].map((x) => x.textContent)).toEqual(["Put wall 1,400 · 12.40 L", "Call wall 1,430 · 16.10 L"]);
+    const list = screen.getByRole("list", { name: "Option walls" });
+    expect(list.querySelectorAll("li")).toHaveLength(4);
+    expect(list.textContent).toMatch(/Put 1.*1,400 · 12\.40 L.*−1\.51%.*Put 2.*1,300.*Call 1.*1,430.*\+0\.60%.*Call 2.*1,500/);
+    expect(screen.getByText(/Nearest expiry 2026-12-30 · PCR 0\.91/)).toBeTruthy();
+    point(document.querySelector(".zon-wall.call")!);
+    expect(screen.getByRole("tooltip").textContent).toMatch(/Call wall 1 · 1,430.*Expiry 30 Dec.*16\.10 L.*\+1\.20 L.*\+0\.60%.*not a level the price is bound to respect/);
+    fireEvent.click(screen.getByRole("button", { name: "Option walls" }));
+    expect(document.querySelectorAll(".zon-wall")).toHaveLength(0);
+    expect(document.body.textContent).not.toMatch(/\b(support|resistance|buy|sell|target)\b/i);
+  });
+  it("says why when a stock has no options, and the candles still show", async () => {
+    wrap(); await settle();
+    fireEvent.change(screen.getByRole("searchbox", { name: "Find an F&O stock" }), { target: { value: "TATA" } });
+    fireEvent.click(screen.getByRole("button", { name: /TATAMOTORS/ })); await settle();
+    expect(document.querySelectorAll(".zon-k")).toHaveLength(10);
   });
 });
