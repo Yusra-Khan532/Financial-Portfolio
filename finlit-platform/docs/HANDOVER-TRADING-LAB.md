@@ -3,6 +3,15 @@
 Written for the next Claude session. Read this whole file, then `CLAUDE.md`, `docs/MAINTAINER-MAP.md`, `docs/TASK-PROMPT.md` and
 `docs/TRADING-LAB.md` before touching anything.
 
+
+> **Status, 26 Nov 2026, 02:30 UTC (the session the founder named as owner of the Trading Lab work):**
+> PR 1 (`lab-access`) is open as #961 (full backend suite passed; CodeQL fix for the email check added). The engine (`lab-flow-engine`) passed
+> its full suite (4,866) and opens as its own PR once #961 merges. The Market depth and Flow board pages (`lab-flow-board`) were redesigned
+> after the founder's two reference videos: boxes sized by the move, the three largest rises and falls as big cards with candles and levels,
+> the day's path in every box, hover cards everywhere (rank, OI, VWAP, S1/S2, R1/R2, zone, facts, candles); the founder approved the look.
+> Sections 3 to 5 below describe the state before that and are kept for history. Next ideas from the founder's second video are in
+> docs/TRADING-LAB.md ("Ideas from the MarketPulse video").
+
 ---
 
 ## 1. The founder's rules (they never change)

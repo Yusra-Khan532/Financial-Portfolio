@@ -107,3 +107,16 @@ Steps (one PR each):
    (market-lab's method on Dhan candles). With signals on: the pick label, entry and exits, R:R and lot-based size.
 5. **Trading journal:** members log trades (by hand or CSV); net P&L, cumulative P&L and drawdown, win rate, profit factor, expectancy, average win
    and loss, best and worst day, streak, daily heatmap; private to the member.
+
+
+## Ideas from the MarketPulse video (founder, 26 Nov 2026)
+
+The founder shared a second reference video (a "MarketPulse" dashboard). What fits FinLit, built one at a time after the Order Flow pages,
+describe-only (calls such as "likely cap", "what's next" or strangle picks stay out, or go to the Signals desk only):
+1. **Money Flow**: ₹ crore flowing into and out of each sector and its stocks, with the surge in ₹ crore a minute, from the engine's
+   3-minute snapshots (turnover change by direction).
+2. **Option Pulse and OI Flow**: put and call open interest strike by strike, and how fast it changes, from the site's option chain.
+3. **RSI heatmap**: stocks oversold or overbought on 5-minute, 15-minute, hourly and daily bars.
+4. **Liquidity map**: price with option walls, inside Stock zones (Order Flow step 4).
+5. **Stock radar**: the five facts drawn as a radar.
+6. **F&O Academy**: lessons with quizzes, inside Learn.
