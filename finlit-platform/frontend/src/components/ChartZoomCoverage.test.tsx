@@ -20,6 +20,7 @@ const ZOOM = [
   "pages/OrderFlow.tsx",      // Trading Lab > Order Flow: the market depth curve and the flow board
   "components/lab/OptionPulse.tsx",   // Trading Lab > Order Flow > Option Pulse: the OI ladder and the max pain curve
   "components/lab/StockZones.tsx",    // Trading Lab > Order Flow > Stock zones: the candles with their zones and levels
+  "components/lab/StockRadar.tsx",    // Trading Lab > Order Flow > Stock radar: one stock's five facts as a radar (with up to two compared) and the small radars
   // company page
   "charts/MiniBars.tsx", "charts/PriceChart.tsx", "charts/IntradayChart.tsx", "charts/FinChart.tsx", "charts/LineChart.tsx", "charts/RoeLines.tsx", "charts/Waterfall.tsx", "charts/Radar.tsx", "charts/OutlookChart.tsx",
   "stock/Sections.tsx", "stock/Sections2.tsx", "stock/Sections3.tsx", "stock/ChartLab.tsx", "stock/SegmentMix.tsx", "stock/ProfitReality.tsx", "stock/RevenueCash.tsx",

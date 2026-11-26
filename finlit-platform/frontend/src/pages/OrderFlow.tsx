@@ -19,6 +19,7 @@ import { LabGate } from "./TradingLab";
 import { ChartZoom } from "../components/ChartZoom";
 import { OptionPulse } from "../components/lab/OptionPulse";
 import { StockZones } from "../components/lab/StockZones";
+import { StockRadar } from "../components/lab/StockRadar";
 import { BucketPop, Candles, DirectionPop, SectorPop, StockPop, TipLayer, tiltHandlers, useTip } from "../components/lab/FlowTips";
 import "../styles/portfolio-disc.css";
 import "../styles/tradinglab.css";
@@ -30,6 +31,7 @@ export const FLOW_TABS = [
   { id: "money", name: "Money Flow", ready: true },
   { id: "options", name: "Option Pulse", ready: true },
   { id: "zones", name: "Stock zones", ready: true },
+  { id: "radar", name: "Stock radar", ready: true },
   { id: "journal", name: "Trading journal", ready: false },
 ];
 
@@ -658,7 +660,7 @@ function FlowSnapshotView({ view }: { view: string }) {
         <span className="muted">{day} · snapshot at {taken.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Kolkata" })} IST · {d.summary.stocks} F&O stocks</span>
       </div>
       {d.notes.map((n) => <p key={n} className="oflow-note muted">{n}</p>)}
-      {view === "board" ? <FlowBoard d={d} /> : view === "money" ? <MoneyFlowView /> : <Depth d={d} />}
+      {view === "board" ? <FlowBoard d={d} /> : view === "money" ? <MoneyFlowView /> : view === "radar" ? <StockRadar stocks={d.stocks} lines={d.lines} /> : <Depth d={d} />}
       <details className="oflow-how"><summary>How it is worked out</summary><p className="muted oflow-method">Change against the previous close; open interest summed over the current and next futures contract against their previous close; VWAP is the day's average traded price; pivots are the classic floor pivots from the previous session's high, low and close. Facts: open interest rose with the move, price on the move's side of VWAP, price beyond R1 or S1, open interest changed 5% or more, price in the top or bottom quarter of the day's range. Source: exchange prices and open interest through Dhan, FinLit's daily prices.</p></details>
     </TipLayer>
   );

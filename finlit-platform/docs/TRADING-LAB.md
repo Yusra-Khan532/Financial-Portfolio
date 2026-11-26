@@ -123,6 +123,24 @@ Dhan calls for a stock someone already looked at in the last minute. The chart s
 
 Describe-only: the tab says where prices traded and whether price came back, never what to do.
 
+### Stock radar (built 26 Nov 2026)
+
+Tab `/lab/flow?view=radar` (`components/lab/StockRadar.tsx`, formulas in `lib/radar.ts`). It reads the same snapshot as the Flow board
+(`GET /api/lab/flow`): no new route and no backend change. One stock's five facts are drawn as a radar with five axes; each axis is a 0 to 1
+strength measured from the number behind the fact, along the stock's own move, and the dashed ring at 0.5 is where the fact begins (outside it the
+fact is met). The ✓ / ✕ / ? on each label is the engine's own fact (`agreement.facts`); a number that is not known leaves its axis blank with the
+reason from the engine's `notes`, never drawn as zero.
+
+* New positions: 0.5 + OI change % ÷ 10 (OI −5% at the centre, no change on the ring, +5% at the rim).
+* VWAP side: 0.5 + (direction × gap from VWAP %) ÷ 2 (1% on the other side at the centre, 1% on the move's side at the rim).
+* Beyond R1 / S1: straight lines through the pivots; for a rise S1 = 0, P = 0.25, R1 = 0.5, R2 = 1 (mirrored for a fall: R1, P, S1, S2).
+* OI change 5%+: |OI change %| ÷ 10 (5% on the ring, 10% or more at the rim).
+* Range end: the price's place in the day's range, low to high for a rise (high to low for a fall); 0 to 0.75 maps to 0 to 0.5, 0.75 to 1 maps to 0.5 to 1.
+
+A stock is chosen by search or by chips (the three stocks with the most facts each way); up to two more can be laid over it (each a different
+colour, dash and marker). Pointing at an axis shows each stock's fact, its number and its strength. Below, small radars show the four stocks with
+the most facts lined up each way (choosing one shows it). Describe-only: it says where each stock stands against the five facts, never what to do.
+
 ## Ideas from the MarketPulse video (founder, 26 Nov 2026)
 
 The founder shared a second reference video (a "MarketPulse" dashboard). What fits FinLit, built one at a time after the Order Flow pages,
@@ -132,5 +150,5 @@ describe-only (calls such as "likely cap", "what's next" or strangle picks stay 
 2. **Option Pulse and OI Flow**: put and call open interest strike by strike, and how fast it changes, from the site's option chain.
 3. **RSI heatmap**: stocks oversold or overbought on 5-minute, 15-minute, hourly and daily bars.
 4. **Liquidity map**: price with option walls, inside Stock zones (Order Flow step 4).
-5. **Stock radar**: the five facts drawn as a radar.
+5. **Stock radar**: the five facts drawn as a radar (built 26 Nov 2026: "Stock radar" above).
 6. **F&O Academy**: lessons with quizzes, inside Learn.

@@ -17,7 +17,7 @@ let access: unknown, flow: unknown;
 beforeEach(() => { vi.stubGlobal("fetch", vi.fn(async (url: string) => json(200, String(url).includes("/api/lab/access") ? access : flow))); });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 const wrap = (path = "/lab/flow") => render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><MemoryRouter initialEntries={[path]}><OrderFlowPage /></MemoryRouter></QueryClientProvider>);
-const settle = async () => { await act(async () => { await new Promise((r) => setTimeout(r, 20)); }); };
+const settle = async () => { for (let i = 0; i < 5; i++) await act(async () => { await new Promise((r) => setTimeout(r, 20)); }); };   // a few ticks: access, then the snapshot, even on a busy machine
 
 const stock = (symbol: string, changePct: number, sector: string, buildup: string | null, score: number, extra: object = {}) => ({
   symbol, name: `${symbol} Ltd`, sector, industry: null, lot: 100, price: 100 + changePct, previousClose: 100, change: changePct, changePct,
@@ -151,5 +151,24 @@ describe("helpers", () => {
     expect(marketLive(new Date("2026-11-25T10:10:00Z"))).toBe(true);    // 15:40 IST
     expect(marketLive(new Date("2026-11-25T10:11:00Z"))).toBe(false);
     expect(marketLive(new Date("2026-11-29T05:00:00Z"))).toBe(false);   // Sunday
+  });
+});
+
+describe("Order Flow > Stock radar", () => {
+  beforeEach(() => { access = { access: true, reason: "granted", expiresAt: null, signals: false }; flow = SNAP; });
+  it("is a tab after Stock zones, and draws the stock with the most facts from the board's own snapshot", async () => {
+    wrap("/lab/flow?view=radar"); await settle();
+    const tabs = within(screen.getByRole("navigation", { name: "Order Flow views" })).getAllByRole("link").map((a) => a.textContent);
+    expect(tabs).toEqual(["Market depth", "Flow board", "Money Flow", "Option Pulse", "Stock zones", "Stock radar"]);
+    expect(screen.getByRole("link", { name: "Stock radar" }).getAttribute("aria-current")).toBe("page");
+    expect(screen.getByRole("heading", { name: "Stock radar" })).toBeTruthy();
+    expect(document.querySelector(".srad-main .srad-svg")!.getAttribute("aria-label")).toMatch(/^Stock radar\. POLICYBZR \(rising, 5 of 5 facts\)/);
+    expect((fetch as unknown as { mock: { calls: string[][] } }).mock.calls.every((c) => /\/api\/lab\/(access|flow)$/.test(String(c[0])))).toBe(true);   // no route of its own
+  });
+  it("before the first snapshot it says when one comes", async () => {
+    flow = { ready: false, reason: "The first snapshot is taken in the next market session (every few minutes, 09:15 to 15:30 IST, weekdays)." };
+    wrap("/lab/flow?view=radar"); await settle();
+    expect(screen.getByRole("heading", { name: "No snapshot yet" })).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: "Stock radar" })).toBeNull();
   });
 });
