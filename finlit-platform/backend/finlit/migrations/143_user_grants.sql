@@ -8,6 +8,9 @@ CREATE TABLE IF NOT EXISTS user_grants (
     granted_at  timestamptz NOT NULL DEFAULT now(),
     expires_at  timestamptz,
     note        text        CHECK (note IS NULL OR length(note) <= 200),
+    -- options per grant. signals: true lets this member see the Lab's trade-signal tools (Buy/Hold/Sell rating, trader's plan, trade-size debate),
+    -- which do not follow FinLit's describe-only wording (founder, 25 Nov 2026: an internal test, off by default, only an administrator turns it on).
+    options     jsonb       NOT NULL DEFAULT '{}'::jsonb,
     PRIMARY KEY (user_id, feature)
 );
 CREATE INDEX IF NOT EXISTS user_grants_feature ON user_grants (feature, granted_at DESC);

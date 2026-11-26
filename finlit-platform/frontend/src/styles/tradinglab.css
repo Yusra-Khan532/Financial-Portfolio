@@ -5,10 +5,20 @@
 .tlab-ic { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: var(--r-ctl); background: color-mix(in srgb, var(--gold) 14%, transparent); color: var(--gold-deep, var(--gold)); }
 .tlab-ic svg { width: 20px; height: 20px; }
 .tlab-who { margin: 0 0 14px; }
+.tlab-steps { list-style: none; margin: 0 0 18px; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; counter-reset: none; }
+.tlab-steps li { position: relative; display: flex; flex-direction: column; gap: 6px; padding: 14px; border: 1px solid var(--border); border-radius: var(--r-card); background: var(--s1); }
+.tlab-steps li:not(:last-child)::after { content: "→"; position: absolute; right: -11px; top: 50%; transform: translateY(-50%); color: var(--gold-deep, var(--gold)); font-weight: 700; }
+.tlab-steps b { display: flex; align-items: center; gap: 8px; }
+.tlab-n { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--gold); color: var(--on-gold); font-size: var(--fs-12); }
 .tlab-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
 .tlab-tool { display: flex; flex-direction: column; gap: 10px; padding: 18px; }
 .tlab-th { display: flex; align-items: center; gap: 12px; }
 .tlab-th h2 { margin: 0; flex: 1; font: var(--ui-fw-medium) var(--ui-fs-h3)/1.3 var(--font-serif); }
 .tlab-tool p { margin: 0; line-height: 1.55; }
+.tlab-sig { margin-top: 26px; padding-top: 20px; border-top: 1px solid var(--border); }
+.tlab-sigh { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.tlab-sigh h2 { margin: 0; font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif); }
+.tlab-sig > p { margin: 8px 0 14px; }
 .tlab-note { margin: 18px 0 0; font-size: var(--fs-14); }
-@media (max-width: 560px) { .tlab-grid { grid-template-columns: 1fr; } .tlab-gate { flex-direction: column; } }
+@media (max-width: 900px) { .tlab-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); } .tlab-steps li:nth-child(2)::after { content: none; } }
+@media (max-width: 560px) { .tlab-grid, .tlab-steps { grid-template-columns: 1fr; } .tlab-steps li::after { content: none !important; } .tlab-gate { flex-direction: column; } }
