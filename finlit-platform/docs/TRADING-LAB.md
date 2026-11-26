@@ -94,7 +94,10 @@ Steps (one PR each):
    (`fno_futures`, `fno_oi_daily`), `GET /api/lab/flow`. One Dhan quote call per snapshot covers every F&O share and its current and next futures
    contract; OI change is against the previous close of the same contracts (stored by the engine; a missing day is filled once from Dhan's daily
    history); pivots only when FinLit's stored previous day matches the quote's previous close. Formulas in the module's docstring.
-2. **Market depth page** (`/lab/flow`, first tab): breadth curve and band histogram, up/down, build-up counts, sector strip, strongest cards each way.
+2. **Market depth page** (`/lab/flow`, first tab; `pages/OrderFlow.tsx`): rising and falling counts with a breadth bar, the depth curve (every
+   stock's change, lowest to highest, hover for the stock), stocks by band of change, the four build-ups with their meaning, sectors by average change
+   (choose one to filter), and "Most facts lined up" cards each way (day's sparkline, build-up, the five facts as dots with their names, OI change,
+   VWAP gap, zone). Refreshes every minute in market hours; "Last session" otherwise. Reached from a card at the top of `/lab`.
 3. **Flow board:** the day's lines of every stock flowing into the bullish and bearish counts, then sector columns, then build-up cards (SVG,
    animated, readable on a phone as stacked columns), with filters.
 4. **Stock zone view:** 5-minute chart with order blocks, fair value gaps, liquidity (previous day high and low, opening range), VWAP and pivots

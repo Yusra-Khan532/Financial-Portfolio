@@ -44,6 +44,7 @@ const FeedbackPage = lazy(() => import("./pages/Feedback").then((m) => ({ defaul
 const LeadershipLabelPage = lazy(() => import("./pages/LeadershipLabel").then((m) => ({ default: m.LeadershipLabelPage })));
 const ConnectAIPage = lazy(() => import("./pages/ConnectAI").then((m) => ({ default: m.ConnectAIPage })));
 const TradingLabPage = lazy(() => import("./pages/TradingLab").then((m) => ({ default: m.TradingLabPage })));
+const OrderFlowPage = lazy(() => import("./pages/OrderFlow").then((m) => ({ default: m.OrderFlowPage })));
 const BrowserExtensionPage = lazy(() => import("./pages/BrowserExtension").then((m) => ({ default: m.BrowserExtensionPage })));
 const CompaniesPage = lazy(() => import("./pages/Companies").then((m) => ({ default: m.CompaniesPage })));
 const GlossaryPage = lazy(() => import("./pages/Glossary").then((m) => ({ default: m.GlossaryPage })));
@@ -192,6 +193,7 @@ export default function App() {
             <Route path="account/:tab" element={<Account />} />
             <Route path="console" element={<Console />} />
             <Route path="lab" element={<TradingLabPage />} />   {/* Trading Lab: admin-granted access (docs/TRADING-LAB.md) */}
+            <Route path="lab/flow" element={<OrderFlowPage />} />   {/* Trading Lab > Order Flow (docs/TRADING-LAB.md) */}
             {/* task #310 part D (04-navigation.md): the company report has the same left menu as every other tool page */}
             <Route path="stocks/:symbol" element={<StockPage />} />
           </Route>
