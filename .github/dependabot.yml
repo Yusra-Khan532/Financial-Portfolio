@@ -17,6 +17,13 @@ updates:
       # Node's types follow the Node the site runs on (22, in the Dockerfile and CI); a new major comes with a planned move of the runtime.
       - dependency-name: "@types/node"
         update-types: ["version-update:semver-major"]
+  - package-ecosystem: npm          # the website's ESLint (frontend/lint): typescript stays on 5.x, the newest typescript-eslint can parse with
+    directory: /finlit-platform/frontend/lint
+    schedule: {interval: weekly}
+    open-pull-requests-limit: 3
+    ignore:
+      - dependency-name: typescript
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: github-actions
     directory: /
     schedule: {interval: weekly}

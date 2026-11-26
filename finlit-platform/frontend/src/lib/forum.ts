@@ -29,7 +29,7 @@ export type QueueItem = {
 export const DISCLAIMER = "Discussion is for information and opinion only. It is not investment advice, a recommendation or a solicitation to buy or sell any security. "
   + "Members are not SEBI-registered advisers unless they say so. Do your own research and consult a registered adviser before you invest.";
 
-export const forumMe = () => useQuery<ForumMe>({ queryKey: ["forum", "me"], queryFn: () => apiGet("/api/forum/me"), staleTime: 60_000 });
+export const useForumMe = () => useQuery<ForumMe>({ queryKey: ["forum", "me"], queryFn: () => apiGet("/api/forum/me"), staleTime: 60_000 });
 export const useStats = (symbol: string) => useQuery<{ threads: number; replies: number; lastActivityAt: string | null; board: Plan | null }>({
   queryKey: ["forum", "stats", symbol], queryFn: () => apiGet(`/api/forum/stats?symbol=${encodeURIComponent(symbol)}`), staleTime: 60_000, retry: false });
 export const send = apiSend;

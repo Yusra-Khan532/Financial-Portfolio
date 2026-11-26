@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 
 const st = vi.hoisted(() => ({ me: { signedIn: true } as { signedIn: boolean } | undefined, stats: { threads: 12, replies: 38 } as { threads: number; replies: number } }));
-vi.mock("../lib/forum", async (orig) => ({ ...(await orig<typeof import("../lib/forum")>()), forumMe: () => ({ data: st.me }), useStats: () => ({ data: st.stats }) }));
+vi.mock("../lib/forum", async (orig) => ({ ...(await orig<typeof import("../lib/forum")>()), useForumMe: () => ({ data: st.me }), useStats: () => ({ data: st.stats }) }));
 vi.mock("../components/forum/ForumParts", () => ({ Disclaimer: () => null, ThreadList: () => null, ThreadView: () => null }));
 import { CommunityStrip } from "./CommunitySection";
 

@@ -11,7 +11,7 @@ import { Icon } from "../lib/icons";
 import { FEEDBACK_TYPES, MESSAGE_MAX, QUERY_MIN, QUERY_TYPES, RATING_WORDS, draftProblem, pageTag, panel, sendPageFeedback, type Kind } from "../lib/pageFeedback";
 import "../styles/pagefeedback.css";
 
-const openKind = () => useSyncExternalStore(panel.sub, panel.get, () => null);
+const useOpenKind = () => useSyncExternalStore(panel.sub, panel.get, () => null);
 
 /** An inline "Raise a Query" for a spot inside a page that invites a question (the screener's "A question about a score?"); it opens the same dialog. */
 export function RaiseQueryButton() {
@@ -112,7 +112,7 @@ export function PageFeedbackHost() {
   const loc = inRouter ? useLocation() : null;   // eslint-disable-line react-hooks/rules-of-hooks
   const pathname = loc?.pathname ?? "/", search = loc?.search ?? "";
   const { user, plan } = useAuth();
-  const open = openKind();
+  const open = useOpenKind();
   useEffect(() => { panel.set(null); }, [pathname]);   // moving to another page closes it: it was about the page left behind
   if (/^\/admin(\/|$)/.test(pathname) || !open) return null;
   return <FeedbackDialog key={open + pathname} kind={open} pathname={pathname} search={search} plan={user ? plan : null} onClose={() => panel.set(null)} />;

@@ -211,12 +211,12 @@ function LeaderCompare({ shares, voice = "own", onLine }: { shares: Share[]; voi
     const b = xs[0].v; return { d: xs.map((x) => x.d), v: xs.map((x) => (x.v / b) * 100) };
   };
   const pairs = leaderOf.flatMap((x) => { if (!x) return []; const a = year(x.mine.symbol), b = year(x.top.symbol); return a && b ? [{ x, a, b }] : []; });
-  if (!lag.length) return null;
   const info: LeaderPair[] = pairs.map(({ x, a, b }) => ({ symbol: x.mine.symbol, leader: x.top.symbol, group: x.mine.peer!.group, mine: a.v[a.v.length - 1] * 1000, theirs: b.v[b.v.length - 1] * 1000,
     leaderBigger: x.top.marketCap != null && x.me?.marketCap != null ? x.top.marketCap >= x.me.marketCap / 3 : null, nextWeek: x.mine.peer!.raw, gaining: x.mine.peer!.direction === "gaining" }));
   const W = 200, H = 90, rupee = (v: number) => `₹${Math.round(v).toLocaleString("en-IN")}`;
   const first = pairs[0] ? `₹1 lakh in ${coName(pairs[0].x.mine)} is now ${rupee(info[0].mine)}; in ${coName(pairs[0].x.top)}, ${rupee(info[0].theirs)}` : "";
   useEffect(() => { if (first) onLine?.(first); }, [first]);   // eslint-disable-line react-hooks/exhaustive-deps
+  if (!lag.length) return null;                               // after every hook: an early return above one changes the hook count between renders
   const line = (v: number[], lo: number, hi: number) => v.map((y, i) => `${i ? "L" : "M"}${((i / (v.length - 1)) * W).toFixed(1)},${(H - ((y - lo) / (hi - lo || 1)) * H).toFixed(1)}`).join("");
   const mon = (d: string) => `${["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][+d.slice(5, 7) - 1]} ${d.slice(0, 4)}`;
   return (
