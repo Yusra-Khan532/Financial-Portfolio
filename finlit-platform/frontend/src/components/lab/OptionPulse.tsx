@@ -8,6 +8,8 @@ import { apiGet } from "../../lib/api";
 import { BUILDUP, around, compact, matchUnderlyings, price, signedNum, strikeText, type Chain, type Expiries, type Row, type Side, type Underlyings } from "../../lib/options";
 import { useTip } from "./FlowTips";
 import { ChartZoom } from "../ChartZoom";
+import { OIFlow } from "./OIFlow";
+import { isFlowUnderlying } from "../../lib/oiflow";
 
 const getUnderlyings = () => apiGet<Underlyings>("/api/options/lab/underlyings");
 const getExpiries = (u: string) => apiGet<Expiries>(`/api/options/lab/expiries?u=${encodeURIComponent(u)}`);
@@ -186,6 +188,7 @@ export function OptionPulse() {
         </aside>
       </div>}
       {c && c.notes.map((n) => <p key={n} className="muted oflow-note">{n}</p>)}
+      {isFlowUnderlying(u) && <OIFlow u={u} />}{/* OI Flow: how fast OI changes by strike, from the 3-minute snapshots (indices only) */}
       <details className="oflow-how"><summary>How it is worked out</summary><p className="muted oflow-method">From Dhan's option chain for the chosen expiry. OI change is today's open interest against the previous session's. PCR (OI) is total put OI divided by total call OI. Max pain is the settlement price at which option buyers would receive the least, on today's OI. Build-up per side: price and OI both up is long build-up, price down and OI up short build-up, price up and OI down short covering, both down long unwinding. Where OI is largest describes where open positions are concentrated; it is not a forecast.</p></details>
     </section>
   );

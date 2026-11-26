@@ -1245,6 +1245,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_lf = sub.add_parser("refresh-lab-flow", help="every 3 minutes in market hours: the Trading Lab's Order Flow snapshot of every F&O stock (one Dhan quote call; lab/flow.py)")
     p_lf.add_argument("--history-seconds", type=float, default=90.0, help="at most this long filling missing previous-session open interest from Dhan's daily history")
     sub.add_parser("refresh-global-cues", help="twice a day: the Trading Lab's Global cues series from FRED's public download (US yields, Fed funds, dollar index, EUR/JPY/CNY, WTI and Brent; lab/global_cues.py)")
+    sub.add_parser("refresh-lab-oi-flow", help="every 3 minutes in market hours: the Trading Lab's OI Flow snapshot of each index's nearest-expiry option chain (site-wide chain turns; lab/oiflow.py)")
     p_cm = sub.add_parser("refresh-commodities", help="commodity prices: MCX futures from Dhan and international prices from metals.dev / MetalpriceAPI into Redis (--loop: keeps running)")
     p_cm.add_argument("--loop", action="store_true")
     p_hp = sub.add_parser("history-probe", help="how many yearly statements each source holds for a few old companies (recorded at /api/mf/status, run:history-probe)")
@@ -1513,6 +1514,16 @@ async def main(argv: Optional[List[str]] = None, settings: Optional[Settings] = 
             from .lab import global_cues
             from .mf import record_run
             result = await global_cues.refresh(store)
+            await record_run(store, args.cmd, result)
+            print(result)
+            return 0 if result["status"] == "ok" else 1
+        if args.cmd == "refresh-lab-oi-flow":
+            from .lab import oiflow as lab_oiflow
+            from .mf import record_run
+            if not settings.dhan_client_id:
+                print({"status": "failed", "error": "Dhan is not set up (DHAN_CLIENT_ID empty)"})
+                return 1
+            result = await lab_oiflow.refresh(store, settings)
             await record_run(store, args.cmd, result)
             print(result)
             return 0 if result["status"] == "ok" else 1
