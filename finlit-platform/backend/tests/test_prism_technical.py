@@ -253,6 +253,19 @@ async def test_no_candles_leaves_the_stored_view_and_says_why_and_five_failures_
     assert out["reasons"].get("unusable_candles", 0) >= 1 and out["updated"] == 0
 
 
+async def test_a_site_backend_refusing_every_company_stops_the_run_and_it_is_failed_not_partial(world):
+    """26 Nov 2026: "400 Invalid host header" for every company. The run went on through 699 companies and was recorded partial, which reset the failure
+    count, so the admin bell said "Resolved: FinLit job failing: technicals" while nothing was refreshed."""
+    store, settings, site, http, seen = world
+    for i in range(18):
+        await seed(store, f"TQH{i}", cap=100 - i)
+    seen["available"] = FRIDAY
+    site.status = 400
+    out = await pt.refresh(store, settings, client=http, now=NOW)
+    assert out["failed"] == 5 and out["updated"] == 0 and out["reasons"] == {"site_backend_400": 5}      # five in a row stop it: not 18 (or 2,500) requests
+    assert out["status"] == "failed" and "five failures" in out["stopped"]                                 # failed, so the alert stays open
+
+
 async def test_an_incomplete_view_never_replaces_a_complete_one(world):
     store, settings, site, http, seen = world
     await seed(store, "TQW")
