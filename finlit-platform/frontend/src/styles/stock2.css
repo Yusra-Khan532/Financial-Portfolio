@@ -567,10 +567,11 @@ a.pr-row:hover, .pr-row.hot { transform: translateX(4px); border-color: color-mi
 .seg.seg-period button:focus-visible { outline: 2px solid var(--focus, var(--gold)); outline-offset: 2px; }
 
 /* Latest quarter: Revenue and Net profit stand out in the tiles and in the table (task #57) */
-.qt.hl { border-color: color-mix(in srgb, var(--gain) 55%, var(--border)); box-shadow: 0 0 0 1px color-mix(in srgb, var(--gain) 28%, transparent); background: color-mix(in srgb, var(--gain) 6%, var(--s1)); }
-.qtt tr.hl td, .qtt tr.sub.hl td { background: color-mix(in srgb, var(--gain) 14%, var(--s1)); font-weight: 700; color: var(--text); border-top: 1.5px solid color-mix(in srgb, var(--gain) 55%, var(--border)); border-bottom: 1.5px solid color-mix(in srgb, var(--gain) 55%, var(--border)); }
-.qtt tr.hl td:first-child, .qtt tr.sub.hl td:first-child { border-left: 4px solid var(--gain); border-radius: var(--r-ctl) 0 0 var(--r-ctl); } .qtt tr.hl td:last-child, .qtt tr.sub.hl td:last-child { border-radius: 0 var(--r-ctl) var(--r-ctl) 0; }
-.qtt tr.sub.hl td.latest, .qtt tr.hl td.latest { background: color-mix(in srgb, var(--gain) 22%, var(--s1)); box-shadow: none; }
+.qt.hl { border-color: color-mix(in srgb, var(--gold) 55%, var(--border)); box-shadow: 0 0 0 1px color-mix(in srgb, var(--gold) 28%, transparent); background: color-mix(in srgb, var(--gold) 6%, var(--s1)); }
+/* developer file 45: the key rows (Revenue, Net profit) are marked in the brand gold; green means only up */
+.qtt tr.hl td, .qtt tr.sub.hl td { background: color-mix(in srgb, var(--gold) 14%, var(--s1)); font-weight: 700; color: var(--text); border-top: 1.5px solid color-mix(in srgb, var(--gold) 55%, var(--border)); border-bottom: 1.5px solid color-mix(in srgb, var(--gold) 55%, var(--border)); }
+.qtt tr.hl td:first-child, .qtt tr.sub.hl td:first-child { border-left: 4px solid var(--gold); border-radius: var(--r-ctl) 0 0 var(--r-ctl); } .qtt tr.hl td:last-child, .qtt tr.sub.hl td:last-child { border-radius: 0 var(--r-ctl) var(--r-ctl) 0; }
+.qtt tr.sub.hl td.latest, .qtt tr.hl td.latest { background: color-mix(in srgb, var(--gold) 22%, var(--s1)); box-shadow: none; }
 /* Task #222 (19 Nov pack): 17, the year in progress ("so far", hatched, out of the average) and E1, the yield ring, scoped to 17 (the dashboard's .dk-ring
    of dash-shared.css made it 38 px, too small for its figure): 64 px with the figure inside it. */
 .dbars .dcol.part i { opacity: .5; background-image: repeating-linear-gradient(135deg, transparent 0 5px, color-mix(in srgb, var(--s1) 55%, transparent) 5px 9px); }

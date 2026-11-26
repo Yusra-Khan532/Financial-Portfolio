@@ -28,7 +28,7 @@
 .ws-row span { display: inline-flex; align-items: center; gap: 4px; } .ws-row b { font-variant-numeric: tabular-nums; text-align: right; }
 .ws-small { display: block; margin: 2px 0 6px; font-size: var(--fs-12); color: var(--sp-mute); }
 .ws-spark { width: 100%; max-width: 420px; height: 60px; display: block; }
-.ws-area { fill: color-mix(in srgb, #0E6471 10%, transparent); } .ws-line { stroke: #0E6471; stroke-width: 1.6; } .ws-mid { stroke: var(--sp-mute); stroke-dasharray: 3 3; stroke-width: 1; }
+.ws-area { fill: color-mix(in srgb, var(--cmp) 10%, transparent); } .ws-line { stroke: var(--cmp); stroke-width: 1.6; }   /* developer file 45: the industry is context, grey */ .ws-mid { stroke: var(--sp-mute); stroke-dasharray: 3 3; stroke-width: 1; }
 .ws-h3 { display: flex; align-items: center; gap: 6px; margin: 0 0 4px; font: 400 var(--fs-24)/1.25 var(--serif); color: var(--sp-ink); }
 
 .ws-bars { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 4px; max-width: 600px; }

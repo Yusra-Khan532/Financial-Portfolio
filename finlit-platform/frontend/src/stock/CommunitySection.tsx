@@ -68,8 +68,8 @@ export function CommunitySection({ symbol, name }: { symbol: string; name: strin
   const count = n == null ? null : plural(n, "discussion");
   const threads = stats?.threads ?? n ?? 0, replies = stats?.replies ?? 0;
   return (
-    <section className="block fo-rep" ref={top} aria-label="Community discussions" style={{ "--sc": "var(--gold)" } as React.CSSProperties}>
-      <SectionHead id="community" no="Community" icon="users" title="Community discussions" color="--gold"
+    <section className="block fo-rep" ref={top} aria-label="Community discussions">
+      <SectionHead id="community" no="Community" icon="users" title="Community discussions"
         sub={`What members are saying about ${short}. Opinion only, not advice.`}
         aside={me?.signedIn ? <Link className="btn" to={`/forum/c/${encodeURIComponent(symbol)}`}>Open in Discussion forums</Link> : undefined} />
       {me && !me.signedIn ? (

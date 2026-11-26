@@ -45,8 +45,8 @@ export function NewsSection({ e, name, symbol }: { e?: Events; name: string; /**
     if (!on && card.current && card.current.getBoundingClientRect().top < 0) card.current.scrollIntoView({ block: "start" });   // collapsing from below: back to the card
   };
   return (
-    <section className="block nf-block" style={{ "--sc": "var(--k1)" } as React.CSSProperties}>
-      <SectionHead id="news" no="News and filings" icon="notes" tier="basic" title="What the company has told the exchange" sub="Filings to NSE, newest first. Each one opens the company's own document on the NSE website." color="--k1" />
+    <section className="block nf-block">
+      <SectionHead id="news" no="News and filings" icon="notes" tier="basic" title="What the company has told the exchange" sub="Filings to NSE, newest first. Each one opens the company's own document on the NSE website." />
       {plain && <Plain>{plain}</Plain>}
       {tiles.length > 0 && <>
         <p className="nf-cap label">Latest in each group</p>
@@ -56,7 +56,7 @@ export function NewsSection({ e, name, symbol }: { e?: Events; name: string; /**
             <span className="nf-hk">{GROUP[h.group].label}</span><b>{h.title}</b><SentimentChip s={sentOf(h.filing)} /><span className="nf-hd">{dayNum(h.filing.date)} {monShort(h.filing.date)} {h.filing.date.slice(0, 4)}{link ? <> · PDF <i aria-hidden="true">↗</i></> : null}</span></Tag>;
         })}</div>
       </>}
-      <div className={"card acc nf-card" + (routine ? " rt" : "") + (all ? " all" : "")} id="announcements" ref={card} style={{ "--ac": "var(--k1)" } as React.CSSProperties}>
+      <div className={"card acc nf-card" + (routine ? " rt" : "") + (all ? " all" : "")} id="announcements" ref={card}>
         <div className="card-h"><h3><span className="ci"><Icon name="notes" /></span>All filings<ChartHelp id="news-filings" label="About these filings" /></h3>
           <span className="s nf-s"><span className="nf-n">{g === "all" && nInView < live.length ? `${nInView} of ${live.length} filings shown` : `${nInView} filing${nInView === 1 ? "" : "s"}`}</span>{nRoutine > 0 && <> · <button type="button" className="nf-rtb" aria-pressed={routine} onClick={() => setRoutine(!routine)}>{routine ? "Hide routine filings" : `Show ${nRoutine} routine filing${nRoutine === 1 ? "" : "s"}`}</button></>}</span></div>
         {live.length > 0 && <div className="fchips nf-f" role="group" aria-label="Show filings by group">

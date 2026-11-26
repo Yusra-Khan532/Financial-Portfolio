@@ -32,7 +32,6 @@ import { codeText, coTitle } from "../lib/companyLabel";
 const v = (n: string) => `var(${n})`;
 
 /* ================= Ratios ================= */
-const GROUP_COLOR: Record<string, string> = { valuation: "--p-quality", returns: "--p-quality", margins: "--p-profit", growth: "--p-growth", leverage: "--p-balance", liquidity: "--p-balance", efficiency: "--p-profit", shareholder: "--gold-deep", quality: "--p-quality" };
 const GROUP_ICON: Record<string, string> = { valuation: "tag", returns: "quality", margins: "profit", growth: "growth", leverage: "balance", liquidity: "balance", efficiency: "activity", shareholder: "coins", quality: "quality" };
 const GOLD_GROUPS = new Set(["leverage", "liquidity", "efficiency", "quality", "shareholder"]);
 const DUPES: Record<string, string> = { sales_cagr: "revenue_cagr_5y", profit_cagr: "profit_cagr_5y", npm: "net_margin", opm: "operating_margin" };
@@ -135,7 +134,7 @@ function ValuationHistory({ r }: { r: Ratios }) {
     <div className="vh">
       <ChartZoom label="Valuation history" className="cz-r">
       <div className="tools"><div><div className="label" style={{ display: "flex", alignItems: "center", gap: 8 }}>Valuation history<ChartHelp id="valuation-history" /></div><p className="faint" style={{ margin: "4px 0 0", fontSize: "var(--fs-13)" }}>How much investors paid over the years</p></div><div className="seg">{(["pe", "pb", "ps"] as const).map((x) => <button key={x} aria-pressed={k === x} onClick={() => setK(x)}>{x === "pe" ? "P/E" : x === "pb" ? "P/B" : "P/S"}</button>)}</div></div>
-      <LineChart periods={vh.periods} series={[{ key: k, label: name, color: "var(--c4)", values: vals }]} fmt={(x) => nf(x, 1) + "×"} area avg={mean} height={250} />
+      <LineChart periods={vh.periods} series={[{ key: k, label: name, color: "var(--c1)", values: vals }]} fmt={(x) => nf(x, 1) + "×"} area avg={mean} avgColor="var(--cmp)" height={250} />
       {/* task #328 (developer file 27, change 5): the chart keeps its drawn size (720 × 250); the three figures are rows beside it, In simple words under them */}
       <div className="vh-side">
       <div className="vh-top">
@@ -154,13 +153,13 @@ export function RatiosSection({ r, lender = false, sector, industry, labels }: {
   const { has, upgrade } = useUI();
   const [sel, setSel] = useState("pe");
   const ef = useEarningsFindings(r?.meta.symbol ?? "", lender, sector, industry, labels);
-  if (!r) return <section className="block"><SectionHead id="ratios" no="Ratios" icon="gauge" tier="basic" title="Valuation, returns, margins and debt" color="--p-profit" /><div className="skeleton" style={{ height: 300 }} /></section>;
+  if (!r) return <section className="block"><SectionHead id="ratios" no="Ratios" icon="gauge" tier="basic" title="Valuation, returns, margins and debt" /><div className="skeleton" style={{ height: 300 }} /></section>;
   const hist = r.history, meters = METERS.filter((m) => r.latest[m.key]);
   const cur = meters.find((m) => m.key === sel) || meters[0];
   return (
     <>
-    <section className="block" style={{ "--sc": "var(--p-profit)" } as React.CSSProperties}>
-      <SectionHead id="ratios" no="Ratios" icon="gauge" tier="basic" title="Valuation, returns, margins and debt" sub="Latest value with its period. Select i for what it means and how to read it." color="--p-profit" />
+    <section className="block">
+      <SectionHead id="ratios" no="Ratios" icon="gauge" tier="basic" title="Valuation, returns, margins and debt" sub="Latest value with its period. Select i for what it means and how to read it." />
       <Plain>Ratios turn big numbers into fair comparisons. The meters below show where each one sits against common rules of thumb. Zones are a starting point: always compare with companies in the same industry.</Plain>
       <div className="mtr-grid">{meters.map((m) => <Meter key={m.key} m={m} r={r} on={cur?.key === m.key} onSel={() => setSel(m.key)} />)}</div>
       {cur && <p className="mtr-say" aria-live="polite"><b>{r.latest[cur.key].label}</b> {cur.say(r.latest[cur.key].value)}</p>}
@@ -168,7 +167,7 @@ export function RatiosSection({ r, lender = false, sector, industry, labels }: {
       <TabGroup label="Ratios" variant="key" hint="Ratio history shown here" views={[
         { key: "history", label: "Ratio history", content: <>
       <Gate tier="gold" title="Detailed ratio analysis" points={["Every ratio with its history", "Quality, growth, solvency and efficiency", "Full multi-year table"]}>
-        <div className="card acc" style={{ marginTop: 16, "--ac": "var(--p-profit)" } as React.CSSProperties}>
+        <div className="card acc" style={{ marginTop: 16 } as React.CSSProperties}>
           <div className="card-h"><h3><span className="ci"><Icon name="table" /></span>Ratio history<ChartHelp id="ratio-history" /></h3><TierChip tier="gold" /></div>
           <HistoryTable r={r} profile={{ sector, industry, subIndustry: labels?.[2] }} />
           <ValuationHistory r={r} />
@@ -182,7 +181,7 @@ export function RatiosSection({ r, lender = false, sector, industry, labels }: {
           const gold = GOLD_GROUPS.has(g.id) && !has("gold");
           const rows = gold ? keys.slice(0, 2) : keys;
           return (
-            <div className="card acc hover-lift rg" key={g.id} style={{ "--ac": v(GROUP_COLOR[g.id] || "--gold") } as React.CSSProperties}>
+            <div className="card acc hover-lift rg" key={g.id}>{/* developer file 45: the ratio groups' cards are gold like every card (they had five edge colours) */}
               <div className="card-h"><h3><span className="ci"><Icon name={GROUP_ICON[g.id] || "info"} /></span>{g.label}</h3><span className="chip ghost">{rows.length} ratios</span></div>
               {rows.map((k) => {
                 const e = r.latest[k], gl = r.glossary[k];
@@ -198,7 +197,7 @@ export function RatiosSection({ r, lender = false, sector, industry, labels }: {
       <p className="faint" style={{ fontSize: "var(--fs-12)", margin: "10px 2px 0" }}>▲ higher is usually better · ▼ lower is usually better</p>
         </> },
         { key: "profit", label: "Profitability ratios", content: <>
-      <div className="card acc" style={{ margin: "0 0 8px", "--ac": "var(--p-profit)" } as React.CSSProperties}>
+      <div className="card acc" style={{ margin: "0 0 8px" } as React.CSSProperties}>
         <div className="card-h"><h3><span className="ci"><Icon name="gauge" /></span>Profitability ratios<ChartHelp id="profit-ratios" /></h3><span className="chip ghost">Annual · 8 years</span></div>
         <ProfitabilityRatios periods={hist.periods} rows={hist.rows as Record<string, (number | null)[]>} />
       </div>
@@ -206,9 +205,9 @@ export function RatiosSection({ r, lender = false, sector, industry, labels }: {
       ]} />
     </section>
       <DuPont symbol={r.meta.symbol} lender={lender}
-        head={<SectionHead id="dupont" no="DuPont analysis" icon="layers" tier="basic" title="What drives return on equity" sub="ROE split into profit margin, asset turnover and leverage, then cleaned of one-off items and split further." color="--p-quality" />} />
-      <section className="block" style={{ "--sc": "var(--p-profit)" } as React.CSSProperties}>
-        <SectionHead id="earnings" no="Earnings & cash quality" icon="shield" tier="gold" title="Is the profit real, and is it turning into cash?" sub="Profit against cash, collections and stock, and one-off items." color="--p-profit" counts={ef ? [{ n: ef.red, label: ef.red === 1 ? "red flag" : "red flags", tone: "red" }, { n: ef.watch, label: "to watch", tone: "amb" }, { n: ef.investigate, label: "to investigate", tone: "amb" }] : undefined} />
+        head={<SectionHead id="dupont" no="DuPont analysis" icon="layers" tier="basic" title="What drives return on equity" sub="ROE split into profit margin, asset turnover and leverage, then cleaned of one-off items and split further." />} />
+      <section className="block">
+        <SectionHead id="earnings" no="Earnings & cash quality" icon="shield" tier="gold" title="Is the profit real, and is it turning into cash?" sub="Profit against cash, collections and stock, and one-off items." counts={ef ? [{ n: ef.red, label: ef.red === 1 ? "red flag" : "red flags", tone: "red" }, { n: ef.watch, label: "to watch", tone: "amb" }, { n: ef.investigate, label: "to investigate", tone: "amb" }] : undefined} />
         <EarningsCash symbol={r.meta.symbol} lender={lender} sector={sector} industry={industry} labels={labels} />
       </section>
     </>
@@ -240,11 +239,11 @@ export function PeersSection({ p, self, s }: { p?: Peers; self: string; s: Summa
   const hov = hv ? peers.find((i) => i.symbol === hv) : null;
   const N = peers.length, CX = 190, CY = 190, RR = 128;
   return (
-    <section className="block" style={{ "--sc": "var(--gold-deep)" } as React.CSSProperties}>
-      <SectionHead id="peers" no="Peers" icon="layers" tier="basic" title={`How ${s.profile.name.split(" ")[0]} compares with its peers`} sub="Select a company to open its report." color="--gold-deep" />
+    <section className="block">
+      <SectionHead id="peers" no="Peers" icon="layers" tier="basic" title={`How ${s.profile.name.split(" ")[0]} compares with its peers`} sub="Select a company to open its report." />
       <Plain>Comparing a company with its closest rivals is the quickest way to tell whether a number is good or just normal for the industry. {cls?.industry ? `${s.profile.name.split(" ")[0]} is in NSE's ${cls.industry} industry${cls.basic_industry ? ` (basic industry: ${cls.basic_industry})` : ""}; these ${N} are the companies the data provider lists as its peers.` : ""}</Plain>
       <div className="pr2">
-        <div className="card acc orbit-card" style={{ "--ac": "var(--gold)" } as React.CSSProperties}>
+        <div className="card acc orbit-card">
           <ChartZoom label="Peer map: companies in the same industry">
           <svg viewBox="0 0 380 380" role="group" aria-label="Map of companies in the same industry">
             <defs><radialGradient id="orb" cx=".5" cy=".5" r=".5"><stop offset="0" stopColor="var(--gold)" stopOpacity=".22" /><stop offset="1" stopColor="var(--gold)" stopOpacity="0" /></radialGradient>
@@ -287,8 +286,8 @@ export function PeersSection({ p, self, s }: { p?: Peers; self: string; s: Summa
 /** Segments: where the revenue comes from, by business segment (its own section since it left the old Gold insights). */
 export function SegmentsSection({ seg }: { seg?: Segments }) {
   return (
-    <section className="block" style={{ "--sc": "var(--p-profit)" } as React.CSSProperties}>
-      <SectionHead id="segments" no="Segments" icon="pie" tier="gold" title="Where the revenue comes from" sub="Each business segment's share of revenue, its growth and its profit, year by year." color="--p-profit" />
+    <section className="block">
+      <SectionHead id="segments" no="Segments" icon="pie" tier="gold" title="Where the revenue comes from" sub="Each business segment's share of revenue, its growth and its profit, year by year." />
       <Gate tier="gold" title="Unlock revenue segmentation" points={["Revenue by business segment, year by year", "Each segment's share, growth and profit", "How dependent the company is on one segment"]}>
         <SegmentCard seg={seg} />
       </Gate>

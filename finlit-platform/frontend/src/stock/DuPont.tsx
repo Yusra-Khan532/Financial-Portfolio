@@ -108,5 +108,5 @@ export function DuPont({ symbol, lender, head }: { symbol: string; lender: boole
     </div>
   );
   // as its own section: the header comes only when there is a DuPont analysis to show
-  return head ? (has ? <section className="block" style={{ "--sc": "var(--p-quality)" } as React.CSSProperties}>{head}{body}</section> : null) : body;
+  return head ? (has ? <section className="block">{head}{body}</section> : null) : body;
 }

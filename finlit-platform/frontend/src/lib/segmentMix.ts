@@ -6,7 +6,9 @@ import { MINUS, nf } from "./format";
 
 export const MIN_YEARS = 3;
 export const OTHERS_COLOR = "var(--faint)";
-const PALETTE = ["--k1", "--k2", "--k3", "--k4", "--k5", "--k6", "--k7", "--k8"].map((n) => `var(${n})`);
+/** Developer file 45 (founder, 27 Nov 2026: "too many colours? yes"): the report's palette, five colours with no green or red in it (styles/report45.css);
+ *  it had eight, green and red among them, which elsewhere on the page mean up and down. */
+const PALETTE = ["--c1", "--c2", "--c3", "--c4", "--c5"].map((n) => `var(${n})`);
 export const REMAINING = "Remaining segments";
 
 const last = <T,>(a: T[]) => a[a.length - 1];
@@ -21,14 +23,16 @@ export function segmentNames(seg: Segments | undefined): string[] {
   return Object.keys(table).sort((a, b) => Number(active(b)) - Number(active(a)) || lastRev(b) - lastRev(a));
 }
 
-/** One colour per segment, the same everywhere in the card. "Others" is always neutral; named segments take --k1..--k8 in order. Past eight, the rest share one neutral colour and the chart groups them. */
+/** One colour per segment, the same everywhere in the card. "Others" is always neutral; named segments take --c1..--c5 in order. Past five, the rest are
+ *  grey: a single one keeps its own name (Reliance's Financial Services), two or more are grouped as "Remaining segments" in the chart. */
 export function segmentColors(names: string[]): { color: Record<string, string>; grouped: string[] } {
   const color: Record<string, string> = {}, grouped: string[] = [];
+  const extra = names.filter((n) => !isOthers(n)).length - PALETTE.length;
   let i = 0;
   for (const n of names) {
     if (isOthers(n)) color[n] = OTHERS_COLOR;
     else if (i < PALETTE.length) color[n] = PALETTE[i++];
-    else { color[n] = "var(--muted)"; grouped.push(n); i++; }
+    else { color[n] = "var(--muted)"; if (extra > 1) grouped.push(n); i++; }
   }
   return { color, grouped };
 }

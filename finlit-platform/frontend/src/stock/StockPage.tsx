@@ -28,6 +28,7 @@ import { useDocTitle } from "../lib/title";
 import "../styles/report-polish.css";
 import "../styles/report216.css";   // task #216: compact headings, drop-down arrow, enlarge and phone rules (after the polish tokens it adjusts)
 import "../styles/company-report-layout.css";   // task #328 (developer file 27): the eight layout changes, after the sheets they adjust
+import "../styles/report45.css";   // developer file 45: the colour roles (gold, green and red, blue and grey, one palette)
 import { MiniBar } from "./MiniBar";
 import { useEarningsFindings } from "./EarningsCash";
 import { KeyFindings, checkItems, findingsOf } from "./KeyFindings";

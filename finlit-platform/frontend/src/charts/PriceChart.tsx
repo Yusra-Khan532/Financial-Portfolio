@@ -1,5 +1,5 @@
 import { useRef } from "react";
-import { css, drawIn, el, niceTicks, reduced, vgrad } from "../lib/svg";
+import { css as cssAt, drawIn, el, niceTicks, reduced, vgrad } from "../lib/svg";
 import { dateIN, nf } from "../lib/format";
 import { useChart } from "./useChart";
 import type { PriceRange } from "../lib/api";
@@ -17,6 +17,7 @@ export function PriceChart({ data, showEma50, showEma200, showVol, candles = fal
   const tip = useRef<HTMLDivElement>(null), note = useRef<HTMLParagraphElement>(null);
   const s = data.series, asCandles = candles && hasOhlc(s);
   const { wrap, svg } = useChart((svgEl, W, first, fill) => {
+    const css = (v: string) => cssAt(v, svgEl);   // developer file 45: colours are read where the chart sits, so the report's palette (styles/report45.css) applies
     const n = s.t.length;
     if (n < 2) return;
     // task #167: in the full-screen view the chart fills the height (fill), else its own height
@@ -41,7 +42,7 @@ export function PriceChart({ data, showEma50, showEma200, showVol, candles = fal
       t.textContent = dateIN(s.t[idx], data.range === "1M" ? { day: "numeric", month: "short" } : { month: "short", year: "2-digit" });
     }
     if (showVol) {
-      const vv = s.v.map((v) => v ?? 0), vmax = Math.max(...vv, 1), base = H - pb, bw = Math.max(1.2, (W - pl - pr) / n - 1.4), vg = vgrad(svgEl, css("--c4"), 0.55, 0.15);
+      const vv = s.v.map((v) => v ?? 0), vmax = Math.max(...vv, 1), base = H - pb, bw = Math.max(1.2, (W - pl - pr) / n - 1.4), vg = vgrad(svgEl, css("--cmp"), 0.55, 0.15);   // developer file 45: volume is context, grey
       vv.forEach((v, i) => el("rect", { x: x(i) - bw / 2, y: base - (v / vmax) * volH, width: bw, height: (v / vmax) * volH, rx: Math.min(2, bw / 2), fill: vg }, svgEl));
     }
     const line = s.c.map((p, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(p).toFixed(1)}`).join("");
@@ -86,6 +87,7 @@ export function PriceChart({ data, showEma50, showEma200, showVol, candles = fal
   }, [data, showEma50, showEma200, showVol, asCandles]);
 
   function drawCandleChart(svgEl: SVGSVGElement, W: number, H: number, { pl, pr, pt, pb, volH }: { pl: number; pr: number; pt: number; pb: number; volH: number }) {
+    const css = (v: string) => cssAt(v, svgEl);
     const src: Ohlc = { t: s.t, o: s.o!, h: s.h!, l: s.l!, c: s.c, v: s.v, ema50: s.ema50, ema200: s.ema200 };
     const { s: g, per } = calendarCandles(src, data.grain, maxCandles(W - pl - pr));
     const n = g.t.length, li = n - 1;

@@ -138,7 +138,7 @@ export function PrismMethod({ symbol, statement }: { symbol: string; statement: 
   if (!rep || !parts.length) return null;
   const miss = rep.review?.completeness;
   return (
-    <div className="card acc pz-method" id="prism-method" style={{ "--ac": "var(--gold)" } as React.CSSProperties}>
+    <div className="card acc pz-method" id="prism-method">
       <div className="card-h"><h3><span className="ci"><Icon name="layers" /></span>FinLit Prism: pros and cons by part</h3><span className="s">{prismSummary(rep.rating)}</span></div>
       <div className="pz-mgrid">
         {parts.map((p) => (

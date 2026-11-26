@@ -1,5 +1,5 @@
 import { useRef } from "react";
-import { css, drawIn, el, niceTicks, vgrad } from "../lib/svg";
+import { css as cssAt, drawIn, el, niceTicks, vgrad } from "../lib/svg";
 import { nf } from "../lib/format";
 import { axisDay, barSpan, dayDomain, dayTicks, hhmm, istDay, istMinutes, OPEN_MIN, sessionStarts } from "../lib/intraday";
 import { labelEvery } from "../lib/chartAxis";
@@ -19,6 +19,7 @@ export function IntradayChart({ data, showVol, candles = false }: { data: Intrad
   const tip = useRef<HTMLDivElement>(null), note = useRef<HTMLParagraphElement>(null);
   const s0 = data.series!;
   const { wrap, svg } = useChart((svgEl, W, first, fill) => {
+    const css = (v: string) => cssAt(v, svgEl);   // developer file 45: colours are read where the chart sits, so the report's palette (styles/report45.css) applies
     if (s0.t.length < 2) return;
     // task #167: in the full-screen view the chart fills the height (fill), else its own height
     const H = Math.max(W < 520 ? 260 : 470, fill ?? 0), pl = 4, pr = 56, pt = 16, pb = 28, volH = showVol ? 46 : 0, iw = W - pl - pr;
@@ -64,7 +65,7 @@ export function IntradayChart({ data, showVol, candles = false }: { data: Intrad
     if (showVol && cs) drawCandleVolume(svgEl, s, x, H - pb, volH, cbw);
     else if (showVol) {
       const vv = s.v.map((v) => v ?? 0), vmax = Math.max(...vv, 1), base = H - pb;
-      const bw = Math.max(1, slotW - 1.2), vg = vgrad(svgEl, css("--c4"), 0.55, 0.15);
+      const bw = Math.max(1, slotW - 1.2), vg = vgrad(svgEl, css("--cmp"), 0.55, 0.15);   // developer file 45: volume is context, grey
       vv.forEach((v, i) => el("rect", { x: x(i) - bw / 2, y: base - (v / vmax) * volH, width: bw, height: (v / vmax) * volH, rx: Math.min(2, bw / 2), fill: vg }, svgEl));
     }
     if (cs) drawCandles(svgEl, s, x, y, cbw);

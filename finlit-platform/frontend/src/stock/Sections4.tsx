@@ -18,7 +18,9 @@ const eps = (v: number) => (v < 0 ? MINUS : "") + "₹" + nf(v, 1);
 const row = (t: Table | undefined, k: string) => (t?.rows[k] || []) as (number | null)[];
 const chg = (a: number | null | undefined, b: number | null | undefined) => (a == null || b == null || !b ? null : ((a - b) / Math.abs(b)) * 100);
 const ratio = (a: (number | null)[], b: (number | null)[]) => a.map((x, i) => (x != null && b[i] ? (x / (b[i] as number)) * 100 : null));
-const G = "var(--k3)", INK = "var(--c2)", STONE = "var(--c4)", DEEP = "var(--c1)";
+// developer file 45 (founder, 27 Nov 2026: "too many colours? yes"): a chart of one line of this company is blue; a second line beside it is the palette's
+// second colour. The quarter tiles and the trend cards had four colours (green, blue, orange, violet) for single lines with no meaning between them.
+const ONE = "var(--c1)", TWO = "var(--c2)";
 
 function Delta({ v, label }: { v: number | null; label: string }) {
   if (v == null) return <span className="qd none">{label} —</span>;
@@ -65,17 +67,17 @@ export function QuarterSection({ f }: { f?: Financials }) {
   const opm = ratio(op, rev), npm = ratio(np, rev);
   const end = q.periodEnds?.[last] ? new Date(q.periodEnds[last]).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" }) : q.periods[last];
   const tiles = [
-    { k: "Revenue", v: rev, fmt: (x: number) => (x < 0 ? MINUS : "") + "₹" + cr(Math.abs(x)) + " Cr", bar: crf, ic: "rupee", c: G },
-    { k: "Operating profit", v: op, fmt: (x: number) => (x < 0 ? MINUS : "") + "₹" + cr(Math.abs(x)) + " Cr", bar: crf, ic: "growth", c: DEEP, sub: opm[last] != null ? `${nf(opm[last] as number, 1)}% margin` : "" },
-    { k: "Net profit", v: np, fmt: (x: number) => (x < 0 ? MINUS : "") + "₹" + cr(Math.abs(x)) + " Cr", bar: crf, ic: "profit", c: INK, sub: npm[last] != null ? `${nf(npm[last] as number, 1)}% margin` : "" },
-    { k: "Earnings per share", v: ep, fmt: (x: number) => (x < 0 ? MINUS : "") + "₹" + nf(x, 2), bar: eps, ic: "coins", c: STONE },
+    { k: "Revenue", v: rev, fmt: (x: number) => (x < 0 ? MINUS : "") + "₹" + cr(Math.abs(x)) + " Cr", bar: crf, ic: "rupee", c: ONE },
+    { k: "Operating profit", v: op, fmt: (x: number) => (x < 0 ? MINUS : "") + "₹" + cr(Math.abs(x)) + " Cr", bar: crf, ic: "growth", c: ONE, sub: opm[last] != null ? `${nf(opm[last] as number, 1)}% margin` : "" },
+    { k: "Net profit", v: np, fmt: (x: number) => (x < 0 ? MINUS : "") + "₹" + cr(Math.abs(x)) + " Cr", bar: crf, ic: "profit", c: ONE, sub: npm[last] != null ? `${nf(npm[last] as number, 1)}% margin` : "" },
+    { k: "Earnings per share", v: ep, fmt: (x: number) => (x < 0 ? MINUS : "") + "₹" + nf(x, 2), bar: eps, ic: "coins", c: ONE },
   ];
   const npY = chg(np[last], yoy >= 0 ? np[yoy] : null), rvY = chg(rev[last], yoy >= 0 ? rev[yoy] : null);
   const lines: [string, (number | null)[], boolean?][] = [["Revenue", rev], ["Expenses", row(q, "expenses")], ["Operating profit", op, true], ["Other income", row(q, "other_income")], ["Interest", row(q, "finance_costs")], ["Depreciation", row(q, "depreciation")], ["Profit before tax", row(q, "profit_before_tax"), true], ["Tax", row(q, "tax")], ["Net profit", np, true], ["EPS (₹)", ep]];
   const cols = [last, last - 1, yoy].filter((i) => i >= 0);
   return (
-    <section className="block" style={{ "--sc": "var(--gold-deep)" } as React.CSSProperties}>
-      <SectionHead id="quarter" no="Latest quarter" icon="notes" tier="basic" title={`${q.periods[last]} quarter against a year ago`} sub={`Quarter ended ${end}. Compared with the previous quarter and the same quarter a year earlier.`} color="--gold-deep" />
+    <section className="block">
+      <SectionHead id="quarter" no="Latest quarter" icon="notes" tier="basic" title={`${q.periods[last]} quarter against a year ago`} sub={`Quarter ended ${end}. Compared with the previous quarter and the same quarter a year earlier.`} />
       {rvY != null && npY != null && <Plain tone={npY >= 0 ? "good" : "warn"}>In the latest quarter, sales {rvY >= 0 ? "grew" : "fell"} {nf(Math.abs(rvY), 1)}% and profit {npY >= 0 ? "rose" : "fell"} {nf(Math.abs(npY), 1)}% compared with the same quarter last year.{opm[last] != null && opm[yoy] != null ? ` The operating margin ${(opm[last] as number) >= (opm[yoy] as number) ? "widened" : "narrowed"} from ${nf(opm[yoy] as number, 1)}% to ${nf(opm[last] as number, 1)}%.` : ""}</Plain>}
       <div className="qk">{tiles.map((t) => (
         <div className={"qt" + (t.k === "Revenue" || t.k === "Net profit" ? " hl" : "")} key={t.k} style={{ "--qc": t.c } as React.CSSProperties}>
@@ -86,7 +88,7 @@ export function QuarterSection({ f }: { f?: Financials }) {
           <MiniBars labels={q.periods.slice(-8)} series={[{ key: t.k, label: t.k, values: t.v.slice(-8), color: t.c }]} fmt={t.bar} height={116} highlight={7 - (t.v.slice(-8).length < 8 ? 8 - t.v.slice(-8).length : 0)} />
         </div>))}</div>
       <IndustryCard read={ind} />
-      <div className="card acc qtab" style={{ "--ac": "var(--gold)" } as React.CSSProperties}>
+      <div className="card acc qtab">
         <div className="card-h"><h3><span className="ci"><Icon name="table" /></span>Profit and loss for the quarter<ChartHelp id="quarter-table" /></h3><span className="s">₹ Crore · latest quarter’s change shown under its figure</span></div>
         <HScroll className="" label="table"><table className="qtt"><thead><tr><th>Line</th>{cols.map((i, j) => <th key={i} className={j === 0 ? "latest" : ""}>{q.periods[i]}{j === 0 ? " (latest)" : j === 1 ? " (last quarter)" : " (year ago)"}</th>)}</tr></thead>
           <tbody>{lines.map(([k, v, b]) => { const qoq = chg(v[last], v[last - 1]), yoyC = yoy >= 0 ? chg(v[last], v[yoy]) : null;
@@ -175,8 +177,8 @@ export function TrendsSection({ f: pageF, e, r: pageR }: { f?: Financials; e?: E
       : finQ.isError ? `${nameOf(chosen as Basis)} accounts could not be loaded right now (${finQ.error?.status === 503 ? "the data provider did not answer" : "please try again in a moment"}). The ${pageF.meta.statement} accounts are still here: press ${nameOf(pageF.meta.statement)}.`
         : `Loading ${chosen as Basis} accounts…`;
     return (
-      <section className="block" style={{ "--sc": "var(--gold)" } as React.CSSProperties}>
-        <SectionHead id="trends" no="Trends" icon="line" tier="basic" title="How sales, profit and cash have moved" sub={head(chosen as Basis)} color="--gold" />
+      <section className="block">
+        <SectionHead id="trends" no="Trends" icon="line" tier="basic" title="How sales, profit and cash have moved" sub={head(chosen as Basis)} />
         <div className="tr-bar"><span className="faint" style={{ fontSize: "var(--fs-13)", alignSelf: "center" }}>Accounts</span>{basisSeg}</div>
         <p className={noneFor || finQ.isError ? "muted" : "faint"} role="status" style={{ fontSize: "var(--fs-14)", margin: "6px 2px 0" }}>{why}</p>
         {!noneFor && !finQ.isError && <div className="skeleton" style={{ height: 320, marginTop: 14 }} />}
@@ -188,26 +190,26 @@ export function TrendsSection({ f: pageF, e, r: pageR }: { f?: Financials; e?: E
   const annual = (id: string, title: string, hint: string, build: Card["build"], x: Partial<Card> = {}): Card => ({ id, title, hint, annualOnly: true, ...x, build });
   const cards: Record<typeof tab, Card[]> = {
     key: [
-      mk("Revenue", "revenue", G, crf, { iname: "Revenue" }),
-      mk("Operating profit", "operating_profit", DEEP, crf, { iname: "Operating profit" }),
-      annual("fcf", "Free cash flow", "Annual", () => ({ labels: A.cf.periods, series: [{ key: "fcf", label: "Free cash flow", values: row(A.cf, "free_cash_flow"), color: INK }], fmt: crf }), { iname: "Free cash flow" }),
-      mk("Net profit", "net_profit", INK, crf, { iname: "Net profit" }),
-      mk("Earnings per share", "eps", STONE, eps, { unit: "rs", iname: "EPS" }),
-      annual("cashdebt", "Cash and borrowings", "Annual", () => ({ labels: A.bs.periods, mode: "group" as const, fmt: crf, series: [{ key: "cash", label: "Cash", values: row(A.bs, "cash"), color: G }, { key: "debt", label: "Borrowings", values: row(A.bs, "borrowings"), color: INK }] }), { kind: "pair" }),
-      annual("cfo", "Cash from operations", "Annual", () => ({ labels: A.cf.periods, series: [{ key: "cfo", label: "Cash from operations", values: row(A.cf, "operating"), color: DEEP }], fmt: crf }), { iname: "Operating cash flow", since: true }),
+      mk("Revenue", "revenue", ONE, crf, { iname: "Revenue" }),
+      mk("Operating profit", "operating_profit", ONE, crf, { iname: "Operating profit" }),
+      annual("fcf", "Free cash flow", "Annual", () => ({ labels: A.cf.periods, series: [{ key: "fcf", label: "Free cash flow", values: row(A.cf, "free_cash_flow"), color: ONE }], fmt: crf }), { iname: "Free cash flow" }),
+      mk("Net profit", "net_profit", ONE, crf, { iname: "Net profit" }),
+      mk("Earnings per share", "eps", ONE, eps, { unit: "rs", iname: "EPS" }),
+      annual("cashdebt", "Cash and borrowings", "Annual", () => ({ labels: A.bs.periods, mode: "group" as const, fmt: crf, series: [{ key: "cash", label: "Cash", values: row(A.bs, "cash"), color: ONE }, { key: "debt", label: "Borrowings", values: row(A.bs, "borrowings"), color: TWO }] }), { kind: "pair" }),
+      annual("cfo", "Cash from operations", "Annual", () => ({ labels: A.cf.periods, series: [{ key: "cfo", label: "Cash from operations", values: row(A.cf, "operating"), color: ONE }], fmt: crf }), { iname: "Operating cash flow", since: true }),
     ],
     margin: [
-      { id: "opm", title: "Operating margin", unit: "pct", kind: "ratio", iname: "Operating margin", build: (m) => { const t = tbl(m); return { labels: t.periods, series: [{ key: "opm", label: "Operating margin", values: ratio(row(t, "operating_profit"), row(t, "revenue")), color: G }], fmt: pctf }; } },
-      { id: "npm", title: "Net margin", unit: "pct", kind: "ratio", iname: "Net margin", build: (m) => { const t = tbl(m); return { labels: t.periods, series: [{ key: "npm", label: "Net margin", values: ratio(row(t, "net_profit"), row(t, "revenue")), color: INK }], fmt: pctf }; } },
-      annual("capex", "Capital spending", "Annual", () => ({ labels: A.cf.periods, series: [{ key: "capex", label: "Capital spending", values: row(A.cf, "capex").map((x) => (x == null ? null : Math.abs(x))), color: DEEP }], fmt: crf }), { iname: "Capital spending" }),
-      annual("roe", "Return on equity and capital", "Annual", () => r && r.history.rows.roe ? { labels: r.history.periods, mode: "group" as const, fmt: pctf, series: [{ key: "roe", label: "ROE (reported)", values: r.history.rows.roe, color: G }, { key: "roce", label: "ROCE", values: r.history.rows.roce || [], color: INK }] } : null, { kind: "pair", unit: "pct" }),
-      annual("int", "Interest and depreciation", "Annual", () => ({ labels: A.pl.periods, mode: "group" as const, fmt: crf, series: [{ key: "i", label: "Interest", values: row(A.pl, "finance_costs"), color: INK }, { key: "d", label: "Depreciation", values: row(A.pl, "depreciation"), color: STONE }] }), { kind: "pair" }),
-      annual("tax", "Tax paid on profit", "Annual", () => ({ labels: A.pl.periods, series: [{ key: "t", label: "Tax", values: row(A.pl, "tax"), color: STONE }], fmt: crf }), { iname: "Tax" }),
+      { id: "opm", title: "Operating margin", unit: "pct", kind: "ratio", iname: "Operating margin", build: (m) => { const t = tbl(m); return { labels: t.periods, series: [{ key: "opm", label: "Operating margin", values: ratio(row(t, "operating_profit"), row(t, "revenue")), color: ONE }], fmt: pctf }; } },
+      { id: "npm", title: "Net margin", unit: "pct", kind: "ratio", iname: "Net margin", build: (m) => { const t = tbl(m); return { labels: t.periods, series: [{ key: "npm", label: "Net margin", values: ratio(row(t, "net_profit"), row(t, "revenue")), color: ONE }], fmt: pctf }; } },
+      annual("capex", "Capital spending", "Annual", () => ({ labels: A.cf.periods, series: [{ key: "capex", label: "Capital spending", values: row(A.cf, "capex").map((x) => (x == null ? null : Math.abs(x))), color: ONE }], fmt: crf }), { iname: "Capital spending" }),
+      annual("roe", "Return on equity and capital", "Annual", () => r && r.history.rows.roe ? { labels: r.history.periods, mode: "group" as const, fmt: pctf, series: [{ key: "roe", label: "ROE (reported)", values: r.history.rows.roe, color: ONE }, { key: "roce", label: "ROCE", values: r.history.rows.roce || [], color: TWO }] } : null, { kind: "pair", unit: "pct" }),
+      annual("int", "Interest and depreciation", "Annual", () => ({ labels: A.pl.periods, mode: "group" as const, fmt: crf, series: [{ key: "i", label: "Interest", values: row(A.pl, "finance_costs"), color: ONE }, { key: "d", label: "Depreciation", values: row(A.pl, "depreciation"), color: TWO }] }), { kind: "pair" }),
+      annual("tax", "Tax paid on profit", "Annual", () => ({ labels: A.pl.periods, series: [{ key: "t", label: "Tax", values: row(A.pl, "tax"), color: ONE }], fmt: crf }), { iname: "Tax" }),
     ],
     div: [
-      annual("dps", "Dividend per share", "Annual", () => e && e.dividendsByFY.periods.length ? { labels: e.dividendsByFY.periods, series: [{ key: "dps", label: "Dividend per share", values: e.dividendsByFY.dps, color: G }], fmt: eps } : null, { unit: "rs", iname: "Dividend per share" }),
-      annual("paid", "Dividends paid out", "Annual", () => ({ labels: A.cf.periods, series: [{ key: "p", label: "Dividends paid", values: row(A.cf, "dividends_paid").map((x) => (x == null ? null : Math.abs(x))), color: DEEP }], fmt: crf }), { iname: "Dividends paid" }),
-      annual("payout", "Share of profit paid out", "Annual", () => r && r.history.rows.dividend_payout ? { labels: r.history.periods, series: [{ key: "po", label: "Payout ratio", values: r.history.rows.dividend_payout, color: INK }], fmt: pctf } : null, { unit: "pct", kind: "ratio", iname: "Payout ratio" }),
+      annual("dps", "Dividend per share", "Annual", () => e && e.dividendsByFY.periods.length ? { labels: e.dividendsByFY.periods, series: [{ key: "dps", label: "Dividend per share", values: e.dividendsByFY.dps, color: ONE }], fmt: eps } : null, { unit: "rs", iname: "Dividend per share" }),
+      annual("paid", "Dividends paid out", "Annual", () => ({ labels: A.cf.periods, series: [{ key: "p", label: "Dividends paid", values: row(A.cf, "dividends_paid").map((x) => (x == null ? null : Math.abs(x))), color: ONE }], fmt: crf }), { iname: "Dividends paid" }),
+      annual("payout", "Share of profit paid out", "Annual", () => r && r.history.rows.dividend_payout ? { labels: r.history.periods, series: [{ key: "po", label: "Payout ratio", values: r.history.rows.dividend_payout, color: ONE }], fmt: pctf } : null, { unit: "pct", kind: "ratio", iname: "Payout ratio" }),
     ],
   };
   const list = cards[tab];
@@ -216,8 +218,8 @@ export function TrendsSection({ f: pageF, e, r: pageR }: { f?: Financials; e?: E
   const tabName = tab === "key" ? "Key metrics" : tab === "margin" ? "Margins and investment" : "Dividends";
   const missing = built.filter((b) => !b.d).map((b) => b.c.title);
   return (
-    <section className="block" style={{ "--sc": "var(--gold)" } as React.CSSProperties}>
-      <SectionHead id="trends" no="Trends" icon="line" tier="basic" title="How sales, profit and cash have moved" sub={head(f.meta.statement)} color="--gold"
+    <section className="block">
+      <SectionHead id="trends" no="Trends" icon="line" tier="basic" title="How sales, profit and cash have moved" sub={head(f.meta.statement)}
         aside={<>{basisSeg}<div className="seg" role="group" aria-label="Period" onKeyDown={segKeys}><button type="button" aria-pressed={mode === "q"} tabIndex={mode === "q" ? 0 : -1} onClick={() => setMode("q")}>Quarterly</button><button type="button" aria-pressed={mode === "a"} tabIndex={mode === "a" ? 0 : -1} onClick={() => setMode("a")}>Annual</button></div></>} />
       {/* task #216 (README 3.7): the trend groups are the report's tab group; Consolidated | Standalone sits in the heading row, left of Quarterly | Annual */}
       <TabGroup label="Trend groups" value={tab} onChange={(k) => setTab(k as typeof tab)} next={false} hint={`${tabName} shown here`}

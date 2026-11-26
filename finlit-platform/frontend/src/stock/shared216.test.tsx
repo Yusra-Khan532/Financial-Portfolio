@@ -14,7 +14,7 @@ const src = (f: string) => readFileSync(join(__dirname, f), "utf8");
 
 describe("compact section heading (1.1)", () => {
   it("puts the counts as chips, a dot, then the description under the title; a 0 count is grey", () => {
-    const { container } = render(<SectionHead id="notes" no="03 · What's going well and what to watch" icon="notes" tier="silver" title="What's going well and what to watch" sub="Plain-language findings." color="--gold"
+    const { container } = render(<SectionHead id="notes" no="03 · What's going well and what to watch" icon="notes" tier="silver" title="What's going well and what to watch" sub="Plain-language findings."
       counts={[{ n: 1, label: "red flag", tone: "red" }, { n: 6, label: "to watch", tone: "amb" }, { n: 0, label: "positives", tone: "pos" }]} />);
     const desc = container.querySelector("h2 + .sh-desc")!;
     expect(desc).toBeTruthy();

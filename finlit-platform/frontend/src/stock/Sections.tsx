@@ -46,11 +46,13 @@ export function longTrend(t: { vsEma200Pct: number | null; ema50: number | null;
 export function CountChips({ counts }: { counts: HeadCount[] }) {
   return <span className="cchips">{counts.map((c) => <span key={c.label} className={"cchip " + (c.n === 0 ? "zero" : c.tone)}><b>{c.n}</b> {c.label}</span>)}</span>;
 }
-export function SectionHead({ id, no, icon, tier, title, sub, color, aside, counts }: { id: string; no: string; icon: string; tier?: "basic" | "silver" | "gold"; title: string; sub?: string; color: string; aside?: React.ReactNode; counts?: HeadCount[] }) {
+/** Developer file 45 (founder, 27 Nov 2026: "too many colours? yes"): every section's number, name and icon are the one brand gold (they were six colours with no
+ *  pattern), so the head takes no colour of its own. */
+export function SectionHead({ id, no, icon, tier, title, sub, aside, counts }: { id: string; no: string; icon: string; tier?: "basic" | "silver" | "gold"; title: string; sub?: string; aside?: React.ReactNode; counts?: HeadCount[] }) {
   // developer file 41: a report section's number comes from the one order in lib/sectionNav (pass its name only); "07 · Name" still works elsewhere
   const n = sectionNo(id), m = /^(\d{1,2})\s*·\s*(.+)$/.exec(no) ?? (n ? [no, n, no] : null);
   return (
-    <div className="sh" id={id} style={{ "--sc": `var(${color})` } as React.CSSProperties}>
+    <div className="sh" id={id} style={{ "--sc": "var(--gold)" } as React.CSSProperties}>
       <div className="sh-l">
         {m ? <><span className="sh-n" aria-hidden="true">{m[1]}</span><span className="sh-rule" aria-hidden="true" /></> : <div className="sh-ic"><Icon name={icon} /></div>}
         <div><div className="no">{m ? m[2] : no} {tier && <TierChip tier={tier} />}</div><h2>{title}</h2>
@@ -73,7 +75,7 @@ export type PriceView = "line" | "candles";
 export function CandleKey() {
   return <><span><i style={{ background: "var(--gain)" }} />Closed higher</span><span><i style={{ background: "var(--loss)" }} />Closed lower</span></>;
 }
-const VOL_KEY = (view: PriceView) => <span><i style={view === "candles" ? { background: "linear-gradient(90deg, var(--gain) 50%, var(--loss) 50%)", opacity: 0.45 } : { background: "var(--c4)", opacity: 0.6 }} />Volume</span>;
+const VOL_KEY = (view: PriceView) => <span><i style={view === "candles" ? { background: "linear-gradient(90deg, var(--gain) 50%, var(--loss) 50%)", opacity: 0.45 } : { background: "var(--cmp)", opacity: 0.6 }} />Volume</span>;   // developer file 45: volume is context, grey
 export function PriceSection({ s, symbol, ratios }: { s: Summary; symbol: string; ratios?: Ratios }) {
   const [range, setRange] = useState("1Y"), [from, setFrom] = useState<number | undefined>();
   const [intra, setIntra] = useState<IntradayRange | null>(null);
@@ -97,12 +99,12 @@ export function PriceSection({ s, symbol, ratios }: { s: Summary; symbol: string
     upgrade(tier, tier === "basic" ? "Intraday charts come with a free account." : "The 5D and 1M intraday charts are part of Silver.");
   };
   return (
-    <section className="block" style={{ "--sc": "var(--p-tech)" } as React.CSSProperties}>
-      <SectionHead id="price" no="Price & technicals" icon="line" tier="basic" title="How the stock has traded" sub="Intraday bars from Dhan for 1D, 5D and 1M; daily closes up to one year, weekly closes beyond. Hover the chart for detail." color="--p-tech" />
+    <section className="block">
+      <SectionHead id="price" no="Price & technicals" icon="line" tier="basic" title="How the stock has traded" sub="Intraday bars from Dhan for 1D, 5D and 1M; daily closes up to one year, weekly closes beyond. Hover the chart for detail." />
       {intra && idata?.series && chg != null && <Plain tone={chg >= 0 ? "good" : "warn"}>Since the open {idata.sessions.length > 1 ? "of " + istDay(idata.sessions[0]) : "on " + istDay(idata.session ?? "")}, the price {chg >= 0 ? "rose" : "fell"} {nf(Math.abs(chg), 2)}%.</Plain>}
       {!intra && chg != null && <Plain tone={chg >= 0 ? "good" : "warn"}>Over this period the price {chg >= 0 ? "rose" : "fell"} {nf(Math.abs(chg), 1)}%.{t?.vsEma200Pct != null && <> It trades {nf(Math.abs(t.vsEma200Pct), 1)}% {t.vsEma200Pct < 0 ? "below" : "above"} its 200-day average, {longTrend(t)}.</>}</Plain>}
       <div className="grid g3">
-        <div className="card acc span2" style={{ "--ac": "var(--p-tech)" } as React.CSSProperties}>
+        <div className="card acc span2">
           <div className="stats">
             {[["52W high", s.range52.high == null ? "—" : "₹" + nf(s.range52.high)], ["52W low", s.range52.low == null ? "—" : "₹" + nf(s.range52.low)], [intra ? "Since the open" : "Range change", chg == null ? "—" : signed(chg)], ["vs 200-day average", t?.vsEma200Pct == null ? "—" : signed(t.vsEma200Pct)]].map(([k, v]) => <div className="stat" key={k}><div className="k">{k}</div><div className={"v " + (k === "Range change" || k === "Since the open" || k.startsWith("vs") ? (v.includes("▼") ? "neg" : v.includes("▲") ? "pos" : "") : "")}>{v}</div></div>)}
           </div>
@@ -127,7 +129,7 @@ export function PriceSection({ s, symbol, ratios }: { s: Summary; symbol: string
           </ChartZoom>
         </div>
         <Gate tier="gold" title="Advanced technical score" points={["RSI momentum gauge and trend signals", "Price vs 50- and 200-day averages", "Returns across every holding period"]}>
-          <div className="card acc" style={{ "--ac": "var(--p-tech)", height: "100%" } as React.CSSProperties}>
+          <div className="card acc" style={{ height: "100%" } as React.CSSProperties}>
             <div className="card-h"><h3><span className="ci"><Icon name="activity" /></span>Momentum<ChartHelp id="momentum" /></h3><TierChip tier="gold" /></div>
             {t?.rsi14 != null && <RsiGauge value={t.rsi14} />}
             <div className="mrow" style={{ marginTop: 6 }}><span className="k">What is RSI? <Info g={ratios?.glossary.rsi14} /></span><span className="v faint" style={{ fontWeight: 400, fontSize: "var(--fs-13)" }}>0 to 100 scale</span></div>
@@ -214,7 +216,7 @@ export function FinancialsSection({ f: page }: { f?: Financials }) {
   const alt = useSection<Financials>(sym, "financials", !!page && basis === "consolidated" && years > 0 && years < 5 && !wasChosen(sym), "standalone");
   const altYears = alt.data?.yearly.pl.periods.length ?? 0;
   useEffect(() => { if (basis === "consolidated" && years > 0 && altYears >= years + 2) setBasis(sym, "standalone", true); }, [basis, years, altYears, sym]);
-  if (!page) return <section className="block"><SectionHead id="financials" no="Financials" icon="bars" tier="basic" title="Profit and loss, balance sheet and cash flow, quarterly and yearly" color="--p-growth" /><div className="skeleton" style={{ height: 380 }} /></section>;
+  if (!page) return <section className="block"><SectionHead id="financials" no="Financials" icon="bars" tier="basic" title="Profit and loss, balance sheet and cash flow, quarterly and yearly" /><div className="skeleton" style={{ height: 380 }} /></section>;
   const name = (b: Basis) => (b === "consolidated" ? "Consolidated" : "Standalone");
   const active: Basis = chosen ?? page.meta.statement;
   const basisSeg = (
@@ -232,9 +234,9 @@ export function FinancialsSection({ f: page }: { f?: Financials }) {
       : other.isError ? `${name(chosen as Basis)} accounts could not be loaded right now (${other.error?.status === 503 ? "the data provider did not answer" : "please try again in a moment"}). The ${page.meta.statement} accounts are still here: press ${name(page.meta.statement)}.`
         : `Loading ${(chosen as Basis)} accounts…`;
     return (
-      <section className="block" style={{ "--sc": "var(--p-growth)" } as React.CSSProperties}>
-        <SectionHead id="financials" no="Financials" icon="bars" tier="basic" title="Profit and loss, balance sheet and cash flow, quarterly and yearly" sub={`${name(chosen as Basis)}, ₹ crore. L Cr = lakh crore. FY = April–March.`} color="--p-growth" />
-        <div className="card acc" style={{ "--ac": "var(--p-growth)" } as React.CSSProperties}>
+      <section className="block">
+        <SectionHead id="financials" no="Financials" icon="bars" tier="basic" title="Profit and loss, balance sheet and cash flow, quarterly and yearly" sub={`${name(chosen as Basis)}, ₹ crore. L Cr = lakh crore. FY = April–March.`} />
+        <div className="card acc">
           <div className="tools"><span className="faint" style={{ fontSize: "var(--fs-13)" }}>Accounts</span><div className="tools-r">{basisSeg}</div></div>
           <p className={noneFor || other.isError ? "muted" : "faint"} role="status" style={{ fontSize: "var(--fs-14)", margin: "6px 0 0" }}>{why}</p>
           {!noneFor && !other.isError && <div className="skeleton" style={{ height: 320, marginTop: 14 }} />}
@@ -250,8 +252,8 @@ export function FinancialsSection({ f: page }: { f?: Financials }) {
   const rows = ROWS[kind === "q" ? "pl" : kind].filter(([k]) => tbl.rows[k]);
   const last = tbl.periods.length - 1;
   return (
-    <section className="block" style={{ "--sc": "var(--p-growth)" } as React.CSSProperties}>
-      <SectionHead id="financials" no="Financials" icon="bars" tier="basic" title="Profit and loss, balance sheet and cash flow, quarterly and yearly" sub={`${f.meta.statement === "consolidated" ? "Consolidated" : "Standalone"}, ₹ crore. L Cr = lakh crore. FY = April–March.`} color="--p-growth" aside={<ForecastCard f={f} />} />
+    <section className="block">
+      <SectionHead id="financials" no="Financials" icon="bars" tier="basic" title="Profit and loss, balance sheet and cash flow, quarterly and yearly" sub={`${f.meta.statement === "consolidated" ? "Consolidated" : "Standalone"}, ₹ crore. L Cr = lakh crore. FY = April–March.`} aside={<ForecastCard f={f} />} />
       {(() => { const [rv, np, , mg] = tiles; return rv.delta != null && np.delta != null ? <Plain tone={np.delta >= 0 ? "good" : "warn"}>Sales {rv.delta >= 0 ? "grew" : "fell"} {nf(Math.abs(rv.delta), 1)}% last year and profit {np.delta >= 0 ? "rose" : "fell"} {nf(Math.abs(np.delta), 1)}%.{typeof mg.value === "number" && <> Out of every ₹100 of sales, about ₹{nf(mg.value, 1)} is kept as profit.</>}</Plain> : null; })()}
       <div className="grid g4" style={{ marginBottom: 16 }}>
         {tiles.map((t) => (
@@ -271,7 +273,7 @@ export function FinancialsSection({ f: page }: { f?: Financials }) {
       <TabGroup label="Statement" value={kind === "q" ? "pl" : kind} onChange={(k) => { if (!(k === "pl" && kind === "q")) setKind(k as FinKind); }} next={false}
         hint={`${{ pl: "Profit & loss", bs: "Balance sheet", cf: "Cash flow" }[kind === "q" ? "pl" : kind]} shown here`}
         views={[{ key: "pl", label: "Profit & loss" }, { key: "bs", label: "Balance sheet" }, { key: "cf", label: "Cash flow" }]} />
-      <div className="card acc" style={{ "--ac": "var(--p-growth)" } as React.CSSProperties}>
+      <div className="card acc">
         <ChartZoom label="Financial statements chart" className="cz-r">
         <div className="tools">
           <div className="tools-r">
@@ -281,7 +283,7 @@ export function FinancialsSection({ f: page }: { f?: Financials }) {
           </div>
         </div>
         <FinChart kind={kind} pl={f.yearly.pl} bs={f.yearly.bs} cf={f.yearly.cf} ql={f.quarterly.pl} />
-        <div className="legend">{kind === "pl" || kind === "q" ? <><span><i style={{ background: "var(--c2)" }} />Revenue</span><span><i style={{ background: "var(--c3)" }} />Net profit</span><span><i className="ln" style={{ background: "var(--c4)" }} />Net margin</span><span><i style={{ background: "var(--c1)" }} />Latest period</span></>
+        <div className="legend">{kind === "pl" || kind === "q" ? <><span><i style={{ background: "color-mix(in srgb, var(--c1) 40%, transparent)" }} />Revenue and net profit</span><span><i style={{ background: "var(--c1)" }} />Latest period</span><span><i className="ln" style={{ background: "var(--c2)" }} />Net margin</span></>
           : kind === "bs" ? <><span><i style={{ background: "var(--c1)" }} />Equity + reserves</span><span><i style={{ background: "var(--c2)" }} />Borrowings</span><span><i style={{ background: "var(--c4)" }} />Other liabilities</span></>
             : <><span><i style={{ background: "var(--c3)" }} />Operating</span><span><i style={{ background: "var(--c2)" }} />Investing</span><span><i style={{ background: "var(--c4)" }} />Financing</span><span><i className="ln" style={{ background: "var(--c1)" }} />Free cash flow</span></>}</div>
         </ChartZoom>

@@ -9,15 +9,15 @@ const read = (p: string) => readFileSync(resolve(__dirname, "..", p), "utf8");
 const more = read("stock/MoreCharts.tsx");
 const cardsWith = (ac: string) => [...more.matchAll(new RegExp(`<Card ac="${ac}" help="([a-z0-9-]+)"`, "g"))].map((m) => m[1]);
 
-describe("the moved cards take their section's colour (Chart lab drew them all in gold)", () => {
-  it("Price & technicals' pink for the price statistics, Financials' green for the statement charts, the gold of Dividends for the timeline", () => {
-    expect(cardsWith("--p-tech")).toEqual(["monthly-returns", "drawdown", "volatility", "daily-histogram", "daily-box"]);
-    expect(cardsWith("--p-growth")).toEqual(["yoy-growth", "pl-waterfall", "pl-margin-split", "bs-assets", "bs-treemap", "cf-bridge"]);   // developer file 44: Growth by line first
-    expect(more).toContain('<Card help="events-timeline"');                                   // the default, gold, as Dividends' own cards
+describe("the moved cards are gold like every card of the report (developer file 45; developer file 41 gave them their section's colour)", () => {
+  it("no chart card takes a colour of its own; the section heads take none either", () => {
+    expect(cardsWith("--p-tech")).toEqual([]);
+    expect(cardsWith("--p-growth")).toEqual([]);
+    expect(more).not.toMatch(/<Card ac=/);
+    expect(more).toContain('<Card help="events-timeline"');
     const page = read("stock/Sections.tsx");
     expect(page).toContain('<SectionHead id="price" no="Price & technicals" icon="line" tier="basic"');
-    expect(page.match(/color="--p-tech"/g)!.length).toBeGreaterThan(0);
-    expect(page.match(/color="--p-growth"/g)!.length).toBeGreaterThan(0);
+    expect(page).not.toMatch(/color="--p-/);
   });
   it("the price statistics' label shows its plan, as the section headings and the Momentum card do", () => {
     expect(read("stock/Sections.tsx")).toContain('<p className="label rp-more-h">Price statistics <TierChip tier={PLAN_FOR_REPORT_EXTRAS} /></p>');

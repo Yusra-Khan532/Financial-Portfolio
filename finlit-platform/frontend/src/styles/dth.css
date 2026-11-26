@@ -1,8 +1,8 @@
 /* Task #271 (company report pack of 20 Nov 2026, change 20): Discover on the company report: the themes row in the header card (20a) and the "What it is
    building" card in 01 Company overview (20b). New class names only (dth-); sizes on the type scale; the pack's purple, with its dark-mode values. */
-.dth, .dth-card { --dth-p: #6b46c1; --dth-pi: #4c2f8f; --dth-ps: color-mix(in srgb, #6b46c1 7%, var(--s1)); --dth-pb: color-mix(in srgb, #6b46c1 38%, var(--border)); --dth-on: #fff; }
-:root[data-theme="dark"] .dth, :root[data-theme="dark"] .dth-card { --dth-p: #a68bf5; --dth-pi: #d6c9fa; --dth-ps: color-mix(in srgb, #8b6ff0 15%, var(--s1)); --dth-pb: color-mix(in srgb, #8b6ff0 50%, var(--border)); --dth-on: #1b1530; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .dth, :root:not([data-theme="light"]) .dth-card { --dth-p: #a68bf5; --dth-pi: #d6c9fa; --dth-ps: color-mix(in srgb, #8b6ff0 15%, var(--s1)); --dth-pb: color-mix(in srgb, #8b6ff0 50%, var(--border)); --dth-on: #1b1530; } }
+/* developer file 45 (founder, 27 Nov 2026: "too many colours? yes"): the report's Discover rows and card use the brand gold, not their own purple (gold is
+   theme-aware, so no dark-mode values are needed) */
+.dth, .dth-card { --dth-p: var(--gold); --dth-pi: var(--gold); --dth-ps: color-mix(in srgb, var(--gold) 6%, var(--s1)); --dth-pb: color-mix(in srgb, var(--gold) 32%, var(--border)); --dth-on: var(--on-gold); }
 
 /* 20a: the header card's themes row */
 .dth { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin: 12px 0 0; padding: 10px 12px; border: 1px solid var(--dth-pb); border-radius: var(--r-ctl); background: var(--dth-ps); }

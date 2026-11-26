@@ -20,10 +20,10 @@ export function finTiles(f: Financials) {
   const margin = rev.map((r, i) => (r && np[i] != null ? ((np[i] as number) / r) * 100 : null));
   const last = <T,>(a: T[]) => a[a.length - 1];
   return [
-    { k: "Revenue", fy, value: last(rev), unit: "cr" as const, delta: yoy(rev), series: rev, color: "--p-growth", icon: "rupee", suffix: "%" },
-    { k: "Net profit", fy, value: last(np), unit: "cr" as const, delta: yoy(np), series: np, color: "--p-quality", icon: "growth", suffix: "%" },
-    { k: "Operating cash", fy: cf.periods[cf.periods.length - 1], value: last(op), unit: "cr" as const, delta: yoy(op), series: op, color: "--p-balance", icon: "wallet", suffix: "%" },
-    { k: "Net margin", fy, value: last(margin), unit: "pct" as const, delta: margin.length > 1 && last(margin) != null && margin[margin.length - 2] != null ? (last(margin) as number) - (margin[margin.length - 2] as number) : null, series: margin, color: "--p-profit", icon: "percent", suffix: " pts" },
+    { k: "Revenue", fy, value: last(rev), unit: "cr" as const, delta: yoy(rev), series: rev, color: "--c1", icon: "rupee", suffix: "%" },
+    { k: "Net profit", fy, value: last(np), unit: "cr" as const, delta: yoy(np), series: np, color: "--c1", icon: "growth", suffix: "%" },
+    { k: "Operating cash", fy: cf.periods[cf.periods.length - 1], value: last(op), unit: "cr" as const, delta: yoy(op), series: op, color: "--c1", icon: "wallet", suffix: "%" },
+    { k: "Net margin", fy, value: last(margin), unit: "pct" as const, delta: margin.length > 1 && last(margin) != null && margin[margin.length - 2] != null ? (last(margin) as number) - (margin[margin.length - 2] as number) : null, series: margin, color: "--c1", icon: "percent", suffix: " pts" },
   ];
 }
 

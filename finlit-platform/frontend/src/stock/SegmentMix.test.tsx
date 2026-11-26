@@ -41,8 +41,8 @@ describe("segment card with history", () => {
   });
   it("uses the same colour for a segment in its row, the legend and the table (developer file 42: one row in place of the strip and the tile)", () => {
     const html = card(LARGE);
-    expect(html.match(/--bc:var\(--k1\)/g)!.length).toBeGreaterThanOrEqual(2);   // tile, table row (and the strip)
-    expect(html).toContain("background:var(--k1)");                                // legend + chart swatches
+    expect(html.match(/--bc:var\(--c1\)/g)!.length).toBeGreaterThanOrEqual(2);   // tile, table row (and the strip)
+    expect(html).toContain("background:var(--c1)");                                // legend + chart swatches
   });
   it("renders the real recorded data with its definition-change warning", () => {
     const html = card(REAL);

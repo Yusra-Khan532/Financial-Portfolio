@@ -314,7 +314,8 @@ export function Timeline({ events, w: W = 1000 }: { events: { date: string; labe
   if (ev.length < 1) return null;
   const t0 = new Date(ev[0].date).getTime(), t1 = new Date(ev[ev.length - 1].date).getTime(), span = t1 - t0 || 1;
   const H = 150, pl = 24, pr = 24, X = (d: string) => pl + ((new Date(d).getTime() - t0) / span) * (W - pl - pr);
-  const color: Record<string, string> = { dividend: "var(--k1)", bonus: "var(--gain)", split: "var(--c2)", rights: "var(--loss)", other: "var(--faint)" };
+  // developer file 45: the kinds of corporate action are categories, so the palette (green and red mean only up and down); "other" is grey
+  const color: Record<string, string> = { dividend: "var(--c1)", bonus: "var(--c2)", split: "var(--c3)", rights: "var(--c4)", other: "var(--cmp)" };
   const years = [...new Set(ev.map((e) => e.date.slice(0, 4)))];
   const cur = hv == null ? null : ev[hv];
   return (

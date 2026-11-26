@@ -15,7 +15,7 @@ describe("segment colours", () => {
     const names = segmentNames(REAL), { color, grouped } = segmentColors(names);
     expect(grouped).toEqual([]);
     expect(names.slice(0, 3)).toEqual(["Oil to Chemicals (O2C)", "Oil and Gas", "Others"]);
-    expect(color["Oil to Chemicals (O2C)"]).toBe("var(--k1)");
+    expect(color["Oil to Chemicals (O2C)"]).toBe("var(--c1)");   // developer file 45: the report palette
     expect(color.Others).toBe("var(--faint)");
     const used = Object.values(color).filter((c) => c !== "var(--faint)");
     expect(new Set(used).size).toBe(used.length);
@@ -25,15 +25,24 @@ describe("segment colours", () => {
     expect(n.indexOf("Petrochemicals")).toBeGreaterThan(n.indexOf("Retail"));
     expect(n.indexOf("Financial Services")).toBeGreaterThan(n.indexOf("Retail"));
   });
-  it("groups everything past eight named segments into one neutral series", () => {
+  it("groups everything past five named segments into one neutral series (developer file 45: five palette colours, no green or red)", () => {
     const rows: Record<string, number[]> = {};
     for (let i = 0; i < 11; i++) rows["S" + i] = [100 - i, 100 - i, 100 - i];
     const m = chartModel(mk(["FY24", "FY25", "FY26"], rows));
-    expect(m.series).toHaveLength(9);
-    const rest = m.series[8];
+    expect(m.series).toHaveLength(6);
+    const rest = m.series[5];
     expect(rest.label).toBe(REMAINING);
-    expect(rest.members).toHaveLength(3);
-    expect(rest.values[0]).toBe(92 + 91 + 90);
+    expect(rest.members).toHaveLength(6);
+    expect(rest.values[0]).toBe(95 + 94 + 93 + 92 + 91 + 90);
+    expect(m.series.slice(0, 5).map((x) => x.color)).toEqual(["var(--c1)", "var(--c2)", "var(--c3)", "var(--c4)", "var(--c5)"]);
+  });
+  it("a single segment past the five keeps its own name, in grey", () => {
+    const rows: Record<string, number[]> = {};
+    for (let i = 0; i < 6; i++) rows["S" + i] = [100 - i, 100 - i, 100 - i];
+    const { color, grouped } = segmentColors(Object.keys(rows));
+    expect(grouped).toEqual([]);
+    expect(color.S5).toBe("var(--muted)");
+    expect(chartModel(mk(["FY24", "FY25", "FY26"], rows)).series.map((x) => x.label)).toEqual(["S0", "S1", "S2", "S3", "S4", "S5"]);
   });
 });
 
