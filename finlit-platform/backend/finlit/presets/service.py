@@ -363,7 +363,9 @@ async def refresh_presets(store, settings=None) -> dict:
                 failed.append(f"{p.id}:{type(exc).__name__}")
     history_note: dict = {}
     try:        # its own guard again: the history of the lists never stops the lists
+        dropped = await hist_mod.drop_off_session_lists(store, getattr(fr, "market", None))   # task #394: a list saved for a holiday is never the "Latest"
         history_note = await hist_mod.record(store, fr, kept)
+        history_note.update(dropped)
         history_note.update(await hist_mod.repair_closes(store))
         bench = await hist_mod._bench(store, fr.as_of)
         history_note.update(await hist_mod.gainers(store, fr, bench))

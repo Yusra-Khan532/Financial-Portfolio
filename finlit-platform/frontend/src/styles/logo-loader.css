@@ -1,8 +1,8 @@
 /* The FinLit logo and its loading animation (components/LogoLoader.tsx). One file for the first-load splash in index.html (before any script has run)
    and the React component. Movement only for people who have not asked for less; otherwise the finished logo, still.
    Colours follow the theme: --ll-ink (navy; near-white in the dark theme), --ll-gold, the green gradient in the SVG. */
-.ll { --ll-d: 3.6s; --ll-ink: #0B1530; --ll-gold: #B8913F; display: block; width: 190px; height: auto; overflow: visible; }
-html[data-theme="dark"] .ll { --ll-ink: #F4F2EC; --ll-gold: #D9B96C; }
+.ll { --ll-d: 3.6s; --ll-ink: #1C1A15; --ll-gold: #C8921E; display: block; width: 190px; height: auto; overflow: visible; }
+html[data-theme="dark"] .ll { --ll-ink: #F4F2EC; --ll-gold: #F4C04F; }   /* task #400: the FinLit Ventures logo's yellow and teal */
 .ll-sm { width: 70px; } .ll-md { width: 120px; } .ll-lg { width: 200px; } .ll-xl { width: 320px; }
 .ll-ink { fill: var(--ll-ink); } .ll-gold { fill: var(--ll-gold); } .ll-grad { fill: url(#ll-grad); }
 .ll-stack { display: flex; flex-direction: column; align-items: center; }

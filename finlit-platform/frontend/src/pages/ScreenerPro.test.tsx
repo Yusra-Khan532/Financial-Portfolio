@@ -227,20 +227,50 @@ describe("task #64 Part 4: the panel and the header", () => {
     expect(screen.queryByRole("link", { name: /Custom ratio/ })).toBeNull();                              // task #243 (S3): Custom ratio left the groups for its own tab
     fireEvent.click(screen.getByRole("button", { name: /^Profitability/ }));
     const body = document.getElementById("srt-b-profitability")!;
-    expect(within(body).getByRole("button", { name: "Add Return on equity" })).toBeTruthy();
+    expect(within(body).getByRole("checkbox", { name: "Return on equity" })).toBeTruthy();                    // task #402: a checkbox and a range arrow, no + Add
+    expect(within(body).getByRole("button", { name: "Set a range for Return on equity" })).toBeTruthy();
+    expect(within(body).queryByRole("button", { name: /^\+ Add$|^Add Return on equity$/ })).toBeNull();
   });
-  it("S-1: a group with rules set says how many are on, and its filter reads Added", async () => {
+  it("S-1: a group with rules set says how many are on, and its filter is ticked", async () => {
     mount("?s=" + encodeState(norm({ ranges: { roe: { min: 15 } } }), "market_cap", "desc")); await ready();
     const h = screen.getByRole("button", { name: /^Profitability/ });
     expect(h.textContent).toMatch(/1 on/);
     fireEvent.click(h);
-    expect(within(document.getElementById("srt-b-profitability")!).getByRole("button", { name: "Return on equity is added: go to its rule" })).toBeTruthy();
+    expect((within(document.getElementById("srt-b-profitability")!).getByRole("checkbox", { name: "Return on equity" }) as HTMLInputElement).checked).toBe(true);
   });
   it("task #364: the search narrows every group at once and opens the ones that match", async () => {
     mount(); await ready();
     fireEvent.change(screen.getByPlaceholderText("Search filters, e.g. debt, ROE, promoter"), { target: { value: "roe" } });
     expect([...document.querySelectorAll(".srt-at")].map((h) => h.textContent)).toEqual(["Profitability"]);
-    expect(within(document.getElementById("srt-b-profitability")!).getByRole("button", { name: "Add Return on equity" })).toBeTruthy();
+    expect(within(document.getElementById("srt-b-profitability")!).getByRole("checkbox", { name: "Return on equity" })).toBeTruthy();
+  });
+  describe("task #402: each filter is a checkbox (its column, every figure) and a down arrow (its range)", () => {
+    it("ticking shows the column with no filter; unticking takes it off", async () => {
+      mount(); await ready();
+      fireEvent.click(screen.getByRole("button", { name: /^Profitability/ }));
+      const box = within(document.getElementById("srt-b-profitability")!).getByRole("checkbox", { name: "Return on equity" }) as HTMLInputElement;
+      expect(box.checked).toBe(false);
+      fireEvent.click(box);
+      await waitFor(() => expect(ruleHeads()).toEqual(["Return on equity"]));
+      expect(box.checked).toBe(true);
+      expect(last().filters ?? {}).toEqual({});                                                    // all values: nothing filtered
+      fireEvent.click(box);
+      await waitFor(() => expect(ruleHeads()).toEqual([]));
+      expect(box.checked).toBe(false);
+    });
+    it("the arrow opens the range under the row; setting a range ticks the box and filters", async () => {
+      mount(); await ready();
+      fireEvent.click(screen.getByRole("button", { name: /^Profitability/ }));
+      const body = document.getElementById("srt-b-profitability")!;
+      const arrow = within(body).getByRole("button", { name: "Set a range for Return on equity" });
+      expect(arrow.getAttribute("aria-expanded")).toBe("false");
+      fireEvent.click(arrow);
+      expect(arrow.getAttribute("aria-expanded")).toBe("true");
+      const rbox = document.getElementById(arrow.getAttribute("aria-controls")!)!;
+      fireEvent.change(within(rbox).getByLabelText("Return on equity from"), { target: { value: "20" } });
+      await waitFor(() => expect(last().filters).toEqual({ roe: { min: 20 } }));
+      expect((within(body).getByRole("checkbox", { name: "Return on equity" }) as HTMLInputElement).checked).toBe(true);
+    });
   });
   it("S-9: the header names the data date in India time, in its date chip", async () => {
     st.cat = { ...catalog(), pricesAt: "2026-11-12T10:05:00Z", scoresAt: "2026-11-12T23:00:00Z" };

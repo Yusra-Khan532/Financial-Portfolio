@@ -55,6 +55,8 @@ export function InvestChanges({ d }: { d: AllInvestments }) {
       <WhatChanged symbols={s.symbols} listName={s.name} listRef={s.ref} page="myinvest" lists={tabs} activeList={pick} onPickList={(id) => setPick(id as Pick)}
         title="What changed at the companies you own" nameOf={(x) => bySym.get(x)?.name} sub={(x) => <HeldLine c={bySym.get(x)} />}
         foot={smallLine(d, ch)} newTab
+        /* task #391 (developer file 41 v4, A2): labelled as the other stops, so the sections read Step 1 to 7 */
+        eyebrow={<p className="mi-eyebrow mi41-step">Step 5</p>}
         /* task #391 (developer file 35, Sections 4): tiles count updates, rows count filings, short company names, a closed "Not in Discover yet" list
            and the line on what an update is (the Equity page's block since task #385) */
         plain shortName={(x, n) => coLabel({ symbol: x, name: bySym.get(x)?.name ?? (n && n !== x ? n : null) })}

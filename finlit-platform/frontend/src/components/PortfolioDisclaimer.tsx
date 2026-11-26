@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import "../styles/portfolio-disc.css";
 
 const TEXT = {
@@ -7,8 +8,9 @@ const TEXT = {
 } as const;
 
 /** The boxed Disclaimer at the end of a portfolio page (the same style as the Prism report's). */
-export function PortfolioDisclaimer({ kind }: { kind: keyof typeof TEXT }) {
+/** `children` (task #391, developer file 41 v4 E2): a page's own disclaimer paragraphs in the same box (All my investments); without it, the kind's text. */
+export function PortfolioDisclaimer({ kind = "all", children }: { kind?: keyof typeof TEXT | "all"; children?: ReactNode }) {
   return (
-    <div className="pdisc" role="note" aria-labelledby={`pdisc-${kind}`}><h2 id={`pdisc-${kind}`}>Disclaimer</h2><p>{TEXT[kind]}</p></div>
+    <div className="pdisc" role="note" aria-labelledby={`pdisc-${kind}`}><h2 id={`pdisc-${kind}`}>Disclaimer</h2>{children ?? (kind !== "all" ? <p>{TEXT[kind]}</p> : null)}</div>
   );
 }

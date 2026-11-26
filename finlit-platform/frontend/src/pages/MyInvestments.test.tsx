@@ -226,7 +226,7 @@ describe("task #137: All my investments (15 Nov pack)", () => {
   it("L16, L19, R2: In short, the disclaimer, eight questions incl. no profit or loss, sources; no downloads; no advice words", async () => {
     mount(); await screen.findByText("Where your money sits");
     expect(text()).toContain("What this means, in short");
-    expect(text()).toContain("All my investments · 8 questions");
+    expect(text()).toContain("Questions about this page · 8");   // task #391 (file 41 v4, E2): the shared bottom's Questions fold, the same eight
     expect(text()).toContain("How is profit or loss worked out?");
     expect(text()).toContain("Information only, not investment advice.");
     expect(text()).toMatch(/NSE closing prices to/);

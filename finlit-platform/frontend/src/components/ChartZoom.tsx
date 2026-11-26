@@ -146,6 +146,16 @@ function Zoomable({ label, children, className, kind }: { label: string; childre
     return () => mo.disconnect();
   }, [host]);
 
+  // Task #391 (developer file 41 v4, E4): a box that changes without a resize (a fold opening: the box around the chart is another element once it is
+  // open) asks every arrow inside it to find its box again with a "cz-refit" event on that box; nothing sends it on other pages, so they are as before.
+  const [refit, setRefit] = useState(0);
+  useEffect(() => {
+    const el = root.current;
+    if (!el) return;
+    const again = () => setRefit((n) => n + 1);
+    window.addEventListener("cz-refit", again);
+    return () => window.removeEventListener("cz-refit", again);
+  }, []);
   // Put the arrow in the corner of the card that holds the chart, and keep it there as the card or the page is resized.
   useLayoutEffect(() => {
     const el = root.current;
@@ -167,7 +177,7 @@ function Zoomable({ label, children, className, kind }: { label: string; childre
     ro?.observe(el); ro?.observe(box);
     window.addEventListener("resize", place);
     return () => { ro?.disconnect(); window.removeEventListener("resize", place); head?.removeAttribute("data-cz-head"); };
-  }, [has]);
+  }, [has, refit]);
 
   useEffect(() => {
     if (!open) return;

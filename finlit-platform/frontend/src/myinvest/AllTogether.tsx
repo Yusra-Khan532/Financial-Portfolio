@@ -59,7 +59,7 @@ function Money({ d, money, kinds, toTab, openQty }: { d: AllInvestments; money: 
   const gl = (m: KindMoney | undefined) => (m && m.full ? <><b className={tone(m.gain)}>{m.gain >= 0 ? "+" : "−"}{rupees(Math.abs(m.gain))}</b><small className={"mi-sub " + tone(m.gain)}>{chg((m.gain / m.invested) * 100)}</small></> : "—");
   const val = (k: Kind) => (d.byValue ? rupees(d.cards[k].value ?? 0) : null);
   return (
-    <section className="card mi-step">
+    <section className="sp-sec mi-step">
       <SecHead id="mi-money" n={1} title="Where your money sits" line={splitLine(d)} info={["How everything splits between shares, mutual funds and ETFs.", "With quantities, each kind's share is its value over the total; without them each kind counts the same."]} />
       <Stack big label="Share of everything" segs={kinds.map((k) => ({ key: k, label: KIND_NAME[k], v: d.cards[k].share, cls: "k-" + k }))} keyed={false} />
       <HScroll label="Where your money sits">
@@ -99,7 +99,7 @@ function MadeOf({ d }: { d: AllInvestments }) {
       : { kind: "good", title: "Every fund and ETF is looked through", text: `Each one's latest monthly file is loaded${m.byType.length ? `; ${joinWords(m.byType.map((x) => x.name))} ${m.byType.length === 1 ? "is" : "are"} counted by ${m.byType.length === 1 ? "its" : "their"} type (gold, silver, debt or abroad), which fixes what ${m.byType.length === 1 ? "it holds" : "they hold"}` : ""}.` },
   ];
   return (
-    <section className="card mi-step">
+    <section className="sp-sec mi-step">
       <SecHead id="mi-made" n={2} title="What it is made of" line={<>Each fund's and ETF's latest file, added to your shares. {splitLine(d)}</>} info={["Where everything sits once your funds and ETFs are looked through: Indian shares, shares abroad, gold and silver, debt and cash.", "Read across: where each kind's part sits. The last column adds them up."]} know={{ scope: "made", items: notes }} />
       <Stack big label="What it is made of" segs={rows.map((x) => ({ key: x.key, label: x.label, v: x.all, cls: MIX_CLS[x.key] }))} keyed={false} />
       <HScroll label="What it is made of">
@@ -128,7 +128,7 @@ function Sectors({ d }: { d: AllInvestments }) {
     { kind: brought.length ? "insight" : "good", title: brought.length ? `Funds and ETFs bring ${joinWords(brought.map((s) => s.sector))}` : "Funds and ETFs add no new macro sector", text: brought.length ? `None of your own shares sits in ${brought.length === 1 ? "this macro sector" : "these macro sectors"}; ${joinWords(brought.map((s) => `${s.sector} ${pctOf(s.all)}`))} comes through your funds and ETFs.` : "Every macro sector inside your funds and ETFs is one your own shares are in too." },
   ];
   return (
-    <section className="card mi-step">
+    <section className="sp-sec mi-step">
       <SecHead id="mi-sectors" n={3} title="Sectors and company sizes, counted through everything" line={<>Only the shares part: {pctOf(d.madeOf.rows.filter((r) => r.key === "indian" || r.key === "abroad").reduce((a, r) => a + r.all, 0))} of everything. Each bar shows where that exposure comes from.</>}
         info={["NSE's 12 macro sectors and company sizes across every company you own, directly and inside your funds and ETFs.", "Each bar's colours show how much comes from your own shares, through funds and through ETFs, as % of everything."]} know={{ scope: "sectors", items: notes }} />
       <div className="mi-two">
@@ -158,7 +158,7 @@ function Every({ d, filter, setFilter }: { d: AllInvestments; filter: EveryFilte
   const max = Math.max(0.01, ...d.companies.map((c) => c.all));
   const model = SCORE_NAME, scored = d.plan === "gold";
   return (
-    <section className="card mi-step">
+    <section className="sp-sec mi-step">
       <SecHead id="mi-every" n={4} title="Every company you own, counted once" line={<>{d.filters.all} companies: your {d.counts.shares} shares and every equity line of each fund's and ETF's file. The share is of everything you have. {d.byValue ? "" : "Each kind counts the same until you add quantities."}</>}
         info={["Every company you own, once, with what you hold directly, through funds and through ETFs added up.", "All together is your real share of the company; Held shows the ways: D direct, F through a fund, E through an ETF."]} />
       {/* task #277 (change 18): one row of filters across every company, which stays up while the table is scrolled; task #391 (Update 25 Nov, row 3):
@@ -214,7 +214,7 @@ function HealthStep({ d }: { d: AllInvestments }) {
   if (h.funds && !h.funds.locked) notes.push({ kind: "insight", title: h.funds.lowest ? `${h.funds.lowest.name} is the lowest Mutual Fund Score, ${nf(h.funds.lowest.score, 0)}` : "No fund has a Mutual Fund Score yet", text: "Mutual Fund Score reads each fund's performance, risk, cost and quality against its own category." });
   if (h.etfs && h.etfs.costPerLakh != null) notes.push({ kind: "good", title: `ETFs cost about ₹${nf(h.etfs.costPerLakh, 0)} a year on ₹1 lakh`, text: `The weighted yearly cost is ${pctOf(h.etfs.ter, 2)}.${h.etfs.widestGap ? ` The widest gap between price and value is ${h.etfs.widestGap.symbol}, ${chg(h.etfs.widestGap.premium, 2)}.` : ""}` });
   return (
-    <section className="card mi-step">
+    <section className="sp-sec mi-step">
       <SecHead id="mi-health" n={6} title="How healthy it is" line={`Each kind is read with its own measure: ${h.shares ? `shares with ${model}` : `shares with ${model} (see plans)`}, funds with Mutual Fund Score, ETFs by cost and price against value.`} info={["How each kind reads on its own measure; there is no single score for everything.", "Compare each card with its own bands only: a share's score and a fund's Mutual Fund Score are not the same scale."]} know={{ scope: "health", items: notes }} />
       <div className="mi-three">
         {h.shares && <article className="mi-hc"><p className="mi-cap">Shares · {model}</p><p className="mi-hv"><ScoreWord v={h.shares.score} label={h.shares.label} /></p>
@@ -246,7 +246,7 @@ function RiskStep({ d }: { d: AllInvestments; money?: MoneyAll }) {
     { kind: "watch", title: "Beta is not a floor", text: "Beta describes how things moved with the market in the past. A single company, a fund house or a sector can fall on its own news, whatever the beta says." },
   ];
   return (
-    <section className="card mi-step">
+    <section className="sp-sec mi-step">
       <SecHead id="mi-risk" n={7} title="How risky it is, all together" line="Against the Nifty 500, over the past year." info={["How sensitive everything is to the market: each kind's beta against the Nifty 500, and beta together.", "Beta together = the sum of each kind's share of money × its beta. A kind's share of the market risk = its share × its beta ÷ beta together."]}
         know={{ scope: "risk", items: notes }} />
       <div className="mi-riskhead">
@@ -260,15 +260,17 @@ function RiskStep({ d }: { d: AllInvestments; money?: MoneyAll }) {
       <HScroll label="How risky it is">
         <table className="mi-tb">
           <thead><tr><th scope="col">Kind</th><th scope="col" className="r">Share of money</th><th scope="col" className="r">Beta vs Nifty 500</th><th scope="col">Share of the market risk</th>
-            <th scope="col" className="r">Swing a year{win && <small className="mi391-win">{win}</small>}</th><th scope="col" className="r">Worst fall from a high{win && <small className="mi391-win">same windows</small>}</th></tr></thead>
+            <th scope="col" className="r">Swing a year</th><th scope="col" className="r">Worst fall from a high</th></tr></thead>
           <tbody>{kinds.map((k) => { const p = r.parts.find((x) => x.kind === k), x = r.kinds[k]; return (
             <tr key={k} className={p?.red ? "hot" : ""}><th scope="row"><i className={"mi-dot k-" + k} aria-hidden="true" />{KIND_NAME[k]}</th><td className="r">{pctOf(p?.money)}</td><td className="r">{betaTxt(x?.beta)}</td>
               <td className="mi-rs">{p?.riskShare != null ? <><span className="mi-rsb"><i className={"r k-" + k} style={{ width: `${(p.riskShare / max) * 100}%` }} /><i className="m" style={{ width: `${((p.money ?? 0) / max) * 100}%` }} /></span><small><b className={p.red ? "mi-down" : ""}>{pctOf(p.riskShare)}</b> of the risk · {pctOf(p.money)} of the money</small></> : <span className="mi-muted">—</span>}</td>
               <td className="r">{x?.swing != null ? pctOf(x.swing) : "—"}</td><td className="r mi-down">{x?.worstFall != null ? pctOf(x.worstFall) : "—"}</td></tr>); })}</tbody>
         </table>
       </HScroll>
+      {/* task #391 (file 41, founder 26 Nov): the price windows sit under the table, not in the heading, so the heading stays two lines */}
+      {win && <p className="mi-small mi391-win">Swing a year and worst fall from a high: {win}</p>}
       {/* task #391 (fault 9): one line; the full note behind the page's i */}
-      <p className="mi-small mi391-rnote">{RISK_NOTE_LINE}<I k="swing and worst fall here" what={fullNote} read="Each row is the kind's own figure from its portfolio page, over the window its column header names. The rows are not added up." /></p>
+      <p className="mi-small mi391-rnote">{RISK_NOTE_LINE}<I k="swing and worst fall here" what={fullNote} read="Each row is the kind's own figure from its portfolio page, over the window named under the table. The rows are not added up." /></p>
       {/* task #235 (pack C4, C5): the Equity page's fall picture, weighted by value now, with each kind's share of the money and the size of the fall;
           task #391 (fault 8): no Hide of its own and the page's i; "points", not "pts" */}
       {r.beta != null && <div className="pfx mi-fx"><MarketFall id="mi-fall" what="Nifty 500" idx="Nifty 500" value={d.byValue && d.total ? { now: d.total } : null} noRupees={!d.byValue} unit="points" noHide

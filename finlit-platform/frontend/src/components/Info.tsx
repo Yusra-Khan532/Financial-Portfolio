@@ -4,7 +4,7 @@ import { placeFloating } from "../lib/floating";
 import type { Glossary } from "../lib/api";
 
 type PopState = { g: Glossary; anchor: HTMLElement } | null;
-const Ctx = createContext<(g: Glossary | null, anchor?: HTMLElement) => void>(() => {});
+const Ctx = createContext<(g: Glossary | null, anchor?: HTMLElement, touch?: boolean) => void>(() => {});
 
 export function InfoProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<PopState>(null);
@@ -12,9 +12,13 @@ export function InfoProvider({ children }: { children: ReactNode }) {
   // Task #204: leaving the (i) used to close the popover at once, so the pointer could never reach it to scroll a long explanation. Now a close waits a
   // moment and is cancelled while the pointer is over the popover; it closes when the pointer leaves the popover too.
   const leave = useRef(0), over = useRef(false);
-  const show = useCallback((g: Glossary | null, anchor?: HTMLElement) => {
+  // Task #398: on a phone a tap opens the explanation and the browser then fires a made-up "mouse leave" and blur, which closed it a moment later. A popover
+  // opened by a touch now stays until a tap outside it (or Escape, or a scroll); hover and keyboard behave as before.
+  const touched = useRef(false), anchorRef = useRef<HTMLElement | null>(null);
+  const show = useCallback((g: Glossary | null, anchor?: HTMLElement, touch?: boolean) => {
     window.clearTimeout(leave.current);
-    if (g && anchor) { setState({ g, anchor }); return; }
+    if (g && anchor) { touched.current = !!touch || (touched.current && anchorRef.current === anchor); anchorRef.current = anchor; setState({ g, anchor }); return; }
+    if (touched.current) return;
     leave.current = window.setTimeout(() => { if (!over.current) setState(null); }, 160);
   }, []);
   const enter = () => { over.current = true; window.clearTimeout(leave.current); };
@@ -28,11 +32,13 @@ export function InfoProvider({ children }: { children: ReactNode }) {
     ref.current.style.left = pl.left + "px"; ref.current.style.top = pl.top + "px"; ref.current.style.maxHeight = pl.maxH + "px"; ref.current.style.overflowY = "auto"; ref.current.style.overscrollBehavior = "contain";   // the wheel scrolls the popover, not the page behind it
   }, [state]);
   useEffect(() => {
-    const close = () => { window.clearTimeout(leave.current); setState(null); };
+    const close = () => { window.clearTimeout(leave.current); touched.current = false; setState(null); };
     const key = (e: KeyboardEvent) => { if (e.key === "Escape") close(); };
+    const outside = (e: PointerEvent) => { const t = e.target as Node | null; if (touched.current && t && !ref.current?.contains(t) && !anchorRef.current?.contains(t)) close(); };
     addEventListener("scroll", close, { passive: true });
     addEventListener("keydown", key);
-    return () => { removeEventListener("scroll", close); removeEventListener("keydown", key); };
+    addEventListener("pointerdown", outside, true);
+    return () => { removeEventListener("scroll", close); removeEventListener("keydown", key); removeEventListener("pointerdown", outside, true); };
   }, []);
 
   return (
@@ -60,15 +66,12 @@ export const useInfoPop = () => useContext(Ctx);
 
 export function Info({ g }: { g?: Glossary | null }) {
   const show = useContext(Ctx);
-  // Task #396: on a phone a tap opened the note and the browser's emulated "mouse leave" right after it closed it again, so a tap never showed it.
-  // A touch press now keeps it open; it closes on a tap elsewhere (blur), on scroll and on Esc, as before.
-  const touch = useRef(false);
+  const touch = useRef(false);   // task #398: the press that led to this click was a finger, so the popover stays open until a tap outside it
   if (!g || !g.what) return null;
   return (
-    <button className="info" aria-label={`What is ${g.label}?`}
-      onPointerDown={(e) => { touch.current = e.pointerType === "touch"; }}
-      onMouseEnter={(e) => show(g, e.currentTarget)} onMouseLeave={() => { if (!touch.current) show(null); }}
+    <button className="info" aria-label={`What is ${g.label}?`} onPointerDown={(e) => { touch.current = e.pointerType === "touch"; }}
+      onMouseEnter={(e) => show(g, e.currentTarget)} onMouseLeave={() => show(null)}
       onFocus={(e) => show(g, e.currentTarget)} onBlur={() => show(null)}
-      onClick={(e) => { e.stopPropagation(); show(g, e.currentTarget); }}>i</button>
+      onClick={(e) => { e.stopPropagation(); show(g, e.currentTarget, touch.current); }}>i</button>
   );
 }

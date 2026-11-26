@@ -28,10 +28,11 @@ export const ShowHide = ({ open }: { open: boolean }) => <span className="sp-sho
 export const keepFold = (e: SyntheticEvent) => e.preventDefault();
 
 /** One fold: a title (plain, or a heading the page links to), its one line, and the body. */
-export function VisitFold({ id, title, line, className = "", children }: { id: string; title: ReactNode; line?: ReactNode; className?: string; children: ReactNode }) {
+/** `elId` (task #391, developer file 41 v4 K1): an id on the fold itself, for a page whose links land on the fold (All my investments' #mi-kf). */
+export function VisitFold({ id, title, line, className = "", elId, children }: { id: string; title: ReactNode; line?: ReactNode; className?: string; elId?: string; children: ReactNode }) {
   const [open, setOpen] = useVisitFold(id);
   return (
-    <details className={"sp-sec sp-fold pgb-fold" + (className ? " " + className : "")} open={open} onToggle={(e) => { const o = (e.currentTarget as HTMLDetailsElement).open; if (o !== open) setOpen(o); }}>
+    <details id={elId} className={"sp-sec sp-fold pgb-fold" + (className ? " " + className : "")} open={open} onToggle={(e) => { const o = (e.currentTarget as HTMLDetailsElement).open; if (o !== open) setOpen(o); }}>
       <summary><span className="pgb-t">{title}{line ? <small>{line}</small> : null}</span><ShowHide open={open} /></summary>
       {children}
     </details>

@@ -41,21 +41,25 @@ export type Sector = SplitRow & { sector: string; named: boolean };
 export type Size = SplitRow & { size: string };
 export type Company = SplitRow & { symbol: string | null; name: string; abroad: boolean; macro: string; size: string | null; held: ("D" | "F" | "E")[]; via: string[]; score: number | null; label: string | null; peer: string };
 /** Task #277 (fix 4): the window a beta was worked out over ("vs Nifty 500 · weekly · past year"), printed under every beta on the page. */
-export type BetaWindow = { index: string; grain: string; window: string; weeks?: number; from?: string; to?: string; counted?: number; of?: number; short?: string[] };
+export type BetaWindow = { index: string; grain: string; window: string; weeks?: number; from?: string; to?: string; counted?: number; of?: number; short?: string[];
+  /** task #391 (developer file 41 v4, A4): the holdings left out because they have no quantity (they weigh 0), apart from those with a short history */ noQty?: string[] };
 /** "vs Nifty 500 · weekly · past year"; when some holdings were left out (under most of a year of weekly prices, QA of 21 Nov), "· 69 of 71 (UTLSOLAR and TIMEX: under a year of prices)". */
 export const betaWindowTxt = (w: BetaWindow | null | undefined) => {
   if (!w) return "vs Nifty 500 · weekly · past year";
   const base = `vs ${w.index} · ${w.grain} · ${w.window}`;
   if (w.counted == null || w.of == null || w.counted === w.of) return base;
-  const left = (w.short ?? []).filter(Boolean);
-  return `${base} · ${w.counted} of ${w.of}${left.length ? ` (${left.length <= 3 ? joinWords(left) : `${left.slice(0, 2).join(", ")} and ${left.length - 2} more`}: under a year of prices)` : ""}`;
+  // task #391 (developer file 41 v4, A4): each one left out with its own reason: "no quantity yet" (it weighs 0) or "under a year of prices"
+  const names = (l: string[]) => (l.length <= 3 ? joinWords(l) : `${l.slice(0, 2).join(", ")} and ${l.length - 2} more`);
+  const noQty = (w.noQty ?? []).filter(Boolean), short = (w.short ?? []).filter(Boolean);
+  const why = [noQty.length ? `${names(noQty)}: no quantity yet` : "", short.length ? `${names(short)}: under a year of prices` : ""].filter(Boolean);
+  return `${base} · ${w.counted} of ${w.of}${why.length ? ` (${why.join("; ")})` : ""}`;
 };
 export type KindRisk = { beta: number | null; betaWindow?: BetaWindow | null; /** task #391 PR B (fault 12): the swing window and the range key */ swingWindow?: SwingWindow | string | null; bandKey?: string | null; swing: number | null; worstFall: number | null; years: number | null; why: string | null; cover?: number; benchSwing?: number | null; benchWorstFall?: number | null };
 export type RiskPart = { kind: Kind; money: number | null; beta: number | null; band?: string | null; /** task #391 PR B: the range key (words.ts BETA_RANGE_WORD) */ bandKey?: string | null; riskShare: number | null; red: boolean };
 export type Risk = { beta: number | null; band?: string | null; /** task #391 PR B: the range key, the sentence in the page's words, the windows said once */ bandKey?: string | null; bandSays?: string | null;
   swingWindows?: { differ: boolean; line: string | null } | null; /** task #277 (fix 6): the band word and its sentence, from one band */ bandLine?: string | null; why: string | null; parts: RiskPart[]; largest?: Kind; fall10?: { pct: number | null; value: number | null };
   kinds: Partial<Record<Kind, KindRisk>>; bench: { name: string; swing: number | null; worstFall: number | null; from: string; to: string } | null };
-export type ShareRow = { symbol: string; name: string; qty: number | null; price: number | null; priceDate: string | null; chg1d: number | null; chg1y: number | null; beta: number | null;
+export type ShareRow = { symbol: string; name: string; qty: number | null; price: number | null; priceDate: string | null; /** task #391 (file 41 v4, A1): the quote's time */ priceAt?: string | null; chg1d: number | null; chg1y: number | null; beta: number | null;
   score: number | null; label: string | null; macro: string; size: string | null; peer: string; value: number | null; of: number;
   alsoIn: { funds: number; etfs: number; all: number; via: string[] } | null };
 export type FundRow = { /** task #235: what the units still held cost */ invested?: number | null;
@@ -80,7 +84,8 @@ export type AllInvestments = {
   /** task #391 PR B (fault 1): the holdings the money split leaves out (no quantity in a kind that has values), and how many it counts */
   noQuantity?: NamedHolding[]; counted?: { byValue: number; equal: number; notCounted: number; of: number };
   health: Health; risk: Risk; shares: ShareRow[]; funds: FundRow[]; etfs: EtfRow[];
-  sources: { pricesTo: string | null; navsTo: string | null; filesFrom: string | null; filesTo: string | null }; unknown: string[]; gone: string[]; disclaimer: string;
+  sources: { pricesTo: string | null; navsTo: string | null; filesFrom: string | null; filesTo: string | null;
+    /** task #391 (developer file 41 v4, A1): each kind's prices: the shares' latest quote time (ISO, India time) and date, the ETFs' last close */ sharesAt?: string | null; sharesTo?: string | null; etfsTo?: string | null }; unknown: string[]; gone: string[]; disclaimer: string;
 };
 
 /** The Equity portfolio list as the server takes it: one entry per share, symbol and the quantity still held (none means no quantity yet).

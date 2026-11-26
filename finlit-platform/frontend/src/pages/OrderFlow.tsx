@@ -17,6 +17,7 @@ import { flowMap } from "../lib/flowmap";
 import { cr, headline, moneyFlow, type MoneyFlow, type MoneySector, type MoneyStock } from "../lib/money";
 import { LabGate } from "./TradingLab";
 import { ChartZoom } from "../components/ChartZoom";
+import { OptionPulse } from "../components/lab/OptionPulse";
 import { BucketPop, Candles, DirectionPop, SectorPop, StockPop, TipLayer, tiltHandlers, useTip } from "../components/lab/FlowTips";
 import "../styles/portfolio-disc.css";
 import "../styles/tradinglab.css";
@@ -26,6 +27,7 @@ export const FLOW_TABS = [
   { id: "depth", name: "Market depth", ready: true },
   { id: "board", name: "Flow board", ready: true },
   { id: "money", name: "Money Flow", ready: true },
+  { id: "options", name: "Option Pulse", ready: true },
   { id: "zones", name: "Stock zones", ready: false },
   { id: "journal", name: "Trading journal", ready: false },
 ];
@@ -633,6 +635,11 @@ function Depth({ d }: { d: Ready }) {
 // ------------------------------------------------------------------------------------------------------------------ page
 
 function Flow({ view }: { view: string }) {
+  if (view === "options") return <TipLayer><OptionPulse /></TipLayer>;   // its own data (the option chain), not the Order Flow snapshot
+  return <FlowSnapshotView view={view} />;
+}
+
+function FlowSnapshotView({ view }: { view: string }) {
   const live = marketLive();
   const q = useQuery({ queryKey: ["lab-flow"], queryFn: flowSnapshot, refetchInterval: live ? 60_000 : false, retry: false });
   if (q.isPending) return <div className="skeleton" style={{ height: 420 }} aria-label="Loading the latest snapshot" />;
