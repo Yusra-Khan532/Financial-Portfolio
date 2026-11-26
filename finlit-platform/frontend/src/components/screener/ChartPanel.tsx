@@ -12,12 +12,12 @@ import "../../styles/chartpanel.css";
 import { DISC_EVENTS, type DiscEvent, type DiscLatest } from "../../lib/presets";
 import { themePath } from "../../discovery/model";
 import { dateIN } from "../../lib/format";
-import { EVENT_KEY, axisPrice, behindNote, changeTo, datedWeeks, eventLetter, factValue, factsHeading, levelTitle, legendHead, lineLabel, listClose, singleMark, todayIST, volumeLine, type Bar } from "./chartPanelParts";
+import { EVENT_KEY, axisPrice, behindNote, changeTo, datedWeeks, eventLetter, factValue, factsHeading, levelTitle, legendHead, lineLabel, listClose, singleMark, todayIST, volumeLine, weekOf, weeklyEmas, type Bar } from "./chartPanelParts";
 
 /** The chart that opens from a row of the stock screeners, built to the 11 Nov design: candles, bars or a line, daily or weekly, volume in its own pane, an Indicators menu
  *  (EMA 9/20/50/200, SMA 10/20/50, volume average, highest volume in 3 months, strength against NIFTY 500, events, the pattern), Compare, Measure and a reset.
  *  Drawn with TradingView Lightweight Charts 5.0.9 (Apache 2.0; the licence is in public/licenses). It sits beside the table, not over it: the list stays usable and Esc or × closes it. */
-const RANGES = ["1M", "6M", "1Y", "3Y", "5Y"] as const;
+const RANGES = ["1M", "6M", "1Y", "3Y", "5Y", "MAX"] as const;
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 /** The time axis: a tick that falls on a day of the month reads "3 Nov", not a bare "3" (years and months keep the chart's own labels). */
 const dayTick = (time: unknown, type: number): string | null => {
@@ -169,7 +169,17 @@ export function ChartPanel({ row, onClose, onStep, extra, inline = false, onChar
   // the daily candle days the panel holds: this range's when daily, else the 6-month answer's (always daily). They count each week's sessions (W4) and date it (W5).
   const s6 = q6.data?.grain === "daily" ? q6.data.series : undefined;
   const dailyDays = useMemo(() => (canDaily && s ? s.t : s6?.t ?? []), [canDaily, s, s6]);
-  const bars = useMemo(() => (!weekly ? daily : datedWeeks(canDaily ? toWeekly(daily) : daily, dailyDays)), [daily, canDaily, weekly, dailyDays]);
+  // Task #394 (QA of 26 Nov 2026): on weekly candles the lines are WEEKLY averages, worked out on the company's whole weekly history (the MAX chart)
+  // and read on each week shown; the daily EMA read at a week's end (the same figure as the daily view) is never shown on a weekly chart.
+  const qMax = usePrice(row.symbol, "MAX", weekly);
+  const maxSeries = qMax.data?.series;
+  const wEma = useMemo(() => weeklyEmas(maxSeries), [maxSeries]);
+  const bars = useMemo(() => {
+    if (!weekly) return daily;
+    const wk = datedWeeks(canDaily ? toWeekly(daily) : daily, dailyDays);
+    const locked = !!s && s.ema200 === undefined;          // ema200 is removed from the response below Silver: none on weekly either
+    return wk.map((b): Bar => { const e = wEma.get(weekOf(b.t)); return { ...b, e: { ema9: e?.ema9 ?? null, ema20: e?.ema20 ?? null, ema50: e?.ema50 ?? null, ema200: locked ? null : e?.ema200 ?? null } }; });
+  }, [daily, canDaily, weekly, dailyDays, wEma, s]);
   const lastDaily = s6?.t?.length ? s6.t[s6.t.length - 1] : canDaily && s?.t?.length ? s.t[s.t.length - 1] : null;
   useEffect(() => { if (lastDaily && onChartEnd) onChartEnd(row.symbol, lastDaily); }, [lastDaily, onChartEnd, row.symbol]);
   // events drawn on the chart, worked out once for the marks, the legend and the key under the chart (C4)
@@ -286,7 +296,7 @@ export function ChartPanel({ row, onClose, onStep, extra, inline = false, onChar
       const out = [legendHead(bars, i, weekly, today, num)];
       const ls = LINES.filter((L) => ind[L.k]).map((L) => { const v = L.src === "sma" ? smaOf(closes, L.n)[i] : b.e[L.k]; return v == null ? null : `${lineLabel(L.src, L.n, weekly)} ${num(v)}`; }).filter(Boolean) as string[];
       if (ls.length) out.push(ls.join(" · "));
-      const vl = volumeLine(bars, i, weekly, today); if (vl) out.push(vl);
+      const vl = volumeLine(bars, i, weekly, today, s6 ? { t: s6.t, v: s6.v } : null); if (vl) out.push(vl);
       if (cmp.nifty && benchRows.length) { const r = benchRows.find((x) => x.d === b.t), f = benchRows[0]; if (r && f) out.push(`NIFTY 500 ${num((r.c / f.c - 1) * 100)}% since ${f.d}`); }
       const ev = evs.filter((x) => x.d === b.t).map((x) => x.a.title || x.a.type);     // C4: the event's name on its day
       if (ev.length) out.push(`Event: ${ev.join("; ")}`);
@@ -308,7 +318,7 @@ export function ChartPanel({ row, onClose, onStep, extra, inline = false, onChar
     return () => { ro?.disconnect(); c.remove(); chart.current = null; main.current = null; };
   // the chart is drawn again when the data, the view or the choices change; colour changes on a theme switch go through applyOptions below
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bars, mode, weekly, log, ind, cmp, compareOn, bq.data, evs, row.draw, pq.map((x) => x.dataUpdatedAt).join(",")]);
+  }, [bars, mode, weekly, log, ind, cmp, compareOn, bq.data, evs, row.draw, s6, pq.map((x) => x.dataUpdatedAt).join(",")]);
   useEffect(() => build(), [build]);
 
   // a theme switch while the panel is open: new colours through applyOptions, without redrawing or losing the zoom
@@ -351,7 +361,7 @@ export function ChartPanel({ row, onClose, onStep, extra, inline = false, onChar
       <div className="cp-p">{lc ? <><b>₹{num(lc.price)}</b><small className="cp-asof" title={`The list's official close of ${candleDay(lc.day)}, the same day as the list`}>{candleDay(lc.day)} close</small></>
         : <><b>₹{num(lastBar?.c ?? row.price)}</b>{!lastBar && row.price != null && <small className="cp-asof" title="The price in the list; the chart's close shows when it has loaded">list price</small>}{lastBar && <small className="cp-asof" title="The chart's last candle. The list beside it shows the latest close, which can be newer while this chart is refreshed.">close of {candleDay(lastBar.t)}</small>}</>}
         {r1 != null && <span title={lc ? `Change over the month to ${candleDay(lc.day)}` : "Change over the last month"}>1M {pct(r1)}</span>}{r3 != null && <span title={lc ? `Change over the 3 months to ${candleDay(lc.day)}` : "Change over the last 3 months"}>3M {pct(r3)}</span>}
-        {chg != null && <span className="cp-rng" title={`Change over the chart range (${opt.range})`}>{opt.range} {pct(chg)}</span>}
+        {chg != null && opt.range !== "1M" && <span className="cp-rng" title={`Change over the chart range (${opt.range})`}>{opt.range} {pct(chg)}</span>}
         {model && <ScoreChip className="cp-badge" v={scoreView(prismMap[row.symbol])} />}</div>
       {note && <p className="cp-note" role="note"><b>{note[0]}</b> {note[1]}</p>}
       {!!row.facts?.filter(([, v]) => v != null).length && <div className="cp-fbox" aria-label="What the chart shows"><b>{factsHeading(row.factsAsOf)}</b>
@@ -386,7 +396,7 @@ export function ChartPanel({ row, onClose, onStep, extra, inline = false, onChar
         <button type="button" className={measure.on ? "on" : ""} aria-pressed={measure.on} onClick={() => setMeasure((m) => ({ on: !m.on, a: null, out: m.on ? null : "Click the start point" }))}>Measure</button>
         <button type="button" onClick={reset} aria-label="Reset the chart" title="Reset the chart">↺</button>
       </div>
-      {!canDaily && <p className="cp-wk">3Y and 5Y show weekly candles.</p>}
+      {!canDaily && <p className="cp-wk">3Y, 5Y and MAX show weekly candles; the averages on them are weekly.</p>}
       {measure.out && <div className="cp-meas" role="status">{measure.out}</div>}
       <div className="cp-leg" aria-live="off">{legend.length ? legend.map((l, i) => <div key={i}>{l}</div>) : " "}</div>
       <div className="cp-c" ref={host}>

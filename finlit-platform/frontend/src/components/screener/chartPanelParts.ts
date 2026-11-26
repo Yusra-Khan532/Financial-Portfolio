@@ -40,9 +40,39 @@ export function factValue(label: string, v: string | null): string | null {
 /** C4: the level line is named as the screen names it ("Level" on Fresh close above a base, "Pivot" on Near pivot); a drawing without a name keeps "Pivot". */
 export const levelTitle = (d?: { levelLabel?: string | null } | null): string => (d?.levelLabel && d.levelLabel.trim()) || "Pivot";
 
-/** W3: an average named by its unit. EMAs are the server's daily EMAs (read at each week's last day on weekly candles), so always "-day";
- *  an SMA is worked out on the candles shown, so on weekly candles it is a "50-week SMA". */
-export const lineLabel = (src: "ema" | "sma", n: number, weekly: boolean): string => (src === "ema" ? `${n}-day EMA` : `${n}-${weekly ? "week" : "day"} SMA`);
+/** W3: an average named by its unit: on weekly candles every line is a weekly average ("50-week EMA", "50-week SMA"); on daily candles a daily one.
+ *  Task #394 (QA of 26 Nov 2026): the weekly view used to show the daily EMA read at each week's end, labelled "-day", the same figure as the daily view. */
+export const lineLabel = (src: "ema" | "sma", n: number, weekly: boolean): string => `${n}-${weekly ? "week" : "day"} ${src === "ema" ? "EMA" : "SMA"}`;
+
+/** The Monday of a day's week (UTC), the key every weekly bar of the panel is matched on. */
+export const weekOf = (t: string): string => {
+  const d = new Date(t + "T00:00:00Z");
+  return new Date(d.getTime() - ((d.getUTCDay() + 6) % 7) * 864e5).toISOString().slice(0, 10);
+};
+
+/** One exponential average over closes, oldest first: k = 2 / (n + 1), started on the simple average of the first n closes; null until there are n. */
+export function emaSeries(c: (number | null)[], n: number): (number | null)[] {
+  const out: (number | null)[] = []; const k = 2 / (n + 1); let e: number | null = null, seen = 0, sum = 0;
+  for (const x of c) {
+    if (x == null) { out.push(e != null && seen >= n ? e : null); continue; }
+    seen += 1;
+    if (seen < n) { sum += x; out.push(null); continue; }
+    e = seen === n ? (sum + x) / n : x * k + (e as number) * (1 - k);
+    out.push(e);
+  }
+  return out;
+}
+
+export type EmaSet = { ema9: number | null; ema20: number | null; ema50: number | null; ema200: number | null };
+/** Weekly EMAs (9, 20, 50 and 200 weeks) by week, worked out on the company's whole weekly history (the stored MAX chart), so a 200-week line on the
+ *  3-year chart has its full history behind it. A week with fewer weeks of history than an average's window has no value for it. */
+export function weeklyEmas(series?: { t: string[]; c: (number | null)[] } | null): Map<string, EmaSet> {
+  const m = new Map<string, EmaSet>();
+  if (!series?.t?.length) return m;
+  const e9 = emaSeries(series.c, 9), e20 = emaSeries(series.c, 20), e50 = emaSeries(series.c, 50), e200 = emaSeries(series.c, 200);
+  series.t.forEach((t, i) => m.set(weekOf(t), { ema9: e9[i], ema20: e20[i], ema50: e50[i], ema200: e200[i] }));
+  return m;
+}
 
 export type SwingMark = { time: string; position: "aboveBar" | "belowBar"; shape: "arrowDown" | "arrowUp"; color: string; text: string };
 /** C2: a pattern with ONE mark (Fresh close above a base sends "Close above", the bases "Base low") gets it drawn: two or more are joined by a line elsewhere.
@@ -98,11 +128,14 @@ export function legendHead(bars: Bar[], i: number, weekly: boolean, today: strin
 
 /** C5 and W4: the volume line. Daily: "Volume 57,803 · 1.1× its 50-day average" (the 50 sessions before it, the figures box's baseline). Weekly: against the
  *  average of the full weeks among the 20 before it (a week of 4 or more sessions); a week in progress shows its volume so far and no ratio. */
-export function volumeLine(bars: Bar[], i: number, weekly: boolean, today: string): string | null {
+export function volumeLine(bars: Bar[], i: number, weekly: boolean, today: string, longer?: { t: string[]; v?: (number | null)[] } | null): string | null {
   const b = bars[i]; if (b?.v == null) return null;
   const v = fig(b.v, 0);
   if (!weekly) {
-    const prev = i >= 50 ? bars.slice(i - 50, i).map((x) => x.v).filter((x): x is number => x != null) : [];
+    // the 50 sessions before this day: from the bars shown, or (a 1-month chart holds about 21) from the longer daily answer the panel holds (6 months)
+    const at = longer?.v && longer.t ? longer.t.indexOf(b.t) : -1;
+    const prev = i >= 50 ? bars.slice(i - 50, i).map((x) => x.v).filter((x): x is number => x != null)
+      : at >= 50 ? (longer?.v ?? []).slice(at - 50, at).filter((x): x is number => x != null) : [];
     const avg = prev.length === 50 ? prev.reduce((a, x) => a + x, 0) / 50 : null;
     return `Volume ${v}${avg ? ` · ${fig(b.v / avg, 1)}× its 50-day average` : ""}`;
   }

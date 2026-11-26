@@ -325,3 +325,45 @@ async def test_after_the_close_a_screen_keeps_the_list_days_close_not_the_live_q
     finally:
         await store.redis.delete("search-quotes:silver")
         data.reset()
+
+
+def test_a_list_saved_for_a_holiday_is_found_as_off_session():
+    """QA of 26 Nov 2026: a list saved for 24 Nov 2026 (NSE holiday) by the run before the lists were dated from the candles showed as
+    "Latest · 24 Nov" beside a header that said 23 Nov."""
+    m = listday.Market(day=date(2026, 11, 23), sessions=["2026-11-23", "2026-11-20", "2026-11-19"])
+    saved = [date(2026, 11, 19), date(2026, 11, 20), date(2026, 11, 23), date(2026, 11, 24), date(2026, 10, 1)]
+    assert history.off_session_days(m, saved) == [date(2026, 11, 24)]               # after the list day: never a real list
+    m2 = listday.Market(day=date(2026, 11, 25), sessions=["2026-11-25", "2026-11-23", "2026-11-20"])
+    assert history.off_session_days(m2, saved + [date(2026, 11, 25)]) == [date(2026, 11, 24)]   # between sessions, not one of them
+    assert history.off_session_days(listday.Market(), saved) == []                  # the candles said nothing: nothing is judged
+
+
+@pytest.mark.asyncio
+async def test_the_holiday_list_is_removed_and_spells_move_to_the_session_before(store):  # noqa: F811
+    m = listday.Market(day=date(2026, 11, 25), sessions=["2026-11-25", "2026-11-23", "2026-11-20"])
+    async with store.pool.acquire() as conn:
+        await conn.execute("DELETE FROM screen_runs WHERE preset_id = 'zz-hol'")
+        await conn.execute("DELETE FROM screen_snapshots WHERE preset_id = 'zz-hol'")
+        await conn.execute("DELETE FROM screen_spells WHERE preset_id = 'zz-hol'")
+        for d in (date(2026, 11, 23), date(2026, 11, 24), date(2026, 11, 25)):
+            await conn.execute("INSERT INTO screen_runs (preset_id, chips, session, registry, n, list_hash) VALUES ('zz-hol', '', $1, 1, 1, 'x')", d)
+            await conn.execute("INSERT INTO screen_snapshots (preset_id, chips, session, symbol, rank, close, row) VALUES ('zz-hol', '', $1, 'AAA', 1, 10, '{}'::jsonb)", d)
+        await conn.execute("INSERT INTO screen_spells (preset_id, chips, symbol, added_on, close_added, registry_added) VALUES ('zz-hol', '', 'BBB', $1, 5, 1)", date(2026, 11, 24))
+        await conn.execute("INSERT INTO screen_spells (preset_id, chips, symbol, added_on, close_added, left_on, registry_added) VALUES ('zz-hol', '', 'CCC', $1, 5, $2, 1)",
+                           date(2026, 11, 20), date(2026, 11, 24))
+    try:
+        out = await history.drop_off_session_lists(store, m)
+        assert "2026-11-24" in out["offSessionListsDropped"]     # (other tests' lists dated after 25 Nov go too: after the list day)
+        async with store.pool.acquire() as conn:
+            runs = [r["session"] for r in await conn.fetch("SELECT session FROM screen_runs WHERE preset_id = 'zz-hol' ORDER BY session")]
+            snaps = await conn.fetchval("SELECT count(*) FROM screen_snapshots WHERE preset_id = 'zz-hol' AND session = $1", date(2026, 11, 24))
+            sp = {r["symbol"]: r for r in await conn.fetch("SELECT symbol, added_on, left_on FROM screen_spells WHERE preset_id = 'zz-hol'")}
+        assert runs == [date(2026, 11, 23), date(2026, 11, 25)] and snaps == 0      # the Latest is 25 Nov, the holiday is gone
+        assert sp["BBB"]["added_on"] == date(2026, 11, 23)                          # added on the holiday: the session before
+        assert sp["CCC"]["left_on"] == date(2026, 11, 23)
+        assert await history.drop_off_session_lists(store, m) == {"offSessionListsDropped": []}   # nothing left to do
+    finally:
+        async with store.pool.acquire() as conn:
+            await conn.execute("DELETE FROM screen_runs WHERE preset_id = 'zz-hol'")
+            await conn.execute("DELETE FROM screen_snapshots WHERE preset_id = 'zz-hol'")
+            await conn.execute("DELETE FROM screen_spells WHERE preset_id = 'zz-hol'")

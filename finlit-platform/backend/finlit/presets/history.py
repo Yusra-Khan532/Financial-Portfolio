@@ -163,6 +163,46 @@ async def repair_closes(store) -> dict:
     return {"closesRepaired": fixed}
 
 
+def off_session_days(market: Any, saved: Sequence[date]) -> List[date]:
+    """Task #394 (QA of 26 Nov 2026): the saved-list days that were not market sessions. A list was saved for 24 Nov 2026 (an NSE holiday) by
+    the run before the lists were dated from the candles, and as the newest saved list it showed as "Latest · 24 Nov" beside a 23 Nov header.
+    A day counts as off-session when it is after the list day, or between the oldest session the candles show and the list day without
+    being one of those sessions. Nothing is judged when the candles did not give a list day."""
+    day = getattr(market, "day", None)
+    sessions = {date.fromisoformat(x) for x in (getattr(market, "sessions", None) or [])}
+    if day is None or not sessions:
+        return []
+    first = min(sessions)
+    return sorted(d for d in set(saved) if d > day or (first <= d <= day and d not in sessions))
+
+
+async def drop_off_session_lists(store, market: Any) -> dict:
+    """Remove the saved lists (and Top gainers) dated on a day that was not a market session (off_session_days), before tonight's lists are
+    saved. A company's spell that began or ended on such a day is moved to the session before it, so Added, Left and Since added keep reading
+    from real closes."""
+    async with store.pool.acquire() as conn:
+        saved = [r["session"] for r in await conn.fetch("SELECT DISTINCT session FROM screen_runs UNION SELECT DISTINCT session FROM gainers")]
+        bad = off_session_days(market, saved)
+        if not bad:
+            return {"offSessionListsDropped": []}
+        sessions = sorted(date.fromisoformat(x) for x in market.sessions)
+
+        def before(d: date) -> date:
+            earlier = [s for s in sessions if s < d]
+            return earlier[-1] if earlier else d
+
+        async with conn.transaction():
+            for d in bad:
+                to = before(d)
+                await conn.execute("DELETE FROM screen_snapshots WHERE session = $1", d)
+                await conn.execute("DELETE FROM screen_runs WHERE session = $1", d)
+                await conn.execute("DELETE FROM gainers WHERE session = $1", d)
+                await conn.execute("UPDATE screen_spells SET added_on = $2 WHERE added_on = $1", d, to)
+                await conn.execute("UPDATE screen_spells SET left_on = GREATEST($2, added_on) WHERE left_on = $1", d, to)
+    log.warning("ready-made lists: removed the lists saved for days that were not market sessions: %s", [d.isoformat() for d in bad])
+    return {"offSessionListsDropped": [d.isoformat() for d in bad]}
+
+
 async def record(store, fr, results: Sequence[Tuple[Any, List[str], dict]]) -> dict:
     """Write tonight's lists and spells for every screen (`results`: preset, active chips, the engine's answer). Returns counts for the job's summary."""
     sessions_done = spells_opened = spells_closed = 0
