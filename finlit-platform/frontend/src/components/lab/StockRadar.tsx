@@ -148,7 +148,7 @@ export function StockRadar({ stocks, lines }: { stocks: FlowStock[]; lines: Flow
         {others.map((o, k) => (
           <span key={o.symbol} className="srad-tag"><i className={`srad-sw ${SERIES[k + 1]}`} aria-hidden="true" />{o.symbol}
             <button type="button" aria-label={`Remove ${o.symbol} from the comparison`} onClick={() => setCompare((c) => c.filter((y) => y !== o.symbol))}>×</button></span>))}
-        <Finder stocks={stocks} label="Add a stock to compare" placeholder={others.length >= MAX_COMPARE ? "Two stocks compared" : "Add a stock"} onPick={add} disabled={others.length >= MAX_COMPARE} skip={[sym, ...others.map((o) => o.symbol)]} />
+        <Finder stocks={stocks} label="Add a stock to compare" placeholder={others.length >= MAX_COMPARE ? "2 of 2 added" : "Add a stock"} onPick={add} disabled={others.length >= MAX_COMPARE} skip={[sym, ...others.map((o) => o.symbol)]} />
       </div>
       <div className="srad-grid">
         <div className="srad-box srad-main">
