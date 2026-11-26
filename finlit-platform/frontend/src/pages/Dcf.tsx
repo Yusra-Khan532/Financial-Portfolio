@@ -31,6 +31,7 @@ import "../styles/dcf.css";
 import "../styles/dcf-redesign.css";
 import { ChartZoom } from "../components/ChartZoom";
 import { codeText } from "../lib/companyLabel";
+import { CoLogo } from "../components/CoLogo";
 
 
 // ------------------------------------------------------------------------------------------------------------- form state
@@ -93,6 +94,7 @@ const HELP: Record<string, Glossary> = {
   shares: H("shares", "Shares", "Number of shares in crore. Left empty, it is market capitalisation ÷ price. A diluted count (including options and convertibles) is more precise."),
   exitMultiple: H("exitMultiple", "Exit multiple", "Terminal value as a multiple of year-10 free cash flow (EV ÷ FCF), instead of the growth formula.", "TV₁₀ = Multiple × FCF₁₀"),
   tvMethod: H("tvMethod", "Terminal value", "The value of every year after year 10. Growth formula: year-10 cash flow × (1 + terminal growth) ÷ (discount rate − terminal growth). Exit multiple: year-10 cash flow × a multiple."),
+  basis: H("basis", "Starting free cash flow", "Which of the company's reported free cash flows fills the starting figure: the latest year, or the average of the last 3 or 5 years. An average is steadier when cash flow jumps around.", "FCF = Cash from operations − Capex"),
   midYear: H("midYear", "Mid-year convention", "Cash comes in through the year, not all on its last day, so each year's FCF is discounted from the middle of the year rather than its end.", "PV = FCF_t ÷ (1 + r)^(t − 0.5)"),
 };
 
@@ -104,109 +106,160 @@ type Company = {
   netDebt: { value: number | null; borrowings: number | null; cash: number | null; investments: number | null; period: string | null }; notes: string[];
 };
 type Basis = "latest" | "avg3" | "avg5";
+const BASIS_LABEL: Record<Basis, string> = { latest: "Latest year", avg3: "Average of 3 years", avg5: "Average of 5 years" };
+const fcfOf = (c: Company, b: Basis) => (b === "avg3" ? c.fcf.avg3 : b === "avg5" ? c.fcf.avg5 : c.fcf.latest?.fcf ?? null);
+/** What the starting FCF is, as its badge and dropdown say it: "FY26", "3-yr avg", "5-yr avg". */
+const basisTag = (c: Company, b: Basis) => (b === "avg3" ? "3-yr avg" : b === "avg5" ? "5-yr avg" : c.fcf.latest?.period ?? "Latest");
+/** The price's day as a badge: "25 Nov". */
+const dayTag = (iso: string | null) => (iso ? new Date(iso.slice(0, 10) + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short" }) : null);
+/** The form with a company's figures in it (the assumptions untouched). A figure the company does not have is left empty, so no figure from another company stays. */
+function withCompany(f: Form, c: Company, b: Basis): Form {
+  const fcf = fcfOf(c, b), r2 = (v: number | null | undefined) => (v != null && Number.isFinite(v) ? String(Math.round(v * 100) / 100) : "");
+  return { ...f, symbol: c.symbol, fcf0: r2(fcf), price: c.price != null ? String(c.price) : "", marketCap: r2(c.marketCap), netDebt: r2(c.netDebt.value), shares: c.shares.diluted != null ? String(c.shares.diluted) : "" };
+}
+/** Task #396: the five company figures the calculator fills, and how many of them the company has. */
+const filled = (c: Company, b: Basis) => [fcfOf(c, b), c.netDebt.value, c.price, c.marketCap, c.shares.diluted ?? c.shares.implied].filter((v) => v != null && Number.isFinite(v)).length;
 
-/** The company bar: one row with the search (Gold) and the Starting free cash flow dropdown, one line of help, and the loaded company's sources. */
-function CompanyBar({ enabled, onLoad, loaded, initial }: { enabled: boolean; onLoad: (c: Company, basis: Basis) => void; loaded: Company | null; initial: string | null }) {
+/** The company bar (task #396). Left: the search, which shows the chosen company once one is loaded (with "Selected" and ×, and a press on it to change
+ *  company), then a compact summary that opens to the full financial details. Right: the Starting free cash flow choice, each option with its figure.
+ *  Keyboard: ↑ ↓ move through the matches, Enter picks, Esc goes back to the chosen company. */
+function CompanyBar({ enabled, onLoad, onClear, loaded, initial }: { enabled: boolean; onLoad: (c: Company, basis: Basis) => void; onClear: () => void; loaded: Company | null; initial: string | null }) {
   const [q, setQ] = useState("");
   const [sym, setSym] = useState<string | null>(initial);   // opened from a stock page ("Value (DCF)"): that company loads at once
   const [basis, setBasis] = useState<Basis>("latest");
+  const [editing, setEditing] = useState(false);
+  const [active, setActive] = useState(0);
+  const [more, setMore] = useState(false);
+  const box = useRef<HTMLInputElement>(null);
   const sf = useIndexFilter(true), index = sf.idx;
   const hits = useMemo(() => sf.search(q, 8), [sf.search, q]);   // name, symbol, BSE/NSE code or ISIN
+  useEffect(() => { setActive(0); }, [q]);
 
   const company = useQuery<Company, ApiError>({ queryKey: ["dcf-company", sym], queryFn: () => apiGet(`/api/dcf/company/${encodeURIComponent(sym as string)}`), enabled: enabled && !!sym, retry: false, staleTime: 300_000 });
-  useEffect(() => { if (company.data && company.data.symbol === sym) onLoad(company.data, basis); }, [company.data]);   // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (company.data && company.data.symbol === sym) { onLoad(company.data, basis); setMore(false); } }, [company.data]);   // eslint-disable-line react-hooks/exhaustive-deps
   const c = loaded;
-  const pick = (s: string) => { setSym(s); setQ(""); };
+  const chosen = !!c && !editing && !company.isFetching;
+  const pick = (s: string) => { setSym(s); setQ(""); setEditing(false); };
+  const change = () => { setEditing(true); requestAnimationFrame(() => box.current?.focus()); };
+  const clear = () => { setSym(null); setQ(""); onClear(); setEditing(true); requestAnimationFrame(() => box.current?.focus()); };
+  const key = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "ArrowDown" && hits.length) { e.preventDefault(); setActive((a) => (a + 1) % hits.length); }
+    else if (e.key === "ArrowUp" && hits.length) { e.preventDefault(); setActive((a) => (a + hits.length - 1) % hits.length); }
+    else if (e.key === "Enter" && hits[active]) { e.preventDefault(); pick(hits[active][0]); }
+    else if (e.key === "Escape" && c) { e.preventDefault(); setQ(""); setEditing(false); }
+  };
+  const list = q.trim() !== "" && hits.length > 0;
+  const fcfFig = c ? fcfOf(c, basis) : null;
+  const n = c ? filled(c, basis) : 0;
   return (
     <section className="card dcx-co" aria-label="Start from a listed company">
       <div className="dcx-cor">
-        <span className="dcx-cot">Start from a listed company <span className="tier gold">Gold</span></span>
-        <label className="dcx-search"><Icon name="search" /><span className="sr-only">Search a company</span>
-          <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Company name or NSE symbol" autoComplete="off" spellCheck={false} maxLength={60}
-            onKeyDown={(e) => { if (e.key === "Enter" && hits[0]) { e.preventDefault(); pick(hits[0][0]); } }} /></label>
-        <label className="dcx-dd"><span>Starting free cash flow</span>
-          <select value={basis} onChange={(e) => { const b = e.target.value as Basis; setBasis(b); if (company.data) onLoad(company.data, b); }}>
-            <option value="latest">Latest year</option><option value="avg3">Average of 3 years</option><option value="avg5">Average of 5 years</option>
-          </select></label>
+        <div className="dcx-cl">
+          <span className="dcx-cot">Start from a listed company <span className="tier gold">Gold</span></span>
+          {chosen ? (
+            <div className="dcx-pick">
+              <button type="button" className="dcx-pickb" onClick={change} aria-label={`${c.name ?? c.symbol} (${codeText(c.symbol)}) selected. Press to change the company`}>
+                <CoLogo symbol={c.symbol} name={c.name} size={22} inline />
+                <b>{c.name ?? c.symbol}</b><span className="mono dcx-pks">{codeText(c.symbol)}</span>
+                <span className="dcx-sel"><Icon name="check" /><span className="dcx-selt">Selected</span></span>
+              </button>
+              <button type="button" className="dcx-x" onClick={clear} aria-label={`Clear ${c.name ?? c.symbol}`} title="Clear: back to the example figures">×</button>
+            </div>
+          ) : (
+            <label className="dcx-search"><Icon name="search" /><span className="sr-only">Search a company</span>
+              <input ref={box} type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Company name or NSE symbol" autoComplete="off" spellCheck={false} maxLength={60}
+                role="combobox" aria-expanded={list} aria-controls="dcx-hits" aria-autocomplete="list" aria-activedescendant={list ? `dcx-hit-${active}` : undefined}
+                onKeyDown={key} onBlur={() => { if (c && !q.trim()) window.setTimeout(() => setEditing(false), 150); }} />
+              {c && <button type="button" className="dcx-lk dcx-keep" onMouseDown={(e) => e.preventDefault()} onClick={() => { setQ(""); setEditing(false); }}>Keep {c.symbol}</button>}
+            </label>
+          )}
+          {list && (
+            <ul className="dcf-hits dcx-hits" id="dcx-hits" role="listbox" aria-label="Matching companies">{hits.map((h, k) =>
+              <li key={h[0]} role="option" id={`dcx-hit-${k}`} aria-selected={k === active}>
+                <button type="button" tabIndex={-1} onMouseEnter={() => setActive(k)} onMouseDown={(e) => e.preventDefault()} onClick={() => pick(h[0])}><b>{h[1]}</b><span className="mono faint">{h[0]}</span></button></li>)}</ul>)}
+          {index.data && q.trim() !== "" && hits.length === 0 && <p className="faint">No listed company matches “{q.trim()}”.</p>}
+          {company.isFetching && <p className="muted" aria-live="polite">Loading {sym}…</p>}
+          {company.isError && <p className="formerr" role="alert">{(company.error?.body?.detail as string) || "Could not load this company's figures."}</p>}
+          {!c && !company.isFetching && <p className="dcx-h">Fills free cash flow, net debt, shares, price and market cap from the company's latest reported figures. Every field stays editable.</p>}
+          {c && !company.isFetching && (
+            <div className="dcx-sum">
+              <div className="dcx-sumh">
+                <div className="dcx-sumt">
+                  <b>{c.name ?? c.symbol}</b>
+                  <span>{codeText(c.symbol)}{c.sector ? ` · ${c.sector}` : ""} · {c.statement === "consolidated" ? "Consolidated" : c.statement === "standalone" ? "Standalone" : c.statement} statements</span>
+                  <span className="dcx-sump">Latest reported figures: {c.fcf.latest?.period ?? c.netDebt.period ?? "—"}{c.priceAsOf ? ` · Price as of ${dateIN(c.priceAsOf.slice(0, 10))}` : ""}</span>
+                </div>
+                <span className={"dcx-got" + (n < 5 ? " part" : "")} title="Free cash flow, net debt, price, market cap and shares">{n === 5 ? <Icon name="check" /> : null}{n} of 5 figures loaded</span>
+              </div>
+              <button type="button" className="dcx-more" aria-expanded={more} aria-controls="dcx-codet" onClick={() => setMore(!more)}>
+                {more ? "Hide company financial details" : "View company financial details"}<span className={"dcx-chev" + (more ? " up" : "")} aria-hidden="true" /></button>
+              {more && (
+                <div className="dcf-src dcx-codet" id="dcx-codet">
+                  <ul>
+                    <li>Free cash flow ({c.fcf.latest?.period ?? "—"}): {crs(c.fcf.latest?.fcf)}; 3-year average {crs(c.fcf.avg3)}; 5-year average {crs(c.fcf.avg5)}{c.fcf.cagr5 != null ? `; 5-year growth ${pc(c.fcf.cagr5)} a year` : c.fcf.cagr3 != null ? `; 3-year growth ${pc(c.fcf.cagr3)} a year` : ""}.</li>
+                    <li>Net debt ({c.netDebt.period ?? "—"}): borrowings {crs(c.netDebt.borrowings)} − cash {crs(c.netDebt.cash)} = {crs(c.netDebt.value)}. Investments of {crs(c.netDebt.investments)} are not counted as cash; add the liquid part if you judge it surplus.</li>
+                    <li>Price {rs(c.price)}{c.priceAsOf ? ` (${dateIN(c.priceAsOf.slice(0, 10))})` : ""}; market capitalisation {crs(c.marketCap, 0)}; shares {c.shares.diluted != null ? `${nf(c.shares.diluted, 2)} crore diluted (${c.shares.period})` : `${nf(c.shares.implied ?? NaN, 2)} crore (market cap ÷ price)`}.</li>
+                  </ul>
+                  {c.fcf.history.length > 0 && <p className="faint dcf-hist">FCF history: {c.fcf.history.map((h) => `${h.period} ${crs(h.fcf, 0)}`).join(" · ")}</p>}
+                  <p className="faint dcf-hist">Source: the company's {c.statement} statements as filed with the exchanges; price from the latest close.</p>
+                  {c.notes.map((t) => <p key={t} className="dcf-note" role="note"><Icon name="info" />{t}</p>)}
+                </div>)}
+            </div>)}
+        </div>
+        <div className="dcx-dd dcx-cr2"><span className="dcx-ddl"><span id="dcx-basis-l">Starting free cash flow</span><Info g={HELP.basis} /></span>
+          <select aria-labelledby="dcx-basis-l" aria-describedby="dcx-basis-h" value={basis} onChange={(e) => { const b = e.target.value as Basis; setBasis(b); if (company.data) onLoad(company.data, b); }}>
+            {(["latest", "avg3", "avg5"] as const).map((b) => { const v = c ? fcfOf(c, b) : null;
+              return <option key={b} value={b}>{BASIS_LABEL[b]}{c && b === "latest" && c.fcf.latest ? ` (${c.fcf.latest.period})` : ""}{c ? ` · ${v != null ? crs(v, 0) : "not available"}` : ""}</option>; })}
+          </select>
+          <small className="dcx-h" id="dcx-basis-h">{c ? (fcfFig != null ? "Fills the starting free cash flow field. You can still type over it." : "This choice has no figure for this company; type one in the field.") : "Used once a company is loaded."}</small></div>
       </div>
-      <p className="dcx-h">Fills free cash flow, net debt, shares, price and market cap from the company's latest reported figures. Every field stays editable.</p>
-      {q.trim() !== "" && hits.length > 0 && (
-        <ul className="dcf-hits" aria-label="Matching companies">{hits.map((h) => <li key={h[0]}><button type="button" onClick={() => pick(h[0])}><b>{h[1]}</b><span className="mono faint">{h[0]}</span></button></li>)}</ul>)}
-      {index.data && q.trim() !== "" && hits.length === 0 && <p className="faint">No listed company matches “{q.trim()}”.</p>}
-      {company.isFetching && <p className="muted" aria-live="polite">Loading {sym}…</p>}
-      {company.isError && <p className="formerr" role="alert">{(company.error?.body?.detail as string) || "Could not load this company's figures."}</p>}
-      {c && !company.isFetching && (
-        <div className="dcf-src">
-          <p><b>{c.name ?? c.symbol}</b> <span className="mono faint">{codeText(c.symbol)}</span>{c.sector ? ` · ${c.sector}` : ""} · {c.statement} statements</p>
-          <ul>
-            <li>Free cash flow ({c.fcf.latest?.period ?? "—"}): {crs(c.fcf.latest?.fcf)}; 3-year average {crs(c.fcf.avg3)}; 5-year average {crs(c.fcf.avg5)}{c.fcf.cagr5 != null ? `; 5-year growth ${pc(c.fcf.cagr5)} a year` : c.fcf.cagr3 != null ? `; 3-year growth ${pc(c.fcf.cagr3)} a year` : ""}.</li>
-            <li>Net debt ({c.netDebt.period ?? "—"}): borrowings {crs(c.netDebt.borrowings)} − cash {crs(c.netDebt.cash)} = {crs(c.netDebt.value)}. Investments of {crs(c.netDebt.investments)} are not counted as cash; add the liquid part if you judge it surplus.</li>
-            <li>Price {rs(c.price)}{c.priceAsOf ? ` (${dateIN(c.priceAsOf.slice(0, 10))})` : ""}; market capitalisation {crs(c.marketCap, 0)}; shares {c.shares.diluted != null ? `${nf(c.shares.diluted, 2)} crore diluted (${c.shares.period})` : `${nf(c.shares.implied ?? NaN, 2)} crore (market cap ÷ price)`}.</li>
-          </ul>
-          {c.fcf.history.length > 0 && <p className="faint dcf-hist">FCF history: {c.fcf.history.map((h) => `${h.period} ${crs(h.fcf, 0)}`).join(" · ")}</p>}
-          {c.notes.map((n) => <p key={n} className="dcf-note" role="note"><Icon name="info" />{n}</p>)}
-        </div>)}
     </section>
   );
 }
 
 // ------------------------------------------------------------------------------------------------------------- inputs
-/** Round up to 1, 2 or 5 times a power of ten. */
-const niceUp = (n: number) => { if (!(n > 0)) return 1; const m = 10 ** Math.floor(Math.log10(n)); return ([1, 2, 5, 10].map((k) => k * m).find((v) => v >= n) ?? n); };
-const decimalsOf = (step: number) => Math.min(4, (String(step).split(".")[1] ?? "").length);
-
 type Preset = { value: number; name: string };
-/** One assumption: label + i (and preset chips on the same line), then a number box with its unit and a slim slider beside it. The box keeps the text as
- *  typed (a half-typed or empty number still gets the usual message); the slider covers a sensible range that widens when a typed or loaded value lies
- *  outside it. Preset chips light up only when the value equals them (pack #4). */
-export function SliderField({ id, label, help, value, onChange, unit, rupee, error, hint, min, max, step, presets, children }: {
+/** Where a figure came from (task #396): the company's period or price day while it is untouched, "Edited" once the person types over it. */
+export type Src = { text: string; title: string; edited?: boolean } | null;
+/** A plain number as the box shows it when not being edited: Indian grouping, the decimals as typed ("1859235.48" -> "18,59,235.48"). Anything else (half
+ *  typed, empty, already grouped, exponent) is shown exactly as it is; the form keeps the plain text, so nothing is rounded or rewritten. */
+export const grouped = (v: string): string => {
+  const m = /^(-?)(\d+)(\.\d*)?$/.exec(v.trim());
+  if (!m || m[2].length <= 3 || m[2].length > 15) return v;
+  return m[1] + Number(m[2]).toLocaleString("en-IN", { maximumFractionDigits: 0, useGrouping: true }) + (m[3] ?? "");
+};
+const SrcTag = ({ s }: { s: Src }) => (s ? <span className={"dcx-src" + (s.edited ? " ed" : "")} title={s.title}>{s.text}</span> : null);
+
+/** One assumption (task #396: a number box, no slider). Label + i (+ where the figure came from) and the preset chips on the left, the number box with its
+ *  unit on the right; `wide` puts the box under the label at full width. The box keeps the text exactly as typed: no maximum, decimals and minus signs
+ *  allowed; a half-typed or empty number gets the usual message under the field, and the value is never changed for the person. Preset chips are
+ *  optional shortcuts and light up only while the value equals them (pack #4). */
+export function AssumField({ id, label, help, value, onChange, unit, rupee, error, hint, presets, src, wide, placeholder, children }: {
   id: string; label: string; help?: Glossary; value: string; onChange: (v: string) => void; unit?: string; rupee?: boolean; error?: string; hint?: React.ReactNode;
-  min: number; max: number; step?: number; presets?: Preset[]; children?: React.ReactNode;
+  presets?: Preset[]; src?: Src; wide?: boolean; placeholder?: string; children?: React.ReactNode;
 }) {
   const n = parseNum(value);
-  const lo = Number.isFinite(n) && n < min ? -niceUp(-n) : min, hi = Number.isFinite(n) && n > max ? niceUp(n * 1.1) : max;
-  const st = step ?? Math.max(1, niceUp((hi - lo) / 200));
-  const dp = decimalsOf(st), pos = Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : lo;
-  const fill = hi > lo ? ((pos - lo) / (hi - lo)) * 100 : 0;
   const note = error ? `dcf-${id}-err` : hint ? `dcf-${id}-hint` : undefined;
+  const [focus, setFocus] = useState(false);
+  const shown = focus ? value : grouped(value);
   return (
-    <div className={"dcx-f" + (error ? " err" : "")} data-k={id}>
-      <div className="dcx-fl">
-        <label htmlFor={"dcf-" + id}>{label}</label>{help && <Info g={help} />}
+    <div className={"dcx-f" + (wide ? " fs" : "") + (error ? " err" : "")} data-k={id}>
+      <div className="dcx-fm">
+        <div className="dcx-fl">
+          <label htmlFor={"dcf-" + id}>{label}</label>{help && <Info g={help} />}<SrcTag s={src ?? null} />
+        </div>
         {presets && <div className="dcx-pre" role="group" aria-label={`${label} presets`}>{presets.map((p) =>
           <button type="button" key={p.value} aria-pressed={n === p.value} title={p.name} aria-label={`${p.name}, ${p.value}%`} onClick={() => onChange(String(p.value))}>{p.value}%</button>)}</div>}
       </div>
-      <div className="dcx-fr">
-        <div className={"dcx-num" + (rupee ? " pre" : "")}>
-          {rupee && <span className="dcx-u l" aria-hidden="true">₹</span>}
-          <input id={"dcf-" + id} inputMode="decimal" value={value} onChange={(e) => onChange(e.target.value)} aria-invalid={!!error} aria-describedby={note}
-            autoComplete="off" spellCheck={false} maxLength={24} />
-          {unit && <span className="dcx-u" aria-hidden="true">{unit}</span>}
-        </div>
-        <input type="range" className="dcx-rng" aria-label={`${label}, slider`} min={lo} max={hi} step={st} value={pos} style={{ "--fill": `${fill}%` } as React.CSSProperties}
-          aria-valuetext={`${(pos < 0 ? "−" : "") + nf(Math.abs(pos), dp)}${unit ? " " + unit : ""}`} onChange={(e) => onChange(String(Math.round(Number(e.target.value) * 10 ** dp) / 10 ** dp))} />
-      </div>
-      {error ? <p className="dcx-h" id={note}>{error}</p> : hint ? <p className="dcx-h" id={note}>{hint}</p> : null}
-      {children}
-    </div>
-  );
-}
-
-/** A figure without a slider (price and balance sheet): label + i, then the number box with its unit. */
-export function NumField({ id, label, help, value, onChange, unit, rupee, error, hint, placeholder }: {
-  id: string; label: string; help?: Glossary; value: string; onChange: (v: string) => void; unit?: string; rupee?: boolean; error?: string; hint?: string; placeholder?: string;
-}) {
-  const note = error ? `dcf-${id}-err` : hint ? `dcf-${id}-hint` : undefined;
-  return (
-    <div className={"dcx-f fs" + (error ? " err" : "")} data-k={id}>
-      <div className="dcx-fl"><label htmlFor={"dcf-" + id}>{label}</label>{help && <Info g={help} />}</div>
       <div className={"dcx-num" + (rupee ? " pre" : "")}>
         {rupee && <span className="dcx-u l" aria-hidden="true">₹</span>}
-        <input id={"dcf-" + id} inputMode="decimal" value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} aria-invalid={!!error} aria-describedby={note}
+        <input id={"dcf-" + id} type="text" inputMode="decimal" value={shown} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} aria-invalid={!!error} aria-describedby={note}
+          onFocus={() => setFocus(true)} onBlur={() => setFocus(false)}
           autoComplete="off" spellCheck={false} maxLength={24} />
         {unit && <span className="dcx-u" aria-hidden="true">{unit}</span>}
       </div>
       {error ? <p className="dcx-h" id={note}>{error}</p> : hint ? <p className="dcx-h" id={note}>{hint}</p> : null}
+      {children}
     </div>
   );
 }
@@ -235,38 +288,49 @@ function RateBuilder({ onUse }: { onUse: (r: number) => void }) {
   );
 }
 
-function Assumptions({ form, set, err, onReset }: { form: Form; set: <K extends keyof Form>(k: K) => (v: Form[K]) => void; err: (k: string) => string | undefined; onReset: () => void }) {
+function Assumptions({ form, set, err, src, dirty, resetTo, onReset }: {
+  form: Form; set: <K extends keyof Form>(k: K) => (v: Form[K]) => void; err: (k: string) => string | undefined; src: (k: keyof Form) => Src; dirty: boolean; resetTo: string; onReset: () => void;
+}) {
   const [capm, setCapm] = useState(false);
+  const [ask, setAsk] = useState(false);
   const pr = parseNum(form.price), mc = parseNum(form.marketCap);
   const derived = pr > 0 && Number.isFinite(mc) ? nf(mc / pr, 2) : "";
   const r = parseNum(form.r);
+  const reset = () => { if (dirty) setAsk(true); else onReset(); };
   return (
     <form className="card dcx-in" autoComplete="off" onSubmit={(e) => e.preventDefault()} aria-labelledby="dcx-in-h">
-      <div className="dcx-ih"><h2 id="dcx-in-h">Assumptions</h2><span className="dcx-ihs">₹ crore unless stated</span><button type="button" className="dcx-lk" onClick={onReset}>Reset</button></div>
+      <div className="dcx-ih"><h2 id="dcx-in-h">Assumptions</h2><span className="dcx-ihs">₹ crore unless stated</span>
+        <button type="button" className="dcx-btn ghost dcx-bsm dcx-reset" onClick={reset}><Icon name="refresh" />Reset</button></div>
+      {ask && (
+        <div className="dcx-ask" role="alertdialog" aria-labelledby="dcx-ask-t">
+          <p id="dcx-ask-t">Reset every assumption to {resetTo}? The figures you typed will be replaced.</p>
+          <div><button type="button" className="dcx-btn dcx-bsm" onClick={() => { setAsk(false); onReset(); }}>Reset</button>
+            <button type="button" className="dcx-btn ghost dcx-bsm" onClick={() => setAsk(false)} autoFocus>Keep my figures</button></div>
+        </div>)}
       <fieldset className="dcx-g"><legend>Cash flow and growth</legend>
-        <SliderField id="fcf0" label="Starting free cash flow" help={HELP.fcf0} value={form.fcf0} onChange={set("fcf0")} rupee unit="Cr" error={err("fcf0")} min={0} max={1000} />
-        <SliderField id="g1" label="Growth, years 1–5" help={HELP.g1} value={form.g1} onChange={set("g1")} unit="%" error={err("g1")} min={-10} max={50} step={0.5} presets={GROWTH_CHIPS} />
-        <SliderField id="g2" label="Growth, years 6–10" help={HELP.g2} value={form.g2} onChange={set("g2")} unit="%" error={err("g2")} min={-10} max={50} step={0.5} presets={GROWTH_CHIPS} />
-        {form.tvMethod === "gordon" && <SliderField id="gT" label="Terminal growth" help={HELP.gT} value={form.gT} onChange={set("gT")} unit="%" error={err("gT")} min={0} max={12} step={0.25}
+        <AssumField id="fcf0" label="Starting free cash flow" help={HELP.fcf0} value={form.fcf0} onChange={set("fcf0")} rupee unit="Cr" error={err("fcf0")} src={src("fcf0")} wide />
+        <AssumField id="g1" label="Growth, years 1–5" help={HELP.g1} value={form.g1} onChange={set("g1")} unit="%" error={err("g1")} presets={GROWTH_CHIPS} />
+        <AssumField id="g2" label="Growth, years 6–10" help={HELP.g2} value={form.g2} onChange={set("g2")} unit="%" error={err("g2")} presets={GROWTH_CHIPS} />
+        {form.tvMethod === "gordon" && <AssumField id="gT" label="Terminal growth" help={HELP.gT} value={form.gT} onChange={set("gT")} unit="%" error={err("gT")}
           hint={`Must stay below the discount rate (${Number.isFinite(r) ? pc(r) : "—"}).`} />}
       </fieldset>
       <fieldset className="dcx-g"><legend>Discount rate and margin of safety</legend>
-        <SliderField id="r" label="Discount rate" help={HELP.r} value={form.r} onChange={set("r")} unit="%" error={err("r")} min={1} max={30} step={0.25}>
+        <AssumField id="r" label="Discount rate" help={HELP.r} value={form.r} onChange={set("r")} unit="%" error={err("r")}>
           <button type="button" className="dcx-lk dcx-capm-l" aria-expanded={capm} aria-controls="dcx-capm" onClick={() => setCapm(!capm)}>{capm ? "Hide the CAPM and WACC working" : "Work it out with CAPM and WACC"}</button>
-        </SliderField>
+        </AssumField>
         {capm && <RateBuilder onUse={(v) => set("r")(String(v))} />}
-        <SliderField id="mos" label="Margin of safety" help={HELP.mos} value={form.mos} onChange={set("mos")} unit="%" error={err("mos")} min={0} max={80} step={5} presets={MOS_CHIPS} />
+        <AssumField id="mos" label="Margin of safety" help={HELP.mos} value={form.mos} onChange={set("mos")} unit="%" error={err("mos")} presets={MOS_CHIPS} />
       </fieldset>
       <fieldset className="dcx-g"><legend>Price and balance sheet</legend>
         <div className="dcx-g2">
-          <NumField id="marketCap" label="Market cap" help={HELP.marketCap} value={form.marketCap} onChange={set("marketCap")} rupee unit="Cr" error={err("marketCap")} />
-          <NumField id="price" label="Share price" help={HELP.price} value={form.price} onChange={set("price")} rupee error={err("price")} />
-          <NumField id="netDebt" label="Net debt" help={HELP.netDebt} value={form.netDebt} onChange={set("netDebt")} rupee unit="Cr" error={err("netDebt")} hint="Negative for net cash" />
-          <NumField id="shares" label="Shares" help={HELP.shares} value={form.shares} onChange={set("shares")} unit="crore" error={err("shares")} placeholder={derived}
+          <AssumField id="marketCap" label="Market cap" help={HELP.marketCap} value={form.marketCap} onChange={set("marketCap")} rupee unit="Cr" error={err("marketCap")} src={src("marketCap")} wide />
+          <AssumField id="price" label="Share price" help={HELP.price} value={form.price} onChange={set("price")} rupee error={err("price")} src={src("price")} wide />
+          <AssumField id="netDebt" label="Net debt" help={HELP.netDebt} value={form.netDebt} onChange={set("netDebt")} rupee unit="Cr" error={err("netDebt")} src={src("netDebt")} wide hint="Negative for net cash" />
+          <AssumField id="shares" label="Shares" help={HELP.shares} value={form.shares} onChange={set("shares")} unit="crore" error={err("shares")} placeholder={derived} src={src("shares")} wide
             hint={form.shares.trim() ? "As entered, instead of market cap ÷ price" : "Empty: market cap ÷ price"} />
         </div>
       </fieldset>
-      <fieldset className="dcx-g last"><legend>Method</legend>
+      <fieldset className="dcx-g last"><legend>Terminal value method</legend>
         <div className="dcx-fl"><span className="dcx-lbl" id="dcx-tv-l">Terminal value</span><Info g={HELP.tvMethod} /></div>
         <div className="dcx-seg" role="radiogroup" aria-labelledby="dcx-tv-l">
           {([["gordon", "Growth formula"], ["exit", "Exit multiple"]] as const).map(([k, t]) =>
@@ -274,7 +338,7 @@ function Assumptions({ form, set, err, onReset }: { form: Form; set: <K extends 
               onKeyDown={(e) => { if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(e.key)) { e.preventDefault(); const nx = form.tvMethod === "gordon" ? "exit" : "gordon"; set("tvMethod")(nx);
                 (e.currentTarget.parentElement?.querySelector(`[data-tv="${nx}"]`) as HTMLElement | null)?.focus(); } }} data-tv={k}>{t}</button>)}
         </div>
-        {form.tvMethod === "exit" && <SliderField id="exitMultiple" label="Exit multiple of year-10 FCF" help={HELP.exitMultiple} value={form.exitMultiple} onChange={set("exitMultiple")} unit="×" error={err("exitMultiple")} min={1} max={60} step={0.5} />}
+        {form.tvMethod === "exit" && <AssumField id="exitMultiple" label="Exit multiple of year-10 FCF" help={HELP.exitMultiple} value={form.exitMultiple} onChange={set("exitMultiple")} unit="×" error={err("exitMultiple")} />}
         <label className="dcx-sw"><input type="checkbox" role="switch" checked={form.midYear} onChange={(e) => set("midYear")(e.target.checked)} /><span className="dcx-swk" aria-hidden="true" /><span>Mid-year convention</span><Info g={HELP.midYear} /></label>
       </fieldset>
     </form>
@@ -313,9 +377,10 @@ export function PriceScale({ safety, value, price }: { safety: number; value: nu
 }
 
 /** How far the price is from the value, in words that describe and never judge (pack #6: no verdict word). */
-export function priceNote(price: number, iv: number): { above: boolean; head: string; by: string } {
+export function priceNote(price: number, iv: number): { above: boolean; head: string; by: string; line: string } {
   const above = price > iv;
-  return { above, head: above ? "Price above value" : "Price below value", by: `by ${nf(Math.abs((price / iv - 1) * 100), 1)}% on these assumptions` };
+  return { above, head: above ? "Price above value" : "Price below value", by: `by ${nf(Math.abs((price / iv - 1) * 100), 1)}% on these assumptions`,
+    line: above ? "Today's price is higher than the value these assumptions give." : "Today's price is lower than the value these assumptions give." };
 }
 
 // ------------------------------------------------------------------------------------------------------------- the working, in tabs
@@ -339,13 +404,14 @@ function Built({ i, res }: { i: DcfInputs; res: DcfResult }) {
       <div className="dcx-stack" role="img" aria-label={`${nf(100 - near, 1)}% of the enterprise value comes from beyond year 10`}><span className="dcx-k1" style={{ width: `${near}%` }} /><span className="dcx-k2" style={{ width: `${100 - near}%` }} /></div>
     </div>
     <table className="dcx-bridge"><caption className="sr-only">From the present values to the value per share</caption><tbody>
-      <tr><th scope="row">Present value of FCF, years 1–10</th><td>{crs(res.sumPv)}</td></tr>
-      <tr><th scope="row">+ Present value of terminal value</th><td>{crs(res.pvTv)}</td></tr>
-      <tr className="tot"><th scope="row">= Enterprise value</th><td>{crs(res.ev)}</td></tr>
-      <tr><th scope="row">{i.netDebt >= 0 ? "− Net debt" : "+ Net cash"}</th><td>{crs(-i.netDebt)}</td></tr>
-      <tr className="tot"><th scope="row">= Equity value</th><td>{crs(res.equity)}</td></tr>
-      <tr><th scope="row">÷ Shares</th><td>{nf(res.shares, 2)} crore</td></tr>
-      <tr className="tot big"><th scope="row">= Intrinsic value per share</th><td>{res.equity > 0 ? rs(res.iv) : "N/M"}</td></tr>
+      <tr><td className="op" aria-hidden="true" /><th scope="row">Present value of FCF, years 1–10</th><td>{crs(res.sumPv)}</td></tr>
+      <tr><td className="op" aria-hidden="true">+</td><th scope="row">Present value of terminal value</th><td>{crs(res.pvTv)}</td></tr>
+      <tr className="sub"><td className="op" aria-hidden="true" /><th scope="row">Terminal value at year 10 ({gordon ? "growth formula" : "exit multiple"}) × discount factor {res.tv !== 0 ? (res.pvTv / res.tv).toFixed(4) : "—"}</th><td>{crs(res.tv)}</td></tr>
+      <tr className="tot"><td className="op" aria-hidden="true">=</td><th scope="row">Enterprise value</th><td>{crs(res.ev)}</td></tr>
+      <tr><td className="op" aria-hidden="true">{i.netDebt >= 0 ? "−" : "+"}</td><th scope="row">{i.netDebt >= 0 ? "Net debt" : "Net cash"}</th><td>{crs(Math.abs(i.netDebt))}</td></tr>
+      <tr className="tot"><td className="op" aria-hidden="true">=</td><th scope="row">Equity value</th><td>{crs(res.equity)}</td></tr>
+      <tr><td className="op" aria-hidden="true">÷</td><th scope="row">Shares</th><td>{nf(res.shares, 2)} crore</td></tr>
+      <tr className="tot big"><td className="op" aria-hidden="true">=</td><th scope="row">Intrinsic value per share</th><td>{res.equity > 0 ? rs(res.iv) : "N/M"}</td></tr>
     </tbody></table>
     <dl className="dcx-kv">
       <div><dt>Implied exit multiple</dt><dd>{nf(res.exitMultiple, 1)}× FCF</dd></div>
@@ -536,6 +602,26 @@ function SavedScenarios({ enabled, form, onOpen }: { enabled: boolean; form: For
   );
 }
 
+// ------------------------------------------------------------------------------------------------------------- methodology (task #396)
+/** The method in brief, below the calculator: the same formulas the engine uses (lib/dcf.ts), in words. */
+function Methodology() {
+  return (
+    <section className="card dcx-meth" aria-labelledby="dcx-meth-h">
+      <h2 id="dcx-meth-h">Methodology and important notes</h2>
+      <div className="dcx-mg">
+        <div>
+          <p><b>Projection.</b> Starting free cash flow grows at the years 1–5 rate, then at the years 6–10 rate. Year <i>t</i> cash flow is discounted by (1 + discount rate)<sup>t</sup>. With the mid-year convention on, cash is assumed to arrive mid-year, so year <i>t</i> is discounted by (1 + rate)<sup>t − 0.5</sup>.</p>
+          <p><b>Terminal value.</b> The growth formula (Gordon growth) values every year after year 10 as FCF<sub>10</sub> × (1 + terminal growth) ÷ (discount rate − terminal growth); it needs the discount rate to be above terminal growth. The exit multiple method values the business at year 10 as FCF<sub>10</sub> × the multiple. Either is discounted back from year 10.</p>
+        </div>
+        <div>
+          <p><b>From enterprise to share value.</b> Equity value = enterprise value − net debt (borrowings − cash). Investments are not counted as cash; add the liquid part to cash yourself if you judge it surplus. Value per share = equity value ÷ shares outstanding. If shares are left blank, they are worked out as market cap ÷ share price.</p>
+          <p><b>Safety price</b> = value per share × (1 − margin of safety). <b>FCF yield</b> compares next year's free cash flow with today's enterprise value (market cap + net debt).</p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 // ------------------------------------------------------------------------------------------------------------- page
 export function DcfPage() {
   useDocTitle("Fair value calculator", "Discounted cash flow (DCF) calculator: intrinsic value per share, margin of safety, sensitivity and reverse DCF, with the working shown step by step.");
@@ -565,14 +651,25 @@ export function DcfPage() {
   useEffect(() => { if (Number.isFinite(inputs.g1) && Number.isFinite(inputs.g2) && Number.isFinite(inputs.r)) setCases((c) => ({ ...caseText(defaultScenarios(inputs)), baseP: c.baseP })); }, [inputs.g1, inputs.g2, inputs.r]);   // eslint-disable-line react-hooks/exhaustive-deps
   const scen = useMemo(() => scenarios(inputs, toCases(inputs, cases)), [inputs, cases]);
 
+  // task #396: a company fills its five figures and nothing else; a figure it does not have is left empty (never kept from the company before), and each
+  // filled figure carries its source badge while it is untouched
+  const [basisNow, setBasisNow] = useState<Basis>("latest");
   const onCompany = (c: Company, basis: Basis) => {
-    const fcf = basis === "avg3" ? c.fcf.avg3 : basis === "avg5" ? c.fcf.avg5 : c.fcf.latest?.fcf;
-    setLoaded(c);
-    setForm((f) => ({ ...f, symbol: c.symbol, fcf0: fcf != null ? String(Math.round(fcf * 100) / 100) : "", price: c.price != null ? String(c.price) : f.price,
-      marketCap: c.marketCap != null ? String(Math.round(c.marketCap * 100) / 100) : f.marketCap, netDebt: c.netDebt.value != null ? String(Math.round(c.netDebt.value * 100) / 100) : "",
-      shares: c.shares.diluted != null ? String(c.shares.diluted) : "" }));
-    if (fcf == null) toast("This company has no free cash flow figure for that choice; enter one by hand.");
+    setLoaded(c); setBasisNow(basis);
+    setForm((f) => withCompany(f, c, basis));
+    const miss = [fcfOf(c, basis) == null && "free cash flow", c.price == null && "share price", c.marketCap == null && "market cap", c.netDebt.value == null && "net debt"].filter(Boolean);
+    if (miss.length) toast(`This company has no ${miss.join(", ")} figure${miss.length > 1 ? "s" : ""} for that choice; enter ${miss.length > 1 ? "them" : "it"} by hand.`);
   };
+  const companyVals = useMemo(() => (loaded ? withCompany(DEFAULT, loaded, basisNow) : null), [loaded, basisNow]);
+  const src = (k: keyof Form): Src => {
+    if (!loaded || !companyVals || form.symbol !== loaded.symbol || companyVals[k] === "") return null;
+    const tag = k === "fcf0" ? basisTag(loaded, basisNow) : k === "price" || k === "marketCap" ? dayTag(loaded.priceAsOf) : k === "netDebt" ? loaded.netDebt.period : k === "shares" ? loaded.shares.period : null;
+    if (!tag) return null;
+    return String(form[k]) === String(companyVals[k]) ? { text: tag, title: `From ${loaded.name ?? loaded.symbol}'s reported figures (${tag})` }
+      : { text: "Edited", title: `You changed ${loaded.name ?? loaded.symbol}'s figure (${tag}: ${companyVals[k]})`, edited: true };
+  };
+  // × on the chosen company: its figures go back to the starting example, the person's own assumptions stay (as on the P/E, EPS & PEG calculator, #156)
+  const onClear = () => { setLoaded(null); setForm((f) => ({ ...f, symbol: "", fcf0: DEFAULT.fcf0, price: DEFAULT.price, marketCap: DEFAULT.marketCap, netDebt: DEFAULT.netDebt, shares: DEFAULT.shares })); };
   const copyLink = async () => { try { await navigator.clipboard.writeText(location.href); toast("Link copied: it opens the calculator with these inputs."); } catch { toast("Copy the address from the browser bar."); } };
 
   // the summary strip shows while the result card is off screen
@@ -591,7 +688,9 @@ export function DcfPage() {
   const ok = res && res.equity > 0;
   const note = ok ? priceNote(inputs.price, res.iv) : null;
   const zero = (v: number | null) => (v == null ? "—" : "₹" + nf(v, 0));
-  const reset = () => { setForm(DEFAULT); setLoaded(null); };
+  const resetForm = loaded && form.symbol === loaded.symbol ? withCompany(DEFAULT, loaded, basisNow) : DEFAULT;
+  const dirty = (Object.keys(DEFAULT) as (keyof Form)[]).some((k) => String(form[k]) !== String(resetForm[k]));
+  const reset = () => setForm(resetForm);
 
   return (
     <>
@@ -601,9 +700,9 @@ export function DcfPage() {
       <div className="wrap dcf dcx">
         <DcfIntro open={intro.open} onOpenChange={intro.set} />
         <Gate tier="gold" title="DCF calculator" points={["Intrinsic value per share, margin of safety and the safety price", "Load any listed company's cash flow, debt and shares", "Sensitivity grids, reverse DCF and bear/base/bull cases", "Save scenarios, share links and export to Excel (CSV)"]}>
-          <CompanyBar enabled={gold && !!user && !DEMO} onLoad={onCompany} loaded={loaded} initial={sp.get("load") === "1" && form.symbol ? form.symbol.toUpperCase() : null} />
+          <CompanyBar enabled={gold && !!user && !DEMO} onLoad={onCompany} onClear={onClear} loaded={loaded} initial={sp.get("load") === "1" && form.symbol ? form.symbol.toUpperCase() : null} />
           <div className="dcx-ws">
-            <div id="dcx-in"><Assumptions form={form} set={set} err={err} onReset={reset} /></div>
+            <div id="dcx-in"><Assumptions form={form} set={set} err={err} src={src} dirty={dirty} resetTo={loaded && form.symbol === loaded.symbol ? `${loaded.name ?? loaded.symbol}'s figures and the starting assumptions` : "the starting example"} onReset={reset} /></div>
             <div id="dcx-out">
               {!res ? (
                 <section className="card dcx-res" aria-label="Result" ref={card}>
@@ -613,18 +712,20 @@ export function DcfPage() {
               ) : (<>
                 <section className="card dcx-res" aria-label="Result" ref={card}>
                   <div className="dcx-rh">
-                    <div><span className="dcx-k">Intrinsic value per share{form.symbol ? ` · ${form.symbol}` : ""}</span><div className="dcx-v" aria-live="polite">{ok ? rs(res.iv) : "N/M"}</div></div>
-                    {note ? <div className={"dcx-pill " + (note.above ? "dcx-dn" : "dcx-up")} role="status"><b>{note.head}</b><span>{note.by}</span></div>
+                    <div className="dcx-ivb"><span className="dcx-k">Intrinsic value per share{form.symbol ? ` · ${form.symbol}` : ""}</span><div className="dcx-v" aria-live="polite">{ok ? rs(res.iv) : "N/M"}</div>
+                      <span className="dcx-ivs">Estimated from your assumptions · not a forecast of the share price</span></div>
+                    {note ? <div className={"dcx-pill " + (note.above ? "dcx-dn" : "dcx-up")} role="status"><b>{note.head} {note.by.replace(" on these assumptions", "")}</b><span>{note.line}</span></div>
                       : <div className="dcx-pill dcx-nm" role="status"><b>No value per share</b><span>{STATUS_TEXT["not-meaningful"].text}</span></div>}
                   </div>
                   {ok && <PriceScale safety={res.buyPrice} value={res.iv} price={inputs.price} />}
                   <dl className="dcx-kpis">
                     <div><dt>Current price</dt><dd>{rs(inputs.price)}</dd>{loaded?.priceAsOf && form.symbol === loaded.symbol && <small>{dateIN(loaded.priceAsOf.slice(0, 10))}</small>}</div>
-                    <div><dt>Upside / downside</dt><dd className={ok ? (res.upside >= 0 ? "dcx-up" : "dcx-dn") : ""}>{ok ? sgn(res.upside) : "—"}</dd></div>
-                    <div><dt>Safety price ({nf(inputs.mos, 0)}%)</dt><dd>{ok ? rs(res.buyPrice) : "—"}</dd></div>
-                    <div><dt>Bear · base · bull</dt><dd>{scen.rows.map((x) => zero(x.iv)).join(" · ")}</dd></div>
+                    <div><dt>Upside / downside</dt><dd className={ok ? (res.upside >= 0 ? "dcx-up" : "dcx-dn") : ""}>{ok ? sgn(res.upside) : "—"}</dd><small>Value against price</small></div>
+                    <div><dt>Safety price ({nf(inputs.mos, 0)}%)</dt><dd>{ok ? rs(res.buyPrice) : "—"}</dd><small>Value × {nf(1 - inputs.mos / 100, 2)}</small></div>
+                    <div><dt>Bear · base · bull</dt><dd className="dcx-bbb">{scen.rows.map((x, k) => <span key={x.s.key} className={k === 0 ? "dcx-dn" : k === 2 ? "dcx-up" : undefined}>{k ? " · " : ""}{zero(x.iv)}</span>)}</dd>
+                      <small>{scen.weighted != null ? `Weighted ${rs(scen.weighted)}` : "Weights do not add to 100%"}</small></div>
                   </dl>
-                  {out.warnings.length > 0 && <div className="dcx-warn" role="note"><b>Worth a second look</b><ul>{out.warnings.map((w) => <li key={w.text}>{w.text}</li>)}</ul></div>}
+                  {out.warnings.length > 0 && <div className="dcx-warn" role="note"><b>Worth a second look: allowed, but unusual</b><ul>{out.warnings.map((w) => <li key={w.text}>{w.text}</li>)}</ul></div>}
                   <div className="dcx-acts">
                     <button type="button" className="dcx-btn ghost" onClick={copyLink}>Copy share link</button>
                     <button type="button" className="dcx-btn ghost" onClick={() => exportCsv(inputs, res, form.symbol)}>Download CSV</button>
@@ -646,7 +747,8 @@ export function DcfPage() {
             <button type="button" tabIndex={mini ? 0 : -1} onClick={toCard}>See the working</button>
           </div>
         </Gate>
-        <p className="faint dcf-disc">A DCF value is only as good as its assumptions: small changes in growth or discount rate move it a lot. This is a calculation tool for education, not investment advice. <Link to="/glossary#discounted-cash-flow-dcf">What is a DCF?</Link></p>
+        <Methodology />
+        <p className="faint dcf-disc">A DCF value is only as good as its assumptions: small changes in growth or discount rate move it a lot. This is a calculation tool for education, not investment advice. The intrinsic value is an estimate from the inputs above, not a forecast of the future share price. <Link to="/glossary#discounted-cash-flow-dcf">What is a DCF?</Link></p>
       </div>
     </>
   );

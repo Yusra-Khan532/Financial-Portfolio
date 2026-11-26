@@ -60,10 +60,14 @@ export const useInfoPop = () => useContext(Ctx);
 
 export function Info({ g }: { g?: Glossary | null }) {
   const show = useContext(Ctx);
+  // Task #396: on a phone a tap opened the note and the browser's emulated "mouse leave" right after it closed it again, so a tap never showed it.
+  // A touch press now keeps it open; it closes on a tap elsewhere (blur), on scroll and on Esc, as before.
+  const touch = useRef(false);
   if (!g || !g.what) return null;
   return (
     <button className="info" aria-label={`What is ${g.label}?`}
-      onMouseEnter={(e) => show(g, e.currentTarget)} onMouseLeave={() => show(null)}
+      onPointerDown={(e) => { touch.current = e.pointerType === "touch"; }}
+      onMouseEnter={(e) => show(g, e.currentTarget)} onMouseLeave={() => { if (!touch.current) show(null); }}
       onFocus={(e) => show(g, e.currentTarget)} onBlur={() => show(null)}
       onClick={(e) => { e.stopPropagation(); show(g, e.currentTarget); }}>i</button>
   );
