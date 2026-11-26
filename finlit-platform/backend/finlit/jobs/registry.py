@@ -206,6 +206,7 @@ FUNDS_GATE = Gate("FUND_LOADS_ENABLED", "ETF and fund loads are switched off: se
 #   database   works on tables already held, no provider calls
 #   measured   no hard bound known: the typical run is far below the limit, and the early warning (status.near_limit) tells the admin before it nears it
 LIMIT_POLICY: Dict[str, str] = {
+    "eod-candles": "fixed: two downloads and two inserts, done in a minute; a run stopped at its limit stored nothing half-way (each exchange's file is one statement) and the probe asks again 10 minutes later",
     "ath": "deadline: stops itself after --max-minutes 8 (limit 12)",
     "coverage": "deadline: stops itself after --max-minutes 13 and records what it checked (limit 22)",
     "calendars": "fixed: two provider calendars (IPO and results dates); measured about 9 s",
