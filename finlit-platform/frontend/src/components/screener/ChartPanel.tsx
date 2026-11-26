@@ -345,7 +345,9 @@ export function ChartPanel({ row, onClose, onStep, extra, inline = false, onChar
   const note = behindNote(lastDaily, row.listDay, row.priceOn);      // F6
   const keyOn = EVENT_KEY.filter(([k]) => evs.some((x) => x.txt === k));    // C4: the key lists the letters drawn on the chart
   const prep = (q.failureReason as { status?: number } | null)?.status === 202 || (q.error as { status?: number } | null)?.status === 202;   // F7
-  const first = bars[0], chg = lastBar && first ? (lastBar.c / first.c - 1) * 100 : null;
+  // the range's change runs from the first candle of the range as the server sends it, whatever D or W shows (QA 26 Nov 2026: 6M read +33.01% on D
+  // and +28.13% on W, because the first weekly bar closes at the end of the range's first week)
+  const first = daily[0] ?? bars[0], chg = lastBar && first ? (lastBar.c / first.c - 1) * 100 : null;
   const tog = (k: keyof Ind) => touch({ ...ind, [k]: !ind[k] });
   const reset = () => { touch(defaultIndicators(row.screen)); setCmp({ nifty: false, peers: [] }); setLog(false); setLongDaily(false); setOpt((o) => ({ ...o, mode: "candles", weekly: false })); setMeasure({ on: false, a: null, out: null }); chart.current?.timeScale().fitContent(); };
   const peerList = (peers?.symbols ?? []).filter((p) => p !== row.symbol).slice(0, 8);

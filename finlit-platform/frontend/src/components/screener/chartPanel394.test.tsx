@@ -248,6 +248,14 @@ describe("Task #394 QA of 26 Nov 2026: weekly averages, the 1M volume, the retur
     expect(volumeLine(bars, bars.length - 1, false, "2026-11-26")).toBe("Volume 2,000");
     expect(volumeLine(bars, bars.length - 1, false, "2026-11-26", { t: six.t, v: six.v })).toBe("Volume 2,000 · 2.0× its 50-day average");
   });
+  it("the range's change is the same on D and W (from the range's first candle)", () => {
+    localStorage.setItem("fl.chart.v2", JSON.stringify({ range: "6M" }));
+    panel();
+    const rng = () => document.querySelector(".cp-rng")!.textContent!;
+    const onD = rng();
+    fireEvent.click(screen.getByRole("button", { name: "W" }));
+    expect(rng()).toBe(onD);
+  });
   it("1M is not shown twice in the returns row, and MAX is offered", () => {
     localStorage.setItem("fl.chart.v2", JSON.stringify({ range: "1M" }));
     panel();
