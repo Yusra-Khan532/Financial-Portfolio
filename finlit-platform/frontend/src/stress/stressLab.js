@@ -63,7 +63,7 @@ export function mountStressLab(root, E, D, opts) {
   var CALLN = 0;
   function call(c, i) {
     var key = c.k + ':' + (typeof i === 'number' ? i : c.t), id = 'cd-' + (++CALLN), open = !!(S.callsOpen && S.callsOpen[key]);
-    var one = String(c.d || '').replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim(), cut = one.search(/[.;:](\s|$)/);   // task #401: the first sentence, as plain text
+    var one = String(c.d || '').replace(/<[^>]*>/g, ' ').replace(/[<>]/g, '').replace(/\s+/g, ' ').trim(), cut = one.search(/[.;:](\s|$)/);   // task #401: the first sentence, as plain text (no angle bracket left; escaped again below)
     one = cut > 0 ? one.slice(0, cut + 1) : one;
     return '<div class="call ' + c.k + '"><span class="ic">' + svg(ICON[c.k]) + '</span><div class="tx"><span class="k">' + KIND[c.k] + '</span><b>' + c.t + '</b>' + (one ? '<span class="ln"' + (open ? ' hidden' : '') + '>' + esc(one) + '</span>' : '') + '</div>' +
       '<button type="button" class="cx" data-cx="' + esc(key) + '" aria-expanded="' + open + '" aria-controls="' + id + '" aria-label="' + (open ? 'Hide the detail' : 'Show the detail') + '">' + svg(open ? '<path d="M5 12.5l5-5 5 5"/>' : '<path d="M5 7.5l5 5 5-5"/>', 16) + '</button>' +
