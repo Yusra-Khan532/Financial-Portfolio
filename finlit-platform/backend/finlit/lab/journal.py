@@ -165,7 +165,7 @@ async def _count(conn, uid: str) -> int:
 @router.get("/api/lab/journal")
 async def my_journal(request: Request, ctx: Ctx = Depends(lab_ctx)) -> Dict[str, Any]:
     async with request.app.state.store.pool.acquire() as conn:
-        rows = await conn.fetch(f"SELECT {COLS} FROM lab_journal WHERE user_id = $1 ORDER BY entry_at DESC, id DESC", ctx.user_id)
+        rows = await conn.fetch(f"SELECT {COLS} FROM lab_journal WHERE user_id = $1 ORDER BY entry_at DESC, id DESC", ctx.user_id)  # nosec B608 - only the fixed column list COLS is placed in the text; every value is a bound parameter
     trades = [_row(r) for r in rows]
     return {"trades": trades, "stats": stats(trades), "limit": MAX_TRADES}
 
@@ -176,16 +176,15 @@ async def add_trade(request: Request, body: Trade, ctx: Ctx = Depends(lab_ctx)) 
         if await _count(conn, ctx.user_id) >= MAX_TRADES:
             raise fail(409, "journal_full", f"The journal holds up to {MAX_TRADES:,} trades. Remove some to add more.")
         r = await conn.fetchrow(f"""INSERT INTO lab_journal (user_id, symbol, side, qty, entry_price, exit_price, entry_at, exit_at, fees, setup, notes)
-                                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING {COLS}""", ctx.user_id, *_vals(body))
+                                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING {COLS}""", ctx.user_id, *_vals(body))  # nosec B608 - only the fixed column list COLS is placed in the text; every value is a bound parameter
     return {"trade": _row(r)}
 
 
 @router.put("/api/lab/journal/{tid}")
 async def change_trade(request: Request, tid: int, body: Trade, ctx: Ctx = Depends(lab_ctx)) -> Dict[str, Any]:
     async with request.app.state.store.pool.acquire() as conn:
-        r = await conn.fetchrow(f"""UPDATE lab_journal SET symbol = $3, side = $4, qty = $5, entry_price = $6, exit_price = $7, entry_at = $8,
-                                    exit_at = $9, fees = $10, setup = $11, notes = $12 WHERE id = $1 AND user_id = $2 RETURNING {COLS}""",
-                                tid, ctx.user_id, *_vals(body))
+        sql = f"UPDATE lab_journal SET symbol = $3, side = $4, qty = $5, entry_price = $6, exit_price = $7, entry_at = $8, exit_at = $9, fees = $10, setup = $11, notes = $12 WHERE id = $1 AND user_id = $2 RETURNING {COLS}"  # nosec B608 - only the fixed column list COLS is placed in the text; every value is a bound parameter
+        r = await conn.fetchrow(sql, tid, ctx.user_id, *_vals(body))
     if r is None:
         raise fail(404, "not_found", "That trade is not in your journal.")
     return {"trade": _row(r)}
