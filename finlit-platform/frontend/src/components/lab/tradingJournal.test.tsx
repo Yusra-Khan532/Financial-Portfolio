@@ -10,12 +10,12 @@ import { calendar, latestReflections, money, type JReflection, type Journal } fr
 
 const R_INFY: JReflection = { held: "1 hour", returnPct: -0.67, nifty: { status: "intraday" }, assumption: { status: "none" },
   sentences: ["Short INFY (quantity 10) was entered at ₹1,500 and exited at ₹1,510 after 1 hour, closing with a net loss of ₹100 with no fees entered: −0.67% on the ₹15,000 position.",
-    "Nifty 50 data for that window is not stored: the site keeps Nifty 50's daily closes, not its prices inside a session, so its move during this same-day trade is not shown.",
+    "Nifty 50 is not compared: for a same-day trade that data is not stored (only Nifty 50's daily closes are kept).",
     "No assumption was noted to check."], text: "" };
 R_INFY.text = R_INFY.sentences.join(" ");
 const R_REL: JReflection = { held: "1 hour 30 minutes", returnPct: 2.14, nifty: { status: "intraday" }, assumption: { status: "reached", level: 1420, way: "above", field: "setup" },
   sentences: ["Long RELIANCE (quantity 10) was entered at ₹1,400 and exited at ₹1,430 after 1 hour 30 minutes, closing with a net gain of ₹300 with no fees entered: +2.14% on the ₹14,000 position.",
-    "Nifty 50 data for that window is not stored: the site keeps Nifty 50's daily closes, not its prices inside a session, so its move during this same-day trade is not shown.",
+    "Nifty 50 is not compared: for a same-day trade that data is not stored (only Nifty 50's daily closes are kept).",
     "The level noted in the setup, 1,420 (a move above it), was reached at the exit: the exit price of ₹1,430 is above it."], text: "" };
 R_REL.text = R_REL.sentences.join(" ");
 

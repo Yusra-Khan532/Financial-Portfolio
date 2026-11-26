@@ -156,8 +156,7 @@ NIFTY_CODE = "NIF50"                 # flows_index: Nifty 50 daily closes kept b
 SESSION_CLOSE = time(15, 30)         # a daily close belongs to 15:30 Indian time of its day
 NIFTY_GAP = timedelta(days=7)        # the close before the entry / after the exit must be this close to it (weekends and holidays), or it is "not stored"
 NIFTY_NOT_STORED = "Nifty 50 data for that window is not stored, so its move over the same period is not shown."
-NIFTY_INTRADAY = ("Nifty 50 data for that window is not stored: the site keeps Nifty 50's daily closes, not its prices inside a session, "
-                  "so its move during this same-day trade is not shown.")
+NIFTY_INTRADAY = "Nifty 50 is not compared: for a same-day trade that data is not stored (only Nifty 50's daily closes are kept)."
 NO_ASSUMPTION = "No assumption was noted to check."
 SEVERAL_LEVELS = "The setup and notes name more than one level, so no single noted level is checked."
 # A noted level: a cue word, then at most 40 characters of words (no digits), then the number. Only these simple, explicit cases are read.
@@ -292,15 +291,15 @@ def reflection(t: Dict[str, Any], nifty: Mapping[date, float]) -> Optional[Dict[
     elif w["status"] == "missing":
         s2 = NIFTY_NOT_STORED
     else:
-        span = f"(its close on {_day_text(date.fromisoformat(w['from']))} before the entry to its close on {_day_text(date.fromisoformat(w['to']))} after the exit)"
+        span = f"(closes of {_day_text(date.fromisoformat(w['from']))} and {_day_text(date.fromisoformat(w['to']))})"
         ref = w["pct"] if t["side"] == "long" else -w["pct"]
         gap = round((ret or 0) - ref, 2)
         rel = "level with it" if gap == 0 else f"{abs(gap):.2f} percentage points {'above' if gap > 0 else 'below'} it"
         if t["side"] == "long":
             s2 = f"Nifty 50 moved {signed_pct(w['pct'])} over the same period {span}; the position's {signed_pct(ret or 0)} was {rel}."
         else:
-            s2 = (f"Nifty 50 moved {signed_pct(w['pct'])} over the same period {span}; a short gains when prices fall, so against the index's move "
-                  f"turned around ({signed_pct(ref)}) the position's {signed_pct(ret or 0)} was {rel}.")
+            s2 = (f"Nifty 50 moved {signed_pct(w['pct'])} over the same period {span}, which is {signed_pct(ref)} for a short; "
+                  f"the position's {signed_pct(ret or 0)} was {rel}.")
         w = {**w, "against": ref, "gap": gap}
     a = noted_level(t)
     if a["status"] == "none":

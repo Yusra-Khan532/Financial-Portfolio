@@ -143,7 +143,7 @@ migration); PUT and POST answer with the trade's reflection too. Open trades hav
 2. **Nifty 50 over the same period**, from the Nifty 50 daily closes in `flows_index` (code `NIF50`; the flows job's `nifty` step keeps five
    years and adds each session after the close; read with one query per request covering every closed trade). The window is the last close at
    or before the entry to the first close at or after the exit (a day's close counts from 15:30 Indian time), and the sentence names both
-   dates. A long is set against the index's move; a short against the index's move turned around (a short gains when prices fall), in
+   dates. A long is set against the index's move; a short against the index's move with its sign turned (a short gains when prices fall), in
    percentage points above or below. When either close is not stored within a week of the trade (for example the exit was today and the flows
    job has not added today's close yet), it says "Nifty 50 data for that window is not stored". A trade opened and closed on the same day says
    the same, with the reason: the site keeps Nifty 50's daily closes, not its prices inside a session (the 5-minute store, `intraday.py`, holds

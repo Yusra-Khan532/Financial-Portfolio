@@ -144,9 +144,8 @@ def test_reflection_of_a_multi_day_short_win_against_nifty_turned_around_and_a_l
     # the close before the entry (23 Nov: the 24th's close came after a 10:00 entry) to the first close after the exit (26 Nov, exit 14:15)
     assert r["nifty"] == {"status": "ok", "from": "2026-11-23", "to": "2026-11-26", "fromClose": 24100.0, "toClose": 24340.0, "pct": 1.0,
                           "against": -1.0, "gap": 2.17}
-    assert r["sentences"][1] == ("Nifty 50 moved +1.00% over the same period (its close on 23 Nov 2026 before the entry to its close on 26 Nov 2026 "
-                                 "after the exit); a short gains when prices fall, so against the index's move turned around (−1.00%) the "
-                                 "position's +1.17% was 2.17 percentage points above it.")
+    assert r["sentences"][1] == ("Nifty 50 moved +1.00% over the same period (closes of 23 Nov 2026 and 26 Nov 2026), which is −1.00% for a short; "
+                                 "the position's +1.17% was 2.17 percentage points above it.")
     assert r["assumption"]["status"] == "not_reached" and r["assumption"]["way"] == "below"     # a short with no direction written: below
     assert "was not reached at the exit" in r["sentences"][2] and "is above it (prices between entry and exit are not checked)" in r["sentences"][2]
 
