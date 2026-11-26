@@ -90,6 +90,7 @@ describe("guard: a new list cannot print a bare BSE code as a company's label", 
   // Every <b>{x.symbol}</b> in the pages must go through companyLabel (titleOf, shortLabel, codeText) or <CoName>. These are the places that may still print a bare symbol, and why.
   const ALLOW: Record<string, string> = {
     "components/AskFunds.tsx": "the ETF in context: ETF symbols are NSE tickers",
+    "pages/OrderFlow.tsx": "Order Flow (Trading Lab): every stock there is an NSE F&O stock, named by its NSE ticker from the exchange's futures list (never a BSE code)",
     "components/lab/FlowTips.tsx": "Order Flow hover cards: every stock there is an NSE F&O stock, read from the exchange's futures list by its NSE ticker (never a BSE code)",
     "etf/Compare.tsx": "ETF symbols are NSE tickers",
     "etf/pack/EtfInside.tsx": "the ETF bars: ETF symbols are NSE tickers",
