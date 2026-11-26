@@ -4,6 +4,7 @@
 import { createContext, useCallback, useContext, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { BUILDUP, FACTS, ZONE, inr, pct, tone, type FlowLines, type FlowStock } from "../../lib/flow";
 import type { Bucket } from "../../lib/flowboard";
+import { bars } from "../../lib/flowmap";
 
 type Tip = { x: number; y: number; body: ReactNode } | null;
 const Ctx = createContext<{ show: (e: { clientX: number; clientY: number; pointerType?: string }, body: ReactNode) => void; hide: () => void }>({ show: () => {}, hide: () => {} });
@@ -51,6 +52,33 @@ function Path({ values, up }: { values: (number | null)[] | undefined; up: boole
   );
 }
 
+/** 15-minute candles from the day's 3-minute snapshots, with the pivot levels (S2 to R2) and VWAP drawn across, and the last price marked.
+ *  Used in the hover card and on the Flow board's feature cards. */
+export function Candles({ s, lines, h = 132, levels = true }: { s: FlowStock; lines: FlowLines; h?: number; levels?: boolean }) {
+  const b = bars(lines.change[s.symbol], lines.times, s.previousClose);
+  if (b.length < 2) return <Path values={lines.change[s.symbol]} up={(s.changePct ?? 0) >= 0} />;
+  const W = 300, PADR = 66, PADY = 8, pv = s.pivots;
+  // only the levels near the day's prices are drawn (within half the day's range beyond it), so the candles fill the chart; the card lists them all
+  const bl = Math.min(...b.map((x) => x.l)), bh = Math.max(...b.map((x) => x.h)), reach = Math.max((bh - bl) * 0.5, bh * 0.002);
+  const lv: [string, number][] = levels && pv ? ([["R2", pv.r2], ["R1", pv.r1], ["P", pv.p], ["S1", pv.s1], ["S2", pv.s2]] as [string, number][]).filter(([, v]) => v >= bl - reach && v <= bh + reach) : [];
+  const vals = [...b.flatMap((x) => [x.h, x.l]), ...lv.map((x) => x[1]), ...(s.vwap != null && s.vwap >= bl - reach && s.vwap <= bh + reach ? [s.vwap] : [])];
+  const lo = Math.min(...vals), hi = Math.max(...vals), sp = hi - lo || 1;
+  const y = (v: number) => PADY + ((hi - v) / sp) * (h - 2 * PADY - 12);
+  const bw = (W - PADR) / b.length;
+  return (
+    <svg className="oflow-candles" viewBox={`0 0 ${W} ${h}`} role="img" aria-label={`${s.symbol}: ${b.length} bars of 15 minutes from ${b[0].t} to ${b[b.length - 1].t}${pv ? `, pivots S2 ${inr(pv.s2)} to R2 ${inr(pv.r2)}` : ""}`}>
+      {lv.map(([k, v]) => <g key={k} className={`oflow-lvl ${k[0]}`}><line x1="0" x2={W - PADR + 4} y1={y(v)} y2={y(v)} /><text x={W - PADR + 8} y={y(v) + 4}>{k} {v.toLocaleString("en-IN", { maximumFractionDigits: 0 })}</text></g>)}
+      {s.vwap != null && s.vwap >= bl - reach && s.vwap <= bh + reach && <line className="oflow-lvl-vw" x1="0" x2={W - PADR + 4} y1={y(s.vwap)} y2={y(s.vwap)} />}
+      {b.map((x, i) => {
+        const cx = i * bw + bw / 2, upBar = x.c >= x.o, top = y(Math.max(x.o, x.c)), bot = y(Math.min(x.o, x.c));
+        return <g key={i} className={upBar ? "oflow-cdl gain" : "oflow-cdl loss"}><line x1={cx} x2={cx} y1={y(x.h)} y2={y(x.l)} /><rect x={cx - bw * 0.32} y={top} width={bw * 0.64} height={Math.max(1, bot - top)} rx="1" /></g>;
+      })}
+      <circle cx={(b.length - 0.5) * bw} cy={y(s.price)} r="4" className={`oflow-cdl-last ${(s.changePct ?? 0) >= 0 ? "gain" : "loss"}`} />
+      <text x="0" y={h - 1} className="oflow-cdl-t">{b[0].t}</text><text x={W - PADR} y={h - 1} textAnchor="end" className="oflow-cdl-t">{b[b.length - 1].t}</text>
+    </svg>
+  );
+}
+
 /** S2 to R2 on one line, with the price and VWAP marked where they sit. */
 function Ladder({ s }: { s: FlowStock }) {
   const pv = s.pivots;
@@ -62,10 +90,11 @@ function Ladder({ s }: { s: FlowStock }) {
     <div className="oflow-ladder" aria-label={`Pivots from ${s.pivotsFrom}: ${lv.map(([k, v]) => `${k} ${inr(v)}`).join(", ")}; price ${inr(s.price)}`}>
       <div className="oflow-ladder-rail">
         {lv.map(([k, v]) => <span key={k} className={`lv ${k[0]}`} style={{ left: at(v) }}><i /><small>{k}</small></span>)}
-        {s.vwap != null && <span className="vw" style={{ left: at(s.vwap) }} title={`VWAP ${inr(s.vwap)}`}><small>VWAP</small></span>}
+        {s.vwap != null && <span className="vw" style={{ left: at(s.vwap) }} title={`VWAP ${inr(s.vwap)}`} />}
         <span className={`px ${s.direction >= 0 ? "gain" : "loss"}`} style={{ left: at(s.price) }}><b>{inr(s.price)}</b></span>
       </div>
-      <div className="oflow-ladder-v">{lv.map(([k, v]) => <span key={k}><small>{k}</small>{v.toLocaleString("en-IN", { maximumFractionDigits: 2 })}</span>)}</div>
+      <div className="oflow-ladder-v">{lv.map(([k, v]) => <span key={k}>{v.toLocaleString("en-IN", { maximumFractionDigits: 2 })}</span>)}</div>
+      {s.vwap != null && <p className="oflow-ladder-k"><i aria-hidden="true" />VWAP {inr(s.vwap)} · pivots from the session of {s.pivotsFrom}</p>}
     </div>
   );
 }
@@ -81,7 +110,8 @@ export function StockPop({ s, lines }: { s: FlowStock; lines: FlowLines }) {
         <div><b>{s.symbol}</b><small>{s.name}{s.sector ? ` · ${s.sector}` : ""}</small></div>
         <div className="r"><b>{inr(s.price)}</b><span className={tone(s.changePct)}>{pct(s.changePct)}</span></div>
       </header>
-      <Path values={lines.change[s.symbol]} up={(s.changePct ?? 0) >= 0} />
+      <Candles s={s} lines={lines} />
+      <p className="oflow-pop-na">15-minute bars from the 3-minute snapshots · dashed lines: S2 to R2 · gold: VWAP</p>
       <div className="oflow-pop-bu">
         {b ? <><span className={`oflow-pill ${b.tone}`}>{b.name}</span><small>{b.what}</small></> : <><span className="oflow-pill">No build-up</span><small>{s.notes.find((n) => n.startsWith("oi:"))?.slice(4) ?? "Price and open interest did not both move."}</small></>}
       </div>

@@ -17,6 +17,8 @@ export type BucketBox = Rect & { bucket: Bucket; count: number };
 export type Board = {
   W: number; H: number; lines: LineMark[]; rising: Rect & { count: number }; falling: Rect & { count: number }; sectors: SectorBox[]; buckets: BucketBox[];
   ribbons: Ribbon[]; times: { x: number; label: string }[]; zeroY: number; unit: number;
+  /** % grid of the lines area: y and label of each tick (whole or half per cent steps), and the area's left and right edge. */
+  ticks: { y: number; label: string }[]; lineX: [number, number];
 };
 
 export const bucketOf = (s: FlowStock): Bucket => s.buildup ?? "none";
@@ -99,7 +101,10 @@ export function layout(stocks: FlowStock[], lines: FlowLines, order: string[], o
     }
   }
   const times = lines.times.length ? [0, Math.floor(T / 2), T].filter((v, i, a) => a.indexOf(v) === i).map((i) => ({ x: lx(i), label: lines.times[i] })) : [];
-  return { W, H, lines: marks, rising, falling, sectors, buckets, ribbons, times, zeroY: ly(0), unit };
+  const step = span > 12 ? 4 : span > 6 ? 2 : span > 3 ? 1 : 0.5;
+  const ticks: { y: number; label: string }[] = [];
+  for (let v = Math.ceil(lo / step) * step; v <= hi + 1e-9; v += step) ticks.push({ y: ly(v), label: `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toFixed(step < 1 ? 1 : 0)}%` });
+  return { W, H, lines: marks, rising, falling, sectors, buckets, ribbons, times, zeroY: ly(0), unit, ticks, lineX: [L0, L1] };
 }
 
 /** The filled band between two vertical edges, as an SVG path. */

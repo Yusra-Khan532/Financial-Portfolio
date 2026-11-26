@@ -17,6 +17,7 @@ const SRC = join(process.cwd(), "src") + "/";
 /** Files whose charts carry the shared arrow: each must use ChartZoom (or MiniBars' zoomLabel). */
 const ZOOM = [
   "pages/MarketsToday.tsx",   // the Nifty 50 line (docs/MOBILE-APP.md)
+  "pages/OrderFlow.tsx",      // Trading Lab > Order Flow: the market depth curve and the flow board
   // company page
   "charts/MiniBars.tsx", "charts/PriceChart.tsx", "charts/IntradayChart.tsx", "charts/FinChart.tsx", "charts/LineChart.tsx", "charts/RoeLines.tsx", "charts/Waterfall.tsx", "charts/Radar.tsx", "charts/OutlookChart.tsx",
   "stock/Sections.tsx", "stock/Sections2.tsx", "stock/Sections3.tsx", "stock/ChartLab.tsx", "stock/SegmentMix.tsx", "stock/ProfitReality.tsx", "stock/RevenueCash.tsx",
@@ -38,6 +39,7 @@ const OWN: { file: string; needle: RegExp; why: string }[] = [
 
 /** Drawings with nothing to enlarge: sparklines, gauges and rings that show one figure, decorative art, icons, tiny inline bars. */
 const EXEMPT: Record<string, string> = {
+  "components/lab/FlowTips.tsx": "the small day's path inside an Order Flow hover card (founder, 26 Nov 2026); the card follows the pointer, so it cannot hold an arrow, and the full chart is on the page",
   "components/AskChatMenu.tsx": "only the pin mark on a pinned FinLit AI chat (owner, 25 Nov 2026); no data",
   "components/mobile/MobileApp.tsx": "icons only: the Menu sheet's close mark and the Tools button's plus (docs/MOBILE-APP.md)",
   "portfolio/kit/AddBox.tsx": "the add box's magnifier icon (task #276); no data",

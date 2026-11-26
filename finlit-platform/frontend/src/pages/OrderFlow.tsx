@@ -12,8 +12,11 @@ import {
   BUILDUP, BUILDUP_ORDER, FACTS, ZONE, flowSnapshot, inr, marketLive, pct, tone,
   type FlowBand, type FlowLines, type FlowSector, type FlowSnapshot, type FlowStock, type FlowSummary,
 } from "../lib/flow";
-import { BUCKETS, bucketOf, layout, ribbonPath, type Bucket } from "../lib/flowboard";
+import { BUCKETS, bucketOf, layout, type Bucket } from "../lib/flowboard";
+import { flowMap } from "../lib/flowmap";
 import { LabGate } from "./TradingLab";
+import { ChartZoom } from "../components/ChartZoom";
+import { BucketPop, Candles, DirectionPop, SectorPop, StockPop, TipLayer, tiltHandlers, useTip } from "../components/lab/FlowTips";
 import "../styles/portfolio-disc.css";
 import "../styles/tradinglab.css";
 import "../styles/orderflow.css";
@@ -29,12 +32,22 @@ const DISCLAIMER = "Order Flow describes how F&O stocks are moving from exchange
 
 // ------------------------------------------------------------------------------------------------------------------ charts
 
-/** Every stock's change, lowest to highest, as one curve: the area above zero in the rising colour, below in the falling colour. */
-export function DepthCurve({ stocks }: { stocks: FlowStock[] }) {
-  const pts = useMemo(() => stocks.filter((s) => s.changePct != null).map((s) => ({ s: s.symbol, v: s.changePct as number })).sort((a, b) => a.v - b.v), [stocks]);
+/** Pointer handlers that show a hover card (mouse and pen) and hide it on leave; touch keeps its tap behaviour. */
+function useHover() {
+  const tip = useTip();
+  return (body: () => React.ReactNode) => ({
+    onPointerMove: (e: React.PointerEvent) => tip.show(e, body()),
+    onPointerLeave: () => tip.hide(),
+  });
+}
+
+/** Every stock's change, lowest to highest, as one glowing curve: the area above zero in the rising colour, below in the falling colour. */
+export function DepthCurve({ stocks, lines }: { stocks: FlowStock[]; lines?: FlowLines }) {
+  const tip = useTip();
+  const pts = useMemo(() => stocks.filter((s) => s.changePct != null).map((s) => ({ s: s.symbol, v: s.changePct as number, st: s })).sort((a, b) => a.v - b.v), [stocks]);
   const [hover, setHover] = useState<number | null>(null);
   if (pts.length < 2) return <p className="muted">Not enough stocks with a change yet.</p>;
-  const W = 1000, H = 240, PAD = 12;
+  const W = 1000, H = 260, PAD = 14;
   const lo = Math.min(0, pts[0].v), hi = Math.max(0, pts[pts.length - 1].v), span = hi - lo || 1;
   const x = (i: number) => PAD + (i / (pts.length - 1)) * (W - 2 * PAD);
   const y = (v: number) => PAD + ((hi - v) / span) * (H - 2 * PAD);
@@ -42,44 +55,71 @@ export function DepthCurve({ stocks }: { stocks: FlowStock[] }) {
   const line = pts.map((p, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(p.v).toFixed(1)}`).join("");
   const area = `${line}L${x(pts.length - 1).toFixed(1)},${y0.toFixed(1)}L${x(0).toFixed(1)},${y0.toFixed(1)}Z`;
   const firstUp = pts.findIndex((p) => p.v > 0);
+  const down = firstUp < 0 ? pts.length : pts.filter((p) => p.v < 0).length, up = pts.filter((p) => p.v > 0).length;
+  const step = span > 12 ? 4 : span > 6 ? 2 : span > 3 ? 1 : 0.5;
+  const ticks: number[] = [];
+  for (let v = Math.ceil(lo / step) * step; v <= hi + 1e-9; v += step) ticks.push(+v.toFixed(2));
   const h = hover == null ? null : pts[hover];
+  const at = (e: React.PointerEvent<SVGSVGElement>) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    const i = Math.round(((e.clientX - r.left) / r.width * W - PAD) / (W - 2 * PAD) * (pts.length - 1));
+    return Number.isFinite(i) ? Math.max(0, Math.min(pts.length - 1, i)) : 0;   // a chart with no width yet (still laying out) points at the first stock
+  };
   return (
     <figure className="oflow-curve">
-      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img"
-        aria-label={`Change of ${pts.length} F&O stocks, lowest to highest: from ${pct(pts[0].v)} (${pts[0].s}) to ${pct(pts[pts.length - 1].v)} (${pts[pts.length - 1].s}).`}
-        onMouseMove={(e) => { const r = e.currentTarget.getBoundingClientRect(); const i = Math.round(((e.clientX - r.left) / r.width * W - PAD) / (W - 2 * PAD) * (pts.length - 1)); setHover(Math.max(0, Math.min(pts.length - 1, i))); }}
-        onMouseLeave={() => setHover(null)}>
-        <defs>
-          <clipPath id="oflow-above"><rect x="0" y="0" width={W} height={y0} /></clipPath>
-          <clipPath id="oflow-below"><rect x="0" y={y0} width={W} height={H - y0} /></clipPath>
-          <linearGradient id="oflow-g-up" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="var(--gain)" stopOpacity="0.55" /><stop offset="1" stopColor="var(--gain)" stopOpacity="0.06" /></linearGradient>
-          <linearGradient id="oflow-g-down" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stopColor="var(--loss)" stopOpacity="0.55" /><stop offset="1" stopColor="var(--loss)" stopOpacity="0.06" /></linearGradient>
-        </defs>
-        <path d={area} fill="url(#oflow-g-up)" clipPath="url(#oflow-above)" />
-        <path d={area} fill="url(#oflow-g-down)" clipPath="url(#oflow-below)" />
-        <path d={line} fill="none" stroke="var(--gain)" strokeWidth="2.2" clipPath="url(#oflow-above)" vectorEffect="non-scaling-stroke" />
-        <path d={line} fill="none" stroke="var(--loss)" strokeWidth="2.2" clipPath="url(#oflow-below)" vectorEffect="non-scaling-stroke" />
-        <line x1={PAD} x2={W - PAD} y1={y0} y2={y0} className="oflow-zero" vectorEffect="non-scaling-stroke" />
-        {firstUp > 0 && <line x1={x(firstUp)} x2={x(firstUp)} y1={PAD} y2={H - PAD} className="oflow-split" vectorEffect="non-scaling-stroke" />}
-        {h && hover != null && <><line x1={x(hover)} x2={x(hover)} y1={PAD} y2={H - PAD} className="oflow-cross" vectorEffect="non-scaling-stroke" />
-          <circle cx={x(hover)} cy={y(h.v)} r="4.5" className={h.v >= 0 ? "oflow-dot gain" : "oflow-dot loss"} vectorEffect="non-scaling-stroke" /></>}
-      </svg>
-      {h && <div className="oflow-tip" style={{ left: `${(hover! / (pts.length - 1)) * 100}%` }}><b>{h.s}</b> <span className={tone(h.v)}>{pct(h.v)}</span></div>}
-      <figcaption className="oflow-axis"><span className="loss">{pct(pts[0].v)} · {pts[0].s}</span><span className="muted">Each point is one stock, lowest change to highest</span><span className="gain">{pts[pts.length - 1].s} · {pct(pts[pts.length - 1].v)}</span></figcaption>
+      <ChartZoom label="Market depth curve"><div className="oflow-curve-plot">
+        <div className="oflow-yaxis" aria-hidden="true">{ticks.map((t) => <span key={t} style={{ top: `${(y(t) / H) * 100}%` }} className={t > 0 ? "gain" : t < 0 ? "loss" : ""}>{pct(t, step < 1 ? 1 : 0)}</span>)}</div>
+        <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img"
+          aria-label={`Change of ${pts.length} F&O stocks, lowest to highest: from ${pct(pts[0].v)} (${pts[0].s}) to ${pct(pts[pts.length - 1].v)} (${pts[pts.length - 1].s}).`}
+          onPointerMove={(e) => { const i = at(e); setHover(i); if (lines) tip.show(e, <StockPop s={pts[i].st} lines={lines} />); }}
+          onPointerLeave={() => { setHover(null); tip.hide(); }}>
+          <defs>
+            <clipPath id="oflow-above"><rect x="0" y="0" width={W} height={y0} /></clipPath>
+            <clipPath id="oflow-below"><rect x="0" y={y0} width={W} height={H - y0} /></clipPath>
+            <linearGradient id="oflow-g-up" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="var(--gain)" stopOpacity="0.75" /><stop offset="1" stopColor="var(--gain)" stopOpacity="0.08" /></linearGradient>
+            <linearGradient id="oflow-g-down" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stopColor="var(--loss)" stopOpacity="0.75" /><stop offset="1" stopColor="var(--loss)" stopOpacity="0.08" /></linearGradient>
+          </defs>
+          {ticks.map((t) => <line key={t} x1={PAD} x2={W - PAD} y1={y(t)} y2={y(t)} className={t === 0 ? "oflow-zero" : "oflow-grid"} vectorEffect="non-scaling-stroke" />)}
+          <path d={area} fill="url(#oflow-g-up)" clipPath="url(#oflow-above)" className="oflow-fade" />
+          <path d={area} fill="url(#oflow-g-down)" clipPath="url(#oflow-below)" className="oflow-fade" />
+          <path d={line} pathLength={1} className="oflow-curve-ln gain oflow-draw" clipPath="url(#oflow-above)" vectorEffect="non-scaling-stroke" />
+          <path d={line} pathLength={1} className="oflow-curve-ln loss oflow-draw" clipPath="url(#oflow-below)" vectorEffect="non-scaling-stroke" />
+          {firstUp > 0 && <line x1={x(firstUp)} x2={x(firstUp)} y1={PAD} y2={H - PAD} className="oflow-split" vectorEffect="non-scaling-stroke" />}
+          {h && hover != null && <><line x1={x(hover)} x2={x(hover)} y1={PAD} y2={H - PAD} className="oflow-cross" vectorEffect="non-scaling-stroke" />
+            <circle cx={x(hover)} cy={y(h.v)} r="5" className={h.v >= 0 ? "oflow-dot gain" : "oflow-dot loss"} vectorEffect="non-scaling-stroke" /></>}
+        </svg>
+        {firstUp > 0 && <span className="oflow-cross-lbl" style={{ left: `${(x(firstUp) / W) * 100}%`, top: `${(y0 / H) * 100}%` }} aria-hidden="true">
+          <b className="loss">← {down} falling</b><i /><b className="gain">{up} rising →</b></span>}
+        {h && !lines && <div className="oflow-tip" style={{ left: `${(hover! / (pts.length - 1)) * 100}%` }}><b>{h.s}</b> <span className={tone(h.v)}>{pct(h.v)}</span></div>}
+      </div></ChartZoom>
+      <figcaption className="oflow-axis"><span className="loss">{pct(pts[0].v)} · {pts[0].s}</span><span className="muted">Each point is one stock, lowest change to highest. Point at the curve for its detail.</span><span className="gain">{pts[pts.length - 1].s} · {pct(pts[pts.length - 1].v)}</span></figcaption>
     </figure>
   );
 }
 
 const bandLabel = (b: FlowBand) => (b.from == null ? `below ${b.to}%` : b.to == null ? `above ${b.from}%` : `${b.from}% to ${b.to}%`);
+const inBand = (b: FlowBand, v: number) => (b.from == null || v >= b.from) && (b.to == null || v < b.to);
 
-/** How many stocks fall in each band of the day's change. */
-export function Bands({ bands }: { bands: FlowBand[] }) {
+function BandPop({ band, stocks }: { band: FlowBand; stocks: FlowStock[] }) {
+  const g = stocks.filter((s) => s.changePct != null && inBand(band, s.changePct)).sort((a, b) => (b.changePct as number) - (a.changePct as number));
+  return (
+    <>
+      <header className="oflow-pop-h"><div><b>Change {bandLabel(band)}</b><small>{band.count} stock{band.count === 1 ? "" : "s"}</small></div></header>
+      {g.length > 0 && <div className="oflow-pop-movers one"><div>{g.slice(0, 8).map((s) => <p key={s.symbol}>{s.symbol}<span className="muted">{s.sector ?? ""}</span><span className={tone(s.changePct)}>{pct(s.changePct)}</span></p>)}
+        {g.length > 8 && <small>and {g.length - 8} more</small>}</div></div>}
+    </>
+  );
+}
+
+/** How many stocks fall in each band of the day's change, as raised bars. */
+export function Bands({ bands, stocks = [] }: { bands: FlowBand[]; stocks?: FlowStock[] }) {
+  const hover = useHover();
   const max = Math.max(1, ...bands.map((b) => b.count));
   return (
     <ol className="oflow-bands" aria-label="Stocks by band of the day's change">{bands.map((b) => {
       const up = b.from != null && b.from >= 0;
       return (
-        <li key={bandLabel(b)} title={`${b.count} stocks ${bandLabel(b)}`}>
+        <li key={bandLabel(b)} title={`${b.count} stocks ${bandLabel(b)}`} {...hover(() => <BandPop band={b} stocks={stocks} />)}>
           <span className="oflow-bandn">{b.count}</span>
           <span className={`oflow-bar ${up ? "gain" : "loss"}`} style={{ height: `${Math.max(3, (b.count / max) * 100)}%` }} />
           <small>{b.from == null ? `<${b.to}` : b.to == null ? `>${b.from}` : `${b.from > 0 ? "+" : ""}${b.from}`}</small>
@@ -88,16 +128,19 @@ export function Bands({ bands }: { bands: FlowBand[] }) {
   );
 }
 
-/** The day's path of one stock (change % at each snapshot). */
+/** The day's path of one stock (change % at each snapshot), with a soft area under it. */
 export function Spark({ values, positive }: { values: (number | null)[] | undefined; positive: boolean }) {
   const v = (values ?? []).map((n, i) => [i, n] as const).filter((p): p is readonly [number, number] => p[1] != null);
   if (v.length < 2) return <span className="oflow-spark empty" aria-hidden="true" />;
   const n = (values ?? []).length - 1 || 1, lo = Math.min(0, ...v.map((p) => p[1])), hi = Math.max(0, ...v.map((p) => p[1])), sp = hi - lo || 1;
-  const d = v.map(([i, c], k) => `${k ? "L" : "M"}${((i / n) * 100).toFixed(1)},${(((hi - c) / sp) * 36 + 2).toFixed(1)}`).join("");
+  const pts = v.map(([i, c]) => [(i / n) * 100, ((hi - c) / sp) * 36 + 2] as const);
+  const d = pts.map(([px, py], k) => `${k ? "L" : "M"}${px.toFixed(1)},${py.toFixed(1)}`).join("");
+  const z = ((hi / sp) * 36 + 2).toFixed(1);
   return (
     <svg className="oflow-spark" viewBox="0 0 100 40" preserveAspectRatio="none" aria-hidden="true">
-      <line x1="0" x2="100" y1={((hi / sp) * 36 + 2).toFixed(1)} y2={((hi / sp) * 36 + 2).toFixed(1)} className="oflow-zero" vectorEffect="non-scaling-stroke" />
-      <path d={d} fill="none" stroke={positive ? "var(--gain)" : "var(--loss)"} strokeWidth="1.8" vectorEffect="non-scaling-stroke" />
+      <path d={`${d}L${pts[pts.length - 1][0].toFixed(1)},${z}L${pts[0][0].toFixed(1)},${z}Z`} className={`oflow-spark-a ${positive ? "gain" : "loss"}`} />
+      <line x1="0" x2="100" y1={z} y2={z} className="oflow-zero" vectorEffect="non-scaling-stroke" />
+      <path d={d} fill="none" stroke={positive ? "var(--gain)" : "var(--loss)"} strokeWidth="2" vectorEffect="non-scaling-stroke" className="oflow-spark-l" />
     </svg>
   );
 }
@@ -115,8 +158,11 @@ function Dots({ s }: { s: FlowStock }) {
 
 export function StockCard({ s, lines }: { s: FlowStock; lines: FlowLines }) {
   const b = s.buildup ? BUILDUP[s.buildup] : null;
+  const tip = useTip(), tilt = tiltHandlers();
   return (
-    <article className="card oflow-card" aria-labelledby={`oflow-c-${s.symbol}`}>
+    <article className={`card oflow-card oflow-3d ${s.direction >= 0 ? "up" : "down"}`} aria-labelledby={`oflow-c-${s.symbol}`}
+      onPointerMove={(e) => { tilt.onPointerMove(e); tip.show(e, <StockPop s={s} lines={lines} />); }}
+      onPointerLeave={(e) => { tilt.onPointerLeave(e); tip.hide(); }}>
       <header>
         <div><h3 id={`oflow-c-${s.symbol}`}><Link to={`/stocks/${encodeURIComponent(s.symbol)}`}>{s.symbol}</Link></h3><small className="muted">{s.name}{s.sector ? ` · ${s.sector}` : ""}</small></div>
         <div className="oflow-px"><b>{inr(s.price)}</b><span className={`oflow-chg ${tone(s.changePct)}`}>{pct(s.changePct)}</span></div>
@@ -135,26 +181,49 @@ export function StockCard({ s, lines }: { s: FlowStock; lines: FlowLines }) {
   );
 }
 
-function BuildupTiles({ sum }: { sum: FlowSummary }) {
-  const total = BUILDUP_ORDER.reduce((n, k) => n + sum.buildups[k], 0) || 1;
+/** A ring showing one build-up's share of all build-ups. */
+function Ring({ share, tone: t }: { share: number; tone: "gain" | "loss" }) {
+  const r = 22, c = 2 * Math.PI * r;
   return (
-    <div className="oflow-bu" role="list" aria-label="Futures build-up across F&O stocks">{BUILDUP_ORDER.map((k) => (
-      <div role="listitem" key={k} className={`card oflow-bu-t ${BUILDUP[k].tone}`}>
-        <span className="oflow-bu-n">{sum.buildups[k]}</span>
-        <b>{BUILDUP[k].name}</b>
-        <span className="oflow-meter"><i style={{ width: `${(sum.buildups[k] / total) * 100}%` }} /></span>
-        <small className="muted">{BUILDUP[k].what}</small>
-      </div>))}</div>
+    <svg className={`oflow-ring ${t}`} viewBox="0 0 56 56" aria-hidden="true">
+      <circle cx="28" cy="28" r={r} className="oflow-ring-bg" />
+      <circle cx="28" cy="28" r={r} className="oflow-ring-fg" strokeDasharray={`${(share * c).toFixed(1)} ${c.toFixed(1)}`} transform="rotate(-90 28 28)" />
+      <text x="28" y="32" textAnchor="middle" className="oflow-ring-t">{Math.round(share * 100)}%</text>
+    </svg>
   );
 }
 
-function SectorBars({ sectors, active, onPick }: { sectors: FlowSector[]; active: string | null; onPick: (s: string | null) => void }) {
+function BuildupTiles({ sum, stocks = [] }: { sum: FlowSummary; stocks?: FlowStock[] }) {
+  const tip = useTip();
+  const total = BUILDUP_ORDER.reduce((n, k) => n + sum.buildups[k], 0) || 1;
+  return (
+    <div className="oflow-bu" role="list" aria-label="Futures build-up across F&O stocks">{BUILDUP_ORDER.map((k) => {
+      const tilt = tiltHandlers();
+      return (
+        <div role="listitem" key={k} className={`card oflow-bu-t oflow-3d ${BUILDUP[k].tone}`}
+          onPointerMove={(e) => { tilt.onPointerMove(e); tip.show(e, <BucketPop bucket={k} stocks={stocks} />); }}
+          onPointerLeave={(e) => { tilt.onPointerLeave(e); tip.hide(); }}>
+          <div className="oflow-bu-top">
+            <span className="oflow-bu-ic" aria-hidden="true"><Icon name={BUILDUP[k].tone === "gain" ? "growth" : "decline"} /></span>
+            <Ring share={sum.buildups[k] / total} tone={BUILDUP[k].tone} />
+          </div>
+          <span className="oflow-bu-n">{sum.buildups[k]}</span>
+          <b>{BUILDUP[k].name}</b>
+          <span className="oflow-meter"><i style={{ width: `${(sum.buildups[k] / total) * 100}%` }} /></span>
+          <small className="muted">{BUILDUP[k].what}</small>
+        </div>);
+    })}</div>
+  );
+}
+
+function SectorBars({ sectors, active, onPick, stocks = [] }: { sectors: FlowSector[]; active: string | null; onPick: (s: string | null) => void; stocks?: FlowStock[] }) {
+  const hover = useHover();
   const max = Math.max(0.5, ...sectors.map((s) => Math.abs(s.avgChangePct ?? 0)));
   return (
     <ul className="oflow-sec" aria-label="Sectors by average change">{sectors.map((s) => {
       const v = s.avgChangePct ?? 0, w = (Math.abs(v) / max) * 50;
       return (
-        <li key={s.sector}>
+        <li key={s.sector} {...hover(() => <SectorPop sector={s.sector} stocks={stocks} />)}>
           <button type="button" aria-pressed={active === s.sector} onClick={() => onPick(active === s.sector ? null : s.sector)}
             aria-label={`${s.sector}: average ${pct(s.avgChangePct)}, ${s.up} rising, ${s.down} falling of ${s.stocks}`}>
             <span className="oflow-sec-n">{s.sector}</span>
@@ -190,12 +259,47 @@ function useNarrow(px: number) {
 
 const describeFocus = (f: Focus) => [f.up == null ? null : f.up ? "Rising" : "Falling", f.sector, f.bucket ? BUCKET_NAME[f.bucket] : null].filter(Boolean).join(" · ");
 
-/** Every stock's line flowing into Rising or Falling, then into its sector, then into its futures build-up. Hover lights one path; a click lists its stocks. */
+/** One stock's feature card on the Flow board (the most facts lined up): big change, build-up, a ring of the facts, 15-minute candles with levels. */
+function FeatureCard({ s, lines, onHot }: { s: FlowStock; lines: FlowLines; onHot: (sym: string | null) => void }) {
+  const tip = useTip(), tilt = tiltHandlers();
+  const b = s.buildup ? BUILDUP[s.buildup] : null, up = (s.changePct ?? 0) >= 0, pv = s.pivots;
+  const r = 15, c = 2 * Math.PI * r, share = s.agreement.of ? s.agreement.score / s.agreement.of : 0;
+  return (
+    <article className={`card oflow-feat-c oflow-3d ${up ? "up" : "down"}`} aria-labelledby={`oflow-f-${s.symbol}`}
+      onPointerMove={(e) => { tilt.onPointerMove(e); onHot(s.symbol); tip.show(e, <StockPop s={s} lines={lines} />); }}
+      onPointerLeave={(e) => { tilt.onPointerLeave(e); onHot(null); tip.hide(); }}>
+      <header>
+        <div><h4 id={`oflow-f-${s.symbol}`}><Link to={`/stocks/${encodeURIComponent(s.symbol)}`}>{s.symbol}</Link></h4><small className="muted">{s.sector ?? s.name}</small></div>
+        <svg className={`oflow-fring ${up ? "gain" : "loss"}`} viewBox="0 0 40 40" role="img" aria-label={`${s.agreement.score} of ${s.agreement.of} facts agree`}>
+          <circle cx="20" cy="20" r={r} className="oflow-ring-bg" /><circle cx="20" cy="20" r={r} className="oflow-ring-fg" strokeDasharray={`${(share * c).toFixed(1)} ${c.toFixed(1)}`} transform="rotate(-90 20 20)" />
+          <text x="20" y="24" textAnchor="middle" className="oflow-ring-t">{s.agreement.score}/{s.agreement.of}</text></svg>
+      </header>
+      <div className="oflow-feat-m">
+        <div><span className={`oflow-pill ${b?.tone ?? ""}`}>{b ? b.name : "No build-up"}</span>
+          <b className={`oflow-feat-p ${tone(s.changePct)}`}>{pct(s.changePct)}</b><small>{inr(s.price)} <span className={tone(s.change)}>{s.change == null ? "" : `${s.change > 0 ? "+" : ""}${s.change.toFixed(2)}`}</span></small></div>
+        <Candles s={s} lines={lines} h={96} levels />
+      </div>
+      <dl className="oflow-feat-l">
+        <div><dt>S1</dt><dd>{pv ? pv.s1.toLocaleString("en-IN", { maximumFractionDigits: 2 }) : "—"}</dd></div>
+        <div><dt>Zone</dt><dd>{s.zone ? ZONE[s.zone].replace("Between ", "").replace(" and ", "–") : "—"}</dd></div>
+        <div><dt>R1</dt><dd>{pv ? pv.r1.toLocaleString("en-IN", { maximumFractionDigits: 2 }) : "—"}</dd></div>
+        <div><dt>OI</dt><dd>{pct(s.oiChangePct, 1)}</dd></div>
+      </dl>
+    </article>
+  );
+}
+
+/** Every stock's line of the day ending in its tick of the tower (rising above, falling below), and from there to its own tile. Point at anything to
+ *  light that stock's whole path and see its detail; choose a sector, a direction or a build-up to list its stocks. */
 export function FlowBoard({ d }: { d: Ready }) {
   const narrow = useNarrow(720);
+  const tip = useTip();
   const order = useMemo(() => d.summary.sectors.map((s) => s.sector), [d]);
   const board = useMemo(() => layout(d.stocks, d.lines, order), [d, order]);
+  const [every, setEvery] = useState(false);
+  const map = useMemo(() => flowMap(d.stocks, d.lines, { W: 1000, cols: 5, perSide: every ? Infinity : 25, tileH: 54 }), [d, every]);
   const [hot, setHot] = useState<Focus | null>(null);
+  const [hotSym, setHotSym] = useState<string | null>(null);
   const [pick, setPick] = useState<Focus | null>(null);
   const [all, setAll] = useState(false);
   const bySym = useMemo(() => new Map(d.stocks.map((s) => [s.symbol, s])), [d]);
@@ -206,75 +310,119 @@ export function FlowBoard({ d }: { d: Ready }) {
   const lit = (sector?: string, up?: boolean, bucket?: Bucket) => !f || (
     (!f.sector || !sector || f.sector === sector) && (f.up == null || up == null || f.up === up) && (!f.bucket || !bucket || f.bucket === bucket)
     && has(sector ?? f.sector, up ?? f.up, bucket ?? f.bucket));
+  const litSym = (sym: string) => { const s = bySym.get(sym)!; return hotSym ? sym === hotSym : lit(s.sector || "Other", (s.changePct ?? 0) > 0, bucketOf(s)); };
+  const state = (sym: string) => (hotSym || f ? (litSym(sym) ? " lit" : " dim") : "");
   const choose = (x: Focus) => { setPick(sameFocus(pick, x) ? null : x); setAll(false); };
   const act = (x: Focus, label: string) => ({
     role: "button", tabIndex: 0, "aria-label": label, "aria-pressed": sameFocus(pick, x),
     onMouseEnter: () => setHot(x), onMouseLeave: () => setHot(null), onFocus: () => setHot(x), onBlur: () => setHot(null),
     onClick: () => choose(x), onKeyDown: (e: React.KeyboardEvent) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); choose(x); } },
   });
+  const stockHover = (sym: string) => ({
+    onPointerMove: (e: React.PointerEvent) => { setHotSym(sym); tip.show(e, <StockPop s={bySym.get(sym)!} lines={d.lines} />); },
+    onPointerLeave: () => { setHotSym(null); tip.hide(); },
+  });
   const chosen = pick ? d.stocks.filter((s) => s.changePct && (!pick.sector || (s.sector || "Other") === pick.sector) && (pick.up == null || ((s.changePct as number) > 0) === pick.up) && (!pick.bucket || bucketOf(s) === pick.bucket)) : [];
-  const B = board, cut = B.W * 0.47;
-  const linesSvg = (crop: boolean) => (
-    <svg viewBox={`0 0 ${crop ? cut : B.W} ${B.H}`} className={`oflow-board-svg${crop ? " crop" : ""}`} role="img" aria-label={`The day's line of ${B.lines.length} F&O stocks flowing into ${B.rising.count} rising and ${B.falling.count} falling${crop ? "" : `, then into ${B.sectors.length} sectors and the futures build-ups`}.`}>
-      <line x1="16" x2={B.W * 0.36} y1={B.zeroY} y2={B.zeroY} className="oflow-zero" />
-      {B.times.map((t) => <text key={t.label} x={t.x} y={B.H - 2} className="oflow-t" textAnchor="middle">{t.label}</text>)}
-      <g className="oflow-lines">{B.lines.map((l) => {
-        const s = bySym.get(l.symbol)!;
-        const on = lit(l.sector, l.up, bucketOf(s));
-        return <path key={l.symbol} d={l.d} className={`${l.up ? "gain" : "loss"}${f ? (on ? " lit" : " dim") : ""}`}><title>{`${l.symbol} ${pct(s.changePct)}`}</title></path>;
-      })}</g>
-      {[{ r: B.rising, up: true, name: "Rising" }, { r: B.falling, up: false, name: "Falling" }].map(({ r, up, name }) => (
-        <g key={name} className={`oflow-node ${up ? "gain" : "loss"}${f && !lit(undefined, up) ? " dim" : ""}`} {...act({ up }, `${name}: ${r.count} stocks`)}>
-          <rect x={r.x} y={r.y} width={r.w} height={Math.max(2, r.h)} />
-          {!crop && <text x={r.x + r.w / 2} y={up ? r.y - 8 : r.y + r.h + 18} textAnchor="middle" className="oflow-node-t"><tspan className="n">{r.count}</tspan> {name.toLowerCase()}</text>}
-        </g>))}
-      {!crop && <>
-        <g className="oflow-ribbons">{B.ribbons.map((r) => (
-          <path key={r.key} d={ribbonPath(r)} className={`${r.up ? "gain" : "loss"}${f ? (lit(r.sector, r.up, r.bucket) ? " lit" : " dim") : ""}`}><title>{`${r.sector}${r.bucket ? ` → ${BUCKET_NAME[r.bucket]}` : ""}: ${r.count} ${r.up ? "rising" : "falling"}`}</title></path>))}</g>
-        {B.sectors.map((s) => (
-          <g key={s.sector} className={`oflow-sbox${f && !lit(s.sector) ? " dim" : ""}${pick?.sector === s.sector ? " on" : ""}`} {...act({ sector: s.sector }, `${s.sector}: ${s.up} rising, ${s.down} falling`)}>
-            <rect x={s.x} y={s.y} width={s.w} height={s.up * B.unit} className="gain" />
-            <rect x={s.x} y={s.y + s.up * B.unit} width={s.w} height={s.down * B.unit} className="loss" />
-            <rect x={s.x} y={s.y} width={s.w} height={s.h} className="frame" />
-            {s.h >= 15 && <text x={s.x + 8} y={s.y + (s.h >= 30 ? s.h / 2 - 2 : s.h / 2 + 4)} className="oflow-sbox-t">{s.sector.length > 22 ? s.sector.slice(0, 21) + "…" : s.sector}</text>}
-            {s.h >= 30 && <text x={s.x + 8} y={s.y + s.h / 2 + 13} className="oflow-sbox-c"><tspan className="gain">{s.up}↑</tspan> <tspan className="loss">{s.down}↓</tspan></text>}
-            <title>{`${s.sector}: ${s.up} rising, ${s.down} falling`}</title>
-          </g>))}
-        {B.buckets.map((b) => (
-          <g key={b.bucket} className={`oflow-bbox ${bucketTone(b.bucket)}${f && !lit(undefined, undefined, b.bucket) ? " dim" : ""}${pick?.bucket === b.bucket ? " on" : ""}`} {...act({ bucket: b.bucket }, `${BUCKET_NAME[b.bucket]}: ${b.count} stocks`)}>
-            <rect x={b.x} y={b.y} width={b.w} height={Math.max(2, b.h)} />
-            <text x={b.x + 10} y={b.y + Math.max(2, b.h) / 2 + 5} className="oflow-bbox-t"><tspan className="n">{b.count}</tspan> {BUCKET_NAME[b.bucket]}</text>
-          </g>))}
-      </>}
-    </svg>
+  const B = board, cut = B.W * 0.47, M = map;
+  const avgOf = new Map(d.summary.sectors.map((x) => [x.sector, x.avgChangePct]));
+  const feat = (up: boolean) => d.stocks.filter((s) => s.changePct && ((s.changePct as number) > 0) === up).slice(0, 3);
+  const bucketChips = (
+    <div className="oflow-bchips" role="group" aria-label="Build-ups">{B.buckets.map((b) => (
+      <button key={b.bucket} type="button" className={`oflow-bchip ${bucketTone(b.bucket)}`} aria-pressed={pick?.bucket === b.bucket} aria-label={`${BUCKET_NAME[b.bucket]}: ${b.count} stocks`}
+        onClick={() => choose({ bucket: b.bucket })} onMouseEnter={() => setHot({ bucket: b.bucket })} onMouseLeave={() => setHot(null)}><b>{b.count}</b> {BUCKET_NAME[b.bucket]}</button>))}</div>
   );
   const sectorRows = (
     <ul className="oflow-srows" aria-label="Sectors and their build-ups">{B.sectors.map((s) => {
-      const g = d.stocks.filter((x) => x.changePct && (x.sector || "Other") === s.sector);
+      const g = d.stocks.filter((x) => x.changePct && (x.sector || "Other") === s.sector), avg = avgOf.get(s.sector) ?? null;
       return (
-        <li key={s.sector}><button type="button" aria-pressed={pick?.sector === s.sector} onClick={() => choose({ sector: s.sector })} aria-label={`${s.sector}: ${s.up} rising, ${s.down} falling`}>
-          <span className="oflow-srow-n">{s.sector}</span>
-          <span className="oflow-srow-bar" aria-hidden="true">{BUCKETS.map((k) => { const c = g.filter((x) => bucketOf(x) === k).length; return c ? <i key={k} className={bucketTone(k)} style={{ flex: c }} title={`${BUCKET_NAME[k]}: ${c}`} /> : null; })}</span>
-          <small><span className="gain">{s.up}↑</span> <span className="loss">{s.down}↓</span></small>
-        </button></li>);
+        <li key={s.sector} onMouseEnter={() => setHot({ sector: s.sector })} onMouseLeave={() => { setHot(null); tip.hide(); }}
+          onPointerMove={(e) => tip.show(e, <SectorPop sector={s.sector} stocks={d.stocks} />)}>
+          <button type="button" aria-pressed={pick?.sector === s.sector} onClick={() => choose({ sector: s.sector })} aria-label={`${s.sector}: ${s.up} rising, ${s.down} falling`}>
+            <span className="oflow-srow-n">{s.sector}</span>
+            {!narrow && <span className={`oflow-srow-v ${tone(avg)}`}>{pct(avg)}</span>}
+            <span className="oflow-srow-bar" aria-hidden="true">{BUCKETS.map((k) => { const c = g.filter((x) => bucketOf(x) === k).length; return c ? <i key={k} className={bucketTone(k)} style={{ flex: c }} title={`${BUCKET_NAME[k]}: ${c}`} /> : null; })}</span>
+            <small><span className="gain">{s.up}↑</span> <span className="loss">{s.down}↓</span></small>
+          </button></li>);
     })}</ul>
+  );
+  // the phone keeps the lines cropped at the direction bars (the full map needs a wide screen)
+  const phoneLines = (
+    <svg viewBox={`0 0 ${cut} ${B.H}`} className="oflow-board-svg crop" role="img" aria-label={`The day's line of ${B.lines.length} F&O stocks flowing into ${B.rising.count} rising and ${B.falling.count} falling.`}>
+      <line x1="16" x2={B.W * 0.36} y1={B.zeroY} y2={B.zeroY} className="oflow-zero" />
+      {B.times.map((t) => <text key={t.label} x={t.x} y={B.H - 2} className="oflow-t" textAnchor="middle">{t.label}</text>)}
+      <g className="oflow-lines">{B.lines.map((l) => <path key={l.symbol} d={l.d} pathLength={1} className={`${l.up ? "gain" : "loss"}${f ? (lit(l.sector, l.up, bucketOf(bySym.get(l.symbol)!)) ? " lit" : " dim") : ""}`} />)}</g>
+      {[{ r: B.rising, up: true, name: "Rising" }, { r: B.falling, up: false, name: "Falling" }].map(({ r, up, name }) => (
+        <g key={name} className={`oflow-node ${up ? "gain" : "loss"}`} {...act({ up }, `${name}: ${r.count} stocks`)}><rect x={r.x - 3} y={r.y} width={r.w + 6} height={Math.max(4, r.h)} rx="9" /></g>))}
+    </svg>
+  );
+  const mapSvg = (
+    <svg viewBox={`0 0 ${M.W} ${M.H}`} className="oflow-board-svg oflow-map-svg" role="img"
+      aria-label={`The day's line of ${M.lines.length} F&O stocks flowing into ${M.tower.up} rising and ${M.tower.down} falling, then into ${B.sectors.length} sectors and the futures build-ups.`}>
+      <defs>
+        <linearGradient id="oflow-tile-gain" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopColor="color-mix(in srgb, var(--gain) 22%, var(--s1))" /><stop offset="1" stopColor="color-mix(in srgb, var(--gain) 8%, var(--s1))" /></linearGradient>
+        <linearGradient id="oflow-tile-loss" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopColor="color-mix(in srgb, var(--loss) 22%, var(--s1))" /><stop offset="1" stopColor="color-mix(in srgb, var(--loss) 8%, var(--s1))" /></linearGradient>
+        <linearGradient id="oflow-tower-gain" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopColor="color-mix(in srgb, var(--gain) 30%, transparent)" /><stop offset="1" stopColor="color-mix(in srgb, var(--gain) 6%, transparent)" /></linearGradient>
+        <linearGradient id="oflow-tower-loss" x1="0" x2="0" y1="1" y2="0"><stop offset="0" stopColor="color-mix(in srgb, var(--loss) 30%, transparent)" /><stop offset="1" stopColor="color-mix(in srgb, var(--loss) 6%, transparent)" /></linearGradient>
+      </defs>
+      <g className="oflow-gridg" aria-hidden="true">
+        {M.grid.map((t) => <g key={t.label}><line x1={50} x2={M.W * 0.34} y1={t.y} y2={t.y} className={t.label === "0%" || t.label === "0.0%" ? "oflow-zero" : "oflow-grid"} /><text x={8} y={t.y + 4} className="oflow-t">{t.label}</text></g>)}
+        {M.times.map((t) => <g key={t.label}><line x1={t.x} x2={t.x} y1={14} y2={M.H - 18} className="oflow-grid v" /><text x={t.x} y={M.H - 3} className="oflow-t" textAnchor="middle">{t.label}</text></g>)}
+      </g>
+      <rect x={M.tower.x} y={M.tower.top} width={M.tower.w} height={M.tower.mid - M.tower.top} fill="url(#oflow-tower-gain)" className="oflow-tower" />
+      <rect x={M.tower.x} y={M.split + 17} width={M.tower.w} height={M.tower.bottom - M.split - 17} fill="url(#oflow-tower-loss)" className="oflow-tower" />
+      <g className="oflow-lines">{M.lines.map((l) => <path key={l.symbol} d={l.d} pathLength={1} className={`${l.up ? "gain" : "loss"}${state(l.symbol)}`} {...stockHover(l.symbol)}><title>{`${l.symbol} ${pct(bySym.get(l.symbol)!.changePct)}`}</title></path>)}</g>
+      <g className="oflow-ticks">{M.ticks.map((t) => <rect key={t.symbol} x={M.tower.x} y={t.y - Math.max(0.6, (M.tower.mid - M.tower.top) / Math.max(1, M.tower.up) / 2 * 0.8)} width={t.len} height={Math.max(1.2, (M.tower.mid - M.tower.top) / Math.max(1, M.tower.up) * 0.8)} className={`${t.up ? "gain" : "loss"}${state(t.symbol)}`} {...stockHover(t.symbol)} />)}</g>
+      <g className="oflow-links">{M.links.map((l) => <path key={l.symbol} d={l.d} className={`${l.up ? "gain" : "loss"}${state(l.symbol)}`} />)}</g>
+      {[{ up: true, n: M.tower.up, y: M.tower.top - 2 }, { up: false, n: M.tower.down, y: M.tower.bottom + 16 }].map(({ up, n, y }) => (
+        <g key={String(up)} className={`oflow-node oflow-tlbl ${up ? "gain" : "loss"}${f && !lit(undefined, up) ? " dim" : ""}`} {...act({ up }, `${up ? "Rising" : "Falling"}: ${n} stocks`)} {...{ onPointerMove: (e: React.PointerEvent) => tip.show(e, <DirectionPop up={up} stocks={d.stocks} />), onPointerLeave: () => tip.hide() }}>
+          <text x={M.tower.x + M.tower.w / 2} y={y} textAnchor="middle" className="oflow-tlbl-t"><tspan className="n">{n}</tspan> {up ? "rising" : "falling"}</text>
+        </g>))}
+      <line x1={M.tower.x - 6} x2={M.W - 14} y1={M.split} y2={M.split} className="oflow-zero" />
+      <g className="oflow-tiles">{M.tiles.map((t) => {
+        const s = bySym.get(t.symbol)!, b = s.buildup ? BUILDUP[s.buildup] : null;
+        const path = (d.lines.change[t.symbol] ?? []).map((v, i) => [i, v] as const).filter((p): p is readonly [number, number] => p[1] != null);
+        const T = Math.max(1, (d.lines.change[t.symbol] ?? []).length - 1), vs = path.map((p) => p[1]), lo = Math.min(0, ...vs), hi = Math.max(0, ...vs), sp = hi - lo || 1;
+        const spark = path.length > 1 ? path.map(([i, v], k) => `${k ? "L" : "M"}${(t.x + 4 + (i / T) * (t.w - 8)).toFixed(1)},${(t.y + t.h - 3 - ((v - lo) / sp) * 14).toFixed(1)}`).join("") : "";
+        return (
+          <g key={t.symbol} className={`oflow-tile ${t.up ? "gain" : "loss"}${state(t.symbol)}`} role="link" tabIndex={0} aria-label={`${t.symbol} ${pct(s.changePct)}, ${b ? b.name : "no build-up"}, ${s.agreement.score} of ${s.agreement.of} facts`}
+            onClick={() => { window.location.assign(`/stocks/${encodeURIComponent(t.symbol)}`); }} onKeyDown={(e) => { if (e.key === "Enter") window.location.assign(`/stocks/${encodeURIComponent(t.symbol)}`); }}
+            {...stockHover(t.symbol)} onFocus={() => setHotSym(t.symbol)} onBlur={() => setHotSym(null)}>
+            <rect x={t.x} y={t.y} width={t.w} height={t.h} rx="6" fill={`url(#oflow-tile-${t.up ? "gain" : "loss"})`} className="oflow-tile-bg" />
+            <rect x={t.x} y={t.y} width="3" height={t.h} className="oflow-tile-edge" />
+            {spark && <path d={spark} className="oflow-tile-sp" />}
+            <text x={t.x + 8} y={t.y + 14} className="oflow-tile-s">{t.symbol.length > 9 ? t.symbol.slice(0, 8) + "…" : t.symbol}</text>
+            <text x={t.x + t.w - 5} y={t.y + 13} textAnchor="end" className="oflow-tile-r">{String(t.rank).padStart(2, "0")}</text>
+            <text x={t.x + 8} y={t.y + 31} className={`oflow-tile-p ${tone(s.changePct)}`}>{pct(s.changePct)}</text>
+            <text x={t.x + t.w - 6} y={t.y + t.h - 5} textAnchor="end" className="oflow-tile-b">{b ? ({ long_buildup: "Long BU", short_buildup: "Short BU", short_covering: "Covering", long_unwinding: "Unwinding" } as Record<string, string>)[s.buildup as string] : "—"}</text>
+            {Array.from({ length: s.agreement.of }, (_, k) => <circle key={k} cx={t.x + 10 + k * 7} cy={t.y + t.h - 9} r="2.4" className={k < s.agreement.score ? "oflow-tile-dot on" : "oflow-tile-dot"} />)}
+          </g>);
+      })}</g>
+      {(M.more.up > 0 || M.more.down > 0) && <text x={M.W - 14} y={M.H - 3} textAnchor="end" className="oflow-t">{M.more.up + M.more.down} more stocks on the tower; "Show every stock" lists them all</text>}
+    </svg>
   );
   return (
     <section className="card oflow-board" aria-labelledby="oflow-board-h">
       <div className="oflow-hero-h">
-        <div><h2 id="oflow-board-h">Flow board</h2><p className="muted">Each stock's line of the day flows into rising or falling, then its sector, then its futures build-up. {narrow ? "Tap" : "Point at or choose"} a part to follow it.</p></div>
+        <div><h2 id="oflow-board-h">Flow board</h2><p className="muted">Each stock's line of the day ends in the tower (rising on top, falling below), then runs to its own tile. {narrow ? "Tap" : "Point at"} any line, tick or tile to light its path and see its detail; choose a sector, a direction or a build-up to list its stocks.</p></div>
       </div>
       {narrow ? <>
         <div className="oflow-dirs" role="group" aria-label="Direction">{[{ up: true, n: B.rising.count, name: "rising" }, { up: false, n: B.falling.count, name: "falling" }].map((x) => (
           <button key={x.name} type="button" className={`oflow-bchip ${x.up ? "gain" : "loss"}`} aria-pressed={pick?.up === x.up && !pick.sector && !pick.bucket} onClick={() => choose({ up: x.up })}><b>{x.n}</b> {x.name}</button>))}</div>
-        {linesSvg(true)}{sectorRows}
-        <div className="oflow-bchips" role="group" aria-label="Build-ups">{B.buckets.map((b) => (
-          <button key={b.bucket} type="button" className={`oflow-bchip ${bucketTone(b.bucket)}`} aria-pressed={pick?.bucket === b.bucket} onClick={() => choose({ bucket: b.bucket })}><b>{b.count}</b> {BUCKET_NAME[b.bucket]}</button>))}</div></>
-        : <div className="oflow-board-wrap">{linesSvg(false)}
-          <div className="oflow-cols muted" aria-hidden="true"><span style={{ left: "1.5%" }}>Line of the day</span><span style={{ left: "41%" }}>Direction</span><span style={{ left: "58%" }}>Sector</span><span style={{ left: "86%" }}>Futures build-up</span></div></div>}
+        {phoneLines}{sectorRows}{bucketChips}</>
+        : <>{bucketChips}
+          <div className="oflow-mapgrid">
+            <aside className="oflow-msec" aria-label="Sectors">{sectorRows}</aside>
+            <div className="oflow-mapmain"><ChartZoom label="Flow board"><div className="oflow-board-wrap">{mapSvg}</div></ChartZoom>
+              <button type="button" className="chip oflow-every" aria-pressed={every} onClick={() => setEvery((v) => !v)}>{every ? "Show the 25 a side with the most facts" : "Show every stock as a tile"}</button></div>
+          </div>
+          <section className="oflow-feat" aria-label="Most facts lined up">
+            <h3>Most facts lined up</h3>
+            {[true, false].map((up) => <div key={String(up)} className="oflow-feat-g"><h4 className={`oflow-side ${up ? "gain" : "loss"}`}><Icon name={up ? "growth" : "decline"} /> {up ? "Rising" : "Falling"}</h4>
+              <div className="oflow-feat-row">{feat(up).map((s) => <FeatureCard key={s.symbol} s={s} lines={d.lines} onHot={setHotSym} />)}</div></div>)}
+          </section></>}
       <div className="oflow-legend muted">
         <span><i className="sw gain" />Rising</span><span><i className="sw loss" />Falling</span>
-        {BUCKETS.map((b) => <span key={b} title={b === "none" ? "Price and open interest did not both move, or the open interest change is not known yet" : BUILDUP[b].what}><i className={`sw ${bucketTone(b)}`} />{BUCKET_NAME[b]}</span>)}
+        <span>Tiles: change, build-up, and a dot for each of five facts that agree with the move; the number is its rank by facts lined up</span>
       </div>
       <div className="oflow-pick" aria-live="polite">
         {pick ? <>
@@ -305,23 +453,23 @@ function Depth({ d }: { d: Ready }) {
             <span className="gain"><b>{sum.up}</b>rising</span><span className="loss"><b>{sum.down}</b>falling</span>
           </div>
         </div>
-        <div className="oflow-breadth" aria-hidden="true"><i className="gain" style={{ width: `${(sum.up / known) * 100}%` }} /><i className="flat" style={{ width: `${(sum.flat / known) * 100}%` }} /><i className="loss" style={{ width: `${(sum.down / known) * 100}%` }} /></div>
-        <DepthCurve stocks={d.stocks} />
-        <div className="oflow-bandwrap"><h3>Stocks by band of change</h3><Bands bands={sum.distribution} />
+        <div className="oflow-breadth" aria-hidden="true"><i className="gain" style={{ width: `${(sum.up / known) * 100}%` }}>{sum.up / known >= 0.12 && <span>{Math.round((sum.up / known) * 100)}%</span>}</i><i className="flat" style={{ width: `${(sum.flat / known) * 100}%` }} /><i className="loss" style={{ width: `${(sum.down / known) * 100}%` }}>{sum.down / known >= 0.12 && <span>{Math.round((sum.down / known) * 100)}%</span>}</i></div>
+        <DepthCurve stocks={d.stocks} lines={d.lines} />
+        <div className="oflow-bandwrap"><h3>Stocks by band of change</h3><Bands bands={sum.distribution} stocks={d.stocks} />
           <p className="muted oflow-median">Middle stock: <b className={tone(sum.medianChangePct)}>{pct(sum.medianChangePct)}</b></p></div>
       </section>
 
       <section aria-labelledby="oflow-bu-h" className="oflow-sec-wrap">
         <h2 id="oflow-bu-h" className="oflow-h">Futures build-up</h2>
         <p className="muted oflow-sub">Price change and open interest change of each stock's futures (current and next month) against the previous session.</p>
-        <BuildupTiles sum={sum} />
+        <BuildupTiles sum={sum} stocks={d.stocks} />
       </section>
 
       <div className="oflow-two">
         <section aria-labelledby="oflow-sec-h" className="card oflow-secbox">
           <h2 id="oflow-sec-h" className="oflow-h">Sectors</h2>
           <p className="muted oflow-sub">Average change of the F&O stocks in each sector. Choose one to see only its stocks below.</p>
-          <SectorBars sectors={sum.sectors} active={sector} onPick={setSector} />
+          <SectorBars sectors={sum.sectors} active={sector} onPick={setSector} stocks={d.stocks} />
         </section>
         <section aria-labelledby="oflow-top-h" className="oflow-top">
           <div className="oflow-top-h"><h2 id="oflow-top-h" className="oflow-h">Most facts lined up</h2>{sector && <button type="button" className="chip" onClick={() => setSector(null)}>{sector} ✕</button>}</div>
@@ -349,7 +497,7 @@ function Flow({ view }: { view: string }) {
   const today = new Date(Date.now() + (330 + new Date().getTimezoneOffset()) * 60_000).toISOString().slice(0, 10);
   const day = new Date(d.tradeDay + "T00:00:00").toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", year: "numeric" });
   return (
-    <>
+    <TipLayer>
       <div className="oflow-stamp" role="status">
         <span className={`oflow-live ${live && d.tradeDay === today ? "on" : ""}`}><i aria-hidden="true" />{live && d.tradeDay === today ? "Live · every 3 minutes" : "Last session"}</span>
         <span className="muted">{day} · snapshot at {taken.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Kolkata" })} IST · {d.summary.stocks} F&O stocks</span>
@@ -357,7 +505,7 @@ function Flow({ view }: { view: string }) {
       {d.notes.map((n) => <p key={n} className="oflow-note muted">{n}</p>)}
       {view === "board" ? <FlowBoard d={d} /> : <Depth d={d} />}
       <p className="muted oflow-method">How it is worked out: change against the previous close; open interest summed over the current and next futures contract against their previous close; VWAP is the day's average traded price; pivots are the classic floor pivots from the previous session's high, low and close. Facts: open interest rose with the move, price on the move's side of VWAP, price beyond R1 or S1, open interest changed 5% or more, price in the top or bottom quarter of the day's range. Source: exchange prices and open interest through Dhan, FinLit's daily prices.</p>
-    </>
+    </TipLayer>
   );
 }
 
