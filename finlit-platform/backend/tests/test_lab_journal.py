@@ -51,13 +51,17 @@ def test_csv_import_reads_common_column_names_and_reports_each_bad_line():
             "NIFTY 24300 CE,sell,75,\"1,20\",,26/11/2026 10:15,,,\n"
             "TCS,hold,1,3000,,2026-11-24,,,\n"
             "INFY,long,1,1500,1490,2026-11-24 10:00,2026-11-24 09:00,,\n"
-            "SBIN,long,x,800,,2026-11-24,,,\n")
+            "SBIN,long,x,800,,2026-11-24,,,\n"
+            "HDFCBANK,long,1,1700,,yesterday,,,\n"
+            "ITC,long,-5,400,,2026-11-24,,,\n")
     good, bad = J.parse_csv(text)
     assert [g.symbol for g in good] == ["RELIANCE", "NIFTY 24300 CE"]
     assert good[0].side == "long" and good[0].exitPrice == 1420.5 and good[0].fees == 20 and good[0].setup == "ORB"
     assert good[0].entryAt.isoformat() == "2026-11-24T09:30:00+05:30"
     assert good[1].side == "short" and good[1].entryPrice == 120 and good[1].exitPrice is None and good[1].entryAt.day == 26
-    assert [b["line"] for b in bad] == [4, 5, 6]
+    assert [b["line"] for b in bad] == [4, 5, 6, 7, 8]
+    assert bad[2]["reason"] == "qty 'x' is not a number" and bad[3]["reason"] == "'yesterday' is not a date like 2026-11-26 10:15"
+    assert bad[4]["reason"].startswith("qty") and "Traceback" not in repr(bad) and "float" not in repr(bad)   # only plain reasons reach the member
     assert "hold" in bad[0]["reason"] and "before the entry" in bad[1]["reason"]
     assert J.parse_csv("a,b\n1,2\n")[1][0]["reason"].startswith("Missing columns")
 

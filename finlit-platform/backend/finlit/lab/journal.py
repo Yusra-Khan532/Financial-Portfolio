@@ -26,7 +26,7 @@ from decimal import Decimal
 from typing import Any, Dict, List, Optional, Tuple
 
 from fastapi import APIRouter, Depends, Request
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
 
 from ..auth.routes import fail
 from ..auth.service import Ctx
@@ -227,7 +227,27 @@ def _when(v: str) -> Optional[datetime]:
         d = datetime.fromisoformat(v)
         return d if d.tzinfo else d.replace(tzinfo=IST)
     except ValueError:
-        raise ValueError(f"'{v[:30]}' is not a date like 2026-11-26 10:15")
+        raise _LineError(f"'{v[:30]}' is not a date like 2026-11-26 10:15") from None
+
+
+FIELD_NAME = {"qty": "qty", "entryPrice": "entry price", "exitPrice": "exit price", "entryAt": "entry time", "exitAt": "exit time", "fees": "fees"}
+
+
+class _LineError(Exception):
+    """A CSV line we refuse, with a reason written for the member."""
+
+    def __init__(self, reason: str):
+        super().__init__(reason)
+        self.reason = reason
+
+
+def _reason(e: ValidationError) -> str:
+    """The first validation message, as our own Trade validators word it (field names and plain limits only)."""
+    err = (e.errors() or [{}])[0]
+    msg = str(err.get("msg") or "This line could not be read.").replace("Value error, ", "")
+    where = ".".join(FIELD_NAME.get(str(x), str(x)) for x in err.get("loc") or ())
+    return (f"{where}: {msg}" if where and where not in msg else msg)[:160]
+
 
 
 def parse_csv(text: str) -> Tuple[List[Trade], List[Dict[str, Any]]]:
@@ -246,14 +266,25 @@ def parse_csv(text: str) -> Tuple[List[Trade], List[Dict[str, Any]]]:
         try:
             side = SIDES.get(rec.get("side", "").lower())
             if not side:
-                raise ValueError(f"side '{rec.get('side', '')[:10]}' is not long, short, buy or sell")
-            num = lambda k: float(rec[k].replace(",", "")) if rec.get(k) else None   # noqa: E731
+                raise _LineError(f"side '{rec.get('side', '')[:10]}' is not long, short, buy or sell")
+
+            def num(k: str) -> Optional[float]:
+                if not rec.get(k):
+                    return None
+                try:
+                    return float(rec[k].replace(",", ""))
+                except ValueError:
+                    raise _LineError(f"{FIELD_NAME.get(k, k)} '{rec[k][:12]}' is not a number") from None
+
             good.append(Trade(symbol=rec.get("symbol", ""), side=side, qty=num("qty"), entryPrice=num("entryPrice"), exitPrice=num("exitPrice"),
                               entryAt=_when(rec.get("entryAt", "")), exitAt=_when(rec.get("exitAt", "")), fees=num("fees") or 0,
                               setup=rec.get("setup") or None, notes=rec.get("notes") or None))
-        except Exception as e:                       # one bad line never stops the rest
-            msg = e.errors()[0]["msg"] if hasattr(e, "errors") else str(e)
-            bad.append({"line": n, "reason": msg.replace("Value error, ", "")[:160]})
+        except _LineError as e:                      # one bad line never stops the rest; only our own plain reasons go back
+            bad.append({"line": n, "reason": e.reason[:160]})
+        except ValidationError as e:
+            bad.append({"line": n, "reason": _reason(e)})
+        except Exception:                            # noqa: BLE001 - nothing internal is echoed to the member
+            bad.append({"line": n, "reason": "This line could not be read."})
     if len(rows) - 1 > MAX_IMPORT:
         bad.append({"line": MAX_IMPORT + 2, "reason": f"Only the first {MAX_IMPORT:,} trades of a file are read."})
     return good, bad
