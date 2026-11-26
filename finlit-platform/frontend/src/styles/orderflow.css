@@ -591,3 +591,49 @@ a.oflow-tab:hover:not([aria-current]) { background: color-mix(in srgb, var(--gol
 .opul-legend .sw.zon-fvg { background: color-mix(in srgb, var(--c1) 30%, transparent); }
 .opul-legend .sw.zon-vw { background: var(--info); height: 3px; }
 .zon-pop-note { font-size: var(--fs-12); margin: 8px 0 0; max-width: 340px; }
+
+/* ---- Trading journal (components/lab/TradingJournal.tsx) ---- */
+.jr .oflow-hero-h { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+.jr-acts { display: flex; gap: 8px; flex-wrap: wrap; }
+.jr-tiles { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; margin: 14px 0; }
+.jr-tiles > div { padding: 12px; border: 1px solid var(--border); border-radius: var(--r-card); background: var(--s2);
+  box-shadow: 0 6px 16px -10px color-mix(in srgb, var(--text) 30%, transparent); }
+.jr-tiles dt { font-size: var(--fs-12); color: var(--muted); }
+.jr-tiles dd { margin: 4px 0 2px; font-size: var(--fs-20); font-weight: 700; font-variant-numeric: tabular-nums; }
+.jr-tiles small { font-size: var(--fs-12); color: var(--muted); }
+.jr-grid { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+.jr-panel h3 { margin: 0 0 8px; font: var(--ui-fw-medium) var(--ui-fs-h3)/1.3 var(--font-sans); }
+.jr-curve, .jr-cal { display: block; width: 100%; height: auto; }
+.jr-curve .zero { stroke: var(--border); stroke-dasharray: 3 3; } .jr-curve .ax, .jr-cal .ax { font-size: var(--fs-12); fill: var(--muted); }
+.jr-curve .ln { fill: none; stroke-width: 2.5; } .jr-curve .ln.up { stroke: var(--gain); } .jr-curve .ln.down { stroke: var(--loss); }
+.jr-curve .dd { fill: color-mix(in srgb, var(--loss) 22%, transparent); }
+.jr-curve .hit { fill: transparent; } .jr-curve .hit:hover { fill: color-mix(in srgb, var(--gold) 10%, transparent); }
+.jr-day.none { fill: var(--s2); stroke: var(--border); stroke-width: 0.5; } .jr-day.flat { fill: var(--muted); }
+.jr-day.up { fill: var(--gain); } .jr-day.down { fill: var(--loss); }
+.jr-day:hover { stroke: var(--gold); stroke-width: 1.5; }
+.opul-legend .sw.jr-sw-ln { background: var(--gain); height: 3px; } .opul-legend .sw.jr-sw-dd { background: color-mix(in srgb, var(--loss) 30%, transparent); }
+.jr-setups { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.jr-setups li { display: grid; grid-template-columns: minmax(0, 1fr) 110px 140px; gap: 8px; font-size: var(--fs-13); font-variant-numeric: tabular-nums; }
+.jr-form { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; margin: 12px 0; padding: 14px; border: 1px solid var(--border);
+  border-radius: var(--r-card); background: var(--s2); }
+.jr-form label { display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-12); color: var(--muted); }
+.jr-form label.wide { grid-column: span 3; }
+.jr-form input, .jr-form select, .jr-import textarea { padding: 7px 10px; border: 1px solid var(--border); border-radius: var(--r-ctl); background: var(--s1);
+  color: var(--text); font: inherit; font-size: var(--fs-14); min-width: 0; }
+.jr-form-a { display: flex; gap: 8px; align-items: end; grid-column: span 2; }
+.jr-form .formerr { grid-column: 1 / -1; margin: 0; }
+.jr-import { display: flex; flex-direction: column; gap: 8px; margin: 12px 0; padding: 14px; border: 1px solid var(--border); border-radius: var(--r-card); background: var(--s2); }
+.jr-import p { margin: 0; font-size: var(--fs-13); } .jr-file { font-size: var(--fs-13); display: flex; gap: 8px; align-items: center; }
+.jr-import textarea { font-family: var(--font-mono, monospace); font-size: var(--fs-12); }
+.jr-rej { margin: 4px 0 0; padding-left: 18px; font-size: var(--fs-13); color: var(--loss); }
+.jr-table-wrap { overflow-x: auto; margin-top: 16px; border: 1px solid var(--border); border-radius: var(--r-card); }
+.jr-table { width: 100%; border-collapse: collapse; font-size: var(--fs-13); font-variant-numeric: tabular-nums; }
+.jr-table th { text-align: left; font-size: var(--fs-12); font-weight: 600; color: var(--muted); padding: 8px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.jr-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.jr-table tr:last-child td { border-bottom: 0; } .jr-table tbody tr:hover { background: color-mix(in srgb, var(--gold) 6%, transparent); }
+.jr-table .n { text-align: right; } .jr-note { display: block; max-width: 220px; overflow: hidden; text-overflow: ellipsis; font-size: var(--fs-12); }
+.jr-row-a { display: flex; gap: 6px; justify-content: flex-end; }
+@media (max-width: 1100px) { .jr-tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); } .jr-form { grid-template-columns: repeat(3, minmax(0, 1fr)); } .jr-grid { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 560px) { .jr-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } .jr-tiles dd { font-size: var(--fs-16); }
+  .jr-form { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .jr-form label.wide, .jr-form-a { grid-column: 1 / -1; } }
+.jr-more { display: flex; align-items: center; gap: 12px; margin-top: 10px; } .jr-more small { font-size: var(--fs-12); }
