@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { hasLab } from "../lib/lab";
+import { hasLab, hasSignals } from "../lib/lab";
 
 const auth = { ready: true, user: { id: "u1", email: "m@example.com", role: "investor" } as unknown, features: [] as string[] };
 vi.mock("../lib/auth", () => ({ useAuth: () => auth }));
@@ -53,6 +53,30 @@ describe("Trading Lab page", () => {
   });
 });
 
+describe("Signals desk (founder, 25 Nov 2026: an internal test outside the describe-only wording)", () => {
+  it("is hidden unless the member's signals are on", async () => {
+    answer = () => json(200, { access: true, reason: "granted", expiresAt: null, signals: false });
+    wrap(<TradingLabPage />); await settle();
+    expect(screen.queryByRole("heading", { name: "Signals desk" })).toBeNull();
+    expect(screen.queryByRole("heading", { name: "Rating: Buy, Hold or Sell" })).toBeNull();
+    expect(screen.queryByText(/does give trade calls/)).toBeNull();
+    expect(screen.getByRole("list", { name: "How the Lab works" }).querySelectorAll("li").length).toBe(4);
+  });
+  it("shows the rating, the trader's plan and the trade-size debate with an internal-test label when on", async () => {
+    answer = () => json(200, { access: true, reason: "granted", expiresAt: null, signals: true });
+    wrap(<TradingLabPage />); await settle();
+    expect(screen.getByRole("heading", { name: "Signals desk" })).toBeTruthy();
+    expect(screen.getByText("Signals on · internal test")).toBeTruthy();
+    for (const t of ["Rating: Buy, Hold or Sell", "Trader's plan", "Trade-size debate"]) expect(screen.getByRole("heading", { name: t })).toBeTruthy();
+    expect(screen.getByText(/does not tell anyone to buy, sell or hold/)).toBeTruthy();      // the Lab's disclaimer stays
+    expect(screen.getByText(/The Signals desk, switched on for your account by an administrator, does give trade calls/)).toBeTruthy();   // and says what the desk is
+  });
+  it("hasSignals reads the feature the server lists", () => {
+    expect(hasSignals(["trading_lab"])).toBe(false);
+    expect(hasSignals(["trading_lab", "trading_lab_signals"])).toBe(true);
+  });
+});
+
 describe("menu entry", () => {
   it("only with the granted feature", () => {
     expect(hasLab([])).toBe(false);
@@ -66,7 +90,8 @@ describe("Console > Trading Lab access", () => {
     let grants: unknown[] = [];
     answer = (url, init) => {
       if (url.endsWith("/api/admin/lab/grants") && (init?.method || "GET") === "GET") return json(200, { grants });
-      if (init?.method === "PUT") { grants = [{ userId: "11111111-1111-1111-1111-111111111111", email: "m@example.com", name: "Asha", plan: "basic", grantedAt: "2026-11-25T10:00:00Z", expiresAt: "2026-12-25T10:00:00Z", note: "beta", grantedBy: "boss@example.com", active: true }]; return json(200, { status: "saved" }); }
+      if (init?.method === "PUT") { grants = [{ userId: "11111111-1111-1111-1111-111111111111", email: "m@example.com", name: "Asha", plan: "basic", grantedAt: "2026-11-25T10:00:00Z", expiresAt: "2026-12-25T10:00:00Z", note: "beta", grantedBy: "boss@example.com", active: true, signals: true }]; return json(200, { status: "saved" }); }
+      if (init?.method === "PATCH") { grants = grants.map((g) => ({ ...(g as object), signals: JSON.parse(init.body as string).signals })); return json(200, { status: "saved" }); }
       if (init?.method === "DELETE") { grants = []; return json(200, { status: "removed" }); }
       return json(404, {});
     };
@@ -76,11 +101,18 @@ describe("Console > Trading Lab access", () => {
     fireEvent.change(screen.getByLabelText("Member's email"), { target: { value: "m@example.com" } });
     fireEvent.change(screen.getByLabelText("How long"), { target: { value: "30" } });
     fireEvent.change(screen.getByLabelText("Note (optional)"), { target: { value: "beta" } });
+    fireEvent.click(screen.getByRole("checkbox"));
     fireEvent.click(screen.getByRole("button", { name: "Give access" })); await settle();
     const put = calls.find((c) => c.method === "PUT")!;
-    expect(JSON.parse(put.body!)).toEqual({ email: "m@example.com", days: 30, note: "beta" });
+    expect(JSON.parse(put.body!)).toEqual({ email: "m@example.com", days: 30, note: "beta", signals: true });
     expect(screen.getByText("m@example.com")).toBeTruthy();
     expect(screen.getByText("(1 active)")).toBeTruthy();
+    const sw = screen.getByRole("switch", { name: "Signals for m@example.com" });
+    expect(sw.getAttribute("aria-checked")).toBe("true");
+    fireEvent.click(sw); await settle();
+    const patch = calls.find((c) => c.method === "PATCH")!;
+    expect(patch.url.endsWith("/api/admin/lab/grants/11111111-1111-1111-1111-111111111111") && JSON.parse(patch.body!)).toEqual({ signals: false });
+    expect(screen.getByRole("switch", { name: "Signals for m@example.com" }).getAttribute("aria-checked")).toBe("false");
     fireEvent.click(screen.getByRole("button", { name: "Remove" })); await settle();
     expect(calls.some((c) => c.method === "DELETE" && c.url.endsWith("/api/admin/lab/grants/11111111-1111-1111-1111-111111111111"))).toBe(true);
     expect(screen.getByText("Nobody has been given access yet.")).toBeTruthy();

@@ -23,6 +23,19 @@ can give access to anybody ... make a full setup of this"). Not part of any plan
 - Wording follows CLAUDE.md: the banned word "target" becomes "upper exit level", "stop" becomes "lower exit level"; every page carries the
   disclaimer that intraday trading loses most people money.
 
+## Signals switch (founder's decision, 25 Nov 2026)
+
+The founder asked that the parts left out above can be switched on per member for an internal end-to-end test: "put those also options: buy, hold,
+sell, rating, the traders plan, and trade size, debate ... ignore FinLit rules for them ... make the proper backend setting of this thing".
+
+- A per-grant switch, `options.signals` on `user_grants`, **off by default**. Only an administrator turns it on (Console > Trading Lab access: the
+  "Signals" box when giving access, or the On/Off switch on a grant). Every change is audited (`lab_signals_on` / `lab_signals_off`).
+- Administrators always have signals. `/api/auth/me` lists `trading_lab_signals`; `/api/lab/access` returns `signals`.
+- Every signal route depends on `signals_ctx` (403 `signals_off` for a member without the switch). Only the **Signals desk** on `/lab` follows
+  these rules; it carries the label "Signals on · internal test", and every other page of the site keeps the describe-only wording.
+- The signal tools (Buy/Hold/Sell rating, trader's plan, trade-size debate) are built after the research tools, as part 8.
+- Note for later: giving buy/sell calls to the public in India falls under SEBI's research-analyst rules; keep the switch to the team while testing.
+
 ## Access (built: PR 1)
 
 - Table `user_grants` (migration 143): member, feature `trading_lab`, granted by, granted at, optional end, note. Deleting an account deletes it.
@@ -47,5 +60,8 @@ can give access to anybody ... make a full setup of this"). Not part of any plan
    shortfall, Sortino, Calmar, beta against Nifty 50, each with its window.
 7. **Case for / case against** (FinLit AI, on demand, cached until new filings or prices): "What the figures support", "What the figures challenge",
    "What the data cannot settle"; a numbered source after every figure; no verdict or rating; banned-word filter after generation; step and token caps.
+8. **Signals desk** (only with the signals switch): the TradingAgents flow on FinLit's own NSE data: analysts, a bull/bear debate, a five-step
+   Buy-to-Sell rating with its reasons, a trader's plan, and a cautious/balanced/aggressive trade-size debate; on demand, cached, with step and
+   token caps.
 
 Each piece goes through `docs/TASK-PROMPT.md` like any task: tests, 4 views, live check.
