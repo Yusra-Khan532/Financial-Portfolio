@@ -31,6 +31,7 @@ import { WordOfDayButton, WordOfDayMenuItem, useWodInMenu } from "./WordOfDay";
 import { SheetTools } from "./SheetTools";
 import { HubChips, MobileMenu, MobileTabs, PhoneFootLinks, ToolsButton } from "./mobile/MobileApp";
 import { desktopSiteOn, setDesktopSite } from "../lib/mobileNav";
+import { hasLab } from "../lib/lab";
 
 /** One header dropdown, built from lib/nav.ts. */
 function Menu({ m, open, setOpen, path, extra }: { m: NavSection; open: boolean; setOpen: (v: string | null) => void; path: string; extra?: React.ReactNode }) {
@@ -63,7 +64,7 @@ function Header({ onSearch }: { onSearch: () => void }) {
   const { theme, toggleTheme, plan, setPlan } = useUI();
   const gold = useIsGold();
   const sections = useMemo(() => forPlan(SECTIONS, gold), [gold]);   // task #100: pages not offered to Gold (none since task #283)
-  const { user, ready, isAdmin, signOut } = useAuth();
+  const { user, ready, isAdmin, signOut, features } = useAuth();
   const nav = useNavigate();
   const [acct, setAcct] = useState(false);
   const [menu, setMenu] = useState(false);
@@ -123,6 +124,7 @@ function Header({ onSearch }: { onSearch: () => void }) {
               <Link to="/watchlist" role="menuitem"><span className="ddi"><Icon name="wallet" /></span><span><b>Watchlist</b></span></Link>
               <Link to="/account" role="menuitem"><span className="ddi"><Icon name="users" /></span><span><b>Account</b></span></Link>
               <Link to="/account/appearance" role="menuitem"><span className="ddi"><Icon name="spark" /></span><span><b>Appearance</b></span></Link>
+              {hasLab(features) && <Link to="/lab" role="menuitem"><span className="ddi"><Icon name="activity" /></span><span><b>Trading Lab</b></span></Link>}
               {isAdmin && <Link to="/console" role="menuitem"><span className="ddi"><Icon name="lock" /></span><span><b>Admin console</b></span></Link>}</>}
               <span className="ddt acct-help">Help and feedback</span>
               <HelpActions asMenu onPick={() => setAcct(false)} />

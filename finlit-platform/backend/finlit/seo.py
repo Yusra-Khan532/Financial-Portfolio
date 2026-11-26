@@ -99,7 +99,8 @@ PUBLIC: Dict[str, Page] = {
 PRIVATE = ("account", "dashboard", "console", "admin", "login", "verify-email", "unsubscribe", "forgot-password", "reset-password", "watchlist", "holdings", "mf-portfolio", "etf-portfolio", "my-investments", "alerts", "baskets",
            "query-builder", "premium", "portfolio", "feedback", "forum", "graphs", "advanced-score-screener", "outlook", "results/quarter", "funds/screener", "funds/compare",
            "funds/insights", "etfs/compare", "etfs/compare-index-funds", "sectors/rotation", "sectors/capital-goods", "research/stress-lab", "reverse-valuation",
-           "discovery")      # task #260: the old address of Discover, now a redirect to /discover
+           "discovery",      # task #260: the old address of Discover, now a redirect to /discover
+           "lab", "lab/flow")   # Trading Lab and its Order Flow page: open only to members an administrator names (docs/TRADING-LAB.md), never indexed
 # Addresses that carry a value in the last part and are answered with a generic head (their content is checked in the app).
 PARAM_PREFIXES = ("ipo", "funds", "etfs", "prism", "sectors", "blog", "legal", "outlook", "premium/report", "graphs/advanced", "account", "forum", "research/stress-lab", "superinvestors", "superinvestors/name")   # superinvestors/name: one filed name as written (task #289)
 
