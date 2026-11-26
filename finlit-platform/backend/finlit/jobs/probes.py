@@ -26,6 +26,10 @@ def build(store: Any) -> Dict[str, Callable[[], Awaitable[Optional[bool]]]]:
             return bool(await conn.fetchval("SELECT EXISTS (SELECT 1 FROM (SELECT DISTINCT symbol FROM snapshots WHERE section = 'price-MAX') s "
                                             "LEFT JOIN price_history_long h ON h.symbol = s.symbol WHERE h.symbol IS NULL OR h.ath IS NULL)"))
 
+    async def candles() -> Optional[bool]:
+        from .. import candles as candles_mod   # task #394: Dhan has a session (confirmed by the technicals run) the candle store does not hold yet
+        return await candles_mod.has_new_session(store)
+
     async def price_sections() -> Optional[bool]:
         from .. import price_sections as ps   # task #394: candles were stored after the charts were last rewritten
         return await ps.has_work(store)
@@ -57,4 +61,4 @@ def build(store: Any) -> Dict[str, Callable[[], Awaitable[Optional[bool]]]]:
         rel = await asyncio.to_thread(sd.live_release)
         return bool(rel) and not await asyncio.to_thread(lambda: (rel / sd.LEVELS_DIR / "sectors" / "_board.json").is_file())
 
-    return {"sectors-view": sectors_view, "macro-outlook": macro_outlook, "technicals": technicals, "prism": prism, "ath": ath, "price-sections": price_sections, "scores-live": scores_live, "stress": stress, "discovery": discovery, "scores-export": scores_export}
+    return {"sectors-view": sectors_view, "macro-outlook": macro_outlook, "technicals": technicals, "prism": prism, "ath": ath, "candles": candles, "price-sections": price_sections, "scores-live": scores_live, "stress": stress, "discovery": discovery, "scores-export": scores_export}
