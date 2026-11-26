@@ -9,11 +9,14 @@ import { BUILDUP, around, compact, matchUnderlyings, price, signedNum, strikeTex
 import { useTip } from "./FlowTips";
 import { ChartZoom } from "../ChartZoom";
 
-const getUnderlyings = () => apiGet<Underlyings>("/api/options/lab/underlyings");
-const getExpiries = (u: string) => apiGet<Expiries>(`/api/options/lab/expiries?u=${encodeURIComponent(u)}`);
-const getChain = (u: string, e: string) => apiGet<Chain>(`/api/options/lab/chain?u=${encodeURIComponent(u)}&expiry=${encodeURIComponent(e)}`);
+export type OptionMarket = "india" | "global";
+/** India: the site's own chain behind Lab access; Global: US options from Nasdaq's public chain (backend lab/global_options.py). */
+const base = (m: OptionMarket) => (m === "global" ? "/api/lab/options/global" : "/api/options/lab");
+const getUnderlyings = (m: OptionMarket) => apiGet<Underlyings>(`${base(m)}/underlyings`);
+const getExpiries = (m: OptionMarket, u: string) => apiGet<Expiries>(`${base(m)}/expiries?u=${encodeURIComponent(u)}`);
+const getChain = (m: OptionMarket, u: string, e: string) => apiGet<Chain>(`${base(m)}/chain?u=${encodeURIComponent(u)}&expiry=${encodeURIComponent(e)}`);
 
-const QUICK = ["NIFTY", "BANKNIFTY", "FINNIFTY", "MIDCPNIFTY"];
+const QUICK: Record<OptionMarket, string[]> = { india: ["NIFTY", "BANKNIFTY", "FINNIFTY", "MIDCPNIFTY"], global: ["SPY", "QQQ", "IWM", "DIA"] };
 const day = (iso: string) => new Date(iso + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 
 /** The strike with the largest OI on one side (null when no strike has OI on that side). */
@@ -132,15 +135,15 @@ function MaxPainCurve({ c }: { c: Chain }) {
   );
 }
 
-export function OptionPulse() {
-  const [u, setU] = useState("NIFTY");
+export function OptionPulse({ market = "india" }: { market?: OptionMarket }) {
+  const [u, setU] = useState(QUICK[market][0]);
   const [find, setFind] = useState("");
   const [exp, setExp] = useState<string | null>(null);
   const [span, setSpan] = useState(12);
-  const und = useQuery({ queryKey: ["opul-und"], queryFn: getUnderlyings, retry: false, staleTime: 3600_000 });
-  const ex = useQuery({ queryKey: ["opul-exp", u], queryFn: () => getExpiries(u), retry: false });
+  const und = useQuery({ queryKey: ["opul-und", market], queryFn: () => getUnderlyings(market), retry: false, staleTime: 3600_000 });
+  const ex = useQuery({ queryKey: ["opul-exp", market, u], queryFn: () => getExpiries(market, u), retry: false });
   const expiry = exp && ex.data?.expiries.includes(exp) ? exp : ex.data?.expiries[0] ?? null;
-  const ch = useQuery({ queryKey: ["opul-chain", u, expiry], queryFn: () => getChain(u, expiry as string), enabled: !!expiry, retry: false,
+  const ch = useQuery({ queryKey: ["opul-chain", market, u, expiry], queryFn: () => getChain(market, u, expiry as string), enabled: !!expiry, retry: false,
     refetchInterval: (q) => (q.state.data?.marketOpen ? Math.max(30, q.state.data.refreshSeconds) * 1000 : false) });
   const matches = useMemo(() => (find.trim() && und.data ? matchUnderlyings(und.data.stocks, find, 8) : []), [find, und.data]);
   const c = ch.data;
@@ -151,10 +154,10 @@ export function OptionPulse() {
     <section className="card oflow-board opul" aria-labelledby="opul-h">
       <div className="oflow-hero-h"><div><h2 id="opul-h">Option Pulse</h2>{c && <p className="oflow-money-line">{pulseLine(c)}</p>}</div></div>
       <div className="opul-pick">
-        <div className="oflow-bchips" role="group" aria-label="Indices">{QUICK.map((k) => (
+        <div className="oflow-bchips" role="group" aria-label={market === "global" ? "US index funds" : "Indices"}>{QUICK[market].map((k) => (
           <button key={k} type="button" className="oflow-bchip" aria-pressed={u === k} onClick={() => { setU(k); setExp(null); setFind(""); }}>{k}</button>))}</div>
         <div className="opul-find">
-          <input type="search" value={find} onChange={(e) => setFind(e.target.value)} placeholder="Any F&O stock" aria-label="Find an F&O stock" />
+          <input type="search" value={find} onChange={(e) => setFind(e.target.value)} placeholder={market === "global" ? "A large US company" : "Any F&O stock"} aria-label={market === "global" ? "Find a US company" : "Find an F&O stock"} />
           {matches.length > 0 && <ul className="opul-found" aria-label="Matching stocks">{matches.map((m) => (
             <li key={m.key}><button type="button" onClick={() => { setU(m.key); setExp(null); setFind(""); }}><b>{m.key}</b> <span className="muted">{m.name}</span></button></li>))}</ul>}
         </div>
@@ -186,7 +189,7 @@ export function OptionPulse() {
         </aside>
       </div>}
       {c && c.notes.map((n) => <p key={n} className="muted oflow-note">{n}</p>)}
-      <details className="oflow-how"><summary>How it is worked out</summary><p className="muted oflow-method">From Dhan's option chain for the chosen expiry. OI change is today's open interest against the previous session's. PCR (OI) is total put OI divided by total call OI. Max pain is the settlement price at which option buyers would receive the least, on today's OI. Build-up per side: price and OI both up is long build-up, price down and OI up short build-up, price up and OI down short covering, both down long unwinding. Where OI is largest describes where open positions are concentrated; it is not a forecast.</p></details>
+      <details className="oflow-how"><summary>How it is worked out</summary><p className="muted oflow-method">{market === "global" ? "From Nasdaq's public US option chain (all US option exchanges, delayed) for the chosen expiry; one contract is 100 shares. OI change is today's open interest against the previous day FinLit kept." : "From Dhan's option chain for the chosen expiry. OI change is today's open interest against the previous session's."} PCR (OI) is total put OI divided by total call OI. Max pain is the settlement price at which option buyers would receive the least, on today's OI. Build-up per side: price and OI both up is long build-up, price down and OI up short build-up, price up and OI down short covering, both down long unwinding. Where OI is largest describes where open positions are concentrated; it is not a forecast.</p></details>
     </section>
   );
 }

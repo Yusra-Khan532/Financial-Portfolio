@@ -37,7 +37,7 @@ export const FLOW_TABS = [
 ];
 
 /** The views the Global switch has (the rest are India-only until their global version is built). */
-export const GLOBAL_TABS = ["depth", "board", "money", "global", "mood"];
+export const GLOBAL_TABS = ["depth", "board", "money", "options", "global", "mood"];
 
 const DISCLAIMER = "Order Flow describes how F&O stocks are moving from exchange prices and futures open interest, worked out by fixed formulas and shown with a delay of a few minutes. It does not tell anyone to buy, sell or hold, it never places an order, and a build-up or a count of facts is not a forecast. Intraday and F&O trading carry a high risk of loss; most people who trade them lose money. Information only, not investment advice.";
 
@@ -643,7 +643,7 @@ function Depth({ d }: { d: Ready }) {
 // ------------------------------------------------------------------------------------------------------------------ page
 
 function Flow({ view, market }: { view: string; market: FlowMarket }) {
-  if (view === "options") return <TipLayer><OptionPulse /></TipLayer>;   // its own data (the option chain), not the Order Flow snapshot
+  if (view === "options") return <TipLayer><OptionPulse key={market} market={market} /></TipLayer>;   // its own data (the option chain), not the Order Flow snapshot
   if (view === "global") return <TipLayer><GlobalCues /></TipLayer>;      // its own data (FRED series and the international ETFs on NSE)
   if (view === "mood") return <TipLayer><MarketMood /></TipLayer>;        // its own data (scored news and headlines)
   return <FlowSnapshotView view={view} market={market} />;

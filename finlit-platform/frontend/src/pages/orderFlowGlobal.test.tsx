@@ -49,9 +49,9 @@ describe("Order Flow, the India | Global switch", () => {
   it("the switch keeps the view, and Global shows only the views it has", async () => {
     wrap("/lab/flow?view=money"); await settle();
     expect(screen.getByRole("link", { name: "Global" }).getAttribute("href")).toBe("/lab/flow?view=money&m=global");
-    cleanup(); wrap("/lab/flow?view=options&m=global"); await settle();
+    cleanup(); wrap("/lab/flow?view=zones&m=global"); await settle();
     const tabs = screen.getAllByRole("link").filter((a) => a.classList.contains("oflow-tab")).map((a) => a.textContent);
-    expect(tabs).not.toContain("Option Pulse"); expect(GLOBAL_TABS).toContain("money");
+    expect(tabs).not.toContain("Stock zones"); expect(tabs).toContain("Option Pulse"); expect(GLOBAL_TABS).toContain("money");
     expect(screen.getByRole("link", { name: "Market depth" }).getAttribute("aria-current")).toBe("page");   // a view Global lacks falls back to depth
     expect(screen.getByRole("link", { name: "India" }).getAttribute("href")).toBe("/lab/flow");
   });

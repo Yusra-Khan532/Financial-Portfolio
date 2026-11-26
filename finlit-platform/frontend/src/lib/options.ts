@@ -1,6 +1,7 @@
 // Option chain (Gold): the shapes /api/options sends and the small pure helpers the page formats them with. Every figure (PCR, max pain,
 // OI change, build-up, ATM, ITM) is worked out by the server (backend/finlit/options.py); nothing here recomputes or rounds it differently.
 import { MINUS, nf } from "./format";
+import { isUS } from "./flow";
 
 export type Buildup = "long_buildup" | "short_buildup" | "short_covering" | "long_unwinding";
 export type Side = {
@@ -55,6 +56,7 @@ export function count(v: number | null | undefined, unit: Unit = "units", lot: n
 export function compact(v: number | null | undefined): string {
   if (v == null) return "—";
   const a = Math.abs(v), s = v < 0 ? MINUS : "";
+  if (isUS()) return a >= 1e9 ? s + (a / 1e9).toFixed(2) + " B" : a >= 1e6 ? s + (a / 1e6).toFixed(2) + " M" : a >= 1e3 ? s + (a / 1e3).toFixed(1) + " K" : s + a.toFixed(0);   // US: thousands, millions
   if (a >= 1e7) return s + nf(a / 1e7, 2) + " Cr";
   if (a >= 1e5) return s + nf(a / 1e5, 2) + " L";
   if (a >= 1e3) return s + nf(a / 1e3, 1) + " K";

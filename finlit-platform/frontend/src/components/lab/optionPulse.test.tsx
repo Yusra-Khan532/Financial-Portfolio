@@ -7,6 +7,8 @@ import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TipLayer } from "./FlowTips";
 import { OptionPulse, largest, pulseLine } from "./OptionPulse";
+import { compact } from "../../lib/options";
+import { setFlowMarket } from "../../lib/flow";
 import type { Chain, Row, Side } from "../../lib/options";
 
 const side = (oi: number, chg: number, buildup: Side["buildup"] = null): Side => ({ securityId: 1, oi, prevOi: oi - chg, oiChange: chg, oiChangePct: +((chg / (oi - chg)) * 100).toFixed(2),
@@ -73,3 +75,22 @@ describe("Option Pulse", () => {
     expect(document.querySelector(".opul")!.textContent!).not.toMatch(/\b(buy|sell|target|support zone|resistance zone|will cap|should)\b/i);
   });
 });
+
+describe("Option Pulse, Global", () => {
+  it("reads the US chain routes, offers the US index funds, and writes open interest in thousands and millions", async () => {
+    const usUnd = { ...und, key: "SPY", name: "S&P 500 fund (SPY)", segment: "US", securityId: 0, exchange: "US" };
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => { urls.push(String(url));
+      return String(url).includes("/underlyings") ? json({ indices: [usUnd], stocks: [{ key: "AAPL", name: "Apple", securityId: 0, lotSize: 100 }], connected: true })
+        : String(url).includes("/expiries") ? json({ underlying: usUnd, expiries: ["2026-11-27"], asOf: "", state: "fresh" }) : json({ ...CHAIN, underlying: usUnd, expiry: "2026-11-27", lotSize: 100 }); }));
+    setFlowMarket("global");
+    render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><MemoryRouter><TipLayer><OptionPulse market="global" /></TipLayer></MemoryRouter></QueryClientProvider>);
+    await settle();
+    expect(urls.some((u) => u.includes("/api/lab/options/global/chain?u=SPY&expiry=2026-11-27"))).toBe(true);
+    expect(urls.some((u) => u.includes("/api/options/lab/"))).toBe(false);
+    expect(screen.getByRole("group", { name: "US index funds" }).textContent).toContain("QQQ");
+    expect(compact(3_140_000)).toBe("3.14 M"); expect(compact(22_280)).toBe("22.3 K");
+    setFlowMarket("india");
+    expect(compact(3_140_000)).toBe("31.40 L");
+  });
+});
+
