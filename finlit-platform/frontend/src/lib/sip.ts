@@ -26,7 +26,9 @@ export type SipResult = {
   multiple: number;                 // value ÷ invested
 };
 
-export const LIMITS = { monthlyMin: 100, monthlyMax: 1_000_000, yearsMax: 50, returnMin: 0, returnMax: 30, lumpMax: 100_000_000 } as const;
+// task #399: the sliders are gone, so the typed limits are wide: up to ₹10 crore a month, 60 years, 50% a year, a ₹1,000 crore one-time amount
+export const LIMITS = { monthlyMin: 100, monthlyMax: 100_000_000, yearsMax: 60, returnMin: 0, returnMax: 50, lumpMax: 10_000_000_000,
+  stepPctMax: 50, stepAmountMax: 10_000_000, inflationMax: 30, goalMin: 10_000, goalMax: 1_000_000_000_000 } as const;
 
 /** Monthly rate in decimal for an annual return in per cent. */
 export function monthlyRate(annualReturn: number, compounding: Compounding = "monthly"): number {
@@ -145,12 +147,22 @@ export const rupees = (v: number) => (v < 0 ? "−" : "") + "₹" + Math.round(M
 /** Short form for chart axes and milestones: ₹12.5 L, ₹3.2 Cr. */
 export function short(v: number): string {
   const a = Math.abs(v), s = v < 0 ? "−" : "";
+  if (!Number.isFinite(a)) return "—";
+  if (a >= 1e12) return `${s}₹${trim(a / 1e12)} L Cr`;     // task #399: lakh crore, so ₹10,87,37,43,05,90,735 reads "₹108.74 L Cr", never "₹10873743 Cr"
   if (a >= 1e7) return `${s}₹${trim(a / 1e7)} Cr`;
   if (a >= 1e5) return `${s}₹${trim(a / 1e5)} L`;
   if (a >= 1e3) return `${s}₹${trim(a / 1e3)}k`;
   return `${s}₹${Math.round(a)}`;
 }
-const trim = (x: number) => (x >= 100 ? Math.round(x).toString() : x.toFixed(2).replace(/\.?0+$/, ""));
+const trim = (x: number) => (x >= 100 ? Math.round(x).toLocaleString("en-IN") : x.toFixed(2).replace(/\.?0+$/, ""));
+/** task #399: a box's figure: in full up to ₹999 crore (13 characters at most), the short form above that; the full amount goes in the box's title. */
+export const money = (v: number) => (Math.abs(v) < 1e10 ? rupees(v) : short(v));
+/** task #399: "1.92×", "18.6×", "1,81,229×": what the plan grows to against what was put in. */
+export function times(x: number): string {
+  if (!Number.isFinite(x) || x <= 0) return "0×";
+  if (x >= 1000) return Math.round(x).toLocaleString("en-IN") + "×";
+  return (x >= 100 ? x.toFixed(1) : x.toFixed(2)) + "×";
+}
 /** "12 years 3 months", "11 months". */
 export function duration(months: number): string {
   const y = Math.floor(months / 12), m = months % 12;
@@ -176,8 +188,8 @@ export function fromQuery(sp: URLSearchParams): SipState {
   out.months = Math.round(num("mo", 0, 11, out.months));
   out.annualReturn = num("r", LIMITS.returnMin, LIMITS.returnMax, out.annualReturn);
   out.lumpSum = num("l", 0, LIMITS.lumpMax, 0);
-  out.stepValue = num("sv", 0, 1_000_000, out.stepValue);
-  out.inflation = num("inf", 0, 20, out.inflation);
+  out.stepValue = num("sv", 0, LIMITS.stepAmountMax, out.stepValue);
+  out.inflation = num("inf", 0, LIMITS.inflationMax, out.inflation);
   if (sp.get("t") === "start") out.timing = "start";
   if (sp.get("c") === "effective") out.compounding = "effective";
   const sk = sp.get("sk"); if (sk === "pct" || sk === "amount") out.stepKind = sk;
