@@ -15,6 +15,7 @@ import { useMarkShell } from "../lib/shellPresence";
 import { HelpActions } from "./PageFeedback";
 import { SideRail } from "./SideRail";
 import { SheetTools } from "./SheetTools";
+import { hasLab } from "../lib/lab";
 
 /** Task #310 part D: the menu is on screen from 860px (below it, a sheet); from 860 to 1100px it starts as the rail. */
 export const DESKTOP_Q = "(min-width: 861px)", NARROW_Q = "(max-width: 1099px)";
@@ -34,7 +35,7 @@ function InfoButton({ k, label, target, info, setInfo, title }: { k: string; lab
 /** The left rail for every product page: where you are, what you follow, and what else the platform offers, in the order people use it. */
 export function AppShell() {
   const { pathname } = useLocation();
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, features } = useAuth();
   const { plan } = useUI();
   const gold = useIsGold();
   const wl = useWatchlist();
@@ -117,6 +118,7 @@ export function AppShell() {
       { to: "/account", label: "Profile & security", icon: "users", end: true, desc: "Your name, email, password and sign-in" },
       { to: "/account/appearance", label: "Appearance", icon: "spark", desc: "Light or dark theme, text size and how pages are laid out" },
       ...(DEMO ? [] : [{ to: "/account/plan", label: "Plan", icon: "crown", desc: "Your plan and what each plan includes" }]),
+      ...(hasLab(features) ? [{ to: "/lab", label: "Trading Lab", icon: "activity", desc: "Research tools for NSE traders, open by invitation" }] : []),   // only members an administrator named (and administrators)
       ...(isAdmin ? [{ to: "/console", label: "Admin console", icon: "lock", desc: "Team tools: members, jobs and data checks" }] : []),
     ] }] : []),
   ] as Group[]).map((g) => ({ ...g, items: g.items.filter(offeredTo(gold)) }));   // task #100: pages not offered to Gold (none since task #283)

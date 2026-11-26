@@ -68,6 +68,7 @@ Written 17 Nov 2026 from a full read of the repository, the team workspace and t
   | Community | `forum.py`, `page_feedback.py` |
   | MCP server | `mcp/` |
   | Other tools | `stress/`, `outlook/`, `earnings/`, `company_brief/` |
+  | Trading Lab (admin-granted access, `docs/TRADING-LAB.md`) | `lab/` (access: `user_grants`, Console > Trading Lab access, `/lab`) |
 - **Jobs:**
   - `finlit/worker.py`: about 59 CLI commands.
   - `finlit/jobs/`:

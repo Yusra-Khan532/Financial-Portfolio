@@ -783,9 +783,11 @@ def limits_for(plan: str) -> Dict[str, int]:
 @router.get("/auth/me")
 async def me(request: Request):
     ctx = await current(request)
+    from ..lab.access import features_of   # here, not at the top: lab.access imports this module
     body = {"user": ctx.public() if ctx.authed else None, "plan": ctx.plan, "limits": limits_for(ctx.plan), "csrf": ctx.csrf if ctx.authed else None,
             "showcase": sorted(request.app.state.settings.showcase_symbols),  # the free example companies: their reports are sent in full to everyone
-            "prismReportsPerDay": prism_reports_per_day(ctx)}
+            "prismReportsPerDay": prism_reports_per_day(ctx),
+            "features": await features_of(request.app.state.store.pool, ctx)}   # admin-granted features (Trading Lab), whatever the plan
     return Response(content=json.dumps(body), media_type="application/json", headers={**NO_STORE, "Vary": "Cookie"})
 
 
