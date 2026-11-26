@@ -415,6 +415,9 @@ a.oflow-tab:hover:not([aria-current]) { background: color-mix(in srgb, var(--gol
   .rsi-tools { gap: 8px; } .rsi-find { width: 100%; } .rsi-sel { flex: 1 1 140px; } .rsi-sel select { flex: 1; min-width: 0; }
 }
 
+/* RSI heatmap: room for the enlarge button so it never covers a count, a column heading or the sector average */
+.cz:not(.cz-boxed) > .cz-slot .rsi-counts, .cz:not(.cz-boxed) > .cz-slot .rsi-grid { padding-right: 46px; }
+@media (max-width: 560px) { .cz:not(.cz-boxed) > .cz-slot .rsi-counts, .cz:not(.cz-boxed) > .cz-slot .rsi-grid { padding-right: 0; padding-top: 44px; } }
 @media (prefers-reduced-motion: reduce) {
   .oflow .oflow-3d, .oflow .oflow-card:hover { transform: none; transition: none; }
   .oflow-draw, .oflow-lines path, .oflow-fade, .oflow-pop { animation: none; stroke-dashoffset: 0; }
