@@ -201,7 +201,7 @@ async def test_summaries_errors_withdrawn_answers_and_view_as_write_nothing(app)
     await store_prism(app)
     m = await signed_in(app, "mem-none@example.com", plan="gold")
     uid = await uid_of(m)
-    enable(app, FakeClient([{"text": ["1. Overall\n- Strong, **85.4**"]}]))
+    enable(app, FakeClient([{"text": ["The business is sound and the share has traded calmly."]}]))   # task #404: a stance
     r, ev = await summary(m)
     assert r.status_code == 200 and ev[-1][0] == "done"
     await memory.drain()
@@ -391,7 +391,7 @@ def test_golden_build_messages_and_cache_key_are_unchanged(monkeypatch):
     assert ask_api.cache_key("m1", Ctx(user_id="u", plan="gold"), ask_api.AskIn(question="What is TCS's ROE?", symbol="tcs")) == \
         "ask:answer:m1:gold:2026-11-23:ab28c738ad90ce1f008706a4f3ac690b"
     assert ask_api.cache_key("m1", Ctx(user_id="u", plan="silver"), ask_api.AskIn(kind="summary", symbol="RELIANCE")) == \
-        "ask:answer:summary:v5:m1:RELIANCE:2026-11-23"
+        "ask:answer:summary:v6:m1:RELIANCE:2026-11-23"   # task #404: the stance form
 
 
 @pg

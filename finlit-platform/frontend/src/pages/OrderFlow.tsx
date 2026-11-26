@@ -14,6 +14,7 @@ import {
 } from "../lib/flow";
 import { BUCKETS, bucketOf, layout, type Bucket } from "../lib/flowboard";
 import { flowMap } from "../lib/flowmap";
+import { cr, headline, moneyFlow, type MoneyFlow, type MoneySector, type MoneyStock } from "../lib/money";
 import { LabGate } from "./TradingLab";
 import { ChartZoom } from "../components/ChartZoom";
 import { BucketPop, Candles, DirectionPop, SectorPop, StockPop, TipLayer, tiltHandlers, useTip } from "../components/lab/FlowTips";
@@ -24,6 +25,7 @@ import "../styles/orderflow.css";
 export const FLOW_TABS = [
   { id: "depth", name: "Market depth", ready: true },
   { id: "board", name: "Flow board", ready: true },
+  { id: "money", name: "Money Flow", ready: true },
   { id: "zones", name: "Stock zones", ready: false },
   { id: "journal", name: "Trading journal", ready: false },
 ];
@@ -467,6 +469,119 @@ export function FlowBoard({ d }: { d: Ready }) {
   );
 }
 
+// ------------------------------------------------------------------------------------------------------------------ money flow
+
+function MoneyPop({ s }: { s: MoneyStock }) {
+  const tot = s.in + s.out || 1;
+  return (
+    <>
+      <header className="oflow-pop-h"><div><b>{s.symbol}</b><small>{s.sector}</small></div><div className="r"><b className={tone(s.net)}>{cr(s.net, true)}</b><small>net today</small></div></header>
+      <div className="oflow-pop-split"><i className="gain" style={{ flex: s.in || 0.0001 }} /><i className="loss" style={{ flex: s.out || 0.0001 }} /></div>
+      <dl className="oflow-pop-t">
+        <div><dt>In</dt><dd className="gain">{cr(s.in)}</dd></div><div><dt>Out</dt><dd className="loss">{cr(s.out)}</dd></div>
+        <div><dt>In share</dt><dd>{Math.round((s.in / tot) * 100)}%</dd></div><div><dt>Latest step</dt><dd className={tone(s.surge)}>{s.surge ? `${cr(s.surge, true)}/min` : "—"}</dd></div>
+      </dl>
+      <p className="oflow-pop-what">In: value traded while the price rose between two snapshots; out: while it fell. Every trade has a buyer and a seller, so this shows where traded value went with the moves, not who bought.</p>
+    </>
+  );
+}
+
+function SectorMoneyPop({ g }: { g: MoneySector }) {
+  return (
+    <>
+      <header className="oflow-pop-h"><div><b>{g.sector}</b><small>{g.stocks.length} F&O stocks</small></div><div className="r"><b className={tone(g.net)}>{cr(g.net, true)}</b><small>net today</small></div></header>
+      <div className="oflow-pop-split"><i className="gain" style={{ flex: g.in || 0.0001 }} /><i className="loss" style={{ flex: g.out || 0.0001 }} /></div>
+      <p className="oflow-pop-row"><span className="gain">In {cr(g.in)}</span><span className="loss">Out {cr(g.out)}</span></p>
+      <div className="oflow-pop-movers">
+        <div><small>Most in</small>{g.stocks.slice(0, 4).map((x) => <p key={x.symbol}>{x.symbol}<span className={tone(x.net)}>{cr(x.net, true)}</span></p>)}</div>
+        <div><small>Most out</small>{[...g.stocks].reverse().slice(0, 4).map((x) => <p key={x.symbol}>{x.symbol}<span className={tone(x.net)}>{cr(x.net, true)}</span></p>)}</div>
+      </div>
+    </>
+  );
+}
+
+/** Where money went today: each sector's net ₹ crore, the flow from the sectors into the day's inflow and outflow, and the stocks in each. */
+export function MoneyFlowView() {
+  const live = marketLive();
+  const tip = useTip();
+  const q = useQuery({ queryKey: ["lab-money"], queryFn: moneyFlow, refetchInterval: live ? 60_000 : false, retry: false });
+  const [hot, setHot] = useState<string | null>(null);
+  if (q.isPending) return <div className="skeleton" style={{ height: 420 }} aria-label="Loading Money Flow" />;
+  if (q.isError) return <div className="formerr" role="alert">Money Flow could not be loaded right now. It refreshes by itself; reload in a minute.</div>;
+  const m = q.data as MoneyFlow;
+  if (!m.ready) return <div className="card oflow-wait" role="status"><span className="tlab-ic" aria-hidden="true"><Icon name="activity" /></span><div><h2>No Money Flow yet</h2><p className="muted">{m.reason}</p></div></div>;
+  const hv = (body: () => React.ReactNode, key?: string) => ({ onPointerMove: (e: React.PointerEvent) => { if (key) setHot(key); tip.show(e, body()); }, onPointerLeave: () => { setHot(null); tip.hide(); } });
+  const maxNet = Math.max(0.1, ...m.sectors.map((g) => Math.abs(g.net)));
+  const ins = m.stocks.filter((x) => x.net > 0).slice(0, 8), outs = [...m.stocks].reverse().filter((x) => x.net < 0).slice(0, 8);
+  const maxStock = Math.max(0.1, ...[...ins, ...outs].map((x) => Math.abs(x.net)));
+  // the flow drawing: sectors on the left, ribbons into the INFLOW box (top) and the OUTFLOW box (bottom)
+  const W = 640, H = 420, SX = 8, SW = 150, BX = 430, BW = 200;
+  const gIn = m.sectors.filter((g) => g.net > 0), gOut = m.sectors.filter((g) => g.net < 0);
+  const sumIn = gIn.reduce((a, g) => a + g.net, 0) || 1, sumOut = gOut.reduce((a, g) => a - g.net, 0) || 1;
+  const boxIn = { y: 16, h: 160 }, boxOut = { y: 244, h: 160 };
+  const rows = [...gIn, ...gOut], rowH = (H - 16) / Math.max(1, rows.length);
+  let yi = boxIn.y, yo = boxOut.y;
+  const ribbons = rows.map((g, i) => {
+    const up = g.net > 0, y0 = 8 + i * rowH + rowH * 0.2, th = Math.max(2, (Math.abs(g.net) / (up ? sumIn : sumOut)) * (up ? boxIn.h : boxOut.h));
+    const ty = up ? yi : yo; if (up) yi += th; else yo += th;
+    const x0 = SX + SW, x1 = BX, cx = (x0 + x1) / 2, h0 = Math.min(rowH * 0.6, th);
+    const d = `M${x0},${y0}C${cx},${y0} ${cx},${ty} ${x1},${ty}L${x1},${ty + th}C${cx},${ty + th} ${cx},${y0 + h0} ${x0},${y0 + h0}Z`;
+    return { g, d, up, y0, h0 };
+  });
+  const lit = (sector: string) => !hot || hot === sector;
+  return (
+    <section className="card oflow-board oflow-money" aria-labelledby="oflow-money-h">
+      <div className="oflow-hero-h">
+        <div><h2 id="oflow-money-h">Money Flow</h2><p className="oflow-money-line">{headline(m)}</p>
+          {m.surge && <p className={`oflow-surge ${tone(m.surge.surge)}`} {...hv(() => <MoneyPop s={m.surge!} />)}><span aria-hidden="true">⚡</span> Fastest now: <b>{m.surge.symbol}</b> {cr(m.surge.surge, true)} a minute over the latest {m.stepMinutes ?? 3} minutes</p>}</div>
+        <div className="oflow-count" aria-label={`In ${cr(m.in)}, out ${cr(m.out)}`}>
+          <span className="gain"><b>{cr(m.in)}</b>in</span><span className="loss"><b>{cr(m.out)}</b>out</span>
+        </div>
+      </div>
+      <div className="oflow-money-grid">
+        <ul className="oflow-mbars" aria-label="Net money by sector">{m.sectors.map((g) => {
+          const w = (Math.abs(g.net) / maxNet) * 50;
+          return (
+            <li key={g.sector} className={lit(g.sector) ? "" : "dim"} {...hv(() => <SectorMoneyPop g={g} />, g.sector)}>
+              <span className="n">{g.sector}</span>
+              <span className="bar" aria-hidden="true"><i className={g.net >= 0 ? "gain" : "loss"} style={g.net >= 0 ? { left: "50%", width: `${w}%` } : { right: "50%", width: `${w}%` }} /></span>
+              <span className={`v ${tone(g.net)}`}>{cr(g.net, true)}</span>
+            </li>);
+        })}</ul>
+        <div className="oflow-mflow">
+          <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Money flow: ${gIn.length} sectors with more money in, ${gOut.length} with more out; in ${cr(m.in)}, out ${cr(m.out)}.`}>
+            <defs>
+              <linearGradient id="oflow-mf-gain" x1="0" x2="1"><stop offset="0" stopColor="var(--gain)" stopOpacity="0.25" /><stop offset="1" stopColor="var(--gain)" stopOpacity="0.65" /></linearGradient>
+              <linearGradient id="oflow-mf-loss" x1="0" x2="1"><stop offset="0" stopColor="var(--loss)" stopOpacity="0.25" /><stop offset="1" stopColor="var(--loss)" stopOpacity="0.65" /></linearGradient>
+            </defs>
+            {ribbons.map((r) => <path key={r.g.sector} d={r.d} fill={`url(#oflow-mf-${r.up ? "gain" : "loss"})`} className={`oflow-mrib${lit(r.g.sector) ? (hot ? " lit" : "") : " dim"}`} {...hv(() => <SectorMoneyPop g={r.g} />, r.g.sector)} />)}
+            {ribbons.map((r) => <g key={r.g.sector + "t"} className={`oflow-mnode ${r.up ? "gain" : "loss"}${lit(r.g.sector) ? "" : " dim"}`} {...hv(() => <SectorMoneyPop g={r.g} />, r.g.sector)}>
+              <rect x={SX} y={r.y0} width={SW} height={Math.max(r.h0, 14)} rx="4" /><text x={SX + 6} y={r.y0 + Math.max(r.h0, 14) / 2 + 4}>{r.g.sector.length > 20 ? r.g.sector.slice(0, 19) + "…" : r.g.sector}</text></g>)}
+            {[{ b: boxIn, up: true, v: m.in, label: "INFLOW" }, { b: boxOut, up: false, v: m.out, label: "OUTFLOW" }].map(({ b, up, v, label }) => (
+              <g key={label} className={`oflow-mbox ${up ? "gain" : "loss"}`}>
+                <rect x={BX} y={b.y} width={BW} height={b.h} rx="10" />
+                <text x={BX + 14} y={b.y + 26} className="l">{label}</text>
+                <text x={BX + 14} y={b.y + 62} className="v">{cr(v)}</text>
+                <text x={BX + 14} y={b.y + 84} className="s">{up ? gIn.length : gOut.length} sectors · {(up ? m.stocks.filter((x) => x.net > 0) : m.stocks.filter((x) => x.net < 0)).length} stocks</text>
+              </g>))}
+          </svg>
+        </div>
+        <div className="oflow-mstocks">
+          {[{ list: ins, up: true, h: "Most money in" }, { list: outs, up: false, h: "Most money out" }].map(({ list, up, h }) => (
+            <div key={h}><h3 className={`oflow-side ${up ? "gain" : "loss"}`}><Icon name={up ? "growth" : "decline"} /> {h}</h3>
+              <ol className="oflow-mlist" aria-label={h}>{list.map((x) => (
+                <li key={x.symbol} {...hv(() => <MoneyPop s={x} />, x.sector)}>
+                  <Link to={`/stocks/${encodeURIComponent(x.symbol)}`}>{x.symbol}</Link>
+                  <span className="bar" aria-hidden="true"><i className={up ? "gain" : "loss"} style={{ width: `${(Math.abs(x.net) / maxStock) * 100}%` }} /></span>
+                  <span className={`v ${tone(x.net)}`}>{cr(x.net, true)}</span>
+                </li>))}{!list.length && <li className="muted">None yet.</li>}</ol></div>))}
+        </div>
+      </div>
+      <details className="oflow-how"><summary>How Money Flow is worked out</summary><p className="muted oflow-method">Between two snapshots (every 3 minutes), the value a stock traded (new volume × the average of the two prices) counts as money in when its price rose and money out when it fell; a step with no move counts as neither. Summed over the day, in ₹ crore. Every trade has a buyer and a seller: this describes where traded value went with the moves, not who bought or sold. Source: exchange quotes through Dhan.</p></details>
+    </section>
+  );
+}
+
 // ------------------------------------------------------------------------------------------------------------------ market depth
 
 function Depth({ d }: { d: Ready }) {
@@ -534,7 +649,7 @@ function Flow({ view }: { view: string }) {
         <span className="muted">{day} · snapshot at {taken.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Kolkata" })} IST · {d.summary.stocks} F&O stocks</span>
       </div>
       {d.notes.map((n) => <p key={n} className="oflow-note muted">{n}</p>)}
-      {view === "board" ? <FlowBoard d={d} /> : <Depth d={d} />}
+      {view === "board" ? <FlowBoard d={d} /> : view === "money" ? <MoneyFlowView /> : <Depth d={d} />}
       <details className="oflow-how"><summary>How it is worked out</summary><p className="muted oflow-method">Change against the previous close; open interest summed over the current and next futures contract against their previous close; VWAP is the day's average traded price; pivots are the classic floor pivots from the previous session's high, low and close. Facts: open interest rose with the move, price on the move's side of VWAP, price beyond R1 or S1, open interest changed 5% or more, price in the top or bottom quarter of the day's range. Source: exchange prices and open interest through Dhan, FinLit's daily prices.</p></details>
     </TipLayer>
   );

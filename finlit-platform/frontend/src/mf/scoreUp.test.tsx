@@ -296,3 +296,19 @@ describe("part words", () => {
     expect([compareWords("Strong", "Fair"), compareWords("Fair", "Fair"), compareWords("Weak", "Fair"), compareWords(null, "Fair"), compareWords("Not scored", "Fair")]).toEqual(["ahead", "level", "behind", "na", "na"]);
   });
 });
+
+describe("task #403: the score card says what high and low mean", () => {
+  it("a rated fund's card shows the High and low note under its four part bars, always visible (not only a tooltip)", async () => {
+    st.routes = { "/api/mf/45678/score": { locked: false, group: "EQ-FLEXI", groupName: "Flexi Cap", status: "RATED", final: 59, label: "Average", disclaimer: "", method: "", model: "", months: 74,
+      peers: { kind: "grp", n: 36, text: "" }, rank: 14, rankOf: 36,
+      pillars: [{ key: "performance", name: "Performance", reading: "Weak", points: 40.3 }, { key: "risk", name: "Risk", reading: "Strong", points: 86.5 },
+        { key: "cost", name: "Cost", reading: "Strong", points: 71.5 }, { key: "quality", name: "Quality", reading: "Weak", points: 41 }],
+      reasons: { strengths: [], watchouts: [], gaps: [], notApplicable: [], substitutions: [] }, metrics: [], flags: [] } };
+    wrap(<FundScoreCard code={45678} />, "/funds/45678");
+    const note = await screen.findByTestId("score-high-low");
+    expect(note.previousElementSibling!.className).toBe("mfs-pillars");
+    expect(note.textContent).toMatch(/^High and low: every part is read against funds of the same category, and higher is better on all four; low means the opposite\./);
+    expect(note.textContent).toMatch(/High Risk = lower risk: a calmer ride, smaller falls · High Cost = lower costs/);
+    expect(note.textContent).not.toMatch(BANNED);
+  });
+});

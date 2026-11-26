@@ -9,6 +9,7 @@ import { Info } from "../../portfolio/shared";
 import { countOf } from "../../portfolio/shared/words";
 import type { MfTile, listBox, partsAverage } from "../../lib/mfTop";
 import type { MfView } from "./MfPack";
+import { ScoreHighLow } from "../ScoreHighLow";
 import "./mf389.css";
 
 export function ListBox({ box, onUnits }: { box: ReturnType<typeof listBox>; onUnits: () => void }) {
@@ -66,6 +67,7 @@ export function MfParts({ parts, open }: { parts: ReturnType<typeof partsAverage
     <div className="px-pg">{parts.map((p) => <div key={p.k} className="px-pt"><p>{p.label}{hint[p.k] && <small>{hint[p.k]}</small>}</p><b>{p.v ?? "–"}</b>
       <span className="px-ptr" aria-hidden="true"><i style={{ width: `${p.v ?? 0}%` }} /></span></div>)}</div>
     <p className="px-pn">Each part is read against funds of the same category, 0 to 100. These are the plain averages of your funds; the score above weights them by value.</p>
+    <ScoreHighLow className="px-hl" />
   </div>;
 }
 

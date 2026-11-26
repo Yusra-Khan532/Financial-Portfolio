@@ -65,8 +65,10 @@ def test_the_server_sheet_and_the_page_say_the_same():
 
 
 def test_the_summary_asks_for_each_figure_with_its_meaning_from_the_sheet():
+    # Task #404 (26 Nov 2026) replaced #382's "every figure with its meaning" for the AI summary with a 3-4 sentence stance: the card already shows
+    # every figure. The meanings still come from the same whatEachFigureMeans sheet; the card's own (non-AI) summary keeps every figure.
     q = service.summary_question("SEDEMAC")
-    assert service.SUMMARY_VERSION == "v5"                                     # an older cached summary (numbers only) is not served again
-    assert "whatEachFigureMeans" in q and "**Valuation 37.8 (Weak)**" in q and "why it matters" in q
-    assert "CANNOT BE INTERPRETED" in q and "never guess" in q and "a higher Risk score means lower risk" in q
-    assert "price, not the business" in q and "apart" in q and "nothing that would fit any company" in q and "Describe, never advise" in q
+    assert service.SUMMARY_VERSION == "v6" and "v5" in service.OLD_SUMMARY_VERSIONS     # an older cached summary is not served again
+    assert "whatEachFigureMeans" in q and "3 to 4 short sentences" in q and "never a score" in q
+    assert "a higher Risk score means calmer trading" in q and "Keep the business apart from the share price" in q
+    assert "nothing that would fit any company" in q and "Describe, never advise" in q

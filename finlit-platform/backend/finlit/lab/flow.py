@@ -42,7 +42,7 @@ log = logging.getLogger("finlit.lab.flow")
 router = APIRouter()
 
 LATEST_KEY = "lab:flow:latest"
-SERIES_KEY = "lab:flow:series:"          # + trade day (ISO): one entry per snapshot, [HH:MM, {symbol: [change %, OI change %]}]
+SERIES_KEY = "lab:flow:series:"          # + trade day (ISO): one entry per snapshot, [HH:MM, {symbol: [change %, OI change %, price, volume]}]
 SERIES_TTL = 4 * 86400
 KEEP_CONTRACTS = 2                       # current and next month
 OI_KEEP_DAYS = 30
@@ -358,7 +358,8 @@ async def refresh(store, client, now: Optional[datetime] = None, history_seconds
     snap = {"tradeDay": day.isoformat(), "takenAt": now.isoformat(), "summary": summarize(rows), "stocks": rows,
             "notes": ([f"Open interest change is still loading for {still} futures contracts; it fills in over the next few snapshots."] if still > 0 else [])}
     stamp = (to_quote(next(iter(r for r in eq_rows.values() if r), {})).get("asOf") or now.isoformat())[11:16] or now.strftime("%H:%M")
-    point = [now.strftime("%H:%M") if day == now.date() else stamp, {r["symbol"]: [r["changePct"], r["oiChangePct"]] for r in rows}]
+    # each stock's change %, OI change %, last price and the day's traded volume so far (Money Flow reads the last two: lab.flow.money)
+    point = [now.strftime("%H:%M") if day == now.date() else stamp, {r["symbol"]: [r["changePct"], r["oiChangePct"], r["price"], r["volume"]] for r in rows}]
     key = SERIES_KEY + day.isoformat()
     last = await store.redis.lindex(key, -1)
     if last is None or orjson.loads(last)[0] != point[0]:
@@ -392,3 +393,81 @@ async def flow(request: Request, ctx: Ctx = Depends(lab_ctx)) -> Dict[str, Any]:
     snap = orjson.loads(raw)
     pts = [orjson.loads(p) for p in await redis.lrange(SERIES_KEY + snap["tradeDay"], 0, -1)]
     return {"ready": True, **snap, "lines": lines(pts)}
+
+
+# ------------------------------------------------------------------------------------------------------------------ money flow
+
+CRORE = 1e7
+
+
+def _minutes(a: str, b: str) -> float:
+    ha, ma = (int(x) for x in a.split(":")); hb, mb = (int(x) for x in b.split(":"))
+    return max(1.0, (hb * 60 + mb) - (ha * 60 + ma))
+
+
+def money(points: List[list], sector_of: Dict[str, Optional[str]]) -> dict:
+    """Money Flow (founder, 26 Nov 2026, from a reference video: "where the money is coming in and where it is going"), from the day's snapshots.
+
+    Between two snapshots a stock traded (volume now − volume before) shares at about the average of the two prices: that traded value counts as
+    money IN when the price rose between the two snapshots and money OUT when it fell (the tick rule, on 3-minute steps); when the price did not
+    move it counts as neither. Summed over the day per stock and per sector, in ₹ crore. The surge is the net flow of the latest step per minute.
+    A description of where traded value went with the moves, not of who bought or sold (every trade has both a buyer and a seller).
+    """
+    per: Dict[str, Dict[str, float]] = {}
+    last_step: Dict[str, float] = {}
+    step_min = None
+    prev: Dict[str, Tuple[float, float]] = {}
+    prev_t = None
+    for t, m in points:
+        for sym, v in m.items():
+            if not isinstance(v, list) or len(v) < 4 or v[2] is None or v[3] is None:
+                continue
+            price, vol = float(v[2]), float(v[3])
+            if sym in prev:
+                p0, v0 = prev[sym]
+                dv = vol - v0
+                if dv > 0 and price != p0:
+                    value = dv * (price + p0) / 2
+                    rec = per.setdefault(sym, {"in": 0.0, "out": 0.0})
+                    rec["in" if price > p0 else "out"] += value
+                    last_step[sym] = (value if price > p0 else -value, t)  # type: ignore[assignment]
+            prev[sym] = (price, vol)
+        if prev_t is not None:
+            step_min = _minutes(prev_t, t)
+        prev_t = t
+    latest = points[-1][0] if points else None
+    stocks = []
+    for sym, rec in per.items():
+        ls = last_step.get(sym)
+        surge = round(ls[0] / CRORE / (step_min or 3.0), 2) if ls and ls[1] == latest else 0.0  # type: ignore[index]
+        stocks.append({"symbol": sym, "sector": sector_of.get(sym) or "Other", "in": round(rec["in"] / CRORE, 2), "out": round(rec["out"] / CRORE, 2),
+                       "net": round((rec["in"] - rec["out"]) / CRORE, 2), "surge": surge})
+    sectors: Dict[str, dict] = {}
+    for st in stocks:
+        g = sectors.setdefault(st["sector"], {"sector": st["sector"], "in": 0.0, "out": 0.0, "net": 0.0, "surge": 0.0, "stocks": []})
+        for k in ("in", "out", "net", "surge"):
+            g[k] = round(g[k] + st[k], 2)
+        g["stocks"].append(st)
+    for g in sectors.values():
+        g["stocks"].sort(key=lambda x: x["net"], reverse=True)
+    out = sorted(sectors.values(), key=lambda g: g["net"], reverse=True)
+    tot_in, tot_out = round(sum(s["in"] for s in stocks), 2), round(sum(s["out"] for s in stocks), 2)
+    fastest = max(stocks, key=lambda x: abs(x["surge"]), default=None)
+    return {"in": tot_in, "out": tot_out, "net": round(tot_in - tot_out, 2), "sectors": out, "stocks": sorted(stocks, key=lambda x: x["net"], reverse=True),
+            "surge": fastest if fastest and fastest["surge"] else None, "stepMinutes": step_min, "steps": max(0, len(points) - 1), "latest": latest}
+
+
+@router.get("/api/lab/flow/money")
+async def money_flow(request: Request, ctx: Ctx = Depends(lab_ctx)) -> Dict[str, Any]:
+    """Money Flow for the latest trade day: ₹ crore traded on up-moves (in) and down-moves (out) per stock and sector, and the latest surge."""
+    redis = request.app.state.store.redis
+    raw = await redis.get(LATEST_KEY)
+    if not raw:
+        return {"ready": False, "reason": "The first snapshot is taken in the next market session (every few minutes, 09:15 to 15:30 IST, weekdays)."}
+    snap = orjson.loads(raw)
+    pts = [orjson.loads(p) for p in await redis.lrange(SERIES_KEY + snap["tradeDay"], 0, -1)]
+    sector_of = {r["symbol"]: r.get("sector") for r in snap.get("stocks", [])}
+    m = money(pts, sector_of)
+    if m["steps"] < 1 or not m["stocks"]:
+        return {"ready": False, "reason": "Money Flow needs two snapshots of the day with traded volume; it fills in after the next few minutes of trading."}
+    return {"ready": True, "tradeDay": snap["tradeDay"], "takenAt": snap["takenAt"], **m}

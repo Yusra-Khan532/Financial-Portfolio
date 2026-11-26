@@ -99,7 +99,7 @@ describe("Top of the page (T1–T5, S1–S2)", () => {
     render(<MfParts parts={partsAverage(hs)} open />);
     const p = document.querySelector(".px-parts")!;
     expect(p.textContent).toMatch(/Riskhigher = lower risk64.*Costhigher = cheaper62/);
-    expect(p.textContent).toMatch(/These are the plain averages of your funds; the score above weights them by value\.$/);
+    expect(p.querySelector(".px-pn")!.textContent).toMatch(/These are the plain averages of your funds; the score above weights them by value\.$/);
     cleanup();
     render(<MfCards score={{ value: 59, label: "AVERAGE", valued: true, n: 2 }} tiles={mfTiles(hs, undefined, undefined)} colors={{ funds: "x", mix: "y", risk: "z" }} view="funds" onView={() => {}} partsOpen={false} onParts={() => {}} hasParts />);
     expect(screen.getByRole("button", { name: /See the four parts/ }).getAttribute("aria-expanded")).toBe("false");

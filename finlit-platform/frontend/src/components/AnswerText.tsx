@@ -128,8 +128,10 @@ export function stanceOf(lines: string[]): { at: number; word: string; why: stri
 }
 
 /** The answer, drawn: points, then the stance and its summary line (task #270), then the source and the disclaimer. */
-export function AnswerText({ text }: { text: string }) {
+export function AnswerText({ text, plain = false }: { text: string; plain?: boolean }) {
   const lines0 = text.split("\n").map((l) => l.trim()).filter(Boolean), cut = lines0.filter((l) => CUT.test(l));
+  // Task #404: the FinLit Prism card's AI summary is a 3-4 sentence stance, read as one short paragraph, never cut into points.
+  if (plain) return <div className="aif-a"><div className="aif-a-lead">{lines0.map((l, i) => <p key={i}>{inline(l, "p" + i)}</p>)}</div></div>;
   const all = lines0.filter((l) => !CUT.test(l)), st = stanceOf(all);
   const lines = st ? all.filter((_, i) => i !== st.at && !(st.sum != null && i === st.at + 1)) : all;
   const points = lines.filter((l) => !SOURCE.test(l) && !DISCLAIMER.test(l)), sources = lines.filter((l) => SOURCE.test(l)), notes = lines.filter((l) => !SOURCE.test(l) && DISCLAIMER.test(l));
