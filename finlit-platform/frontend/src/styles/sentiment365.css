@@ -9,3 +9,6 @@
 .snt-neutral { background: var(--s2); color: var(--muted); border-color: var(--border); }
 .snt-negative { background: var(--loss-soft); color: var(--loss); border-color: color-mix(in srgb, var(--loss) 40%, transparent); }
 .snt-clearly_negative { background: var(--loss); color: var(--s1); }
+/* An average's counts beside its score (26 Nov 2026): "2▲ 1▼", the filings with a tone it is the average of */
+.snt-m { display: inline-flex; gap: 4px; font-weight: 500; opacity: .85; }
+.snt-m i { font-style: normal; font-size: .8em; margin-left: 1px; }

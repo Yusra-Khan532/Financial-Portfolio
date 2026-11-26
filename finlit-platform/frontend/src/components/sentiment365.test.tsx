@@ -21,7 +21,9 @@ describe("task #365: sentiment of news and filings", () => {
     expect(render(<SentimentChip s={null} />).container.innerHTML).toBe("");
   });
   it("a tab's average leaves out what is not scored", () => {
-    expect(meanSentiment([{ score: 0.6, band: "clearly_positive" }, null, { score: 0, band: "neutral" }])).toEqual({ score: 0.3, band: "positive" });
+    // neutral (procedural) filings are left out of the average and counted in `mix`
+    expect(meanSentiment([{ score: 0.6, band: "clearly_positive" }, null, { score: 0, band: "neutral" }]))
+      .toEqual({ score: 0.6, band: "clearly_positive", mix: { pos: 1, neg: 0, neu: 1 } });
     expect(meanSentiment([null, undefined])).toBeNull();
   });
   it("finds a filing's feed title as the backend writes it", () => {
@@ -48,7 +50,32 @@ describe("task #365: section 18 shows each filing's score and each tab's average
     const { container } = render(<QueryClientProvider client={qc}><MemoryRouter><NewsSection e={ev} name="TD Power Systems Ltd" symbol="TDPOWERSYS" /></MemoryRouter></QueryClientProvider>);
     const rows = [...container.querySelectorAll(".nf-r .snt")].map((x) => x.className);
     expect(rows).toEqual(expect.arrayContaining(["snt snt-clearly_positive", "snt snt-negative"]));
-    const all = container.querySelector(".nf-f .chip-b .snt")!;   // the "All" tab: the mean of the scored filings
-    expect(all.textContent).toBe("+0.25");
+    const all = container.querySelector(".nf-f .chip-b .snt")!;   // the "All" tab: the mean of the filings with a tone, and their counts
+    expect(all.textContent).toBe("+0.251▲1▼");
+  });
+});
+
+describe("26 Nov 2026: a company's average is not 0.00 because most filings are procedural", () => {
+  const neu = { score: 0, band: "neutral" as const };
+  it("averages only the filings with a tone and counts the rest", () => {
+    const list = [...Array(33).fill(neu), { score: 0.99, band: "clearly_positive" as const }, { score: 0.41, band: "positive" as const }, { score: -0.35, band: "negative" as const }];
+    expect(meanSentiment(list)).toEqual({ score: 0.35, band: "positive", mix: { pos: 2, neg: 1, neu: 33 } });
+  });
+  it("every filing neutral: neutral, 0, with the count; the chip says 'All neutral' instead of a bare 0.00", () => {
+    const m = meanSentiment(Array(37).fill(neu));
+    expect(m).toEqual({ score: 0, band: "neutral", mix: { pos: 0, neg: 0, neu: 37 } });
+    const { container } = render(<SentimentChip s={m} avg word={false} />);
+    expect(container.textContent).toBe("All neutral");
+    expect(container.querySelector(".snt")?.getAttribute("aria-label")).toBe("Every one of the 37 scored filings reads neutral (procedural wording)");
+  });
+  it("an average shows its counts and says what it averages", () => {
+    const { container } = render(<SentimentChip s={{ score: 0.35, band: "positive", mix: { pos: 2, neg: 1, neu: 33 } }} avg word={false} />);
+    expect(container.textContent).toBe("+0.352▲1▼");
+    expect(container.querySelector(".snt")?.getAttribute("aria-label"))
+      .toBe("Average sentiment +0.35: Positive (the average of the 3 filings with a tone: 2 positive, 1 negative, 33 neutral)");
+  });
+  it("a single filing's chip is unchanged", () => {
+    const { container } = render(<SentimentChip s={{ score: 0, band: "neutral" }} />);
+    expect(container.textContent).toBe("0.00Neutral");
   });
 });

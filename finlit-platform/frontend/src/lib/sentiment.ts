@@ -5,7 +5,8 @@ import { useQuery } from "@tanstack/react-query";
 import { apiGet } from "./api";
 
 export type SentBand = "clearly_positive" | "positive" | "neutral" | "negative" | "clearly_negative";
-export type Sentiment = { score: number; band: SentBand };
+/** `mix` is set on an average (meanSentiment): how many items read positive, negative and neutral. */
+export type Sentiment = { score: number; band: SentBand; mix?: { pos: number; neg: number; neu: number } };
 
 export const SENT_WORD: Record<SentBand, string> = {
   clearly_positive: "Clearly positive", positive: "Positive", neutral: "Neutral", negative: "Negative", clearly_negative: "Clearly negative",
@@ -19,13 +20,22 @@ export const SENT_HELP = "Sentiment of the wording, from −1 (clearly negative)
   + "+0.5 and above clearly positive, +0.1 to +0.5 positive, −0.1 to +0.1 neutral, −0.5 to −0.1 negative, below −0.5 clearly negative. "
   + "Most exchange filings are procedural and read neutral. It describes the words of the filing, not the share; not a recommendation.";
 
-/** The mean score of the scored items, or null when none is scored. */
+/** The average tone of a company's filings, or null when none is scored. Only the filings whose wording has a tone (outside -0.1 .. +0.1) are
+ *  averaged: about 97% of exchange filings are procedural (board meetings, allotments, "further to the disclosure"), the model reads each as
+ *  exactly 0.00, and averaging them in gave 0.00 for nearly every company (Chinmay, 26 Nov 2026: "news score 0 kyo dera sabko"). `mix` says how
+ *  many read positive, negative and neutral; with no toned filing the average is neutral, 0. */
 export function meanSentiment(list: (Sentiment | null | undefined)[]): Sentiment | null {
   const xs = list.filter((x): x is Sentiment => !!x);
   if (!xs.length) return null;
-  const m = xs.reduce((a, x) => a + x.score, 0) / xs.length;
-  return { score: Math.round(m * 100) / 100, band: bandOf(m) };
+  const toned = xs.filter((x) => x.band !== "neutral");
+  const mix = { pos: toned.filter((x) => x.score > 0).length, neg: toned.filter((x) => x.score < 0).length, neu: xs.length - toned.length };
+  if (!toned.length) return { score: 0, band: "neutral", mix };
+  const m = toned.reduce((a, x) => a + x.score, 0) / toned.length;
+  return { score: Math.round(m * 100) / 100, band: bandOf(m), mix };
 }
+/** "2 positive, 1 negative, 34 neutral": the counts behind an average. */
+export const mixText = (m: { pos: number; neg: number; neu: number }) =>
+  [m.pos && `${m.pos} positive`, m.neg && `${m.neg} negative`, m.neu && `${m.neu} neutral`].filter(Boolean).join(", ");
 
 type Row = { date: string; link: string | null; title: string; score?: number; band?: SentBand };
 const norm = (t: string) => t.replace(/\s+/g, " ").trim().toLowerCase();
