@@ -296,7 +296,19 @@ async def ask(request: Request, body: AskIn, ctx: Ctx = Depends(secure_ctx)):   
                             figures=mem.get("figures") or {})
         return StreamingResponse(replay(), media_type="text/event-stream", headers={**STREAM_HEADERS})
 
-    n = await quota.used(store.pool, ctx.user_id, month, kind) if checking else await quota.take(store.pool, ctx.user_id, cap, month, kind)
+    # Task #404: the summary's form changed (a short stance, no scores). A member who already summarised this company today in the old form gets
+    # the new form without using another summary of the month.
+    free_redo = False
+    if kind == "summary" and key and hit is None:
+        try:
+            for v in service.OLD_SUMMARY_VERSIONS:
+                if await store.redis.exists(key.replace(f":{service.SUMMARY_VERSION}:", f":{v}:", 1)):
+                    free_redo = True
+                    break
+        except Exception:
+            free_redo = False
+    took = not (checking or free_redo)                # a summary or question was taken from the month's allowance (given back on a failure)
+    n = await quota.take(store.pool, ctx.user_id, cap, month, kind) if took else await quota.used(store.pool, ctx.user_id, month, kind)
     if n is None and kind == "summary":
         nxt = quota.next_month(month).strftime("%d %b %Y")
         raise fail(429, "quota_used", f"You have used all {cap} AI summaries of this month. They renew on {nxt}. Your FinLit AI questions are counted "
@@ -315,6 +327,36 @@ async def ask(request: Request, body: AskIn, ctx: Ctx = Depends(secure_ctx)):   
         named0, page0 = await subject_of(gw, body, question, kind, time.monotonic() + PREREAD_SECONDS)
         early = {"named": named0, "page": page0, "topic": None, "prev": None}
         subject = answer_subject(kind, question, early, body.symbol, wn)
+
+    async def stance_checked(result: Dict[str, Any], messages: List[Dict[str, Any]], gw, emit) -> Dict[str, Any]:
+        """Task #404: the Prism summary is a 3-4 sentence stance with no score, no band word, no list and no advice (service.stance_problems).
+        An answer that is not is asked again once, with the reasons; the rewrite replaces the first text on the member's screen. If the rewrite
+        is still unfit the result is marked `unfit` and the member is told, and the summary is not counted."""
+        if not (result.get("text") or "").strip() or result.get("stop") not in ("end_turn", "withdrawn"):
+            return result
+        problems = service.stance_problems(result["text"])
+        if not problems:
+            return result
+        log.info("ask summary: the first text was not a stance (%s); asking once more", "; ".join(problems))
+        await emit("status", {"text": "Putting it in a few lines"})
+
+        async def quiet(event: str, data: Dict[str, Any]) -> None:        # the rewrite is shown whole, once it is checked
+            if event == "status":
+                await emit(event, data)
+
+        again = messages + [{"role": "assistant", "content": result["text"]}, {"role": "user", "content": service.stance_retry_note(problems)}]
+        r2 = await service.answer(client_for(st.anthropic_api_key), st.ask_model, gw, again, quiet, None, max_tokens=st.ask_max_tokens,
+                                  effort=st.ask_effort)
+        usage = {k: (result.get("usage") or {}).get(k, 0) + (r2.get("usage") or {}).get(k, 0) for k in set(result.get("usage") or {}) | set(r2.get("usage") or {})}
+        merged = {**r2, "tools": list(result.get("tools") or []) + list(r2.get("tools") or []), "calls": list(result.get("calls") or []) + list(r2.get("calls") or []),
+                  "usage": usage}
+        left = service.stance_problems(r2.get("text") or "") if r2.get("stop") == "end_turn" else ["it was not finished"]
+        if left:
+            log.warning("ask summary: the rewrite was not a stance either (%s)", "; ".join(left))
+            await emit("replace", {"text": ""})
+            return {**merged, "text": "", "unfit": True}
+        await emit("replace", {"text": r2["text"]})
+        return merged
 
     async def run() -> AsyncIterator[bytes]:
         out: List[bytes] = []
@@ -418,6 +460,8 @@ async def ask(request: Request, body: AskIn, ctx: Ctx = Depends(secure_ctx)):   
                 service.with_prefetches(messages, [(n, a, x) for (n, a), x in reads])
             result = await service.answer(client_for(st.anthropic_api_key), st.ask_model, gw, messages, emit, prefetched, max_tokens=st.ask_max_tokens,
                                           effort=st.ask_effort_v2 if v2 else st.ask_effort)
+            if kind == "summary":
+                result = await stance_checked(result, messages, gw, emit)
             return {"result": result, "want": want, "named": named, "page": page, "kinds": kinds, "messages": messages, "shapeKind": shape_kind,
                     "cards": [(card_tool, {"symbol": s}, g) for s, g in zip(want[:2], got)] + extra_reads, "wnFigures": wn_figures}
 
@@ -468,13 +512,15 @@ async def ask(request: Request, body: AskIn, ctx: Ctx = Depends(secure_ctx)):   
             err = {"code": "declined", "text": "FinLit AI cannot answer that question. Try asking about a company's figures, a fund or the market."}
         if result is not None and result["stop"] == "deadline" and not result["text"]:
             err = {"code": "slow", "text": "This answer took too long. Please ask again, or ask about one thing at a time."}
+        if err is None and result is not None and result.get("unfit"):      # task #404: twice not a short stance
+            err = {"code": "unfit", "text": "FinLit AI could not put this card into a few clear lines this time. Please press Summarise again."}
         if err is None and result is not None and not (result.get("text") or "").strip():
             # Task #312: seen live, 22 Nov: a summary ended with "done" and no text at all, and was counted. Never again: say so, and log why.
             log.warning("ask: %s for %s ended with no text (stop=%s, output tokens=%s)", kind, body.symbol, result.get("stop"),
                         (result.get("usage") or {}).get("output"))
             err = {"code": "empty", "text": "FinLit AI could not write an answer this time. Please ask again."}
         if err:
-            if not wrote or kind == "summary":     # a summary is counted only when its text reached the member
+            if took and (not wrote or kind == "summary"):     # a summary is counted only when its text reached the member
                 try:
                     await quota.give_back(store.pool, ctx.user_id, month, kind)
                 except Exception:
@@ -531,7 +577,7 @@ async def ask(request: Request, body: AskIn, ctx: Ctx = Depends(secure_ctx)):   
                     state["returned"] = True
                 yield chunk
         finally:
-            if kind == "summary" and not state["delivered"] and not state["returned"]:
+            if took and kind == "summary" and not state["delivered"] and not state["returned"]:
                 asyncio.get_running_loop().create_task(_give_back(store, ctx.user_id, month, kind))
 
     return StreamingResponse(guarded(), media_type="text/event-stream", headers={**STREAM_HEADERS})

@@ -200,9 +200,9 @@ def test_a_summary_request_carries_only_the_company_and_the_server_writes_what_i
         with pytest.raises(ValueError):
             ask_api.AskIn(**bad)
     q = service.summary_question("RELIANCE")
-    # task #312 (developer file 20, 22 Nov): a fixed shape from the card's own figures, replacing the 19 Nov "no numbers" wording
-    assert "RELIANCE" in q and "1. Overall" in q and "5. Price trend" in q and "and nothing else" in q and "only the card's figures" in q   # task #228 rework 3
-    assert "topPros and topCons" in q and "a higher Risk score means lower risk" in q and "Describe, never advise" in q
+    # task #404 (26 Nov 2026): the conclusion the card leads to, in 3-4 sentences, no score and no band word (replaces task #228 rework 3's buckets)
+    assert "RELIANCE" in q and "conclusion" in q and "and nothing else" in q and "Use only the card's facts" in q
+    assert "topPros and topCons" in q and "a higher Risk score means calmer trading" in q and "Describe, never advise" in q
 
 
 # ------------------------------------------------------------------------------------------------------------------ the endpoint (Postgres, Redis, members)
@@ -635,7 +635,7 @@ def test_the_ai_summary_is_pointers_with_bold_key_words_and_reads_the_technical_
     """Task #228 rework 2 (20 Nov 2026): "make it in pointers its too big of a paragaph and highlight keywords"; the team's picture also shows "I could
     not read the short-term and long-term technical views": the Prism summary FinLit AI reads carried only the technical view's dates."""
     q = service.summary_question("RELIANCE")
-    assert "bucket headlines" in q and 'starting with "- "' in q and "at most 22 words" in q and "**bold**" in q and "No paragraph" in q   # task #228 rework 3; #382: 22 words, for the meaning
+    assert "one paragraph" in q and "no bullet points, no bold" in q and "3 to 4 short sentences" in q   # task #404 replaced task #228's pointers
     from finlit import prism
     tech = {"shortTerm": {"score": 38.0, "rating": "Buy", "status": "ready"}, "longTerm": {"score": -32.0, "rating": "Reduce", "status": "ready"},
             "verdict": {"label": "BOUNCE ONLY, DON'T INVEST", "tone": "caution"}}

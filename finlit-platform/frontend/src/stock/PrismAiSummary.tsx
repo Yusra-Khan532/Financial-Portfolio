@@ -6,6 +6,10 @@
 // 10 AI summaries, counted apart from the FinLit AI questions. Anyone else, or when written answers are off or the summaries are used, gets an
 // instant summary of what the card means, written from the card itself, said plainly as such. Task #382: both keep every figure and say what it
 // means, read off the method's own bands and words (stock/prismMeaning; the server's copy is ask/prism_meaning).
+// Task #404 (the team, 26 Nov 2026): "just need a 3-4 lines stance like inference of finlit prism or conclusion ... just dont put up the score":
+// FinLit AI's summary is now the conclusion the card leads to, in 3 to 4 sentences with no score or band word (the server asks and checks it,
+// ask/service.summary_question and stance_problems; a first draft that restates the card is rewritten and replaces it here). The card's own
+// summary below (cardSummary, for visitors and when the AI summaries are used) still lists every figure with its meaning.
 // Describes; never advises: the AI's own checks apply, and the card summary only puts the card into words.
 import { AiFeedback } from "../components/AiFeedback";   // task #366
 import { useEffect, useRef, useState } from "react";
@@ -223,9 +227,9 @@ export function PrismAiSummary({ symbol, name, r, parts, a, scoredAt, review }: 
       </div>
       {!hidden && state.kind !== "idle" && (
         <div className="pai2-out" role="region" aria-label={`AI summary of the FinLit Prism rating of ${name}`}>
-          {state.kind === "writing" && (state.text ? <AnswerText text={state.text} /> : null)}
+          {state.kind === "writing" && (state.text ? <AnswerText text={state.text} plain /> : null)}
           {state.kind === "done" && <>
-            <AnswerText text={state.text} />
+            <AnswerText text={state.text} plain />
             <p className="pai2-meta"><span>Written by FinLit AI from this card{day ? ` (scores of ${day})` : ""} · {stamp(state.at)}{state.cached ? " · written earlier today, opened free" : ""} · {DISCLAIMER}</span>
               <button type="button" className="pai2-x" onClick={() => setHidden(true)}>Hide</button></p>
             <AiFeedback surface="prism_summary" refKey={`${symbol}|${scoredAt?.slice(0, 10) || "-"}`} text={state.text} label="this summary" /></>}

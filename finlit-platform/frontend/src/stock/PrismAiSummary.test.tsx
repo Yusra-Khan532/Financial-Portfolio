@@ -12,7 +12,9 @@ let auth: { user: { id: string; role: string } | null; plan: string } = { user: 
 let quota: { enabled: boolean; left?: number; limit?: number; summary?: Allow } | undefined;
 const asked: { symbol: string }[] = [];
 const questions: string[] = [];
-let mode: "stream" | "refuse" = "stream";
+let mode: "stream" | "refuse" | "rewrite" = "stream";
+const STANCE = "The business is on firm footing: borrowing is under control and profits turn into cash. Growth is the soft spot. The share price " +
+  "already asks a lot of those earnings, while the share has traded calmly. The longer price trend is down and recent weeks have gone sideways.";
 vi.mock("../lib/auth", () => ({ useAuth: () => auth }));
 vi.mock("../lib/api", async (orig) => ({ ...(await orig<object>()), apiGet: vi.fn(async (p: string) => { if (p === "/api/ask/quota") return quota; throw new Error("not mocked " + p); }) }));
 vi.mock("../lib/askAi", async (orig) => {
@@ -24,6 +26,13 @@ vi.mock("../lib/askAi", async (orig) => {
       asked.push({ symbol });
       if (mode === "refuse") throw new real.AskRefused(429, "quota_used", "You have used all 10 AI summaries of this month. They renew on 01 Dec 2026. Your FinLit AI questions are counted separately.", {});
       on({ type: "status", text: "Reading the company page (RELIANCE)" });
+      if (mode === "rewrite") {        // task #404: the server rewrites a first draft that restated the card, and replaces it on screen
+        on({ type: "text", text: "1. Overall\n- **FinLit Prism 58.3 (Average)**: Rated." });
+        on({ type: "status", text: "Putting it in a few lines" });
+        on({ type: "replace", text: STANCE });
+        on({ type: "done", disclaimer: "x", sources: [] });
+        return;
+      }
       on({ type: "text", text: "Reliance's finances are sound: borrowing is low. " });
       on({ type: "text", text: "The share price looks high against its earnings." });
       on({ type: "done", disclaimer: "x", sources: [] });
@@ -150,6 +159,18 @@ describe("AI summary under the FinLit Prism cards (task #228)", () => {
     expect(screen.getByRole("button", { name: /Summarise again/ })).toBeTruthy();
   });
 
+  it("task #404: the AI summary is a short stance in one paragraph; a first draft that restated the card is replaced, never left beside it", async () => {
+    auth = { user: { id: "u1", role: "investor" }, plan: "gold" }; quota = { enabled: true, left: 97, limit: 100, summary: ALLOW(7) }; mode = "rewrite";
+    show();
+    expect(await screen.findByText(/A few lines from FinLit AI · 7 of 10 left this month/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /^Summarise$/ }));
+    const box = await screen.findByRole("region", { name: /AI summary of the FinLit Prism rating of Reliance/ });
+    await waitFor(() => expect(box.textContent).toContain("The longer price trend is down"));
+    expect(box.textContent).not.toContain("58.3");                                    // the draft that restated the score is gone
+    expect(box.textContent).not.toContain("Overall");
+    expect(box.querySelectorAll("h4, li").length).toBe(0);                            // one paragraph: no headings, no points
+    expect(box.textContent).toContain("not a recommendation");                        // the disclaimer stays
+  });
   it("the AI summaries used up: the card summary in words, with when they renew and that the questions are separate, even with questions left", async () => {
     auth = { user: { id: "u3", role: "investor" }, plan: "silver" }; quota = { enabled: true, left: 40, limit: 50, summary: ALLOW(0) };
     show();

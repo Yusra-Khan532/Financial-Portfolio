@@ -23,7 +23,7 @@ async def test_a_summary_with_no_text_is_an_error_and_is_given_back(app):
 @pg
 async def test_a_summary_is_written_from_the_prism_card_and_shared_by_every_plan_for_the_day(app):
     await store_prism(app)
-    client = FakeClient([{"text": ["- **Overall:** 57.7, Average, Rated."]}])
+    client = FakeClient([{"text": ["The business is sound and the share has traded calmly, though the price asks a lot of its earnings."]}])   # task #404: a stance
     enable(app, client)
     s = await signed_in(app, "s312@example.com", plan="silver")
     g = await signed_in(app, "g312@example.com", plan="gold")
