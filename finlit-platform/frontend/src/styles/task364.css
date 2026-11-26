@@ -83,3 +83,18 @@
 @media (prefers-reduced-motion: reduce) {
   .wrap.ssw .srt-car, .wrap.ssw .srt-acc, .wrap.ssw .srt-qrow, .wrap.ssw .xsp-tabs [role="tab"] { transition: none; }
 }
+
+/* Task #402: each filter row is a checkbox (its column, every figure) and a down arrow that opens its range under the row */
+.wrap.ssw .srt-b li { flex-wrap: wrap; }
+.wrap.ssw .srt-chk input[type="checkbox"] { flex: none; width: 16px; height: 16px; margin: 0 4px 0 0; accent-color: var(--gain); cursor: pointer; }
+.wrap.ssw .srt-chk label { cursor: pointer; }
+.wrap.ssw .srt-chk input[type="checkbox"]:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.wrap.ssw .srt-rng { all: unset; box-sizing: border-box; flex: none; display: inline-grid; place-items: center; width: 28px; height: 28px; border: 1px solid var(--border-strong); border-radius: var(--r-ctl); color: var(--text); cursor: pointer; }
+.wrap.ssw .srt-rng svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transition: transform .15s; }
+.wrap.ssw .srt-rng[aria-expanded="true"] svg { transform: rotate(180deg); }
+.wrap.ssw .srt-rng:hover { border-color: var(--text); }
+.wrap.ssw .srt-rng:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
+.wrap.ssw li.is-ranged { background: var(--s2); padding-bottom: 6px; }
+.wrap.ssw .srt-rbox { flex: 1 1 100%; min-width: 0; margin-top: 4px; }
+.wrap.ssw .srt-rbox .ssr-rule { margin: 0; }
+@media (max-width: 860px) { .wrap.ssw .srt-rng { width: 36px; height: 36px; } .wrap.ssw .srt-chk input[type="checkbox"] { width: 20px; height: 20px; } }
