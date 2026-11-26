@@ -1241,6 +1241,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_di.add_argument("--max-age-hours", type=float, default=None, help="skip when this ran fine in the last N hours")
     p_lf = sub.add_parser("refresh-lab-flow", help="every 3 minutes in market hours: the Trading Lab's Order Flow snapshot of every F&O stock (one Dhan quote call; lab/flow.py)")
     p_lf.add_argument("--history-seconds", type=float, default=90.0, help="at most this long filling missing previous-session open interest from Dhan's daily history")
+    sub.add_parser("refresh-global-cues", help="twice a day: the Trading Lab's Global cues series from FRED's public download (US yields, Fed funds, dollar index, EUR/JPY/CNY, WTI and Brent; lab/global_cues.py)")
     p_cm = sub.add_parser("refresh-commodities", help="commodity prices: MCX futures from Dhan and international prices from metals.dev / MetalpriceAPI into Redis (--loop: keeps running)")
     p_cm.add_argument("--loop", action="store_true")
     p_hp = sub.add_parser("history-probe", help="how many yearly statements each source holds for a few old companies (recorded at /api/mf/status, run:history-probe)")
@@ -1502,6 +1503,13 @@ async def main(argv: Optional[List[str]] = None, settings: Optional[Settings] = 
                     result = await lab_flow.refresh(store, dc, history_seconds=args.history_seconds)
                 except DhanError as e:
                     result = {"status": "failed", "error": str(e)}
+            await record_run(store, args.cmd, result)
+            print(result)
+            return 0 if result["status"] == "ok" else 1
+        if args.cmd == "refresh-global-cues":
+            from .lab import global_cues
+            from .mf import record_run
+            result = await global_cues.refresh(store)
             await record_run(store, args.cmd, result)
             print(result)
             return 0 if result["status"] == "ok" else 1

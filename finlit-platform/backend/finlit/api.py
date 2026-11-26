@@ -864,7 +864,8 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
     app.include_router(fundjobs.router)
     app.include_router(sysctl.router)   # /api/admin/system: loads switch, restart, status
     app.include_router(__import__("finlit.lab.access", fromlist=["router"]).router)
-    app.include_router(__import__("finlit.lab.flow", fromlist=["router"]).router)   # /api/lab/access and /api/admin/lab/grants: Trading Lab access, admin-granted (docs/TRADING-LAB.md)
+    app.include_router(__import__("finlit.lab.flow", fromlist=["router"]).router)
+    app.include_router(__import__("finlit.lab.global_cues", fromlist=["router"]).router)  # /api/lab/global: Trading Lab > Global cues (docs/GLOBAL-MARKETS.md)
     app.include_router(__import__("finlit.jobs.status", fromlist=["router"]).router)   # GET /api/jobs/status: public, read-only (every job, every dataset's freshness, the pause)
     app.include_router(__import__("finlit.dbusage", fromlist=["admin"]).admin)   # /api/admin/db-usage: top statements by rows returned
     app.include_router(__import__("finlit.storage", fromlist=["admin"]).admin)   # /api/admin/storage: disk, database by table, backups, growth
