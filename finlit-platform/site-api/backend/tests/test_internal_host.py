@@ -31,7 +31,7 @@ def _status(allowed, host):
 def test_the_jobs_container_is_trusted_under_a_production_allowed_hosts(monkeypatch):
     monkeypatch.setenv("ALLOWED_HOSTS", PRODUCTION)
     allowed = server.configured_allowed_hosts()
-    assert "app" in allowed and "localhost" in allowed and "finlitventures.com" in allowed
+    assert {"app", "localhost", "finlitventures.com"} <= set(allowed)          # host names in the allowed list (a set check, not a URL test)
     assert _status(allowed, "app:8001") == 200                 # the jobs container (http://app:8001)
     assert _status(allowed, "localhost:8001") == 200           # the research API in the app container
     assert _status(allowed, "evil.example") == 400             # a host nobody listed is still refused

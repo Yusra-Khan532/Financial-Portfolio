@@ -216,7 +216,8 @@ async def refresh_symbol(app, symbol: str, now: datetime, target: Optional[date]
         if r is None or r.status_code != 200:
             code = r.status_code if r is not None else 0
             if r is not None:
-                log.warning("technical refresh %s: the site backend answered %s: %s", symbol, code, (prism._upstream_detail(r) or r.text or "")[:200])   # a plain-text 400 ("Invalid host header") said nothing before
+                detail = (prism._upstream_detail(r) or r.text or "")[:200].replace("\r", " ").replace("\n", " ")   # one log line: an answer's line breaks cannot forge entries
+                log.warning("technical refresh %s: the site backend answered %s: %s", symbol, code, detail)   # a plain-text 400 ("Invalid host header") said nothing before
             return Outcome.FAILED, "unusable_candles" if code == 422 else f"site_backend_{code}"
         try:
             assessment = r.json()["technicalAssessment"]
