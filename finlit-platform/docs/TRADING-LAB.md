@@ -98,8 +98,11 @@ Steps (one PR each):
    stock's change, lowest to highest, hover for the stock), stocks by band of change, the four build-ups with their meaning, sectors by average change
    (choose one to filter), and "Most facts lined up" cards each way (day's sparkline, build-up, the five facts as dots with their names, OI change,
    VWAP gap, zone). Refreshes every minute in market hours; "Last session" otherwise. Reached from a card at the top of `/lab`.
-3. **Flow board:** the day's lines of every stock flowing into the bullish and bearish counts, then sector columns, then build-up cards (SVG,
-   animated, readable on a phone as stacked columns), with filters.
+3. **Flow board** (`/lab/flow?view=board`; layout in `lib/flowboard.ts`): every stock's line of the day flows into Rising or Falling, then its
+   sector, then its futures build-up (long build-up, short covering, none, short build-up, long unwinding). Each column holds the same stocks and
+   each stock is one unit of height, so every ribbon is exactly as wide as its stocks. Pointing at a direction, sector or build-up lights its path;
+   choosing one lists its stocks as cards (most facts first). On a phone: the lines, direction buttons, a row per sector with its build-up mix, and
+   build-up buttons.
 4. **Stock zone view:** 5-minute chart with order blocks, fair value gaps, liquidity (previous day high and low, opening range), VWAP and pivots
    (market-lab's method on Dhan candles). With signals on: the pick label, entry and exits, R:R and lot-based size.
 5. **Trading journal:** members log trades (by hand or CSV); net P&L, cumulative P&L and drawdown, win rate, profit factor, expectancy, average win

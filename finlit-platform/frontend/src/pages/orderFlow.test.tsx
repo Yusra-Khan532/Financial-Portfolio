@@ -16,7 +16,7 @@ const json = (status: number, body: unknown) => new Response(JSON.stringify(body
 let access: unknown, flow: unknown;
 beforeEach(() => { vi.stubGlobal("fetch", vi.fn(async (url: string) => json(200, String(url).includes("/api/lab/access") ? access : flow))); });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
-const wrap = () => render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><MemoryRouter><OrderFlowPage /></MemoryRouter></QueryClientProvider>);
+const wrap = (path = "/lab/flow") => render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><MemoryRouter initialEntries={[path]}><OrderFlowPage /></MemoryRouter></QueryClientProvider>);
 const settle = async () => { await act(async () => { await new Promise((r) => setTimeout(r, 20)); }); };
 
 const stock = (symbol: string, changePct: number, sector: string, buildup: string | null, score: number, extra: object = {}) => ({
@@ -95,6 +95,47 @@ describe("Order Flow > Market depth", () => {
     wrap(); await settle();
     const text = document.body.textContent!.toLowerCase().replace("does not tell anyone to buy, sell or hold", "");
     for (const w of [" buy ", " sell ", " hold ", "target", " best ", "multibagger", "top pick", "accumulate", "conviction", "pick "]) expect(text.includes(w), w).toBe(false);
+  });
+});
+
+describe("Order Flow > Flow board", () => {
+  beforeEach(() => { access = { access: true, reason: "granted", expiresAt: null, signals: false }; flow = SNAP; });
+  afterEach(() => { vi.unstubAllGlobals(); });
+  it("the tabs link the two views; the board shows every line flowing into rising, falling, sectors and build-ups", async () => {
+    wrap("/lab/flow?view=board"); await settle();
+    expect(screen.getByRole("link", { name: "Flow board" }).getAttribute("aria-current")).toBe("page");
+    expect(screen.getByRole("link", { name: "Market depth" }).getAttribute("href")).toBe("/lab/flow");
+    expect(screen.getByRole("heading", { name: "Flow board" })).toBeTruthy();
+    expect(screen.getByRole("img", { name: "The day's line of 4 F&O stocks flowing into 2 rising and 2 falling, then into 2 sectors and the futures build-ups." })).toBeTruthy();
+    expect(document.querySelectorAll(".oflow-lines path").length).toBe(4);
+    for (const n of ["Rising: 2 stocks", "Falling: 2 stocks", "Financial Services: 2 rising, 0 falling", "Metals & Mining: 0 rising, 2 falling", "Long build-up: 1 stocks", "No build-up: 1 stocks"])
+      expect(screen.getByRole("button", { name: n })).toBeTruthy();
+    expect(screen.getByText(/Choose a direction, a sector or a build-up/)).toBeTruthy();
+  });
+  it("choosing a part lists its stocks and lights only its path; choosing it again clears", async () => {
+    wrap("/lab/flow?view=board"); await settle();
+    const metals = screen.getByRole("button", { name: "Metals & Mining: 0 rising, 2 falling" });
+    fireEvent.click(metals);
+    expect(metals.getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByRole("heading", { name: "Metals & Mining: 2 stocks" })).toBeTruthy();
+    expect(screen.getByRole("article", { name: "TATASTEEL" })).toBeTruthy();
+    expect(screen.queryByRole("article", { name: "POLICYBZR" })).toBeNull();
+    expect(document.querySelectorAll(".oflow-lines path.lit").length).toBe(2);
+    expect(document.querySelectorAll(".oflow-lines path.dim").length).toBe(2);
+    fireEvent.click(metals);
+    expect(screen.queryByRole("article", { name: "TATASTEEL" })).toBeNull();
+    fireEvent.keyDown(screen.getByRole("button", { name: "Long build-up: 1 stocks" }), { key: "Enter" });
+    expect(screen.getByRole("heading", { name: "Long build-up: 1 stock" })).toBeTruthy();
+    expect(screen.getByRole("article", { name: "POLICYBZR" })).toBeTruthy();
+  });
+  it("on a phone: the lines, a row per sector with its build-up mix, and build-up buttons", async () => {
+    vi.stubGlobal("matchMedia", (q: string) => ({ matches: q.includes("720"), addEventListener: () => {}, removeEventListener: () => {} }));
+    wrap("/lab/flow?view=board"); await settle();
+    expect(screen.getByRole("img", { name: "The day's line of 4 F&O stocks flowing into 2 rising and 2 falling." })).toBeTruthy();
+    const rows = screen.getByRole("list", { name: "Sectors and their build-ups" });
+    expect(within(rows).getAllByRole("button").length).toBe(2);
+    fireEvent.click(within(screen.getByRole("group", { name: "Build-ups" })).getByRole("button", { name: /Short build-up/ }));
+    expect(screen.getByRole("article", { name: "TATASTEEL" })).toBeTruthy();
   });
 });
 

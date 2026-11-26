@@ -120,6 +120,73 @@
 .oflow-wait p { margin: 0; }
 .oflow-method { margin: 20px 0 0; font-size: var(--fs-12); line-height: 1.6; }
 
+.oflow-tab { text-decoration: none; }
+a.oflow-tab:hover:not([aria-current]) { background: color-mix(in srgb, var(--gold) 12%, transparent); }
+
+/* Flow board */
+.oflow-board { padding: 20px; margin-bottom: 22px; }
+.oflow-board-wrap { position: relative; margin-top: 8px; }
+.oflow-board-svg { display: block; width: 100%; height: auto; overflow: visible; }
+.oflow-board-svg.crop { max-height: 360px; }
+.oflow-t { fill: var(--muted); font-size: var(--fs-12); }
+.oflow-lines path { fill: none; stroke-width: 1; stroke-opacity: 0.32; transition: stroke-opacity 0.2s ease; }
+.oflow-lines path.gain { stroke: var(--gain); }
+.oflow-lines path.loss { stroke: var(--loss); }
+.oflow-lines path.lit { stroke-opacity: 0.9; stroke-width: 1.4; }
+.oflow-lines path.dim { stroke-opacity: 0.05; }
+.oflow-ribbons path { fill-opacity: 0.22; transition: fill-opacity 0.2s ease; }
+.oflow-ribbons path.gain { fill: var(--gain); }
+.oflow-ribbons path.loss { fill: var(--loss); }
+.oflow-ribbons path.lit { fill-opacity: 0.5; }
+.oflow-ribbons path.dim { fill-opacity: 0.05; }
+.oflow-node, .oflow-sbox, .oflow-bbox { cursor: pointer; outline: none; transition: opacity 0.2s ease; }
+.oflow-node.gain rect { fill: var(--gain); }
+.oflow-node.loss rect { fill: var(--loss); }
+.oflow-node-t { font-size: var(--fs-13); fill: var(--text); }
+.oflow-node-t .n, .oflow-bbox-t .n { font-weight: 700; font-size: var(--fs-16); }
+.oflow-node.gain .n { fill: var(--gain); }
+.oflow-node.loss .n { fill: var(--loss); }
+.oflow-sbox rect.gain { fill: color-mix(in srgb, var(--gain) 30%, var(--s1)); }
+.oflow-sbox rect.loss { fill: color-mix(in srgb, var(--loss) 30%, var(--s1)); }
+.oflow-sbox rect.frame { fill: none; stroke: var(--border); stroke-width: 1; }
+.oflow-sbox:hover rect.frame, .oflow-sbox:focus-visible rect.frame, .oflow-sbox.on rect.frame,
+.oflow-bbox:hover rect, .oflow-bbox:focus-visible rect, .oflow-bbox.on rect, .oflow-node:focus-visible rect { stroke: var(--text); stroke-width: 2; }
+.oflow-sbox-t { font-size: var(--fs-12); font-weight: 600; fill: var(--text); pointer-events: none; }
+.oflow-sbox-c { font-size: var(--fs-12); pointer-events: none; }
+.oflow-sbox-c .gain { fill: var(--gain); }
+.oflow-sbox-c .loss { fill: var(--loss); }
+.oflow-bbox rect { stroke: transparent; }
+.oflow-bbox.gain rect { fill: color-mix(in srgb, var(--gain) 32%, var(--s1)); }
+.oflow-bbox.loss rect { fill: color-mix(in srgb, var(--loss) 32%, var(--s1)); }
+.oflow-bbox.flat rect { fill: color-mix(in srgb, var(--muted) 22%, var(--s1)); }
+.oflow-bbox-t { font-size: var(--fs-12); font-weight: 600; fill: var(--text); pointer-events: none; }
+.oflow-node.dim, .oflow-sbox.dim, .oflow-bbox.dim { opacity: 0.25; }
+.oflow-cols { position: relative; height: 18px; margin-top: 4px; font-size: var(--fs-12); text-transform: uppercase; letter-spacing: 0.06em; }
+.oflow-cols span { position: absolute; top: 0; white-space: nowrap; }
+.oflow-dirs { display: flex; gap: 8px; margin: 12px 0 4px; }
+.oflow-legend { display: flex; flex-wrap: wrap; gap: 14px; margin: 14px 0 0; font-size: var(--fs-12); }
+.oflow-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.oflow-legend .sw { width: 12px; height: 12px; border-radius: var(--ui-r-mark); }
+.oflow-legend .sw.gain, .oflow-srow-bar i.gain, .oflow-bchip.gain b { background: var(--gain); }
+.oflow-legend .sw.loss, .oflow-srow-bar i.loss, .oflow-bchip.loss b { background: var(--loss); }
+.oflow-legend .sw.flat, .oflow-srow-bar i.flat, .oflow-bchip.flat b { background: var(--muted); }
+.oflow-pick { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border); }
+.oflow-pick > p { margin: 0; }
+.oflow-more { margin-top: 12px; }
+.oflow-srows { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.oflow-srows button { width: 100%; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 56px; align-items: center; gap: 8px; padding: 9px 8px; border: 0;
+  border-radius: var(--r-ctl); background: none; color: inherit; font: inherit; font-size: var(--fs-14); text-align: left; cursor: pointer; }
+.oflow-srows button[aria-pressed="true"] { background: var(--ui-on-bg); color: var(--ui-on-fg); }
+.oflow-srow-n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.oflow-srow-bar { display: flex; gap: 1px; height: 10px; border-radius: var(--ui-r-pill); overflow: hidden; }
+.oflow-srows small { text-align: right; font-size: var(--fs-12); }
+.oflow-bchips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.oflow-bchip { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px 6px 6px; border: 1px solid var(--border); border-radius: var(--ui-r-pill); background: var(--s1);
+  color: inherit; font: inherit; font-size: var(--fs-14); cursor: pointer; }
+.oflow-bchip b { min-width: 26px; padding: 1px 6px; border-radius: var(--ui-r-pill); color: var(--ui-on-fg); text-align: center; }
+.oflow-bchip[aria-pressed="true"] { background: var(--ui-on-bg); color: var(--ui-on-fg); }
+@media (prefers-reduced-motion: reduce) { .oflow-lines path, .oflow-ribbons path, .oflow-node, .oflow-sbox, .oflow-bbox { transition: none; } }
+
 @media (max-width: 1000px) { .oflow-two { grid-template-columns: 1fr; } .oflow-secbox { position: static; } .oflow-sec { max-height: none; } .oflow-bu { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 560px) {
   .oflow-curve svg { height: 180px; }
