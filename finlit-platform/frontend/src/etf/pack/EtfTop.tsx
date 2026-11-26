@@ -41,6 +41,8 @@ export function EtfCards({ cost, asOf, cards, colors, view, onView, weighted }: 
           <p className="px-v">{t.v}</p>
           <p className="px-x">{t.sub}</p>
         </button>; })}
+      {/* task #390 (developer file 39 v4, C4): the cost and the beta above count each ETF the same until every ETF has a quantity (basis "equal") */}
+      {!weighted && <p className="etp-basis">Each ETF counts the same until all have a quantity.</p>}
     </section>);
 }
 

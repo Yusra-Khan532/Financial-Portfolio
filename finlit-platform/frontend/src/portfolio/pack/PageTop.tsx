@@ -91,9 +91,18 @@ export const headerBottom = (h: HTMLElement | null, hub: HTMLElement | null) => 
   if (!hub || getComputedStyle(hub).position !== "sticky" || !hub.offsetHeight) return hb;
   return hb + hub.getBoundingClientRect().height;
 };
-/** True when one of `sel` sits at its sticky place under the header (within a pixel) and the page has scrolled. */
+/** The vertical shift of an element's own transform ("matrix(…, ty)" or "matrix3d(…, ty, tz, 1)"), 0 for none. */
+export const shiftY = (transform: string) => {
+  const m = /^matrix(3d)?\(([^)]*)\)$/.exec(transform.trim()); if (!m) return 0;
+  const v = m[2].split(",").map(Number), y = m[1] ? v[13] : v[5]; return Number.isFinite(y) ? y : 0;
+};
+/** True when one of `sel` sits at its sticky place under the header (within a pixel) and the page has scrolled.
+ *  Task #390 (developer file 39 v4, T4; left by #389: the ETF 390 px strip): the place is read without the bar's own transform. The section bar slides
+ *  back in (transform .25s) when the filter row leaves at the table's end; read mid-slide it was "not stuck", the strip cover dropped, and no later
+ *  scroll put it back, so rows showed in the 8 px under the header. */
 export const barStuck = (sel: string) => scrollY > 0 && [...document.querySelectorAll<HTMLElement>(sel)].some((el) => {
-  const top = parseFloat(getComputedStyle(el).top); return el.offsetHeight > 0 && Number.isFinite(top) && Math.abs(el.getBoundingClientRect().top - top) <= 1; });
+  const cs = getComputedStyle(el), top = parseFloat(cs.top);
+  return el.offsetHeight > 0 && Number.isFinite(top) && Math.abs(el.getBoundingClientRect().top - shiftY(cs.transform) - top) <= 1; });
 export function useHeaderHeight(strip = "") {
   useEffect(() => {
     const root = document.documentElement, h = document.querySelector<HTMLElement>("header.top");

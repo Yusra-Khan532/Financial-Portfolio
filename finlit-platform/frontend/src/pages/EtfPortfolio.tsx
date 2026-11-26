@@ -7,12 +7,11 @@
 // Task #390 PR A (developer file 34): "Add to [select]" in the add row; four calm crowned cards (What your ETFs cost, then the three views: "5 ETFs",
 // "Lower · moves 0.58×"); Since your last visit; Data as of under the section bar; one section per step (All sections puts them back) with &step= and the
 // member's last view and step remembered, Key figures inside step 1 of every view; things to know as a pop-up beside each heading; Record a sale; the
-// table's pinned heading and cap; Where your gain or loss came from; question-style Key figures; What changed in "updates" and "filings"; phone folds.
+// table's pinned heading and cap; question-style Key figures; What changed in "updates" and "filings"; phone folds.
+// Task #390 reopened (developer file 39 v4): "Where your gain or loss came from" left the page; Key figures closed until clicked; the shared bottom.
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link, useSearchParams } from "react-router";
 import { Gate } from "../components/Gate";
-import { PageFaqs } from "../components/PageFaqs";
-import { PortfolioDisclaimer } from "../components/PortfolioDisclaimer";
 import { ClearPortfolio } from "../components/ClearPortfolio";
 import { Tip } from "../components/sectors/pack/Common";
 import { WhatChanged, useWhatChanged } from "../components/changes/WhatChanged";
@@ -27,12 +26,14 @@ import { jumpTo } from "../portfolio/pack/PageTop";
 import { AddPortfolioDialog, BROKERS, type PfInfo } from "../portfolio/Portfolios";
 import { SoldList, soldOf } from "../portfolio/MoneyRow";
 import { VIEW_COLOR } from "../portfolio/ViewKit";
-import { holdingFigs, type LotsProps } from "../portfolio/HoldingCells";
+import { type LotsProps } from "../portfolio/HoldingCells";
 import { EtfCards, EtfSince } from "../etf/pack/EtfTop";
 import { MfAsOf } from "../mf/pack/MfTop";
-import { GainLossSection, Step, StepCtx } from "../portfolio/pack/EqSteps385";
+import { Step, StepCtx } from "../portfolio/pack/EqSteps385";
 import { KnowPop, closePops } from "../portfolio/pack/Round388";
-import { Info, RECORD_SALE, andList, countOf, shortCo, type GLRow } from "../portfolio/shared";
+import { Info, RECORD_SALE, VisitFolds, andList, countOf, shortCo } from "../portfolio/shared";
+import { PageBottom } from "../portfolio/shared/PageBottom";
+import { setEtfLimit } from "../content/etfPortfolioFaqs";
 import { dayMonth } from "../lib/whatChanged";
 import "../portfolio/pack/eq385.css";
 import "../styles/what-changed.css";
@@ -62,6 +63,7 @@ import "../styles/industry-pack.css";
 import "../mf/pack/mf-pack.css";
 import "../styles/etfportfolio.css";
 import "../portfolio/kit/kit.css";
+import "../etf/pack/spacing390.css";   // task #390 (file 39 v4, Part D): the page's spacing, after the pack CSS
 import { PLAN_FOR_PORTFOLIO } from "../lib/planGates";
 import { PageTabs } from "../components/PageTabs";
 
@@ -218,6 +220,7 @@ export function EtfPortfolioPage() {
   }, [user]);   // eslint-disable-line react-hooks/exhaustive-deps
   const [panel, setPanel] = useState<"" | "import">(params.get("tab") === "import" ? "import" : "");
   const limit = d?.limit ?? limitsFor(plan).etf_holdings;
+  setEtfLimit(d ? d.limit : null);   // task #390 (file 39 C1): the Questions answer says "Your plan holds up to N ETFs." with the number from /api/me/etf-portfolio
   const items = useMemo(() => d?.items ?? [], [d]);
   const live = items.filter((e) => !e.gone);
   // the table: its view, sort, Find and filters (changes 18 and 8)
@@ -270,15 +273,9 @@ export function EtfPortfolioPage() {
   const und = d ? underneath(ins.data, d) : null;
   const cost = useMemo(() => (d ? costCard(d) : null), [d]);
   const cards = etfCards(d, und, rk.data, { insidePending: ins.isPending, insideError: ins.isError, riskPending: rk.isPending, riskError: rk.isError ? errText(rk.error) : null, about: aboutN });
-  const kf = (v: EtfTab, sub: string) => d ? <KeyFigsBox id={`etp-kf-${v}`} sub={sub} cards={etfKeyFigures(v, { d, ins: ins.data, rk: rk.data })} onGo={onGo} /> : null;
+  const kf = (v: EtfTab, sub: string) => d ? <KeyFigsBox id={`etp-kf-${v}`} sub={sub} cards={etfKeyFigures(v, { d, ins: ins.data, rk: rk.data })} onGo={onGo} visit /> : null;   // task #390 (file 39 A2): closed on every visit, as on equity and MF
   const next = <NextView k={LABEL[NEXT[view]]} what={WHAT[NEXT[view]]} color={COLORS[NEXT[view]]} onGo={() => goTab(NEXT[view])} />;
   const dlgPfs = pfList.map((p) => ({ id: p.id, name: p.name }));
-  // task #390 (E5, L1–L6): each ETF's gain or loss in rupees, from the ETF table's own figures; ETFs held without a buy price are left out and counted
-  const glRows = useMemo(() => { const rows: GLRow[] = []; let noPrice = 0;
-    for (const e of live) { const f = holdingFigs(lots, e.symbol); if (!f.a?.qty) continue;
-      if (f.gain == null) { if (f.now != null) noPrice++; continue; }
-      rows.push({ symbol: e.symbol, name: e.symbol, gain: f.gain, pct: f.gainPct }); }
-    return { rows, noPrice }; }, [live, book.rows, cur, px]);   // eslint-disable-line react-hooks/exhaustive-deps
   // task #390 (T7): which date each kind of figure runs to
   const asOf: [string, ReactNode][] = [
     ["Prices", lastDay ? `close of ${lastDay}` : "the last close"],
@@ -290,7 +287,9 @@ export function EtfPortfolioPage() {
   const wcFiled = new Set(wc.rows.map((r) => r.s)).size;
   const wcLine = !wc.q.data ? "Reading what the companies inside your ETFs filed…" : `${countOf(wcFiled, "company", "companies")} filed in the last ${wc.q.data.days ?? 90} days${wc.lastVisit ? ` · ${wc.newN} new since ${dayMonth(wc.lastVisit)}` : ""}`;
   return (
-    <KnowPop.Provider value={true}><div className="wrap ipo mp sp mfp efp pfx">
+    // task #390 (developer file 39 v4, A2 / E1): VisitFolds keeps Key figures and the bottom's two folds open for the rest of the visit once opened,
+    // closed on every new visit; the shared bottom (Questions fold, Disclaimer fold, sources line) as on the Equity and MF pages
+    <KnowPop.Provider value={true}><VisitFolds><div className="wrap ipo mp sp mfp efp pfx">
       <Gate tier={PLAN_FOR_PORTFOLIO} title="Track your ETFs" points={["What each ETF tracks and costs, and how close it trades to its NAV", "What sits inside them: asset mix, overlap and the largest stocks", "Each ETF against the Nifty 500, and the list together", "Import a broker file, read by ISIN, then symbol"]}>
         <header className="ptk-head card" id="etp-top">
           <div className="ptk-t1">
@@ -369,9 +368,6 @@ export function EtfPortfolioPage() {
                 actions={(e) => <EditSell name={e.symbol} sell={RECORD_SALE} held={heldIn(e.symbol)} onEdit={() => setDlg({ kind: "edit", symbol: e.symbol })} onSell={() => setDlg({ kind: "sell", symbol: e.symbol })} />}
                 gone={(e) => <button type="button" className="mff-rm" aria-label={`Remove ${e.symbol}`} onClick={() => remove(e.symbol)}>Remove</button>} />
               <SoldList items={sold} all={cur === "all" && pfList.length > 1} pfName={pfName} onRemoveSale={(id) => book.store.remove(id)} noun={["ETF", "ETFs"]} />
-              {/* task #390 (E5): Where your gain or loss came from, its own section after the ETF table */}
-              <GainLossSection rows={glRows.rows} noPrice={glRows.noPrice} noun="ETF" id="etp-gl" link={(s) => `/etfs/${encodeURIComponent(s)}`} left="ETFs with no quantity are left out." countSide
-                tip="Value now minus what you paid, for each ETF you hold now. Sales you have recorded and dividends paid out are not counted here." />
               {kf("etfs", `What your ${live.length} ${live.length === 1 ? "ETF adds" : "ETFs add"} up to, from the table above and the sections below.`)}
               </Step>
               <Step id="etp-wc" title="What changed at the companies inside your ETFs" line={wcLine}>
@@ -410,9 +406,7 @@ export function EtfPortfolioPage() {
           onRemove={(pf) => remove(dlg.symbol, pfList.length > 1 ? pf : "all")} onClose={() => setDlg(null)} />}
         {dlg?.kind === "sell" && book.ready && <SellDialog key={dlg.symbol} record symbol={dlg.symbol} holdings={book.rows} pfs={dlgPfs} pf0={firstPf(dlg.symbol)} ops={book.store} price={priceOf(dlg.symbol)} onClose={() => setDlg(null)} />}
       </Gate>
-      <PageFaqs inline />
-      <details className="sp-sec sp-fold mfp-disc"><summary><span><b className="sp-ft">Disclaimer</b><small>What this page is, and is not</small></span><span className="sp-show">Show ▾</span></summary><PortfolioDisclaimer kind="etf" /></details>
-      <p className="mfp-foot">{SOURCES}</p>
-    </div></KnowPop.Provider>
+      <PageBottom kind="etf" sources={SOURCES} />
+    </div></VisitFolds></KnowPop.Provider>
   );
 }

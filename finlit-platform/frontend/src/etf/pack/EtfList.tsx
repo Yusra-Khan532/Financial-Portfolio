@@ -10,6 +10,7 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router";
 import { Tip } from "../../components/sectors/pack/Common";
+import { num } from "../../lib/format";
 import { FrozenTable, ShowAll, andList, capRows, type CapRule } from "../../portfolio/shared";
 import { Section } from "../../portfolio/kit/KitSection";
 import { betaWindowText } from "../../lib/etfKeyFigs";
@@ -24,7 +25,7 @@ type Risk = EtfRisk["etfs"][number];
 type Col = { k: string; label: string; help?: [string, string]; num?: boolean; get: (e: EtfRow, r?: Risk) => number | string | null };
 const sp = (x: number | null | undefined, d = 2) => (x == null ? null : `${x > 0 ? "+" : x < 0 ? "−" : ""}${Math.abs(x).toFixed(d)}%`);
 const pc = (x: number | null | undefined, d = 1) => (x == null ? "–" : `${x < 0 ? "−" : ""}${Math.abs(x).toFixed(d)}%`);
-const b2 = (x: number | null | undefined) => (x == null ? "–" : x.toFixed(2));
+const b2 = (x: number | null | undefined) => (x == null ? "–" : num(x));   // task #390 (file 39 C3): "−0.04", never a hyphen
 const rupee = (v: number | null | undefined) => (v == null ? "–" : "₹" + v.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
 const cr = (v: number | null | undefined) => (v == null ? null : (v / 1e7).toLocaleString("en-IN", { maximumFractionDigits: 1, minimumFractionDigits: 1 }));
 const shortDay = (iso: string) => new Date(iso + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short" });
@@ -96,8 +97,10 @@ export function EtfsTable({ d, rk, rows, lots, view, sort, setSort, tools, actio
     return (typeof x === "number" && typeof y === "number" ? x - y : String(x).localeCompare(String(y))) * sort.dir; });   // a dash (null) sorts last both ways
   const capped = capRows(sorted(xs), CAP_ETFS, capOpen), shownRows = capped.shown;
   const more = capped.capped ? <ShowAll n={xs.length} noun="ETF" open={capOpen} onToggle={() => setCapOpen(!capOpen)} className="mff-more" /> : null;
-  const th = (c: Col) => { const on = sort.k === c.k;
-    return <th key={c.k} scope="col" className={c.num ? "r" : undefined} aria-sort={on ? (sort.dir === 1 ? "ascending" : "descending") : "none"}>
+  // task #390 (developer file 39 v4, T2 / T2b; check-tables.js "lines"): the group heading, the first column heading and the first body column of each
+  // group after the ETF carry mff-div, so every group (Price, Price returns, Cost) has its line on the left edge, in the heading and the body
+  const th = (c: Col, div = false) => { const on = sort.k === c.k;
+    return <th key={c.k} scope="col" className={[c.num ? "r" : "", div ? "mff-div" : ""].filter(Boolean).join(" ") || undefined} aria-sort={on ? (sort.dir === 1 ? "ascending" : "descending") : "none"}>
       <button type="button" className="mff-sort" onClick={() => setSort({ k: c.k, dir: on && sort.dir === 1 ? -1 : 1 })}>{c.label}{on ? (sort.dir === 1 ? " ▲" : " ▼") : ""}</button>{c.help && <Tip text={c.help[0]} how={c.help[1]} label={`About “${c.label}”`} />}</th>; };
   const etfCell = (e: EtfRow) => (<>
     <th scope="row"><span className="x-nl"><Link to={`/etfs/${encodeURIComponent(e.symbol)}`} className="mfp-fund">{e.symbol}</Link></span><small className="mfp-sub">{e.name}</small>
@@ -106,13 +109,13 @@ export function EtfsTable({ d, rk, rows, lots, view, sort, setSort, tools, actio
   const sortHead = (id: string, _label: string, cls: string) => { const c = cols.find((x) => x.k === id)!, on = sort.k === id;
     return <th key={id} scope="col" className={cls} aria-sort={on ? (sort.dir === 1 ? "ascending" : "descending") : "none"}>
       <button type="button" className="mff-sort" onClick={() => setSort({ k: id, dir: on && sort.dir === 1 ? -1 : 1 })}>{c.label}{on ? (sort.dir === 1 ? " ▲" : " ▼") : ""}</button></th>; };
-  const rets = (e: EtfRow) => <><td className="r"><Ret v={e.ret1y} why={e.ret1yWhy} /></td><td className="r"><Ret v={e.ret3y} why={e.ret3yWhy} /></td><td className="r"><Ret v={e.ret5y} why={e.ret5yWhy} /></td>
-    <td className="r">{e.ter?.value == null ? <Dash why={e.ter?.why} /> : `${e.ter.value.toFixed(2)}%`}</td></>;
+  const rets = (e: EtfRow) => <><td className="r mff-div"><Ret v={e.ret1y} why={e.ret1yWhy} /></td><td className="r"><Ret v={e.ret3y} why={e.ret3yWhy} /></td><td className="r"><Ret v={e.ret5y} why={e.ret5yWhy} /></td>
+    <td className="r mff-div">{e.ter?.value == null ? <Dash why={e.ter?.why} /> : `${e.ter.value.toFixed(2)}%`}</td></>;
   const retRow = (e: EtfRow) => lots ? <tr key={e.symbol}>{etfCell(e)}<HoldingRowCells p={lots} symbol={e.symbol} priceCell={<td className="r x-c2 x-gs cg-h"><b>{rupee(e.price)}</b></td>}
       changeCell={<td className="r x-c2 cg-h"><Ret v={e.changePct} /></td>} />{rets(e)}</tr>
-    : <tr key={e.symbol}>{etfCell(e)}<td className="r"><b>{rupee(e.price)}</b></td><td className="r"><Ret v={e.changePct} /></td>
+    : <tr key={e.symbol}>{etfCell(e)}<td className="r mff-div"><b>{rupee(e.price)}</b></td><td className="r mff-div"><Ret v={e.changePct} /></td>
     <td className="r"><Ret v={e.ret1y} why={e.ret1yWhy} /></td><td className="r"><Ret v={e.ret3y} why={e.ret3yWhy} /></td><td className="r"><Ret v={e.ret5y} why={e.ret5yWhy} /></td>
-    <td className="r">{e.ter?.value == null ? <Dash why={e.ter?.why} /> : `${e.ter.value.toFixed(2)}%`}</td></tr>;
+    <td className="r mff-div">{e.ter?.value == null ? <Dash why={e.ter?.why} /> : `${e.ter.value.toFixed(2)}%`}</td></tr>;
   const own = rk?.own?.list;
   return (
     <Section id="etp-etfs" title="Your ETFs" help="Each ETF in your list: what it tracks, its price returns and cost, how it trades against its NAV, and its risk against the Nifty 500." how="Pick a view on the right; click a heading to sort, again to reverse. A TWICE tag: two ETFs follow the same index."
@@ -121,34 +124,34 @@ export function EtfsTable({ d, rk, rows, lots, view, sort, setSort, tools, actio
       {tools}
       {!xs.length && <p className="sp-note" role="status">No ETF in your list matches the search and filters. Clear filters to see all {d.count}.</p>}
       {view === "returns" && lots && <Frame label="returns and cost"><table className="sp-tb mff-t kit-grid x-grp">
-        <thead><tr className="mff-groups"><th colSpan={2} /><GroupBand /><th colSpan={3} className="mff-gh mff-div">Price returns, total</th><th className="mff-gh">Cost</th></tr>
-          <tr>{cols.slice(0, 2).map(th)}<HoldingHeads sortHead={sortHead} price="Price" today="1 day" />{cols.slice(10).map(th)}</tr></thead>
+        <thead><tr className="mff-groups"><th colSpan={2} /><GroupBand /><th colSpan={3} className="mff-gh mff-div">Price returns, total</th><th className="mff-gh mff-div">Cost</th></tr>
+          <tr>{cols.slice(0, 2).map((c) => th(c))}<HoldingHeads sortHead={sortHead} price="Price" today="1 day" />{cols.slice(10).map((c, i, a) => th(c, i === 0 || i === a.length - 1))}</tr></thead>
         <tbody>{shownRows.map(retRow)}</tbody>
         <tfoot><TotalRow p={lots} symbols={xs.map((e) => e.symbol)} lead={2} rest={4} noun={["ETF", "ETFs"]} />
           <tr><th scope="row" colSpan={6}>List average</th><td className="r"><Ret v={avg(xs.map((e) => e.changePct))} /></td><td colSpan={3} /><td className="r"><Ret v={avg(xs.map((e) => e.ret1y))} /></td><td /><td />
           <td className="r">{(() => { const v = avg(xs.map((e) => e.ter?.value)); return v == null ? "–" : `${v.toFixed(2)}%`; })()}</td></tr></tfoot></table></Frame>}
       {view === "returns" && !lots && <Frame label="returns and cost"><table className="sp-tb mff-t kit-grid">
-        <thead><tr className="mff-groups"><th colSpan={2} /><th className="mff-gh">Price</th><th colSpan={4} className="mff-gh mff-div">Price returns, total</th><th className="mff-gh">Cost</th></tr><tr>{cols.map(th)}</tr></thead>
+        <thead><tr className="mff-groups"><th colSpan={2} /><th className="mff-gh mff-div">Price</th><th colSpan={4} className="mff-gh mff-div">Price returns, total</th><th className="mff-gh mff-div">Cost</th></tr><tr>{cols.map((c, i) => th(c, i === 2 || i === 3 || i === cols.length - 1))}</tr></thead>
         <tbody>{shownRows.map(retRow)}</tbody>
         <tfoot><tr><th scope="row" colSpan={3}>List average</th><td className="r"><Ret v={avg(xs.map((e) => e.changePct))} /></td><td className="r"><Ret v={avg(xs.map((e) => e.ret1y))} /></td><td /><td />
           <td className="r">{(() => { const v = avg(xs.map((e) => e.ter?.value)); return v == null ? "–" : `${v.toFixed(2)}%`; })()}</td></tr></tfoot></table></Frame>}
       {view === "trading" && <Frame label="trading"><table className="sp-tb mff-t kit-grid">
-        <thead><tr className="mff-groups"><th colSpan={2} /><th colSpan={2} className="mff-gh">{d.asOf ? `On ${shortDay(d.asOf)}` : "Last close"}</th><th colSpan={2} className="mff-gh mff-div">How well it follows</th></tr><tr>{cols.map(th)}</tr></thead>
+        <thead><tr className="mff-groups"><th colSpan={2} /><th colSpan={2} className="mff-gh mff-div">{d.asOf ? `On ${shortDay(d.asOf)}` : "Last close"}</th><th colSpan={2} className="mff-gh mff-div">How well it follows</th></tr><tr>{cols.map((c, i) => th(c, i === 2 || i === 4))}</tr></thead>
         <tbody>{shownRows.map((e) => <tr key={e.symbol}>{etfCell(e)}
-          <td className="r">{e.premium == null ? <Dash why={e.premiumWhy} /> : <><b className={Math.abs(e.premium) >= 1 ? "sp-red" : undefined}>{sp(e.premium)}</b>{e.navBehind && e.navDate && <small className="mfp-sub">NAV of {shortDay(e.navDate)}</small>}</>}</td>
+          <td className="r mff-div">{e.premium == null ? <Dash why={e.premiumWhy} /> : <><b className={Math.abs(e.premium) >= 1 ? "sp-red" : undefined}>{sp(e.premium)}</b>{e.navBehind && e.navDate && <small className="mfp-sub">NAV of {shortDay(e.navDate)}</small>}</>}</td>
           <td className="r">{cr(e.avgTurnover) == null ? <Dash why={e.avgTurnoverWhy} /> : <><b>{cr(e.avgTurnover)}</b><small className="mfp-sub">20 sessions</small></>}</td>
-          <td className="r">{e.tracking?.value == null ? <span className="sp-note" title={e.tracking?.why || undefined}>{/nothing to measure|no daily level/i.test(e.tracking?.why || "") ? "Needs index closes" : "–"}</span> : sp(e.tracking.value)}</td>
+          <td className="r mff-div">{e.tracking?.value == null ? <span className="sp-note" title={e.tracking?.why || undefined}>{/nothing to measure|no daily level/i.test(e.tracking?.why || "") ? "Needs index closes" : "–"}</span> : sp(e.tracking.value)}</td>
           <td>{house(e.fundHouse) || "–"}</td></tr>)}</tbody></table></Frame>}
       {view === "risk" && <Frame label="risk of each ETF"><table className="sp-tb mff-t kit-grid">
-        <thead><tr className="mff-groups"><th colSpan={2} /><th colSpan={2} className="mff-gh">3 years</th><th colSpan={2} className="mff-gh mff-div">Against the Nifty 500, 1 year</th><th className="mff-gh">Share</th></tr><tr>{cols.map(th)}</tr></thead>
+        <thead><tr className="mff-groups"><th colSpan={2} /><th colSpan={2} className="mff-gh mff-div">3 years</th><th colSpan={2} className="mff-gh mff-div">Against the Nifty 500, 1 year</th><th className="mff-gh mff-div">Share</th></tr><tr>{cols.map((c, i) => th(c, i === 2 || i === 4 || i === 6))}</tr></thead>
         <tbody>{shownRows.map((e) => { const r = by.get(e.symbol); return <tr key={e.symbol}>{etfCell(e)}
-          <td className="r">{pc(r?.swing)}</td><td className="r sp-red">{r?.worstFall == null ? "–" : pc(r.worstFall)}{r?.years != null && r.years < 2.95 && r.from ? <small className="mfp-sub">since {new Date(r.from + "T00:00:00").toLocaleDateString("en-IN", { month: "short", year: "numeric" })}</small> : null}</td>
-          <td className="r">{r?.compared === false ? <span className="sp-note">Not compared</span> : r?.betaPast == null ? <span className="sp-note">{r?.betaWhy ?? "Under a year"}</span> : <><b>{b2(r.betaPast)}</b> {r.band && <span className={"mff-rd r-" + r.band.key}>{r.band.word}</span>}<small className="mfp-sub etp-win">{betaWindowText(r.betaWindow)}</small></>}</td>
-          <td className="r">{r?.explained == null ? "–" : `${r.explained}%`}</td><td className="r">{r?.riskShare == null ? "–" : `${r.riskShare.toFixed(1)}%`}</td></tr>; })}</tbody>
+          <td className="r mff-div">{pc(r?.swing)}</td><td className="r sp-red">{r?.worstFall == null ? "–" : pc(r.worstFall)}{r?.years != null && r.years < 2.95 && r.from ? <small className="mfp-sub">since {new Date(r.from + "T00:00:00").toLocaleDateString("en-IN", { month: "short", year: "numeric" })}</small> : null}</td>
+          <td className="r mff-div">{r?.compared === false ? <span className="sp-note">Not compared</span> : r?.betaPast == null ? <span className="sp-note">{r?.betaWhy ?? "Under a year"}</span> : <><b>{b2(r.betaPast)}</b> {r.band && <span className={"mff-rd r-" + r.band.key}>{r.band.word}</span>}<small className="mfp-sub etp-win">{betaWindowText(r.betaWindow)}</small></>}</td>
+          <td className="r">{r?.explained == null ? "–" : `${r.explained}%`}</td><td className="r mff-div">{r?.riskShare == null ? "–" : `${r.riskShare.toFixed(1)}%`}</td></tr>; })}</tbody>
         <tfoot><tr><th scope="row" colSpan={2}>Your list</th><td className="r">{pc(rk?.list.swing)}<small className="mfp-sub">3 years</small></td><td className="r sp-red">{pc(rk?.list.worstFall)}<small className="mfp-sub">3 years</small></td>
           <td className="r"><b>{b2(own?.beta500 ?? own?.betaOwn)}</b> {(own?.beta500Band ?? own?.betaOwnBand) && <span className={"mff-rd r-" + (own?.beta500Band ?? own?.betaOwnBand)!.key}>{(own?.beta500Band ?? own?.betaOwnBand)!.word}</span>}<small className="mfp-sub etp-win">{betaWindowText(rk?.etfs.find((x) => x.betaWindow)?.betaWindow)}</small></td><td /><td className="r">100%</td></tr></tfoot></table></Frame>}
       {view === "type" && <div className="mff-types"><div className="mff-oa"><button type="button" className="eq-oa" onClick={() => setOpen(open.size ? new Set() : new Set(groups.map((g) => g.key)))}>{open.size ? "Close all" : "Open all"}</button></div>
-        <Frame label="ETFs by type"><table className={"sp-tb mff-t kit-grid" + (lots ? " x-grp" : "")}><thead>{lots ? <tr>{cols.slice(0, 2).map(th)}<HoldingHeads sortHead={sortHead} price="Price" today="1 day" />{cols.slice(10).map(th)}</tr> : <tr>{cols.map(th)}</tr>}</thead>
+        <Frame label="ETFs by type"><table className={"sp-tb mff-t kit-grid" + (lots ? " x-grp" : "")}><thead>{lots ? <tr>{cols.slice(0, 2).map((c) => th(c))}<HoldingHeads sortHead={sortHead} price="Price" today="1 day" />{cols.slice(10).map((c) => th(c))}</tr> : <tr>{cols.map((c) => th(c))}</tr>}</thead>
           {groups.map((g) => { const on = open.has(g.key), a = avg(g.etfs.map((e) => e.ret1y));
             return <tbody key={g.key}><tr className="mff-grow"><th scope="rowgroup" colSpan={cols.length}><button type="button" aria-expanded={on} onClick={() => setOpen((o) => { const n = new Set(o); if (n.has(g.key)) n.delete(g.key); else n.add(g.key); return n; })}>
               <b>{g.word}</b> · {g.n} {g.n === 1 ? "ETF" : "ETFs"} · {Math.round(g.share)}% of the list · average 1 year {a == null ? "–" : sp(a, 1)} <span aria-hidden="true">{on ? "▴" : "▾"}</span></button></th></tr>
