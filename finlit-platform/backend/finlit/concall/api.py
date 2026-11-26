@@ -270,7 +270,7 @@ async def summary(request: Request, body: SummaryIn, ctx: Ctx = Depends(secure_c
     row = await _doc_row(request, body.link, ("transcript", "presentation"))
     cap = quota.allowance(ctx, "summary")
     if cap <= 0:
-        raise fail(403, "plan_required", "AI summaries are part of the Silver and Gold plans (10 a month, counted with the FinLit Prism summaries).", plan="silver")
+        raise fail(403, "plan_required", "AI summaries are part of every paid plan (10 a month, counted with the FinLit Prism summaries).", plan="silver")
     async with store.pool.acquire() as conn:
         kept = await conn.fetchrow("SELECT text, source_kind, created_at FROM concall_summaries WHERE link = $1", body.link)
         name = await conn.fetchval("SELECT name FROM companies WHERE symbol = $1", row["symbol"]) or row["symbol"]

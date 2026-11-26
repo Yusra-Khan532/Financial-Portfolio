@@ -48,7 +48,7 @@ function Companies({ active, board }: { active?: string; board: string }) {
   );
 }
 
-/** Follow = the member's watchlist (Silver and up), the same as the report's Watchlist button. */
+/** Follow = the member's watchlist (Mutual Fund + ETF, combined, Gold and Platinum), the same as the report's Watchlist button. */
 function FollowButton({ symbol }: { symbol: string }) {
   const { has, toast, upgrade } = useUI(), wlState = useWatchlist(); void wlState;
   const on = wl.has(symbol);

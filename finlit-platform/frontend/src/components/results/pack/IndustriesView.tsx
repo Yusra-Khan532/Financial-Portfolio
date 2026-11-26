@@ -80,7 +80,7 @@ function Drawer({ i, rot, pulse }: { i: Ind; rot: RotationRow | undefined; pulse
     (r, k): SortVal => (k === "fig" ? r[0] : k === "ind" ? r[1] : r[2]));
   const tone = (v: number | null | undefined) => (v == null ? "" : v >= 0 ? "sp-good" : "sp-red");
   const row = (label: string, a1: number | null | undefined, b1: number | null | undefined) => <tr><th scope="row">{label}</th><td className={"r " + tone(a1)}>{sp(a1)}</td><td className={"r " + tone(b1)}>{sp(b1)}</td></tr>;
-  if (i.medianRevenueYoY === undefined) return <div className="rs-dr rs-dr-locked"><LockedBlock plan="silver" title="Each group's figures are part of the Silver plan">The counts are open to everyone. {i.declared} of {i.companies} companies in {nse(i.name)} have declared.</LockedBlock></div>;
+  if (i.medianRevenueYoY === undefined) return <div className="rs-dr rs-dr-locked"><LockedBlock plan="silver" title="Each group's figures are part of every paid plan">The counts are open to everyone. {i.declared} of {i.companies} companies in {nse(i.name)} have declared.</LockedBlock></div>;
   return (
     <div className="rs-dr">
       <div>
@@ -97,7 +97,7 @@ function Drawer({ i, rot, pulse }: { i: Ind; rot: RotationRow | undefined; pulse
       </div>
       <div>
         <p className="sp-cap">Biggest companies that declared</p>
-        {q.data?.locked ? <p className="sp-note">Each company's verdict is part of the Silver plan.</p> : !rows.length ? <p className="sp-note">{q.isLoading ? "Loading…" : "No company has declared yet."}</p> :
+        {q.data?.locked ? <p className="sp-note">Each company's verdict is part of every paid plan.</p> : !rows.length ? <p className="sp-note">{q.isLoading ? "Loading…" : "No company has declared yet."}</p> :
           <div className="rs-dr-scroll" role="region" aria-label="Biggest companies that declared" tabIndex={0}><table className="sp-tb rs-big kit-grid"><thead><tr>{(["company:Company", "size:Size", "rev:Rev.:r", "profit:Profit:r", "verdict:Verdict"]).map((c) => { const [k, l, cls] = c.split(":"); return <SortTh key={k} k={k} label={l} className={cls} sort={big.sort} onSort={big.toggle} />; })}</tr></thead>
             <tbody>{big.sorted.map((r) => <tr key={r.symbol}><td><Link to={`/stocks/${r.symbol}#quarter`}><b title={coTitle(r)}>{shortLabel(r)}</b></Link></td><td>{r.cap ?? "–"}</td><td className={"r " + tone(r.revenueYoY)}>{sp(r.revenueYoY)}</td><td className={"r " + tone(r.profitYoY)}>{r.loss && r.profitYoY == null ? "loss" : sp(r.profitYoY)}</td><td>{r.verdict ? <span className={"rs-v rs-v-" + r.verdict.toLowerCase().replace(" ", "")}>{r.verdict}</span> : <VerdictCell r={r} />}</td></tr>)}</tbody></table></div>}
         <Link className="sp-link" to={`/results?view=companies&industry=${encodeURIComponent(i.name)}`}>All {i.declared} companies in {nse(i.name)} →</Link>
@@ -168,7 +168,7 @@ export function IndustriesView({ inds }: { inds: Ind[] }) {
               <td>{i.beatShare === undefined ? "Silver" : i.beatShare == null ? <span className="rs-na">Too few figures</span> : <span className="rs-dw"><span className="t" aria-hidden="true"><i style={{ width: `${Math.min(100, i.beatShare)}%` }} /></span><b>{Math.round(i.beatShare)}%</b></span>}</td>
               <td>{r?.corner && r.corner !== "middle" ? <BoxChip corner={r.corner} /> : <span className="rs-na" title={rotWhy}>No reading</span>}</td>
               <td><PulseChip g={g} /></td>
-              <td>{agree ? <span className={"rs-ag rs-ag-" + agree.toLowerCase().replace(/ /g, "")}>{agree}</span> : <span className="rs-na" title={locked ? "Part of the Silver plan" : "Needs both the results and a Sector Rotation reading"}>—</span>}</td></tr>
+              <td>{agree ? <span className={"rs-ag rs-ag-" + agree.toLowerCase().replace(/ /g, "")}>{agree}</span> : <span className="rs-na" title={locked ? "Part of every paid plan" : "Needs both the results and a Sector Rotation reading"}>—</span>}</td></tr>
             {on && <tr className="rs-drawer" id={id}><td colSpan={COLS}><Drawer i={i} rot={r} pulse={g} /></td></tr>}
           </Fragment>); })}</tbody>
       </table></Scroll>

@@ -271,11 +271,13 @@ describe("Change 7 and part B item 7: the view cards", () => {
 // ------------------------------------------------------------------------------------------------ part B item 2: plan names from the plan list
 describe("Part B item 2: plan names come from the plan list", () => {
   it("one list: Basic, Silver, Gold; the lock card's TIER names and the Questions answer read it", () => {
-    expect(PLAN_LIST.map((p) => p.name)).toEqual(["Basic", "Silver", "Gold"]);
-    expect(planName("silver")).toBe("Silver"); expect(plansFrom("silver")).toEqual(["Silver", "Gold"]); expect(plansFromText("silver")).toBe("Silver and Gold"); expect(plansFromText("gold")).toBe("Gold");
+    // task #410 (owner, 27 Nov 2026): the plans on sale; an old Silver gate reads Gold (the smallest full plan that opens it)
+    expect(PLAN_LIST.map((p) => p.name)).toEqual(["Free", "Mutual Fund + ETF", "Equity Portfolio", "Combined", "Gold", "Platinum"]);
+    expect(planName("silver")).toBe("Gold"); expect(plansFrom("silver")).toEqual(["Gold", "Platinum"]); expect(plansFromText("silver")).toBe("Gold and Platinum"); expect(plansFromText("gold")).toBe("Gold and Platinum");
+    expect(plansFromText("equity")).toBe("Equity Portfolio, Combined, Gold and Platinum"); expect(plansFromText("platinum")).toBe("Platinum");
     expect(TIER.silver.n).toBe(planName("silver")); expect(TIER.gold.n).toBe(planName("gold"));
     const a = MY_PORTFOLIO_FAQ.items.find((x) => /broker/.test(x.q))!.a;
-    expect(a).toContain(`on ${plansFromText("silver")} they are also saved`);
+    expect(a).toContain(`on ${plansFromText("equity")} they are also saved`);
   });
   it("no fixed plan name is left in the lock card, the Gold locks or the Questions source", () => {
     const src = (f: string) => readFileSync(join(__dirname, f), "utf8");

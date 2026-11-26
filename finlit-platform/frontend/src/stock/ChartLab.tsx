@@ -48,7 +48,7 @@ function PriceTab({ symbol }: { symbol: string }) {
   const px = usePrice(symbol, range).data?.series;
   const statsQ = useSection<Stats>(symbol, "stats"), stats = statsQ.data;
   // Price statistics are a Silver feature: when the server withholds them, say so instead of showing loading boxes for ever.
-  const withheld = statsQ.isError ? <Soon>{statsQ.error?.status === 403 ? "Return patterns, drawdowns and volatility come with the Silver plan." : "These charts are not available for this company yet."}</Soon> : null;
+  const withheld = statsQ.isError ? <Soon>{statsQ.error?.status === 403 ? "Return patterns, drawdowns and volatility come with every paid plan." : "These charts are not available for this company yet."}</Soon> : null;
   const ok = stats?.available;
   const rows = useMemo(() => (stats?.monthly?.years || []).map((y) => ({ label: String(y), values: stats!.monthly!.rows[String(y)] })), [stats]);
   return (

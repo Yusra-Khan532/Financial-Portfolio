@@ -166,7 +166,7 @@ export function StocksInd({ p }: { p: IndustryPage }) {
   };
   if (p.stocks == null) return (
     <section className="sp-sec" aria-labelledby="ip-stocks"><h2 id="ip-stocks">The {p.stocks_counted} counted stocks, strongest 6 months first</h2>
-      <LockedBlock plan={p.locked?.stocks ?? "silver"} title={tw("The stocks of each industry are part of the Silver plan")}>{tw("The state, the trends and the year are open to everyone. Silver lists every counted stock, strongest 6 months first, with where it falls inside its industry.")}</LockedBlock></section>);
+      <LockedBlock plan={p.locked?.stocks ?? "silver"} title={tw("The stocks of each industry are part of every paid plan")}>{tw("The state, the trends and the year are open to everyone. Silver lists every counted stock, strongest 6 months first, with where it falls inside its industry.")}</LockedBlock></section>);
   const shown = all ? stocks : stocks.slice(0, 15);
   return (
     <Section id="ip-stocks" title={`The ${stocks.length} counted stocks, strongest 6 months first`} sub={tw("How each stock has done inside its industry.")} right={<button type="button" className="sp-dl" onClick={csv}>Download CSV</button>}>
@@ -196,7 +196,7 @@ export function NotCountedInd({ p }: { p: IndustryPage }) {
     <details className="sp-sec sp-fold">
       <summary><span><b className="sp-ft">Not counted: {n} {name} stocks</b><small>Too small, too thinly traded or too recently listed to count in the reading</small></span><span className="sp-show">Show ▾</span></summary>
       {p.not_counted ? <><p className="sp-note">{tw(p.not_counted.text)}</p><ul className="ip-nc">{p.not_counted.stocks.map((s) => <li key={s.symbol}><Link to={`/stocks/${s.symbol}`}><b title={coTitle(s)}>{titleOf(s)}</b> {subLine(s, s.name)}</Link></li>)}</ul></>
-        : <LockedBlock plan={p.locked?.not_counted ?? "silver"} title="The list of stocks that are not counted is part of the Silver plan">{tw("It names each stock of this industry that is left out of the readings.")}</LockedBlock>}
+        : <LockedBlock plan={p.locked?.not_counted ?? "silver"} title="The list of stocks that are not counted is part of every paid plan">{tw("It names each stock of this industry that is left out of the readings.")}</LockedBlock>}
     </details>
   );
 }

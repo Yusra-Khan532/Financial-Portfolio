@@ -237,9 +237,9 @@ async def ask(request: Request, body: AskIn, ctx: Ctx = Depends(secure_ctx)):   
     if checking:
         body = body.model_copy(update={"fresh": True})          # a test question: the full answer, never "since you last asked"
     if cap <= 0 and kind == "summary":
-        raise fail(403, "plan_required", "AI summaries from FinLit AI are part of the Silver and Gold plans (10 a month).", plan="silver")
+        raise fail(403, "plan_required", "AI summaries from FinLit AI are part of every paid plan (10 a month).", plan="silver")
     if cap <= 0:      # Basic (founder, 17 Nov 2026): the listed questions only, which answer in the browser and never reach this endpoint
-        raise fail(403, "plan_required", "Written answers from FinLit AI are part of the Silver plan (50 a month) and the Gold plan (100 a month). "
+        raise fail(403, "plan_required", "Written answers from FinLit AI are part of every paid plan (50 a month; 100 a month on Gold and Platinum). "
                    "The listed questions answer at once on every plan.", plan="silver")
     await limit(request, "ask:min", f"u:{ctx.user_id}", 6, 60)          # at most 6 questions a minute, whatever the allowance
 

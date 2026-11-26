@@ -26,10 +26,19 @@ import orjson
 from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from ..auth.routes import Ctx, ip_of
+from ..auth.entitlements import in_area
+from ..auth.routes import Ctx, fail, ip_of, secure_ctx
 from ..mfportfolio import risk as mfrisk
-from ..mfportfolio.api import SCHEME_COLS, holdings_of, is_gold, member_ctx, nav_history, scores_for
+from ..mfportfolio.api import SCHEME_COLS, holdings_of, is_gold, nav_history, scores_for
 from . import calc
+
+
+async def member_ctx(request: Request, ctx: Ctx = Depends(secure_ctx)) -> Ctx:
+    """Task #410: All my investments puts shares, funds and ETFs together, so it opens where both areas do: the combined plan, Gold and Platinum
+    (goliveData; not the one-area plans on their own)."""
+    if not (in_area(ctx, "mf") and in_area(ctx, "eq")):
+        raise fail(403, "plan_required", "All my investments is part of the combined, Gold and Platinum plans.", plan="combined")
+    return ctx
 
 log = logging.getLogger("finlit.myinvest")
 router = APIRouter(prefix="/api/me")

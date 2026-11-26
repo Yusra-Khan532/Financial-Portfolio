@@ -10,9 +10,9 @@ const page = readFileSync(resolve(__dirname, "../../pages/MfPortfolio.tsx"), "ut
 
 describe("MF portfolio live fixes (M1)", () => {
   it("writes the account's plan on the badge, never a fixed word", () => {
-    expect(page).toContain('<p className="ptk-plan mfp-plan"><span>{TIER[plan].n}</span></p>');   // task #275: the badge sits in the compact top's title row
+    expect(page).toContain('<p className="ptk-plan mfp-plan"><span>{memberPlanName(planKeyOf(), plan)}</span></p>');   // task #275: the badge sits in the compact top's title row; task #410: the member's own plan name
     expect(page).not.toMatch(/mfp-plan"><span>Silver</);
-    expect([TIER.silver.n, TIER.gold.n].map((w) => w.toLowerCase())).toEqual(["silver", "gold"]);
+    expect([TIER.silver.n, TIER.gold.n, TIER.platinum.n].map((w) => w.toLowerCase())).toEqual(["gold", "gold", "platinum"]);   // task #410: an old Silver gate reads Gold
   });
   it("has no download control, and the FAQ says so", () => {
     expect(page).not.toMatch(/Export CSV|saveFile|toCsv/);

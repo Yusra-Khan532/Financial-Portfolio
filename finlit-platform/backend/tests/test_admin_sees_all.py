@@ -14,11 +14,13 @@ def test_admin_view_without_a_preview_is_gold_and_sees_all():
     assert admin_view(Ctx(user_id="1", role="admin", plan="basic"), "nonsense").plan == "gold"
 
 
-@pytest.mark.parametrize("plan", ["basic", "silver", "gold"])
-def test_a_preview_is_served_exactly_as_that_plan(plan):
-    a = admin_view(Ctx(user_id="1", role="admin", plan="gold"), plan.upper())
-    assert a.plan == plan and not sees_all(a) and a.extra["view_as"] == plan
-    assert a.public()["viewAs"] == plan
+@pytest.mark.parametrize("view, key, tier", [("free", "free", "basic"), ("mfetf", "mfetf", "silver"), ("equity", "equity", "silver"), ("combined", "combined", "silver"),
+                                             ("gold", "gold", "gold"), ("platinum", "platinum", "gold"), ("basic", "free", "basic"), ("silver", "combined", "silver")])
+def test_a_preview_is_served_exactly_as_that_plan(view, key, tier):
+    # task #410: the preview takes the new plans; an old "basic" / "silver" choice reads as Free / Combined
+    a = admin_view(Ctx(user_id="1", role="admin", plan="gold"), view.upper())
+    assert a.plan == tier and a.plan_key == key and not sees_all(a) and a.extra["view_as"] == key
+    assert a.public()["viewAs"] == key
 
 
 def test_nobody_else_sees_all():
@@ -32,12 +34,12 @@ def test_nobody_else_sees_all():
 async def test_me_and_a_plan_gate_follow_the_admin_view(app):  # noqa: F811
     admin = await make_admin(app)
     me = (await admin.get("/api/auth/me")).json()
-    assert me["plan"] == "gold" and me["user"]["viewAs"] is None
+    assert me["plan"] == "platinum" and me["tier"] == "gold" and me["user"]["viewAs"] is None
     assert (await admin.get("/api/me/mf-portfolio")).status_code == 200           # a Silver page: open to an administrator
     me = (await admin.get("/api/auth/me", headers={VIEW_AS_HEADER: "basic"})).json()
-    assert me["plan"] == "basic" and me["user"]["viewAs"] == "basic"
+    assert me["plan"] == "free" and me["user"]["viewAs"] == "free"
     r = await admin.get("/api/me/mf-portfolio", headers={VIEW_AS_HEADER: "basic"})
     assert r.status_code == 403 and r.json()["detail"]["status"] == "plan_required"   # exactly what Basic sees
     member = await signed_in(app, "m@example.com", plan="basic")
-    assert (await member.get("/api/auth/me", headers={VIEW_AS_HEADER: "gold"})).json()["plan"] == "basic"
+    assert (await member.get("/api/auth/me", headers={VIEW_AS_HEADER: "gold"})).json()["plan"] == "free"
     assert (await member.get("/api/me/mf-portfolio", headers={VIEW_AS_HEADER: "gold"})).status_code == 403

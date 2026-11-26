@@ -23,7 +23,7 @@ import orjson
 from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from ..auth.entitlements import has, sees_all
+from ..auth.entitlements import has, in_area, sees_all
 from ..auth.routes import Ctx, fail, ip_of, secure_ctx
 from ..diversification import api as div
 from . import inputs
@@ -78,8 +78,8 @@ class RiskIn(PageIn):
 
 
 async def member_ctx(request: Request, ctx: Ctx = Depends(secure_ctx)) -> Ctx:
-    if not sees_all(ctx) and not has(ctx.plan, "silver"):
-        raise fail(403, "plan_required", "Equity portfolio is part of the Silver plan.", plan="silver")
+    if not in_area(ctx, "eq"):          # task #410: Equity Portfolio, the combined plan, Gold and Platinum
+        raise fail(403, "plan_required", "Equity portfolio is part of the Equity Portfolio, combined, Gold and Platinum plans.", plan="equity")
     return ctx
 
 

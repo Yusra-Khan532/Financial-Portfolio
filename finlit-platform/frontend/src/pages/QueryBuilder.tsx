@@ -257,7 +257,7 @@ export function QueryBuilder() {
     setSort(next); if (res) run(0, next);
   };
   const exportCsv = async () => {
-    if (!rat.data?.limits.export) { ask(PLAN_FOR_SCREENER, "Downloading results comes with the Silver plan."); return; }
+    if (!rat.data?.limits.export) { ask(PLAN_FOR_SCREENER, "Downloading results comes with every paid plan."); return; }
     try {
       const r = await fetch(apiUrl("/api/screener/ql/export"), { method: "POST", credentials: API_BASE ? "include" : "same-origin", headers: { "Content-Type": "application/json", Accept: "text/csv", ...viewAsHeader() }, body: JSON.stringify(bodyFor(0)) });
       if (!r.ok) throw new Error(String(r.status));
@@ -422,7 +422,7 @@ export function QueryBuilder() {
               </tbody></table></HScroll>
             {res.capped ? (
               <div className="pl-cap"><Icon name="lock" /><span><b>Showing the first {res.limit} of {nf(total, 0)} matches.</b> Silver shows every match and lets you download them.</span>
-                <button className="btn primary" onClick={() => ask(PLAN_FOR_SCREENER, "See every match with Silver.")}>Unlock with Silver</button></div>
+                <button className="btn primary" onClick={() => ask(PLAN_FOR_SCREENER, "See every match on a paid plan.")}>Unlock with Silver</button></div>
             ) : total > PAGE && (
               <div className="pm-pager"><span>{page * PAGE + 1}–{Math.min(total, page * PAGE + PAGE)} of {nf(total, 0)}</span>
                 <button className="btn" disabled={page === 0 || running} onClick={() => run((page - 1) * PAGE)}>Previous</button><button className="btn" disabled={(page + 1) * PAGE >= total || running} onClick={() => run((page + 1) * PAGE)}>Next</button></div>)}

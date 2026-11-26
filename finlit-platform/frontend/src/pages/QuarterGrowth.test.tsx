@@ -163,7 +163,7 @@ describe("the panel", () => {
     expect(st.upgrade).toHaveBeenCalledWith("silver", expect.stringMatching(/growth/i));
     expect(loc()).toBe("/results/quarter");
     expect(st.params.every((p) => (p as QParams).revQoQValue === undefined)).toBe(true);
-    expect(screen.getByText(/Growth filters and their counts are part of the Silver plan/)).toBeTruthy();
+    expect(screen.getByText(/Growth filters and their counts are part of every paid plan/)).toBeTruthy();
   });
   it("uses only wording that is information, never advice", () => {
     open();

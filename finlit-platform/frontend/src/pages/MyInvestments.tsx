@@ -32,7 +32,7 @@ import { EQ_SECTIONS, EQ_STEPS, ETF_SECTIONS, ETF_STEPS, EquityTab, EtfTab, MF_S
 import { StepCtx } from "../portfolio/pack/EqSteps385";
 import { QtyDialog } from "../myinvest/QtyDialog";
 import "../styles/myinvest.css";
-import { PLAN_FOR_PORTFOLIO, PLAN_FOR_PRISM } from "../lib/planGates";
+import { PLAN_FOR_ALL_INVESTMENTS, PLAN_FOR_PRISM } from "../lib/planGates";
 import { accountFigs, accountSub, type AccountFigs } from "../lib/accountMoney";
 import { bookRows, type Book } from "../lib/etfBook";
 import { keyOf, mfRows } from "../lib/mfBook";
@@ -69,7 +69,7 @@ export function MyInvestmentsPage() {
   useDocTitle("All my investments", "Your shares, mutual funds and ETFs in one place: how much you have, what it is made of, what you really own underneath, how healthy and how risky it is all together. Information only, not investment advice.");
   return (
     <div className="wrap mi">
-      <Gate tier={PLAN_FOR_PORTFOLIO} title="See all your investments together" points={["Your shares, mutual funds and ETFs in one place, valued from your quantities", "Every company you own, counted once, looking through your funds and ETFs", "Each kind's beta against the Nifty 500, and beta together"]}>
+      <Gate tier={PLAN_FOR_ALL_INVESTMENTS} title="See all your investments together" points={["Your shares, mutual funds and ETFs in one place, valued from your quantities", "Every company you own, counted once, looking through your funds and ETFs", "Each kind's beta against the Nifty 500, and beta together"]}>
         <Body />
       </Gate>
     </div>
@@ -79,7 +79,7 @@ export function MyInvestmentsPage() {
 function Body() {
   const { has } = useUI();
   const { holdings, portfolios } = usePortfolio();
-  const silver = has(PLAN_FOR_PORTFOLIO);
+  const silver = has(PLAN_FOR_ALL_INVESTMENTS);
   const qAll = useAllInvestments(holdings, silver);
   const mfB = useQuery({ queryKey: ["mf-portfolio", "book"], queryFn: () => apiGet<{ portfolios: Portfolio[] }>("/api/me/mf-portfolio/book"), enabled: silver, staleTime: 60_000, retry: false });
   const etfB = useQuery({ queryKey: ["etf-portfolio", "book"], queryFn: () => apiGet<Book>("/api/me/etf-portfolio/book"), enabled: silver, staleTime: 60_000, retry: false });
@@ -243,7 +243,7 @@ const FAQ: [string, string][] = [
   ["Why is a company counted more than one way?", "You can own it directly and also through a fund or an ETF. The company table adds the ways together so you see your real share of it; Held shows D (direct), F (through a fund) and E (through an ETF)."],
   ["Why is the beta against the Nifty 500?", "Shares, funds and ETFs each have their own benchmark on their own pages. To add them up, this page measures every kind against one yardstick, the Nifty 500."],
   // task #391 (C8, fault 11): the plan names come from the plan list (lib/planNames), never a fixed string
-  ["What does my plan show here?", `This page is in ${plansFromText(PLAN_FOR_PORTFOLIO)}: your shares, mutual funds and ETFs together. On ${planName(PLAN_FOR_PRISM)} the shares are read with FinLit Prism, FinLit's only company score, and each fund with its Mutual Fund Score; below it the shares show by name.`],
+  ["What does my plan show here?", `This page is in ${plansFromText(PLAN_FOR_ALL_INVESTMENTS)}: your shares, mutual funds and ETFs together. On ${planName(PLAN_FOR_PRISM)} the shares are read with FinLit Prism, FinLit's only company score, and each fund with its Mutual Fund Score; below it the shares show by name.`],
   ["Is anything sent to my broker?", "No. The lists stay in your FinLit account; nothing is sent to a broker."],
 ];
 function Faq() {

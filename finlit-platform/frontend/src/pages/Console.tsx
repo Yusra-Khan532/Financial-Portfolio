@@ -6,8 +6,9 @@ import { ApiError, apiGet, apiSend, apiUrl } from "../lib/api";
 import { useIpos } from "../lib/ipo";
 import { useFeed } from "../lib/feed";
 import * as acct from "../lib/account";
-import { useAuth } from "../lib/auth";
-import { TIER, useUI } from "../lib/ui";
+import { keyOf, PLAN_KEYS, tierOf, useAuth } from "../lib/auth";
+import { planName } from "../lib/planNames";
+import { useUI } from "../lib/ui";
 import { Icon } from "../lib/icons";
 import { useDocTitle } from "../lib/title";
 import { ScoreAdminPanel } from "../mf/ScoreAdminPanel";
@@ -115,7 +116,7 @@ function Requests() {
       <h2>Open requests</h2>
       {!rows.length ? <p className="muted">No open requests.</p> : (
         <div className="tw"><table className="qtt"><thead><tr><th>Member</th><th>Has</th><th>Wants</th><th>Note</th><th>Asked</th><th /></tr></thead>
-          <tbody>{rows.map((r) => <tr key={r.id}><td>{r.email}</td><td><span className={"tier " + r.currentPlan}>{TIER[r.currentPlan].n}</span></td><td><span className={"tier " + r.plan}>{TIER[r.plan].n}</span></td><td>{r.note || "—"}</td><td>{day(r.createdAt)}</td>
+          <tbody>{rows.map((r) => <tr key={r.id}><td>{r.email}</td><td><span className={"tier " + tierOf(r.currentPlan)}>{planName(keyOf(r.currentPlan))}</span></td><td><span className={"tier " + tierOf(r.plan)}>{planName(r.plan === "silver" ? "gold" : keyOf(r.plan))}</span></td><td>{r.note || "—"}</td><td>{day(r.createdAt)}</td>
             <td className="ra"><button className="btn primary" disabled={grant.isPending} onClick={() => grant.mutate(r)}>Grant 1 year</button> <button className="btn" disabled={decline.isPending} onClick={() => decline.mutate(r.id)}>Decline</button></td></tr>)}</tbody></table></div>
       )}
       {(grant.isError || decline.isError) && <div className="formerr">{msg(grant.error || decline.error)}</div>}
@@ -138,7 +139,7 @@ function Users() {
       <div className="tw"><table className="qtt"><thead><tr><th>Member</th><th>Plan</th><th>Until</th><th>Status</th><th>2-step</th><th>Joined</th><th>Last sign-in</th></tr></thead>
         <tbody>{list.data?.users.map((u) => (
           <tr key={u.id}><td><b>{u.email}</b>{u.name ? <small className="muted"> · {u.name}</small> : null}{u.role === "admin" && <span className="chip gold" style={{ marginLeft: 6 }}>Admin</span>}{!u.verified && <><span className="chip" style={{ marginLeft: 6 }}>Unverified</span> <button className="btn" style={{ marginLeft: 6, padding: "2px 10px" }} onClick={() => patch.mutate({ id: u.id, b: { verify_email: true } })}>Confirm email</button></>}</td>
-            <td><select aria-label={`Plan for ${u.email}`} value={u.plan} onChange={(e) => patch.mutate({ id: u.id, b: { plan: e.target.value as acct.AdminUser["plan"], plan_days: e.target.value === "basic" ? undefined : 365 } })}>{(["basic", "silver", "gold"] as const).map((p) => <option key={p} value={p}>{TIER[p].n}</option>)}</select></td>
+            <td><select aria-label={`Plan for ${u.email}`} value={keyOf(u.plan)} onChange={(e) => patch.mutate({ id: u.id, b: { plan: e.target.value as acct.AdminUser["plan"], plan_days: e.target.value === "free" ? undefined : 365 } })}>{PLAN_KEYS.map((p) => <option key={p} value={p}>{planName(p)}</option>)}</select></td>
             <td>{day(u.planUntil)}</td>
             <td><button className="btn" onClick={() => patch.mutate({ id: u.id, b: { status: u.status === "active" ? "disabled" : "active" } })}>{u.status === "active" ? "Disable" : "Enable"}</button>{" "}<button className="btn" onClick={() => { const up = u.role !== "admin"; if (window.confirm(up ? `Make ${u.email} an administrator? They will set up their own authenticator app at their next sign-in.` : `Remove administrator access from ${u.email}?`)) patch.mutate({ id: u.id, b: { role: up ? "admin" : "investor" } }); }}>{u.role === "admin" ? "Remove admin" : "Make admin"}</button></td>
             <td>{u.mfa ? <Icon name="check" /> : "—"}</td><td>{day(u.createdAt)}</td><td>{day(u.lastLoginAt)}</td></tr>))}</tbody></table></div>
