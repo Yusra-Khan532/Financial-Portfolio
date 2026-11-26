@@ -217,6 +217,9 @@ async def test_rebuild_then_every_reader_passes_the_packs_checks_and_a_new_run_c
                 assert fix["written"] >= 3
                 assert await conn.fetchval("SELECT count(*) FROM peer_label_run WHERE week_end = $1 AND status = 'superseded'", nxt) == 1
                 assert (await P.latest(conn, ["BBB"]))["BBB"]["label"] == "leader"
+    async with store.pool.acquire() as conn:   # leave the switch as the other leadership tests expect it: off, and not cached as on
+        await conn.execute("UPDATE feature_flags SET enabled = false WHERE name = 'leadership'")
+    leadership_api._flag["at"] = 0.0
 
 
 def test_the_screener_takes_the_records_label_and_the_screens_follow_it():
