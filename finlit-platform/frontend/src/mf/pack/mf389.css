@@ -63,7 +63,7 @@
 @media (max-width: 760px) { .mfp .px-pg { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
 /* ===== since your last visit, data as of ===== */
-.mfp .px-since { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; margin: -4px 0 16px; padding: 10px 16px; border: 1px solid var(--border); border-radius: var(--r-ctl); background: var(--s1); font: 400 var(--fs-14)/1.4 var(--sans); color: var(--muted); }
+.mfp .px-since { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; margin: -4px 0 16px; padding: 10px 16px; border: 1px solid var(--border); border-radius: var(--r-card); background: var(--s1); font: 400 var(--fs-14)/1.4 var(--sans); color: var(--muted); }   /* audit of 26 Nov (files 39, 40; SP5): 18 px corners, a box on the page, as on Equity (was 12) */
 .mfp .px-since b { color: var(--text); font-weight: 600; margin-right: 2px; }
 .mfp .px-since .px-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--gain); }
 .mfp .px-since > span { flex: 1; min-width: 220px; }

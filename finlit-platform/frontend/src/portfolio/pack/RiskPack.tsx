@@ -128,8 +128,8 @@ export function BetaBuild({ r, basis = "equal", nameOf = ident }: { r: RiskAnswe
           <div className="eqr-stack" role="img" aria-label={`What each size adds: ${sizes.map((s) => `${s.size} ${s.adds?.toFixed(2) ?? MINUS}`).join(", ")}`}>{sizes.map((s) => <i key={s.size} style={{ flexGrow: Math.max(0.01, s.adds ?? 0) / Math.max(0.01, w ?? 1), background: BAR[s.size] }}>{s.size} {s.adds?.toFixed(2) ?? MINUS}</i>)}</div>
           <ul className="eqb-leg">{sizes.map((s) => <li key={s.size}><b>{s.size}</b> moves {times(s.avgBeta)}, on {Math.round(s.listShare)}% of the list: adds <b>{s.adds?.toFixed(2) ?? MINUS}</b></li>)}</ul></div>
       </div>
-      <p className="x2-k" aria-hidden="true">How it is built <small>{TABS.length} ways to look · tap one</small></p>
-      <div className="xtabs eqb-tabs3" role="tablist" aria-label="How your list's beta is built">{TABS.map(([k, t, x], i) => (
+      {/* audit of 26 Nov (file 38, Part D): the caption sits inside the tab bar, so the bar is 18 px under the boxes above (was 37 with the caption between) */}
+      <div className="xtabs eqb-tabs3" role="tablist" aria-label="How your list's beta is built"><p className="x2-k" aria-hidden="true">How it is built <small>{TABS.length} ways to look · tap one</small></p>{TABS.map(([k, t, x], i) => (
         <button key={k} type="button" role="tab" id={"eqb-t-" + k} aria-selected={tab === k} aria-controls={"eqb-p-" + k} tabIndex={tab === k ? 0 : -1} onClick={() => setTab(k)}
           onKeyDown={(e) => { const n = e.key === "ArrowRight" ? i + 1 : e.key === "ArrowLeft" ? i - 1 : null; if (n == null) return; e.preventDefault(); const to = TABS[(n + TABS.length) % TABS.length][0]; setTab(to); setTimeout(() => document.getElementById("eqb-t-" + to)?.focus(), 0); }}>
           <span className="xn" aria-hidden="true">{i + 1}</span><b>{t}</b><small>{x}</small></button>))}</div>
