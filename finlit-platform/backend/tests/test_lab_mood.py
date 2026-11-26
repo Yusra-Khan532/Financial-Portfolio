@@ -54,6 +54,8 @@ class Scorer:
 @pg
 async def test_world_headlines_are_scored_once_kept_48_hours_and_the_route_is_for_lab_members(app):  # noqa: F811
     store = app.state.store
+    async with store.pool.acquire() as conn:
+        await conn.execute("DELETE FROM macro_meta WHERE key = $1", M.WORLD_KEY)     # a clean start whatever ran before
     scorer = Scorer()
     now = datetime(2026, 11, 26, 19, 0, tzinfo=timezone.utc)
 
