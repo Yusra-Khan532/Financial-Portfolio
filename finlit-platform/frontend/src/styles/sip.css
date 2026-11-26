@@ -16,15 +16,10 @@
 .sip-box { display: inline-flex; align-items: center; gap: 6px; padding: 0 12px; height: 40px; border-radius: var(--r-ctl); border: 1px solid var(--border-strong); background: var(--bg); transition: border-color .15s, box-shadow .15s; }
 .sip-box:focus-within { border-color: var(--gold); box-shadow: 0 0 0 3px var(--gold-soft); }
 .sip-box i { font-style: normal; color: var(--faint); font: 500 var(--fs-14) var(--sans); }
-.sip-page .sip-box input:not([type="checkbox"]):not([type="radio"]):not([type="range"]) { width: 112px; border: 0 !important; background: none !important; box-shadow: none !important; padding: 0; height: auto; text-align: right; color: var(--text); font: 700 var(--fs-16) var(--mono); outline: none; }
-.sip-range { -webkit-appearance: none; appearance: none; width: 100%; height: 22px; background: transparent; margin: 0; cursor: pointer; --fill: 50%; }
-.sip-range::-webkit-slider-runnable-track { height: 6px; border-radius: var(--ui-r-pill); background: linear-gradient(90deg, var(--gold-deep), var(--gold) var(--fill), var(--s3) var(--fill)); }
-.sip-range::-moz-range-track { height: 6px; border-radius: var(--ui-r-pill); background: var(--s3); } .sip-range::-moz-range-progress { height: 6px; border-radius: var(--ui-r-pill); background: linear-gradient(90deg, var(--gold-deep), var(--gold)); }
-.sip-range::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; margin-top: -8px; border-radius: 50%; background: var(--s1); border: 3px solid var(--gold); box-shadow: 0 4px 12px -4px rgba(0,0,0,.5); transition: transform .15s; }
-.sip-range::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; background: var(--s1); border: 3px solid var(--gold); }
-.sip-range:hover::-webkit-slider-thumb, .sip-range:focus-visible::-webkit-slider-thumb { transform: scale(1.15); box-shadow: 0 0 0 6px var(--gold-soft); }
-.sip-range:focus-visible { outline: none; }
-.sip-marks { display: flex; justify-content: space-between; margin-top: -6px; font: 500 var(--fs-12) var(--mono); color: var(--faint); }
+.sip-page .sip-box input:not([type="checkbox"]):not([type="radio"]):not([type="range"]) { width: 148px; max-width: 100%; border: 0 !important; background: none !important; box-shadow: none !important; padding: 0; height: auto; text-align: right; color: var(--text); font: 700 var(--fs-16) var(--mono); outline: none; }
+.sip-range-note { margin: -4px 0 0; font: 500 var(--fs-12) var(--mono); color: var(--faint); text-align: right; }   /* task #399: the range the typed box accepts, in place of the slider */
+.sip-err { margin: 0; font-size: var(--fs-13); line-height: 1.45; color: var(--loss); }
+.sip-box.bad { border-color: var(--loss); }
 .sip-hint { margin: 0; font-size: var(--fs-13); line-height: 1.5; color: var(--faint); }
 .sip-link { border: 0; background: none; padding: 0; color: var(--gold); font: 600 var(--fs-13) var(--sans); cursor: pointer; text-align: left; justify-self: start; }
 .sip-link:hover { text-decoration: underline; }
@@ -51,15 +46,18 @@
 .sip-d-bg { fill: none; stroke: var(--s3); stroke-width: 22; }
 .sip-d-gain { fill: none; stroke: url(#sipGain); stroke-width: 22; }
 .sip-d-inv { fill: none; stroke: var(--k1); stroke-width: 22; stroke-linecap: butt; transition: stroke-dasharray .5s cubic-bezier(.2,.9,.3,1); }
-.sip-d-c { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; gap: 2px; }
-.sip-d-c span { font-size: var(--fs-12); color: var(--faint); } .sip-d-c b { font: 700 var(--fs-24) var(--mono); color: var(--text); } .sip-d-c small { font-size: var(--fs-12); color: var(--gold); font-weight: 600; }
+.sip-d-c { position: absolute; inset: 0; display: grid; grid-template-columns: minmax(0, 1fr); align-content: center; justify-items: center; text-align: center; gap: 2px; padding: 0 21%; min-width: 0; }   /* task #399: the figures stay inside the ring's hole */
+.sip-d-c span { font-size: var(--fs-12); color: var(--faint); } .sip-d-c b { font: 700 var(--fs-24) var(--mono); color: var(--text); } .sip-d-c small { font-size: var(--fs-12); color: var(--gold); font-weight: 600; overflow-wrap: anywhere; }
+.sip-d-c b.s { font-size: var(--fs-18); } .sip-d-c b.xs { font-size: var(--fs-14); }   /* a longer figure steps down a size so it fits the ring */
 .sip-legend { list-style: none; margin: 0; padding: 0; display: flex; gap: 16px; font-size: var(--fs-13); color: var(--muted); }
 .sip-legend i, .sip-keys i { display: inline-block; width: 12px; height: 12px; border-radius: var(--ui-r-mark); margin-right: 7px; vertical-align: -1px; }
 .sip-legend .inv { background: var(--k1); } .sip-legend .gain { background: linear-gradient(135deg, var(--gold-2), var(--gold-deep)); }
 
 .sip-out { display: grid; gap: 14px; }
-.sip-kv { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+.sip-kv { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 4px 10px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
 .sip-kv span { font-size: var(--fs-14); color: var(--muted); } .sip-kv b { font: 700 var(--fs-20) var(--mono); } .sip-kv.gain b { color: var(--gain); }
+.sip-kv b, .sip-big b, .sip-real b { min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
+.sip-main .sip-out > .sip-kv:first-child { padding-right: 44px; }   /* task #399: the ring's enlarge button sits in the card's top-right corner; the first figure keeps clear of it */   /* task #399: a large figure wraps inside its box, never past its edge */
 .sip-big { display: grid; gap: 4px; padding: 18px; border-radius: var(--r-card); text-align: center; background: linear-gradient(135deg, color-mix(in srgb, var(--gold) 20%, transparent), color-mix(in srgb, var(--gold) 6%, transparent)); border: 1px solid color-mix(in srgb, var(--gold) 45%, transparent); }
 .sip-big span { font-size: var(--fs-14); color: var(--muted); } .sip-big b { font: 700 var(--fs-28) var(--mono); color: var(--text); letter-spacing: -.01em; } .sip-big small { font-size: var(--fs-12); color: var(--faint); }
 .sip-real { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; padding: 12px 14px; border-radius: var(--r-ctl); background: var(--s2); }
@@ -159,7 +157,7 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .sip-a, .sip-wrow em, .sip-pane, .sip-opts { animation: none !important; }
-  .sip-d-inv, .sip-range::-webkit-slider-thumb, .sip-tog span, .sip-tog span::after { transition: none; }
+  .sip-d-inv, .sip-tog span, .sip-tog span::after { transition: none; }
 }
 .sip-page .sip-t td:first-child, .sip-page .sip-t th:first-child { background-color: transparent; position: static; } .sip-page .sip-t th:first-child { background: var(--s2); }
 /* Task #167: the ring in the enlarged dialog, as large as the room allows (SipCalculator Donut) */

@@ -13,7 +13,7 @@ import { StepsBar, type Step } from "../components/StepsBar";
 import { usePortfolio } from "../lib/portfolio";
 import { useDocTitle } from "../lib/title";
 import { useUI } from "../lib/ui";
-import { KIND_NAME, chg, dateShort, joinWords, kindsHeld, lower, moneyByKind, pctOf, rupees, splitLine, useAllInvestments, type AccountPick, type AllInvestments, type Kind, type KindMoney, type Tab } from "../lib/myInvest";
+import { KIND_NAME, chg, joinWords, kindsHeld, lower, moneyByKind, pctOf, rupees, splitLine, useAllInvestments, type AccountPick, type AllInvestments, type Kind, type KindMoney, type Tab } from "../lib/myInvest";
 import { apiGet } from "../lib/api";
 import { DEFAULT_PF, type Holding, type Portfolio } from "../lib/portfolio";
 import { StickySwitch, VIEW_ICON, type ViewDef } from "../portfolio/ViewKit";
@@ -21,7 +21,7 @@ import "../portfolio/holdings-kit.css";
 import { ALL_SECTIONS, AllTogether } from "../myinvest/AllTogether";
 import { MiCards, NextView, TopCard, type AccRow } from "../myinvest/Top";
 import { MiStepCtx } from "../myinvest/Steps391";
-import { MI_STEPS, asOfParts, kindStepFromParam, kindStepParam, miSince, miStepFromParam, miStepParam, stepIn, movesAsMuchNifty, readMiStep, riskWord, saveMiStep, coLabel } from "../lib/mi391";
+import { MI_STEPS, asOfParts, sourcesLine, kindStepFromParam, kindStepParam, miSince, miStepFromParam, miStepParam, stepIn, movesAsMuchNifty, readMiStep, riskWord, saveMiStep, coLabel } from "../lib/mi391";
 import { useWhatChanged } from "../components/changes/WhatChanged";
 import { changesOf } from "../myinvest/Changes277";
 import { dayMonth } from "../lib/whatChanged";
@@ -32,6 +32,11 @@ import { EQ_SECTIONS, EQ_STEPS, ETF_SECTIONS, ETF_STEPS, EquityTab, EtfTab, MF_S
 import { StepCtx } from "../portfolio/pack/EqSteps385";
 import { QtyDialog } from "../myinvest/QtyDialog";
 import "../styles/myinvest.css";
+import { PageBottom } from "../portfolio/shared/PageBottom";
+import { VisitFolds } from "../portfolio/shared/VisitFold";
+import type { PageFaq } from "../content/pageFaqs";
+import "../portfolio/shared/shared.css";
+import "../styles/mi41.css";   // task #391 (developer file 41 v4): the page's spacing system, its boxes as .sp-sec, the bars' cover (scoped .mi)
 import { PLAN_FOR_ALL_INVESTMENTS, PLAN_FOR_PRISM } from "../lib/planGates";
 import { accountFigs, accountSub, type AccountFigs } from "../lib/accountMoney";
 import { bookRows, type Book } from "../lib/etfBook";
@@ -68,11 +73,15 @@ function accountsOf(eqPfs: Portfolio[] | undefined, hs: Holding[], mf: Portfolio
 export function MyInvestmentsPage() {
   useDocTitle("All my investments", "Your shares, mutual funds and ETFs in one place: how much you have, what it is made of, what you really own underneath, how healthy and how risky it is all together. Information only, not investment advice.");
   return (
-    <div className="wrap mi">
+    // task #391 (developer file 41 v4): D1 (SHARED.md SP1): the same width and edges as Equity, ETF and MF come from the width rule in styles/mi41.css, not
+    // from the `pfx` class: pf.css, bundled with the Equity page, gives every .pfx page base type (14/20), a p/h2/ul margin reset and a .tw max-width, so
+    // after a visit to the Equity page 1,277 of this page's 1,350 boxes moved and the Every company frame lost its F1 bleed (measured at 1,440 px).
+    // VisitFolds (K1, E2): Key figures and the bottom's two folds closed on every visit, open for the rest of the visit once opened
+    <VisitFolds><div className="wrap mi">
       <Gate tier={PLAN_FOR_ALL_INVESTMENTS} title="See all your investments together" points={["Your shares, mutual funds and ETFs in one place, valued from your quantities", "Every company you own, counted once, looking through your funds and ETFs", "Each kind's beta against the Nifty 500, and beta together"]}>
         <Body />
       </Gate>
-    </div>
+    </div></VisitFolds>
   );
 }
 
@@ -186,10 +195,11 @@ function Body() {
         <InShort d={d} money={money} />
         {(d.unknown.length > 0 || d.gone.length > 0) && <p className="mi-small mi-note">{d.unknown.length > 0 && <>Not read: {d.unknown.join(", ")} (not a company FinLit lists). </>}{d.gone.length > 0 && <>No longer listed: {d.gone.join(", ")}.</>}</p>}
       </>}
-      <details className="card mi-fold"><summary><span><b>Disclaimer</b><small>What this page is, and is not</small></span><span className="mi-chev" aria-hidden="true" /></summary>
-        <p>{d?.disclaimer ?? "Information only, not investment advice."}</p><p>This page describes your lists; it does not tell you what to do with them. Nothing is sent to a broker.</p></details>
-      <Faq />
-      {d && <p className="mi-small mi-src">Shares and ETFs: NSE closing prices to {dateShort(d.sources.pricesTo)}. Funds: NAVs and costs from AMFI to {dateShort(d.sources.navsTo)}; holdings from each fund house's monthly portfolio file{d.sources.filesTo ? ` (${d.sources.filesFrom === d.sources.filesTo ? dateShort(d.sources.filesTo) : `${dateShort(d.sources.filesFrom)} to ${dateShort(d.sources.filesTo)}`})` : ""}. Nifty 500 from NSE. Mutual fund investments are subject to market risks; read all scheme-related documents carefully. Past figures do not guarantee future returns. Information only, not investment advice.</p>}
+      {/* task #391 (developer file 41 v4, E2; SHARED.md SP11): the shared bottom of the portfolio pages: "Questions about this page · 8" (the page's own
+          eight questions), the Disclaimer fold (its text unchanged), then the sources line; both folds closed on arrival, 18 px apart. E3: the sources line
+          names the funds only when there are funds, with their NAV date */}
+      <PageBottom faq={MI_FAQ} sources={d ? sourcesLine(d) : null}
+        disclaimer={<><p>{d?.disclaimer ?? "Information only, not investment advice."}</p><p>This page describes your lists; it does not tell you what to do with them. Nothing is sent to a broker.</p></>} />
       {qty && d && <QtyDialog d={d} onClose={() => setQty(false)} />}
     </>
   );
@@ -218,7 +228,7 @@ function InShort({ d, money }: { d: AllInvestments; money: Record<Kind | "all", 
     ["Risk", d.risk.beta != null ? `Together it ${movesAsMuchNifty(d.risk.beta)}${riskWord(d.risk.band, d.risk.beta, d.risk.bandKey) ? `: ${riskWord(d.risk.band, d.risk.beta, d.risk.bandKey)!.toLowerCase()}` : ""}.${d.risk.largest ? ` ${KIND_NAME[d.risk.largest]} carry ${pctOf(d.risk.parts.find((p) => p.kind === d.risk.largest)?.riskShare, 0)} of the market risk on ${pctOf(d.risk.parts.find((p) => p.kind === d.risk.largest)?.money, 0)} of the money.` : ""}` : d.risk.why ?? "—"],
   ];
   return (
-    <section className="card mi-short" aria-labelledby="mi-short-h"><h2 id="mi-short-h">What this means, in short</h2><p className="mi-small">Written from your figures{d.byValue ? "" : ", with each kind counting the same until you add quantities"}.</p>
+    <section className="sp-sec mi-short" aria-labelledby="mi-short-h"><h2 id="mi-short-h">What this means, in short</h2><p className="mi-small">Written from your figures{d.byValue ? "" : ", with each kind counting the same until you add quantities"}.</p>
       <dl>{lines.map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}</dl></section>
   );
 }
@@ -246,11 +256,5 @@ const FAQ: [string, string][] = [
   ["What does my plan show here?", `This page is in ${plansFromText(PLAN_FOR_ALL_INVESTMENTS)}: your shares, mutual funds and ETFs together. On ${planName(PLAN_FOR_PRISM)} the shares are read with FinLit Prism, FinLit's only company score, and each fund with its Mutual Fund Score; below it the shares show by name.`],
   ["Is anything sent to my broker?", "No. The lists stay in your FinLit account; nothing is sent to a broker."],
 ];
-function Faq() {
-  useEffect(() => { if (location.hash === "#mi-faq") document.getElementById("mi-faq")?.scrollIntoView(); }, []);
-  return (
-    <section className="card mi-faq" id="mi-faq" aria-labelledby="mi-faq-h"><p className="mi-eyebrow">Questions about this page</p><h2 id="mi-faq-h">All my investments · {FAQ.length} questions</h2>
-      {FAQ.map(([q, a], i) => <details key={q} open={i === 0}><summary>{q}<span className="mi-chev" aria-hidden="true" /></summary><p>{a}</p></details>)}
-      <p className="mi-small">Information only, not investment advice.</p></section>
-  );
-}
+/** The page's eight questions as the shared Questions box shows them (portfolio/shared/PageBottom: folded, "Questions about this page · 8"). */
+export const MI_FAQ: PageFaq = { id: "my-investments", title: "All my investments", section: "Portfolios", routes: ["/my-investments"], items: FAQ.map(([q, a]) => ({ q, a })) };

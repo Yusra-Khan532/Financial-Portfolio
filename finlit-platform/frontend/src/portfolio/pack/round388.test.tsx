@@ -302,3 +302,18 @@ describe("Part B item 10: on a phone, All sections folds every step after the fi
     expect(document.querySelector(".eqf")).toBeNull();
   });
 });
+
+// Audit of 26 Nov (file 38, Your shares in every column set): the Against peers line runs through the group rows (By sector, By company size) and the
+// heading labels stay on two lines
+describe("audit of 26 Nov: Your shares in By sector and By company size", () => {
+  for (const tab of ["sector", "size"] as const) it(`${tab}: the group row has the Against peers line under its heading; long labels are two set lines`, () => {
+    table(tab);
+    const t = document.querySelector("#pf-shares table") as HTMLTableElement;
+    let col = 0, at = -1; for (const c of Array.from(t.tHead!.rows[0].cells)) { if (/Against peers/.test(c.textContent ?? "")) at = col; col += c.colSpan; }
+    expect(at).toBeGreaterThan(0);
+    const sub = t.querySelector("tr.eqs-sub")!; let k = 0; const cell = Array.from(sub.children).find((c) => { const hit = k === at; k += (c as HTMLTableCellElement).colSpan; return hit; })!;
+    expect(cell.classList.contains("eq-div2")).toBe(true);
+    const avg = Array.from(t.tHead!.rows[1].cells).find((c) => /^Avg buy/.test(c.textContent ?? ""))!;
+    expect(avg.querySelector(".pfx-l2")!.innerHTML).toBe("Avg buy <br>price");
+  });
+});

@@ -128,7 +128,9 @@ def beta500_weekly(series: List[Tuple[List[int], List[float]]], weights: List[fl
     chs = [mfb.changes(mfb.weekly(d, v, weeks_at)) for d, v in series]
     each = [mfb.r2(mfb.ols(c, n500)[0]) for c in chs]
     # task #391 (file 35, fault 1): a holding that weighs 0 in the split (no quantity) is not part of the list's line
-    keep = [k for k, c in enumerate(chs) if sum(1 for x in c if x is not None) >= mfb.MIN_WEEKS and (weights[k] > 0 or not any(w > 0 for w in weights))]
+    long_enough = [sum(1 for x in c if x is not None) >= mfb.MIN_WEEKS for c in chs]
+    weighed = [weights[k] > 0 or not any(w > 0 for w in weights) for k in range(len(chs))]
+    keep = [k for k in range(len(chs)) if long_enough[k] and weighed[k]]
     tw = sum(weights[k] for k in keep) or 1.0
     lw = {k: weights[k] / tw for k in keep}
     rows = [i for i in range(len(n500)) if keep and all(chs[k][i] is not None for k in keep)]
@@ -136,10 +138,14 @@ def beta500_weekly(series: List[Tuple[List[int], List[float]]], weights: List[fl
     for i in rows:
         port[i] = sum(lw[k] * chs[k][i] for k in keep)   # type: ignore[operator]
     b = mfb.ols(port, n500)[0] if len(rows) >= mfb.MIN_WEEKS else None
-    short = [names[k] for k in range(len(chs)) if k not in keep] if names else []
+    # task #391 (developer file 41 v4, A4): each one left out says its own reason. A holding without a quantity weighs 0, so it is left out for that
+    # ("noQty": "no quantity yet"), whatever its history; "short" is only the ones with under most of a year of weekly prices. Both lists used to be one
+    # ("short"), so an ETF with three years of prices but no quantity read "under a year of prices".
+    no_qty = [names[k] for k in range(len(chs)) if not weighed[k]] if names else []
+    short = [names[k] for k in range(len(chs)) if weighed[k] and not long_enough[k]] if names else []
     return {"beta": mfb.r2(b), "each": each, "window": {"index": "Nifty 500", "grain": "weekly", "window": "past year", "weeks": len(rows),
             "from": date.fromordinal(weeks_at[0]).isoformat(), "to": date.fromordinal(weeks_at[-1]).isoformat(),
-            "counted": len(keep), "of": len(chs), "short": short}}
+            "counted": len(keep), "of": len(chs), "short": short, "noQty": no_qty}}
 
 
 def fund_units(held: List[Dict[str, Any]]) -> Tuple[Dict[int, Dict[str, Any]], set]:
@@ -208,6 +214,27 @@ def swing_windows(kinds: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
             by.setdefault(w["label"], []).append(k)
     line = " ".join(f"{calc.and_list([KIND_WORD[k] if i == 0 else calc.PART_WORD[k] for i, k in enumerate(ks)])}: {label}." for label, ks in by.items())
     return {"differ": len(by) > 1, "line": line or None}
+
+
+def price_at(v: Any) -> Optional[str]:
+    """A quote's time as an ISO string ("2026-11-26T10:16:05+05:30"); a value without a time of day (a date) or one that does not parse is None."""
+    if not v or len(str(v)) <= 10:
+        return None
+    try:
+        return datetime.fromisoformat(str(v).replace("Z", "+00:00")).isoformat()
+    except ValueError:
+        return None
+
+
+def prices_of(shares: List[Dict[str, Any]], etfs: List[Dict[str, Any]]) -> Dict[str, Optional[str]]:
+    """Task #391 (developer file 41 v4, A1): which prices each kind uses. `sharesAt`: the latest share quote time (None when no share has a timed
+    quote); `sharesTo`: the latest share price date; `etfsTo`: the latest ETF close date."""
+    def when(x: str) -> datetime:
+        d = datetime.fromisoformat(x)
+        return d if d.tzinfo else d.replace(tzinfo=timezone.utc)
+    ats = [s["priceAt"] for s in shares if s.get("priceAt")]
+    return {"sharesAt": max(ats, key=when) if ats else None, "sharesTo": max((s["priceDate"] for s in shares if s.get("priceDate")), default=None),
+            "etfsTo": max((e["priceDate"] for e in etfs if e.get("priceDate")), default=None)}
 
 
 def _days_closes(p: Optional[Dict[str, Any]]) -> Tuple[List[int], List[float]]:
@@ -344,7 +371,10 @@ async def all_investments(request: Request, body: Body, ctx: Ctx = Depends(membe
         # QA of 21 Nov (item 5): the price and the day's change are the company's quote, as the Equity portfolio shows them (the stored price series is
         # weekly, so its last point can be an older close); the series stays the fallback and still gives the 1-year change
         price = q.get("price") or last
-        shares.append({"symbol": s, "name": f.get("name") or s, "qty": qty[s], "price": price,
+        # task #391 (developer file 41 v4, A1): the quote's own time goes with it (`priceAt`, as the Equity portfolio's priceAsOf), so a price from inside
+        # the session reads "at 10:16", not "close"; the date alone (priceDate) stays for the lists
+        at = price_at(q.get("asOf")) if q.get("price") else None
+        shares.append({"symbol": s, "name": f.get("name") or s, "qty": qty[s], "price": price, "priceAt": at,
                        "priceDate": (str(q["asOf"])[:10] if q.get("price") and q.get("asOf") else date.fromordinal(days[-1]).isoformat() if days else None),
                        "chg1d": q["changePct"] if q.get("price") and q.get("changePct") is not None else (last / prev - 1) * 100 if last and prev else None,
                        "chg1y": _year_change(days, vals), "mcap": calc._num(f.get("mcap"))})
@@ -486,7 +516,7 @@ async def all_investments(request: Request, body: Body, ctx: Ctx = Depends(membe
                          types=[{"label": k, "count": n} for k, n in Counter(e["categoryLabel"] or "Other" for e in etfs).items()])
 
     twice = {s for x in rep for s in x["symbols"]}
-    out_shares = [{**{k: s[k] for k in ("symbol", "name", "qty", "price", "priceDate", "chg1d", "chg1y", "beta", "score", "label")},
+    out_shares = [{**{k: s[k] for k in ("symbol", "name", "qty", "price", "priceDate", "priceAt", "chg1d", "chg1y", "beta", "score", "label")},
                    "macro": (classes.get(s["symbol"]) or {}).get("macro_sector") or calc.NOT_CLASSIFIED, "size": calc.size_of(s["mcap"]), "peer": calc.peer_word(peer_raw.get(s["symbol"]), True),
                    "value": calc.r(s["qty"] * s["price"]) if s["qty"] and s["price"] else None, "of": calc.r(split["part"]["shares"] * w * 100),
                    "alsoIn": next(({"funds": calc.r(c["funds"]), "etfs": calc.r(c["etfs"]), "all": calc.r(c["all"]), "via": [fund_name.get(x, str(x)) for x in c["viaFunds"]] + c["viaEtfs"]}
@@ -527,6 +557,9 @@ async def all_investments(request: Request, body: Body, ctx: Ctx = Depends(membe
         "health": health, "risk": {**together, "kinds": kind_risk, "bench": bench_fig},
         "shares": out_shares, "funds": out_funds, "etfs": out_etfs,
         "sources": {"pricesTo": max((s["priceDate"] for s in shares + etfs if s.get("priceDate")), default=None),
+                    # task #391 (developer file 41 v4, A1): each kind's own prices, so the page says when they differ: the shares' latest quote time (an
+                    # ISO time in India time, or a date when no quote carries one), the ETFs' last NSE close (the ETF portfolio's own price, etf.row_view)
+                    **prices_of(shares, etfs),
                     "navsTo": max((f["navDate"] for f in funds if f.get("navDate")), default=None), "filesFrom": min(files, default=None), "filesTo": max(files, default=None)},
         "unknown": [s for s in symbols if s not in known], "gone": etf_gone, "disclaimer": DISCLAIMER,
     }

@@ -4,13 +4,17 @@
 //                       it again. The block is found as the pack's hdOf() does: the section's heading block (.mi-sh), and for What changed the inner
 //                       section (.mi7-wc > section.wc) with its heading and its Discover line. With one stop chosen nothing folds.
 // Styles: styles/mi391.css (mi391-fold). Describes; never advises.
-import { createContext, useContext, useState, type ReactNode } from "react";
+import { createContext, useContext, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { useIsPhone } from "../components/PhoneFold";
 
 export const MiStepCtx = createContext<{ step: string; first: string }>({ step: "all", first: "" });
 
 export function MiStep({ id, title, children }: { id: string; title: string; children: ReactNode }) {
   const { step, first } = useContext(MiStepCtx), phone = useIsPhone(), [open, setOpen] = useState(false);
+  // task #391 (developer file 41 v4, E4): the Enlarge arrow's place (--cz-dt) was worked out while the step was closed, on the fold's own box, so once open
+  // it sat on "Close ▴", 42 px above the card's corner; each toggle has it found again (ChartZoom listens for "cz-refit")
+  const toggled = useRef(false);
+  useLayoutEffect(() => { if (!toggled.current) { toggled.current = true; return; } window.dispatchEvent(new Event("cz-refit")); }, [open]);
   if (step !== "all" && step !== id) return null;
   if (step !== "all" || !phone || id === first) return <>{children}</>;
   return (

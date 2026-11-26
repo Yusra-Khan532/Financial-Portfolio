@@ -135,11 +135,12 @@ describe("Top: four calm cards, Since your last visit, Data as of, the money box
     expect(chips()[4].getAttribute("aria-current")).toBe("step");
   });
   it("T7: Data as of under the section bar", async () => {
-    expect(asOfParts(D(), 90)).toEqual([["Prices", "close of 14 Nov"], ["Fund and ETF holdings", "each file of 31 Oct 2026"], ["Filings", "the last 90 days"], ["Risk", "weekly prices, past year"]]);
+    // developer file 41 v4 (A1): the sample's funds are on the NAV of 13 Nov, its shares and ETFs on the close of 14 Nov, so Data as of says each
+    expect(asOfParts(D(), 90)).toEqual([["Prices", "Shares and ETFs close of 14 Nov · funds NAV 13 Nov"], ["Fund and ETF holdings", "each file of 31 Oct 2026"], ["Filings", "the last 90 days"], ["Risk", "weekly prices, past year"]]);
     mount(); await screen.findByText("Where your money sits");
     const p = document.querySelector(".mi391-asof")!;
     expect(p.previousElementSibling!.className).toContain("stb-wrap");
-    expect(p.textContent).toBe("Data as ofPrices close of 14 Nov·Fund and ETF holdings each file of 31 Oct 2026·Filings the last 90 days·Risk weekly prices, past year");
+    expect(p.textContent).toBe("Data as ofPrices Shares and ETFs close of 14 Nov · funds NAV 13 Nov·Fund and ETF holdings each file of 31 Oct 2026·Filings the last 90 days·Risk weekly prices, past year");
   });
   it("T8, F3, F4: the big figure covers the holdings with a buy price; every holding with a quantity on its own line; the note in three sentences", async () => {
     const d = D(); d.byValue = false; d.missing = ["shares", "funds", "etfs"];
@@ -223,8 +224,10 @@ describe("Sections: names, Key figures questions, What changed, risk words, plan
     expect(within(fall).queryByRole("button", { name: /^Hide/ })).toBeNull();
     expect(fall.querySelector("h2 button.info")!.getAttribute("aria-label")).toBe("What is the fall picture?");
     expect(fall.querySelector(".sp-i")).toBeNull();
-    // fault 12: the windows in the column header
-    expect(sec.querySelector(".mi391-win")!.textContent).toBe("Shares weekly, 2 years · funds and ETFs daily, 3 years");
+    // fault 12: the windows stated once, under the table (file 41, founder 26 Nov), never in the heading
+    expect(sec.querySelector(".mi391-win")!.textContent).toBe("Swing a year and worst fall from a high: Shares weekly, 2 years · funds and ETFs daily, 3 years");
+    expect(sec.querySelector("table thead .mi391-win")).toBeNull();
+    expect(sec.querySelector("table")!.compareDocumentPosition(sec.querySelector(".mi391-win")!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(sec.querySelector("tbody")!.textContent).not.toMatch(/\(\d\.\d y\)/);
   });
   it("F12: PR B's window field wins when present", () => {
@@ -319,7 +322,7 @@ describe("with PR B's optional fields (fault 1, 2, 7, 12) and the other views in
     const d = D(); d.risk.bandKey = "similar"; d.risk.bandSays = "Similar: moves about with the market. When the Nifty 500 moved 1%, this moved about 0.91%.";
     d.risk.swingWindows = { differ: true, line: "Shares: weekly prices, 2 years. Mutual funds and ETFs: daily NAVs and prices, 3 years." };
     st.answer = d; mount("/my-investments?step=risk"); await screen.findByText("How risky it is, all together");
-    expect(document.querySelector(".mi391-win")!.textContent).toBe("Shares: weekly prices, 2 years. Mutual funds and ETFs: daily NAVs and prices, 3 years.");
+    expect(document.querySelector(".mi391-win")!.textContent).toBe("Swing a year and worst fall from a high: Shares: weekly prices, 2 years. Mutual funds and ETFs: daily NAVs and prices, 3 years.");
     expect(document.querySelector(".mi-rh-dark")!.textContent).toContain("Similar: moves about with the market.");
   });
   it("the Equity view is one step at a time: Key figures in step 1, a Key figures link opens its step, &step= in the address", async () => {

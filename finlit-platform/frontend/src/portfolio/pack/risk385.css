@@ -64,20 +64,31 @@
 .eq .eqs-frz table.eqr-each tbody tr.eqr-er:hover > td, .eq .eqs-frz table.eqr-each tbody tr.eqr-er:focus-within > td { background: var(--s2); }
 .eq .eqs-frz table.eqr-each tr.eqr-g > td:first-child { position: static; background: var(--s2); }
 .eq .eqs-frz table.eqr-each tr.eqr-g > td:first-child > button { position: sticky; left: 0; }
-@media (min-width: 1100px) {
+/* Audit of 26 Nov (file 38, F6/T8 applied to this table): the heading row was 100 px (labels on 3 lines, each i on a line of its own, "higher = safer"
+   on two more). Now every label is two lines at most with its i beside it, the sort arrow follows the last word, and the row is 47 px at 1440, sorted by any column too. The
+   widths are set for that: the table keeps all columns from 1,400 px and scrolls sideways (Share frozen) below a 1,230 px table. */
+.eq table.eqr-each { width: 100%; min-width: 1230px; table-layout: fixed; }
+.eq table.eqr-each th, .eq table.eqr-each td { padding-left: 7px; padding-right: 7px; white-space: normal; overflow-wrap: anywhere; }
+.eq table.eqr-each thead th { letter-spacing: .03em; }
+.eq table.eqr-each thead tr.eqr-thg th { letter-spacing: .04em; }
+.eq table.eqr-each thead tr:last-child th { padding-top: 6px; padding-bottom: 8px; line-height: 1.25; letter-spacing: 0; }
+.eq table.eqr-each thead tr:last-child th > .eqs-sort { display: inline-block; max-width: calc(100% - 22px); vertical-align: bottom; overflow-wrap: normal; }
+.eq table.eqr-each thead tr:last-child th:first-child > .eqs-sort { max-width: none; }
+.eq table.eqr-each thead tr:last-child th .eqs-sort > i { display: inline; margin-left: 3px; }
+.eq table.eqr-each thead tr:last-child th .eqs-sort > i:empty { display: none; }
+.eq table.eqr-each thead tr:last-child th > .sp-i { vertical-align: bottom; margin-left: 4px; }
+.eq table.eqr-each thead tr:last-child th .eqr-safer { margin-top: 0; }
+.eq table.eqr-each td:nth-child(2) { white-space: nowrap; }
+.eq table.eqr-each col.c1 { width: 10.6%; } .eq table.eqr-each col.c2 { width: 10.4%; } .eq table.eqr-each col.c3 { width: 10.3%; }
+.eq table.eqr-each col.c4 { width: 7.9%; } .eq table.eqr-each col.c5 { width: 7.2%; } .eq table.eqr-each col.c6 { width: 6.9%; } .eq table.eqr-each col.c7 { width: 9.5%; }
+.eq table.eqr-each col.c8 { width: 8%; } .eq table.eqr-each col.c9 { width: 8.5%; } .eq table.eqr-each col.c10 { width: 10.2%; } .eq table.eqr-each col.c11 { width: 10.5%; }
+.eq table.eqr-each.g10 col.c10 { width: 20.7%; }
+.eq table.eqr-each .ip-sym small { white-space: normal; }
+@media (min-width: 1400px) {
   .eq .eqr-each-w, .eq .eqr-each-w .tw { overflow-x: visible; }
-  .eq table.eqr-each { width: 100%; min-width: 0; table-layout: fixed; }
-  .eq table.eqr-each th, .eq table.eqr-each td { padding-left: 7px; padding-right: 7px; white-space: normal; overflow-wrap: anywhere; }
-  .eq table.eqr-each thead th { letter-spacing: .03em; }
-  .eq table.eqr-each td:nth-child(2) { white-space: nowrap; }
-  .eq table.eqr-each col.c1 { width: 16%; } .eq table.eqr-each col.c2 { width: 13%; } .eq table.eqr-each col.c3 { width: 8%; }
-  .eq table.eqr-each col.c4, .eq table.eqr-each col.c5, .eq table.eqr-each col.c6, .eq table.eqr-each col.c7, .eq table.eqr-each col.c8, .eq table.eqr-each col.c9, .eq table.eqr-each col.c10 { width: 7.3%; }
-  .eq table.eqr-each col.c11 { width: 11.9%; }
-  .eq table.eqr-each.g10 col.c10 { width: 14%; }
-  .eq table.eqr-each .ip-sym small { white-space: normal; }
+  .eq table.eqr-each { min-width: 0; }
 }
-@media (max-width: 1099px) {
-  .eq table.eqr-each { min-width: 980px; }
+@media (max-width: 1399px) {
   /* the group row stays in view while the table scrolls sideways inside its box */
   .eq .eqs-frz table.eqr-each tr.eqr-g > td:first-child > button { width: auto; max-width: calc(100vw - 60px); }
 }
@@ -135,4 +146,7 @@
 .eq .eqb-popl .eqr-nm { flex: 1; min-width: 0; } .eq .eqb-popl .eqr-nm > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* three tabs fill the row; on a phone two, then "Three ways to measure" across the full width */
 .pfx .xtabs.eqb-tabs3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-@media (max-width: 900px) { .pfx .xtabs.eqb-tabs3 { grid-template-columns: repeat(2, minmax(0, 1fr)); } .pfx .xtabs.eqb-tabs3 > :nth-child(3) { grid-column: 1 / -1; } }
+@media (max-width: 900px) { .pfx .xtabs.eqb-tabs3 { grid-template-columns: repeat(2, minmax(0, 1fr)); } .pfx .xtabs.eqb-tabs3 > [role="tab"]:last-child { grid-column: 1 / -1; } }
+/* the caption on the first line of the bar, across it; 18 px between the boxes above and the bar */
+.pfx .xtabs.eqb-tabs3 > .x2-k { grid-column: 1 / -1; margin: 2px 6px 0; }
+.eq .eqb-sum { margin-bottom: 18px; }

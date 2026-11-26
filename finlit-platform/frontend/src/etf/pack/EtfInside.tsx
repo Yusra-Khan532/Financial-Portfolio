@@ -19,6 +19,7 @@ import { ShowAll, andList, cap1, capRows, corr2, corrWord, countOf, inCommon, CA
 import { holdingName, holdingShort } from "../../lib/holdingName";
 import { codeText } from "../../lib/companyLabel";
 import "./etf390.css";
+import { FitStack } from "../../mf/pack/FitStack";
 import { traded } from "../../lib/etf";
 import type { Card } from "../../lib/pulsePack";
 import type { EtfPortfolio, EtfRisk, Inside } from "../../lib/etfPortfolio";
@@ -116,11 +117,11 @@ function MoneySection({ d, ins }: Props) {
   const split = (sym: string) => etfSplit(ins, sym);
   return (
     <Section id="etp-money" hide title="What your money is in" help="The list's money by asset, from each ETF's latest monthly file (an ETF without one by its type), then one bar per ETF." how="Each ETF counts like the list; the grey part of a bar is cash and other." sub={`Each ETF's latest monthly file, each ETF counting ${d.basis === "value" ? "by your money" : "the same"}.`}>
-      <div className="etp-bar" role="img" aria-label={BAR.filter(([k]) => bar[k] > 0.05).map(([k, l]) => `${l} ${Math.round(bar[k])}%`).join(", ")}>{BAR.filter(([k]) => bar[k] > 0.05).map(([k, l, c]) => <i key={k} className={c} style={{ flexGrow: bar[k] }} title={`${l} ${Math.round(bar[k])}%`}>{bar[k] >= 8 ? `${Math.round(bar[k])}%` : ""}</i>)}</div>
+      <FitStack as="div" className="etp-bar" role="img" aria-label={BAR.filter(([k]) => bar[k] > 0.05).map(([k, l]) => `${l} ${Math.round(bar[k])}%`).join(", ")}>{BAR.filter(([k]) => bar[k] > 0.05).map(([k, l, c]) => <i key={k} className={c} style={{ flexGrow: bar[k] }} title={`${l} ${Math.round(bar[k])}%`}>{bar[k] >= 8 ? <span>{Math.round(bar[k])}%</span> : ""}</i>)}</FitStack>
       <p className="sp-note etp-keys">{BAR.filter(([k]) => bar[k] > 0.05).map(([k, l, c]) => <span key={k}><i className={"mfm-key " + c} /> {l} {bar[k] < 0.5 ? "under 1" : Math.round(bar[k])}%</span>)}</p>
       {metalGaps(d, ins).length > 0 && <p className="sp-note" role="status">Data to check: {andList(metalGaps(d, ins))} {metalGaps(d, ins).length === 1 ? "is" : "are"} read without {metalGaps(d, ins).length === 1 ? "its" : "their"} metal in the fund house's file, so {metalGaps(d, ins).length === 1 ? "it shows" : "they show"} as debt and cash here.</p>}
       <div className="mfm-fbars">{live(d).map((e) => { const s = split(e.symbol); return <div key={e.symbol} className="mfm-fb"><b>{e.symbol}</b>
-        {s ? <span className="mfm-stack">{s.map((x) => <i key={x.k} className={x.c} style={{ width: `${x.v}%` }} title={`${x.k} ${Math.round(x.v)}%`}>{x.v >= 12 ? `${x.k} ${Math.round(x.v)}%` : ""}</i>)}</span> : <span className="mfm-stack etp-none">Holdings not loaded yet</span>}</div>; })}</div>
+        {s ? <FitStack className="mfm-stack">{s.map((x) => <i key={x.k} className={x.c} style={{ width: `${x.v}%` }} title={`${x.k} ${Math.round(x.v)}%`}>{x.v >= 12 ? <><span className="mfm-w">{x.k} </span><span>{Math.round(x.v)}%</span></> : ""}</i>)}</FitStack> : <span className="mfm-stack etp-none">Holdings not loaded yet</span>}</div>; })}</div>
       {abroad.map(([sym, hs]) => <div key={sym} className="etp-abroad"><p className="sp-cap">{sym}'s five largest holdings · listed abroad</p>
         <ol>{hs.map((h) => <li key={h.name}><b>{h.name}</b> <span>{h.pct.toFixed(1)}%</span></li>)}</ol><p className="sp-note">Not compared with FinLit readings: listed abroad.</p></div>)}
     </Section>
@@ -230,8 +231,8 @@ function SharedSection({ d, ins, rk }: Props) {
 function SizesSection({ d, ins }: Props) {
   const etfs = live(d).filter((e) => e.type?.key === "indian"), miss = new Set(missingShares(d, ins)), tot = ins.size;
   const row = (sz: Record<string, number>, scale = 1) => { const l = (sz.Large ?? 0) * scale, m = (sz.Mid ?? 0) * scale, s = (sz.Small ?? 0) * scale, x = (sz.Micro ?? 0) * scale, u = ((sz.Unsized ?? sz["Not sized"] ?? 0)) * scale, o = Math.max(0, 1 - l - m - s - x - u);
-    return <span className="mfm-stack">{([["L", l, "Large"], ["M", m, "Mid"], ["S", s, "Small"], ["X", x, "Micro"], ["U", u, "Not sized"], ["O", o, "Cash and other"]] as [string, number, string][]).map(([c, v, n]) => v > 0.005 ?
-      <i key={c} className={"mfm-z" + c} style={{ width: `${v * 100}%` }} title={`${n} ${p0(v)}`}>{v > 0.08 ? p0(v) : ""}</i> : null)}</span>; };
+    return <FitStack className="mfm-stack">{([["L", l, "Large"], ["M", m, "Mid"], ["S", s, "Small"], ["X", x, "Micro"], ["U", u, "Not sized"], ["O", o, "Cash and other"]] as [string, number, string][]).map(([c, v, n]) => v > 0.005 ?
+      <i key={c} className={"mfm-z" + c} style={{ width: `${v * 100}%` }} title={`${n} ${p0(v)}`}>{v > 0.08 ? <span>{p0(v)}</span> : ""}</i> : null)}</FitStack>; };
   const cards: Card[] = [];
   const mid = etfs.find((e) => /mid/i.test(e.tracks.label || "") && (ins.perEtf?.[e.symbol]?.size?.Large ?? 0) > 0.5);
   if (mid) cards.push({ kind: "insight", title: "The midcap ETF is mostly large here", text: `${mid.symbol} reads ${p0(ins.perEtf![mid.symbol].size.Large ?? 0)} large and ${p0(ins.perEtf![mid.symbol].size.Mid ?? 0)} mid on FinLit's ₹ sizes: its index picks companies by rank (101st to 250th), and most of them are above ₹75,000 Cr.` });

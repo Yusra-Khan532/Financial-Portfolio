@@ -62,14 +62,15 @@ export const FaqPlan = ({ plan }: { plan?: string }) => plan ? <span className={
 
 /** "Questions about this page": shown at the bottom of every page that has a set in content/pageFaqs.ts, chosen by the address. Nothing otherwise. */
 /** Pages that place their own "Questions about this page" (the dashboard puts it above its disclaimer, as the final pages pack draws it); the layout's copy skips them. */
-const OWN_PLACE = new Set(["/dashboard", "/watchlist", "/glossary", "/etf-portfolio", "/holdings", "/mf-portfolio"]);   // task #389 (file 40 v4, D3 / E1): the MF portfolio places its questions in the shared page bottom too   // task #388 (file 38, E1): the Equity portfolio places its questions in the shared page bottom (portfolio/shared/PageBottom)   // the ETF portfolio puts its questions above its disclaimer (task #136)
+const OWN_PLACE = new Set(["/dashboard", "/watchlist", "/glossary", "/etf-portfolio", "/holdings", "/mf-portfolio", "/my-investments"]);   // task #391 (file 41 v4, E2): All my investments places its own questions in the shared page bottom   // task #389 (file 40 v4, D3 / E1): the MF portfolio places its questions in the shared page bottom too   // task #388 (file 38, E1): the Equity portfolio places its questions in the shared page bottom (portfolio/shared/PageBottom)   // the ETF portfolio puts its questions above its disclaimer (task #136)
 /** `fold` (task #388, developer file 38 E1 / SHARED.md SP11, the shared portfolio page bottom): the folded form at every width, "Questions about this page · N"
  *  with Show ▾ / Hide ▴, its open state kept by the caller (closed on arrival). Only the count: no topic line. Implies `inline`. */
-export function PageFaqs({ inline = false, fold }: { inline?: boolean; fold?: { open: boolean; onOpen: (open: boolean) => void } }) {
+/** `faq` (task #391, developer file 41 v4 E2): the page's own questions in place of the set found by the address (All my investments keeps its eight). */
+export function PageFaqs({ inline = false, fold, faq: own }: { inline?: boolean; fold?: { open: boolean; onOpen: (open: boolean) => void }; faq?: PageFaq }) {
   const { pathname, hash } = useLocation();
   // /glossary/<term> is placed by its page too; a Prism report (/prism/<SYMBOL>) places its questions inside its own container (task #220)
-  const own = [...OWN_PLACE].some((r) => pathname === r || pathname.startsWith(r + "/")) || /^\/prism\/[^/]+/.test(pathname);
-  const found = own && !inline && !fold ? undefined : faqForPath(pathname);
+  const placed = [...OWN_PLACE].some((r) => pathname === r || pathname.startsWith(r + "/")) || /^\/prism\/[^/]+/.test(pathname);
+  const found = own ?? (placed && !inline && !fold ? undefined : faqForPath(pathname));
   const model = usePlanModel();
   const faq = found && found.id === "company-report" ? { ...found, items: reportFaqFor(found.items, model) } : found;   // task #216: one score per screen
   useEffect(() => { if (faq && hash === "#faq") setTimeout(() => document.getElementById("faq")?.scrollIntoView({ behavior: "smooth" }), 150); }, [faq, hash]);

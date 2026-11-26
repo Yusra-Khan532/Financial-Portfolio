@@ -1,0 +1,75 @@
+/* Task #391 (developer file 41 v4, 25 Nov 2026; SHARED.md SP1, SP4–SP7, SP10, F5): All my investments' spacing system and boxes, as on the Equity, ETF
+   and MF pages. 18 px between any two boxes top to bottom; 28 px above the view cards (18 clear above their 10 px crowns); 12 px side by side (chip rows
+   stay 8); 18 px corners for a box on the page. The section boxes are .sp-sec (markup): a 1 px --sp-line border, no shadow, 24/24/22/24 padding
+   (18/14 on a phone), 18/24 for a fold; the header card stays .card. Scoped to this page (.wrap.mi / .mi); tokens only; nothing under 12 px.
+   Tokens: --pf-gap, --pf-gap-x, --pf-crown (set on this wrap only); --sp-* come from sectors-pack.css (set on .wrap.mi there). */
+.wrap.mi { --pf-gap: 18px; --pf-gap-x: 12px; --pf-crown: 10px; }
+
+/* SP1 (D1). The same width and edges as Equity and ETF (the pack's "same effect" rule): the page kept the site's 1,260 px (1,220 px top card at a
+   1,510 px window). Not the `pfx` class: pf.css (bundled with the Equity page) would restyle the whole page after an Equity visit (MyInvestments.tsx). */
+.wrap.mi, .wrap.mi .gate, .wrap.mi .gate > div { min-width: 0; max-width: 100%; }
+
+/* SP4 (D2, D3). Block flow, so the margins merge: each box sets the gap under it. Was: 0 + 16 under the top card, 22 / 14 around the view cards, -4 / 14
+   around Since your last visit, 8 / 16 around the section bar, -8 / 12 around Data as of, 16 between the sections, and 0 (touching) under What changed
+   and under the Next card. */
+.mi .mi7-top { margin-bottom: var(--pf-gap); }
+.mi .mi391-strip { margin-top: calc(var(--pf-gap) + var(--pf-crown)); margin-bottom: var(--pf-gap); }
+.mi .mi391-since { margin: 0 0 var(--pf-gap); }
+.mi .stb-wrap { margin-top: 0; margin-bottom: var(--pf-gap); }
+.mi .mi391-asof { margin: 0 0 var(--pf-gap); }
+.mi .mi-panel > .mi-step, .mi .mi-panel > .mi7-kf, .mi .mi-panel > .mi7-wc, .mi .mi-panel > .mi391-fold, .mi .mi-panel > .mi7-next,
+.mi .mi-panel > .eqf, .mi .mi-panel > .eqf-open, .mi .sp-sec.mi-short { margin-top: 0; margin-bottom: var(--pf-gap); }
+.mi .mi391-fold > .mi7-wc, .mi .mi391-fold > .mi-step { margin-bottom: 0; }          /* inside a phone fold the fold gives the gap */
+.mi .mi7-wc > .wc.wp-sec { margin-top: 0; }
+.mi .mi-panel > .mi7-next { margin-top: 0; }
+.mi .mi-note { margin: 0 0 var(--pf-gap); }
+/* E2: the shared bottom (portfolio/shared/shared.css .pgb) sits 18 px under the last box, its three items 18 px apart */
+.wrap.mi .pgb { margin-top: 0; }
+
+/* SP5 (D5). 18 px corners: Since your last visit, What changed and the Next card had 12 */
+.mi .mi391-since, .mi .mi7-wc > .wc.wp-sec, .mi .mi7-nextb { border-radius: var(--r-card); }
+
+/* SP6 (D4, D7). The view cards line up: each card (a button) centred its content, so the titles sat 38 / 24 / 24 / 15 px from the card top. Top-aligned,
+   16 px top padding: every title at 17 px. Desktop only; on a phone they are one-line rows, stacked 28 px apart (18 clear above each crown). */
+@media (min-width: 761px) {
+  .mi .mi391-c { display: flex; flex-direction: column; justify-content: flex-start; align-items: stretch; text-align: left; padding-top: 16px; }
+}
+@media (max-width: 1100px) { .mi .mi391-strip { row-gap: calc(var(--pf-gap) + var(--pf-crown)); } }
+
+/* SP7 (D6). 12 px between boxes side by side: the two boxes in the top card and the Key figures cards (10), the three health cards (14); the risk tiles
+   and the market-fall boxes */
+.mi :is(.mi7-t2, .mi7-kfrow, .mi-three, .mi-riskhead, .mi-two, .eqr-tiles, .eqr-cards, .eqr-b3, .eqr-f4, .fx) { gap: var(--pf-gap-x); }
+
+/* SP10 (E1, D8). The section boxes as .sp-sec on the other pages (they were the general .card: a 1.5 px darker border, a faint shadow and paddings from
+   14/22 to 20/22). The step sections and In short carry .sp-sec; What changed is the shared block's own section, so it gets the same values here. */
+.mi .sp-sec.mi-step, .mi .sp-sec.mi-short, .mi .mi7-wc > .wc.wp-sec { position: relative; padding: 24px 24px 22px; border: 1px solid var(--sp-line); border-radius: var(--r-card); background: var(--sp-panel); box-shadow: none; }
+.mi .sp-sec.mi-step h2, .mi .sp-sec.mi-short h2 { color: var(--text); }
+.mi .mi-sh h2 { margin: 2px 0 0; gap: 6px; }                                            /* the step heading as before (.sp-sec h2 sets 0 0 4 / 8) */
+.mi .sp-sec.mi-short h2 { margin: 0; }
+/* K1: Key figures is the site's fold (18/24, its cards under the summary) */
+.mi details.mi7-kf { padding: 18px 24px; scroll-margin-top: 130px; }
+.mi details.mi7-kf > .mi7-kfrow { margin-top: 16px; }
+.mi details.mi7-kf > summary .pgb-h { color: var(--text); }
+@media (max-width: 760px) {
+  .mi .sp-sec.mi-step, .mi .sp-sec.mi-short, .mi .mi7-wc > .wc.wp-sec { padding: 18px 14px; }
+  .mi details.mi7-kf { padding: 18px 14px; }
+  /* D7: the folded steps 18 px apart (16), each a 1 px --sp-line box with the step's own padding at the top */
+  .mi .mi391-fold:not(.open) { margin-bottom: var(--pf-gap); border-color: var(--sp-line); }
+  .mi .mi391-fold:not(.open) > .mi-step, .mi .mi391-fold:not(.open) > .mi7-wc > .wc.wp-sec { padding: 18px 14px 4px; }
+}
+
+/* A2: What changed carries its step label, as Steps 1–4, 6 and 7 */
+.mi .mi7-wc .mi41-step { margin: 0 0 4px; }
+
+/* A3: the ETFs card says what its figures are weighted by, under them, smaller */
+.mi .mi391-b { margin: 4px 0 0; font: 400 var(--fs-12)/1.35 var(--sans); color: var(--muted); }
+@media (max-width: 760px) { .mi .mi391-b { grid-column: 1 / -1; justify-self: end; margin: 2px 0 0; text-align: right; } }
+
+/* F5 (T1). The section bar's wrap is page-coloured, and an 8 px cover hangs under it: rows of Every company showed in the 6 px between the bar and the
+   sticky filter row. A real box (not a shadow), so what is on top there is the cover. */
+.wrap.mi .stb-wrap { background: var(--bg); }
+/* the cover only while the filter row is stuck under the bar (html.mi7-rowup, EveryFilters): a table that does not pin its heading scrolls under the bar */
+html.mi7-rowup .wrap.mi .stb-wrap::after { content: ""; position: absolute; left: 0; right: 0; top: 100%; height: 8px; background: var(--bg); }
+
+/* D3 inside a box: the health cards sat 12 px over "The companies underneath" box; 18 as everywhere top to bottom */
+.mi .mi-three { margin-bottom: var(--pf-gap); }

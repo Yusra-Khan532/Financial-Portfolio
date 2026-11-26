@@ -331,6 +331,13 @@ async def test_the_plan_limit_on_funds(app, monkeypatch):
 
 
 async def test_write_rate_limit(app, monkeypatch):
+    # The limiter counts in fixed 10-minute windows (now // 600). On a slow runner the 121 writes could straddle a window boundary, the counter
+    # restarted and the 121st write was allowed (201 instead of 429). The limiter's clock is held still for the test, so all 121 writes fall
+    # in one window and the 121st is always refused.
+    import types
+    from finlit import security
+    t0 = float(int(security.time.time()) // 600 * 600 + 1)
+    monkeypatch.setattr(security, "time", types.SimpleNamespace(time=lambda: t0))
     c = await signed_in(app, "s@example.com", plan="silver")
     codes = []
     for i in range(121):

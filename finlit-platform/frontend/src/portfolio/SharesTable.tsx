@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { CoLogo } from "../components/CoLogo";
 import { Icon } from "../lib/icons";
 import { Link } from "react-router";
@@ -11,6 +11,7 @@ import {
 } from "../lib/portfolioOverview";
 import { SIZE_WORD, plural, short2 } from "./derive";
 import { TABLE_FOOT } from "./words";
+import { twoLines } from "./twoLines";
 import type { Meta, Mode, PageObject } from "./types";
 import { PEER_WORD, type Share } from "../lib/equityPack";
 import { prismBandWord } from "../lib/scoreBands";
@@ -103,12 +104,21 @@ export function SharesTable(p: Props) {
   useEffect(() => {
     if (!p.editSell) return;
     const on = () => { const el = toolsRef.current, sec = el?.closest("section"); if (!el || !sec) return;
-      const top = parseFloat(getComputedStyle(el).top) || 0, r = el.getBoundingClientRect(), b = sec.getBoundingClientRect().bottom;
+      // audit of 26 Nov (file 38): the row only sticks once it is one compact row (.stuck); before that it is not sticky (add-shares.css), so its stick
+      // line is the place under the section bar (--eq-bar-b) rather than its own `top`
+      const cs = getComputedStyle(el), num = (n: string) => parseFloat(cs.getPropertyValue(n));
+      const top = (cs.position === "sticky" ? parseFloat(cs.top) : num("--eq-bar-b") || num("--top-h") || 63) || 0, r = el.getBoundingClientRect(), b = sec.getBoundingClientRect().bottom;
+      if (!el.classList.contains("stuck")) natural.current = el.offsetHeight + (parseFloat(cs.marginTop) || 0);
       // task #388 (file 36, F1): the row now sticks under the section bar (round388.css), so the bar stays where it is (no "eq-rowup")
       const now = r.top <= top + 1 && b > top + r.height + 120 && scrollY > 0; setStuck(now); };
     on(); addEventListener("scroll", on, { passive: true }); addEventListener("resize", on);
     return () => { removeEventListener("scroll", on); removeEventListener("resize", on); };
   }, [p.editSell]);
+  // audit of 26 Nov (file 38): the stuck row is one line, shorter than the open row (on a phone, 386 px with the sector chips against about 50); the
+  // difference is kept as space under it, so the table does not jump up the moment the row sticks
+  const natural = useRef(0), [keep, setKeep] = useState(0);
+  useLayoutEffect(() => { const el = toolsRef.current; if (!stuck || !el) { setKeep(0); return; }
+    setKeep(Math.max(0, Math.round(natural.current - el.offsetHeight - (parseFloat(getComputedStyle(el).marginTop) || 0)))); }, [stuck, tab]);
   // task #274 (pack change 18): the five filters; they stay set across Overview, By sector, By company size, Ratios and Financials (this component's state)
   const [picks, setPicks] = useState<Picks>({});
   const [openSet, setOpenSet] = useState<Set<string>>(new Set());
@@ -162,7 +172,7 @@ export function SharesTable(p: Props) {
 
   const head = (c: { id: string; label: string; hint?: string; sortable?: boolean; num?: boolean; cls?: string; sub?: string; extra?: ReactNode }) => (
     <th key={c.id} scope="col" className={[c.num ? "r" : "", c.cls ?? ""].join(" ").trim() || undefined} aria-sort={sortId === c.id ? (dir === 1 ? "ascending" : "descending") : "none"} title={c.hint}>
-      {c.sortable === false ? c.label : <button type="button" className="pfx-sort" onClick={() => clickSort(c.id)}>{c.label}<i aria-hidden="true">{sortId === c.id ? (dir === 1 ? "▲" : "▼") : ""}</i></button>}
+      {c.sortable === false ? c.label : <button type="button" className="pfx-sort" onClick={() => clickSort(c.id)}>{twoLines(c.label)}<i aria-hidden="true">{sortId === c.id ? (dir === 1 ? "▲" : "▼") : ""}</i></button>}
       {c.extra}{c.sub && <small className="eqs-hsub">{c.sub}</small>}
     </th>);
 
@@ -245,7 +255,7 @@ export function SharesTable(p: Props) {
     <tr className="pfx-avg"><th scope="row" colSpan={ov ? (p.lots ? (colsMode === "s" ? 2 : 2 + HOLD_COLS) : 3) : 1}>{label}</th>
       {ov && !p.lots && (() => { const t = ls.reduce((a, l) => a + (valueOf(l) ?? 0), 0); return <td className="r x-val x-total">{t > 0 ? "₹" + Math.round(t).toLocaleString("en-IN") : MINUS}</td>; })()}
       {cols.map((c) => { const v = avgOf(ls, c); return <td key={c.id} className={(c.id === "score" || c.id.startsWith("p_") ? "c " : "") + groupCls(c.id)}>{v == null ? "" : <Chip v={v} big={c.id === "score"} />}</td>; })}
-      {ov && p.peerOf && <td />}{ov && <td className="r">{restAvg(ls) == null ? "" : short2(restAvg(ls)!)}</td>}{!p.editSell && <td />}</tr>);
+      {ov && p.peerOf && <td className="eq-div2" />}{ov && <td className="r">{restAvg(ls) == null ? "" : short2(restAvg(ls)!)}</td>}{!p.editSell && <td />}</tr>);
   const nParts = cols.filter((c) => c.id.startsWith("p_") || (c.id.startsWith("f_") && c.id !== "f_technical")).length, nTech = cols.filter((c) => c.id.startsWith("t_") || c.id === "f_technical").length;
   const band1 = ov && (<tr className="eq-band" aria-hidden="true">{p.lots ? <><th colSpan={2} /><GroupBand /></> : <th colSpan={lead + cols.filter((c) => c.id === "price" || c.id === "change").length} />}
     {/* task #388 (developer file 38, T4/F4): the Prism group heading carries the same 3px line as its columns (eq-divp), so the line no longer breaks */}
@@ -295,12 +305,13 @@ export function SharesTable(p: Props) {
         <span className="pfx-note pfx-count">{shown.length !== lines.length ? `${shown.length} of ${countOf(lines.length, "share")}` : countOf(lines.length, "share")}{p.editSell ? ` · up to ${p.limit.toLocaleString("en-IN")}` : ` · limit ${p.limit}`}</span>
         {p.editSell && <button type="button" className="pfh-enl" aria-pressed={full} onClick={() => setFull(!full)}>{full ? "Close" : "Enlarge"}</button>}
       </div>
+      {p.editSell && stuck && keep > 0 && <div className="pfh-keep" aria-hidden="true" style={{ height: keep }} />}
       {p.editSell && <FilterChips defs={defs} picks={picks} q={q} shown={shown.length} total={lines.length} onChange={setPicks} onClearQ={() => setQ("")} extra={p.theme ? { label: `Theme: ${p.theme.label}`, onClear: p.theme.onClear } : null} />}
       {p.state === "error" && <p className="pfx-warn" role="alert">{p.errorText || "The scores could not be loaded. Try again in a moment."}</p>}
       {tab === "overview" && p.lots && p.editSell && <PhoneList lines={shown} total={lines.length} lots={p.lots} peerOf={p.peerOf} model={model} rule={CAP_PHONE_LIST} onEdit={p.editSell.onEdit} onSell={p.editSell.onSell}
         accounts={(sym) => accountSplit(p.lots!, sym)} />}
       <div id="pf-panel" role="tabpanel" aria-labelledby={`pf-tab-${tab}`} className={tab === "overview" && p.lots && p.editSell ? "eqs-wide" : undefined}>
-        <HScroll label="table" pinBelow={p.editSell ? "#pf-shares .pfx-tools.pfh" : undefined} pinCells={!!p.editSell} barBottom={!!p.editSell} zoom={!p.editSell}><table className={"pfx-table t-" + tab + (ov && p.lots ? " x-grp" + (colsMode === "h" ? " only-h" : colsMode === "s" ? " only-s" : "") : "")}>
+        <HScroll label="table" pinBelow={p.editSell ? (full ? "#pf-shares .pfx-tools.pfh" : "#pf-shares .pfx-tools.pfh, .eqt-bar") : undefined} pinCells={!!p.editSell} barBottom={!!p.editSell} zoom={!p.editSell}><table className={"pfx-table t-" + tab + (ov && p.lots ? " x-grp" + (colsMode === "h" ? " only-h" : colsMode === "s" ? " only-s" : "") : "")}>
           <caption className="sr-only">{TABS.find((t) => t.id === tab)?.label} of your shares</caption>
           <thead>{band1}{th}</thead>
           <tbody>
@@ -322,7 +333,7 @@ export function SharesTable(p: Props) {
                   <td className={"r x-c3 x-gs cg-h"}>{sub.gain == null ? "" : <b className={sub.gain > 0.5 ? "x-up" : sub.gain < -0.5 ? "x-dn" : ""}>{rupeesSigned(sub.gain)}</b>}</td>
                   <td className="r x-c3 cg-h">{sub.gainPct == null ? "" : <Pct v={sub.gainPct} />}</td>
                   {cols.map((c) => <td key={c.id} className={(c.id === "score" ? "c " : "") + groupCls(c.id)}>{c.id === "score" && a != null ? <Chip v={a} big /> : null}</td>)}
-                  {ov && p.peerOf && <td />}{ov && <td />}{!p.editSell && <td />}</tr>
+                  {ov && p.peerOf && <td className="eq-div2" />}{ov && <td />}{!p.editSell && <td />}</tr>
                 : <tr className="pfx-secrow"><td colSpan={nCols}>{btn}</td></tr>}
                 {open && ms.map((l) => row(l, true))}
               </FragmentRows>); })}

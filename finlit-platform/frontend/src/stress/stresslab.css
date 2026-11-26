@@ -361,3 +361,96 @@ tr.lockrow td{color:var(--muted);background:var(--hfaf7f0)}
 .step .sn{flex:none;display:grid;place-items:center;width:30px;height:30px;border-radius:50%;background:var(--ink);color:var(--card);font:700 var(--fs-14) Inter,sans-serif;margin-top:1px}
 .step .stt{font:600 var(--fs-20)/28px "Source Serif 4",Georgia,serif}.step p{margin:2px 0 0;font-size:var(--fs-13);line-height:18px;color:var(--muted)}
 @media (max-width:760px){.gd-two{grid-template-columns:1fr}.gd-h{padding:12px 14px}.gd-b{padding:14px}.gd-t td:first-child{white-space:normal}.secbar{border-radius:var(--r-ctl)}.sb-c{padding:6px 4px}}
+/* ---- Task #401 (26 Nov 2026): the redesign brief "MASTER UI/UX REDESIGN PROMPT – FINLIT STRESS LAB" and its reference page. Layout and type only: every
+   figure comes from the same engine (stressLab401.test.ts pins them). Uses the page's own tokens, so light and dark both follow; mint is the brief's active colour
+   with dark text on it in both themes. ---- */
+.sl-root{--mintink:var(--on-mint);--mintt:color-mix(in srgb,var(--mint) 14%,transparent);--t160:160ms ease}   /* the site's mint (tools.css), the brief's active colour */
+.wrap{max-width:1200px;padding:16px 16px 32px;gap:16px}
+.card{padding:18px 20px}
+.num,table.t,.kpi .v,.bp .v,.bar .v,.fact .v{font-variant-numeric:tabular-nums}
+/* 1. the section bar: one bordered button per step, numbered, no arrows; mint and dark text for the step in view; hover, focus and a "Jump to" tip */
+.secbar{gap:8px;padding:8px;border-radius:var(--r-ctl)}
+.sb-l{gap:6px;padding:0 2px 0 0;scroll-behavior:smooth}
+.sb-c{min-height:36px;padding:0 12px;gap:7px;border:1px solid var(--line);border-radius:var(--ui-r-mark);background:var(--hffffff);color:var(--body);font:var(--ui-fw-semibold) var(--fs-12)/1 Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;cursor:pointer;
+  transition:background var(--t160),border-color var(--t160),color var(--t160)}
+.sb-c:hover{border-color:var(--hcfc6b2);background:var(--hf7f3ea);color:var(--ink)}
+.sb-c.on{background:var(--mint);border-color:var(--mint);color:var(--mintink);font-weight:var(--ui-fw-bold)}
+.sb-c .sb-n{width:20px;height:20px;background:var(--hece4d2);color:var(--muted);font-size:var(--fs-12)}
+.sb-c.on .sb-n{background:var(--mintink);color:var(--mint)}
+.sb-c:focus-visible{outline:2px solid var(--teal);outline-offset:2px}
+.sb-all{min-height:36px;border-radius:var(--ui-r-mark);border:1px solid var(--line)}
+/* headings never hide behind the sticky bar */
+.step,.wrap>section,.wrap [data-sub]{scroll-margin-top:var(--sl-navoff,140px)}
+/* the step headings: number, name and description on one line, in the page's sans type (section 19px / 600) */
+.step{align-items:center;gap:10px;margin:12px 2px 0;flex-wrap:wrap}
+.step .sn{width:26px;height:26px;font-size:var(--fs-13);margin-top:0}
+.step>div{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;min-width:0}
+.step .stt{font:var(--ui-fw-semibold) var(--fs-20)/1.3 Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.step p{margin:0;font-size:var(--fs-12)}
+/* card headings 15px / 600 sans; descriptions 12-13px */
+.card h2,#every h2,#hist h2,#bt h2,#asm h2,#sens h2,#drv h2,#tbl h2,#ana-h,#scen-h{font:var(--ui-fw-semibold) var(--fs-16)/1.35 Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.sub{font-size:var(--fs-13)}
+/* 3. company: identity first */
+.co b{font-size:var(--fs-20)}
+.fact .l{font-size:var(--fs-12);letter-spacing:.06em;text-transform:uppercase}
+/* 4. choose a shock: ready-made and your own as two groups; the chosen one filled with mint */
+.chips{gap:12px 20px;align-items:flex-start}
+.chg{display:flex;flex-direction:column;gap:6px;min-width:0}
+.chg.own{padding-left:16px;border-left:1px solid var(--line)}
+.chgl{font:var(--ui-fw-semibold) var(--fs-12)/16px Inter,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.chgr{display:flex;flex-wrap:wrap;gap:8px}
+.chip{min-height:34px;padding:0 14px;border-radius:var(--ui-r-mark);font-size:var(--fs-13);transition:background var(--t160),border-color var(--t160)}
+.chip[aria-pressed=true]{background:var(--mint);border-color:var(--mint);color:var(--mintink)}
+.chip.cust{border-style:dashed}
+/* 5. the result: KPI labels 11px / 600, values 21px; the score keeps its ring */
+.kpis{gap:12px}
+.kpi{padding:12px 14px}
+.kpi .l{font-size:var(--fs-12);font-weight:var(--ui-fw-semibold);letter-spacing:.06em}
+.kpi .v{font-size:var(--fs-20);line-height:28px}
+.kpi .s{font-size:var(--fs-12)}
+/* 6. what stands out: compact cards in one row, a one-line explanation while closed */
+.callsg{grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+.call{padding:12px 14px;align-items:start}
+.call .tx b{font-size:var(--fs-14);line-height:1.35}
+.call .ln{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:var(--fs-12);line-height:1.5;color:var(--body)}
+.call .ln[hidden]{display:none}
+/* 7-9. charts: a clear zero line, thicker bars on the sensitivity chart, values at the right edge */
+.bar .p .z{width:2px;margin-left:-1px;background:var(--muted)}
+#sens .bar .p i{top:7px;height:10px}
+.bps{gap:12px;margin-top:12px}
+.bp .v{font-size:var(--fs-24);line-height:32px}
+.bp .s{font-size:var(--fs-12)}
+/* 10. tables: stronger header, alternating rows, the first column stays in view when a table scrolls sideways */
+table.t th{font-size:var(--fs-12);font-weight:var(--ui-fw-semibold);letter-spacing:.02em;color:var(--ink);background:var(--hece4d2)}
+table.t td{font-size:var(--fs-13)}
+table.t tbody tr:nth-child(even):not(.on):not(.xrow) td{background:var(--hfaf7f0)}
+table.t tr.click:hover td{background:var(--hf7f3ea)}
+.tw table.t thead th:first-child{position:sticky;left:0;z-index:1;background:var(--hece4d2)}
+.tw table.t tbody td.l{position:sticky;left:0;z-index:1;background:var(--hffffff)}
+.tw table.t tbody tr:nth-child(even):not(.on) td.l{background:var(--hfaf7f0)}
+table.t tr.on td.l{background:var(--heef5f4)}
+/* every scenario: a row opens in place to show its shocks */
+.xr{display:inline-grid;place-items:center;width:24px;height:24px;margin:-4px 6px -4px -4px;border:0;border-radius:var(--ui-r-mark);background:transparent;color:var(--muted);cursor:pointer;vertical-align:middle}
+.xr:hover{color:var(--ink);background:var(--hece4d2)}.xr:focus-visible{outline:2px solid var(--teal);outline-offset:1px}
+tr.xrow td{background:var(--mintt);padding-top:4px}
+tr.xrow .shocks{margin-top:4px}
+/* 12. assumptions: the boxes you can change are tinted mint, with a clear focus */
+input.edit{height:34px;border-color:var(--teal);background:var(--mintt);border-radius:var(--ui-r-mark)}
+input.edit:focus-visible{outline:2px solid var(--teal);outline-offset:1px}
+/* 14. tooltips: the brief's size and type */
+.tip{width:250px;padding:12px;border-radius:var(--ui-r-mark);font-size:var(--fs-12);line-height:1.5}
+/* 13. the disclaimer stays open and compact */
+.disc{padding:14px 18px;font-size:var(--fs-12);line-height:1.6}
+@media (prefers-reduced-motion:reduce){.sb-c,.chip{transition:none}.sb-l{scroll-behavior:auto}}
+@media (max-width:1100px){.step .stt{font-size:var(--fs-18)}}
+@media (max-width:720px){
+  .secbar{border-radius:var(--r-ctl);padding:6px}
+  .sb-c{min-height:40px;padding:0 10px}
+  .chips{flex-direction:column;gap:10px}
+  .chg.own{padding-left:0;border-left:0}
+  .chgr{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+  .chip{flex:none;min-height:40px}
+  .step>div{display:block}
+  .step p{margin-top:2px}
+  .kpi .v{font-size:var(--fs-20)}
+}
