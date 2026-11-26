@@ -94,10 +94,29 @@ Steps (one PR each):
    (`fno_futures`, `fno_oi_daily`), `GET /api/lab/flow`. One Dhan quote call per snapshot covers every F&O share and its current and next futures
    contract; OI change is against the previous close of the same contracts (stored by the engine; a missing day is filled once from Dhan's daily
    history); pivots only when FinLit's stored previous day matches the quote's previous close. Formulas in the module's docstring.
-2. **Market depth page** (`/lab/flow`, first tab): breadth curve and band histogram, up/down, build-up counts, sector strip, strongest cards each way.
-3. **Flow board:** the day's lines of every stock flowing into the bullish and bearish counts, then sector columns, then build-up cards (SVG,
-   animated, readable on a phone as stacked columns), with filters.
+2. **Market depth page** (`/lab/flow`, first tab; `pages/OrderFlow.tsx`): rising and falling counts with a breadth bar, the depth curve (every
+   stock's change, lowest to highest, hover for the stock), stocks by band of change, the four build-ups with their meaning, sectors by average change
+   (choose one to filter), and "Most facts lined up" cards each way (day's sparkline, build-up, the five facts as dots with their names, OI change,
+   VWAP gap, zone). Refreshes every minute in market hours; "Last session" otherwise. Reached from a card at the top of `/lab`.
+3. **Flow board** (`/lab/flow?view=board`; layout in `lib/flowboard.ts`): every stock's line of the day flows into Rising or Falling, then its
+   sector, then its futures build-up (long build-up, short covering, none, short build-up, long unwinding). Each column holds the same stocks and
+   each stock is one unit of height, so every ribbon is exactly as wide as its stocks. Pointing at a direction, sector or build-up lights its path;
+   choosing one lists its stocks as cards (most facts first). On a phone: the lines, direction buttons, a row per sector with its build-up mix, and
+   build-up buttons.
 4. **Stock zone view:** 5-minute chart with order blocks, fair value gaps, liquidity (previous day high and low, opening range), VWAP and pivots
    (market-lab's method on Dhan candles). With signals on: the pick label, entry and exits, R:R and lot-based size.
 5. **Trading journal:** members log trades (by hand or CSV); net P&L, cumulative P&L and drawdown, win rate, profit factor, expectancy, average win
    and loss, best and worst day, streak, daily heatmap; private to the member.
+
+
+## Ideas from the MarketPulse video (founder, 26 Nov 2026)
+
+The founder shared a second reference video (a "MarketPulse" dashboard). What fits FinLit, built one at a time after the Order Flow pages,
+describe-only (calls such as "likely cap", "what's next" or strangle picks stay out, or go to the Signals desk only):
+1. **Money Flow**: ₹ crore flowing into and out of each sector and its stocks, with the surge in ₹ crore a minute, from the engine's
+   3-minute snapshots (turnover change by direction).
+2. **Option Pulse and OI Flow**: put and call open interest strike by strike, and how fast it changes, from the site's option chain.
+3. **RSI heatmap**: stocks oversold or overbought on 5-minute, 15-minute, hourly and daily bars.
+4. **Liquidity map**: price with option walls, inside Stock zones (Order Flow step 4).
+5. **Stock radar**: the five facts drawn as a radar.
+6. **F&O Academy**: lessons with quizzes, inside Learn.

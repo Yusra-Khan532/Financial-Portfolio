@@ -1,0 +1,477 @@
+/* Trading Lab > Order Flow (pages/OrderFlow.tsx). Every rule is scoped to .oflow or an .oflow- class (and .tlab-feature on the Lab page). */
+.tlab-feature { display: flex; align-items: center; gap: 14px; padding: 16px 18px; margin: 0 0 16px; color: inherit; text-decoration: none;
+  border: 1px solid color-mix(in srgb, var(--gold) 40%, var(--border)); background: linear-gradient(120deg, color-mix(in srgb, var(--gold) 10%, var(--s1)), var(--s1) 60%);
+  transition: transform 0.15s ease, box-shadow 0.15s ease; }
+.tlab-feature:hover { transform: translateY(-1px); box-shadow: 0 6px 22px color-mix(in srgb, var(--gold) 18%, transparent); }
+.tlab-feature-t { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+.tlab-feature-t b { font-size: var(--fs-16); }
+
+.oflow .gain { color: var(--gain); }
+.oflow .loss { color: var(--loss); }
+.oflow-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin: 0 0 14px; padding: 4px; border: 1px solid var(--border); border-radius: var(--ui-r-pill); background: var(--s1); width: fit-content; max-width: 100%; }
+.oflow-tab { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: var(--ui-r-pill); color: var(--muted, inherit); font-size: var(--fs-14); }
+.oflow-tab[aria-current="page"] { background: var(--ui-on-bg); color: var(--ui-on-fg); font-weight: 600; }
+.oflow-tab[aria-disabled="true"] { opacity: 0.7; cursor: default; }
+.oflow-tab small { font-size: var(--fs-12); padding: 1px 6px; border-radius: var(--ui-r-pill); border: 1px solid var(--border); }
+
+.oflow-stamp { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 0 0 12px; font-size: var(--fs-14); }
+.oflow-live { display: inline-flex; align-items: center; gap: 7px; padding: 4px 10px; border-radius: var(--ui-r-pill); border: 1px solid var(--border); font-weight: 600; }
+.oflow-live i { width: 8px; height: 8px; border-radius: 50%; background: var(--muted, currentColor); opacity: 0.6; }
+.oflow-live.on { color: var(--gain); border-color: color-mix(in srgb, var(--gain) 45%, var(--border)); }
+.oflow-live.on i { background: var(--gain); opacity: 1; animation: oflow-pulse 1.6s ease-in-out infinite; }
+@keyframes oflow-pulse { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--gain) 60%, transparent); } 50% { box-shadow: 0 0 0 6px transparent; } }
+@media (prefers-reduced-motion: reduce) { .oflow-live.on i { animation: none; } .tlab-feature { transition: none; } }
+.oflow-note { margin: 0 0 10px; font-size: var(--fs-14); }
+
+.oflow-hero { padding: 20px; margin-bottom: 22px; }
+.oflow-hero-h { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+.oflow-hero-h h2, .oflow-wait h2 { margin: 0 0 4px; font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif); }
+.oflow-hero-h p { margin: 0; }
+.oflow-count { display: flex; gap: 18px; }
+.oflow-count span { display: flex; flex-direction: column; align-items: flex-end; font-size: var(--fs-12); text-transform: uppercase; letter-spacing: 0.06em; }
+.oflow-count b { font-size: var(--fs-32); line-height: 1; font-variant-numeric: tabular-nums; letter-spacing: 0; }
+.oflow-breadth { display: flex; height: 10px; margin: 14px 0 6px; border-radius: var(--ui-r-pill); overflow: hidden; background: var(--s2); }
+.oflow-breadth i { display: block; height: 100%; transition: width 0.4s ease; }
+.oflow-breadth i.gain { background: var(--gain); }
+.oflow-breadth i.loss { background: var(--loss); }
+.oflow-breadth i.flat { background: var(--border); }
+
+.oflow-curve { position: relative; margin: 10px 0 0; }
+.oflow-curve svg { display: block; width: 100%; height: 240px; cursor: crosshair; }
+.oflow-zero { stroke: var(--border); stroke-width: 1; }
+.oflow-split { stroke: var(--border); stroke-dasharray: 3 4; stroke-width: 1; }
+.oflow-cross { stroke: var(--text, currentColor); stroke-opacity: 0.35; stroke-width: 1; }
+.oflow-dot { stroke: var(--s1); stroke-width: 2; }
+.oflow-dot.gain { fill: var(--gain); }
+.oflow-dot.loss { fill: var(--loss); }
+.oflow-tip { position: absolute; top: 4px; transform: translateX(-50%); padding: 4px 9px; border-radius: var(--r-ctl); background: var(--s1); border: 1px solid var(--border);
+  font-size: var(--fs-12); white-space: nowrap; pointer-events: none; box-shadow: 0 4px 14px color-mix(in srgb, var(--text) 12%, transparent); }
+.oflow-axis { display: flex; justify-content: space-between; gap: 10px; margin-top: 6px; font-size: var(--fs-12); }
+.oflow-bandwrap { margin-top: 18px; }
+.oflow-bandwrap h3 { margin: 0 0 8px; font: var(--ui-fw-medium) var(--ui-fs-h3)/1.3 var(--font-serif); }
+.oflow-bands { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 6px; align-items: end; height: 140px; }
+.oflow-bands li { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 4px; height: 100%; }
+.oflow-bandn { font-size: var(--fs-12); font-variant-numeric: tabular-nums; }
+.oflow-bar { width: 100%; max-width: 46px; border-radius: var(--r-ctl) var(--r-ctl) 0 0; transition: height 0.4s ease; }
+.oflow-bar.gain { background: linear-gradient(180deg, var(--gain), color-mix(in srgb, var(--gain) 45%, transparent)); }
+.oflow-bar.loss { background: linear-gradient(180deg, var(--loss), color-mix(in srgb, var(--loss) 45%, transparent)); }
+.oflow-bands small { font-size: var(--fs-12); color: var(--muted, inherit); white-space: nowrap; }
+.oflow-median { margin: 10px 0 0; font-size: var(--fs-14); }
+
+.oflow-h { margin: 0 0 4px; font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif); }
+.oflow-sub { margin: 0 0 12px; font-size: var(--fs-14); }
+.oflow-sec-wrap { margin-bottom: 22px; }
+.oflow-bu { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.oflow-bu-t { display: flex; flex-direction: column; gap: 6px; padding: 14px; border-top: 3px solid var(--border); }
+.oflow-bu-t.gain { border-top-color: var(--gain); }
+.oflow-bu-t.loss { border-top-color: var(--loss); }
+.oflow-bu-n { font-size: var(--fs-28); line-height: 1; font-weight: 700; font-variant-numeric: tabular-nums; }
+.oflow-bu-t.gain .oflow-bu-n { color: var(--gain); }
+.oflow-bu-t.loss .oflow-bu-n { color: var(--loss); }
+.oflow-meter { height: 6px; border-radius: var(--ui-r-pill); background: var(--s2); overflow: hidden; }
+.oflow-meter i { display: block; height: 100%; background: currentColor; }
+.oflow-bu-t.gain .oflow-meter i { background: var(--gain); }
+.oflow-bu-t.loss .oflow-meter i { background: var(--loss); }
+
+.oflow-two { display: grid; grid-template-columns: minmax(280px, 380px) minmax(0, 1fr); gap: 18px; align-items: start; }
+.oflow-secbox { padding: 16px; position: sticky; top: 76px; }
+.oflow-sec { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; max-height: 70vh; overflow: auto; }
+.oflow-sec button { width: 100%; display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) 62px 54px; align-items: center; gap: 8px; padding: 7px 8px;
+  border: 0; border-radius: var(--r-ctl); background: none; color: inherit; font: inherit; font-size: var(--fs-14); text-align: left; cursor: pointer; }
+.oflow-sec button:hover { background: color-mix(in srgb, var(--gold) 12%, transparent); }
+.oflow-sec button[aria-pressed="true"] { background: var(--ui-on-bg); color: var(--ui-on-fg); }
+.oflow-sec-n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.oflow-sec-bar { position: relative; height: 8px; border-radius: var(--ui-r-pill); background: var(--s2); }
+.oflow-sec-bar::after { content: ""; position: absolute; left: 50%; top: -2px; bottom: -2px; width: 1px; background: var(--border); }
+.oflow-sec-bar i { position: absolute; top: 0; bottom: 0; border-radius: var(--ui-r-pill); }
+.oflow-sec-bar i.gain { background: var(--gain); }
+.oflow-sec-bar i.loss { background: var(--loss); }
+.oflow-sec-v { text-align: right; font-variant-numeric: tabular-nums; }
+.oflow-sec-c { text-align: right; font-size: var(--fs-12); }
+
+.oflow-top-h { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.oflow-side { display: flex; align-items: center; gap: 6px; margin: 14px 0 8px; font: var(--ui-fw-medium) var(--ui-fs-h3)/1.3 var(--font-serif); }
+.oflow-side svg { width: 18px; height: 18px; }
+.oflow-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
+.oflow-card { display: flex; flex-direction: column; gap: 8px; padding: 14px; transition: transform 0.15s ease, box-shadow 0.15s ease; }
+.oflow-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px color-mix(in srgb, var(--text) 10%, transparent); }
+.oflow-card header { display: flex; justify-content: space-between; gap: 8px; }
+.oflow-card h3 { margin: 0; font: 700 var(--ui-fs-h3)/1.2 var(--font-sans); }
+.oflow-card h3 a { color: inherit; text-decoration: none; }
+.oflow-card h3 a:hover { text-decoration: underline; }
+.oflow-card header small { display: block; font-size: var(--fs-12); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 150px; }
+.oflow-px { display: flex; flex-direction: column; align-items: flex-end; font-variant-numeric: tabular-nums; }
+.oflow-chg { font-weight: 700; }
+.oflow-spark { display: block; width: 100%; height: 40px; }
+.oflow-spark.empty { border-bottom: 1px dashed var(--border); height: 20px; margin-bottom: 20px; }
+.oflow-tags { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.oflow-pill { display: inline-block; padding: 2px 9px; border-radius: var(--ui-r-pill); font-size: var(--fs-12); font-weight: 600; border: 1px solid var(--border); }
+.oflow-pill.gain { background: var(--gain-soft); border-color: transparent; }
+.oflow-pill.loss { background: var(--loss-soft); border-color: transparent; }
+.oflow-dots { display: inline-flex; gap: 4px; }
+.oflow-dots i { width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid var(--border); }
+.oflow-dots i.on.gain { background: var(--gain); border-color: var(--gain); }
+.oflow-dots i.on.loss { background: var(--loss); border-color: var(--loss); }
+.oflow-dots i.unk { border-style: dashed; }
+.oflow-facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin: 0; font-size: var(--fs-12); }
+.oflow-facts dt { color: var(--muted, inherit); }
+.oflow-facts dd { margin: 2px 0 0; font-weight: 600; font-variant-numeric: tabular-nums; }
+.oflow-wait { display: flex; gap: 14px; padding: 20px; }
+.oflow-wait p { margin: 0; }
+.oflow-method { margin: 20px 0 0; font-size: var(--fs-12); line-height: 1.6; }
+
+.oflow-tab { text-decoration: none; }
+a.oflow-tab:hover:not([aria-current]) { background: color-mix(in srgb, var(--gold) 12%, transparent); }
+
+/* Flow board */
+.oflow-board { padding: 20px; margin-bottom: 22px; }
+.oflow-board-wrap { position: relative; margin-top: 8px; }
+.oflow-board-svg { display: block; width: 100%; height: auto; overflow: visible; }
+.oflow-board-svg.crop { max-height: 360px; }
+.oflow-t { fill: var(--muted); font-size: var(--fs-12); }
+.oflow-lines path { fill: none; stroke-width: 1; stroke-opacity: 0.32; transition: stroke-opacity 0.2s ease; }
+.oflow-lines path.gain { stroke: var(--gain); }
+.oflow-lines path.loss { stroke: var(--loss); }
+.oflow-lines path.lit { stroke-opacity: 0.9; stroke-width: 1.4; }
+.oflow-lines path.dim { stroke-opacity: 0.05; }
+.oflow-ribbons path { fill-opacity: 0.22; transition: fill-opacity 0.2s ease; }
+.oflow-ribbons path.gain { fill: var(--gain); }
+.oflow-ribbons path.loss { fill: var(--loss); }
+.oflow-ribbons path.lit { fill-opacity: 0.5; }
+.oflow-ribbons path.dim { fill-opacity: 0.05; }
+.oflow-node, .oflow-sbox, .oflow-bbox { cursor: pointer; outline: none; transition: opacity 0.2s ease; }
+.oflow-node.gain rect { fill: var(--gain); }
+.oflow-node.loss rect { fill: var(--loss); }
+.oflow-node-t { font-size: var(--fs-13); fill: var(--text); }
+.oflow-node-t .n, .oflow-bbox-t .n { font-weight: 700; font-size: var(--fs-16); }
+.oflow-node.gain .n { fill: var(--gain); }
+.oflow-node.loss .n { fill: var(--loss); }
+.oflow-sbox rect.gain { fill: color-mix(in srgb, var(--gain) 30%, var(--s1)); }
+.oflow-sbox rect.loss { fill: color-mix(in srgb, var(--loss) 30%, var(--s1)); }
+.oflow-sbox rect.frame { fill: none; stroke: var(--border); stroke-width: 1; }
+.oflow-sbox:hover rect.frame, .oflow-sbox:focus-visible rect.frame, .oflow-sbox.on rect.frame,
+.oflow-bbox:hover rect, .oflow-bbox:focus-visible rect, .oflow-bbox.on rect, .oflow-node:focus-visible rect { stroke: var(--text); stroke-width: 2; }
+.oflow-sbox-t { font-size: var(--fs-12); font-weight: 600; fill: var(--text); pointer-events: none; }
+.oflow-sbox-c { font-size: var(--fs-12); pointer-events: none; }
+.oflow-sbox-c .gain { fill: var(--gain); }
+.oflow-sbox-c .loss { fill: var(--loss); }
+.oflow-bbox rect { stroke: transparent; }
+.oflow-bbox.gain rect { fill: color-mix(in srgb, var(--gain) 32%, var(--s1)); }
+.oflow-bbox.loss rect { fill: color-mix(in srgb, var(--loss) 32%, var(--s1)); }
+.oflow-bbox.flat rect { fill: color-mix(in srgb, var(--muted) 22%, var(--s1)); }
+.oflow-bbox-t { font-size: var(--fs-12); font-weight: 600; fill: var(--text); pointer-events: none; }
+.oflow-node.dim, .oflow-sbox.dim, .oflow-bbox.dim { opacity: 0.25; }
+.oflow-cols { position: relative; height: 18px; margin-top: 4px; font-size: var(--fs-12); text-transform: uppercase; letter-spacing: 0.06em; }
+.oflow-cols span { position: absolute; top: 0; white-space: nowrap; }
+.oflow-dirs { display: flex; gap: 8px; margin: 12px 0 4px; }
+.oflow-legend { display: flex; flex-wrap: wrap; gap: 14px; margin: 14px 0 0; font-size: var(--fs-12); }
+.oflow-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.oflow-legend .sw { width: 12px; height: 12px; border-radius: var(--ui-r-mark); }
+.oflow-legend .sw.gain, .oflow-srow-bar i.gain, .oflow-bchip.gain b { background: var(--gain); }
+.oflow-legend .sw.loss, .oflow-srow-bar i.loss, .oflow-bchip.loss b { background: var(--loss); }
+.oflow-legend .sw.flat, .oflow-srow-bar i.flat, .oflow-bchip.flat b { background: var(--muted); }
+.oflow-pick { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border); }
+.oflow-pick > p { margin: 0; }
+.oflow-more { margin-top: 12px; }
+.oflow-srows { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.oflow-srows button { width: 100%; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 56px; align-items: center; gap: 8px; padding: 9px 8px; border: 0;
+  border-radius: var(--r-ctl); background: none; color: inherit; font: inherit; font-size: var(--fs-14); text-align: left; cursor: pointer; }
+.oflow-srows button[aria-pressed="true"] { background: var(--ui-on-bg); color: var(--ui-on-fg); }
+.oflow-srow-n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.oflow-srow-bar { display: flex; gap: 1px; height: 10px; border-radius: var(--ui-r-pill); overflow: hidden; }
+.oflow-srows small { text-align: right; font-size: var(--fs-12); }
+.oflow-bchips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.oflow-bchip { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px 6px 6px; border: 1px solid var(--border); border-radius: var(--ui-r-pill); background: var(--s1);
+  color: inherit; font: inherit; font-size: var(--fs-14); cursor: pointer; }
+.oflow-bchip b { min-width: 26px; padding: 1px 6px; border-radius: var(--ui-r-pill); color: var(--ui-on-fg); text-align: center; }
+.oflow-bchip[aria-pressed="true"] { background: var(--ui-on-bg); color: var(--ui-on-fg); }
+@media (prefers-reduced-motion: reduce) { .oflow-lines path, .oflow-ribbons path, .oflow-node, .oflow-sbox, .oflow-bbox { transition: none; } }
+
+@media (max-width: 1000px) { .oflow-two { grid-template-columns: 1fr; } .oflow-secbox { position: static; } .oflow-sec { max-height: none; } .oflow-bu { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) {
+  .oflow-curve svg { height: 180px; }
+  .oflow-bands { gap: 3px; height: 120px; }
+  .oflow-bands small { letter-spacing: -0.03em; }
+  .oflow-count b { font-size: var(--fs-24); }
+  .oflow-axis span.muted { display: none; }
+  .tlab-feature { flex-wrap: wrap; }
+}
+
+/* ---- The founder, 26 Nov 2026: "our graphics look too bad ... a good 3D way: wherever I point the mouse, a pop-up appears with more detail".
+   Bold, raised, glowing graphics and a detail card under the pointer everywhere. Tokens only; tilt and motion off for reduced motion. ---- */
+
+/* Hover detail card (components/lab/FlowTips.tsx TipLayer): opaque, follows the pointer, never takes it */
+.oflow-pop { position: fixed; z-index: 70; width: min(340px, calc(100vw - 16px)); padding: 14px; pointer-events: none; display: flex; flex-direction: column; gap: 10px;
+  background: var(--ov-surface); color: var(--text); border: 1px solid var(--border); border-radius: var(--r-card); box-shadow: var(--ov-shadow);
+  font-size: var(--fs-13); animation: oflow-pop-in 0.12s ease-out; }
+@keyframes oflow-pop-in { from { opacity: 0; transform: translateY(4px) scale(0.98); } to { opacity: 1; transform: none; } }
+.oflow-pop .gain { color: var(--gain); } .oflow-pop .loss { color: var(--loss); }
+.oflow-pop-h { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+.oflow-pop-h > div { display: flex; flex-direction: column; min-width: 0; }
+.oflow-pop-h b { font-size: var(--fs-16); }
+.oflow-pop-h small { color: var(--muted); font-size: var(--fs-12); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 200px; }
+.oflow-pop-h .r { align-items: flex-end; text-align: right; font-variant-numeric: tabular-nums; }
+.oflow-pop-h .r span { font-weight: 700; font-size: var(--fs-14); }
+.oflow-pop-path { display: block; width: 100%; height: 64px; border-radius: var(--r-ctl); background: color-mix(in srgb, var(--text) 4%, transparent); }
+.oflow-pop-path .fill.gain { fill: color-mix(in srgb, var(--gain) 22%, transparent); } .oflow-pop-path .fill.loss { fill: color-mix(in srgb, var(--loss) 22%, transparent); }
+.oflow-pop-path .ln { fill: none; stroke-width: 2; vector-effect: non-scaling-stroke; } .oflow-pop-path .ln.gain { stroke: var(--gain); } .oflow-pop-path .ln.loss { stroke: var(--loss); }
+.oflow-pop-bu { display: flex; flex-direction: column; gap: 4px; } .oflow-pop-bu small, .oflow-pop-what { color: var(--muted); font-size: var(--fs-12); margin: 0; line-height: 1.45; }
+.oflow-pop-g { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; margin: 0; }
+.oflow-pop-g dt { color: var(--muted); font-size: var(--fs-12); } .oflow-pop-g dd { margin: 1px 0 0; font-weight: 600; font-variant-numeric: tabular-nums; }
+.oflow-pop-na { margin: 0; color: var(--muted); font-size: var(--fs-12); }
+.oflow-ladder { display: flex; flex-direction: column; gap: 6px; padding: 10px 6px 4px; }
+.oflow-ladder-rail { position: relative; height: 34px; margin: 0 14px; }
+.oflow-ladder-rail::before { content: ""; position: absolute; left: 0; right: 0; top: 14px; height: 4px; border-radius: var(--ui-r-pill);
+  background: linear-gradient(90deg, var(--loss), color-mix(in srgb, var(--muted) 50%, transparent) 50%, var(--gain)); opacity: 0.65; }
+.oflow-ladder-rail > span { position: absolute; top: 0; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; }
+.oflow-ladder-rail .lv i { width: 2px; height: 14px; margin-top: 9px; background: var(--muted); }
+.oflow-ladder-rail .lv small { font-size: var(--fs-12); color: var(--muted); margin-top: 1px; }
+.oflow-ladder-rail .vw { top: 8px; } .oflow-ladder-rail .vw small { font-size: var(--fs-12); color: var(--gold); font-weight: 700; margin-top: 14px; }
+.oflow-ladder-rail .vw::before { content: ""; width: 10px; height: 10px; transform: rotate(45deg); background: var(--gold); }
+.oflow-ladder-rail .px { top: -14px; } .oflow-ladder-rail .px b { padding: 1px 7px; border-radius: var(--ui-r-pill); font-size: var(--fs-12); color: var(--ui-on-fg); background: var(--text); white-space: nowrap; }
+.oflow-ladder-rail .px.gain b { background: var(--gain); } .oflow-ladder-rail .px.loss b { background: var(--loss); }
+.oflow-ladder-v { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; font-size: var(--fs-12); font-variant-numeric: tabular-nums; text-align: center; }
+.oflow-ladder-v small { display: block; color: var(--muted); }
+.oflow-pop-facts b { display: block; margin-bottom: 4px; } .oflow-pop-facts ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
+.oflow-pop-facts li { display: flex; gap: 7px; align-items: baseline; font-size: var(--fs-12); color: var(--muted); }
+.oflow-pop-facts li i { font-style: normal; font-weight: 700; width: 12px; text-align: center; } .oflow-pop-facts li.y { color: var(--text); }
+.oflow-pop-facts li.y.gain i { color: var(--gain); } .oflow-pop-facts li.y.loss i { color: var(--loss); } .oflow-pop-facts li.n i { color: var(--muted); }
+.oflow-pop-split { display: flex; height: 8px; border-radius: var(--ui-r-pill); overflow: hidden; gap: 2px; }
+.oflow-pop-split i.gain { background: var(--gain); } .oflow-pop-split i.loss { background: var(--loss); }
+.oflow-pop-row { display: flex; justify-content: space-between; margin: 0; font-weight: 600; }
+.oflow-pop-kinds { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; }
+.oflow-pop-kinds li { display: flex; align-items: center; gap: 6px; font-size: var(--fs-12); } .oflow-pop-kinds b { margin-left: auto; }
+.oflow-pop-kinds .sw { width: 9px; height: 9px; border-radius: var(--ui-r-mark); } .oflow-pop-kinds .sw.gain { background: var(--gain); } .oflow-pop-kinds .sw.loss { background: var(--loss); }
+.oflow-pop-movers { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; } .oflow-pop-movers.one { grid-template-columns: 1fr; }
+.oflow-pop-movers small { display: block; color: var(--muted); font-size: var(--fs-12); margin-bottom: 3px; }
+.oflow-pop-movers p { display: flex; gap: 8px; margin: 0 0 2px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.oflow-pop-movers p span:last-child { margin-left: auto; } .oflow-pop-movers p .muted { font-weight: 400; font-size: var(--fs-12); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Raised 3D cards that lean toward the pointer (FlowTips tiltHandlers sets --rx/--ry) */
+.oflow .oflow-3d { position: relative; transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)); transform-style: preserve-3d;
+  transition: transform 0.18s ease-out, box-shadow 0.2s ease; overflow: hidden;
+  background: linear-gradient(160deg, color-mix(in srgb, var(--text) 5%, var(--s1)) 0%, var(--s1) 45%, color-mix(in srgb, var(--text) 3%, var(--s2)) 100%);
+  box-shadow: 0 1px 0 color-mix(in srgb, white 40%, transparent) inset, 0 2px 4px color-mix(in srgb, var(--text) 8%, transparent), 0 10px 24px -10px color-mix(in srgb, var(--text) 25%, transparent); }
+.oflow .oflow-3d::before { content: ""; position: absolute; inset: 0 0 auto; height: 4px; background: var(--muted); }
+.oflow .oflow-3d.up::before, .oflow .oflow-3d.gain::before { background: linear-gradient(90deg, var(--gain), color-mix(in srgb, var(--gain) 40%, transparent)); }
+.oflow .oflow-3d.down::before, .oflow .oflow-3d.loss::before { background: linear-gradient(90deg, var(--loss), color-mix(in srgb, var(--loss) 40%, transparent)); }
+.oflow .oflow-3d::after { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity 0.2s ease;
+  background: radial-gradient(420px circle at calc(50% + var(--ry, 0deg) * 40) calc(50% - var(--rx, 0deg) * 40), color-mix(in srgb, white 16%, transparent), transparent 55%); }
+.oflow .oflow-3d:hover { box-shadow: 0 1px 0 color-mix(in srgb, white 40%, transparent) inset, 0 4px 10px color-mix(in srgb, var(--text) 10%, transparent), 0 22px 44px -14px color-mix(in srgb, var(--text) 38%, transparent); }
+.oflow .oflow-3d.up:hover { box-shadow: 0 4px 10px color-mix(in srgb, var(--text) 10%, transparent), 0 22px 44px -16px color-mix(in srgb, var(--gain) 55%, transparent); }
+.oflow .oflow-3d.down:hover { box-shadow: 0 4px 10px color-mix(in srgb, var(--text) 10%, transparent), 0 22px 44px -16px color-mix(in srgb, var(--loss) 55%, transparent); }
+.oflow .oflow-3d:hover::after { opacity: 1; }
+.oflow .oflow-card:hover { transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) translateY(-3px); }
+.oflow .oflow-card .oflow-chg { font-size: var(--fs-16); }
+.oflow-spark { height: 46px; } .oflow-spark-a.gain { fill: color-mix(in srgb, var(--gain) 18%, transparent); } .oflow-spark-a.loss { fill: color-mix(in srgb, var(--loss) 18%, transparent); }
+
+/* Market depth: glowing curve that draws in, % axis, grid, the crossing label, raised bars */
+.oflow-hero { background: radial-gradient(900px 300px at 85% -10%, color-mix(in srgb, var(--gain) 10%, transparent), transparent 70%),
+  radial-gradient(700px 260px at 0% 110%, color-mix(in srgb, var(--loss) 9%, transparent), transparent 70%), var(--s1); }
+.oflow-count b { font-size: var(--fs-40); text-shadow: 0 0 22px color-mix(in srgb, currentColor 35%, transparent); }
+.oflow-breadth { height: 22px; box-shadow: 0 1px 2px color-mix(in srgb, var(--text) 14%, transparent) inset; }
+.oflow-breadth i { display: flex; align-items: center; } .oflow-breadth i span { padding: 0 10px; font-size: var(--fs-12); font-weight: 700; color: var(--ui-on-fg); }
+.oflow-breadth i.loss { justify-content: flex-end; }
+.oflow-breadth i.gain { background: linear-gradient(180deg, color-mix(in srgb, var(--gain) 80%, white), var(--gain)); }
+.oflow-breadth i.loss { background: linear-gradient(180deg, color-mix(in srgb, var(--loss) 80%, white), var(--loss)); }
+.oflow-curve-plot { position: relative; padding-left: 46px; }
+.oflow-curve-plot svg { display: block; width: 100%; height: 280px; cursor: crosshair; overflow: visible; }
+.oflow-yaxis { position: absolute; left: 0; top: 0; bottom: 0; width: 42px; }
+.oflow-yaxis span { position: absolute; right: 0; transform: translateY(-50%); font-size: var(--fs-12); font-variant-numeric: tabular-nums; color: var(--muted); }
+.oflow-yaxis span.gain { color: var(--gain); } .oflow-yaxis span.loss { color: var(--loss); }
+.oflow-grid { stroke: var(--border); stroke-opacity: 0.6; stroke-dasharray: 2 5; stroke-width: 1; }
+.oflow-zero { stroke: color-mix(in srgb, var(--text) 35%, transparent); stroke-width: 1.2; }
+.oflow-curve-ln { fill: none; stroke-width: 3.2; stroke-linecap: round; stroke-linejoin: round; }
+.oflow-curve-ln.gain { stroke: var(--gain); filter: drop-shadow(0 0 5px color-mix(in srgb, var(--gain) 70%, transparent)); }
+.oflow-curve-ln.loss { stroke: var(--loss); filter: drop-shadow(0 0 5px color-mix(in srgb, var(--loss) 70%, transparent)); }
+.oflow-draw { stroke-dasharray: 1; stroke-dashoffset: 1; animation: oflow-draw 1.4s ease-out forwards; }
+@keyframes oflow-draw { to { stroke-dashoffset: 0; } }
+.oflow-fade { animation: oflow-fade 1.2s ease-out both; } @keyframes oflow-fade { from { opacity: 0; } to { opacity: 1; } }
+.oflow-dot { stroke: var(--s1); stroke-width: 3; filter: drop-shadow(0 0 6px currentColor); }
+.oflow-cross-lbl { position: absolute; transform: translate(-50%, -50%); display: flex; align-items: center; gap: 8px; padding: 4px 10px; pointer-events: none;
+  background: var(--ov-surface); border: 1px solid var(--border); border-radius: var(--ui-r-pill); box-shadow: var(--ov-shadow); font-size: var(--fs-12); white-space: nowrap; }
+.oflow-cross-lbl i { width: 1px; height: 14px; background: var(--border); }
+.oflow-bands { height: 170px; gap: 8px; }
+.oflow-bands li { cursor: default; }
+.oflow-bar { position: relative; max-width: 54px; border-radius: var(--r-ctl) var(--r-ctl) var(--ui-r-mark) var(--ui-r-mark); transition: height 0.5s ease, transform 0.15s ease, filter 0.15s ease;
+  box-shadow: 0 6px 14px -6px color-mix(in srgb, var(--text) 40%, transparent); }
+.oflow-bar::after { content: ""; position: absolute; inset: 2px 2px auto; height: 38%; border-radius: var(--r-ctl) var(--r-ctl) 0 0;
+  background: linear-gradient(180deg, color-mix(in srgb, white 35%, transparent), transparent); }
+.oflow-bar.gain { background: linear-gradient(90deg, color-mix(in srgb, var(--gain) 75%, black), var(--gain) 45%, color-mix(in srgb, var(--gain) 80%, white)); }
+.oflow-bar.loss { background: linear-gradient(90deg, color-mix(in srgb, var(--loss) 75%, black), var(--loss) 45%, color-mix(in srgb, var(--loss) 80%, white)); }
+.oflow-bands li:hover .oflow-bar { transform: translateY(-3px); filter: brightness(1.08); }
+.oflow-bandn { font-weight: 700; }
+
+/* Build-up tiles: icon, ring gauge of their share, a big number */
+.oflow-bu-t { gap: 8px; padding: 18px 16px 16px; border-top: 0; }
+.oflow-bu-top { display: flex; justify-content: space-between; align-items: center; }
+.oflow-bu-ic { display: grid; place-items: center; width: 38px; height: 38px; border-radius: var(--r-ctl); }
+.oflow-bu-t.gain .oflow-bu-ic { color: var(--gain); background: var(--gain-soft); } .oflow-bu-t.loss .oflow-bu-ic { color: var(--loss); background: var(--loss-soft); }
+.oflow-bu-ic svg { width: 20px; height: 20px; }
+.oflow-bu-n { font-size: var(--fs-40); }
+.oflow-ring { width: 56px; height: 56px; }
+.oflow-ring-bg { fill: none; stroke: color-mix(in srgb, var(--text) 10%, transparent); stroke-width: 6; }
+.oflow-ring-fg { fill: none; stroke-width: 6; stroke-linecap: round; transition: stroke-dasharray 0.6s ease; }
+.oflow-ring.gain .oflow-ring-fg { stroke: var(--gain); filter: drop-shadow(0 0 3px color-mix(in srgb, var(--gain) 60%, transparent)); }
+.oflow-ring.loss .oflow-ring-fg { stroke: var(--loss); filter: drop-shadow(0 0 3px color-mix(in srgb, var(--loss) 60%, transparent)); }
+.oflow-ring-t { font-size: var(--fs-12); font-weight: 700; fill: var(--text); }
+.oflow-meter { height: 8px; }
+.oflow-bu-t.gain .oflow-meter i { background: linear-gradient(90deg, color-mix(in srgb, var(--gain) 60%, transparent), var(--gain)); }
+.oflow-bu-t.loss .oflow-meter i { background: linear-gradient(90deg, color-mix(in srgb, var(--loss) 60%, transparent), var(--loss)); }
+
+/* Sector bars: thicker, gradient, glow on hover */
+.oflow-secbox { background: linear-gradient(180deg, color-mix(in srgb, var(--text) 3%, var(--s1)), var(--s1)); }
+.oflow-sec-bar { height: 12px; box-shadow: 0 1px 2px color-mix(in srgb, var(--text) 12%, transparent) inset; }
+.oflow-sec-bar i.gain { background: linear-gradient(90deg, color-mix(in srgb, var(--gain) 55%, transparent), var(--gain)); }
+.oflow-sec-bar i.loss { background: linear-gradient(270deg, color-mix(in srgb, var(--loss) 55%, transparent), var(--loss)); }
+.oflow-sec li:hover .oflow-sec-bar i { filter: drop-shadow(0 0 4px currentColor) brightness(1.1); }
+.oflow-sec-v { font-weight: 700; }
+
+/* Flow board: saturated ribbons, glowing lines that draw in, grid, thick direction bars with badges, raised sector cards, solid build-up blocks */
+.oflow-board { background: radial-gradient(800px 380px at 40% 50%, color-mix(in srgb, var(--gold) 6%, transparent), transparent 70%), var(--s1); }
+.oflow-gridg .oflow-grid.v { stroke-dasharray: 2 6; }
+.oflow-lines path { stroke-width: 1.2; stroke-opacity: 0.55; stroke-dasharray: 1; stroke-dashoffset: 1; animation: oflow-draw 1.6s ease-out forwards; cursor: pointer; }
+.oflow-lines path:hover, .oflow-lines path.lit { stroke-opacity: 1; stroke-width: 2; }
+.oflow-lines path.gain:hover, .oflow-lines path.gain.lit { filter: drop-shadow(0 0 3px var(--gain)); }
+.oflow-lines path.loss:hover, .oflow-lines path.loss.lit { filter: drop-shadow(0 0 3px var(--loss)); }
+.oflow-lines path.dim { stroke-opacity: 0.06; }
+.oflow-ribbons path { fill-opacity: 1; cursor: pointer; transition: opacity 0.2s ease, filter 0.2s ease; }
+.oflow-ribbons path.gain { fill: url(#oflow-rib-gain); } .oflow-ribbons path.loss { fill: url(#oflow-rib-loss); }
+.oflow-ribbons path:hover, .oflow-ribbons path.lit { filter: brightness(1.25) saturate(1.3); }
+.oflow-ribbons path.dim { opacity: 0.12; }
+.oflow-node.gain > rect { fill: url(#oflow-node-gain); filter: drop-shadow(0 0 8px color-mix(in srgb, var(--gain) 75%, transparent)); }
+.oflow-node.loss > rect { fill: url(#oflow-node-loss); filter: drop-shadow(0 0 8px color-mix(in srgb, var(--loss) 75%, transparent)); }
+.oflow-badge rect { fill: var(--s1); stroke: currentColor; stroke-width: 1.5; filter: drop-shadow(0 4px 8px color-mix(in srgb, var(--text) 22%, transparent)); }
+.oflow-node.gain .oflow-badge { color: var(--gain); } .oflow-node.loss .oflow-badge { color: var(--loss); }
+.oflow-node-t { font-size: var(--fs-13); font-weight: 600; } .oflow-node-t .n { font-size: var(--fs-18); font-weight: 700; }
+.oflow-sbox rect.card { fill: url(#oflow-box); filter: drop-shadow(0 3px 5px color-mix(in srgb, var(--text) 22%, transparent)); }
+.oflow-sbox rect.gain { fill: var(--gain); } .oflow-sbox rect.loss { fill: var(--loss); }
+.oflow-sbox rect.frame { stroke: color-mix(in srgb, var(--text) 18%, transparent); }
+.oflow-sbox:hover rect.card { filter: drop-shadow(0 6px 10px color-mix(in srgb, var(--text) 32%, transparent)) brightness(1.04); }
+.oflow-sbox-t { font-size: var(--fs-12); font-weight: 700; }
+.oflow-sbox-v { font-size: var(--fs-12); font-weight: 700; pointer-events: none; } .oflow-sbox-v.gain { fill: var(--gain); } .oflow-sbox-v.loss { fill: var(--loss); }
+.oflow-bbox rect { stroke: transparent; filter: drop-shadow(0 6px 12px color-mix(in srgb, var(--text) 26%, transparent)); }
+.oflow-bbox.gain rect { fill: url(#oflow-bb-gain); } .oflow-bbox.loss rect { fill: url(#oflow-bb-loss); } .oflow-bbox.flat rect { fill: url(#oflow-bb-flat); }
+.oflow-bbox:hover rect { filter: drop-shadow(0 8px 16px color-mix(in srgb, var(--text) 36%, transparent)) brightness(1.08); }
+.oflow-bbox-n { font-size: var(--fs-28); font-weight: 700; fill: var(--ui-on-fg); pointer-events: none; }
+.oflow-bbox-t { font-size: var(--fs-13); font-weight: 700; fill: var(--ui-on-fg); pointer-events: none; }
+.oflow-bbox-t.small .n { font-size: var(--fs-14); }
+.oflow-bbox.flat .oflow-bbox-n, .oflow-bbox.flat .oflow-bbox-t { fill: var(--text); }
+.oflow-legend .sw { width: 14px; height: 14px; box-shadow: 0 0 6px currentColor; }
+
+@media (prefers-reduced-motion: reduce) {
+  .oflow .oflow-3d, .oflow .oflow-card:hover { transform: none; transition: none; }
+  .oflow-draw, .oflow-lines path, .oflow-fade, .oflow-pop { animation: none; stroke-dashoffset: 0; }
+  .oflow-bar, .oflow-ring-fg { transition: none; }
+}
+@media (max-width: 560px) {
+  .oflow-curve-plot { padding-left: 36px; } .oflow-yaxis { width: 32px; } .oflow-curve-plot svg { height: 200px; }
+  .oflow-count b { font-size: var(--fs-28); } .oflow-bu-n { font-size: var(--fs-32); } .oflow-ring { width: 46px; height: 46px; }
+  .oflow-cross-lbl { font-size: var(--fs-12); padding: 3px 8px; }
+}
+.oflow-node.gain .oflow-badge rect, .oflow-node.loss .oflow-badge rect { fill: var(--s1); filter: drop-shadow(0 4px 8px color-mix(in srgb, var(--text) 22%, transparent)); }
+.oflow-node.gain .oflow-badge .oflow-node-t { fill: var(--text); } .oflow-node.loss .oflow-badge .oflow-node-t { fill: var(--text); }
+.oflow-bbox-t.out { fill: var(--text); }
+.oflow-bbox.gain .oflow-bbox-n, .oflow-bbox.gain .oflow-bbox-t, .oflow-bbox.loss .oflow-bbox-n, .oflow-bbox.loss .oflow-bbox-t { fill: var(--s1); }
+.oflow-bbox .oflow-bbox-t.out { fill: var(--text); }
+.oflow-breadth i span { color: var(--s1); }
+.oflow-ladder-rail .vw { top: 11px; }
+.oflow-ladder-k { display: flex; align-items: center; gap: 6px; margin: 2px 0 0; font-size: var(--fs-12); color: var(--muted); }
+.oflow-ladder-k i { width: 8px; height: 8px; transform: rotate(45deg); background: var(--gold); }
+
+/* ---- Flow board, the map (founder, 26 Nov 2026, reference video): sectors | lines into the tower, links to every stock's tile | feature cards ---- */
+.oflow-mapgrid { display: grid; grid-template-columns: 210px minmax(0, 1fr) 290px; gap: 16px; align-items: start; margin-top: 10px; }
+.oflow-msec .oflow-srows { margin: 0; }
+.oflow-msec .oflow-srows button { grid-template-columns: minmax(0, 1fr) 58px; grid-template-areas: "n v" "bar c"; row-gap: 4px; padding: 7px 8px; }
+.oflow-msec .oflow-srow-n { grid-area: n; font-weight: 600; font-size: var(--fs-13); }
+.oflow-msec .oflow-srow-v { grid-area: v; text-align: right; font-weight: 700; font-size: var(--fs-13); font-variant-numeric: tabular-nums; }
+.oflow-msec .oflow-srow-bar { grid-area: bar; height: 6px; }
+.oflow-msec .oflow-srows small { grid-area: c; }
+.oflow-msec .oflow-srows li:hover button:not([aria-pressed="true"]) { background: color-mix(in srgb, var(--gold) 12%, transparent); }
+.oflow-mapmain { min-width: 0; display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.oflow-mapmain > :first-child { width: 100%; }
+.oflow-map-svg { max-height: none; }
+.oflow-tower { stroke: color-mix(in srgb, var(--text) 12%, transparent); stroke-width: 1; }
+.oflow-ticks rect { cursor: pointer; transition: opacity 0.15s ease; } .oflow-ticks rect.gain { fill: var(--gain); } .oflow-ticks rect.loss { fill: var(--loss); }
+.oflow-ticks rect.dim, .oflow-links path.dim, .oflow-tile.dim { opacity: 0.18; }
+.oflow-ticks rect.lit { filter: drop-shadow(0 0 3px currentColor); }
+.oflow-links path { fill: none; stroke-width: 1; stroke-opacity: 0.35; pointer-events: none; transition: stroke-opacity 0.15s ease; }
+.oflow-links path.gain { stroke: var(--gain); } .oflow-links path.loss { stroke: var(--loss); }
+.oflow-links path.lit { stroke-opacity: 1; stroke-width: 2.2; }
+.oflow-links path.gain.lit { filter: drop-shadow(0 0 3px var(--gain)); } .oflow-links path.loss.lit { filter: drop-shadow(0 0 3px var(--loss)); }
+.oflow-tlbl { cursor: pointer; } .oflow-tlbl-t { font-size: var(--fs-13); font-weight: 600; fill: var(--muted); }
+.oflow-tlbl.gain .n { fill: var(--gain); font-size: var(--fs-20); font-weight: 700; } .oflow-tlbl.loss .n { fill: var(--loss); font-size: var(--fs-20); font-weight: 700; }
+.oflow-tile { cursor: pointer; outline: none; transition: opacity 0.15s ease, transform 0.15s ease; transform-box: fill-box; transform-origin: center; }
+.oflow-tile-bg { stroke: color-mix(in srgb, var(--text) 14%, transparent); stroke-width: 1; filter: drop-shadow(0 2px 3px color-mix(in srgb, var(--text) 16%, transparent)); }
+.oflow-tile:hover, .oflow-tile:focus-visible, .oflow-tile.lit { transform: scale(1.06); }
+.oflow-tile:hover .oflow-tile-bg, .oflow-tile:focus-visible .oflow-tile-bg, .oflow-tile.lit .oflow-tile-bg { stroke: currentColor; stroke-width: 1.6; filter: drop-shadow(0 6px 10px color-mix(in srgb, var(--text) 30%, transparent)); }
+.oflow-tile.gain { color: var(--gain); } .oflow-tile.loss { color: var(--loss); }
+.oflow-tile-edge { fill: currentColor; }
+.oflow-tile-sp { fill: none; stroke: currentColor; stroke-opacity: 0.35; stroke-width: 1.2; }
+.oflow-tile-s { font-size: var(--fs-12); font-weight: 700; fill: var(--text); }
+.oflow-tile-r { font-size: var(--fs-12); fill: var(--muted); font-variant-numeric: tabular-nums; }
+.oflow-tile-p { font-size: var(--fs-13); font-weight: 700; font-variant-numeric: tabular-nums; } .oflow-tile-p.gain { fill: var(--gain); } .oflow-tile-p.loss { fill: var(--loss); }
+.oflow-tile-b { font-size: var(--fs-12); fill: var(--muted); }
+.oflow-tile-dot { fill: none; stroke: var(--muted); stroke-width: 1; } .oflow-tile-dot.on { fill: currentColor; stroke: currentColor; }
+.oflow-every { margin-top: 2px; }
+.oflow-feat { display: flex; flex-direction: column; gap: 10px; }
+.oflow-feat h3 { margin: 0; font: var(--ui-fw-medium) var(--ui-fs-h3)/1.3 var(--font-serif); }
+.oflow-feat-g { display: flex; flex-direction: column; gap: 10px; } .oflow-feat-g .oflow-side { margin: 4px 0 0; }
+.oflow-feat-c { display: flex; flex-direction: column; gap: 6px; padding: 12px 12px 10px; }
+.oflow-feat-c header { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+.oflow-feat-c h4 { margin: 0; font: 700 var(--fs-16)/1.2 var(--font-sans); } .oflow-feat-c h4 a { color: inherit; text-decoration: none; }
+.oflow-feat-c header small { display: block; font-size: var(--fs-12); }
+.oflow-fring { width: 40px; height: 40px; flex: none; }
+.oflow-fring.gain .oflow-ring-fg { stroke: var(--gain); } .oflow-fring.loss .oflow-ring-fg { stroke: var(--loss); }
+.oflow-fring .oflow-ring-bg, .oflow-fring .oflow-ring-fg { stroke-width: 4; }
+.oflow-feat-m { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 8px; align-items: center; }
+.oflow-feat-m > div { display: flex; flex-direction: column; gap: 3px; align-items: flex-start; }
+.oflow-feat-p { font-size: var(--fs-24); line-height: 1.1; font-variant-numeric: tabular-nums; }
+.oflow-feat-m small { font-size: var(--fs-12); font-variant-numeric: tabular-nums; }
+.oflow-feat-l { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; margin: 0; padding-top: 6px; border-top: 1px solid var(--border); font-size: var(--fs-12); }
+.oflow-feat-l dt { color: var(--muted); } .oflow-feat-l dd { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.oflow-candles { display: block; width: 100%; height: auto; }
+.oflow-lvl line { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; } .oflow-lvl.R line { stroke: var(--gain); } .oflow-lvl.S line { stroke: var(--loss); }
+.oflow-lvl text { font-size: var(--fs-12); fill: var(--muted); } .oflow-lvl.R text { fill: var(--gain); } .oflow-lvl.S text { fill: var(--loss); }
+.oflow-lvl-vw { stroke: var(--gold); stroke-width: 1.4; stroke-dasharray: 1 3; }
+.oflow-cdl line { stroke-width: 1.2; } .oflow-cdl.gain line { stroke: var(--gain); } .oflow-cdl.loss line { stroke: var(--loss); }
+.oflow-cdl.gain rect { fill: var(--gain); } .oflow-cdl.loss rect { fill: var(--loss); }
+.oflow-cdl-last { stroke: var(--s1); stroke-width: 2; } .oflow-cdl-last.gain { fill: var(--gain); } .oflow-cdl-last.loss { fill: var(--loss); }
+.oflow-cdl-t { font-size: var(--fs-12); fill: var(--muted); }
+.oflow-pop .oflow-candles { background: color-mix(in srgb, var(--text) 4%, transparent); border-radius: var(--r-ctl); }
+@media (max-width: 1240px) { .oflow-mapgrid { grid-template-columns: 190px minmax(0, 1fr); } .oflow-feat { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); } .oflow-feat h3 { grid-column: 1 / -1; } }
+@media (max-width: 900px) { .oflow-mapgrid { grid-template-columns: minmax(0, 1fr); } .oflow-feat { grid-template-columns: minmax(0, 1fr); } }
+.oflow-mapgrid { grid-template-columns: 200px minmax(0, 1fr); }
+.oflow-feat { margin-top: 18px; display: flex; flex-direction: column; gap: 10px; }
+.oflow-feat-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.oflow-feat-m { grid-template-columns: 128px minmax(0, 1fr); }
+.oflow-feat-c .oflow-pill { white-space: nowrap; }
+.oflow-tile-s { font-size: var(--fs-13); } .oflow-tile-p { font-size: var(--fs-14); }
+@media (max-width: 1240px) { .oflow-mapgrid { grid-template-columns: 180px minmax(0, 1fr); } .oflow-feat { display: flex; } .oflow-feat-row { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 900px) { .oflow-mapgrid { grid-template-columns: minmax(0, 1fr); } .oflow-feat-row { grid-template-columns: minmax(0, 1fr); } }
+
+/* ---- Boxes sized by the move, the three largest as big cards; the richer hover card (founder, 26 Nov 2026) ---- */
+.oflow-pop { width: min(440px, calc(100vw - 16px)); }
+.oflow-pop-t { display: grid; grid-template-columns: 1fr 1fr; gap: 3px 14px; margin: 0; padding: 8px 10px; border-radius: var(--r-ctl); background: color-mix(in srgb, var(--text) 4%, transparent);
+  font-size: var(--fs-12); font-variant-numeric: tabular-nums; }
+.oflow-pop-t > div { display: flex; justify-content: space-between; gap: 8px; min-width: 0; }
+.oflow-pop-t dt { color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; }
+.oflow-pop-t dd { margin: 0; font-weight: 600; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.oflow-pop-fd { display: inline-flex; align-items: center; gap: 3px; } .oflow-pop-fd i { width: 7px; height: 7px; border-radius: 50%; border: 1px solid var(--border); }
+.oflow-pop-fd i.on.gain { background: var(--gain); border-color: var(--gain); } .oflow-pop-fd i.on.loss { background: var(--loss); border-color: var(--loss); } .oflow-pop-fd i.unk { border-style: dashed; }
+.oflow-pop .oflow-candles { padding: 4px; }
+.oflow-zoneband.gain { fill: color-mix(in srgb, var(--gain) 12%, transparent); } .oflow-zoneband.loss { fill: color-mix(in srgb, var(--loss) 12%, transparent); }
+.oflow-pop-facts li { font-size: var(--fs-12); }
+.oflow-tile-s.sm { font-size: var(--fs-12); } .oflow-tile-p.sm { font-size: var(--fs-12); }
+.oflow-tile.big .oflow-tile-bg { stroke-width: 1.4; filter: drop-shadow(0 8px 16px color-mix(in srgb, var(--text) 26%, transparent)); }
+.oflow-tile.big:hover, .oflow-tile.big.lit { transform: scale(1.02); }
+.oflow-big-s { font-size: var(--fs-18); font-weight: 700; fill: var(--text); }
+.oflow-big-sec { font-size: var(--fs-12); fill: var(--muted); }
+.oflow-big-p { font-size: var(--fs-32); font-weight: 700; font-variant-numeric: tabular-nums; } .oflow-big-p.gain { fill: var(--gain); } .oflow-big-p.loss { fill: var(--loss); }
+.oflow-big-px { font-size: var(--fs-13); fill: var(--text); font-variant-numeric: tabular-nums; }
+.oflow-big-bu { font-size: var(--fs-12); font-weight: 600; fill: currentColor; }
+.oflow-big-l { font-size: var(--fs-12); fill: var(--muted); font-variant-numeric: tabular-nums; }
+.oflow-tring .oflow-ring-bg, .oflow-tring .oflow-ring-fg { stroke-width: 4; } .oflow-tring.gain .oflow-ring-fg { stroke: var(--gain); } .oflow-tring.loss .oflow-ring-fg { stroke: var(--loss); }
+.oflow-tile .oflow-candles { overflow: visible; }
+.oflow-tile-path .a { fill: currentColor; fill-opacity: 0.12; } .oflow-tile-path .l { fill: none; stroke: currentColor; stroke-width: 1.4; stroke-opacity: 0.8; }
+.oflow-how { margin: 16px 0 0; font-size: var(--fs-13); } .oflow-how summary { cursor: pointer; color: var(--muted); } .oflow-how .oflow-method { margin-top: 8px; }
