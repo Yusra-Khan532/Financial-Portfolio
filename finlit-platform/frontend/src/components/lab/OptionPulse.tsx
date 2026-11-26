@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { apiGet } from "../../lib/api";
 import { BUILDUP, around, compact, matchUnderlyings, price, signedNum, strikeText, type Chain, type Expiries, type Row, type Side, type Underlyings } from "../../lib/options";
 import { useTip } from "./FlowTips";
+import { ChartZoom } from "../ChartZoom";
 
 const getUnderlyings = () => apiGet<Underlyings>("/api/options/lab/underlyings");
 const getExpiries = (u: string) => apiGet<Expiries>(`/api/options/lab/expiries?u=${encodeURIComponent(u)}`);
@@ -163,7 +164,7 @@ export function OptionPulse() {
       {(ex.isError || ch.isError) && <div className="formerr" role="alert">The option chain could not be read right now. It refreshes by itself; try again in a minute.</div>}
       {(ex.isPending || (ch.isPending && !!expiry)) && <div className="skeleton" style={{ height: 420 }} aria-label="Loading the option chain" />}
       {c && <div className="opul-grid">
-        <div className="opul-main"><Ladder c={c} rows={rows} />
+        <div className="opul-main"><ChartZoom label="Option Pulse ladder"><Ladder c={c} rows={rows} /></ChartZoom>
           <p className="muted opul-legend"><i className="sw pe" /> put OI · <i className="sw ce" /> call OI · bright: added today · dashed: left today · gold outline: the most OI on each side · <i className="sw mp" /> max pain</p></div>
         <aside className="opul-side">
           <dl className="opul-stats">
@@ -180,7 +181,7 @@ export function OptionPulse() {
                 const s = r[sd]!; const b = s.buildup ? BUILDUP[s.buildup] : null;
                 return <li key={r.strike}><b>{strikeText(r.strike)}</b><span className={s.oiChange! >= 0 ? "gain" : "loss"}>{s.oiChange! > 0 ? "+" : ""}{compact(s.oiChange)}</span><small className="muted">{b ? b.label : ""}</small></li>;
               })}</ol></div>))}
-          <div className="opul-movers"><h3>Max pain by settlement price</h3><MaxPainCurve c={c} /></div>
+          <div className="opul-movers"><h3>Max pain by settlement price</h3><ChartZoom label="Max pain by settlement price"><MaxPainCurve c={c} /></ChartZoom></div>
           <p className="muted opul-asof">{c.marketOpen ? "Live" : "Last session"} · as of {new Date(c.asOf).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Kolkata" })} IST{c.lotSize ? ` · lot ${c.lotSize}` : ""}</p>
         </aside>
       </div>}
