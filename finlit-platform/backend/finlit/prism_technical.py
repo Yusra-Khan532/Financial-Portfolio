@@ -171,6 +171,11 @@ async def _post(app, payload: Dict[str, Any]) -> Optional[httpx.Response]:
         return r
 
 
+def _loggable(text: str) -> str:
+    """A value from a request or an upstream answer, safe for one log line: its line breaks are written as \\r and \\n, so it cannot forge log entries."""
+    return str(text).replace("\r", "\\r").replace("\n", "\\n")
+
+
 def _apply(report: Dict[str, Any], card: Optional[Dict[str, Any]], view: Dict[str, Any], at: str) -> Tuple[Dict[str, Any], Dict[str, Any]]:
     """The stored report and card with the new technical view; nothing else in them changes."""
     report = {**report, "technicalAssessment": view, "technicalCalculatedAt": at}
@@ -216,8 +221,8 @@ async def refresh_symbol(app, symbol: str, now: datetime, target: Optional[date]
         if r is None or r.status_code != 200:
             code = r.status_code if r is not None else 0
             if r is not None:
-                detail = (prism._upstream_detail(r) or r.text or "")[:200].replace("\r", " ").replace("\n", " ")   # one log line: an answer's line breaks cannot forge entries
-                log.warning("technical refresh %s: the site backend answered %s: %s", symbol, code, detail)   # a plain-text 400 ("Invalid host header") said nothing before
+                detail = (prism._upstream_detail(r) or r.text or "")[:200]     # a plain-text 400 ("Invalid host header") said nothing before
+                log.warning("technical refresh %s: the site backend answered %s: %s", _loggable(symbol), code, _loggable(detail))
             return Outcome.FAILED, "unusable_candles" if code == 422 else f"site_backend_{code}"
         try:
             assessment = r.json()["technicalAssessment"]
