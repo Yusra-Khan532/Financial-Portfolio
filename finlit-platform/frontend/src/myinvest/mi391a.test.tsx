@@ -224,8 +224,10 @@ describe("Sections: names, Key figures questions, What changed, risk words, plan
     expect(within(fall).queryByRole("button", { name: /^Hide/ })).toBeNull();
     expect(fall.querySelector("h2 button.info")!.getAttribute("aria-label")).toBe("What is the fall picture?");
     expect(fall.querySelector(".sp-i")).toBeNull();
-    // fault 12: the windows in the column header
-    expect(sec.querySelector(".mi391-win")!.textContent).toBe("Shares weekly, 2 years · funds and ETFs daily, 3 years");
+    // fault 12: the windows stated once, under the table (file 41, founder 26 Nov), never in the heading
+    expect(sec.querySelector(".mi391-win")!.textContent).toBe("Swing a year and worst fall from a high: Shares weekly, 2 years · funds and ETFs daily, 3 years");
+    expect(sec.querySelector("table thead .mi391-win")).toBeNull();
+    expect(sec.querySelector("table")!.compareDocumentPosition(sec.querySelector(".mi391-win")!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(sec.querySelector("tbody")!.textContent).not.toMatch(/\(\d\.\d y\)/);
   });
   it("F12: PR B's window field wins when present", () => {
@@ -320,7 +322,7 @@ describe("with PR B's optional fields (fault 1, 2, 7, 12) and the other views in
     const d = D(); d.risk.bandKey = "similar"; d.risk.bandSays = "Similar: moves about with the market. When the Nifty 500 moved 1%, this moved about 0.91%.";
     d.risk.swingWindows = { differ: true, line: "Shares: weekly prices, 2 years. Mutual funds and ETFs: daily NAVs and prices, 3 years." };
     st.answer = d; mount("/my-investments?step=risk"); await screen.findByText("How risky it is, all together");
-    expect(document.querySelector(".mi391-win")!.textContent).toBe("Shares: weekly prices, 2 years. Mutual funds and ETFs: daily NAVs and prices, 3 years.");
+    expect(document.querySelector(".mi391-win")!.textContent).toBe("Swing a year and worst fall from a high: Shares: weekly prices, 2 years. Mutual funds and ETFs: daily NAVs and prices, 3 years.");
     expect(document.querySelector(".mi-rh-dark")!.textContent).toContain("Similar: moves about with the market.");
   });
   it("the Equity view is one step at a time: Key figures in step 1, a Key figures link opens its step, &step= in the address", async () => {

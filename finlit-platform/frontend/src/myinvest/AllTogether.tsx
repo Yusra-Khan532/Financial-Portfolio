@@ -260,15 +260,17 @@ function RiskStep({ d }: { d: AllInvestments; money?: MoneyAll }) {
       <HScroll label="How risky it is">
         <table className="mi-tb">
           <thead><tr><th scope="col">Kind</th><th scope="col" className="r">Share of money</th><th scope="col" className="r">Beta vs Nifty 500</th><th scope="col">Share of the market risk</th>
-            <th scope="col" className="r">Swing a year{win && <small className="mi391-win">{win}</small>}</th><th scope="col" className="r">Worst fall from a high{win && <small className="mi391-win">same windows</small>}</th></tr></thead>
+            <th scope="col" className="r">Swing a year</th><th scope="col" className="r">Worst fall from a high</th></tr></thead>
           <tbody>{kinds.map((k) => { const p = r.parts.find((x) => x.kind === k), x = r.kinds[k]; return (
             <tr key={k} className={p?.red ? "hot" : ""}><th scope="row"><i className={"mi-dot k-" + k} aria-hidden="true" />{KIND_NAME[k]}</th><td className="r">{pctOf(p?.money)}</td><td className="r">{betaTxt(x?.beta)}</td>
               <td className="mi-rs">{p?.riskShare != null ? <><span className="mi-rsb"><i className={"r k-" + k} style={{ width: `${(p.riskShare / max) * 100}%` }} /><i className="m" style={{ width: `${((p.money ?? 0) / max) * 100}%` }} /></span><small><b className={p.red ? "mi-down" : ""}>{pctOf(p.riskShare)}</b> of the risk · {pctOf(p.money)} of the money</small></> : <span className="mi-muted">—</span>}</td>
               <td className="r">{x?.swing != null ? pctOf(x.swing) : "—"}</td><td className="r mi-down">{x?.worstFall != null ? pctOf(x.worstFall) : "—"}</td></tr>); })}</tbody>
         </table>
       </HScroll>
+      {/* task #391 (file 41, founder 26 Nov): the price windows sit under the table, not in the heading, so the heading stays two lines */}
+      {win && <p className="mi-small mi391-win">Swing a year and worst fall from a high: {win}</p>}
       {/* task #391 (fault 9): one line; the full note behind the page's i */}
-      <p className="mi-small mi391-rnote">{RISK_NOTE_LINE}<I k="swing and worst fall here" what={fullNote} read="Each row is the kind's own figure from its portfolio page, over the window its column header names. The rows are not added up." /></p>
+      <p className="mi-small mi391-rnote">{RISK_NOTE_LINE}<I k="swing and worst fall here" what={fullNote} read="Each row is the kind's own figure from its portfolio page, over the window named under the table. The rows are not added up." /></p>
       {/* task #235 (pack C4, C5): the Equity page's fall picture, weighted by value now, with each kind's share of the money and the size of the fall;
           task #391 (fault 8): no Hide of its own and the page's i; "points", not "pts" */}
       {r.beta != null && <div className="pfx mi-fx"><MarketFall id="mi-fall" what="Nifty 500" idx="Nifty 500" value={d.byValue && d.total ? { now: d.total } : null} noRupees={!d.byValue} unit="points" noHide
