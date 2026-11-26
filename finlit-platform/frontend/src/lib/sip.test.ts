@@ -76,8 +76,8 @@ describe("options", () => {
   });
   it("inputs outside the limits are held to them", () => {
     expect(project({ monthly: -5, years: 10, annualReturn: 12 }).value).toBe(0);
-    expect(project({ monthly: 2500, years: 999, annualReturn: 12 }).n).toBe(600);
-    expect(project({ monthly: 2500, years: 10, annualReturn: 99 }).i).toBeCloseTo(30 / 1200, 12);
+    expect(project({ monthly: 2500, years: 999, annualReturn: 12 }).n).toBe(720);   // task #399: held to the 60-year limit
+    expect(project({ monthly: 2500, years: 10, annualReturn: 99 }).i).toBeCloseTo(50 / 1200, 12);   // task #399: held to the 50% limit
     expect(project({ monthly: Number.NaN, years: 10, annualReturn: 12 }).value).toBe(0);
   });
 });
@@ -158,6 +158,6 @@ describe("words and links", () => {
     expect(fromQuery(new URLSearchParams(toQuery(s)))).toEqual(s);
     expect(toQuery(DEFAULT_STATE)).toBe("");
     const bad = fromQuery(new URLSearchParams("p=abc&y=500&r=-4&t=sideways&sk=<script>&inf=99"));
-    expect(bad).toMatchObject({ monthly: 2500, years: 50, annualReturn: 0, timing: "end", stepKind: "none", inflation: 20 });
+    expect(bad).toMatchObject({ monthly: 2500, years: 60, annualReturn: 0, timing: "end", stepKind: "none", inflation: 30 });   // task #399: the wider limits (60 years, 30% inflation)
   });
 });
