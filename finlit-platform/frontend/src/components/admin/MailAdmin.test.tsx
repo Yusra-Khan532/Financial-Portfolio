@@ -12,7 +12,7 @@ vi.mock("../../lib/api", async (orig) => ({
   apiSend: async (_m: string, path: string, body: unknown) => { st.sent.push({ path, body }); return st.reply; },
 }));
 vi.mock("../../lib/auth", () => ({ useAuth: () => ({ user: { email: "owner@finlit.test" } }) }));
-import { MailAdmin } from "./MailAdmin";
+import { MailAdmin, parsePasted, pastedCsv } from "./MailAdmin";
 import { Unsubscribe } from "../../pages/Unsubscribe";
 
 const SUMMARY = { ready: true, from: "FinLit Ventures <contact@finlitventures.com>", ratePerSecond: 8, sendingNow: false,
@@ -64,5 +64,43 @@ describe("/unsubscribe", () => {
     fireEvent.click(screen.getByRole("button", { name: "Unsubscribe" }));
     expect(await screen.findByText(/You will not get FinLit Ventures mails/)).toBeTruthy();
     expect(st.sent[0]).toEqual({ path: "/api/mail/unsubscribe", body: { t: "5.abc" } });
+  });
+
+  it("Add people: addresses can be pasted, one or many, without a file (owner, 25 Nov 2026)", async () => {
+    st.summary = SUMMARY; st.sent = [];
+    st.reply = { rows: 3, added: 2, alreadyThere: 1, duplicates: 0, invalid: [], invalidCount: 0, typos: [], typoCount: 0, noMailServer: [], noMailServerCount: 0 };
+    wrap(<MailAdmin />);
+    const box = await screen.findByRole("textbox", { name: /Email addresses/ });
+    expect((screen.getByRole("radio", { name: "Paste addresses" }) as HTMLInputElement).checked).toBe(true);   // pasting is the first choice; no file needed
+    expect(screen.queryByLabelText("File")).toBeNull();
+    const add = screen.getByRole("button", { name: "Check and add" }) as HTMLButtonElement;
+    expect(add.disabled).toBe(true);
+    fireEvent.change(screen.getByRole("textbox", { name: /Where these people gave their address/ }), { target: { value: "Owner's contacts, Nov 2026" } });
+    fireEvent.change(box, { target: { value: "priya@example.com\nRahul Verma <rahul@example.com>; anu@example.com\nhello there" } });
+    expect(screen.getByText(/3 addresses found · 1 piece is not an address and will be left out/)).toBeTruthy();
+    fireEvent.click(add);
+    await waitFor(() => expect(st.sent).toHaveLength(1));
+    const sent = st.sent[0] as { path: string; body: { filename: string; data: string; source: string } };
+    expect(sent.path).toBe("/api/admin/mail/import");                                  // the same import as a file: same checks, nobody added twice
+    expect(sent.body.filename).toBe("pasted.csv"); expect(sent.body.source).toBe("Owner's contacts, Nov 2026");
+    expect(atob(sent.body.data)).toBe("email,name\npriya@example.com,\nrahul@example.com,Rahul Verma\nanu@example.com,\n");
+    expect(await screen.findByText("2 added")).toBeTruthy();
+    expect(screen.getByText(/1 left out: not an address/)).toBeTruthy();
+    expect((box as HTMLTextAreaElement).value).toBe("");
+  });
+  it("one address alone works; Upload a file still offers the file", async () => {
+    st.summary = SUMMARY;
+    wrap(<MailAdmin />);
+    fireEvent.click(await screen.findByRole("radio", { name: "Upload a file" }));
+    expect(screen.getByLabelText("File")).toBeTruthy();
+    expect(screen.queryByRole("textbox", { name: /Email addresses/ })).toBeNull();
+    expect(parsePasted("  one@example.com  ")).toEqual({ rows: [{ email: "one@example.com", name: "" }], skipped: [] });
+  });
+  it("reads every way people paste a list and writes a safe CSV", () => {
+    expect(parsePasted('"Shah, Priya" <priya@example.com>\r\n, ,b@x.in;c@y.co').rows).toEqual([{ email: "priya@example.com", name: "Shah, Priya" }, { email: "b@x.in", name: "" }, { email: "c@y.co", name: "" }]);
+    expect(parsePasted("Priya Shah <priya@example.com>").rows).toEqual([{ email: "priya@example.com", name: "Priya Shah" }]);
+    expect(parsePasted("a@b.com, c@d.com ; e@f.com\n\ng@h.com").rows.map((r) => r.email)).toEqual(["a@b.com", "c@d.com", "e@f.com", "g@h.com"]);
+    expect(parsePasted("not an email\nbad@").skipped).toEqual(["not an email"]);                           // "bad@" goes on, and the server names it as not valid
+    expect(pastedCsv([{ email: "a@b.com", name: 'Ann "A", Ltd' }])).toBe('email,name\na@b.com,"Ann ""A"", Ltd"\n');
   });
 });

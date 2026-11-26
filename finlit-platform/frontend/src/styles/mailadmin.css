@@ -37,3 +37,9 @@
 .mla-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
 .mla-row label { flex: 1 1 200px; }
 @media (max-width: 640px) { .mla-two { grid-template-columns: 1fr; } .mla-frame { height: 440px; } }
+
+/* Add people: paste addresses or upload a file (owner, 25 Nov 2026) */
+.mla-mode { display: flex; flex-wrap: wrap; gap: 8px 20px; }
+.mla-mode label { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; cursor: pointer; }
+.mla-mode input { width: auto; margin: 0; }
+.mla-form textarea + small { font-size: var(--fs-12); }
