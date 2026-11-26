@@ -401,3 +401,42 @@ async def test_the_newest_session_needs_many_companies_not_one_stray_candle(stor
     finally:
         async with store.pool.acquire() as conn:
             await conn.execute("DELETE FROM daily_candles WHERE symbol LIKE 'ZZT%'")
+
+
+@pytest.mark.asyncio
+async def test_the_candles_job_runs_again_when_dhan_has_a_session_the_store_lacks(store):  # noqa: F811
+    """25 Nov 2026: the after-close run found no 25 Nov candles; Dhan had them by 04:50 IST (the technicals run confirmed it), yet the charts waited
+    for the next evening. The candles probe now says there is work once the confirmed session is newer than the store's, and only then."""
+    import json
+    from datetime import datetime, timezone
+    from finlit import candles
+    from finlit.jobs import probes
+    from finlit.prism_candles import expected_session
+    from finlit.prism_technical import TARGET_KEY
+    assert by_name()["candles"].probe == "candles" and by_name()["candles"].min_gap_min >= 60
+    expected = expected_session(datetime.now(timezone.utc))
+    held = expected - timedelta(days=1)
+    async with store.pool.acquire() as conn:
+        await conn.execute("DELETE FROM daily_candles WHERE day >= current_date - 15")
+        await conn.executemany("INSERT INTO daily_candles (symbol, day, open, high, low, close, volume, exch) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)",
+                               [(f"ZZP{i:03d}", held, 10.0, 11.0, 9.0, 10.5, 1000, "NSE") for i in range(60)])
+    probe = probes.build(store)["candles"]
+    try:
+        await store.redis.delete(TARGET_KEY)
+        assert await probe() is False                                  # nothing confirmed by Dhan: the weekday rule alone (a holiday) is never work
+        await store.redis.set(TARGET_KEY, json.dumps({"expected": expected.isoformat(), "target": held.isoformat()}))
+        assert await probe() is False                                  # Dhan's newest session is the one already stored
+        await store.redis.set(TARGET_KEY, json.dumps({"expected": expected.isoformat(), "target": expected.isoformat()}))
+        assert await probe() is True                                   # Dhan has the expected session; the store does not
+        await store.redis.set(TARGET_KEY, json.dumps({"expected": (expected - timedelta(days=7)).isoformat(), "target": expected.isoformat()}))
+        assert await probe() is False                                  # a target left from an older day is not today's word
+        async with store.pool.acquire() as conn:
+            await conn.executemany("INSERT INTO daily_candles (symbol, day, open, high, low, close, volume, exch) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)",
+                                   [(f"ZZP{i:03d}", expected, 10.0, 11.0, 9.0, 10.5, 1000, "NSE") for i in range(60)])
+        await store.redis.set(TARGET_KEY, json.dumps({"expected": expected.isoformat(), "target": expected.isoformat()}))
+        assert await probe() is False                                  # loaded: no more work
+        assert await candles.newest_session(store) == expected.isoformat()
+    finally:
+        await store.redis.delete(TARGET_KEY)
+        async with store.pool.acquire() as conn:
+            await conn.execute("DELETE FROM daily_candles WHERE symbol LIKE 'ZZP%'")

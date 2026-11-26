@@ -318,6 +318,7 @@ def build_jobs(env: Optional[Mapping[str, str]] = None) -> List[Job]:
         # time box is 150 minutes (was 45, which left companies a night behind), and a run that still stops with companies left exits partial (degraded,
         # with the count) so the supervisor tries it again, never silently "done"
         Job("candles", ("refresh-candles", "--max-minutes", "150"), cls="bulk", priority=9, max_runtime_min=160, weight_mb=150, resumable=True,
+            probe="candles", min_gap_min=60,   # task #394: a session Dhan published after the evening run is loaded the same morning, not the next evening
             windows=(W("AFTER_CLOSE", 0), W("MORNING", 0)), sla=Sla("session", 12), owns=("daily_candles",),
             what="daily candles from the exchange (Dhan, NSE first, BSE only where there is no NSE row) into daily_candles: the prices, volume and chart patterns read them"),
         # task #394 (developer file 37, F1 and W1): the charts of every stored report from the candles just loaded; database only, a few minutes

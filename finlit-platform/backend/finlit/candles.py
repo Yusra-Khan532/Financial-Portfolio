@@ -107,6 +107,22 @@ async def newest_session(store, min_companies: int = 50) -> Optional[str]:
     return d.isoformat() if d else None
 
 
+async def has_new_session(store) -> bool:
+    """Task #394, the candles job's probe: the exchange has a session the candle store does not hold yet. The session is the one the last technicals
+    run confirmed from Dhan's own candles (prism:tech:target, for today's expected session), so a holiday or a morning before the candles are out
+    is never work. Answers the case of 25 Nov 2026: the after-close run found no 25 Nov candles, Dhan had them by 04:50 IST, and the charts waited a
+    whole day for the next evening's run."""
+    import json
+    from datetime import datetime, timezone
+    from .prism_candles import expected_session
+    from .prism_technical import TARGET_KEY
+    raw = await store.redis.get(TARGET_KEY)
+    got = json.loads(raw) if raw else None
+    if not isinstance(got, dict) or got.get("expected") != expected_session(datetime.now(timezone.utc)).isoformat() or not got.get("target"):
+        return False
+    return (await newest_session(store) or "") < got["target"]
+
+
 async def refresh(store, dhan, symbols: Optional[List[str]] = None, days: int = DEFAULT_DAYS, max_minutes: float = 45.0, limit: Optional[int] = None) -> dict:
     """Bring `daily_candles` up to yesterday's close (today's, once the session is over), oldest-loaded companies first.
 
