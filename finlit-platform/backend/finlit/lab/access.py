@@ -99,6 +99,15 @@ async def my_access(request: Request) -> Dict[str, Any]:
     return {"access": g is not None, "reason": "granted" if g else "not_granted", "expiresAt": g["expiresAt"] if g else None, "signals": bool(g and g["signals"])}
 
 
+def looks_like_email(email: str) -> bool:
+    """One @, something before it, a dot inside the part after it, no spaces. Checked without a regular expression (CodeQL: a pattern with
+    nested repetition can run slowly on a crafted string); the account lookup that follows is the real check."""
+    if len(email) > 254 or any(c.isspace() for c in email) or email.count("@") != 1:
+        return False
+    local, domain = email.split("@")
+    return bool(local) and "." in domain.strip(".") and not domain.startswith(".") and not domain.endswith(".")
+
+
 class GrantBody(BaseModel):
     email: str = Field(min_length=3, max_length=254)
     days: Optional[int] = Field(default=None, ge=1, le=3650)   # None = until removed
@@ -125,7 +134,7 @@ async def list_grants(request: Request, ctx: Ctx = Depends(admin_ctx)) -> Dict[s
 @router.put("/api/admin/lab/grants")
 async def put_grant(request: Request, body: GrantBody, ctx: Ctx = Depends(admin_ctx)) -> Dict[str, Any]:
     email = body.email.strip().lower()
-    if not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email):
+    if not looks_like_email(email):
         raise fail(422, "invalid_email", "Enter the member's email address.")
     until = datetime.now(timezone.utc) + timedelta(days=body.days) if body.days else None
     note = (body.note or "").strip() or None

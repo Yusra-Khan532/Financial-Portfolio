@@ -129,3 +129,16 @@ def test_the_lab_is_never_in_the_search_index():
     from finlit import seo
     for path in ("lab", "lab/flow", "lab/flow/anything"):
         assert seo.is_known(path) and seo.is_private(path), path
+
+
+def test_the_email_check_needs_no_regular_expression_and_is_quick_on_any_string():
+    """CodeQL (PR #961): a regular expression with nested repetition can run slowly on a crafted string. The check is plain string work."""
+    import time
+    from finlit.lab.access import looks_like_email
+    for ok in ("a@b.co", "first.last@finlit.ventures", "x+tag@mail.example.in"):
+        assert looks_like_email(ok), ok
+    for bad in ("", "a", "a@b", "@b.co", "a@.co", "a@b.", "a b@c.co", "a@@b.co", "a@b@c.co", "x" * 300 + "@b.co"):
+        assert not looks_like_email(bad), bad
+    t = time.perf_counter()
+    looks_like_email("!" * 250 + "@" + "!" * 3)
+    assert time.perf_counter() - t < 0.01
