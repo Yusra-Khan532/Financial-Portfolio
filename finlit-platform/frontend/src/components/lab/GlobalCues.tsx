@@ -1,8 +1,7 @@
-// Trading Lab > Order Flow > Global cues (docs/GLOBAL-MARKETS.md, step 1): what moved outside India that Indian markets react to. The international
-// ETFs on NSE and India VIX (live), US yields and the Fed funds rate, the dollar index and currencies, crude oil, the rupee, from
+// Trading Lab > Order Flow > Global cues (docs/GLOBAL-MARKETS.md, step 1): what moved outside India that Indian markets react to. World indices,
+// US futures, the US VIX and metals (Yahoo), the international ETFs on NSE and India VIX (live), US yields and the Fed funds rate, the dollar index and currencies, crude oil, the rupee, from
 // /api/lab/global (backend finlit/lab/global_cues.py). A hover card on every tile and every point of its line. Facts only, never a call.
 import { useState } from "react";
-import { Link } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { ApiError, apiGet } from "../../lib/api";
 import { useTip } from "./FlowTips";
@@ -33,7 +32,7 @@ const day = (iso?: string | null) => (iso ? new Date(iso.slice(0, 10) + "T00:00:
 export function cuesLine(a: GlobalCuesAnswer): string {
   const all = Object.fromEntries(a.groups.flatMap((g) => g.items).map((c) => [c.key, c]));
   const part = (k: string, name: string) => (all[k] ? `${name} ${valueText(all[k])} (${changeText(all[k])})` : null);
-  return [part("us10y", "US 10-year"), part("dxy", "dollar index"), part("brent", "Brent"), part("mon100", "Nasdaq 100 ETF"), part("indiavix", "India VIX")]
+  return [part("us10y", "US 10-year"), part("dxy", "dollar index"), part("brent", "Brent"), part("esf", "S&P 500 futures"), part("mon100", "Nasdaq 100 ETF"), part("indiavix", "India VIX")]
     .filter(Boolean).join(" · ");
 }
 
@@ -113,8 +112,7 @@ export function GlobalCues() {
         </section>
       ))}
       {a && a.notes.map((n) => <p key={n} className="muted oflow-note">{n}</p>)}
-      <p className="muted gcue-more">Index levels (S&P 500, Nasdaq, Nikkei and others) are on <Link to="/markets">Markets today</Link>.</p>
-      <details className="oflow-how"><summary>How it is worked out</summary><p className="muted oflow-method">The international ETFs are funds listed on NSE that hold foreign shares; their prices are in rupees, live in Indian market hours, so they move with their markets and with the rupee and can trade above or below the value of what they hold. US yields and the Fed funds rate (Federal Reserve H.15), the dollar index and the euro, yen and yuan (Federal Reserve H.10), and WTI and Brent crude (U.S. EIA) are daily values from FRED; the latest is usually the last US business day. A rate's change is in percentage points. USD/INR is the FBIL reference rate. These describe what moved; they are not a forecast.</p></details>
+      <details className="oflow-how"><summary>How it is worked out</summary><p className="muted oflow-method">World indices, US futures, the US VIX, metals and natural gas are from Yahoo Finance, compared with the previous session's close; futures trade almost round the clock, so they show how the US is set to open. The international ETFs are funds listed on NSE that hold foreign shares; their prices are in rupees, live in Indian market hours, so they move with their markets and with the rupee and can trade above or below the value of what they hold. US yields and the Fed funds rate (Federal Reserve H.15), the dollar index and the euro, yen and yuan (Federal Reserve H.10), and WTI and Brent crude (U.S. EIA) are daily values from FRED; the latest is usually the last US business day. A rate's change is in percentage points. USD/INR is the FBIL reference rate. These describe what moved; they are not a forecast.</p></details>
     </section>
   );
 }

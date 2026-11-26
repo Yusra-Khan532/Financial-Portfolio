@@ -45,7 +45,6 @@ describe("Global cues, the tab", () => {
     for (const g of ["Global markets on NSE", "US interest rates", "Dollar and currencies", "Crude oil", "India"]) expect(screen.getByRole("region", { name: g })).toBeTruthy();
     expect(document.querySelectorAll(".gcue")).toHaveLength(5);
     expect(document.querySelectorAll(".gcue-live")).toHaveLength(2);
-    expect(screen.getByRole("link", { name: "Markets today" }).getAttribute("href")).toBe("/markets");
   });
   it("pointing at a tile shows what it is, where it comes from and its range", async () => {
     wrap(); await settle();
