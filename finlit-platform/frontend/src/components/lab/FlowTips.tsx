@@ -2,7 +2,7 @@
 // page follows the pointer and shows the full detail of the stock, sector or build-up under it; it never takes the pointer (pointer-events: none),
 // so the parts below stay clickable. Mouse and pen only: on touch, tapping already opens the list of stocks.
 import { createContext, useCallback, useContext, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { BUILDUP, FACTS, ZONE, inr, pct, tone, type FlowLines, type FlowStock } from "../../lib/flow";
+import { BUILDUP, FACTS, ZONE, inr, isUS, pct, tone, type FlowLines, type FlowStock } from "../../lib/flow";
 import type { Bucket } from "../../lib/flowboard";
 import { bars } from "../../lib/flowmap";
 
@@ -55,7 +55,7 @@ function Path({ values, up }: { values: (number | null)[] | undefined; up: boole
 /** 15-minute candles from the day's 3-minute snapshots, with the pivot levels (S2 to R2) and VWAP drawn across, and the last price marked.
  *  Used in the hover card and on the Flow board's feature cards. */
 export function Candles({ s, lines, h = 132, levels = true, at }: { s: FlowStock; lines: FlowLines; h?: number; levels?: boolean; at?: { x: number; y: number; w: number; h: number } }) {
-  const b = bars(lines.change[s.symbol], lines.times, s.previousClose);
+  const b = bars(lines.change[s.symbol], lines.times, s.previousClose, isUS() ? 3 : 5);   // 15-minute bars: 5 India snapshots (3 min) or 3 US ones (5 min)
   if (b.length < 2) return <Path values={lines.change[s.symbol]} up={(s.changePct ?? 0) >= 0} />;
   const W = 300, PADR = 66, PADY = 8, pv = s.pivots;
   // only the levels near the day's prices are drawn (within half the day's range beyond it), so the candles fill the chart; the card lists them all
@@ -90,7 +90,15 @@ const big = (n: number | null) => (n == null ? "—" : Math.abs(n) >= 1e7 ? `${(
 export function StockPop({ s, lines, rank }: { s: FlowStock; lines: FlowLines; rank?: string }) {
   const b = s.buildup ? BUILDUP[s.buildup] : null;
   const up = s.direction >= 0, pv = s.pivots, n2 = (v: number) => v.toLocaleString("en-IN", { maximumFractionDigits: v >= 1000 ? 0 : 1 });
-  const rows: [string, React.ReactNode][] = [
+  const usd = (n: number | null | undefined) => (n == null ? "—" : n >= 1e12 ? `$${(n / 1e12).toFixed(2)} tn` : n >= 1e9 ? `$${(n / 1e9).toFixed(1)} bn` : `$${(n / 1e6).toFixed(0)} mn`);
+  const us = isUS();
+  const rows: [string, React.ReactNode][] = us ? [
+    ["Rank", rank ?? "—"],
+    ["Market value", usd((s as FlowStock & { marketCap?: number }).marketCap)],
+    ["Volume", s.volume == null ? "—" : s.volume.toLocaleString("en-US")],
+    ["Previous close", inr(s.previousClose)],
+    ["Industry", s.industry ?? "—"],
+  ] : [
     ["Rank", rank ?? "—"],
     ["OI", <>{pct(s.oiChangePct, 1)} · {b ? b.name : "no build-up"}</>],
     ["OI change", s.oiChange == null ? "—" : `${s.oiChange > 0 ? "+" : ""}${big(s.oiChange)}`],
@@ -110,10 +118,10 @@ export function StockPop({ s, lines, rank }: { s: FlowStock; lines: FlowLines; r
       </header>
       <dl className="oflow-pop-t">{rows.map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}</dl>
       <Candles s={s} lines={lines} h={170} />
-      <p className="oflow-pop-na">15-minute bars from the 3-minute snapshots · dashed: pivot levels · shaded: the zone the price is in · gold: VWAP{pv ? ` · pivots from ${s.pivotsFrom}` : ""}</p>
-      <div className="oflow-pop-facts">
+      <p className="oflow-pop-na">{us ? "15-minute bars from the 5-minute snapshots of the US session (times IST)" : <>15-minute bars from the 3-minute snapshots · dashed: pivot levels · shaded: the zone the price is in · gold: VWAP{pv ? ` · pivots from ${s.pivotsFrom}` : ""}</>}</p>
+      {!us && <div className="oflow-pop-facts">
         <ul>{FACTS.map((f) => { const v = s.agreement.facts[f.key]; return <li key={f.key} className={v ? (up ? "y gain" : "y loss") : v == null ? "u" : "n"}><i aria-hidden="true">{v ? "✓" : v == null ? "?" : "✕"}</i>{up ? f.up : f.down}</li>; })}</ul>
-      </div>
+      </div>}
       {b && <p className="oflow-pop-what">{b.name}: {b.what}</p>}
     </>
   );

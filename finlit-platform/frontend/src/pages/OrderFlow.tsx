@@ -157,6 +157,7 @@ export function Spark({ values, positive }: { values: (number | null)[] | undefi
 }
 
 function Dots({ s }: { s: FlowStock }) {
+  if (isUS()) return null;   // the US feed has no facts to count
   const up = s.direction >= 0;
   const list = FACTS.map((f) => ({ text: up ? f.up : f.down, v: s.agreement.facts[f.key] }));
   const label = `${s.agreement.score} of ${s.agreement.of} facts agree: ${list.map((f) => `${f.text} — ${f.v == null ? "unknown" : f.v ? "yes" : "no"}`).join("; ")}`;
@@ -281,12 +282,12 @@ function FeatureCard({ s, lines, onHot }: { s: FlowStock; lines: FlowLines; onHo
       onPointerLeave={(e) => { tilt.onPointerLeave(e); onHot(null); tip.hide(); }}>
       <header>
         <div><h4 id={`oflow-f-${s.symbol}`}><Link to={`/stocks/${encodeURIComponent(s.symbol)}`}>{s.symbol}</Link></h4><small className="muted">{s.sector ?? s.name}</small></div>
-        <svg className={`oflow-fring ${up ? "gain" : "loss"}`} viewBox="0 0 40 40" role="img" aria-label={`${s.agreement.score} of ${s.agreement.of} facts agree`}>
+        {!isUS() && <svg className={`oflow-fring ${up ? "gain" : "loss"}`} viewBox="0 0 40 40" role="img" aria-label={`${s.agreement.score} of ${s.agreement.of} facts agree`}>
           <circle cx="20" cy="20" r={r} className="oflow-ring-bg" /><circle cx="20" cy="20" r={r} className="oflow-ring-fg" strokeDasharray={`${(share * c).toFixed(1)} ${c.toFixed(1)}`} transform="rotate(-90 20 20)" />
-          <text x="20" y="24" textAnchor="middle" className="oflow-ring-t">{s.agreement.score}/{s.agreement.of}</text></svg>
+          <text x="20" y="24" textAnchor="middle" className="oflow-ring-t">{s.agreement.score}/{s.agreement.of}</text></svg>}
       </header>
       <div className="oflow-feat-m">
-        <div><span className={`oflow-pill ${b?.tone ?? ""}`}>{b ? b.name : "No build-up"}</span>
+        <div>{!isUS() && <span className={`oflow-pill ${b?.tone ?? ""}`}>{b ? b.name : "No build-up"}</span>}
           <b className={`oflow-feat-p ${tone(s.changePct)}`}>{pct(s.changePct)}</b><small>{inr(s.price)} <span className={tone(s.change)}>{s.change == null ? "" : `${s.change > 0 ? "+" : ""}${s.change.toFixed(2)}`}</span></small></div>
         <Candles s={s} lines={lines} h={96} levels />
       </div>
@@ -342,7 +343,7 @@ export function FlowBoard({ d }: { d: Ready }) {
   const B = board, cut = B.W * 0.47, M = map;
   const avgOf = new Map(d.summary.sectors.map((x) => [x.sector, x.avgChangePct]));
   const feat = (up: boolean) => d.stocks.filter((s) => s.changePct && ((s.changePct as number) > 0) === up).sort((a, b) => Math.abs(b.changePct as number) - Math.abs(a.changePct as number)).slice(0, 3);
-  const bucketChips = (
+  const bucketChips = isUS() ? null : (
     <div className="oflow-bchips" role="group" aria-label="Build-ups">{B.buckets.map((b) => (
       <button key={b.bucket} type="button" className={`oflow-bchip ${bucketTone(b.bucket)}`} aria-pressed={pick?.bucket === b.bucket} aria-label={`${BUCKET_NAME[b.bucket]}: ${b.count} stocks`}
         onClick={() => choose({ bucket: b.bucket })} onMouseEnter={() => setHot({ bucket: b.bucket })} onMouseLeave={() => setHot(null)}><b>{b.count}</b> {BUCKET_NAME[b.bucket]}</button>))}</div>
@@ -405,18 +406,18 @@ export function FlowBoard({ d }: { d: Ready }) {
         const r = 13, c = 2 * Math.PI * r, share = s.agreement.of ? s.agreement.score / s.agreement.of : 0;
         return (
           <g key={t.symbol} className={`oflow-tile ${t.up ? "gain" : "loss"}${t.big ? " big" : ""}${state(t.symbol)}`} role="link" tabIndex={0}
-            aria-label={`${t.symbol} ${pct(s.changePct)}, ${b ? b.name : "no build-up"}, ${s.agreement.score} of ${s.agreement.of} facts`}
+            aria-label={isUS() ? `${t.symbol} ${pct(s.changePct)}, ${s.name}` : `${t.symbol} ${pct(s.changePct)}, ${b ? b.name : "no build-up"}, ${s.agreement.score} of ${s.agreement.of} facts`}
             onClick={go} onKeyDown={(e) => { if (e.key === "Enter") go(); }} {...stockHover(t.symbol)} onFocus={() => setHotSym(t.symbol)} onBlur={() => setHotSym(null)}>
             <rect x={t.x} y={t.y} width={t.w} height={t.h} rx={t.big ? 10 : 5} fill={`url(#oflow-tile-${t.up ? "gain" : "loss"}${t.big ? "-big" : ""})`} className="oflow-tile-bg" />
             <rect x={t.x} y={t.y} width={t.big ? 4 : 3} height={t.h} className="oflow-tile-edge" />
             {t.big ? <>
               <text x={t.x + 14} y={t.y + 24} className="oflow-big-s">{sym(12)}</text>
               <text x={t.x + 14} y={t.y + 40} className="oflow-big-sec">{(s.sector ?? "").slice(0, 22)}</text>
-              <g transform={`translate(${t.x + t.w - 22},${t.y + 22})`} className={`oflow-tring ${t.up ? "gain" : "loss"}`}><circle r={r} className="oflow-ring-bg" /><circle r={r} className="oflow-ring-fg" strokeDasharray={`${(share * c).toFixed(1)} ${c.toFixed(1)}`} transform="rotate(-90)" />
-                <text y="4" textAnchor="middle" className="oflow-ring-t">{s.agreement.score}/{s.agreement.of}</text></g>
+              {!isUS() && <g transform={`translate(${t.x + t.w - 22},${t.y + 22})`} className={`oflow-tring ${t.up ? "gain" : "loss"}`}><circle r={r} className="oflow-ring-bg" /><circle r={r} className="oflow-ring-fg" strokeDasharray={`${(share * c).toFixed(1)} ${c.toFixed(1)}`} transform="rotate(-90)" />
+                <text y="4" textAnchor="middle" className="oflow-ring-t">{s.agreement.score}/{s.agreement.of}</text></g>}
               <text x={t.x + 14} y={t.y + 76} className={`oflow-big-p ${tone(s.changePct)}`}>{pct(s.changePct)}</text>
               <text x={t.x + 14} y={t.y + 96} className="oflow-big-px">{inr(s.price)} {s.change == null ? "" : `${s.change > 0 ? "+" : ""}${s.change.toFixed(2)}`}</text>
-              <text x={t.x + 14} y={t.y + 114} className="oflow-big-bu">{b ? b.name : "No build-up"} · OI {pct(s.oiChangePct, 1)}</text>
+              <text x={t.x + 14} y={t.y + 114} className="oflow-big-bu">{isUS() ? (s.industry ?? "").slice(0, 34) : `${b ? b.name : "No build-up"} · OI ${pct(s.oiChangePct, 1)}`}</text>
               {t.h >= 196 ? <Candles s={s} lines={d.lines} h={140} at={{ x: t.x + 8, y: t.y + 122, w: t.w - 16, h: t.h - 150 }} /> : <Candles s={s} lines={d.lines} h={150} at={{ x: t.x + t.w * 0.54, y: t.y + 42, w: t.w * 0.46 - 8, h: t.h - 66 }} />}
               <text x={t.x + 14} y={t.y + t.h - 10} className="oflow-big-l">{pv ? `S1 ${pv.s1.toLocaleString("en-IN", { maximumFractionDigits: 1 })}   ·   R1 ${pv.r1.toLocaleString("en-IN", { maximumFractionDigits: 1 })}   ·   ${s.zone ? ZONE[s.zone] : ""}` : "Pivots not available"}</text>
             </> : t.h >= 42 && t.w >= 66 ? <>
@@ -445,7 +446,7 @@ export function FlowBoard({ d }: { d: Ready }) {
   return (
     <section className="card oflow-board" aria-labelledby="oflow-board-h">
       <div className="oflow-hero-h">
-        <div><h2 id="oflow-board-h">Flow board</h2><p className="muted">{narrow ? "Tap" : "Point at"} any stock for its detail; choose a sector or build-up to list its stocks.</p></div>
+        <div><h2 id="oflow-board-h">Flow board</h2><p className="muted">{narrow ? "Tap" : "Point at"} any stock for its detail; choose a sector{isUS() ? "" : " or build-up"} to list its stocks.</p></div>
       </div>
       {narrow ? <>
         <div className="oflow-dirs" role="group" aria-label="Direction">{[{ up: true, n: B.rising.count, name: "rising" }, { up: false, n: B.falling.count, name: "falling" }].map((x) => (
@@ -464,7 +465,7 @@ export function FlowBoard({ d }: { d: Ready }) {
 </>}
       <div className="oflow-legend muted">
         <span><i className="sw gain" />Rising</span><span><i className="sw loss" />Falling</span>
-        <span>Tiles: change, build-up, and a dot for each of five facts that agree with the move; the number is its rank by facts lined up</span>
+        <span>{isUS() ? "Tiles: change and price; the largest moves are the largest boxes" : "Tiles: change, build-up, and a dot for each of five facts that agree with the move; the number is its rank by facts lined up"}</span>
       </div>
       <div className="oflow-pick" aria-live="polite">
         {pick ? <>
@@ -472,7 +473,7 @@ export function FlowBoard({ d }: { d: Ready }) {
             <button type="button" className="chip" onClick={() => setPick(null)}>Clear ✕</button></div>
           <div className="oflow-cards">{(all ? chosen : chosen.slice(0, 12)).map((s) => <StockCard key={s.symbol} s={s} lines={d.lines} />)}</div>
           {chosen.length > 12 && !all && <button type="button" className="btn oflow-more" onClick={() => setAll(true)}>Show all {chosen.length}</button>}
-        </> : <p className="muted">Choose a direction, a sector or a build-up to list its stocks, in the order of how many facts line up.</p>}
+        </> : <p className="muted">{isUS() ? "Choose a direction or a sector to list its companies, largest move first." : "Choose a direction, a sector or a build-up to list its stocks, in the order of how many facts line up."}</p>}
       </div>
     </section>
   );
