@@ -19,7 +19,7 @@ import { LabGate } from "./TradingLab";
 import { ChartZoom } from "../components/ChartZoom";
 import { OptionPulse } from "../components/lab/OptionPulse";
 import { GlobalCues } from "../components/lab/GlobalCues";
-import { MarketMood } from "../components/lab/MarketMood";
+import { GlobalMarketMood, MarketMood } from "../components/lab/MarketMood";
 import { BucketPop, Candles, DirectionPop, SectorPop, StockPop, TipLayer, tiltHandlers, useTip } from "../components/lab/FlowTips";
 import "../styles/portfolio-disc.css";
 import "../styles/tradinglab.css";
@@ -645,7 +645,7 @@ function Depth({ d }: { d: Ready }) {
 function Flow({ view, market }: { view: string; market: FlowMarket }) {
   if (view === "options") return <TipLayer><OptionPulse key={market} market={market} /></TipLayer>;   // its own data (the option chain), not the Order Flow snapshot
   if (view === "global") return <TipLayer><GlobalCues /></TipLayer>;      // its own data (FRED series and the international ETFs on NSE)
-  if (view === "mood") return <TipLayer><MarketMood /></TipLayer>;        // its own data (scored news and headlines)
+  if (view === "mood") return <TipLayer>{market === "global" ? <GlobalMarketMood /> : <MarketMood />}</TipLayer>;        // its own data (scored news and headlines)
   return <FlowSnapshotView view={view} market={market} />;
 }
 

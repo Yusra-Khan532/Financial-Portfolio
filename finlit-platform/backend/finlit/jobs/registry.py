@@ -214,7 +214,7 @@ LIMIT_POLICY: Dict[str, str] = {
     "quotes": "deadline: no new slice after --max-minutes 7 (each slice followed up inside it), Dhan phase 90 s, a company 30 s (limit 10)",
     "alerts-live": "fixed: members' own alerts only; measured about 3 s",
     "global-flow": "fixed: one Nasdaq screener call (every US-listed share); skips itself in a few milliseconds outside the US session",
-    "market-mood": "fixed: eight Google News topics, about 100 new headlines scored by the sentiment model; measured about 30 s",
+    "market-mood": "fixed: sixteen Google News topics (eight for India and the world, eight US sectors), about 200 new headlines scored by the sentiment model; measured about 45 s",
     "global-cues": "fixed: nine small FRED downloads (one series each); measured about 10 s",
     "lab-flow": "fixed: one Dhan quote call for every F&O stock and its two futures contracts; missing previous-session open interest is filled for at most 90 s a run, the rest next run (limit 4)",
     "listing": "fixed: two provider calls for the whole market list; measured about 13 s",

@@ -16,8 +16,10 @@ export type Mood = {
   world: { at: string; overall: Tally; topics: (Tally & { key: string; name: string; items: MoodItem[] })[] } | null;
   asOf: string; notes: string[];
 };
+export type GlobalMood = { market: "global"; us: Mood["world"]; world: Mood["world"]; asOf: string; notes: string[] };
 
 const getMood = () => apiGet<Mood>("/api/lab/mood");
+const getGlobalMood = () => apiGet<GlobalMood>("/api/lab/mood?m=global");
 const sgn = (v: number | null) => (v == null ? "—" : `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v)}`);
 const sc = (v: number) => `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toFixed(2)}`;
 const tone = (v: number | null) => (v == null || v === 0 ? "" : v > 0 ? "gain" : "loss");
@@ -99,6 +101,45 @@ function ItemList({ items, label }: { items: MoodItem[]; label: string }) {
   );
 }
 
+/** Topic cards: each topic's mood, its positive/neutral/negative split and its latest headlines. */
+function Topics({ world, label }: { world: NonNullable<Mood["world"]>; label: string }) {
+  const tip = useTip();
+  return (
+    <div className="mood-panel"><h3>{label}</h3>
+      <div className="mood-topics">{world.topics.map((t) => (
+        <article key={t.key} className="mood-topic" aria-label={t.name}>
+          <header onPointerMove={(e) => tip.show(e, <TallyPop name={t.name} t={t} sub="headlines in the last 24 hours" />)} onPointerLeave={() => tip.hide()}>
+            <b>{t.name}</b><span className={tone(t.index)}>{sgn(t.index)}</span></header>
+          <div className="mood-split" aria-hidden="true"><i className="p" style={{ flex: t.pos }} /><i className="n0" style={{ flex: t.neu }} /><i className="n" style={{ flex: t.neg }} /></div>
+          <ItemList items={t.items.slice(0, 4)} label={`${t.name} headlines`} />
+        </article>))}</div></div>
+  );
+}
+
+/** The Global switch: US sectors and the world, no India panels. */
+export function GlobalMarketMood() {
+  const q = useQuery({ queryKey: ["lab-mood", "global"], queryFn: getGlobalMood, retry: false, refetchInterval: 300_000 });
+  const m = q.data;
+  const line = m ? [m.us ? `US sector headlines today ${tallyText(m.us.overall)}` : null, m.world ? `world headlines today ${tallyText(m.world.overall)}` : null].filter(Boolean).join(" · ") : "";
+  return (
+    <section className="card oflow-board mood" aria-labelledby="mood-h">
+      <div className="oflow-hero-h"><div><h2 id="mood-h">Market mood</h2>{line && <p className="oflow-money-line">{line}</p>}</div></div>
+      {q.isPending && <div className="skeleton" style={{ height: 420 }} aria-label="Loading market mood" />}
+      {q.isError && <div className="formerr" role="alert">{q.error instanceof ApiError && q.error.body.detail ? q.error.body.detail : "Market mood could not be read right now. Try again in a minute."}</div>}
+      {m && <>
+        <div className="mood-dials">
+          {m.us && <Dial label="US sector headlines, 24 hours" t={m.us.overall} />}
+          {m.world && <Dial label="World headlines, 24 hours" t={m.world.overall} />}
+        </div>
+        {m.us && <Topics world={m.us} label="US sectors, last 24 hours" />}
+        {m.world && <Topics world={m.world} label="World headlines by topic, last 24 hours" />}
+        {m.notes.map((n) => <p key={n} className="muted oflow-note">{n}</p>)}
+      </>}
+      <details className="oflow-how"><summary>How it is worked out</summary><p className="muted oflow-method">Google News headlines for eight US sectors (US edition) and eight world topics, read every 30 minutes and kept for 48 hours, each scored from −1 to +1 by FinLit's financial-news language model: +0.1 and above counts as positive, −0.1 and below as negative. The mood index is (positive − negative) ÷ all headlines × 100. This describes the tone of what was published, not where prices will go.</p></details>
+    </section>
+  );
+}
+
 export function MarketMood() {
   const tip = useTip();
   const q = useQuery({ queryKey: ["lab-mood"], queryFn: getMood, retry: false, refetchInterval: 300_000 });
@@ -126,14 +167,7 @@ export function MarketMood() {
           <div className="mood-panel"><h3 className="gain">Most positive, last 3 days</h3><ItemList items={m.india.mostPositive} label="Most positive items" /></div>
           <div className="mood-panel"><h3 className="loss">Most negative, last 3 days</h3><ItemList items={m.india.mostNegative} label="Most negative items" /></div>
         </div>
-        {m.world && <div className="mood-panel"><h3>World headlines by topic, last 24 hours</h3>
-          <div className="mood-topics">{m.world.topics.map((t) => (
-            <article key={t.key} className="mood-topic" aria-label={t.name}>
-              <header onPointerMove={(e) => tip.show(e, <TallyPop name={t.name} t={t} sub="headlines in the last 24 hours" />)} onPointerLeave={() => tip.hide()}>
-                <b>{t.name}</b><span className={tone(t.index)}>{sgn(t.index)}</span></header>
-              <div className="mood-split" aria-hidden="true"><i className="p" style={{ flex: t.pos }} /><i className="n0" style={{ flex: t.neu }} /><i className="n" style={{ flex: t.neg }} /></div>
-              <ItemList items={t.items.slice(0, 4)} label={`${t.name} headlines`} />
-            </article>))}</div></div>}
+        {m.world && <Topics world={m.world} label="World headlines by topic, last 24 hours" />}
         {m.notes.map((n) => <p key={n} className="muted oflow-note">{n}</p>)}
       </>}
       <details className="oflow-how"><summary>How it is worked out</summary><p className="muted oflow-method">Every item gets a score from −1 to +1 from FinLit's financial-news language model: the chance its wording is positive minus the chance it is negative. +0.1 and above counts as positive, −0.1 and below as negative, the rest as neutral. The mood index is (positive − negative) ÷ all items × 100, from −100 (all negative) to +100 (all positive). India: the site's news and exchange filings, dated by their publication day. World: Google News headlines for eight topics, read every 30 minutes and kept for 48 hours. This describes the tone of what was published, not where prices will go.</p></details>

@@ -54,6 +54,8 @@ class Scorer:
 @pg
 async def test_world_headlines_are_scored_once_kept_48_hours_and_the_route_is_for_lab_members(app):  # noqa: F811
     store = app.state.store
+    async with store.pool.acquire() as conn:
+        await conn.execute("DELETE FROM macro_meta WHERE key = $1", M.WORLD_KEY)     # a clean start whatever ran before
     scorer = Scorer()
     now = datetime(2026, 11, 26, 19, 0, tzinfo=timezone.utc)
 
@@ -61,7 +63,7 @@ async def test_world_headlines_are_scored_once_kept_48_hours_and_the_route_is_fo
         return httpx.Response(200, text=RSS) if "crude" in req.url.params["q"] else httpx.Response(503)
     async with httpx.AsyncClient(transport=httpx.MockTransport(h)) as c:
         out = await M.refresh_world(store, client=c, scorer=scorer, now=now)
-        assert out["status"] == "ok" and out["scored"] == 3 and "crude" not in out["failed"] and len(out["failed"]) == len(M.TOPICS) - 1
+        assert out["status"] == "ok" and out["scored"] == 3 and "crude" not in out["failed"] and len(out["failed"]) == len(M.TOPICS) + len(M.US_TOPICS) - 1
         again = await M.refresh_world(store, client=c, scorer=scorer, now=now + timedelta(minutes=30))
     assert again["scored"] == 0 and len(scorer.seen) == 3                     # a headline already scored is not scored again
     async with store.pool.acquire() as conn:
@@ -95,3 +97,23 @@ def test_nothing_in_the_answer_reads_as_a_forecast():
     text = (Path(M.__file__).read_text()).lower()
     for w in ("will rise", "will fall", "bullish", "bearish", "buy ", "sell "):
         assert w not in text
+
+
+@pg
+async def test_the_global_switch_reads_us_sectors_in_the_us_edition_and_shows_no_india_panels(app):  # noqa: F811
+    seen = []
+    async with app.state.store.pool.acquire() as conn:
+        await conn.execute("DELETE FROM macro_meta WHERE key = $1", M.WORLD_KEY)
+
+    def h(req):
+        seen.append((req.url.params["q"], req.url.params["gl"]))
+        return httpx.Response(200, text=RSS)
+    async with httpx.AsyncClient(transport=httpx.MockTransport(h)) as c:
+        out = await M.refresh_world(app.state.store, client=c, scorer=Scorer(), now=datetime(2026, 11, 26, 19, 0, tzinfo=timezone.utc))
+    assert out["status"] == "ok" and len(seen) == len(M.TOPICS) + len(M.US_TOPICS)
+    assert all(gl == "US" for q, gl in seen if q.startswith("Nvidia")) and all(gl == "IN" for q, gl in seen if q.startswith("Sensex"))
+    admin = await admin_with_mfa(app, "gmood-boss@example.com")
+    body = (await admin.get("/api/lab/mood?m=global")).json()
+    assert body["market"] == "global" and "india" not in body
+    assert [t["key"] for t in body["us"]["topics"]] == [k for k, _n, _q in M.US_TOPICS]
+    assert [t["key"] for t in body["world"]["topics"]] == [k for k, _n, _q in M.TOPICS]

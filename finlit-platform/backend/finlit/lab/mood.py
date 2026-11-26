@@ -49,6 +49,18 @@ TOPICS: List[Tuple[str, str, str]] = [
     ("china", "China economy and markets", "China economy OR \"China stocks\""),
     ("global", "Global economy", "\"global economy\" OR recession OR inflation"),
 ]
+# The Global switch (founder, 26 Nov 2026: "the same things for the global market"): US sectors, read by the same job, US English edition.
+US_TOPICS: List[Tuple[str, str, str]] = [
+    ("us_tech", "US technology", "Nvidia OR Apple OR Microsoft OR \"tech stocks\""),
+    ("us_banks", "US banks and finance", "JPMorgan OR \"bank stocks\" OR \"Goldman Sachs\""),
+    ("us_energy", "US energy", "Exxon OR Chevron OR \"energy stocks\""),
+    ("us_health", "US healthcare", "\"Eli Lilly\" OR UnitedHealth OR \"healthcare stocks\""),
+    ("us_consumer", "US consumer", "Amazon OR Walmart OR \"consumer stocks\""),
+    ("us_industrials", "US industrials", "Boeing OR Caterpillar OR \"industrial stocks\""),
+    ("us_auto", "Electric vehicles and autos", "Tesla OR \"electric vehicles\" OR \"auto stocks\""),
+    ("us_crypto", "Crypto", "Bitcoin OR crypto"),
+]
+EDITION = {**{k: ("en-IN", "IN", "IN:en") for k, _n, _q in TOPICS}, **{k: ("en-US", "US", "US:en") for k, _n, _q in US_TOPICS}}
 
 
 def band(score: Optional[float]) -> str:
@@ -144,9 +156,10 @@ async def refresh_world(store, client: Optional[httpx.AsyncClient] = None, score
         kept = (await get_meta(conn, WORLD_KEY)) or {}
     topics_out, failed, scored = {}, [], 0
     try:
-        for key, name, query in TOPICS:
+        for key, name, query in TOPICS + US_TOPICS:
+            hl, gl, ceid = EDITION[key]
             try:
-                r = await client.get(GN_URL, params={"q": f"{query} when:1d", "hl": "en-IN", "gl": "IN", "ceid": "IN:en"})
+                r = await client.get(GN_URL, params={"q": f"{query} when:1d", "hl": hl, "gl": gl, "ceid": ceid})
                 fresh = parse_rss(r.text) if r.status_code == 200 else []
             except httpx.HTTPError:
                 fresh = []
@@ -169,16 +182,16 @@ async def refresh_world(store, client: Optional[httpx.AsyncClient] = None, score
     body = {"topics": topics_out, "at": now.isoformat(timespec="minutes")}
     async with store.pool.acquire() as conn:
         await set_meta(conn, WORLD_KEY, body)
-    ok = len(failed) < len(TOPICS)
+    ok = len(failed) < len(TOPICS) + len(US_TOPICS)
     return {"status": "ok" if ok else "failed", "scored": scored, "failed": failed, **({} if ok else {"error": "Google News did not answer for any topic"})}
 
 
-def world_view(kept: Optional[dict], now: datetime) -> Optional[dict]:
+def world_view(kept: Optional[dict], now: datetime, topics: Optional[List[Tuple[str, str, str]]] = None) -> Optional[dict]:
     if not kept or not kept.get("topics"):
         return None
     out = []
     day_ago = now - timedelta(hours=24)
-    for key, name, _q in TOPICS:
+    for key, name, _q in (topics or TOPICS):
         t = kept["topics"].get(key)
         if not t:
             continue
@@ -190,13 +203,21 @@ def world_view(kept: Optional[dict], now: datetime) -> Optional[dict]:
 
 
 @router.get("/api/lab/mood")
-async def market_mood(request: Request, _ctx: Ctx = Depends(lab_ctx)):
+async def market_mood(request: Request, m: str = "india", _ctx: Ctx = Depends(lab_ctx)):
+    """India: the site's own news and filings plus world topics. Global (?m=global): US sectors and world topics, no India panels."""
     from ..macro import get_meta
     now = datetime.now(timezone.utc)
     today = now.astimezone(IST).date()
     async with request.app.state.store.pool.acquire() as conn:
+        kept = await get_meta(conn, WORLD_KEY)
+        if m == "global":
+            us = world_view(kept, now, US_TOPICS)
+            world = world_view(kept, now)
+            notes = [] if us else ["US sector headlines load every 30 minutes in the day; none is stored yet."]
+            body = {"market": "global", "us": us, "world": world, "asOf": now.astimezone(IST).isoformat(timespec="seconds"), "notes": notes}
+            return Response(content=orjson.dumps(body), media_type="application/json", headers={"Cache-Control": "no-store"})
         ind = await india(conn, today)
-        world = world_view(await get_meta(conn, WORLD_KEY), now)
+        world = world_view(kept, now)
     notes = []
     if not ind["days"]:
         notes.append("No scored news or filings in the last 30 days yet: the news-sentiment job scores them each night.")

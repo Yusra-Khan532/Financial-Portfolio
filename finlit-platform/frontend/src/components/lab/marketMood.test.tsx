@@ -6,7 +6,7 @@ import { act, cleanup, fireEvent, render, screen, within } from "@testing-librar
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TipLayer } from "./FlowTips";
-import { MarketMood, moodLine, tallyText, type Mood } from "./MarketMood";
+import { GlobalMarketMood, MarketMood, moodLine, tallyText, type Mood } from "./MarketMood";
 
 const t = (pos: number, neg: number, neu: number) => ({ pos, neg, neu, total: pos + neg + neu, index: Math.round(((pos - neg) / (pos + neg + neu)) * 100) });
 const M: Mood = {
@@ -62,5 +62,20 @@ describe("Market mood, the tab", () => {
     wrap(); await settle();
     const text = (document.querySelector(".mood")?.textContent ?? "").toLowerCase();
     for (const w of ["will rise", "will fall", "bullish", "bearish", "buy", "sell", "prediction"]) expect(text).not.toContain(w);
+  });
+});
+
+describe("Market mood, Global", () => {
+  it("reads ?m=global and shows US sectors and the world, with no India panels", async () => {
+    const G = { market: "global", asOf: M.asOf, notes: [], world: M.world,
+      us: { at: "2026-11-26T18:30+00:00", overall: t(5, 2, 3), topics: [{ key: "us_tech", name: "US technology", ...t(3, 1, 1), items: [{ title: "Nvidia sales beat estimates", source: "Reuters", link: null, at: "2026-11-26T15:00+00:00", score: 0.8, band: "positive" }] }] } };
+    vi.stubGlobal("fetch", vi.fn(async (u: string) => { urls.push(String(u)); return json(G); }));
+    render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><MemoryRouter><TipLayer><GlobalMarketMood /></TipLayer></MemoryRouter></QueryClientProvider>);
+    await settle();
+    expect(urls.some((u) => u.endsWith("/api/lab/mood?m=global"))).toBe(true);
+    expect(screen.getByRole("article", { name: "US technology" }).textContent).toContain("Nvidia sales beat estimates");
+    expect(screen.getByRole("article", { name: "Crude oil" })).toBeTruthy();
+    expect(screen.queryByRole("list", { name: "Mood by sector" })).toBeNull();
+    expect(document.querySelector(".oflow-money-line")?.textContent).toBe("US sector headlines today +30 (5 positive, 2 negative of 10) · world headlines today −15 (6 positive, 9 negative of 20)");
   });
 });
