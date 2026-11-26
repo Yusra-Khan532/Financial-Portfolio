@@ -206,11 +206,16 @@ async def clear_manual(conn, d: date, side: str) -> int:
 class Sources:
     """The one HTTP client (honest User-Agent, nothing else). `transport` replaces the network in tests; `nifty` returns FinEdge's index history."""
 
-    def __init__(self, transport: Optional[httpx.AsyncBaseTransport] = None, nifty: Optional[Callable[[], Awaitable[object]]] = None, settings=None):
+    def __init__(self, transport: Optional[httpx.AsyncBaseTransport] = None, nifty: Optional[Callable[[], Awaitable[object]]] = None, settings=None,
+                 relay: Optional[Tuple[str, str]] = None):
         self.web = httpx.AsyncClient(transport=transport, timeout=60, follow_redirects=True,
                                      headers={"User-Agent": USER_AGENT, "Accept": "text/html, text/csv, */*"})
         self._nifty, self.settings = nifty, settings
         self.calls = 0
+        if relay is None:
+            from .earnings.transcripts import relay_settings
+            relay = relay_settings()
+        self.relay = relay       # FinLit's relay (deploy/amfi-relay): (address, key), or None when it is not set
 
     async def aclose(self):
         await self.web.aclose()
@@ -260,8 +265,28 @@ class Sources:
                     return r.text
             except httpx.TransportError:
                 pass
+            # 26 Nov 2026: NSE refuses the AWS server's address (22 failed runs in a row from 25 Nov, the job held). Every other NSE fetch already asks
+            # FinLit's relay when NSE refuses; this one did not. The relay fetches NSE's home page for the cookie and then the API (deploy/amfi-relay).
+            via = await self._nse_via_relay(hdr)
+            if via is not None:
+                return via
             await asyncio.sleep(2 * (attempt + 1))
-        raise RuntimeError("the exchange's FII/DII report did not answer")
+        raise RuntimeError("the exchange's FII/DII report did not answer" + ("" if self.relay else " (and no relay is set: EXCHANGE_RELAY_URL / EXCHANGE_RELAY_KEY)"))
+
+    async def _nse_via_relay(self, hdr: Dict[str, str]) -> Optional[str]:
+        """The FII/DII report through the relay, or None. A relay that could not reach NSE never stands in for NSE's own answer."""
+        if not self.relay:
+            return None
+        base, key = self.relay
+        self.calls += 1
+        try:
+            r = await self.web.get(base + "/fetch", params={"u": NSE_FIIDII},
+                                   headers={"X-Relay-Key": key, "X-Fwd-User-Agent": hdr["User-Agent"], "X-Fwd-Referer": hdr["Referer"], "X-Fwd-Accept": hdr["Accept"]})
+        except httpx.TransportError:
+            return None
+        if r.headers.get("x-relay-error") or not r.headers.get("x-relay"):
+            return None
+        return r.text if r.status_code == 200 and r.text.lstrip().startswith("[") else None
 
     async def nifty(self):
         if self._nifty is not None:
