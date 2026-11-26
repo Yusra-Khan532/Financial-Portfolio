@@ -7,6 +7,7 @@ import { nf } from "../lib/format";
 import { KIND_NAME, dateShort, joinWords, pctOf, type AllInvestments, type Company, type Kind, type Tab } from "../lib/myInvest";
 import { coLabel, movesAsMuchNifty } from "../lib/mi391";
 import { andList } from "../portfolio/shared/words";
+import { VisitFold } from "../portfolio/shared/VisitFold";
 
 export type Seg = { label: string; n: number; color: string; unit?: "%" };
 export type KfCard = { /** task #391: the card's plain question (All together) */ q?: string; tone: "info" | "warn" | "good"; k: string; say: ReactNode; bar: { kind: "stack"; segs: Seg[] } | { kind: "bars"; rows: { label: string; v: number; color?: string; txt: string }[]; max: number } | null;
@@ -182,9 +183,10 @@ function Bar({ bar }: { bar: NonNullable<KfCard>["bar"] }) {
 export function KeyFiguresSection({ d, view, go }: { d: AllInvestments; view: Tab; go: Go }) {
   const cards = keyFiguresOf(view, d, go);
   if (!cards.length) return null;
+  // task #391 (developer file 41 v4, K1; SHARED.md KF): the site's fold (details.sp-sec.sp-fold, as on the Equity page): "Key figures", its one line and
+  // Show ▾ / Hide ▴; closed on every visit, opening lasts for the visit (the page's VisitFolds, one per view). The fold keeps the id the step 1 link lands on.
   return (
-    <section className="card mi7-kf" id="mi-kf" aria-labelledby="mi-kf-h">
-      <div className="mi7-kfh"><h2 id="mi-kf-h">Key figures</h2><p>{SUB[view](d)}</p></div>
+    <VisitFold id={"mi-kf-" + view} elId="mi-kf" className="mi7-kf" title={<h2 id="mi-kf-h" className="sp-ft pgb-h">Key figures</h2>} line={SUB[view](d)}>
       <div className={"mi7-kfrow n" + cards.length}>{cards.map((c, i) => (
         <article key={c.k} className={"mi7-kfc t-" + c.tone}>
           {/* task #391 (developer file 35, Sections 3): on All together each card opens with one plain, numbered question; the bold answer stays */}
@@ -194,5 +196,5 @@ export function KeyFiguresSection({ d, view, go }: { d: AllInvestments; view: Ta
           <p className="mi7-kfrest">{c.rest}</p>
           <button type="button" className="mi7-lnk" onClick={c.link.go}>{c.link.label} →</button>
         </article>))}</div>
-    </section>);
+    </VisitFold>);
 }

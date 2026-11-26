@@ -9,9 +9,9 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link } from "react-router";
 import { nf } from "../lib/format";
-import { chg, dateShort, rupees, type AllInvestments, type Kind, type KindMoney, type Tab } from "../lib/myInvest";
+import { chg, rupees, type AllInvestments, type Kind, type KindMoney, type Tab } from "../lib/myInvest";
 import { planName } from "../lib/planNames";
-import { coLabel, moneyNote, viewCard } from "../lib/mi391";
+import { coLabel, headerStamp, moneyNote, viewCard } from "../lib/mi391";
 import { CROWN } from "../mf/pack/MfTop";
 import { I } from "./parts";
 import "../styles/mi7.css";
@@ -75,12 +75,13 @@ export function TopCard({ d, money, allMoney, accs, cur, onPick, openQty, loadin
           {d && <span className="mi7-plan">{planName(d.plan)}</span>}
           <I k="All my investments" what="Your shares, mutual funds and ETFs read together: how much you have and where it sits, what it is made of, what you really own underneath, how healthy it is and how risky it is as a whole."
             read="This page reads your three portfolio lists. Add or remove a holding on its own page and it changes here. Nothing is sent to a broker." />
-          {d?.sources.pricesTo && <span className="mi7-asof">Prices at close · {dateShort(d.sources.pricesTo).replace(/ \d{4}$/, "")}</span>}
+          {/* task #391 (developer file 41 v4, A1): the time of the prices inside the session, as the Equity page ("Prices at 10:16 · 26 Nov"); close after it */}
+          {d && headerStamp(d) && <span className="mi7-asof">{headerStamp(d)}</span>}
         </div>
         <div className="mi7-acts">
           <button type="button" className="btn primary" disabled={!d} onClick={openQty}>{d?.byValue ? "Edit quantities" : "Add quantities"}</button>
           <Menu label="Import ▾" items={[{ to: "/holdings", text: "Shares: broker file on the Equity portfolio" }, { to: "/mf-portfolio?tab=import", text: "Mutual funds: CAS or statement on the MF portfolio" }, { to: "/etf-portfolio?tab=import", text: "ETFs: broker file on the ETF portfolio" }]} />
-          <Menu label="⋯" more items={[{ to: "/holdings", text: "Equity portfolio" }, { to: "/mf-portfolio", text: "MF portfolio" }, { to: "/etf-portfolio", text: "ETF portfolio" }, { to: "#mi-faq", text: "How it is counted" }]} />
+          <Menu label="⋯" more items={[{ to: "/holdings", text: "Equity portfolio" }, { to: "/mf-portfolio", text: "MF portfolio" }, { to: "/etf-portfolio", text: "ETF portfolio" }, { to: "#faq", text: "How it is counted" }]} />
           <span className="mi7-count" aria-live="polite">{counts}</span>
         </div>
       </div>
@@ -133,6 +134,7 @@ export function MiCards({ d, view, onView }: { d: AllInvestments; view: Tab; onV
           <p className="mi391-k">{c.k}<em>{on ? "You are here" : "Open →"}</em></p>
           <p className="mi391-v">{c.v}</p>
           <p className="mi391-x">{c.x}</p>
+          {c.b && <p className="mi391-b">{c.b}</p>}
         </button>; })}
     </section>);
 }

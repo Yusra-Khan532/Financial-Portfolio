@@ -135,11 +135,12 @@ describe("Top: four calm cards, Since your last visit, Data as of, the money box
     expect(chips()[4].getAttribute("aria-current")).toBe("step");
   });
   it("T7: Data as of under the section bar", async () => {
-    expect(asOfParts(D(), 90)).toEqual([["Prices", "close of 14 Nov"], ["Fund and ETF holdings", "each file of 31 Oct 2026"], ["Filings", "the last 90 days"], ["Risk", "weekly prices, past year"]]);
+    // developer file 41 v4 (A1): the sample's funds are on the NAV of 13 Nov, its shares and ETFs on the close of 14 Nov, so Data as of says each
+    expect(asOfParts(D(), 90)).toEqual([["Prices", "Shares and ETFs close of 14 Nov · funds NAV 13 Nov"], ["Fund and ETF holdings", "each file of 31 Oct 2026"], ["Filings", "the last 90 days"], ["Risk", "weekly prices, past year"]]);
     mount(); await screen.findByText("Where your money sits");
     const p = document.querySelector(".mi391-asof")!;
     expect(p.previousElementSibling!.className).toContain("stb-wrap");
-    expect(p.textContent).toBe("Data as ofPrices close of 14 Nov·Fund and ETF holdings each file of 31 Oct 2026·Filings the last 90 days·Risk weekly prices, past year");
+    expect(p.textContent).toBe("Data as ofPrices Shares and ETFs close of 14 Nov · funds NAV 13 Nov·Fund and ETF holdings each file of 31 Oct 2026·Filings the last 90 days·Risk weekly prices, past year");
   });
   it("T8, F3, F4: the big figure covers the holdings with a buy price; every holding with a quantity on its own line; the note in three sentences", async () => {
     const d = D(); d.byValue = false; d.missing = ["shares", "funds", "etfs"];

@@ -76,9 +76,10 @@ html.mi7-rowup .wrap.mi .stb-wrap { transform: none; opacity: 1; pointer-events:
 
 /* ---- phone folds with All sections on: each stop after the first shows only its heading block and Open ▾ */
 .mi .mi391-fold:not(.open) { margin: 0 0 16px; padding: 0 0 14px; border: 1px solid var(--border); border-radius: var(--r-card); background: var(--s1); }
-.mi .mi391-fold:not(.open) > .card, .mi .mi391-fold:not(.open) > .mi7-wc > section { margin: 0; border: 0; box-shadow: none; background: none; padding-bottom: 4px; }
+.mi .mi391-fold:not(.open) > .mi-step, .mi .mi391-fold:not(.open) > .mi7-wc > section {   /* task #391 (file 41 v4, E1): the steps are .sp-sec, not .card */
+  margin: 0; border: 0; box-shadow: none; background: none; padding-bottom: 4px; }
 .mi .mi391-fold:not(.open) > section.mi-step > :not(.mi-sh), .mi .mi391-fold:not(.open) .mi-sh-r { display: none !important; }
-.mi .mi391-fold:not(.open) > .mi7-wc > section.wc > :not(h2):not(.wp-sub) { display: none !important; }
+.mi .mi391-fold:not(.open) > .mi7-wc > section.wc > :not(h2):not(.wp-sub):not(.mi41-step) { display: none !important; }   /* file 41 v4, A2: the Step 5 label stays */
 .mi .mi391-fo, .mi .mi391-fc { display: flex; align-items: center; justify-content: flex-end; gap: 6px; min-height: 40px; padding: 0 14px; border: 1px solid var(--border); border-radius: var(--r-ctl); background: var(--s2); color: var(--text); font: 600 var(--fs-13)/1 var(--sans); cursor: pointer; }
 .mi .mi391-fo { width: calc(100% - 32px); margin: 0 16px; }
 .mi .mi391-fc { margin: 0 0 8px auto; }

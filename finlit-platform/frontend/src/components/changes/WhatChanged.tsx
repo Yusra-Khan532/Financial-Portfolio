@@ -46,7 +46,8 @@ export function OrderWinNotice({ row, page }: { row: ChangeRow | null; page: str
   );
 }
 
-export function WhatChanged({ symbols, listName, listRef, page, lists, activeList, onPickList, nameOf, title = "What changed at these companies", sub, lede, foot, countLabel, alertLabel, className = "wp-sec wc", hId = "wc-h", id = "what-changed", newTab = false, plain = false, help, shortName }: {
+export function WhatChanged({ symbols, listName, listRef, page, lists, activeList, onPickList, nameOf, title = "What changed at these companies", sub, lede, foot, countLabel, alertLabel, className = "wp-sec wc", hId = "wc-h", id = "what-changed", newTab = false, plain = false, help, shortName, eyebrow }: {
+  /** task #391 (developer file 41 v4, A2): a line above the heading, e.g. the step's label on All my investments ("Step 5"); other pages pass none */ eyebrow?: ReactNode;
   /** task #385 (Equity portfolio, developer file 33): tiles count updates ("1 update", "4 updates") with a line on what an update is; rows say "· 10 filings";
    *  the "Not in Discover yet" list starts closed. Other pages keep their block as it was. */ plain?: boolean;
   /** task #385: the i beside the heading (its own text) */ help?: ReactNode; /** task #385: the short company name for a row */ shortName?: (symbol: string, name: string) => string;
@@ -67,6 +68,7 @@ export function WhatChanged({ symbols, listName, listRef, page, lists, activeLis
   const visit = dayMonth(lastVisit);
   return (
     <section className={className} id={id} aria-labelledby={hId}>
+      {eyebrow}
       <h2 id={hId}>{title}{help}</h2>
       <p className="wp-sub">{lede ?? headline(q.data, symbols.length, listName)}</p>
       {alertOpen && <AlertMeForm listRef={listRef} listLabel={alertLabel ?? listName} onClose={() => setAlertOpen(false)} />}

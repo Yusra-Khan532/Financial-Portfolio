@@ -1,10 +1,12 @@
 """Task #391 (developer file 35, All my investments): the data faults, on made-up lists only.
 F2: a fund held in two accounts (one lot with a buy amount, one without) kept its units but lost its whole buy price, so Invested and Gain dropped it.
-F1: a holding that weighs 0 in the split is not part of a list's weekly line. F12: each kind's swing window is sent and said."""
+F1: a holding that weighs 0 in the split is not part of a list's weekly line. F12: each kind's swing window is sent and said.
+Developer file 41 v4: A1 (a share price from inside the session keeps its time, and each kind's prices are sent) and A4 (a holding left out of a kind's
+beta for having no quantity says so; "under a year of prices" is only for a short history)."""
 from datetime import date
 from decimal import Decimal
 
-from finlit.myinvest.api import beta500_weekly, fund_cost, fund_units, name_of, swing_window, swing_windows
+from finlit.myinvest.api import beta500_weekly, fund_cost, fund_units, name_of, price_at, prices_of, swing_window, swing_windows
 from test_myinvest_277 import END, _series
 
 
@@ -54,3 +56,26 @@ def test_f12_each_kinds_swing_window_is_sent_and_said():
 def test_names_for_the_lists():
     assert name_of("funds", {"code": 3, "short": "Sample Flexi", "name": "Sample Flexi Cap Fund - Direct Growth"}) == {"code": 3, "name": "Sample Flexi"}
     assert name_of("etfs", {"symbol": "ETX", "name": None}) == {"symbol": "ETX", "name": "ETX"}
+
+
+def test_41_a4_left_out_for_no_quantity_is_not_called_a_short_history():
+    # before: both ETFs below sat in window.short, which the page prints as "under a year of prices", although NOQTY has the full year
+    days, idx, a = _series(1.5)
+    _, _, b = _series(0.5)
+    got = beta500_weekly([(days, a), (days, b), (days[-60:], a[-60:])], [0.6, 0.0, 0.4], dict(zip(days, idx)), END, ["AAA", "NOQTY", "YOUNG"])
+    w = got["window"]
+    assert (w["counted"], w["of"]) == (1, 3)
+    assert w["noQty"] == ["NOQTY"] and w["short"] == ["YOUNG"]                                  # each its own reason
+    assert got["each"][1] == 0.5                                                                # NOQTY's own beta: it has a year of prices
+    none = beta500_weekly([(days, a), (days, b)], [0.0, 0.0], dict(zip(days, idx)), END, ["A", "B"])
+    assert none["window"]["noQty"] == [] and none["window"]["short"] == []                     # no weights at all: each counts the same, none left out
+
+
+def test_41_a1_a_price_from_inside_the_session_keeps_its_time():
+    assert price_at("2026-11-26T10:16:05+05:30") == "2026-11-26T10:16:05+05:30"
+    assert price_at("2026-11-25") is None and price_at(None) is None and price_at("not a time") is None
+    shares = [{"priceAt": "2026-11-26T10:16:05+05:30", "priceDate": "2026-11-26"}, {"priceAt": "2026-11-26T04:50:00+00:00", "priceDate": "2026-11-26"},
+              {"priceAt": None, "priceDate": "2026-11-25"}]
+    got = prices_of(shares, [{"priceDate": "2026-11-23"}, {"priceDate": "2026-11-25"}])
+    assert got == {"sharesAt": "2026-11-26T04:50:00+00:00", "sharesTo": "2026-11-26", "etfsTo": "2026-11-25"}   # 10:20 IST is later than 10:16 IST
+    assert prices_of([], []) == {"sharesAt": None, "sharesTo": None, "etfsTo": None}

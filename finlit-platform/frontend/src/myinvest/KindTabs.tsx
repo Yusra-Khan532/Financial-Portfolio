@@ -63,7 +63,7 @@ function KindRisk({ d, kind, id, n, extra }: { d: AllInvestments; kind: Kind; id
   const win = x?.swingWindow?.label ?? (kind === "shares" ? `weekly prices${x?.years ? `, ${x.years} years` : ""}` : "daily NAVs and prices, 3 years");
   const missing = d.missing ?? [];
   return (
-    <section className="card mi-step">
+    <section className="sp-sec mi-step">
       <SecHead id={id} n={n} title={`How risky ${name} are`} line={`How much they move with the Nifty 500: weekly, past year${kind === "shares" ? "" : ", as on the portfolio page"}. Swing and worst fall: ${win}${kind === "shares" ? ", beside the Nifty 500 over the same weeks" : ""}.`}
         info={[`How ${name} have moved with the market: how much they move with the Nifty 500, the yearly swing and the worst fall from a high.`, "Above 1.00× moved more than the Nifty 500, below 1.00× less. Past moves only."]} />
       <div className="mi-three">
@@ -93,7 +93,7 @@ export function EquityTab({ d }: { d: AllInvestments }) {
   ];
   return (
     <>
-      <KStep id="mi-eq-list" title="Your shares" line=""><section className="card mi-step">
+      <KStep id="mi-eq-list" title="Your shares" line=""><section className="sp-sec mi-step">
         <SecHead id="mi-eq-list" n={1} title="Your shares" line={(scored ? `${s.length} shares from your Equity portfolio, read with ${model}.` : `${s.length} shares from your Equity portfolio. ${model} · see plans.`) + noQtyLine(nNo, s.length, "share")} info={["Each share on your Equity portfolio with its score, peers, moves and part of everything.", "Of everything is the share's direct part only; step 4 of All together adds what your funds and ETFs hold."]} />
         <HScroll label="Your shares" className="mi-freeze">
           <table className="mi-tb">
@@ -108,7 +108,7 @@ export function EquityTab({ d }: { d: AllInvestments }) {
       </section>
       {/* task #277 (change 9): Key figures after Step 1; task #391: inside step 1 */}
       <KeyFiguresSection d={d} view="equity" go={go} /></KStep>
-      <KStep id="mi-eq-spread" title="How your shares are spread" line=""><section className="card mi-step">
+      <KStep id="mi-eq-spread" title="How your shares are spread" line=""><section className="sp-sec mi-step">
         <SecHead id="mi-eq-spread" n={2} title="How your shares are spread" line="By macro sector and by company size, your shares only (by count)." info={["How your own shares split across NSE's macro sectors and company sizes.", "Counted by number of shares; All together step 3 counts through funds and ETFs too."]} />
         <div className="mi-two">
           <ul className="mi-hbars">{byMacro.map(([k, n]) => <li key={k}><span className="mi-hb-l">{k}</span><span className="mi-hb-b"><i className="k-shares" style={{ width: `${(n / byMacro[0][1]) * 100}%` }} /></span><b>{n}</b></li>)}</ul>
@@ -120,7 +120,7 @@ export function EquityTab({ d }: { d: AllInvestments }) {
         <p className="mi-cap">The 5 largest parts of the shares' market risk</p>
         <ul className="mi-pills">{risky.map((x) => <li key={x.symbol}>{coName(x)} · {movesTxt(x.beta)} · {pctOf(x.of, 1)} of everything</li>)}</ul>
         <p className="mi-small"><Link to="/holdings?view=risk">Open Risk analytics on the Equity portfolio →</Link></p></>} /></KStep>
-      <KStep id="mi-eq-also" title="Also inside your funds and ETFs" line=""><section className="card mi-step">
+      <KStep id="mi-eq-also" title="Also inside your funds and ETFs" line=""><section className="sp-sec mi-step">
         <SecHead id="mi-eq-also" n={4} title="Also inside your funds and ETFs" line="Shares you hold directly that a fund or ETF holds too: your real part of each, all ways added." info={["Each share you hold directly that also sits inside one of your funds or ETFs.", "All together adds the direct part and what comes through funds and ETFs."]} />
         {also.length ? <HScroll label="Also inside your funds and ETFs"><table className="mi-tb">
           <thead><tr><th scope="col">Share</th><th scope="col" className="r">Direct</th><th scope="col" className="r">Through funds</th><th scope="col" className="r">Through ETFs</th><th scope="col" className="r">All together</th><th scope="col">Held by</th></tr></thead>
@@ -146,7 +146,7 @@ export function MfTab({ d }: { d: AllInvestments }) {
   ];
   return (
     <>
-      <KStep id="mi-mf-list" title="Your funds" line=""><section className="card mi-step">
+      <KStep id="mi-mf-list" title="Your funds" line=""><section className="sp-sec mi-step">
         <SecHead id="mi-mf-list" n={1} title="Your funds" line={`${f.length} funds from your MF portfolio.${noQtyLine(nNo, f.length, "fund", "units")}`} info={["Each fund on your MF portfolio with its type, Mutual Fund Score, 1-year change, cost and how much it moves with the Nifty 500.", "Mutual Fund Score carries the fund's own band word; 1.00× moves with the Nifty 500."]} />
         <HScroll label="Your funds" className="mi-freeze"><table className="mi-tb">
           <thead><tr><th scope="col">Fund</th><th scope="col">Type</th><th scope="col">Mutual Fund Score</th><th scope="col" className="r">1 year</th><th scope="col" className="r">Cost a year</th><th scope="col" className="r">Moves with the Nifty 500</th>{d.byValue && <th scope="col" className="r">Value</th>}<th scope="col" className="r">Of everything</th></tr></thead>
@@ -171,7 +171,7 @@ function Inside({ d, kind, id, title }: { d: AllInvestments; kind: "funds" | "et
   const inside = d.companies.filter((c) => (kind === "funds" ? c.funds : c.etfs) > 0).sort((a, b) => (kind === "funds" ? b.funds - a.funds : b.etfs - a.etfs));
   const shared = inside.filter((c) => c.via.filter((v) => (kind === "funds" ? d.funds.some((f) => f.short === v) : d.etfs.some((e) => e.symbol === v))).length > 1);
   return (
-    <section className="card mi-step">
+    <section className="sp-sec mi-step">
       <SecHead id={id} n={2} title={title} line="Each one's latest monthly file: where its money sits." info={["How each one's money splits: Indian shares, shares abroad, gold and silver, debt and cash.", "A grey bar means its file is not loaded yet."]} />
       <ul className="mi-each">{each.map((x) => <li key={x.name}><span className="mi-each-n"><b>{x.name}</b><small>{x.how === "file" ? `file of ${x.asOf ?? "—"}` : x.how === "type" ? "by its type" : "file not loaded yet"}</small></span>
         <Stack label={x.name} keyed={false} segs={d.madeOf.rows.map((r) => ({ key: r.key, label: r.label, v: x.mix[r.key] ?? 0, cls: MIX_CLS[r.key] }))} /></li>)}</ul>
@@ -190,7 +190,7 @@ function Inside({ d, kind, id, title }: { d: AllInvestments; kind: "funds" | "et
 export function EtfTab({ d }: { d: AllInvestments }) {
   const e = d.etfs, rep = d.cards.etfs.repeats ?? [];
   if (!e.length) return (
-    <section className="card mi-step mi-empty-k" id="mi-etf-list"><h2>No ETFs yet</h2><p>Your ETF portfolio is empty, so the other tabs leave ETFs out. Add an ETF there and it is counted here after a refresh.</p><Link className="btn primary" to="/etf-portfolio">Add ETF</Link></section>);
+    <section className="sp-sec mi-step mi-empty-k" id="mi-etf-list"><h2>No ETFs yet</h2><p>Your ETF portfolio is empty, so the other tabs leave ETFs out. Add an ETF there and it is counted here after a refresh.</p><Link className="btn primary" to="/etf-portfolio">Add ETF</Link></section>);
   const far = [...e].filter((x) => x.premium != null).sort((a, b) => Math.abs(b.premium!) - Math.abs(a.premium!))[0];
   const noQty = (x: { qty: number | null; price: number | null }) => d.cards.etfs.valued && !((x.qty ?? 0) > 0 && (x.price ?? 0) > 0);
   const nNo = e.filter(noQty).length;
@@ -202,7 +202,7 @@ export function EtfTab({ d }: { d: AllInvestments }) {
   ];
   return (
     <>
-      <KStep id="mi-etf-list" title="Your ETFs" line=""><section className="card mi-step">
+      <KStep id="mi-etf-list" title="Your ETFs" line=""><section className="sp-sec mi-step">
         <SecHead id="mi-etf-list" n={1} title="Your ETFs" line={`${e.length} ETFs from your ETF portfolio.${noQtyLine(nNo, e.length, "ETF")}`} info={["Each ETF on your ETF portfolio: what it tracks, its price, moves, cost and price against value.", "Price against value in red at 1% or more."]} />
         <HScroll label="Your ETFs" className="mi-freeze"><table className="mi-tb">
           <thead><tr><th scope="col">ETF</th><th scope="col">Tracks</th><th scope="col" className="r">Price</th><th scope="col" className="r">1 day</th><th scope="col" className="r">1 year</th><th scope="col" className="r">Cost a year</th><th scope="col" className="r">Price vs value</th>{d.byValue && <th scope="col" className="r">Value</th>}<th scope="col" className="r">Of everything</th></tr></thead>
