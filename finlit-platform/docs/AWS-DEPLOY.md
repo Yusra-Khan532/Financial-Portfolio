@@ -39,6 +39,8 @@ Time needed: about 45 minutes the first time (most of it is the first build).
    An Elastic IP keeps the address the same after a reboot or stop. AWS charges for **every** public IPv4 address, Elastic or not, about **$0.005 per hour = $3.65 per month**. This is the address you will use below as `YOUR.ELASTIC.IP`.
 
 ## 2. Connect from Windows with SSH
+> **The live server (26 Nov 2026):** SSH goes only through the EC2 Instance Connect Endpoint: `ssh finlit` (`docs/ops/SSH.md`), and port 22 is closed to the internet. The steps below are for a brand-new server; once it runs, set up the endpoint and delete the "My IP" SSH rule (a home address changes, and then `ssh` times out).
+
 Put `finlit.pem` somewhere private, for example `C:\Users\YOU\.ssh\finlit.pem`.
 
 **PowerShell** (Windows 10/11 has `ssh`):
@@ -136,7 +138,7 @@ Different source? `REPO_URL`, `REPO_BRANCH`, `REPO_SUBDIR` can be set the same w
 ## 9. Backups and restore
 - A backup container saves the database **every night at 02:00 IST** into the `backups` Docker volume (and once more before every automatic deploy), keeps today's newest 3 and **one per earlier day for 7 days**, and checks each file can be read. The backups are for recovery only; nothing on the site reads them. Console > Storage shows how many there are and how much space they take. List them: `finlit backups`.
 - **Copy the newest to your own computer now and then** (a backup on the same disk does not survive losing the server). On the server:
-  `docker cp finlit-backup-1:/backups/FILENAME.dump ~/` then, on your computer: `scp -i finlit.pem ubuntu@YOUR.ELASTIC.IP:FILENAME.dump .`
+  `docker cp finlit-backup-1:/backups/FILENAME.dump ~/` then, on your computer: `scp finlit:FILENAME.dump .` (`docs/ops/SSH.md`)
 - **Restore** (replaces the current database, after taking a safety backup first): `finlit restore FILENAME.dump`. It asks you to type `restore`.
 - MongoDB data lives in Atlas (use its own backups); this server does not hold it.
 - Changing `POSTGRES_PASSWORD` in the file later does **not** change the database's password (it is set when the database is first created). If you must change it: take a backup, `finlit compose down`, `docker volume rm finlit_pgdata`, edit the file, `finlit`, then `finlit restore` the backup.

@@ -21,8 +21,8 @@ Other commands: `status`, `logs [service]`, `restart`, `backup`, `backups`.
 The server accepts SSH only with a key and only from allowed addresses.
 1. The team member creates their own key pair on their computer (`ssh-keygen -t ed25519`) and sends the **public** key (the `.pub` file; never the private one).
 2. The server owner appends that public key as one line to `/home/ubuntu/.ssh/authorized_keys` on the server (log in, `nano ~/.ssh/authorized_keys`, paste, save).
-3. The owner adds the member's public IP address to the EC2 security group rule for SSH (port 22), or opens the rule wider (fail2ban is on).
-4. The member logs in with `ssh -i <their key> ubuntu@54.253.190.17` and runs the deploy command above. Remove their line from `authorized_keys` when they leave.
+3. The owner creates an IAM user for the member (no console access) with the `finlit-ssh-tunnel` policy; the member creates their own access key and sets up `ssh finlit` (`docs/ops/SSH.md`). No IP address is added to the security group: port 22 is open only to the EC2 Instance Connect Endpoint.
+4. The member logs in with `ssh finlit` and runs the deploy command above. When they leave, delete their IAM user (or access key) and their line in `authorized_keys`.
 Secrets (FinEdge key, Mongo URL, passwords) live only in `/opt/finlit/.env.aws` on the server; a deployer never needs to see or copy them.
 
 ## 4. Contributing changes

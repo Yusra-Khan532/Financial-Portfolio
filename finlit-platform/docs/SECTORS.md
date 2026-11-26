@@ -63,12 +63,12 @@ About 240 MB: `bhav_2016.csv.gz` ... `bhav_2026.csv.gz`, `idx_2016.csv.gz` ... `
 Docker mounts `/opt/finlit/data/nse` as `/data/nse` (compose file, README). In PowerShell on the PC (replace the key file and address):
 ```
 # 1. on the server, once:
-ssh -i key.pem ubuntu@SERVER "sudo install -d -o 1000 -g 1000 /opt/finlit/data/nse /opt/finlit/data/sectors && mkdir -p /tmp/nse-upload"
+ssh finlit "sudo install -d -o 1000 -g 1000 /opt/finlit/data/nse /opt/finlit/data/sectors && mkdir -p /tmp/nse-upload"
 # 2. copy the folder (this skips the day folders; only the files the job needs)
-scp -i key.pem C:\path\nse\bhav_*.csv.gz C:\path\nse\idx_*.csv.gz ubuntu@SERVER:/tmp/nse-upload/
-scp -i key.pem -r C:\path\nse\ref C:\path\nse\amfi ubuntu@SERVER:/tmp/nse-upload/
+scp C:\path\nse\bhav_*.csv.gz C:\path\nse\idx_*.csv.gz finlit:/tmp/nse-upload/
+scp -r C:\path\nse\ref C:\path\nse\amfi finlit:/tmp/nse-upload/
 # 3. on the server: move it into place and give the app ownership
-ssh -i key.pem ubuntu@SERVER "sudo mv /tmp/nse-upload/* /opt/finlit/data/nse/ && sudo chown -R 1000:1000 /opt/finlit/data && ls -la /opt/finlit/data/nse | head -30 && du -sh /opt/finlit/data/nse"
+ssh finlit "sudo mv /tmp/nse-upload/* /opt/finlit/data/nse/ && sudo chown -R 1000:1000 /opt/finlit/data && ls -la /opt/finlit/data/nse | head -30 && du -sh /opt/finlit/data/nse"
 ```
 (If the upload is interrupted, run the same `scp` again.) Check the listing shows both sets of years and `ref/`, `amfi/`.
 

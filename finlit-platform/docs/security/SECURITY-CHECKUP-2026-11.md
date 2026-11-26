@@ -92,7 +92,7 @@ The one item left is on a timer: DMARC `p=reject` about 8 Dec 2026.
 | Email (DNS) | DMARC `p=none`: mail faking `@finlitventures.com` isn't rejected | Medium | **Done (owner, 24 Nov):** `p=quarantine` with Cloudflare DMARC reports; `p=reject` about 8 Dec |
 | DNS | No CAA record | Low | **Done (owner, 24 Nov):** CAA issue for letsencrypt.org, sectigo.com, pki.goog, ssl.com (Cloudflare adds its own) |
 | Infra | Origin firewall should accept web traffic only from Cloudflare | Low | **Done (owner, 24 Nov):** EC2 security group 80/443 = the 15 Cloudflare IPv4 ranges only; direct requests to the server address time out |
-| Infra | SSH (22) open to every address | Low | **Done (owner, 25 Nov):** 22 = EC2 Instance Connect (Sydney, `13.239.158.0/29`) only; checked blocked from outside |
+| Infra | SSH (22) open to every address | Low | **Done (owner, 25 Nov; changed 26 Nov):** 22 is open only to the EC2 Instance Connect Endpoint's security group (`docs/ops/SSH.md`); no rule from any internet address. (The 25 Nov note named `13.239.158.0/29`; the rule actually saved was one PC's `/32`, which broke when that address changed.) |
 | Server config | Live `.env` hardening (production mode and related settings) | Low | **Done (owner, 24 Nov):** production mode, email confirmation on, real host list, explicit CORS origin; `config.validate()` reports no problems |
 | Admin access | Admins could sign in without the authenticator | Medium | **Done (owner, 24 Nov):** `ADMIN_REQUIRE_MFA=1`, authenticator set up, admin password changed, old sessions ended; a fresh sign-in asks for the code |
 | Secrets | The monitoring tools share the site's main mail key | Low | **Done:** separate sending-only key (#904 + owner, 24 Nov; test alert delivered); unused old Resend key deleted |
@@ -110,7 +110,7 @@ The one item left is on a timer: DMARC `p=reject` about 8 Dec 2026.
 5. ✅ Separate sending-only Resend key for monitoring (server, GitHub secret), test alert delivered; unused old key deleted.
 6. ✅ `ADMIN_REQUIRE_MFA=1`, authenticator set up, admin password changed. `ADMIN_PASSWORD` stays in `.env.aws` (deploy.sh requires it; it is the way back in), but it is no longer the live password.
 7. ✅ OS security updates and the new kernel installed, rebooted.
-8. ✅ SSH limited to EC2 Instance Connect. To SSH from a PC, add that PC's `/32` to port 22, never `0.0.0.0/0`.
+8. ✅ SSH only through the EC2 Instance Connect Endpoint: `ssh finlit` (`docs/ops/SSH.md`). Never add an internet address (`/32` or `0.0.0.0/0`) to port 22.
 9. ⏳ **About 8 Dec 2026:** if Cloudflare → Email → DMARC Management lists only Resend, Amazon SES and Cloudflare as senders, set `p=reject`.
 
 ## For the team
