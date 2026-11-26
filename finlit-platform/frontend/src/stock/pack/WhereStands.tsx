@@ -1,7 +1,8 @@
-// "Where <company> stands" (final pages pack, board 17): its industry, its peers, its own price and its risk, one question per tab. It replaces the report's
+// "Where <company> stands" (final pages pack, board 17): its industry, its peers and its risk, one question per tab (its own price chart left in developer
+// file 43: 03 Price & technicals draws it, with the trends, the 1-year high and the returns). It replaces the report's
 // "Where its industry stands" (Sector & peers) and "Where this stock stands among its peers" (Leadership) sections. Every figure is the server's: the stock's sector
 // reading, its industry page, Sector Rotation, the peer reading and its history, the price and Prism; the words come from lib/standsPack. Describes; never advice.
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router";
 import { CoLogo } from "../../components/CoLogo";
 import { LockedBlock } from "../../components/sectors/Parts";
@@ -11,21 +12,26 @@ import { BOX_HELP } from "../../lib/rotationPack";
 import { failureText, useSectorPage, useStockSector, type IndustryPage, type RankedStock } from "../../lib/sectors";
 import { useRotationCard } from "../../lib/rotation";
 import { pendingOf, useLeadership, useLeadershipHistory, type LeadershipOn, type LeadLabel } from "../../lib/leadership";
-import { usePrice, type Peers, type Summary } from "../../lib/api";
+import type { Peers, Summary } from "../../lib/api";
 import { capBucket } from "../../lib/capBuckets";
-import { ratingWord, trendAlignment } from "../../lib/prismTechnical";
+import { trendAlignment } from "../../lib/prismTechnical";
+import { sectionNo } from "../../lib/sectionNav";
+import { revealAndScroll } from "../../components/PhoneFold";
 import { scoreView, usePlanModel, usePlanPrism } from "../../lib/planScore";
-import { LABEL, groupWord, headline, industryCards, ordinal, peerCards, priceCards, riskCards, rotationLine } from "../../lib/standsPack";
+import { LABEL, groupWord, headline, industryCards, ordinal, peerCards, riskCards, rotationLine } from "../../lib/standsPack";
 import "../../styles/sectors-pack.css";
 import "../../styles/industry-pack.css";
-import { median, shortList } from "../../lib/standsList";
+import { median, shortList, stripDots } from "../../lib/standsList";
+import { DropChev } from "../../components/DropChev";
 import "./stands.css";
+import { KnowButton } from "../../portfolio/pack/Round388";
+import "../../portfolio/pack/eq385.css";   // the pop-up's quiet card list (scoped .eq; the pop-up carries the class)
+import type { Card } from "../../lib/pulsePack";
 import { SectionHead } from "../Sections";
 import { coTitle, shortLabel } from "../../lib/companyLabel";
 
-type Tab = "industry" | "peers" | "chart" | "risk";
+type Tab = "industry" | "peers" | "risk";
 const sp = (x: number | null | undefined, dp = 1, unit = "%") => (x == null ? "–" : `${x >= 0 ? "+" : "−"}${Math.abs(x).toFixed(dp)}${unit}`);
-const inr = (x: number) => "₹" + x.toLocaleString("en-IN", { maximumFractionDigits: 2, minimumFractionDigits: 2 });
 const size = (cr: number | null | undefined) => capBucket(cr ?? null)?.label.replace(" cap", "") ?? "–";
 const PeerChip = ({ l }: { l: LeadLabel }) => <span className={"ws-peer " + l}>{LABEL[l]}</span>;
 
@@ -41,19 +47,18 @@ export function WhereStands({ symbol, name, s, peers }: { symbol: string; name: 
   const model = usePlanModel();
   const pm = usePlanPrism(useMemo(() => [symbol], [symbol]), model)[symbol];
   const prism = pm && pm !== "error" ? pm : null;
-  const px = usePrice(symbol, "1Y").data;
   const ind = g ? short(g.name) : null, key = g ? keyOf(g) : null;
   const align = prism ? trendAlignment(prism.shortTerm?.score, prism.longTerm?.score)?.label ?? null : null;
   const h = headline(short1, ind, key ? WORD[key] : null, sec, rot, lead);
   const sixRank = sec?.rank_6m != null && sec.ranked_6m ? `${ordinal(sec.rank_6m)} of ${sec.ranked_6m}` : null;
   const TABS: [Tab, string, string][] = [["industry", "Its industry", "Sector Pulse, Sector Rotation, and where " + short1 + " ranks inside"],
     ["peers", "Against peers", lead ? `${lead.peerGroup.ranked} ${groupWord(lead.peerGroup.short)}companies, and what the leader did` : "Similar companies, and what the leader did"],
-    ["chart", "Price chart", "12 months, trends and the 1-year high"], ["risk", "Risk", "How risky the share is, and why"]];
+    ["risk", "Risk", "How risky the share is, and why"]];
   const riskV = model === "prism" ? prism?.parts?.risk ?? null : null;
   return (
     <section className="block sp ws" aria-label={`Where ${short1} stands`} data-testid="where-stands">
       {/* task #216: numbered 14 with the report's own section heading (number, "Sector, peers and risk", Gold, title, one line) */}
-      <SectionHead id="sector" no="Sector, peers and risk" icon="layers" tier="gold" title={`Where ${short1} stands`} sub="Its industry, its peers, its own price and its risk: one question per tab." color="--gold" />
+      <SectionHead id="sector" no="Sector, peers and risk" icon="layers" tier="gold" title={`Where ${short1} stands`} sub="Its industry, its peers and its risk: one question per tab." color="--gold" />
       <div className="sp-sec ws-head">
         {h && <p className="ws-lead"><b>{h.lead}</b>{h.rest}</p>}
         {h?.recent && <p className="sp-note">{h.recent}</p>}
@@ -63,7 +68,8 @@ export function WhereStands({ symbol, name, s, peers }: { symbol: string; name: 
           {rot?.corner && rot.corner !== "middle" && <div className="ws-pill">Against other industries <BoxChip corner={rot.corner} /><Tip text={BOX_HELP[rot.corner]} label={`About “${rot.corner_name}”`} /><button type="button" className="ws-go" onClick={() => open("industry")}>Its industry →</button></div>}
           {sixRank && !locked && <div className="ws-pill">Inside its industry <b className={"ws-q q" + (sec?.quarter ?? 0)}>{sixRank}</b><button type="button" className="ws-go" onClick={() => open("industry")}>Its industry →</button></div>}
           {lead && <div className="ws-pill">Against peers <PeerChip l={lead.label} />{pendingOf(lead) && <span className="ws-next">→ {LABEL[pendingOf(lead)!]}?</span>}<button type="button" className="ws-go" onClick={() => open("peers")}>Against peers →</button></div>}
-          {align && <div className="ws-pill">Its own chart <b className="ws-own">{align}</b><button type="button" className="ws-go" onClick={() => open("chart")}>Price chart →</button></div>}
+          {/* developer file 43: the chart tab is gone (03 Price & technicals draws the price), so this reading points there */}
+          {align && <div className="ws-pill">Its own chart <b className="ws-own">{align}</b><a className="ws-go" href="#price" onClick={toPrice}>{sectionNo("price")} Price &amp; technicals ↑</a></div>}
           {riskV != null && <div className="ws-pill">Prism Risk <b className="ws-own">{Math.round(riskV)} · {riskV >= 70 ? "Lower risk" : riskV >= 50 ? "Moderate risk" : "Higher risk"}</b><button type="button" className="ws-go" onClick={() => open("risk")}>Risk →</button></div>}
         </div>
       </div>
@@ -74,12 +80,22 @@ export function WhereStands({ symbol, name, s, peers }: { symbol: string; name: 
         {tab === "industry" && secQ.isError && <p className="sp-note" role="status" data-testid="sector-blank">{failureText(secQ.error)}</p>}
         {tab === "industry" && !secQ.isError && (!g ? <p className="sp-note">{sec?.note ?? "NSE has not given this stock an industry yet, so there is no industry reading to show."}</p> : <IndustryTab name={short1} symbol={symbol} sec={sec!} locked={locked} page={page} rot={rot} />)}
         {tab === "peers" && (lead ? <PeersTab name={short1} fullName={name} symbol={symbol} lead={lead} peers={peers} pe={s.keyMetrics} score={null} cap={s.quote.marketCapCr} /> : <p className="sp-note">{ld && !ld.available ? ld.display?.line ?? "No peer reading for this stock yet." : "The peer reading is loading."}</p>)}
-        {tab === "chart" && <ChartTab px={px} s={s} prism={prism} align={align} />}
         {tab === "risk" && <RiskTab name={short1} s={s} risk={prism?.parts?.risk ?? null} gold={model === "prism"} nifty12={lead?.benchmarks.market?.ret52 ?? null} />}
       </div>
       <p className="sp-note ws-foot">Describes past prices, breadth and peer data; not a recommendation. Information only, not investment advice.</p>
     </section>
   );
+}
+
+/** Developer file 43: the "Its own chart" reading's link to 03 Price & technicals; on a phone it opens that section's row first, as the section bar does. */
+const toPrice = (e: React.MouseEvent) => { e.preventDefault(); revealAndScroll(document.getElementById("price"), (x) => x.scrollIntoView({ behavior: "smooth", block: "start" })); };
+
+/** Developer file 43 (founder, 27 Nov 2026: "the three boxes, can we add them as 3 dots like we did in the equity portfolio page, to reduce the length of the
+ *  page"): a tab's notes as the equity portfolio shows its things to know: a pill with one dot a note in its kind's colour ("●●● 3 things to know") at the
+ *  top right of the tab, opening the notes in a pop-up (the same cards, closed until pressed, Open all and ×). The row of boxes took about 150 px a tab. */
+function Know({ items, scope }: { items: Card[]; scope: string }) {
+  if (!items.length) return null;
+  return <div className="ws-know"><KnowButton items={items} scope={scope} inline /></div>;
 }
 
 // ------------------------------------------------------------------------------------------------ Its industry
@@ -92,7 +108,7 @@ function IndustryTab({ name, symbol, sec, locked, page, rot }: { name: string; s
   const stocks = (page?.stocks ?? null) as RankedStock[] | null, max = stocks ? Math.max(1, ...stocks.map((x) => Math.abs(x.return_6m_pct ?? 0))) : 1;
   const row = (lab: string, help: string, v: string) => <div className="ws-row"><span>{lab}<Tip text={help} label={`About “${lab}”`} /></span><b>{v}</b></div>;
   return (<>
-    <Cards items={locked ? [] : industryCards(name, ind, sec, page, rot, k)} />
+    <Know scope="ws-industry" items={locked ? [] : industryCards(name, ind, sec, page, rot, k)} />
     <div className="ws-two">
       <div className="sp-sec ws-box">
         <p className="ws-cap">Sector Pulse · the last few days</p>
@@ -129,23 +145,62 @@ function IndustryTab({ name, symbol, sec, locked, page, rot }: { name: string; s
   </>);
 }
 
-/** "Inside its industry" (task #222, 19 Nov pack B2): the short list by default for more than 15 stocks (lib/standsList.ts), the rank line, rank numbers,
- *  bars across the full width, and "Show all N" (two columns from 900 px); collapsing scrolls back to the box when its top has left the screen. */
+/** "Inside its industry: 6-month return" (task #222, 19 Nov pack B2; developer file 43, founder 27 Nov 2026: "reduce the size, use a drop-down or whatever
+ *  suits"). The industry's stocks are one strip of dots by 6-month return: the company ringed and named above its dot, 0% as a solid line, the median as a
+ *  dashed one, the lowest and the highest named under the ends; pointing at or tapping a dot names that stock in the label instead. The ranked list (rank
+ *  numbers, bars, the short list for more than 15 stocks from lib/standsList.ts and "Show all N") opens under "All N stocks, ranked". Collapsing "Show all"
+ *  scrolls back to the box when its top has left the screen. For 12 stocks the block is about 150 px, down from about 400. */
+/** The strip's width in px: two dots closer than a dot's width (13 px) take separate lanes, and a phone's strip is a third of a desktop's. */
+function useStripWidth(): [(el: HTMLDivElement | null) => void, number] {
+  const [w, setW] = useState(900), ro = useRef<ResizeObserver | null>(null);
+  const ref = useCallback((el: HTMLDivElement | null) => {
+    ro.current?.disconnect(); ro.current = null;
+    if (!el) return;
+    setW(Math.max(200, Math.round(el.getBoundingClientRect().width) || 900));
+    if (typeof ResizeObserver === "undefined") return;
+    ro.current = new ResizeObserver(([e]) => setW(Math.max(200, Math.round(e.contentRect.width))));
+    ro.current.observe(el);
+  }, []);
+  useEffect(() => () => ro.current?.disconnect(), []);
+  return [ref, w];
+}
+
 export function IndustryList({ stocks, symbol, name, ind, max }: { stocks: RankedStock[]; symbol: string; name: string; ind: string; max: number }) {
-  const [all, setAll] = useState(false);
+  const [all, setAll] = useState(false), [hot, setHot] = useState<number | null>(null);
   const box = useRef<HTMLDivElement>(null);
   const n = stocks.length, meI = stocks.findIndex((x) => x.symbol === symbol), me = meI >= 0 ? stocks[meI] : null, med = median(stocks.map((x) => x.return_6m_pct));
   const items = shortList(n, meI, all);
   const toggle = () => { const on = !all; setAll(on); if (!on && box.current && box.current.getBoundingClientRect().top < 0) box.current.scrollIntoView({ block: "start" }); };
+  const [trackRef, tw] = useStripWidth();
+  const dense = n > 40;   // a large industry draws smaller dots (8 px), so more fit side by side
+  const strip = useMemo(() => stripDots(stocks.map((x) => x.return_6m_pct), ((dense ? 9 : 13) / tw) * 100, 6), [stocks, tw, dense]);
+  const lanes = Math.max(1, ...strip.dots.map((d) => (d ? d.lane + 1 : 1)));
+  const shown = hot ?? (meI >= 0 ? meI : null), cur = shown != null ? stocks[shown] : null, curD = shown != null ? strip.dots[shown] : null;
+  const end = (k: number, word: string) => { const x = stocks[k]; return x && x.return_6m_pct != null && k !== meI ? <span>{word} {shortLabel(x)} <b className={x.return_6m_pct >= 0 ? "sp-good" : "sp-red"}>{sp(x.return_6m_pct)}</b></span> : <span />; };
   return (<div ref={box}>
-    <p className="sp-sub">The {n} counted {ind} stocks, best first. {name} in red.</p>
-    <p className="ws-sum">{me ? <><b>{symbol} {ordinal(meI + 1)} of {n}</b> · {sp(me.return_6m_pct)} </> : null}{med != null && <span>{me ? "· " : ""}industry median {sp(med)}</span>}</p>
-    <ol className={"ws-bars" + (n > 15 ? " long" : "") + (all ? " all" : "")}>{items.map((it, j) => {
-      if (it.kind === "gap") return <li key={"gap" + j} className="rk-gap" aria-hidden="true">{it.n} more</li>;
-      const x = stocks[it.i], v = x.return_6m_pct ?? 0, mine = x.symbol === symbol;
-      return <li key={x.symbol} className={mine ? "me" : ""}><span className="ws-rk">{it.i + 1}</span><Link to={`/stocks/${x.symbol}`} title={coTitle(x)}>{shortLabel(x)}</Link><span className="ws-axis"><i className={v >= 0 ? "pos" : "neg"} style={{ width: `${(Math.abs(v) / max) * 50}%` }} /></span><b className={v >= 0 ? "sp-good" : "sp-red"}>{sp(x.return_6m_pct)}</b></li>;
-    })}</ol>
-    {n > 15 && <button type="button" className="ws-all" aria-expanded={all} onClick={toggle}>{all ? "Show fewer" : `Show all ${n}`}</button>}
+    <p className="sp-sub">One dot per counted {ind} stock; the solid line is 0%. Tap a dot for its name.</p>
+    <p className="ws-sum">{me ? <><b>{symbol} {ordinal(meI + 1)} of {n}</b> · {sp(me.return_6m_pct)} </> : null}{med != null && <span>{me ? "· " : ""}<i className="ws6-medk" aria-hidden="true" />industry median {sp(med)}</span>}</p>
+    <div className={"ws6" + (dense ? " dense" : "")} role="group" aria-label={`6-month returns of the ${n} counted ${ind} stocks, from ${sp(stocks[n - 1]?.return_6m_pct)} to ${sp(stocks[0]?.return_6m_pct)}${me ? `; ${name} ${sp(me.return_6m_pct)}, ${ordinal(meI + 1)}` : ""}`}>
+      <p className="ws6-lab" aria-live="polite">{cur && curD && <span className={hot != null && hot !== meI ? "hot" : ""} style={{ left: `${curD.pos}%`, transform: `translateX(${curD.pos < 30 ? "-6px" : curD.pos > 70 ? "calc(6px - 100%)" : "-50%"})` }}>
+        {cur.symbol === symbol ? symbol : shortLabel(cur)} <b>{sp(cur.return_6m_pct)}</b> <small>{ordinal((shown as number) + 1)} of {n}</small></span>}</p>
+      <div className="ws6-track" ref={trackRef} style={{ height: 14 + lanes * (dense ? 9 : 12) }} onPointerLeave={(e) => { if (e.pointerType === "mouse") setHot(null); }}>
+        <i className="ws6-zero" style={{ left: `${strip.at(0)}%` }} />
+        {med != null && <i className="ws6-med" style={{ left: `${strip.at(med)}%` }} />}
+        {strip.dots.map((d) => { if (!d) return null; const x = stocks[d.i], v = x.return_6m_pct as number;
+          return <button key={x.symbol} type="button" className={"ws6-dot " + (v >= 0 ? "pos" : "neg") + (x.symbol === symbol ? " me" : "") + (hot === d.i ? " on" : "")} style={{ left: `${d.pos}%`, bottom: 7 + d.lane * (dense ? 9 : 12) }}
+            aria-label={`${d.i + 1}. ${shortLabel(x)} ${sp(v)}`} title={`${d.i + 1}. ${coTitle(x)} ${sp(v)}`}
+            onPointerEnter={(e) => { if (e.pointerType === "mouse") setHot(d.i); }} onFocus={() => setHot(d.i)} onBlur={() => setHot(null)} onClick={() => setHot(d.i)} />; })}
+      </div>
+      <p className="ws6-ends">{end(n - 1, "Lowest")}{end(0, "Highest")}</p>
+    </div>
+    <details className="xdd notes ws6-dd"><summary>All {n} stocks, ranked<DropChev /></summary>
+      <ol className={"ws-bars" + (n > 15 ? " long" : "") + (all ? " all" : "")}>{items.map((it, j) => {
+        if (it.kind === "gap") return <li key={"gap" + j} className="rk-gap" aria-hidden="true">{it.n} more</li>;
+        const x = stocks[it.i], v = x.return_6m_pct ?? 0, mine = x.symbol === symbol;
+        return <li key={x.symbol} className={mine ? "me" : ""}><span className="ws-rk">{it.i + 1}</span><Link to={`/stocks/${x.symbol}`} title={coTitle(x)}>{shortLabel(x)}</Link><span className="ws-axis"><i className={v >= 0 ? "pos" : "neg"} style={{ width: `${(Math.abs(v) / max) * 50}%` }} /></span><b className={v >= 0 ? "sp-good" : "sp-red"}>{sp(x.return_6m_pct)}</b></li>;
+      })}</ol>
+      {n > 15 && <button type="button" className="ws-all" aria-expanded={all} onClick={toggle}>{all ? "Show fewer" : `Show all ${n}`}</button>}
+    </details>
   </div>);
 }
 
@@ -201,7 +256,7 @@ function PeersTab({ name, fullName, symbol, lead, peers, pe, score, cap }: { nam
   const val = { pe: me?.pe ?? km("pe"), roe: me?.roe ?? km("roe"), peers: items.filter((x) => x.symbol !== symbol).map((x) => ({ pe: x.pe ?? null, roe: x.roe ?? null })) };
   const top = lead.peers.find((p) => p.rank === 1);
   return (<>
-    <Cards items={peerCards(name, lead, val)} />
+    <Know scope="ws-peers" items={peerCards(name, lead, val)} />
     <HeadToHead name={name} symbol={symbol} lead={lead} />
     <div className="ws-two">
       {top && top.symbol !== symbol ? <LeaderWhatIf symbol={symbol} name={name} leader={top.symbol} leaderName={top.name ?? top.symbol} leaderCap={top.marketCap} myCap={lead.peers.find((p) => p.symbol === symbol)?.marketCap ?? null} />
@@ -248,46 +303,13 @@ function LeaderWhatIf({ symbol, name, leader, leaderName, leaderCap, myCap }: { 
   );
 }
 
-// ------------------------------------------------------------------------------------------------ Price chart
-function ChartTab({ px, s, prism, align }: { px: ReturnType<typeof usePrice>["data"]; s: Summary; prism: { shortTerm?: { score: number | null } | null; longTerm?: { score: number | null } | null } | null; align: string | null }) {
-  if (!px) return <p className="sp-note">Loading the price chart…</p>;
-  const c = px.series.c, t = px.series.t, last = c[c.length - 1], hi52 = s.quote.high52 ?? Math.max(...c);
-  const m1 = s.returns.find((r) => r.period === "1M")?.price ?? null, m12 = s.returns.find((r) => r.period === "1Y")?.price ?? null, tech = px.technical;
-  const lo = Math.min(...c), hi = Math.max(...c), W = 760, H = 220, X = (i: number) => 54 + (i / Math.max(1, c.length - 1)) * (W - 64), Y = (v: number) => 8 + (1 - (v - lo) / Math.max(1, hi - lo)) * (H - 30);
-  const d = c.map((v, i) => `${i ? "L" : "M"}${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join("");
-  const ticks = [0, 0.25, 0.5, 0.75, 1].map((f) => lo + f * (hi - lo));
-  const mo = [0, Math.floor(c.length / 4), Math.floor(c.length / 2), Math.floor((3 * c.length) / 4)];
-  const word = (sc: number | null | undefined) => (sc == null ? null : ratingWord(null, sc).word);
-  const st = word(prism?.shortTerm?.score), lt = word(prism?.longTerm?.score);
-  const tile = (k: string, v: string, help?: string) => <div className="ip-tile"><p className="sp-cap">{k}{help && <Tip text={help} label={`About “${k}”`} />}</p><b>{v}</b></div>;
-  return (<>
-    <Cards items={priceCards({ last, high52: hi52, m1, m12, vs50: tech?.vsEma50Pct ?? null, vs200: tech?.vsEma200Pct ?? null, rsi: tech?.rsi14 ?? null, align })} />
-    <div className="sp-sec">
-      <h3 className="ws-h3">Share price, last 12 months</h3><p className="sp-sub">Daily closing prices on NSE.</p>
-      <svg viewBox={`0 0 ${W} ${H}`} className="ws-px" role="img" aria-label={`Share price over 12 months: from ${inr(c[0])} to ${inr(last)}`}>
-        {ticks.map((v) => <g key={v}><line x1="54" x2={W - 10} y1={Y(v)} y2={Y(v)} className="ws-grid" /><text x="0" y={Y(v) + 4} className="ws-tick">₹{Math.round(v).toLocaleString("en-IN")}</text></g>)}
-        <path d={d} className="ws-pl" fill="none" /><circle cx={X(c.length - 1)} cy={Y(last)} r="4" className="ws-pd" />
-        {mo.map((i) => <text key={i} x={X(i)} y={H - 4} className="ws-tick">{new Date(t[i] + "T00:00:00Z").toLocaleDateString("en-IN", { month: "short", year: i ? undefined : "numeric", timeZone: "UTC" })}</text>)}
-        <text x={W - 34} y={H - 4} className="ws-tick">Now</text>
-      </svg>
-      <div className="ws-tiles">
-        {tile("Short-term trend", st ?? (tech?.vsEma50Pct == null ? "–" : tech.vsEma50Pct >= 0 ? "Above its 50-day average" : "Below its 50-day average"), "Short-term trend. The direction of the price over the last few weeks.")}
-        {tile("Long-term trend", lt ?? (tech?.vsEma200Pct == null ? "–" : tech.vsEma200Pct >= 0 ? "Above its 200-day average" : "Below its 200-day average"), "Long-term trend. The direction of the price over the last year or so.")}
-        {tile("1-year high", inr(hi52))}
-        {tile("Below the high", `${Math.max(0, (1 - last / hi52) * 100).toFixed(1)}%`, "Below its 1-year high. How far the latest price is from the highest close of the past year. 0% means it is at the top.")}
-        {tile("Last month", sp(m1))}{tile("Last 12 months", sp(m12))}
-      </div>
-    </div>
-  </>);
-}
-
 // ------------------------------------------------------------------------------------------------ Risk
 function RiskTab({ name, s, risk, gold, nifty12 }: { name: string; s: Summary; risk: number | null; gold: boolean; nifty12: number | null }) {
   const m1 = s.returns.find((r) => r.period === "1M")?.price ?? null, m12 = s.returns.find((r) => r.period === "1Y")?.price ?? null;
   const last = s.quote.price, hi = s.quote.high52, cap = s.quote.marketCapCr;
   const word = risk == null ? null : risk >= 70 ? "Lower risk" : risk >= 50 ? "Moderate risk" : "Higher risk";
   return (<>
-    <Cards items={riskCards(name, gold ? risk : null, m12, nifty12 == null ? null : nifty12 * 100)} />
+    <Know scope="ws-risk" items={riskCards(name, gold ? risk : null, m12, nifty12 == null ? null : nifty12 * 100)} />
     <div className="ws-two">
       <div className="sp-sec">
         <h3 className="ws-h3">How risky is the share?</h3><p className="sp-sub">FinLit's risk reading for the company.</p>

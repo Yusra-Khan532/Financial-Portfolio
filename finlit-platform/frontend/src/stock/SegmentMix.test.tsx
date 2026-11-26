@@ -32,7 +32,7 @@ describe("segment card with history", () => {
     expect(html).toContain("Information only, not advice");
     expect(html).toContain("sum of the segment revenues");
     expect(html).toContain('role="img"');
-    expect(html).toContain("Stacked bar chart of revenue by segment");
+    expect(html).toContain("Line chart of each segment&#x27;s share");   // developer file 43: one line a segment (was stacked bars)
     for (const y of ["FY19", "FY22", "FY26"]) expect(html).toContain(`>${y}<`);   // every year is labelled
     expect(html).toContain("6.62 L");                                              // lakh crore in the table
     expect(html).toContain("Retail gained the most share");

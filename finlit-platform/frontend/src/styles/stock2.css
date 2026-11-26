@@ -476,6 +476,25 @@ a.pr-row:hover, .pr-row.hot { transform: translateX(4px); border-color: color-mi
 .mx-chart { position: relative; min-width: 0; } .mx-chart svg { display: block; max-width: 100%; } .mx-chart rect:focus-visible { stroke: var(--gold); stroke-width: 2; }
 .mx-tip { top: 4px; min-width: 200px; max-width: min(320px, 92%); } .mx-tip span { align-items: baseline; } .mx-tip span i { flex: none; align-self: center; } .mx-tip em { white-space: nowrap; }
 .mx-leg { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: var(--fs-13); color: var(--muted); } .mx-leg li { display: inline-flex; align-items: center; gap: 6px; } .mx-leg i { width: 10px; height: 10px; border-radius: var(--ui-r-mark); }
+/* developer file 43: How the mix has changed as lines. The list under the chart is the key: each segment, its latest figure and its change since its
+   first year; pointing at one picks out its line (the others fade). */
+.mx-key-h { margin: 12px 0 4px; font-size: var(--fs-12); color: var(--faint); }
+.mx-key { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 0 12px; margin-top: 0; }
+.mx-key li { display: block; min-width: 0; }
+.mx-key button { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 8px; width: 100%; padding: 6px 8px; border: 1px solid transparent; border-radius: var(--r-ctl); background: none; color: var(--muted); font: inherit; text-align: left; cursor: pointer; }
+.mx-key button:hover, .mx-key button[aria-pressed="true"] { border-color: var(--border); background: var(--s2); color: var(--text); }
+.mx-key button:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
+.mx-key button > i { flex: none; align-self: center; width: 10px; height: 10px; border-radius: var(--ui-r-mark); }
+.mx-key b { font-weight: 500; color: var(--text); } .mx-key em { font-style: normal; font-family: var(--mono); font-variant-numeric: tabular-nums; color: var(--text); }
+.mx-key span { font-size: var(--fs-12); } .mx-key span.pos { color: var(--pos, var(--gain)); } .mx-key span.neg { color: var(--neg, var(--loss)); }
+.mx-lines svg text tspan { font-variant-numeric: tabular-nums; }
+.mx-key .mx-until { font-size: var(--fs-12); color: var(--faint); }
+/* a desktop labels each line at its end with its latest figure and change: the key is then one compact row of names */
+@media (min-width: 640px) {
+  .mx-key-h, .mx-key em, .mx-key span { display: none; }
+  .mx-key { display: flex; flex-wrap: wrap; gap: 0 4px; margin-top: 8px; }
+  .mx-key button { width: auto; padding: 4px 8px; }
+}
 .mx-tw { position: relative; overflow-x: auto; } .mx-t { width: 100%; border-collapse: collapse; font-size: var(--fs-13); }
 .mx-t th, .mx-t td { text-align: right; padding: 10px 8px; border-bottom: 1px solid var(--border); vertical-align: middle; font-variant-numeric: tabular-nums; }
 .mx-t thead th { font: 600 var(--fs-12) var(--sans); color: var(--faint); white-space: nowrap; } .mx-t th:first-child, .mx-t td:first-child { text-align: left; }

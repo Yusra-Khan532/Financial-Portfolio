@@ -135,11 +135,11 @@ export function sortRows(rows: TableRow[], key: SortKey): TableRow[] {
 }
 
 /** Plain-words summary of the chart for screen readers: the years covered and the latest mix. */
-export function chartSummary(m: ChartModel): string {
+export function chartSummary(m: ChartModel, mode: "revenue" | "share" = "share"): string {
   if (!m.years.length) return "No segment history.";
   const i = m.years.length - 1;
   const parts = m.series.filter((s) => (s.shares[i] ?? 0) > 0).map((s) => `${s.label} ${nf(s.shares[i] as number, 1)}%`);
-  return `Stacked bar chart of revenue by segment for each fiscal year, ${m.years[0]} to ${m.years[i]}. Latest year ${m.years[i]}: ${parts.join(", ")}. The table below the chart lists every value.`;
+  return `Line chart of each segment's ${mode === "share" ? "share of the segments' revenue" : "revenue"}, one line a segment, for each fiscal year, ${m.years[0]} to ${m.years[i]}. Latest year ${m.years[i]}: ${parts.join(", ")}. The table below the chart lists every value.`;
 }
 
 export type { SegmentInsights };

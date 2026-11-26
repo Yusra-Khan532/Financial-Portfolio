@@ -104,17 +104,27 @@ export function PlCharts({ f }: { f?: Financials }) {
   const steps = bridge(rows, last);
   const chg = (a: N[]) => a.map((x, i) => (i && x != null && a[i - 1] ? ((x - (a[i - 1] as number)) / Math.abs(a[i - 1] as number)) * 100 : null)).slice(1);
   const growth: [string, N[]][] = [["Revenue", rev], ["Total expenses", exp], ["Operating profit", op], ["Other income", oi], ["Interest", fin], ["Depreciation", dep], ["Profit before tax", pbt], ["Tax", tax], ["Net profit", np], ["EPS", eps]];
+  // developer file 43 (founder, 27 Nov 2026: "put profit and loss in charts into 3 tabs so that it reduces the length of the page"): the three charts are the
+  // report's view tabs, one at a time (they stood one under the other, about 1,640 px on a desktop)
   return (
-    <div className="cl-grid">
+    <div className="pl-tabs">
+      <TabGroup label="Profit and loss in charts" views={[
+        { key: "walk", label: "Revenue to net profit", content: <>
       <Card ac="--p-growth" help="pl-waterfall" title={`From ${pl.periods[last]} revenue to net profit`} sub={`₹ Crore · ${pl.periods[last]}`} icon="profit" full note="Blue rows are totals, green adds to profit and red takes away. Revenue and operating costs are much larger than the later steps, so their bars are cut short (the slanted break) and the scale fits the steps after them; their full amounts are on the right.">
         {steps ? <ProfitBridge steps={steps} year={pl.periods[last]} /> : <Soon>A figure this walk needs is missing for {pl.periods[last]}.</Soon>}
       </Card>
+        </> },
+        { key: "hundred", label: "Where each ₹100 goes", content: <>
       <Card ac="--p-growth" help="pl-margin-split" title="Where each ₹100 of income goes" sub="Revenue plus other income, by year" icon="pie" full note="Operating costs take most of every ₹100, so their part is cut short (the slanted break) and the scale below it shows the rest: interest, depreciation, tax and the net profit left (green). Point at a year to read all its parts. Income here includes other income, so the profit share is a little lower than the net margin on revenue in the walk above.">
         <HundredChart periods={pl.periods} rows={rows} />
       </Card>
+        </> },
+        { key: "growth", label: "Growth by line", content: <>
       <Card ac="--p-growth" help="yoy-growth" title="Year-on-year growth by line" sub="Percent change on the year before" icon="growth" full note="Green is growth, red is decline. For costs (expenses, interest, tax) green means the cost rose, which can be fine when revenue rose faster.">
         <HeatGrid cols={pl.periods.slice(1)} cap={40} fmt={(x) => sg(x, 0)} label="Year on year growth by line item" rows={growth.map(([label, a]) => ({ label, values: chg(a) }))} />
       </Card>
+        </> },
+      ]} />
     </div>
   );
 }
