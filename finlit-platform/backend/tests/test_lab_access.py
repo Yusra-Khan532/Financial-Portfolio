@@ -122,3 +122,10 @@ async def test_signals_are_off_by_default_switched_per_member_by_an_administrato
     async with app.state.store.pool.acquire() as conn:
         acts = [r["action"] for r in await conn.fetch("SELECT action FROM audit_events WHERE action LIKE 'lab_signals_%' ORDER BY at, id")]
     assert acts == ["lab_signals_on", "lab_signals_off"]
+
+
+def test_the_lab_is_never_in_the_search_index():
+    """The Trading Lab is open by invitation only: /lab and every page under it are private (no index), so search engines never list them."""
+    from finlit import seo
+    for path in ("lab", "lab/flow", "lab/flow/anything"):
+        assert seo.is_known(path) and seo.is_private(path), path
