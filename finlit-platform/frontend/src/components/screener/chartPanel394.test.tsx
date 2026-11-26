@@ -34,7 +34,7 @@ vi.mock("../../lib/api", async (orig) => {
 import { ChartPanel, type PanelRow } from "./ChartPanel";
 import { ListChart } from "./presets/ListChart";
 import { samePricePlaceholder, type PriceRange } from "../../lib/api";
-import { axisPrice, behindNote, changeTo, chartToMark, datedWeeks, factValue, factsHeading, isPartWeek, legendHead, levelTitle, lineLabel, listClose, rupees, singleMark, volumeLine, type Bar } from "./chartPanelParts";
+import { axisPrice, behindNote, changeTo, chartToMark, datedWeeks, emaSeries, factValue, factsHeading, isPartWeek, legendHead, levelTitle, lineLabel, listClose, rupees, singleMark, volumeLine, weekOf, weeklyEmas, type Bar } from "./chartPanelParts";
 
 /** Daily candles from 1 Jun to `end` (weekdays), close rising by 1 from 100, volume 1,000 (the last day 2,000). */
 function dailyTo(end: string) {
@@ -170,7 +170,8 @@ describe("C5, W3, W4, W5: the legend", () => {
   });
   it("averages named by unit", () => {
     expect(lineLabel("ema", 50, false)).toBe("50-day EMA");
-    expect(lineLabel("ema", 200, true)).toBe("200-day EMA");
+    expect(lineLabel("ema", 200, true)).toBe("200-week EMA");       // QA 26 Nov 2026: a weekly chart carries weekly averages
+    expect(lineLabel("ema", 9, true)).toBe("9-week EMA");
     expect(lineLabel("sma", 50, true)).toBe("50-week SMA");
     expect(lineLabel("sma", 20, false)).toBe("20-day SMA");
   });
@@ -204,7 +205,63 @@ describe("C5, W3, W4, W5: the legend", () => {
     expect(screen.getByLabelText(/50-day SMA/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "W" }));     // the menu stays open
     expect(screen.getByLabelText(/50-week SMA/)).toBeTruthy();
-    expect(screen.getByLabelText(/50-day EMA/)).toBeTruthy();
+    expect(screen.getByLabelText(/50-week EMA/)).toBeTruthy();
+  });
+});
+
+describe("Task #394 QA of 26 Nov 2026: weekly averages, the 1M volume, the returns row, MAX", () => {
+  it("an EMA starts on the simple average of its first n closes and is empty before", () => {
+    const e = emaSeries([1, 2, 3, 4, 5], 3);
+    expect(e.slice(0, 2)).toEqual([null, null]);
+    expect(e[2]).toBe(2);                       // (1 + 2 + 3) / 3
+    expect(e[3]).toBeCloseTo(3);                // 4 * 0.5 + 2 * 0.5
+    expect(e[4]).toBeCloseTo(4);
+  });
+  it("weekly EMAs come from the whole weekly history and are keyed by the week's Monday", () => {
+    const t: string[] = []; const d = new Date("2022-01-07T00:00:00Z");
+    for (let i = 0; i < 260; i++) { t.push(d.toISOString().slice(0, 10)); d.setUTCDate(d.getUTCDate() + 7); }
+    const c = t.map((_, i) => 100 + i);
+    const m = weeklyEmas({ t, c });
+    const last = m.get(weekOf(t[259]))!;
+    expect(last.ema200).not.toBeNull();         // five years of weeks: the 200-week line exists at the end
+    expect(m.get(weekOf(t[198]))!.ema200).toBeNull();
+    expect(last.ema50!).toBeLessThan(c[259]);   // a rising line sits under the price
+    expect(weekOf("2026-11-25")).toBe("2026-11-23");
+  });
+  it("on weekly candles the legend shows WEEKLY EMAs from the MAX chart, never the daily EMA of the week's last day", () => {
+    const d = dailyTo("2026-11-23");                                       // its ema50 equals the close (a stand-in daily EMA)
+    const wt: string[] = []; const x = new Date("2021-11-26T00:00:00Z");
+    while (x.toISOString().slice(0, 10) <= "2026-11-20") { wt.push(x.toISOString().slice(0, 10)); x.setUTCDate(x.getUTCDate() + 7); }
+    wt.push("2026-11-23");
+    const maxS = { t: wt, o: wt.map(() => 50), h: wt.map(() => 60), l: wt.map(() => 40), c: wt.map(() => 50), v: wt.map(() => 1) };
+    priceState = (range) => (range === "MAX" ? { ...ok(range, maxS), data: { ...ok(range, maxS).data, grain: "weekly" } } : ok(range, d));
+    panel();
+    fireEvent.click(screen.getByRole("button", { name: "W" }));
+    const leg = document.querySelector(".cp-leg")!.textContent!;
+    expect(leg).toContain("50-week EMA 50");     // the weekly EMA of a flat 50 close
+    expect(leg).not.toContain("-day EMA");
+  });
+  it("the 1M chart's volume is compared with the 50 sessions before it, from the 6-month candles", () => {
+    const six = dailyTo("2026-11-23");
+    const one = { ...six, t: six.t.slice(-21), o: six.o.slice(-21), h: six.h.slice(-21), l: six.l.slice(-21), c: six.c.slice(-21), v: six.v.slice(-21) };
+    const bars: Bar[] = one.t.map((t, i) => ({ t, o: one.o[i], h: one.h[i], l: one.l[i], c: one.c[i], v: one.v[i], e: {} }));
+    expect(volumeLine(bars, bars.length - 1, false, "2026-11-26")).toBe("Volume 2,000");
+    expect(volumeLine(bars, bars.length - 1, false, "2026-11-26", { t: six.t, v: six.v })).toBe("Volume 2,000 · 2.0× its 50-day average");
+  });
+  it("the range's change is the same on D and W (from the range's first candle)", () => {
+    localStorage.setItem("fl.chart.v2", JSON.stringify({ range: "6M" }));
+    panel();
+    const rng = () => document.querySelector(".cp-rng")!.textContent!;
+    const onD = rng();
+    fireEvent.click(screen.getByRole("button", { name: "W" }));
+    expect(rng()).toBe(onD);
+  });
+  it("1M is not shown twice in the returns row, and MAX is offered", () => {
+    localStorage.setItem("fl.chart.v2", JSON.stringify({ range: "1M" }));
+    panel();
+    const p = document.querySelector(".cp-p")!.textContent!;
+    expect(p.match(/1M/g)?.length ?? 0).toBeLessThanOrEqual(1);
+    expect(screen.getByRole("button", { name: "MAX" })).toBeTruthy();
   });
 });
 
@@ -215,7 +272,7 @@ describe("W2: 3Y and 5Y on weekly candles", () => {
     priceState = (range) => (range === "3Y" ? { ...ok(range, weeklyS), data: { ...ok(range, weeklyS).data, grain: "weekly" } } : ok(range, d));
     localStorage.setItem("fl.chart.v2", JSON.stringify({ range: "3Y" }));
     panel();
-    expect(document.querySelector(".cp-wk")!.textContent).toBe("3Y and 5Y show weekly candles.");
+    expect(document.querySelector(".cp-wk")!.textContent).toBe("3Y, 5Y and MAX show weekly candles; the averages on them are weekly.");
     expect(screen.getByRole("button", { name: "D" }).hasAttribute("disabled")).toBe(true);
   });
   it("lets D ask for ?grain=daily when the weekly answer says dailyAvailable", () => {
