@@ -37,7 +37,7 @@ async def test_nse_refuses_the_server_and_the_relay_brings_the_report():
         assert await src.nse_json() == REPORT
     finally:
         await src.aclose()
-    assert "www.nseindia.com" in t.seen and "relay.example" in t.seen
+    assert {"www.nseindia.com", "relay.example"} <= set(t.seen)        # the hosts asked: NSE first, then the relay (a set check, not a URL test)
 
 
 async def test_a_relay_that_could_not_reach_nse_is_not_taken_for_nses_answer():
