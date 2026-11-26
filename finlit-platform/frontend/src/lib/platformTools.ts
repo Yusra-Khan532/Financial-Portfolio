@@ -1,5 +1,5 @@
 // The "Explore the platform" cards on the landing page (the 8 Nov 2026 landing handover, feature-cards.json). Badge = lowest plan that opens the tool; image = public/landing/tools/<id>.webp.
-export type Badge = "FREE" | "SILVER" | "GOLD";
+export type Badge = "FREE" | "SILVER" | "GOLD" | "PLATINUM";
 export type BucketId = "discover" | "company-360" | "quant-lab" | "track" | "market" | "learn";
 /** `crown` overrides the directory row's crown, which otherwise shows for a paid tool (task #208, the team's choices of 16 Nov): false hides it on a paid tool;
  *  a plan name shows it on a tool that opens free but draws more with that plan (Chart Builder: scatter with Silver, heatmaps with Gold). */
@@ -27,7 +27,7 @@ export const BUCKETS: Bucket[] = [
     { id: "profit-revenue-outlook", title: "Profit & Revenue Forecasting", badge: "GOLD", link: "/outlook/RELIANCE", what: "Revenue and profit estimates built from a company's own history and its sector.", points: ["1, 3, 5-year estimates", "Reported figures solid, estimates dotted", "Use our weights or set your own"], image: "profit-revenue-outlook-light" },
     { id: "eps-calculator", title: "EPS Calculator", badge: "FREE", link: "/eps-calculator", what: "Understand how future earnings translate into share value.", points: ["Calculate EPS and target P/E", "Estimate implied share prices", "Explore different earnings scenarios"], image: "eps-calculator-light" },
     { id: "sip-calculator", title: "SIP Calculator", badge: "FREE", link: "/sip-calculator", what: "Plan your investments and estimate future wealth.", points: ["Calculate returns on monthly investments", "Adjust step-ups and investment duration", "Account for inflation and taxes"], image: "sip-calculator-light" },
-    { id: "stress-lab", title: "Stress Lab", badge: "SILVER", link: "/research/stress-lab", what: "See how market shocks could impact company earnings.", points: ["Test changes in crude, rupee and inflation", "Analyse the impact of interest rates and demand", "Explore possible earnings under different scenarios"], image: "stress-lab-light" },
+    { id: "stress-lab", title: "Stress Lab", badge: "PLATINUM", link: "/research/stress-lab", what: "See how market shocks could impact company earnings.", points: ["Test changes in crude, rupee and inflation", "Analyse the impact of interest rates and demand", "Explore possible earnings under different scenarios"], image: "stress-lab-light" },
   ] },
   { id: "track", name: "Track & manage", line: "Keep what you own and follow in one place.", cards: [
     { id: "watchlists", title: "Watchlists", badge: "SILVER", link: "/watchlist", what: "Follow the stocks you care about, with their scores beside them.", points: ["Notes and target prices on each stock", "See where your list is concentrated by industry", "Group and sort by industry, size or score"], image: "watchlists-light" },

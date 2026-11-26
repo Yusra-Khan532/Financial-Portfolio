@@ -14,7 +14,7 @@ const view = () => render(<MemoryRouter><ExploreTools /></MemoryRouter>);
 describe("platform data", () => {
   it("has the six groups with 6, 5, 6, 6, 7 and 5 cards (35 tools; task #317 took off Company Financials; task #283 retired the Basic Stock Screener; the option chain is off, task #213; Correlation Chart and ETF Portfolio added, task #208), each with three points and an image", () => {
     expect(BUCKETS.map((b) => b.cards.length)).toEqual([6, 5, 6, 6, 7, 5]);
-    for (const c of BUCKETS.flatMap((b) => b.cards)) { expect(c.points).toHaveLength(3); expect(c.image).toMatch(/-(light|dark)$/); expect(["FREE", "SILVER", "GOLD"]).toContain(c.badge); }
+    for (const c of BUCKETS.flatMap((b) => b.cards)) { expect(c.points).toHaveLength(3); expect(c.image).toMatch(/-(light|dark)$/); expect(["FREE", "SILVER", "GOLD", "PLATINUM"]).toContain(c.badge); }
   });
   it("drops the Premium Report and Connect AI cards and adds FinLit Bot", () => {
     const names = BUCKETS.flatMap((b) => b.cards.map((c) => c.title));
@@ -122,8 +122,8 @@ describe("<ExploreTools />", () => {
     // task #208: a crown on Chart Builder (free to open, more with Silver) and on the new Correlation Chart; task #283: no Basic Stock Screener row any more
     const row = (name: RegExp) => screen.getAllByRole("link", { name }).find((l) => l.classList.contains("xt-tool"))!;
     expect(screen.queryAllByRole("link", { name: /^Basic Stock Screener/ })).toHaveLength(0);
-    expect(row(/^Chart Builder/).querySelector(".xt-crown")!.textContent).toBe(", free to open, more with the Silver plan");
-    expect(row(/^Correlation Chart/).querySelector(".xt-crown")!.textContent).toBe(", Silver plan");
+    expect(row(/^Chart Builder/).querySelector(".xt-crown")!.textContent).toBe(", free to open, more with every paid plan");
+    expect(row(/^Correlation Chart/).querySelector(".xt-crown")!.textContent).toBe(", Paid plan");
     // follow-up: the crown is bound to the name's last word, so a wrapped name never leaves the crown alone on a line
     expect(adv.querySelector(".xt-tail")!.textContent).toBe("Screener, Gold plan");
     expect(adv.querySelector(".xt-nm")!.textContent).toBe("Advanced Stock Screener, Gold plan");
@@ -178,7 +178,7 @@ describe("task #169: Reverse Valuation in Quant Lab", () => {
       ["insights-blog", "learn", "Investing & Finance Articles", "FREE", "/blog", "Explore investing, finance and market insights in simple language."],
       ["eps-calculator", "quant-lab", "EPS Calculator", "FREE", "/eps-calculator", "Understand how future earnings translate into share value."],
       ["sip-calculator", "quant-lab", "SIP Calculator", "FREE", "/sip-calculator", "Plan your investments and estimate future wealth."],
-      ["stress-lab", "quant-lab", "Stress Lab", "SILVER", "/research/stress-lab", "See how market shocks could impact company earnings."],
+      ["stress-lab", "quant-lab", "Stress Lab", "PLATINUM", "/research/stress-lab", "See how market shocks could impact company earnings."],
     ];
     for (const [id, group, title, badge, link, what] of want) { const c = at(id); expect([c.group, c.title, c.badge, c.link, c.what]).toEqual([group, title, badge, link, what]); expect(SHORT[id]).toBeTruthy(); }
     expect(at("mf-portfolio").points).toEqual(["Track latest NAV and historical returns", "Evaluate mutual fund health scores", "Compare 1, 3 and 5-year performance"]);
