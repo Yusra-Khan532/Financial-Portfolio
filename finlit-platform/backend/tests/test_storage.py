@@ -47,9 +47,15 @@ def test_folder_bytes_counts_files_and_a_missing_folder_is_none(tmp_path):
     assert st.folder_bytes(str(tmp_path)) == 1024 and st.folder_bytes(str(tmp_path / "missing")) is None
 
 
-def test_the_disk_reading_matches_df():
-    d = st.disk(); s = os.statvfs("/")
-    assert d and d["total"] == s.f_blocks * s.f_frsize and d["free"] == s.f_bavail * s.f_frsize and d["used"] + d["free"] == d["total"]
+def test_the_disk_reading_matches_df(monkeypatch):
+    # One statvfs snapshot for both sides: on a shared CI runner the free space changes between two separate readings, so comparing
+    # st.disk() with a second os.statvfs() call failed now and then. The arithmetic (df's "Avail" = f_bavail, used = total - avail) is
+    # checked exactly against that same snapshot, taken from the real disk.
+    snap = os.statvfs("/")
+    monkeypatch.setattr(st.os, "statvfs", lambda path: snap)
+    d = st.disk()
+    assert d and d["total"] == snap.f_blocks * snap.f_frsize and d["free"] == snap.f_bavail * snap.f_frsize and d["used"] + d["free"] == d["total"]
+    assert d["used"] == (snap.f_blocks - snap.f_bavail) * snap.f_frsize
 
 
 @pytest.mark.integration
