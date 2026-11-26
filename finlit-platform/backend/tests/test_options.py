@@ -441,3 +441,25 @@ async def test_not_connected_and_busy(app, dhan, monkeypatch):  # noqa: F811
     assert r.status_code == 503 and r.json()["status"] == "busy" and int(r.headers["retry-after"]) >= 40 and fake.calls == []
     await app.state.store.redis.delete(oc.PACE_KEY)
     await gold.aclose()
+
+
+async def test_option_pulse_in_the_trading_lab_is_for_lab_members_whatever_their_plan(app, dhan):  # noqa: F811
+    """Trading Lab > Option Pulse (founder, 26 Nov 2026) reads the same chain, cache and Dhan pacing, behind Lab access instead of the Gold plan:
+    a Basic member with a Lab grant reads it, but still not the Gold option chain page's routes; a Gold member without a grant does not."""
+    from test_lab_access import admin_with_mfa
+    admin = await admin_with_mfa(app, "pulse-boss@example.com")
+    member = await signed_in(app, "pulse-member@example.com")                        # Basic plan
+    gold_no_lab = await signed_in(app, "pulse-gold@example.com", plan="gold")
+    for c in (member, gold_no_lab):
+        assert (await c.get("/api/options/lab/underlyings")).status_code == 403
+    assert (await admin.put("/api/admin/lab/grants", json={"email": "pulse-member@example.com"})).status_code == 200
+    assert [i["key"] for i in (await member.get("/api/options/lab/underlyings")).json()["indices"]][:2] == ["NIFTY", "BANKNIFTY"]
+    assert (await member.get("/api/options/lab/expiries?u=NIFTY")).json()["expiries"] == ["2098-10-27", "2098-11-03", "2099-12-31"]   # past dates dropped
+    body = (await member.get("/api/options/lab/chain?u=NIFTY&expiry=2098-10-27")).json()
+    assert body["underlying"]["key"] == "NIFTY" and body["rows"] and body["summary"]["pcrOi"] is not None
+    assert (await member.get("/api/options/chain?u=NIFTY&expiry=2098-10-27")).status_code == 403     # the Gold page's route is unchanged
+    calls = len(dhan.paths("/optionchain"))
+    assert (await admin.get("/api/options/lab/chain?u=NIFTY&expiry=2098-10-27")).status_code == 200
+    assert len(dhan.paths("/optionchain")) == calls                                 # served from the same cache
+    for c in (admin, member, gold_no_lab):
+        await c.aclose()
