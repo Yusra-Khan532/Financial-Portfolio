@@ -1241,6 +1241,8 @@ def build_parser() -> argparse.ArgumentParser:
     p_di.add_argument("--max-age-hours", type=float, default=None, help="skip when this ran fine in the last N hours")
     p_lf = sub.add_parser("refresh-lab-flow", help="every 3 minutes in market hours: the Trading Lab's Order Flow snapshot of every F&O stock (one Dhan quote call; lab/flow.py)")
     p_lf.add_argument("--history-seconds", type=float, default=90.0, help="at most this long filling missing previous-session open interest from Dhan's daily history")
+    p_gf = sub.add_parser("refresh-global-flow", help="every 5 minutes: the Trading Lab's Global Order Flow snapshot of the largest US companies while the US session is open (lab/global_flow.py)")
+    p_gf.add_argument("--force", action="store_true", help="take a snapshot even when the US market is closed (the last session's numbers)")
     sub.add_parser("refresh-market-mood", help="every 30 minutes in the day: the Trading Lab's Market mood world headlines from Google News, scored by the sentiment model (lab/mood.py)")
     sub.add_parser("refresh-global-cues", help="twice a day: the Trading Lab's Global cues series from FRED's public download (US yields, Fed funds, dollar index, EUR/JPY/CNY, WTI and Brent; lab/global_cues.py)")
     p_cm = sub.add_parser("refresh-commodities", help="commodity prices: MCX futures from Dhan and international prices from metals.dev / MetalpriceAPI into Redis (--loop: keeps running)")
@@ -1504,6 +1506,13 @@ async def main(argv: Optional[List[str]] = None, settings: Optional[Settings] = 
                     result = await lab_flow.refresh(store, dc, history_seconds=args.history_seconds)
                 except DhanError as e:
                     result = {"status": "failed", "error": str(e)}
+            await record_run(store, args.cmd, result)
+            print(result)
+            return 0 if result["status"] == "ok" else 1
+        if args.cmd == "refresh-global-flow":
+            from .lab import global_flow
+            from .mf import record_run
+            result = await global_flow.refresh(store, force=args.force)
             await record_run(store, args.cmd, result)
             print(result)
             return 0 if result["status"] == "ok" else 1

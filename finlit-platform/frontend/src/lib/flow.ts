@@ -25,7 +25,17 @@ export type FlowSnapshot =
   | { ready: false; reason: string }
   | { ready: true; tradeDay: string; takenAt: string; summary: FlowSummary; stocks: FlowStock[]; notes: string[]; lines: FlowLines };
 
-export const flowSnapshot = () => apiGet<FlowSnapshot>("/api/lab/flow");
+/** India (NSE F&O, the default) or Global (the largest US companies; backend lab/global_flow.py). Set by the page before it draws, so prices,
+ *  money and labels read in the market's own currency and words. */
+export type FlowMarket = "india" | "global";
+let MARKET: FlowMarket = "india";
+export const setFlowMarket = (m: FlowMarket) => { MARKET = m; };
+export const flowMarket = (): FlowMarket => MARKET;
+export const isUS = () => MARKET === "global";
+/** "F&O stocks" in India, "US companies" in Global. */
+export const universe = () => (MARKET === "global" ? "US companies" : "F&O stocks");
+
+export const flowSnapshot = (m: FlowMarket = "india") => apiGet<FlowSnapshot>(m === "global" ? "/api/lab/flow/global" : "/api/lab/flow");
 
 /** Plain names and one-line meanings of the four build-ups (what moved, never what to do). */
 export const BUILDUP: Record<Buildup, { name: string; short: string; what: string; tone: "gain" | "loss" }> = {
@@ -49,6 +59,14 @@ export const FACTS: { key: FactKey; up: string; down: string }[] = [
 ];
 
 /** True between 09:15 and 15:40 IST on a weekday (the engine's closing snapshot is at 15:40), for the page's refresh rhythm. */
+/** The US session (09:30 to 16:00 New York time, weekdays), for the Global view's live label and refresh. */
+export function usLive(now = new Date()): boolean {
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", weekday: "short", hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(now);
+  const get = (t: string) => parts.find((x) => x.type === t)?.value ?? "";
+  const m = (Number(get("hour")) % 24) * 60 + Number(get("minute"));
+  return !["Sat", "Sun"].includes(get("weekday")) && m >= 570 && m <= 960;
+}
+
 export function marketLive(now = new Date()): boolean {
   const ist = new Date(now.getTime() + (330 + now.getTimezoneOffset()) * 60_000);
   const d = ist.getDay(), m = ist.getHours() * 60 + ist.getMinutes();
@@ -56,5 +74,6 @@ export function marketLive(now = new Date()): boolean {
 }
 
 export const pct = (v: number | null | undefined, digits = 2) => (v == null ? "—" : `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toFixed(digits)}%`);
-export const inr = (v: number | null | undefined) => (v == null ? "—" : `₹${v.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+const fmt2 = (v: number, loc: string) => v.toLocaleString(loc, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+export const inr = (v: number | null | undefined) => (v == null ? "—" : MARKET === "global" ? "$" + fmt2(v, "en-US") : "₹" + fmt2(v, "en-IN"));
 export const tone = (v: number | null | undefined) => (v == null || v === 0 ? "" : v > 0 ? "gain" : "loss");

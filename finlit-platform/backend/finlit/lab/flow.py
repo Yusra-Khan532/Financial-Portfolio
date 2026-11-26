@@ -402,15 +402,16 @@ CRORE = 1e7
 
 def _minutes(a: str, b: str) -> float:
     ha, ma = (int(x) for x in a.split(":")); hb, mb = (int(x) for x in b.split(":"))
-    return max(1.0, (hb * 60 + mb) - (ha * 60 + ma))
+    d = (hb * 60 + mb) - (ha * 60 + ma)
+    return max(1.0, d + 1440 if d < 0 else d)          # the US session (Global) crosses midnight IST
 
 
-def money(points: List[list], sector_of: Dict[str, Optional[str]]) -> dict:
+def money(points: List[list], sector_of: Dict[str, Optional[str]], unit: float = CRORE) -> dict:
     """Money Flow (founder, 26 Nov 2026, from a reference video: "where the money is coming in and where it is going"), from the day's snapshots.
 
     Between two snapshots a stock traded (volume now − volume before) shares at about the average of the two prices: that traded value counts as
     money IN when the price rose between the two snapshots and money OUT when it fell (the tick rule, on 3-minute steps); when the price did not
-    move it counts as neither. Summed over the day per stock and per sector, in ₹ crore. The surge is the net flow of the latest step per minute.
+    move it counts as neither. Summed over the day per stock and per sector, in ₹ crore (`unit`; the Global US view uses US$ million). The surge is the net flow of the latest step per minute.
     A description of where traded value went with the moves, not of who bought or sold (every trade has both a buyer and a seller).
     """
     per: Dict[str, Dict[str, float]] = {}
@@ -439,9 +440,9 @@ def money(points: List[list], sector_of: Dict[str, Optional[str]]) -> dict:
     stocks = []
     for sym, rec in per.items():
         ls = last_step.get(sym)
-        surge = round(ls[0] / CRORE / (step_min or 3.0), 2) if ls and ls[1] == latest else 0.0  # type: ignore[index]
-        stocks.append({"symbol": sym, "sector": sector_of.get(sym) or "Other", "in": round(rec["in"] / CRORE, 2), "out": round(rec["out"] / CRORE, 2),
-                       "net": round((rec["in"] - rec["out"]) / CRORE, 2), "surge": surge})
+        surge = round(ls[0] / unit / (step_min or 3.0), 2) if ls and ls[1] == latest else 0.0  # type: ignore[index]
+        stocks.append({"symbol": sym, "sector": sector_of.get(sym) or "Other", "in": round(rec["in"] / unit, 2), "out": round(rec["out"] / unit, 2),
+                       "net": round((rec["in"] - rec["out"]) / unit, 2), "surge": surge})
     sectors: Dict[str, dict] = {}
     for st in stocks:
         g = sectors.setdefault(st["sector"], {"sector": st["sector"], "in": 0.0, "out": 0.0, "net": 0.0, "surge": 0.0, "stocks": []})

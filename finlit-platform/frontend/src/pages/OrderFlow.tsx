@@ -9,7 +9,7 @@ import { Icon } from "../lib/icons";
 import { labAccess } from "../lib/lab";
 import { useDocTitle } from "../lib/title";
 import {
-  BUILDUP, BUILDUP_ORDER, FACTS, ZONE, flowSnapshot, inr, marketLive, pct, tone,
+  BUILDUP, BUILDUP_ORDER, FACTS, ZONE, flowSnapshot, inr, isUS, marketLive, pct, setFlowMarket, tone, universe, usLive, type FlowMarket,
   type FlowBand, type FlowLines, type FlowSector, type FlowSnapshot, type FlowStock, type FlowSummary,
 } from "../lib/flow";
 import { BUCKETS, bucketOf, layout, type Bucket } from "../lib/flowboard";
@@ -35,6 +35,9 @@ export const FLOW_TABS = [
   { id: "zones", name: "Stock zones", ready: false },
   { id: "journal", name: "Trading journal", ready: false },
 ];
+
+/** The views the Global switch has (the rest are India-only until their global version is built). */
+export const GLOBAL_TABS = ["depth", "board", "money", "global", "mood"];
 
 const DISCLAIMER = "Order Flow describes how F&O stocks are moving from exchange prices and futures open interest, worked out by fixed formulas and shown with a delay of a few minutes. It does not tell anyone to buy, sell or hold, it never places an order, and a build-up or a count of facts is not a forecast. Intraday and F&O trading carry a high risk of loss; most people who trade them lose money. Information only, not investment advice.";
 
@@ -78,7 +81,7 @@ export function DepthCurve({ stocks, lines }: { stocks: FlowStock[]; lines?: Flo
       <ChartZoom label="Market depth curve"><div className="oflow-curve-plot">
         <div className="oflow-yaxis" aria-hidden="true">{ticks.map((t) => <span key={t} style={{ top: `${(y(t) / H) * 100}%` }} className={t > 0 ? "gain" : t < 0 ? "loss" : ""}>{pct(t, step < 1 ? 1 : 0)}</span>)}</div>
         <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img"
-          aria-label={`Change of ${pts.length} F&O stocks, lowest to highest: from ${pct(pts[0].v)} (${pts[0].s}) to ${pct(pts[pts.length - 1].v)} (${pts[pts.length - 1].s}).`}
+          aria-label={`Change of ${pts.length} ${universe()}, lowest to highest: from ${pct(pts[0].v)} (${pts[0].s}) to ${pct(pts[pts.length - 1].v)} (${pts[pts.length - 1].s}).`}
           onPointerMove={(e) => { const i = at(e); setHover(i); if (lines) tip.show(e, <StockPop s={pts[i].st} lines={lines} />); }}
           onPointerLeave={() => { setHover(null); tip.hide(); }}>
           <defs>
@@ -177,7 +180,7 @@ export function StockCard({ s, lines }: { s: FlowStock; lines: FlowLines }) {
       </header>
       <Spark values={lines.change[s.symbol]} positive={(s.changePct ?? 0) >= 0} />
       <div className="oflow-tags">
-        {b ? <span className={`oflow-pill ${b.tone}`} title={b.what}>{b.short}</span> : <span className="oflow-pill" title={s.notes.find((n) => n.startsWith("oi:"))?.slice(4) ?? "Open interest and price did not both move"}>No build-up</span>}
+        {b ? <span className={`oflow-pill ${b.tone}`} title={b.what}>{b.short}</span> : isUS() ? null : <span className="oflow-pill" title={s.notes.find((n) => n.startsWith("oi:"))?.slice(4) ?? "Open interest and price did not both move"}>No build-up</span>}
         <Dots s={s} />
       </div>
       <dl className="oflow-facts">
@@ -360,7 +363,7 @@ export function FlowBoard({ d }: { d: Ready }) {
   );
   // the phone keeps the lines cropped at the direction bars (the full map needs a wide screen)
   const phoneLines = (
-    <svg viewBox={`0 0 ${cut} ${B.H}`} className="oflow-board-svg crop" role="img" aria-label={`The day's line of ${B.lines.length} F&O stocks flowing into ${B.rising.count} rising and ${B.falling.count} falling.`}>
+    <svg viewBox={`0 0 ${cut} ${B.H}`} className="oflow-board-svg crop" role="img" aria-label={`The day's line of ${B.lines.length} ${universe()} flowing into ${B.rising.count} rising and ${B.falling.count} falling.`}>
       <line x1="16" x2={B.W * 0.36} y1={B.zeroY} y2={B.zeroY} className="oflow-zero" />
       {B.times.map((t) => <text key={t.label} x={t.x} y={B.H - 2} className="oflow-t" textAnchor="middle">{t.label}</text>)}
       <g className="oflow-lines">{B.lines.map((l) => <path key={l.symbol} d={l.d} pathLength={1} className={`${l.up ? "gain" : "loss"}${f ? (lit(l.sector, l.up, bucketOf(bySym.get(l.symbol)!)) ? " lit" : " dim") : ""}`} />)}</g>
@@ -370,7 +373,7 @@ export function FlowBoard({ d }: { d: Ready }) {
   );
   const mapSvg = (
     <svg viewBox={`0 0 ${M.W} ${M.H}`} className="oflow-board-svg oflow-map-svg" role="img"
-      aria-label={`The day's line of ${M.lines.length} F&O stocks flowing into ${M.tower.up} rising and ${M.tower.down} falling, then into ${B.sectors.length} sectors and the futures build-ups.`}>
+      aria-label={`The day's line of ${M.lines.length} ${universe()} flowing into ${M.tower.up} rising and ${M.tower.down} falling, then into ${B.sectors.length} sectors and the futures build-ups.`}>
       <defs>
         <linearGradient id="oflow-tile-gain" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopColor="color-mix(in srgb, var(--gain) 22%, var(--s1))" /><stop offset="1" stopColor="color-mix(in srgb, var(--gain) 8%, var(--s1))" /></linearGradient>
         <linearGradient id="oflow-tile-loss" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopColor="color-mix(in srgb, var(--loss) 22%, var(--s1))" /><stop offset="1" stopColor="color-mix(in srgb, var(--loss) 8%, var(--s1))" /></linearGradient>
@@ -495,7 +498,7 @@ function MoneyPop({ s }: { s: MoneyStock }) {
 function SectorMoneyPop({ g }: { g: MoneySector }) {
   return (
     <>
-      <header className="oflow-pop-h"><div><b>{g.sector}</b><small>{g.stocks.length} F&O stocks</small></div><div className="r"><b className={tone(g.net)}>{cr(g.net, true)}</b><small>net today</small></div></header>
+      <header className="oflow-pop-h"><div><b>{g.sector}</b><small>{g.stocks.length} {universe()}</small></div><div className="r"><b className={tone(g.net)}>{cr(g.net, true)}</b><small>net today</small></div></header>
       <div className="oflow-pop-split"><i className="gain" style={{ flex: g.in || 0.0001 }} /><i className="loss" style={{ flex: g.out || 0.0001 }} /></div>
       <p className="oflow-pop-row"><span className="gain">In {cr(g.in)}</span><span className="loss">Out {cr(g.out)}</span></p>
       <div className="oflow-pop-movers">
@@ -507,10 +510,10 @@ function SectorMoneyPop({ g }: { g: MoneySector }) {
 }
 
 /** Where money went today: each sector's net ₹ crore, the flow from the sectors into the day's inflow and outflow, and the stocks in each. */
-export function MoneyFlowView() {
-  const live = marketLive();
+export function MoneyFlowView({ market = "india" }: { market?: FlowMarket }) {
+  const live = market === "global" ? usLive() : marketLive();
   const tip = useTip();
-  const q = useQuery({ queryKey: ["lab-money"], queryFn: moneyFlow, refetchInterval: live ? 60_000 : false, retry: false });
+  const q = useQuery({ queryKey: ["lab-money", market], queryFn: () => moneyFlow(market), refetchInterval: live ? 60_000 : false, retry: false });
   const [hot, setHot] = useState<string | null>(null);
   if (q.isPending) return <div className="skeleton" style={{ height: 420 }} aria-label="Loading Money Flow" />;
   if (q.isError) return <div className="formerr" role="alert">Money Flow could not be loaded right now. It refreshes by itself; reload in a minute.</div>;
@@ -583,7 +586,7 @@ export function MoneyFlowView() {
                 </li>))}{!list.length && <li className="muted">None yet.</li>}</ol></div>))}
         </div>
       </div>
-      <details className="oflow-how"><summary>How Money Flow is worked out</summary><p className="muted oflow-method">Between two snapshots (every 3 minutes), the value a stock traded (new volume × the average of the two prices) counts as money in when its price rose and money out when it fell; a step with no move counts as neither. Summed over the day, in ₹ crore. Every trade has a buyer and a seller: this describes where traded value went with the moves, not who bought or sold. Source: exchange quotes through Dhan.</p></details>
+      <details className="oflow-how"><summary>How Money Flow is worked out</summary><p className="muted oflow-method">Between two snapshots (every {isUS() ? 5 : 3} minutes), the value a stock traded (new volume × the average of the two prices) counts as money in when its price rose and money out when it fell; a step with no move counts as neither. Summed over the day, in {isUS() ? "US$ million" : "₹ crore"}. Every trade has a buyer and a seller: this describes where traded value went with the moves, not who bought or sold. Source: {isUS() ? "Nasdaq's public screener" : "exchange quotes through Dhan"}.</p></details>
     </section>
   );
 }
@@ -600,7 +603,7 @@ function Depth({ d }: { d: Ready }) {
     <>
       <section className="card oflow-hero" aria-labelledby="oflow-depth-h">
         <div className="oflow-hero-h">
-          <div><h2 id="oflow-depth-h">Market depth</h2><p className="muted">Where every F&O stock stands against its previous close.</p></div>
+          <div><h2 id="oflow-depth-h">Market depth</h2><p className="muted">Where every {isUS() ? "one of the largest US companies" : "F&O stock"} stands against its previous close.</p></div>
           <div className="oflow-count" aria-label={`${sum.up} rising, ${sum.down} falling`}>
             <span className="gain"><b>{sum.up}</b>rising</span><span className="loss"><b>{sum.down}</b>falling</span>
           </div>
@@ -611,21 +614,21 @@ function Depth({ d }: { d: Ready }) {
           <p className="muted oflow-median">Middle stock: <b className={tone(sum.medianChangePct)}>{pct(sum.medianChangePct)}</b></p></div>
       </section>
 
-      <section aria-labelledby="oflow-bu-h" className="oflow-sec-wrap">
+      {!isUS() && <section aria-labelledby="oflow-bu-h" className="oflow-sec-wrap">
         <h2 id="oflow-bu-h" className="oflow-h">Futures build-up</h2>
         <p className="muted oflow-sub">Price change and open interest change of each stock's futures (current and next month) against the previous session.</p>
         <BuildupTiles sum={sum} stocks={d.stocks} />
-      </section>
+      </section>}
 
       <div className="oflow-two">
         <section aria-labelledby="oflow-sec-h" className="card oflow-secbox">
           <h2 id="oflow-sec-h" className="oflow-h">Sectors</h2>
-          <p className="muted oflow-sub">Average change of the F&O stocks in each sector. Choose one to see only its stocks below.</p>
+          <p className="muted oflow-sub">Average change of the {universe()} in each sector. Choose one to see only its stocks below.</p>
           <SectorBars sectors={sum.sectors} active={sector} onPick={setSector} stocks={d.stocks} />
         </section>
         <section aria-labelledby="oflow-top-h" className="oflow-top">
-          <div className="oflow-top-h"><h2 id="oflow-top-h" className="oflow-h">Most facts lined up</h2>{sector && <button type="button" className="chip" onClick={() => setSector(null)}>{sector} ✕</button>}</div>
-          <p className="muted oflow-sub">Ordered by how many of five facts point the same way as the move, then by the size of the open interest change. A count of facts, not a forecast.</p>
+          <div className="oflow-top-h"><h2 id="oflow-top-h" className="oflow-h">{isUS() ? "Biggest moves" : "Most facts lined up"}</h2>{sector && <button type="button" className="chip" onClick={() => setSector(null)}>{sector} ✕</button>}</div>
+          <p className="muted oflow-sub">{isUS() ? "The largest US companies ordered by the size of today's move." : "Ordered by how many of five facts point the same way as the move, then by the size of the open interest change. A count of facts, not a forecast."}</p>
           <h3 className="oflow-side gain"><Icon name="growth" /> Rising</h3>
           <div className="oflow-cards">{rising.length ? rising.map((s) => <StockCard key={s.symbol} s={s} lines={d.lines} />) : <p className="muted">No rising stock{sector ? " in this sector" : ""}.</p>}</div>
           <h3 className="oflow-side loss"><Icon name="decline" /> Falling</h3>
@@ -638,32 +641,34 @@ function Depth({ d }: { d: Ready }) {
 
 // ------------------------------------------------------------------------------------------------------------------ page
 
-function Flow({ view }: { view: string }) {
+function Flow({ view, market }: { view: string; market: FlowMarket }) {
   if (view === "options") return <TipLayer><OptionPulse /></TipLayer>;   // its own data (the option chain), not the Order Flow snapshot
   if (view === "global") return <TipLayer><GlobalCues /></TipLayer>;      // its own data (FRED series and the international ETFs on NSE)
   if (view === "mood") return <TipLayer><MarketMood /></TipLayer>;        // its own data (scored news and headlines)
-  return <FlowSnapshotView view={view} />;
+  return <FlowSnapshotView view={view} market={market} />;
 }
 
-function FlowSnapshotView({ view }: { view: string }) {
-  const live = marketLive();
-  const q = useQuery({ queryKey: ["lab-flow"], queryFn: flowSnapshot, refetchInterval: live ? 60_000 : false, retry: false });
+function FlowSnapshotView({ view, market }: { view: string; market: FlowMarket }) {
+  setFlowMarket(market);   // before anything below draws: prices, money and labels in this market's own currency and words
+  const live = market === "global" ? usLive() : marketLive();
+  const q = useQuery({ queryKey: ["lab-flow", market], queryFn: () => flowSnapshot(market), refetchInterval: live ? 60_000 : false, retry: false });
   if (q.isPending) return <div className="skeleton" style={{ height: 420 }} aria-label="Loading the latest snapshot" />;
   if (q.isError) return <div className="formerr" role="alert">The snapshot could not be loaded right now. It refreshes by itself; reload in a minute.</div>;
   const d = q.data;
   if (!d.ready) return <div className="card oflow-wait" role="status"><span className="tlab-ic" aria-hidden="true"><Icon name="activity" /></span><div><h2>No snapshot yet</h2><p className="muted">{d.reason}</p></div></div>;
   const taken = new Date(d.takenAt);
-  const today = new Date(Date.now() + (330 + new Date().getTimezoneOffset()) * 60_000).toISOString().slice(0, 10);
+  const today = market === "global" ? new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date())
+    : new Date(Date.now() + (330 + new Date().getTimezoneOffset()) * 60_000).toISOString().slice(0, 10);
   const day = new Date(d.tradeDay + "T00:00:00").toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", year: "numeric" });
   return (
     <TipLayer>
       <div className="oflow-stamp" role="status">
-        <span className={`oflow-live ${live && d.tradeDay === today ? "on" : ""}`}><i aria-hidden="true" />{live && d.tradeDay === today ? "Live · every 3 minutes" : "Last session"}</span>
-        <span className="muted">{day} · snapshot at {taken.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Kolkata" })} IST · {d.summary.stocks} F&O stocks</span>
+        <span className={`oflow-live ${live && d.tradeDay === today ? "on" : ""}`}><i aria-hidden="true" />{live && d.tradeDay === today ? `Live · every ${market === "global" ? 5 : 3} minutes` : market === "global" ? "Last US session" : "Last session"}</span>
+        <span className="muted">{day} · snapshot at {taken.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Kolkata" })} IST · {d.summary.stocks} {universe()}</span>
       </div>
       {d.notes.map((n) => <p key={n} className="oflow-note muted">{n}</p>)}
-      {view === "board" ? <FlowBoard d={d} /> : view === "money" ? <MoneyFlowView /> : <Depth d={d} />}
-      <details className="oflow-how"><summary>How it is worked out</summary><p className="muted oflow-method">Change against the previous close; open interest summed over the current and next futures contract against their previous close; VWAP is the day's average traded price; pivots are the classic floor pivots from the previous session's high, low and close. Facts: open interest rose with the move, price on the move's side of VWAP, price beyond R1 or S1, open interest changed 5% or more, price in the top or bottom quarter of the day's range. Source: exchange prices and open interest through Dhan, FinLit's daily prices.</p></details>
+      {view === "board" ? <FlowBoard d={d} /> : view === "money" ? <MoneyFlowView market={market} /> : <Depth d={d} />}
+      <details className="oflow-how"><summary>How it is worked out</summary>{market === "global" ? <p className="muted oflow-method">The 500 largest US-listed companies by market value, from Nasdaq's public screener every five minutes in the US session (09:30 to 16:00 New York time, about 20:00 to 02:30 IST in winter): price in US dollars, change against the previous close, volume, sector and industry. Single US shares have no futures open interest in this feed, so there is no build-up; the feed has no previous-day high and low, so no pivots. Times are IST.</p> : <p className="muted oflow-method">Change against the previous close; open interest summed over the current and next futures contract against their previous close; VWAP is the day's average traded price; pivots are the classic floor pivots from the previous session's high, low and close. Facts: open interest rose with the move, price on the move's side of VWAP, price beyond R1 or S1, open interest changed 5% or more, price in the top or bottom quarter of the day's range. Source: exchange prices and open interest through Dhan, FinLit's daily prices.</p>}</details>
     </TipLayer>
   );
 }
@@ -673,22 +678,31 @@ export function OrderFlowPage() {
   const { user, ready } = useAuth();
   const q = useQuery({ queryKey: ["lab-access", user?.id ?? ""], queryFn: labAccess, enabled: ready, retry: false });
   const [params] = useSearchParams();
-  const view = FLOW_TABS.find((t) => t.ready && t.id === params.get("view"))?.id ?? "depth";
+  const market: FlowMarket = params.get("m") === "global" ? "global" : "india";
+  const tabs = FLOW_TABS.filter((t) => t.ready && (market === "india" || GLOBAL_TABS.includes(t.id)));
+  const view = tabs.find((t) => t.id === params.get("view"))?.id ?? "depth";
+  setFlowMarket(market);
+  const href = (m: FlowMarket, v: string) => { const q = new URLSearchParams(); if (v !== "depth") q.set("view", v); if (m === "global") q.set("m", "global"); const t = q.toString(); return t ? `/lab/flow?${t}` : "/lab/flow"; };
   const a = q.data;
   return (
     <>
       <section className="pagehead"><div className="aurora" style={{ opacity: 0.6 }} /><div className="wrap">
         <div className="eyebrow"><Link to="/lab">Trading Lab</Link></div>
         <h1 className="ui-title">Order Flow</h1>
-        <p>Every NSE F&O stock, live in market hours.</p></div></section>
+        <p>{market === "global" ? "The largest US companies and the world's markets, live in the US session." : "Every NSE F&O stock, live in market hours."}</p></div></section>
       <section className="sec" style={{ paddingTop: 16 }}><div className="wrap tlab oflow">
         {(!ready || q.isPending) && <div className="skeleton" style={{ height: 160 }} aria-label="Checking your access" />}
         {q.isError && <div className="formerr" role="alert">Your access could not be checked right now. Reload the page in a moment.</div>}
         {a && !a.access && <LabGate reason={a.reason === "sign_in" ? "sign_in" : "not_granted"} next="/lab/flow" />}
         {a?.access && <>
-          <nav className="oflow-tabs" aria-label="Order Flow views">{FLOW_TABS.filter((t) => t.ready).map((t) =>
-            <Link key={t.id} to={t.id === "depth" ? "/lab/flow" : `/lab/flow?view=${t.id}`} className="oflow-tab" aria-current={view === t.id ? "page" : undefined}>{t.name}</Link>)}</nav>
-          <Flow view={view} />
+          <div className="oflow-topbar">
+            <div className="oflow-mkt" role="group" aria-label="Market">
+              {(["india", "global"] as const).map((m) => <Link key={m} to={href(m, GLOBAL_TABS.includes(view) || m === "india" ? view : "depth")} className="oflow-mkt-b" aria-pressed={market === m}>{m === "india" ? "India" : "Global"}</Link>)}
+            </div>
+            <nav className="oflow-tabs" aria-label="Order Flow views">{tabs.map((t) =>
+              <Link key={t.id} to={href(market, t.id)} className="oflow-tab" aria-current={view === t.id ? "page" : undefined}>{t.name}</Link>)}</nav>
+          </div>
+          <Flow key={market} view={view} market={market} />
         </>}
         <div className="pdisc tlab-disc" role="note" aria-labelledby="oflow-disc-h"><h2 id="oflow-disc-h">Disclaimer</h2><p>{DISCLAIMER}</p></div>
       </div></section>

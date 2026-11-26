@@ -625,3 +625,12 @@ a.oflow-tab:hover:not([aria-current]) { background: color-mix(in srgb, var(--gol
 .mood-split .p { background: var(--gain); } .mood-split .n { background: var(--loss); } .mood-split .n0 { background: var(--muted); opacity: 0.35; }
 .mood-pop-t { margin: 6px 0 0; font-size: var(--fs-13); max-width: 340px; } .mood-pop-note { font-size: var(--fs-12); margin: 6px 0 0; }
 @media (max-width: 760px) { .mood-two { grid-template-columns: minmax(0, 1fr); } .mood-sectors li { grid-template-columns: minmax(0, 120px) minmax(0, 1fr) 40px 32px; } }
+
+/* ---- the India | Global switch ---- */
+.oflow-topbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 0 0 14px; }
+.oflow-topbar .oflow-tabs { margin: 0; }
+.oflow-mkt { display: inline-flex; padding: 4px; gap: 4px; border: 1px solid color-mix(in srgb, var(--gold) 45%, var(--border)); border-radius: var(--ui-r-pill);
+  background: var(--s1); box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold) 12%, transparent); }
+.oflow-mkt-b { padding: 7px 16px; border-radius: var(--ui-r-pill); font-size: var(--fs-14); font-weight: 600; color: var(--muted); text-decoration: none; }
+.oflow-mkt-b:hover { color: var(--text); }
+.oflow-mkt-b[aria-pressed="true"] { background: var(--ui-on-bg); color: var(--ui-on-fg); }
