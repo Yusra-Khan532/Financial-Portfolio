@@ -116,18 +116,24 @@ def window(rng: str, now: datetime) -> Tuple[datetime, datetime]:
     return start, t
 
 
-async def slot(redis, now: Optional[float] = None) -> Optional[str]:
+async def slot(redis, now: Optional[float] = None, share: bool = False) -> Optional[str]:
     """None when a Dhan data call may be made now, else why not ("busy" or "budget"). The counters are shared by every process through
-    Redis; a call waits up to about two seconds for a free slot in a second. Without Redis no call is made (nothing else would hold the rate)."""
+    Redis; a call waits up to about two seconds for a free slot in a second. Without Redis no call is made (nothing else would hold the rate).
+    share=True is for background jobs that walk many stocks (lab.rsi): the job takes a second's slot only when no call has used that second
+    yet (an atomic set-if-absent), so it makes at most one call a second and visitors always keep the rest of the second's allowance."""
     try:
         for _ in range(10):
             sec = int(now if now is not None else _time.time())
             key = f"dhan:data:sec:{sec}"
-            n = await redis.incr(key)
-            if n == 1:
-                await redis.expire(key, 5)
-            if n <= PER_SECOND:
-                break
+            if share:
+                if await redis.set(key, 1, nx=True, ex=5):
+                    break
+            else:
+                n = await redis.incr(key)
+                if n == 1:
+                    await redis.expire(key, 5)
+                if n <= PER_SECOND:
+                    break
             if now is not None:
                 return "busy"
             await asyncio.sleep(max(0.05, sec + 1 - _time.time()))

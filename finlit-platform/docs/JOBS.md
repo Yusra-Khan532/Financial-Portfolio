@@ -103,6 +103,7 @@ SLA kinds: `hours` a success within N hours; `active` N hours counted only from 
 | calendars (`refresh-calendars`) | light | 3 | 1 h active | int 40 min 08-23; MORNING; ignores pause |
 | quotes (`refresh-quotes`) | light | 4 | none | every minute with a visitor, every 15 min if only alerts, market hours |
 | alerts-live (`check-alerts --kind live`) | light | 5 | none | 15 min market hours, after quotes, only if alerts exist |
+| lab-rsi (`refresh-lab-rsi --max-minutes 6`, needs `DHAN_CLIENT_ID`) | light | 6 | none | 15 min market hours; 15:45 weekdays (closing pass); limit 9 min, stops starting Dhan calls at 6; about 5,700 paced 5-minute candle calls a day (about 6% of the Data API cap, at most 1 a second, visitors first); Trading Lab RSI heatmap (docs/TRADING-LAB.md) |
 | listing (`refresh-listing --force`) | light | 6 | 6 h | 30 min market hours; 15:50; AFTER_CLOSE; MORNING |
 | canary | light | 7 | 30 h | MORNING; AFTER_CLOSE from 19:00 |
 | alerts-flag / alerts-daily / screens / digest | light | 8-9 | none / 80 h / 80 h / 8 d | each window / weekdays 19:10 / MORNING weekdays / Sunday 19:10 (alerts reach the bell only and the digest sends nothing: no email since 19 Nov 2026, `finlit/mailpolicy.py`) |
