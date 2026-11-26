@@ -46,6 +46,10 @@ def build(store: Any) -> Dict[str, Callable[[], Awaitable[Optional[bool]]]]:
         from ..stress import service as stress_service      # the last run stopped at its time cap with covered companies it never reached
         return await stress_service.has_work(store)
 
+    async def presets() -> Optional[bool]:
+        from ..presets import service as presets_service   # the candles hold a newer complete session than the ready-made lists are built on
+        return await presets_service.has_work(store)
+
     async def scores_export() -> Optional[bool]:
         from .. import scores_export as sx   # the presets job has finished a day that has no export file yet (or, at night, a back-fill day waits)
         return await sx.has_work(store)
@@ -57,4 +61,4 @@ def build(store: Any) -> Dict[str, Callable[[], Awaitable[Optional[bool]]]]:
         rel = await asyncio.to_thread(sd.live_release)
         return bool(rel) and not await asyncio.to_thread(lambda: (rel / sd.LEVELS_DIR / "sectors" / "_board.json").is_file())
 
-    return {"sectors-view": sectors_view, "macro-outlook": macro_outlook, "technicals": technicals, "prism": prism, "ath": ath, "price-sections": price_sections, "scores-live": scores_live, "stress": stress, "discovery": discovery, "scores-export": scores_export}
+    return {"sectors-view": sectors_view, "macro-outlook": macro_outlook, "technicals": technicals, "prism": prism, "ath": ath, "price-sections": price_sections, "presets": presets, "scores-live": scores_live, "stress": stress, "discovery": discovery, "scores-export": scores_export}

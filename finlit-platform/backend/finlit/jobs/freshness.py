@@ -313,6 +313,8 @@ async def gather(store: Any, now: datetime) -> Dict[str, Any]:
         f["mf_nav"] = await _one(conn, "SELECT max(nav_date) FROM mf_schemes WHERE active")
         f["mf_score_run"] = await _one(conn, "SELECT max(run_date) FROM mf_scores")
         f["etf_price"] = await _one(conn, "SELECT max(price_date) FROM etf_funds WHERE active")
+        # 26 Nov 2026: the close the ready-made screens are built on (they read "Updated after the 23 Nov close" on 26 Nov and nothing said so)
+        f["lists_day"] = await _one(conn, "SELECT max(as_of) FROM preset_results")
         f["news_newest"] = await _one(conn, "SELECT max(item_date) FROM feed_items WHERE kind = 'news'")
         f["leadership"] = await _one(conn, "SELECT max(as_of) FROM leadership")
         f["ownership_built"] = None     # the last COMPLETED run of the ownership job (an idle night changes no row, so row dates would look late)
@@ -430,6 +432,9 @@ def evaluate_facts(f: Dict[str, Any], now: datetime, credentials: Optional[List[
     ds.append(judge_nav(f.get("mf_nav"), now))
     ds.append(judge_age("fund_scores", "Fund scores", ["score-mf"], datetime.combine(_d(f["mf_score_run"]), time(12, 0), IST) if f.get("mf_score_run") else None, now, 40.0, 80.0))
     ds.append(judge_session("etf_prices", "ETF prices", ["etf"], f.get("etf_price"), exp, now, 3.0, 16.0))
+    # the lists follow the exchange candles, which can arrive late in the evening: due by 02:30 IST (8 h after the data is final), stale 16 h later
+    ds.append(judge_session("ready_lists", "Ready-made screens", ["presets", "candles"], f.get("lists_day"), exp, now, 8.0, 16.0,
+                            "the close every ready-made list is built on"))
     ds.append(judge_weekly("news", "News and filings", ["calendars"], f.get("news_newest"), today, 3, 6))
     ds.append(judge_weekly("leadership", "Leadership labels", ["leadership"], f.get("leadership"), today, 9, 14))
     if f.get("ownership_built") is not None:

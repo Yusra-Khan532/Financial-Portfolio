@@ -347,7 +347,9 @@ def build_jobs(env: Optional[Mapping[str, str]] = None) -> List[Job]:
         # task #394 (developer file 37, F4): the ready-made lists are built only after the charts are brought up to the newest candles (price-sections,
         # itself after candles), so a list, its figures and its charts read one close
         Job("presets", ("refresh-presets",), cls="bulk", priority=42, max_runtime_min=40, weight_mb=350, windows=(W("NIGHT", 20), W("MORNING", 14)), sla=Sla("hours", 30),
-            prerequisites=("prism", "price-sections"), catchup=False,
+            prerequisites=("prism", "price-sections"), catchup=False, probe="presets", min_gap_min=30,
+            # 26 Nov 2026: and again whenever the exchange candles hold a newer complete session than the lists (probe), so a night the candles
+            # arrived late does not leave every list a session behind for a whole day ("Updated after the 23 Nov close" on 26 Nov)
             what="prebuilt screens: momentum and growth scores, industry breadth and theme states, every screen's list into the cache (after the Prism batch; database only)"),
         # task #326: one file per market day for the owner's archive, started by the presets job's completion (its probe sees the finished day without a file;
         # presets is its prerequisite, so it never reads while the lists are being rewritten). Stored results only: a few seconds. Back-fill of earlier days,

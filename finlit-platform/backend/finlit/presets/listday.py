@@ -119,6 +119,13 @@ def untraded_of(closes: Dict[str, DayClose], older: Dict[str, Optional[str]], se
     return out
 
 
+async def newest_day(conn, expected: date) -> Optional[date]:
+    """The list day the candles support now (the same rule as load): the newest complete session on or before `expected`, or None."""
+    lo = expected - timedelta(days=WINDOW_DAYS)
+    counts = {r["day"]: r["n"] for r in await conn.fetch("SELECT day, count(*) AS n FROM daily_candles WHERE day > $1 AND day <= $2 GROUP BY day", lo, expected)}
+    return list_day(sessions_from_counts(counts, expected), expected)
+
+
 async def load(store, symbols: Sequence[str], expected: date) -> Market:
     """The list day, the sessions, every company's close of the list day and the companies not traded in the last five sessions, in two queries.
     An empty Market when the candles cannot be read (the lists are then dated and priced as before; the reason is logged)."""

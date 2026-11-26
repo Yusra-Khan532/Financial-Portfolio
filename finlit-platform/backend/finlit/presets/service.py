@@ -73,6 +73,25 @@ async def build_frame(store, persist: bool = False, now: Optional[datetime] = No
     return fr
 
 
+async def lists_day(conn) -> Optional[date]:
+    """The close the stored lists are built on (one build: every screen carries the same day), or None before the first build."""
+    return await conn.fetchval("SELECT max(as_of) FROM preset_results WHERE registry = $1", REGISTRY_VERSION)
+
+
+async def has_work(store, now: Optional[datetime] = None) -> Optional[bool]:
+    """The probe (26 Nov 2026): True when the exchange candles hold a complete session newer than the day the lists are built on.
+
+    The lists are dated by the candles (task #394), and the exchange's candles for a day often arrive after the lists' nightly build (Dhan had not
+    published 25 Nov's at 18:30 IST; the build at 01:55 IST on 26 Nov found too few of them and dated every list 23 Nov). The lists then stayed a
+    session behind for a whole day, because the job ran once a night. With this probe the lists are rebuilt (database only, about 80 s) as soon as
+    the candles catch up, at any hour."""
+    now = now or datetime.now(timezone.utc)
+    async with store.pool.acquire() as conn:
+        newest = await listday.newest_day(conn, expected_session(now))
+        built = await lists_day(conn)
+    return newest is not None and (built is None or newest > built)
+
+
 BANDS = ((80, 4), (65, 3), (50, 2), (35, 1))     # Strong, Healthy, Average, Weak; under 35 is Poor (0)
 
 
