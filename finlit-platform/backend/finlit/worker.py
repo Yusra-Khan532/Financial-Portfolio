@@ -1239,6 +1239,8 @@ def build_parser() -> argparse.ArgumentParser:
     p_ps.add_argument("--max-minutes", type=float, default=40.0, help="no new chunk of companies after this long; the next run continues (it skips charts already current)")
     p_di = sub.add_parser("refresh-instruments", help="weekly: Dhan's public instrument file (ISIN, surveillance flag, margin eligibility, F&O status of every NSE and BSE equity); needs no account")
     p_di.add_argument("--max-age-hours", type=float, default=None, help="skip when this ran fine in the last N hours")
+    p_lf = sub.add_parser("refresh-lab-flow", help="every 3 minutes in market hours: the Trading Lab's Order Flow snapshot of every F&O stock (one Dhan quote call; lab/flow.py)")
+    p_lf.add_argument("--history-seconds", type=float, default=90.0, help="at most this long filling missing previous-session open interest from Dhan's daily history")
     p_cm = sub.add_parser("refresh-commodities", help="commodity prices: MCX futures from Dhan and international prices from metals.dev / MetalpriceAPI into Redis (--loop: keeps running)")
     p_cm.add_argument("--loop", action="store_true")
     p_hp = sub.add_parser("history-probe", help="how many yearly statements each source holds for a few old companies (recorded at /api/mf/status, run:history-probe)")
@@ -1488,6 +1490,21 @@ async def main(argv: Optional[List[str]] = None, settings: Optional[Settings] = 
                                                "failed": dict(list(result["failed"].items())[:4]), "listing": result["listing"]})
             print(json.dumps(result, default=str)[:4000])
             return 0 if result["status"] in ("ok", "partial") else 1
+        if args.cmd == "refresh-lab-flow":
+            from .dhan import DhanClient, DhanError
+            from .lab import flow as lab_flow
+            from .mf import record_run
+            async with DhanClient(settings, store.redis) as dc:
+                if not dc.configured:
+                    print({"status": "failed", "error": "Dhan is not set up (DHAN_CLIENT_ID empty)"})
+                    return 1
+                try:
+                    result = await lab_flow.refresh(store, dc, history_seconds=args.history_seconds)
+                except DhanError as e:
+                    result = {"status": "failed", "error": str(e)}
+            await record_run(store, args.cmd, result)
+            print(result)
+            return 0 if result["status"] == "ok" else 1
         if args.cmd == "refresh-instruments":
             from . import dhan
             from .mf import last_run_age_hours, record_run
@@ -1499,12 +1516,17 @@ async def main(argv: Optional[List[str]] = None, settings: Optional[Settings] = 
                     if not empty:
                         print({"status": "skipped", "reason": f"ran {age:.1f} hours ago ({last})"})
                         return 0
+            from .lab.flow import FutureCollector, save_futures
             from .options import LotCollector, save_option_lots
-            lots = LotCollector()
+            lots, futs = LotCollector(), FutureCollector()
+
+            def each_row(r: dict) -> None:
+                lots.add(r)
+                futs.add(r)
             idx: List[dict] = []
             mcx: List[dict] = []
             try:
-                n = await dhan.save_instruments(store, await dhan.fetch_instruments(indices=idx, on_row=lots.add, commodities=mcx))
+                n = await dhan.save_instruments(store, await dhan.fetch_instruments(indices=idx, on_row=each_row, commodities=mcx))
             except dhan.DhanError as e:
                 await record_run(store, args.cmd, {"status": "failed", "error": str(e)})
                 print({"status": "failed", "error": str(e)})
@@ -1520,6 +1542,10 @@ async def main(argv: Optional[List[str]] = None, settings: Optional[Settings] = 
                 result["option_series"] = await save_option_lots(store, lots.rows())   # lot size per underlying and expiry (option chain)
             except dhan.DhanError as e:
                 result["option_series_error"] = str(e)
+            try:                                  # the stock futures the Trading Lab's Order Flow reads (lab/flow.py); a short list keeps the stored ones
+                result["stock_futures"] = await save_futures(store, futs.rows())
+            except dhan.DhanError as e:
+                result["stock_futures_error"] = str(e)
             try:                                  # likewise the MCX futures: the commodity page keeps the stored contracts if the list is short
                 result["commodities"] = await dhan.save_commodity_contracts(store, mcx)
                 await store.redis.delete("cmd:contracts")
