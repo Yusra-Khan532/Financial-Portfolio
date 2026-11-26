@@ -69,3 +69,17 @@ async def test_a_busy_store_answers_503_and_unreadable_values_400(store):  # noq
             assert r.status_code in (200, 400), r.text
             r = await c.post("/api/auth/login", json={"email": "not-an-email", "password": 123456789})
             assert r.status_code == 422 and "123456789" not in r.text and "input" not in r.text
+
+
+async def test_a_symbol_with_a_line_break_cannot_forge_a_log_line(ingested, caplog):  # noqa: F811
+    """CodeQL log injection on #939: the cache key comes from the request's symbol; a line break in it must stay inside one log entry."""
+    real = ingested.redis
+    ingested.redis = _DownRedis()
+    try:
+        with caplog.at_level("WARNING", logger="finlit.store"):
+            assert await ingested.get_section("RELI\nANCE\r2026 FAKE ENTRY", "consolidated", "summary") is None
+    finally:
+        ingested.redis = real
+    msgs = [r.getMessage() for r in caplog.records if r.name == "finlit.store"]
+    assert any("redis read failed" in m for m in msgs)
+    assert all("\n" not in m and "\r" not in m for m in msgs) and any("RELI\\nANCE\\r2026" in m for m in msgs)
