@@ -401,15 +401,21 @@ class DhanClient:
                         out[(seg, str(sid))] = raw
         return out
 
-    async def daily(self, security_id: str, segment: str, start: date, end: date, instrument: str = "EQUITY") -> List[dict]:
-        """Daily candles from start up to (not including) end: [{"day", "open", "high", "low", "close", "volume"}], oldest first."""
+    async def daily(self, security_id: str, segment: str, start: date, end: date, instrument: str = "EQUITY", oi: bool = False) -> List[dict]:
+        """Daily candles from start up to (not including) end: [{"day", "open", "high", "low", "close", "volume"}], oldest first. With `oi`
+        (futures and options), each candle also has "oi", the day's closing open interest (None when Dhan sends none or unequal arrays)."""
         body = await self._post("/charts/historical", {"securityId": str(security_id), "exchangeSegment": segment, "instrument": instrument,
-                                                        "expiryCode": 0, "oi": False, "fromDate": start.isoformat(), "toDate": end.isoformat()})
+                                                        "expiryCode": 0, "oi": bool(oi), "fromDate": start.isoformat(), "toDate": end.isoformat()})
         ts = (body or {}).get("timestamp") or []
         cols = {k: (body or {}).get(k) or [] for k in ("open", "high", "low", "close", "volume")}
         if not ts or any(len(v) != len(ts) for v in cols.values()):
             return []
-        return [{"day": datetime.fromtimestamp(t, IST).date(), **{k: v[i] for k, v in cols.items()}} for i, t in enumerate(ts)]
+        out = [{"day": datetime.fromtimestamp(t, IST).date(), **{k: v[i] for k, v in cols.items()}} for i, t in enumerate(ts)]
+        if oi:
+            ois = (body or {}).get("open_interest") or []
+            for i, c in enumerate(out):
+                c["oi"] = ois[i] if len(ois) == len(ts) else None
+        return out
 
     async def intraday(self, security_id: str, segment: str, interval: int, start: datetime, end: datetime, instrument: str = "EQUITY") -> List[dict]:
         """Minute candles (1, 5, 15, 25 or 60 minutes) from start to end: [{"at", "open", "high", "low", "close", "volume"}], oldest first, where
