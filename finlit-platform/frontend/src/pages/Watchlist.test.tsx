@@ -1,250 +1,321 @@
 // @vitest-environment jsdom
-// Watchlists as the "FinLit final pages" pack draws it (board 16): the header with the lists, five tiles, My watchlist grouped Against peers with the
-// insight cards and the table (company, industry, price, P/E, ROE, size, the plan's score, against peers, target, your note), Price and business disagree,
-// Tell me when a label changes and the page's questions. Kept at the founder's request: row actions, list management, compare and sorting.
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+// Task #408 (the founder's 27 Nov Watchlists pack): the page as the pack draws it, on the pack's sample list (SBIN and RELIANCE; empty lists h and k).
+// The API answers are the live site's fields on 26 Nov 2026 (reference/sample-data.json), served through a mocked apiGet, so the page's own reads and
+// rules run. Checked: drop-downs closed on load and the Today line, Needs a look, the four column sets, sorting both ways, Group by and folding, Details,
+// targets updating the distance and the cards, notes, Compare, the screens badge, Alerts for this list and its summary, the empty list, the removed parts
+// and the wording rules.
+import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Row } from "../lib/screener";
-import type { ListLead } from "../lib/watchlistPack";
 
-const R = (symbol: string, name: string, sector: string, overall: number, band: string, change: number, over: Partial<Row> = {}): Row => ({
-  symbol, name, sector, overall, band, price: 100, market_cap: 6000, pe: 20, pb: 3, roe: 15, roce: 18, dividend_yield: 1, debt_to_equity: 0.2, sales_cagr: 8, profit_cagr: 9, operating_margin: 20,
-  change_pct: change, return_1m: 1, return_1y: 10, pillar_quality: 60, pillar_growth: 60, pillar_profitability: 60, pillar_balance: 60, pillar_technical: 60, ...over,
-} as unknown as Row);
-const lead = (rank: number, fr: number, rel52: number): ListLead => ({ available: true, label: "leader", rank, ranked: 20, group: "Auto Parts: OEM", sector: "Nifty Auto", sectorKind: "index", rel52, fundamentalRank: fr, fundamentalOf: 20, fundamentalNote: "below_peers" });
-const st = vi.hoisted(() => ({ rows: [] as unknown[], toast: vi.fn(), gold: true, leads: null as unknown }));
-vi.mock("../lib/screener", async (orig) => ({ ...(await orig<typeof import("../lib/screener")>()), useUniverse: () => ({ data: { rows: st.rows, sample: false, asOf: "2026-11-06" }, isLoading: false, isError: false, refetch: () => undefined }) }));
+const st = vi.hoisted(() => ({ gold: true, toast: vi.fn(), create: vi.fn(), remove: vi.fn(), alerts: [] as unknown[], fail: new Set<string>() }));
+const ROWS = [
+  { symbol: "SBIN", name: "State Bank Of India", sector: "Banks", price: 1136.65, market_cap: 1049215, pe: 11.62, pb: 1.52, roe: 13.05, dividend_yield: 1.52, change_pct: -0.13 },
+  { symbol: "RELIANCE", name: "Reliance Industries Ltd", sector: "Refineries", price: 1396.2, market_cap: 1889413, pe: 22.6, pb: 1.97, roe: 8.7, dividend_yield: 0.44, change_pct: 1.62 },
+  { symbol: "TCS", name: "Tata Consultancy Services Ltd", sector: "IT", price: 3100, market_cap: 1100000, pe: 25, pb: 12, roe: 50, dividend_yield: 2, change_pct: 0.5 },
+] as unknown as Row[];
+const sum = (price: number, chg: number, h: number, l: number, ret: [number, number, number], name: string) => ({ profile: { name }, quote: { price, changePct: chg, high52: h, low52: l, asOf: "2026-11-26T15:28:00+05:30" },
+  returns: [{ period: "1M", price: ret[0] }, { period: "3M", price: ret[1] }, { period: "1Y", price: ret[2] }] });
+const lead = (label: string, raw: string, rank: number, ranked: number, since: string, pending: string | null, bench: string, w52: number, w13: number, top: string, top52: number, group: string) => ({
+  available: true, asOf: "2026-11-20", stale: false, held: false, peerGroup: { id: "g", name: group, short: group, kind: "industry", ranked }, benchmarks: { sector: { code: "X", name: bench, kind: "index", ret52: 0.1 }, market: null },
+  rel: { w13, w26: 0, w52, w52Market: 0 }, rank, label, rawLabel: raw, direction: null, fundamentalNote: null, fundamentalRank: null, fundamentalOf: null, labelSince: since,
+  sectorReliability: { tier: "mixed", hitRate6m: 0.6, checks: 1, from: null, to: null, periods: [] }, display: { chip: null, line: "", note: null, tooltip: null, pending }, peers: [{ symbol: "TOP", name: top, rank: 1, label: "leader", direction: null, rel13: 0, rel52: top52, rel52Market: 0, marketCap: 1 }] });
+const days = (from: string, n: number) => Array.from({ length: n }, (_, i) => new Date(Date.parse(from) + i * 86_400_000).toISOString().slice(0, 10));
+const API: Record<string, unknown> = {
+  "/api/stocks/SBIN": sum(1136.65, -0.13, 1234.8, 933.85, [18.7, 8.6, 20.1], "State Bank Of India"),
+  "/api/stocks/RELIANCE": sum(1396.2, 1.62, 1611.2, 1152.3, [15.3, 4.2, -10.8], "Reliance Industries Ltd"),
+  "/api/stocks/SBIN/leadership": lead("in_line", "in_line", 4, 9, "2026-09-25", null, "Nifty PSU Bank", 0.019, -0.035, "Bank Of Maharashtra", 0.515, "PSU bank"),
+  "/api/stocks/RELIANCE/leadership": lead("laggard", "in_line", 4, 6, "2026-03-13", "This week’s reading says In line.", "Nifty Oil & Gas", -0.061, 0.013, "Chennai Petroleum", 0.441, "Petroleum Products"),
+  "/api/leadership/list": { available: true, asOf: "2026-11-20", rows: {
+    SBIN: { available: true, label: "in_line", rank: 4, ranked: 9, group: "PSU bank", groupName: "PSU bank", sector: "Nifty PSU Bank", rel52: 0.019, fundamentalRank: null, fundamentalOf: null, fundamentalNote: null, rawLabel: "in_line" },
+    RELIANCE: { available: true, label: "laggard", rank: 4, ranked: 6, group: "Petroleum Products", groupName: "Petroleum Products", sector: "Nifty Oil & Gas", rel52: -0.061, fundamentalRank: null, fundamentalOf: null, fundamentalNote: null, rawLabel: "in_line" } } },
+  "/api/stocks/SBIN/financials": { quarterly: { pl: { periods: ["Sep 2025", "Sep 2026"], rows: { revenue: [128000, 141073], net_profit: [21134, 25361] } } } },
+  "/api/stocks/RELIANCE/financials": { quarterly: { pl: { periods: ["Sep 2025", "Jun 2026", "Sep 2026"], rows: { revenue: [258898, 311850, 332861], net_profit: [18165, 20946, 25548] } } } },
+  "/api/stocks/SBIN/events": { announcements: [{ date: "2026-11-23", category: "Updates", description: "Investor meet notice", link: "https://example.org/a.pdf" },
+    { date: "2026-11-03", category: "Outcome of Board Meeting", description: "State Bank Of India has submitted the financial results for the period ended September 30, 2026", link: "https://example.org/b.pdf" }] },
+  "/api/stocks/RELIANCE/events": { announcements: [{ date: "2026-10-30", category: "Press Release", description: "Unaudited Financial Results for the quarter ended September 30, 2026", link: "https://example.org/c.pdf" }] },
+  "/api/stocks/SBIN/price-6M": { series: { t: days("2026-08-26", 92), c: days("2026-08-26", 92).map((_, i) => 1000 + i) } },
+  "/api/stocks/RELIANCE/price-6M": { series: { t: days("2026-08-26", 92), c: days("2026-08-26", 92).map((_, i) => 1300 + i) } },
+  "/api/sectors/membership": { date: "2026-11-20", groups: { SBIN: { slug: "banks", name: "Banks" }, RELIANCE: { slug: "petroleum-products", name: "Petroleum Products" } } },
+  "/api/sectors": { date: "2026-11-20", date_label: "20 Nov 2026", rows: [
+    { name: "Banks", slug: "banks", sector: "Financial Services", state_code: "confirmed", meaning: "", breadth: { above_9: 80, above_20: 91, above_50: 86.1 }, stocks_counted: 36, index_vs_52w_high: 0 },
+    { name: "Petroleum Products", slug: "petroleum-products", sector: "Oil Gas & Consumable Fuels", state_code: "thrust_c", meaning: "", breadth: { above_9: 41, above_20: 41, above_50: 50 }, stocks_counted: 12, index_vs_52w_high: -3.4 }] },
+  "/api/rotation": { date: "2026-11-20", corner_meanings: { ahead_gaining: "Ahead of the average industry and gaining.", ahead_slowing: "Ahead of the average industry, but slowing." },
+    moved_this_week: [{ name: "Petroleum Products", slug: "petroleum-products", from: "Ahead and gaining", to: "Ahead but slowing" }], rows: [
+    { slug: "banks", corner: "ahead_gaining", corner_name: "Ahead and gaining", corner_since: "2026-11-13", rank: 1, ranked: 37, rank_change_1w: 2, rank_change_4w: 10, strength_pts: 12.6, change_pts: 6.6, rank_history: [19, 23, 15, 3, 1].map((rank, i) => ({ date: `2026-10-0${i + 1}`, rank })) },
+    { slug: "petroleum-products", corner: "ahead_slowing", corner_name: "Ahead but slowing", corner_since: "2026-11-20", rank: 2, ranked: 37, rank_change_1w: 4, rank_change_4w: -1, strength_pts: 16.3, change_pts: -2.5, rank_history: [6, 5, 4, 6, 2].map((rank, i) => ({ date: `2026-10-0${i + 1}`, rank })) }] },
+  "/api/discovery/board": { rows: [{ s: "RELIANCE", th: "Industrial Manufacturing & Capex", st: "Operating" }] },
+  "/api/screener/membership": { asOf: "2026-11-23", screens: 53, symbols: { SBIN: [
+    { id: "a", name: "Fresh close above a base", group: "Chart patterns", added_on: "2026-11-20", baseline: true, position: 6, count: 15 },
+    { id: "b", name: "Setups with the sector behind them", group: "Sectors", added_on: "2026-11-20", baseline: false, position: 8, count: 125 },
+    { id: "c", name: "Growth with a stretched valuation", group: "Prism views", added_on: "2026-11-19", baseline: false, position: 133, count: 327 },
+    { id: "d", name: "Low-volatility names", group: "Safety", added_on: "2026-11-11", baseline: true, position: 14, count: 27 }], RELIANCE: [] } },
+  "/api/results/calendar": { today: "2026-11-26", days: [] },
+  "/api/taxonomy/companies": { companies: { SBIN: { symbol: "SBIN", industry: "Banks", sector: "Financial Services" }, RELIANCE: { symbol: "RELIANCE", industry: "Petroleum Products", sector: "Oil Gas & Consumable Fuels" } } },
+};
+const OVERVIEW = (gold: boolean) => ({ model: gold ? "prism" : "finlit", plan: gold ? "gold" : "silver", count: 2, disclaimer: "", holdings: [
+  { symbol: "SBIN", status: "ready", prism: gold ? { state: "rated", final: 60.62, label: "Average", status: "RATED", parts: { fundamental: 75.12, valuation: 49.74, quality: 33.89, risk: 88.75 }, shortTerm: { score: 27.6, word: "Uptrend" }, longTerm: { score: 18.5, word: "Sideways" }, at: null, reason: null } : undefined },
+  { symbol: "RELIANCE", status: "ready", prism: gold ? { state: "rated", final: 57.1, label: "Average", status: "RATED", parts: { fundamental: 55, valuation: 40, quality: 72, risk: 80 }, shortTerm: { score: 39, word: "Uptrend" }, longTerm: { score: -21, word: "Downtrend" }, at: null, reason: null } : undefined }] });
+vi.mock("../lib/api", async (orig) => {
+  const real = await orig<typeof import("../lib/api")>();
+  const get = async (path: string) => {
+    const p = path.split("?")[0];
+    if (st.fail.has(p)) throw new real.ApiError(500, {});
+    if (p === "/api/screener/membership" && !st.gold) throw new real.ApiError(403, {});
+    if (p in API) return API[p];
+    throw new real.ApiError(404, {});
+  };
+  return { ...real, apiGet: vi.fn(get), apiSend: vi.fn(async (_m: string, p: string) => (p === "/api/portfolio/overview" ? OVERVIEW(st.gold) : {})), useQuotesFor: () => ({ data: { rows: [] }, isLoading: false }), shouldRetry: () => false };
+});
+vi.mock("../lib/screener", async (orig) => ({ ...(await orig<typeof import("../lib/screener")>()), useUniverse: () => ({ data: { rows: ROWS, sample: false, asOf: "2026-11-26" }, isLoading: false, isError: false, refetch: () => undefined }) }));
 vi.mock("../lib/ui", async (orig) => ({ ...(await orig<typeof import("../lib/ui")>()), useUI: () => ({ has: (t: string) => t !== "gold" || st.gold, toast: st.toast, upgrade: vi.fn(), plan: st.gold ? "gold" : "silver" }) }));
-vi.mock("../lib/auth", async (orig) => ({ ...(await orig<typeof import("../lib/auth")>()), useAuth: () => ({ user: { id: "u" } }) }));
-vi.mock("../lib/planScore", async (orig) => ({ ...(await orig<typeof import("../lib/planScore")>()), usePlanModel: () => (st.gold ? "prism" : null) }));
+vi.mock("../lib/auth", async (orig) => ({ ...(await orig<typeof import("../lib/auth")>()), useAuth: () => ({ user: { id: "u" }, plan: st.gold ? "gold" : "silver" }) }));
 vi.mock("../lib/title", () => ({ useDocTitle: () => undefined }));
-vi.mock("../lib/api", async (orig) => ({ ...(await orig<typeof import("../lib/api")>()), useQuotesFor: () => ({ data: { rows: [] }, isLoading: false }) }));
-vi.mock("../lib/indices", async (orig) => ({ ...(await orig<typeof import("../lib/indices")>()), useIndices: () => ({ data: { asOf: "2026-11-06", live: false, marketOpen: false, items: [], key: [] } }) }));
-vi.mock("../lib/leadership", async (orig) => ({ ...(await orig<typeof import("../lib/leadership")>()), useLeadershipList: () => ({ data: st.leads, isLoading: false }) }));
-// NSE's industry of each stock (task #192); the screener rows below still carry the old mixed `sector` value, which must not be shown
-vi.mock("../lib/taxonomy", async (orig) => ({ ...(await orig<typeof import("../lib/taxonomy")>()), useClassifications: () => ({ data: {
-  WHEELS: { symbol: "WHEELS", industry: "Auto Components" }, SSWL: { symbol: "SSWL", industry: "Auto Components" }, LOTUSDEV: { symbol: "LOTUSDEV", industry: "Realty" } } }) }));
 vi.mock("../components/PageFaqs", () => ({ PageFaqs: () => <section aria-label="Questions about this page" /> }));
 vi.mock("../components/AlertComposer", () => ({ AlertButton: ({ symbol, className }: { symbol: string; className?: string }) => <button className={className} aria-label={`Create an alert for ${symbol}`} /> }));
-// Task #272: Discover's filings of the list (GET /api/discovery/changes) and the last visit (POST /api/visits/watchlist), as of the pack's 20 Nov data
-const wc = vi.hoisted(() => ({ data: undefined as unknown, visit: null as string | null }));
 vi.mock("../lib/whatChanged", async (orig) => ({ ...(await orig<typeof import("../lib/whatChanged")>()),
-  useChanges: () => ({ data: wc.data, isLoading: false, isError: false, refetch: () => undefined }), useLastVisit: () => wc.visit }));
-vi.mock("../lib/alerts", async (orig) => ({ ...(await orig<typeof import("../lib/alerts")>()), useAlerts: () => ({ alerts: [], limit: 300, create: { mutate: vi.fn(), isPending: false }, remove: { mutate: vi.fn() } }) }));
+  useChanges: (s: string[]) => ({ data: s.length ? { days: 90, events: [], companies: [{ s: "RELIANCE", n: "Reliance Industries Ltd", ev: { rating: { n: 4, d: "2026-11-04", t: "Credit Rating", l: "https://example.org/r.pdf", dates: ["2026-11-04"] }, fundraise: { n: 2, d: "2026-10-01", t: "Allotment of Securities", l: null, dates: ["2026-10-01"] } } }], notPlaced: [{ s: "SBIN", n: "State Bank Of India" }] } : undefined, isLoading: false, isError: false, refetch: () => undefined }),
+  useLastVisit: () => "2026-11-25T10:00:00Z" }));
+vi.mock("../lib/alerts", async (orig) => ({ ...(await orig<typeof import("../lib/alerts")>()), useAlerts: () => ({ alerts: st.alerts, limit: 300, create: { mutateAsync: st.create, isPending: false }, remove: { mutateAsync: st.remove, isPending: false } }) }));
 import { WatchlistPage } from "./Watchlist";
 import { watch } from "../lib/watchlist";
 
-const PACK = ["WHEELS", "SSWL", "LOTUSDEV"];
 beforeEach(() => {
-  localStorage.clear();
-  watch.reset();
-  st.gold = false;
-  st.rows = [
-    R("WHEELS", "Wheels India Ltd", "Auto Components & Equipments", 73, "healthy", -3.49, { price: 2321, pe: 30, roe: 12.9, market_cap: 6235, prism_final: 77, prism_label: "STRONG", prism_status: "RATED" } as Partial<Row>),
-    R("SSWL", "Steel Strips Wheels Ltd", "Auto Components & Equipments", 70, "healthy", 1.48, { price: 538.9, pe: 28.8, roe: 14.8, market_cap: 8475, prism_final: 64, prism_label: "AVERAGE", prism_status: "RATED" } as Partial<Row>),
-    R("LOTUSDEV", "Sri Lotus Developers & Realty Ltd", "Realty", 69, "healthy", -0.09, { price: 233.5, pe: 39, roe: 12.4, market_cap: 11412 } as Partial<Row>),
-  ];
-  st.leads = { available: true, asOf: "2026-11-06", rows: { WHEELS: lead(2, 16, 1.524679), SSWL: lead(3, 18, 1.424434), LOTUSDEV: { available: false, reason: "history", text: "Under a year of prices" } } };
-  st.toast.mockClear();
+  localStorage.clear(); watch.reset(); st.gold = true; st.toast.mockClear(); st.create.mockReset(); st.remove.mockReset(); st.alerts = []; st.fail = new Set();
+  watch.replace({ lists: [{ id: "main", name: "My watchlist", symbols: ["SBIN", "RELIANCE"] }, { id: "h", name: "h", symbols: [] }, { id: "k", name: "k", symbols: [] }],
+    meta: { SBIN: { added: Date.parse("2026-11-23T06:00:00Z"), addedPrice: 1132.65 }, RELIANCE: { added: Date.parse("2026-11-25T06:00:00Z"), addedPrice: 1373.9 } } });
 });
 afterEach(cleanup);
-const open = () => { for (const s of PACK) watch.add(s); return render(<QueryClientProvider client={new QueryClient()}><MemoryRouter><WatchlistPage /></MemoryRouter></QueryClientProvider>); };
-const table = () => screen.getByRole("table", { name: /your stocks/i });
-const rowOf = (sym: string) => within(table()).getByRole("link", { name: new RegExp("^" + sym) }).closest("tr") as HTMLElement;
+const open = async () => {
+  const r = render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><MemoryRouter initialEntries={["/watchlist"]}><WatchlistPage /></MemoryRouter></QueryClientProvider>);
+  await screen.findByText("₹1,136.65");
+  await act(async () => { await new Promise((x) => setTimeout(x, 30)); });
+  return r;
+};
+const $ = (q: string) => document.querySelector(q) as HTMLElement;
+const $$ = (q: string) => [...document.querySelectorAll(q)] as HTMLElement[];
+const syms = () => $$("#wl-t tr.wl-r").map((r) => r.dataset.s);
+const heads = () => [...$$("#wl-t thead tr:last-child th"), ...$$("#wl-t thead tr:first-child th[rowspan]")].map((t) => t.textContent!.trim().replace(/i$/, ""));
+const click = (el: Element) => fireEvent.click(el);
+const typeTarget = (sym: string, v: string) => fireEvent.change($(`input.wp-tg[data-tgt="${sym}"]`), { target: { value: v } });
 
-describe("Watchlists, as the pack draws it", () => {
-  it("has the header, the lists and Add a stock", () => {
-    open();
+describe("Watchlists (task #408): the page as the pack draws it", () => {
+  it("has the header without the plan badge, the list pills, + New list, Add a stock, and Rename and Delete beside them", async () => {
+    await open();
     expect(screen.getByRole("heading", { level: 1, name: "Watchlists" })).toBeTruthy();
-    expect(screen.getByText("SILVER")).toBeTruthy();
-    expect(screen.getByText("The companies you follow: how they are doing, against their peers, and what to look at next.")).toBeTruthy();   // one line (founder, 22 Nov 2026)
-    expect(screen.getByRole("button", { name: "My watchlist · 3", pressed: true })).toBeTruthy();
+    expect(screen.getByText("The companies you follow: what moved, what is near your target, and what is new.")).toBeTruthy();
+    expect(screen.queryByText("SILVER")).toBeNull();
+    expect(screen.getByRole("button", { name: "My watchlist · 2", pressed: true })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "h · 0" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "+ New list" })).toBeTruthy();
     expect(screen.getByPlaceholderText("Add a stock to this list")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Rename “My watchlist”" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Delete this list" })).toBeTruthy();
   });
-  it("shows the five tiles with the pack's words from the real figures", () => {
-    open();
-    const tile = (k: string) => screen.getByText(k, { selector: ".wp-tile > span" }).parentElement as HTMLElement;
-    expect(tile("Stocks").textContent).toBe("Stocks32 micro · 1 small company");   // task #262: four sizes
-    expect(tile("On Friday").textContent).toBe("On Friday1 up · 2 downWHEELS −3.5%, LOTUSDEV −0.1%, SSWL +1.5%");
-    expect(tile("Average FinLit Prism").textContent).toBe("Average FinLit Prism—FinLit Prism · see plans");   // task #283: no score without Prism
-    expect(within(tile("Against peers")).getByText("2 lead")).toBeTruthy();
-    expect(within(tile("Against peers")).getByText("1 not compared (under a year of prices)")).toBeTruthy();
-    expect(within(tile("Against peers")).getByRole("button", { name: "About Against peers" })).toBeTruthy();
-    expect(tile("Concentration").textContent).toBe("Concentration67%in one industry: Auto Components");
+  it("opens with both drop-downs closed; Today's line counts the stocks, the day's moves and the cards", async () => {
+    await open();
+    expect(($("#wl-today") as HTMLDetailsElement).open).toBe(false);
+    expect(($("#wl-al") as HTMLDetailsElement).open).toBe(false);
+    expect($("#wl-td-now").textContent!.replace(/\s+/g, " ")).toBe("2 stocks · 1 up, 1 down on Thursday · 3 to look at");
+    expect($("#wl-n").textContent).toBe("3");
+    expect($$("#wl-look li").map((l) => l.textContent)).toEqual([
+      "SBINNew in 2 screensSetups with the sector behind them (20 Nov) and Growth with a stretched valuation (19 Nov), in the Advanced screener.",
+      "RELIANCEIndustry slowingPetroleum Products moved from Ahead and gaining to Ahead but slowing in the 20 Nov Sector Rotation.",
+      "RELIANCEPeer label may changeA Laggard now; this week’s reading says In line. It changes if next week’s reading agrees."]);
+    expect($(".wl-lkh .wl-sum").textContent).toBe("Prices at 3:28 pm, 26 Nov");
+    expect($("#wl-quiet").textContent).toBe("Nothing else today. Set a target on a stock and it shows here when the price comes within 5% of it.");
   });
-  it("groups the table Against peers, with the cards over it and the pack's columns", () => {
-    open();
-    expect(screen.getByRole("heading", { name: "My watchlist" })).toBeTruthy();
-    expect(screen.getByText("Grouped by how each stock did against its peers over 12 months.")).toBeTruthy();
-    for (const g of ["Against peers", "Industry", "Size"]) expect(within(screen.getByRole("group", { name: "Group by" })).getByRole("button", { name: g })).toBeTruthy();
-    expect(within(screen.getByRole("group", { name: "Group by" })).getByRole("button", { name: "Download" })).toBeTruthy();
-    expect(screen.getByText("Price leads, the business lags")).toBeTruthy();
-    expect(screen.getByText("Two of three stocks in one industry")).toBeTruthy();
-    expect(screen.getByText("LOTUSDEV has under a year of prices")).toBeTruthy();
-    const heads = within(table().querySelector("thead") as HTMLElement).getAllByRole("columnheader").map((h) => h.textContent?.replace(/i$/, "").trim());
-    expect(heads).toEqual(["Company", "Industry", "Price", "P/E", "ROE", "Size", "Against peers", "Target", "Your note", "Actions"]);   // task #283: no score column without Prism
-    for (const k of ["P/E", "ROE", "Size", "Against peers", "Target"]) expect(within(table()).getByRole("button", { name: `About ${k}` })).toBeTruthy();
-    const groupRows = within(table()).getAllByRole("columnheader").filter((h) => h.getAttribute("scope") === "colgroup").map((h) => h.textContent);
-    expect(groupRows).toEqual(["Leaders2 stocks", "Not compared1 stock"]);
-    const w = rowOf("WHEELS");
-    for (const t of ["Auto Components", "₹2,321.00", "−3.49%", "30.0×", "12.9%", "Micro", "Leader", "2 of 20 Auto Parts: OEM"]) expect(within(w).getByText(t)).toBeTruthy();
-    expect(w.textContent).not.toMatch(/\bIQ\b|Mixed|Watch\b/);
-    expect(within(rowOf("LOTUSDEV")).getByText("Not compared")).toBeTruthy();
-    expect(within(rowOf("LOTUSDEV")).getByText("Under a year of prices")).toBeTruthy();
-    expect(within(rowOf("LOTUSDEV")).getByText("Small")).toBeTruthy();
-    // within Leaders, the peer rank orders the rows (2nd, then 3rd)
-    expect(within(table()).getAllByRole("link").map((a) => a.querySelector("b")?.textContent)).toEqual(["WHEELS", "SSWL", "LOTUSDEV"]);
+  it("a Needs a look card switches to the Price columns, opens that stock's Details", async () => {
+    await open();
+    click($('[data-view="sec"]'));
+    click($('#wl-look [data-go="RELIANCE"]'));
+    expect($('[data-view="price"]').getAttribute("aria-pressed")).toBe("true");
+    expect(($("#wlx-RELIANCE") as HTMLTableRowElement).hidden).toBe(false);
   });
-  it("Gold sees FinLit Prism in the same places, in Prism's words (task #283), never another score", () => {
-    st.gold = true; open();
-    expect(within(table()).getByRole("columnheader", { name: /FinLit Prism/ })).toBeTruthy();
-    expect(table().textContent).not.toMatch(/\bIQ\b|Mixed|Watch\b/);
-    expect(screen.getByText("Average FinLit Prism").parentElement!.textContent).not.toMatch(/Mixed|Watch/);
-    expect(within(rowOf("WHEELS")).getByText("77")).toBeTruthy();
-    expect(screen.getByText("Average FinLit Prism")).toBeTruthy();
-    expect(within(rowOf("LOTUSDEV")).getByText("Not rated yet")).toBeTruthy();
+  it("shows the four column sets with the pack's columns; Price is pressed first", async () => {
+    await open();
+    expect($('[data-view="price"]').getAttribute("aria-pressed")).toBe("true");
+    expect(heads()).toEqual(["Company", "Price · today", "Since added", "Your target", "1 month", "52-week range", "Trend", "Actions"]);
+    const r = $('tr.wl-r[data-s="SBIN"]').textContent!;
+    for (const t of ["₹1,136.65", "−0.13%", "+0.35%", "from 23 Nov", "+18.7%", "3 months +8.6%", "7.9% below high", "Flat, turning up", "Short ↗ · Long →", "4 screens"]) expect(r).toContain(t);
+    expect($('tr.wl-r[data-s="RELIANCE"]').textContent).toContain("Falling but bouncing");
+    click($('[data-view="prism"]'));
+    expect(heads().sort()).toEqual(["Actions", "Company", "G&P", "Long term", "Prism", "Qual.", "RiskStrong = safer", "Short term", "Val.Strong = cheaper", "Vs its peers"].sort());
+    expect($$("#wl-t thead th.wl-gh").map((t) => t.textContent)).toEqual(["FinLit Prism · Fundamental scorei", "Technical viewi", "Against peers"]);
+    expect($('tr.wl-r[data-s="SBIN"]').textContent).toContain("61Average");
+    expect($('tr.wl-r[data-s="RELIANCE"]').textContent).toContain("Laggard*4 of 6 peers");
+    expect(($("#wl-foot") as HTMLElement).hidden).toBe(false);
+    expect($("#wl-foot").textContent).toBe("* This week’s reading differs from the label; the label changes if next week’s reading agrees.");
+    click($('[data-view="biz"]'));
+    await act(async () => { await new Promise((x) => setTimeout(x, 30)); });
+    expect(heads()).toContain("Div. yield");
+    const rel = $('tr.wl-r[data-s="RELIANCE"]').textContent!;
+    for (const t of ["Large", "₹18,89,413 Cr", "22.6×", "1.97×", "0.44%", "8.7%", "+28.6%", "₹3,32,861 Cr", "+40.6%", "30 Oct", "Sep quarter", "Industrial Manufacturing & Capex", "Operating"]) expect(rel).toContain(t);
+    expect($('tr.wl-r[data-s="SBIN"]').textContent).toContain("Not placed yet");
+    click($('[data-view="sec"]'));
+    expect(heads().sort()).toEqual(["Company", "Industry", "Reading", "Where it stands", "Rank", "Stock vs index12 months", "Actions"].sort());
+    const sb = $('tr.wl-r[data-s="SBIN"]').textContent!;
+    for (const t of ["Banks", "Financial Services", "Rising together", "At its 1-year high", "Ahead and gaining", "Since 13 Nov", "1 of 37", "Up 2 this week", "+1.9 pts", "3 months −3.5"]) expect(sb).toContain(t);
+    expect($("#wl-sfoot").textContent).toBe("Industry readings for the week to 20 Nov 2026, from NSE daily data with equal-weighted industry groups.Open Sector Pulse ↗Open Sector Rotation ↗");
   });
-  it("shows Price and business disagree with each stock's two ranks and the gap to its sector index", () => {
-    open();
-    const sec = screen.getByRole("heading", { name: /Price and business disagree/ }).closest("section") as HTMLElement;
-    expect(within(sec).getByText("The peer tag is about the share price. The business score ranks the company's results and balance sheet within the same group.")).toBeTruthy();
-    expect(within(sec).getByText("When the price is far ahead of the business, the market may be expecting a lot. It is a prompt to read the report, not a call to act.")).toBeTruthy();
-    expect(within(sec).getByText("2 of 20")).toBeTruthy(); expect(within(sec).getByText("16 of 20")).toBeTruthy();
-    expect(within(sec).getByText("3 of 20")).toBeTruthy(); expect(within(sec).getByText("18 of 20")).toBeTruthy();
-    expect(within(sec).getByText("Price +152.5 pts vs Nifty Auto over 12 months.")).toBeTruthy();
-    expect(within(sec).getByText("Price +142.4 pts vs Nifty Auto over 12 months.")).toBeTruthy();
+  it("sorts every arrowed column on a tap and reverses it on the second", async () => {
+    await open();
+    const two = (k: string) => { click($(`[data-sort="${k}"]`)); const a = [syms(), $(`[data-sort="${k}"]`).closest("th")!.getAttribute("aria-sort")]; click($(`[data-sort="${k}"]`)); return [a, [syms(), $(`[data-sort="${k}"]`).closest("th")!.getAttribute("aria-sort")]]; };
+    expect(two("chgp")).toEqual([[["RELIANCE", "SBIN"], "descending"], [["SBIN", "RELIANCE"], "ascending"]]);
+    expect(two("s")).toEqual([[["RELIANCE", "SBIN"], "ascending"], [["SBIN", "RELIANCE"], "descending"]]);
+    expect(two("m1")[0][0]).toEqual(["SBIN", "RELIANCE"]);
+    click($('[data-view="prism"]'));
+    expect(two("prism")[0][0]).toEqual(["SBIN", "RELIANCE"]);
+    expect(two("peerRank")[0][0]).toEqual(["SBIN", "RELIANCE"]);
   });
-  it("saves the label-change alert with the list, and can switch it off", () => {
-    open();
-    const sec = screen.getByRole("heading", { name: "Tell me when a label changes" }).closest("section") as HTMLElement;
-    expect(within(sec).getByText("An alert when a stock on this list becomes a Leader, In line or a Laggard, sent after the weekly check.")).toBeTruthy();
-    expect(within(sec).getByRole("button", { name: "Any change", pressed: true })).toBeTruthy();
-    fireEvent.click(within(sec).getByRole("button", { name: "Only to Laggard" }));
-    fireEvent.click(within(sec).getByRole("button", { name: "Set alert for this list" }));
+  it("groups Against peers, by Industry and by Size; a band folds its stocks; pressing the pill again ungroups", async () => {
+    await open();
+    click($('[data-grp="peers"]'));
+    expect($$("#wl-t .wl-gb b").map((b) => b.textContent)).toEqual(["In line", "Laggards"]);
+    expect($$("#wl-t .wl-gb span").map((b) => b.textContent)).toEqual(["1 stock", "1 stock"]);
+    click($('[data-grp="industry"]'));
+    expect($$("#wl-t .wl-gb b").map((b) => b.textContent)).toEqual(["Banks", "Petroleum Products"]);
+    click($('[data-grp="size"]'));
+    expect($$("#wl-t .wl-gb b").map((b) => b.textContent)).toEqual(["Large companies"]);
+    click($(".wl-gb"));
+    expect(syms()).toEqual([]);
+    expect($(".wl-gb").getAttribute("aria-expanded")).toBe("false");
+    click($(".wl-gb"));
+    click($('[data-grp="size"]'));
+    expect($(".wl-gb")).toBeNull();
+  });
+  it("Details holds the six blocks; a target updates the distance, the cards, both boxes and stays per stock", async () => {
+    await open();
+    click($('[data-x="SBIN"]'));
+    await act(async () => { await new Promise((x) => setTimeout(x, 30)); });
+    expect($('[data-x="SBIN"]').getAttribute("aria-expanded")).toBe("true");
+    expect($$("#wlx-SBIN .wl-xc h3").map((h) => h.textContent)).toEqual(["Price · last 3 months", "Yours", "Latest filings", "Prism and peers", "Industry and theme", "Advanced screener · 4 screens"]);
+    const x = $("#wlx-SBIN").textContent!;
+    for (const t of ["Since added+0.35%", "1 month+18.7%", "Why you are watching", "Tell me when the price is within 5% of my target", "Keep on My watchlist", "Open the report ↗", "Remove",
+      "23 NovInvestor meet notice ↗", "Last results: 3 Nov (Sep quarter)", "In line 4 of 9 PSU bank", "In line since 25 Sep", "Vs Nifty PSU Bank+1.9 pts over 12 months", "Bank Of Maharashtra, +51.5 pts vs Nifty PSU Bank",
+      "Banks · Financial Services", "86% of its 36 stocks rising", "1 of 37 · up 2 this week", "+12.6 pts over 6 months", "+6.6 pts last month", "Not placed yet",
+      "Fresh close above a base ↗Chart patterns · on it since 20 Nov · 6 of 15", "Setups with the sector behind them ↗Sectors · joined 20 Nov · 8 of 125", "Screens as of 23 Nov. A screen narrows a list; it is not a recommendation."]) expect(x).toContain(t);
+    expect(($("#wlx-SBIN input[data-al]") as HTMLInputElement).checked).toBe(true);
+    typeTarget("SBIN", "1180");
+    expect($('[data-dist="SBIN"]').textContent).toBe("3.8% below target");
+    expect($('[data-dist="SBIN"]').className).toContain("near");
+    expect($("#wl-n").textContent).toBe("4");
+    expect($("#wl-n2").textContent).toBe("4");
+    expect(($("#tg-SBIN") as HTMLInputElement).value).toBe("1180");
+    expect(watch.get().meta.SBIN.target).toBe(1180);
+    expect($$("#wl-look li")[0].textContent).toBe("SBINNear your target₹1,136.65 is 3.8% below your target of ₹1,180.00");
+    expect($("#wl-quiet").textContent).toBe("Nothing else today: no results due this week, no move of 5% or more, and no new filing of Discover’s eight kinds.");
+    typeTarget("SBIN", "");
+    expect($("#wl-n").textContent).toBe("3");
+    fireEvent.click($("#wlx-SBIN input[data-al]"));
+    expect(watch.get().meta.SBIN.nearAlert).toBe(false);
+    fireEvent.change($("#nt-SBIN"), { target: { value: "Waiting for Q3" } });
+    expect($('[data-note="SBIN"]').getAttribute("title")).toBe("Waiting for Q3");
+    expect($('#wlx-RELIANCE').hidden).toBe(true);
+    expect($('[data-x="RELIANCE"]').getAttribute("aria-label")).toBe("Details for RELIANCE");
+    expect($('tr.wl-r[data-s="SBIN"] [aria-label="Create an alert for SBIN"]')).toBeTruthy();
+  });
+  it("the pending note shows in Details, and a stock in no screen says so", async () => {
+    await open();
+    click($('[data-x="RELIANCE"]'));
+    await act(async () => { await new Promise((x) => setTimeout(x, 30)); });
+    expect($("#wlx-RELIANCE .wl-pend").textContent).toBe("This week’s reading says In line. The label changes if next week’s reading agrees.");
+    expect($("#wls-RELIANCE").textContent).toContain("Advanced screener · no screens");
+    expect($("#wls-RELIANCE").textContent).toContain("Not in any of the screener’s 53 screens today.");
+    expect($('[data-scr="RELIANCE"]')).toBeNull();
+  });
+  it("ticking two stocks shows Compare 2; the screens badge opens Details at the screens", async () => {
+    await open();
+    expect($("#wl-cmp").classList.contains("on")).toBe(false);
+    click($('[data-cmp="SBIN"]')); click($('[data-cmp="RELIANCE"]'));
+    expect($("#wl-cmp").classList.contains("on")).toBe(true);
+    expect($("#wl-cmp").textContent).toBe("Compare 2");
+    expect($('[data-cmp="SBIN"]').getAttribute("aria-label")).toBe("Select SBIN to compare");
+    click($('[data-scr="SBIN"]'));
+    expect($("#wlx-SBIN").hidden).toBe(false);
+    expect($("#wls-SBIN")).toBeTruthy();
+  });
+  it("Alerts for this list: three groups, the summary follows the pills, Save stores the list's choice and its filing alert", async () => {
+    await open();
+    expect($("#wl-al-now").textContent).toBe("Target: on · Peer labels: any change · Filings: order win, capacity");
+    const g = $$("#wl-al .wp-alert");
+    expect(g.map((x) => x.dataset.one || "multi")).toEqual(["1", "1", "multi"]);
+    click(g[1].querySelectorAll(".wp-pill")[1]);
+    click(g[2].querySelectorAll(".wp-pill")[5]);
+    expect($("#wl-al-now").textContent).toBe("Target: on · Peer labels: only to laggard · Filings: order win, capacity, credit rating");
+    expect(g[1].querySelectorAll('[aria-pressed="true"]').length).toBe(1);
+    st.create.mockResolvedValue({});
+    await act(async () => { click($("#wl-save")); await new Promise((x) => setTimeout(x, 10)); });
+    expect($("#wl-msg").textContent).toBe("Saved.");
+    expect(watch.get().lists[0].alerts).toEqual({ target: true, peer: "laggard", filings: ["order", "capacity", "rating"] });
     expect(watch.get().lists[0].labelAlert).toBe("laggard");
-    expect(within(sec).getByRole("status").textContent).toMatch(/On for this list: only to laggard, sent after the weekly check/);
-    fireEvent.click(within(sec).getByRole("button", { name: "Switch off" }));
-    expect(watch.get().lists[0].labelAlert).toBeUndefined();
+    expect(st.create).toHaveBeenCalledWith(expect.objectContaining({ metric: "discover_filing", list: "watch:main", kinds: ["order", "capacity", "rating"] }));
   });
-  it("keeps the in simple words line and places the page's questions", () => {
-    open();
-    expect(screen.getByText(/lists, notes and targets are saved in this browser\. Targets are your own reminders, not predictions; FinLit does not tell you when to buy or sell\./)).toBeTruthy();
-    expect(screen.getByRole("region", { name: "Questions about this page" })).toBeTruthy();
+  it("a list's existing filing alert and older label choice are what the card shows", async () => {
+    st.alerts = [{ id: "a1", metric: "discover_filing", list: "watch:main", kinds: ["mna", "legal"], status: "active" }];
+    watch.setLabelAlert("main", "leader");
+    await open();
+    expect($("#wl-al-now").textContent).toBe("Target: on · Peer labels: only to leader · Filings: acquisition / merger, legal / regulatory");
   });
-  it("says so when the weekly peer check is not available, instead of inventing labels", () => {
-    st.leads = { available: false, reason: "pending" }; open();
-    expect(screen.getByText("The weekly peer check is not available yet")).toBeTruthy();
-    expect(within(rowOf("WHEELS")).getByText("Not checked")).toBeTruthy();
-    expect(screen.queryByText("Price leads, the business lags")).toBeNull();
+  it("an empty list shows the dashed box, hides the table, and What changed says what to do", async () => {
+    await open();
+    click(screen.getByRole("button", { name: "h · 0" }));
+    expect($("#wl-today-h").textContent).toBe("Today on h");
+    expect($("#wl-td-now").textContent).toBe("No stocks yet");
+    expect($("#wl-quiet").textContent).toBe("Add a stock to this list and its moves, targets and news show here.");
+    expect($("#wp-list").textContent).toBe("h");
+    expect(($("#wl-empty") as HTMLElement).hidden).toBe(false);
+    expect($("#wl-empty").textContent).toBe("This list is empty. Type a stock in “Add a stock to this list”, or use Watchlist on any company report.");
+    expect(($(".wl-list .wp-tw") as HTMLElement).hidden).toBe(true);
+    expect(($(".wl-list .wl-ctl") as HTMLElement).hidden).toBe(true);
+    expect(($("#wl-wce") as HTMLElement).hidden).toBe(false);
+    expect($("#what-changed .wp-sub").textContent).toBe("From Discover: the companies on h and what they filed in the last 90 days.");
+    expect(screen.getByRole("button", { name: "Rename “h”" })).toBeTruthy();
+    expect($("#wl-al .wl-al-b .wp-sub").textContent).toBe("For every stock on h, now and as you add more.");
   });
-});
-
-describe("what the founder asked to keep", () => {
-  it("row actions: target, note, alert, compare and remove", () => {
-    open();
-    fireEvent.change(within(rowOf("SSWL")).getByLabelText("SSWL target price in rupees"), { target: { value: "600" } });
-    expect(within(rowOf("SSWL")).getByText(/% away/)).toBeTruthy();
-    fireEvent.change(within(rowOf("SSWL")).getByLabelText("SSWL note"), { target: { value: "wheels for EVs" } });
-    expect((within(rowOf("SSWL")).getByLabelText("SSWL note") as HTMLTextAreaElement).value).toBe("wheels for EVs");
-    expect(within(rowOf("SSWL")).getByRole("button", { name: "Create an alert for SSWL" })).toBeTruthy();
-    fireEvent.click(within(rowOf("SSWL")).getByLabelText("Select SSWL to compare")); fireEvent.click(within(rowOf("WHEELS")).getByLabelText("Select WHEELS to compare"));
-    expect(screen.getByRole("button", { name: "Compare selected" })).toBeTruthy();
-    fireEvent.click(within(rowOf("SSWL")).getByRole("button", { name: "Remove SSWL from this list" }));
-    expect(within(table()).queryByRole("link", { name: /^SSWL/ })).toBeNull();
+  it("What changed shows only kinds with a filing, then the others in one line, without the list pills or Alert me", async () => {
+    await open();
+    expect($$("#what-changed .wc-tile").map((t) => t.textContent)).toEqual(["Fund raising1", "Credit ratings1"]);
+    expect($("#what-changed .wl-none").textContent).toBe("None of the other 6 kinds in 90 days");
+    expect($("#what-changed .wp-sub").textContent).toBe("From Discover: 1 of the 2 companies on My watchlist filed one of these in the last 90 days.");
+    expect(screen.queryByRole("button", { name: /Alert me/ })).toBeNull();
+    expect($("#what-changed .wc-lists")).toBeNull();
   });
-  it("sorting by a column, and the other Group by buttons", () => {
-    open();
-    fireEvent.click(within(table()).getByRole("button", { name: "Price" }));   // highest first, within each group
-    expect(within(table()).getAllByRole("link").map((a) => a.querySelector("b")?.textContent)).toEqual(["WHEELS", "SSWL", "LOTUSDEV"]);
-    fireEvent.click(within(table()).getByRole("button", { name: "Price" }));
-    expect(within(table()).getAllByRole("link").map((a) => a.querySelector("b")?.textContent)).toEqual(["SSWL", "WHEELS", "LOTUSDEV"]);
-    fireEvent.click(within(screen.getByRole("group", { name: "Group by" })).getByRole("button", { name: "Size" }));
-    expect(screen.getByText("Grouped by company size: Large, Mid, Small and Micro.")).toBeTruthy();
-    expect(within(table()).getAllByRole("columnheader").filter((h) => h.getAttribute("scope") === "colgroup").map((h) => h.textContent)).toEqual(["Small1 stock", "Micro2 stocks"]);
+  it("one source failing shows 'Could not load. Try again.' only where it is used", async () => {
+    st.fail = new Set(["/api/rotation", "/api/sectors"]);
+    await open();
+    click($('[data-view="sec"]'));
+    await screen.findAllByText(/Could not load/, {}, { timeout: 5000 });
+    expect($('tr.wl-r[data-s="SBIN"]').textContent).toContain("Could not load. Try again.");
+    expect($('tr.wl-r[data-s="SBIN"]').textContent).toContain("Banks");
+    click($('[data-view="price"]'));
+    expect($('tr.wl-r[data-s="SBIN"]').textContent).not.toContain("Could not load");
   });
-  it("list management: a new list, rename and delete", () => {
-    st.gold = true; open();
-    fireEvent.click(screen.getByRole("button", { name: "+ New list" }));
-    fireEvent.change(screen.getByLabelText("New list name"), { target: { value: "Banks" } });
-    fireEvent.keyDown(screen.getByLabelText("New list name"), { key: "Enter" });
-    expect(screen.getByRole("button", { name: "Banks · 0", pressed: true })).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Rename “Banks”" }));
-    fireEvent.change(screen.getByLabelText("List name"), { target: { value: "Lenders" } });
-    fireEvent.blur(screen.getByLabelText("List name"));
-    expect(screen.getByRole("button", { name: "Lenders · 0" })).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Delete this list" }));
-    expect(screen.queryByRole("button", { name: /Lenders/ })).toBeNull();
+  it("on Silver the Prism scores and the screens say they come with Gold, and nothing else is hidden", async () => {
+    st.gold = false;
+    await open();
+    expect($('tr.wl-r[data-s="SBIN"] .wl-tr').textContent).toBe("—");
+    click($('[data-view="prism"]'));
+    expect($('tr.wl-r[data-s="SBIN"] .wl-sc').getAttribute("title")).toBe("FinLit Prism comes with Gold.");
+    expect($('tr.wl-r[data-s="SBIN"]').textContent).toContain("In line4 of 9 peers");
+    expect($('[data-scr="SBIN"]')).toBeNull();
   });
-});
-
-// Task #272 (Watchlists and Alerts, 20 Nov pack): "What changed at these companies", the filing chip, the new-order-win notice and
-// "Tell me when a company on this list files". The pack's 20 Nov data: Wheels India is not in Discover yet.
-const F = (n: number, d: string, t: string | null, dates?: string[]) => ({ n, d, t, l: t ? "https://nsearchives.nseindia.com/f.pdf" : null, dates: dates ?? Array(n).fill(d) });
-const CHANGES = () => ({ days: 90, events: ["order", "capacity", "partnership", "mna", "fundraise", "rating", "management", "legal"], notPlaced: [{ s: "WHEELS", n: "Wheels India Ltd" }], companies: [
-  { s: "SSWL", n: "Steel Strips Wheels", ev: { capacity: F(1, "2026-10-23", "Capacity addition"), management: F(2, "2026-10-23", "Outcome of the Board Meeting of 23 Oct 2026: appointment of directors") } as Record<string, ReturnType<typeof F>> },
-  { s: "LOTUSDEV", n: "Sri Lotus Developers & Realty", ev: { management: F(2, "2026-10-01", "Change in Management") } as Record<string, ReturnType<typeof F>> },
-] });
-describe("What changed at these companies (task #272)", () => {
-  beforeEach(() => { wc.data = CHANGES(); wc.visit = "2026-11-12T10:00:00Z"; });
-  it("sits under the list, before Price and business disagree, with the pack's words, tiles and rows", () => {
-    open();
-    const sec = screen.getByRole("heading", { name: "What changed at these companies" }).closest("section") as HTMLElement;
-    const order = [...document.querySelectorAll("section h2")].map((x) => x.textContent || "");
-    expect(order.indexOf("What changed at these companies")).toBeGreaterThan(order.findIndex((t) => t.startsWith("My watchlist")));
-    expect(order.indexOf("What changed at these companies")).toBeLessThan(order.findIndex((t) => t.startsWith("Price and business disagree")));
-    expect(within(sec).getByText("From Discover: 2 of the 3 companies on My watchlist filed one of these in the last 90 days.")).toBeTruthy();
-    expect(within(sec).getByText("My watchlist · 3 companies")).toBeTruthy();
-    expect(within(sec).getByText("Nothing new since your last visit on 12 Nov")).toBeTruthy();
-    expect(within(sec).getByRole("link", { name: "What changed in Discover ↗" }).getAttribute("href")).toBe("/discover/changes");
-    const tiles = within(sec).getByRole("group", { name: "Filter by kind of filing" });
-    expect(within(tiles).getAllByRole("button").map((b) => b.textContent)).toEqual(["Order wins0", "Capacity and commissioning1", "Partnerships and MoUs0", "Acquisitions and mergers0",
-      "Fund raising0", "Credit ratings0", "Management changes2", "Legal and regulatory0"]);
-    const rows = within(sec).getAllByRole("listitem");
-    expect(rows.map((r) => r.querySelector(".wc-co")?.textContent)).toEqual(["Steel Strips Wheels", "Steel Strips Wheels", "Sri Lotus Developers & Realty"]);
-    expect(rows[1].textContent).toContain("Management × 2");
-    expect(within(rows[2]).getByRole("link", { name: "Details in Discover ↗" }).getAttribute("href")).toBe("/discover/changes/management?q=Sri%20Lotus%20Developers%20%26%20Realty");
-    expect(within(rows[0]).getByRole("link", { name: "Filing ↗" }).getAttribute("href")).toMatch(/^https:\/\/nsearchives/);
-    expect(within(sec).getByText("Not in Discover yet: Wheels India Ltd (WHEELS). Filings as the companies reported them to NSE in the last 90 days; not a recommendation.")).toBeTruthy();
-    fireEvent.click(within(tiles).getByRole("button", { name: /Capacity and commissioning/ }));
-    expect(within(sec).getAllByRole("listitem")).toHaveLength(1);
+  it("removes what the pack removes and keeps the words the pack sets", async () => {
+    await open();
+    const text = document.body.textContent!;
+    for (const gone of ["Concentration", "Key figures", "Price and business disagree", "Themes on this list", "Download", "Tell me when a label changes", "Tell me when a company on this list files", "Saved in this browser", "saved in this browser", "SILVER"]) expect(text).not.toContain(gone);
+    expect(text).toContain("In simple words: lists, notes and targets are saved to your FinLit account. Targets are your own reminders, not predictions; FinLit does not tell you when to buy or sell.");
+    const scan = text.replace("FinLit does not tell you when to buy or sell", "").replace(/not a recommendation/g, "");
+    expect(scan).not.toMatch(/\b(buy|sell|recommend\w*|undervalued|overvalued|bullish|bearish|thrust)\b/i);
+    expect(scan).not.toMatch(/\btags?\b/i);
+    expect(scan).not.toMatch(/(?<![\w-])-\d/);
   });
-  it("marks what is new since the last visit: the count, a chip under the company and the green order-win notice with ×", () => {
-    const d = wc.data as ReturnType<typeof CHANGES>;
-    d.companies[0].ev.order = F(1, "2026-11-18", "Receipt of order worth Rs 120 crore");
-    open();
-    const sec = screen.getByRole("heading", { name: "What changed at these companies" }).closest("section") as HTMLElement;
-    expect(sec.querySelector(".wc-st")?.textContent).toBe("1 new since your last visit on 12 Nov");
-    expect(within(sec).getAllByRole("listitem")[0].textContent).toContain("Order win");          // order wins first
-    const chip = within(rowOf("SSWL")).getByRole("link", { name: "Order win · 18 Nov" });
-    expect(chip.getAttribute("href")).toBe("/discover/changes/order?q=Steel%20Strips%20Wheels");
-    expect(rowOf("LOTUSDEV").querySelector(".wc-chip")).toBeNull();                               // nothing new for Sri Lotus: no chip
-    const notice = document.querySelector(".wc-ow") as HTMLElement;
-    expect(notice.textContent).toContain("New order win · Steel Strips Wheels");
-    fireEvent.click(within(notice).getByRole("button", { name: "Close this notice" }));
-    expect(document.querySelector(".wc-ow")).toBeNull();
-  });
-  it("says nothing is new on a first visit, and Alert me opens the short form for the whole list", () => {
-    wc.visit = null; open();
-    const sec = screen.getByRole("heading", { name: "What changed at these companies" }).closest("section") as HTMLElement;
-    expect(within(sec).getByText("What is new shows from your next visit")).toBeTruthy();
-    fireEvent.click(within(sec).getByRole("button", { name: "Alert me" }));
-    const form = within(sec).getByRole("form", { name: "Tell me when a company in My watchlist files" });
-    expect(within(form).getByRole("checkbox", { name: "Order wins" })).toHaveProperty("checked", true);
-    expect(within(form).getByRole("checkbox", { name: "Capacity and commissioning" })).toHaveProperty("checked", true);
-    expect(within(form).getByRole("checkbox", { name: "Fund raising" })).toHaveProperty("checked", false);
-    expect(within(form).getByText("Checked on weekday evenings, once the day's filings are in. One alert for the whole list: 1 of your 300.")).toBeTruthy();
-    expect(within(form).getByRole("radio", { name: "Each filing" })).toHaveProperty("checked", true);
-  });
-  it("puts Tell me when a company on this list files beside Tell me when a label changes", () => {
-    open();
-    const card = screen.getByRole("heading", { name: /Tell me when a company on this list files/ }).closest("section") as HTMLElement;
-    expect(card.parentElement).toBe(screen.getByRole("heading", { name: "Tell me when a label changes" }).closest("section")!.parentElement);
-    expect(within(card).getByText("An order win, new capacity or any of Discover's eight kinds, from the exchange filings of each weekday.")).toBeTruthy();
-    expect(within(card).getAllByRole("button", { pressed: true }).map((b) => b.textContent)).toEqual(["Order win", "Capacity"]);
-    expect(within(card).getAllByRole("button", { pressed: false }).map((b) => b.textContent)).toEqual(["Partnership", "Acquisition / merger", "Fund raising", "Credit rating", "Management", "Legal / regulatory"]);
-    expect(within(card).getByRole("button", { name: "Set alert for this list" })).toBeTruthy();
+  it("adding a stock keeps its price when the add box knows it, and the list-is-full line uses the plan's numbers", async () => {
+    watch.add("TCS", "main", 3100);
+    expect(watch.get().meta.TCS.addedPrice).toBe(3100);
+    await open();
+    expect(within(screen.getByRole("group", { name: "Your lists" })).getByRole("button", { name: "My watchlist · 3" })).toBeTruthy();
   });
 });

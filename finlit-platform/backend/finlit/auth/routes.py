@@ -177,13 +177,34 @@ class WMeta(BaseModel):
     note: Optional[str] = Field(default=None, max_length=200)
     target: Optional[float] = Field(default=None, ge=0, le=10_000_000)
     added: int = Field(default=0, ge=0)
+    # task #408: the last traded price when the stock was added ("Since added"); filled once on the server for older entries (finlit/watchprices.py)
+    addedPrice: Optional[float] = Field(default=None, gt=0, le=10_000_000)
+    # task #408: "Tell me when the price is within 5% of my target" (Details); absent means on (finlit/targetalerts.py)
+    nearAlert: Optional[bool] = None
+
+
+WATCH_FILING_KINDS = ("order", "capacity", "partnership", "mna", "fundraise", "rating", "management", "legal")   # Discover's eight kinds (filingalerts.KINDS)
+
+
+class WListAlerts(BaseModel):
+    """Task #408, "Alerts for this list": the list's three groups. target: Price near your target (finlit/targetalerts.py); peer: Peer label changes
+    (finlit/labelalerts.py); filings: the kinds of the list's Discover filing alert (the alert itself is a discover_filing row, finlit/filingalerts.py)."""
+    target: bool = True
+    peer: Literal["any", "laggard", "leader", "off"] = "any"
+    filings: List[Literal["order", "capacity", "partnership", "mna", "fundraise", "rating", "management", "legal"]] = Field(default_factory=list, max_length=8)
+
+    @field_validator("filings")
+    @classmethod
+    def filings_once(cls, v: List[str]) -> List[str]:
+        return [k for k in WATCH_FILING_KINDS if k in v]
 
 
 class WList(BaseModel):
     id: str = Field(pattern=r"^[a-z0-9]{1,16}$")
     name: str = Field(min_length=1, max_length=28)
     symbols: List[str] = Field(max_length=1000)
-    labelAlert: Optional[Literal["any", "laggard", "leader"]] = None   # the Watchlists page's "Tell me when a label changes" (finlit/labelalerts.py)
+    labelAlert: Optional[Literal["any", "laggard", "leader"]] = None   # the older "Tell me when a label changes" choice, still read when `alerts` is absent (finlit/labelalerts.py)
+    alerts: Optional[WListAlerts] = None   # task #408: Alerts for this list; absent = the page's defaults (target on, any peer-label change)
 
     @field_validator("symbols")
     @classmethod
@@ -974,9 +995,17 @@ async def put_watchlist(request: Request, body: WatchlistIn, ctx: Ctx = Depends(
     ids = [lst.id for lst in body.lists]
     if len(set(ids)) != len(ids):
         raise fail(422, "duplicate_list")
-    meta = {k: v.model_dump() for k, v in body.meta.items() if SYMBOL.match(k)}
+    meta = {k: v.model_dump(exclude_none=True) for k, v in body.meta.items() if SYMBOL.match(k)}
     # task #375: the stock lists are saved without touching the fund wishlist kept beside them (watchlist.funds, saved by PUT /me/fund-wishlist)
     async with request.app.state.store.pool.acquire() as conn:
+        # task #408: an added price the server filled in (finlit/watchprices.py) is kept when a browser saves an older copy of the same entry without it
+        held = await conn.fetchval("SELECT watchlist -> 'meta' FROM user_state WHERE user_id = $1", ctx.user_id)
+        held = (json.loads(held) if isinstance(held, str) else held) or {}
+        if isinstance(held, dict):
+            for k, m in meta.items():
+                old = held.get(k)
+                if "addedPrice" not in m and isinstance(old, dict) and old.get("addedPrice") and old.get("added") == m.get("added"):
+                    m["addedPrice"] = old["addedPrice"]
         await conn.execute("INSERT INTO user_state (user_id, watchlist) VALUES ($1, $2::jsonb) ON CONFLICT (user_id) DO UPDATE SET "
                            "watchlist = EXCLUDED.watchlist || jsonb_build_object('funds', COALESCE(user_state.watchlist -> 'funds', '[]'::jsonb)), updated_at = now()",
                            ctx.user_id, json.dumps({"lists": [lst.model_dump(exclude_none=True) for lst in body.lists], "meta": meta}))

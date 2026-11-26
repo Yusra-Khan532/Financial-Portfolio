@@ -224,6 +224,7 @@ LIMIT_POLICY: Dict[str, str] = {
     "scores-export": "database: reads stored scores and screen lists only, at most one new day plus 3 back-fill days a run; measured in seconds",
     "presets": "database: builds the prebuilt screens from tables already held and runs the eleven chart-pattern scans on the stored daily candles; screens about 4 s, scans a few minutes (its own guard, so a scan problem never stops the screens)",
     "leadership": "database: weekly labels from stored prices, Saturdays only",
+    "watchlist-prices": "database: reads members' saved watchlists and stored daily closes; writes only the missing added prices; measured in seconds",
     "score-mf": "database: scores from tables already held; measured about 2 s",
     "mf-screen": "database: one transaction over tables already held; measured about 4 s",
     "backtest-leadership": "database: quarterly, stored weekly prices only",
@@ -395,6 +396,10 @@ def build_jobs(env: Optional[Mapping[str, str]] = None) -> List[Job]:
         Job("leadership", ("refresh-leadership", "--if-stale", "--backfill-from", "2022-10-01"), cls="bulk", priority=45, max_runtime_min=60, weight_mb=250,
             windows=(W("NIGHT", 144),), day_rule=_saturday, sla=Sla("hours", 192), boot=True, owns=("leadership",),
             what="weekly Leader / In line / Laggard labels (Saturday, after Friday's close)"),
+        # task #408: the price each watchlist entry was added at ("Since added"). While an entry saved before the page stored it has a close to take (probe
+        # "watchlist-prices"), fill it from the stored daily closes. Idempotent: once every entry has its price the probe says no and it does not run.
+        Job("watchlist-prices", ("backfill-watchlist-prices",), priority=46, max_runtime_min=10, weight_mb=80, stall_min=8, probe="watchlist-prices", min_gap_min=60,
+            sla=Sla("none"), catchup=False, owns=(), what="watchlist entries without an added price: the close of the day they were added, from the stored daily prices (task #408)"),
         Job("portfolios", ("refresh-portfolios",), cls="bulk", priority=50, max_runtime_min=120, weight_mb=200, group="funds", windows=night_morning,
             sla=Sla("hours", 26), resumable=True, gate=FUNDS_GATE, boot=True, what="fund holdings, sector split and exit loads (resumable)"),
         Job("score-mf", ("score-mf",), cls="bulk", priority=55, max_runtime_min=60, weight_mb=250, group="funds", windows=night_morning,

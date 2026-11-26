@@ -936,3 +936,73 @@ async def gainers_route(request: Request):
     if got is None:
         raise fail(404, "no_history", "No Top gainers are stored for that day yet.")
     return _json(got)
+
+
+# ------------------------------------------------------------------------------------------------ task #408: screens for a list of stocks
+membership_router = APIRouter(prefix="/api/screener")
+MEMBERSHIP_MAX = 300
+GROUP_NAME = dict(GROUPS)
+
+
+def _member_rows(cached: dict) -> List[dict]:
+    return (cached or {}).get("exportRows") or (cached or {}).get("rows") or []
+
+
+@membership_router.get("/membership")
+async def membership(request: Request):
+    """Task #408 (Watchlists, 03-data change 3): the Advanced screener screens each of these stocks is on today, from the same stored lists the screens
+    serve (every company that passes, not only the ones shown): per symbol [{id, name, group, added_on, baseline, position, count}], the screens'
+    asOf and how many screens there are. `added_on` is the first saved list of the stock's current run on the screen (savedlists.run_start), `baseline`
+    true when that is the first list FinLit stored (the stock was on it from the start). Gold, like the screens."""
+    ctx = await current(request)
+    if not _gold(ctx):
+        raise fail(403, "plan_required", "Prebuilt screens are part of the Gold plan.", plan="gold")
+    syms: List[str] = []
+    for s in (request.query_params.get("symbols") or "").split(","):
+        s = s.strip().upper()
+        if not s:
+            continue
+        if not SYMBOL.match(s):
+            raise fail(422, "bad_symbol", "That is not a company symbol.")
+        if s not in syms:
+            syms.append(s)
+    if len(syms) > MEMBERSHIP_MAX:
+        raise fail(422, "too_many_symbols", f"Ask for at most {MEMBERSHIP_MAX} companies at a time.")
+    store = request.app.state.store
+    listed = [p for p in ALL if p.tab == "advanced" and p.status != "blocked"]
+    out: Dict[str, List[dict]] = {s: [] for s in syms}
+    as_of, found = None, []
+    for p in listed:
+        if p.kind in ("blocked", "quickview", "gainers") or p.status != "live" or not syms:
+            continue
+        ckey = engine.chip_key([c.id for c in p.chips if c.default])
+        cached = await service.read_cached(store, p.id, ckey)
+        if not cached:
+            continue
+        as_of = max(filter(None, [as_of, str(cached.get("asOf") or "")[:10] or None]), default=as_of)
+        for i, r in enumerate(_member_rows(cached), 1):
+            if r.get("symbol") in out:
+                found.append((p, ckey, cached, r, i))
+    spans: Dict[tuple, savedlists.SavedLists] = {}
+    if found:      # the saved lists of just these screens and companies: two reads for the whole answer
+        keys = list({(p.id, ck) for p, ck, *_ in found})
+        async with store.pool.acquire() as conn:
+            runs = await conn.fetch("SELECT preset_id, chips, session, n, registry FROM screen_runs WHERE preset_id = ANY($1::text[])", [k[0] for k in keys])
+            snaps = await conn.fetch("SELECT preset_id, chips, session, symbol, close FROM screen_snapshots WHERE preset_id = ANY($1::text[]) AND symbol = ANY($2::text[])",
+                                     [k[0] for k in keys], syms)
+        for k in keys:
+            spans[k] = savedlists.build([(r["session"], r["n"], r["registry"]) for r in runs if (r["preset_id"], r["chips"]) == k],
+                                        [(s["session"], s["symbol"], s["close"]) for s in snaps if (s["preset_id"], s["chips"]) == k])
+    for p, ck, cached, r, i in found:
+        added, base = None, False
+        sl = spans.get((p.id, ck))
+        try:
+            day = _date.fromisoformat(str(cached.get("asOf"))[:10])
+        except ValueError:
+            day = None
+        if sl is not None and day is not None and day in sl.days:
+            start, _n = savedlists.run_start(sl, r["symbol"], day)
+            added, base = (start.isoformat() if start else None), bool(start and start == sl.days[0])
+        out[r["symbol"]].append({"id": p.id, "name": p.name, "group": GROUP_NAME.get(p.group, p.group), "added_on": added, "baseline": base,
+                                 "position": r.get("position") or r.get("rank") or i, "count": cached.get("count") or len(_member_rows(cached))})
+    return _json({"symbols": out, "asOf": as_of, "screens": len(listed), "disclaimer": DISCLAIMER})
