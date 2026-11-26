@@ -317,6 +317,12 @@ def build_jobs(env: Optional[Mapping[str, str]] = None) -> List[Job]:
         # sight, then only new sessions; resumable (the longest-unloaded company first). Task #394 (developer file 37, F1): it finishes every night: the
         # time box is 150 minutes (was 45, which left companies a night behind), and a run that still stops with companies left exits partial (degraded,
         # with the count) so the supervisor tries it again, never silently "done"
+        # 26 Nov 2026 (the founder: after the 15:30 close the screens move to that day's data as fast as possible): the exchanges' own end-of-day files,
+        # one download each with every company's official close, written into daily_candles the moment they are out (asked every 10 minutes from
+        # 16:30 IST until both are in); the candles job below fills what they did not have. Light: two downloads and two statements
+        Job("eod-candles", ("refresh-eod",), priority=8, max_runtime_min=10, weight_mb=150, stall_min=8, honours_pause=False, probe="eod-candles",
+            min_gap_min=10, catchup=False, owns=("daily_candles",),
+            what="the day's official closes of every company from NSE's and BSE's end-of-day files, as soon as they are published (16:30 to 23:30 IST)"),
         Job("candles", ("refresh-candles", "--max-minutes", "150"), cls="bulk", priority=9, max_runtime_min=160, weight_mb=150, resumable=True,
             probe="candles", min_gap_min=60,   # task #394: a session Dhan published after the evening run is loaded the same morning, not the next evening
             windows=(W("AFTER_CLOSE", 0), W("MORNING", 0)), sla=Sla("session", 12), owns=("daily_candles",),

@@ -374,7 +374,7 @@ async def refresh_presets(store, settings=None) -> dict:
         await conn.execute("DELETE FROM preset_results WHERE registry <> $1", REGISTRY_VERSION)
     if fr.not_traded_off:        # F8: the companies left off a list for no trade in the last five sessions, counted here and named in the log
         log.info("ready-made lists: %d companies left off for no trade in the last %d sessions: %s", len(fr.not_traded_off), listday.NO_TRADE_SESSIONS, sorted(fr.not_traded_off)[:50])
-    summary = {"asOf": fr.as_of.isoformat(), "listDayFromCandles": fr.market.day is not None, "notTradedLeftOff": len(fr.not_traded_off), "results": done, "failed": failed, "themeTagged": len(fr.tags), "themeLabelsUnmatched": theme_map.unmatched_labels(fr.t.sector_label),
+    summary = {"asOf": fr.as_of.isoformat(), "listDayFromCandles": fr.market.day is not None, "coverage": fr.market.loaded, "busiest": fr.market.busiest, "notTradedLeftOff": len(fr.not_traded_off), "results": done, "failed": failed, "themeTagged": len(fr.tags), "themeLabelsUnmatched": theme_map.unmatched_labels(fr.t.sector_label),
             "benchReady": bench_ready, "momentum": len(fr.momentum), "growth": len(fr.growth), "inPlay": len(fr.theme_eval.in_play) if fr.theme_eval else 0, **pattern_note, **history_note}
     try:        # the night's summary (counts and notes only) for the self-check page: why a pattern run was held, how many companies were left out, ...
         async with store.pool.acquire() as conn:
