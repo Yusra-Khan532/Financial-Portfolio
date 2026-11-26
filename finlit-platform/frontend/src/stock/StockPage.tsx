@@ -23,7 +23,6 @@ import { useStats } from "../lib/forum";
 import { MacroOutlookSection } from "./MacroOutlook";
 import { BusinessSection, DividendsSection, OwnershipSection } from "./Sections2";
 import { NewsSection } from "./NewsSection";
-import { CompanyBriefSection } from "./CompanyBrief";
 import { WhereStands } from "./pack/WhereStands";
 import { useDocTitle } from "../lib/title";
 import "../styles/report-polish.css";
@@ -51,7 +50,6 @@ function EarnDot({ s }: { s: NonNullable<ReturnType<typeof useSummary>["data"]> 
 
 /** The closed row of a report section on a phone: its name and one line, from the section bar's list (lib/sectionNav NAV). */
 const FOLD_EXTRA: Record<string, [string, string]> = {
-  "company-brief": ["Company brief", "What the company says about itself in its filings: its plans, catalysts and key figures"],
   ratios: ["Ratios", "Valuation, returns, margins and debt, with the DuPont analysis and earnings and cash quality"],
 };
 export const foldText = (id: string): [string, string] => { const n = NAV.find((x) => x[0] === id); return FOLD_EXTRA[id] ?? (n ? [n[1], n[3]] : [id, ""]); };
@@ -187,7 +185,8 @@ export function StockPage() {
         {/* developer file 41 (founder, 25 Nov 2026): a funnel, from the company out to its industry, its sector and the economy, in the order of lib/sectionNav NAV;
            News and filings and the Discussions stay last. Chart lab (old 08) is merged into Price, Financials and Dividends; Gold insights (old 15) is gone. */}
         <PhoneFold page="stock" {...foldOf("business")}><ErrorBoundary section="This section"><BusinessSection s={s} /></ErrorBoundary></PhoneFold>
-        <PhoneFold page="stock" {...foldOf("company-brief")}><ErrorBoundary section="Company brief"><CompanyBriefSection symbol={symbol} /></ErrorBoundary></PhoneFold>
+        {/* developer file 44 (founder, 27 Nov 2026: "remove company brief"): the Company brief section is no longer drawn here (stock/CompanyBrief.tsx, its
+           server answer and its overnight writing job are unchanged; Discover's company table still shows a published brief). */}
         <PhoneFold page="stock" {...foldOf("notes")}><ErrorBoundary section="This section"><KeyFindings s={s} f={fin} lender={!!s.dataQuality.isBank} /></ErrorBoundary></PhoneFold>
         <PhoneFold page="stock" {...foldOf("price")}><ErrorBoundary section="This section"><PriceSection s={s} symbol={symbol} ratios={ratios} /></ErrorBoundary></PhoneFold>
         <PhoneFold page="stock" {...foldOf("quarter")}><PlFlagsLayer f={fin} lender={!!s.dataQuality.isBank} /><Defer all={openAll} height={usualHeight("quarter")} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><QuarterSection f={fin} /></ErrorBoundary></Defer></PhoneFold>

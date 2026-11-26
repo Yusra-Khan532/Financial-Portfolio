@@ -13,6 +13,11 @@
 .ct-list::-webkit-scrollbar { display: none; }
 .ct-list button { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 8px 14px; border: 1px solid var(--border-strong); border-radius: var(--r-ctl);
   background: var(--s1); color: var(--text); font: 600 var(--fs-14, 14px)/1.2 var(--sans); cursor: pointer; box-shadow: none; transition: transform .15s, box-shadow .15s, border-color .15s, background .15s; }
+/* developer file 44: a tab's crown (TabView.crown) sits over the middle of its top edge, in the bar's one ink colour (as the KEY VIEW crown; task #310: no gold,
+   blue or chart colour in a tab bar); the list leaves room above the tabs so its scroller does not cut it */
+.ct-list.crowned { padding-top: 14px; } .ct-list.crowned button { position: relative; }
+.ct-tcrown { position: absolute; top: -14px; left: 50%; transform: translateX(-50%); display: grid; place-items: center; width: 30px; height: 24px; border-radius: var(--ui-r-pill); background: var(--ui-on-bg); color: var(--ui-on-fg); box-shadow: 0 0 0 2px var(--s1); }
+.ct-list button[aria-selected="true"] .ct-tcrown { background: var(--s1); color: var(--ui-on-bg); box-shadow: 0 0 0 2px var(--ui-on-bg); }
 .ct-list button:hover { border-color: var(--text); background: var(--s2); }
 .ct-list button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .ct-list button[aria-selected="true"] { background: var(--ui-on-bg); border-color: var(--ui-on-bg); color: var(--ui-on-fg); box-shadow: none; }

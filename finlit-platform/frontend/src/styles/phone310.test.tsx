@@ -158,7 +158,7 @@ describe("fix 6: long pages open on tap", () => {
   it("the company report: every section under the header card and the Prism card is folded on a phone, each named from the section bar", () => {
     const page = read("stock/StockPage.tsx");
     const ids = [...page.matchAll(/<PhoneFold page="stock" \{\.\.\.foldOf\("([a-z-]+)"\)\}>/g)].map((m) => m[1]);
-    expect(ids).toEqual(["business", "company-brief", "notes", "price", "quarter", "financials", "trends", "segments", "ratios", "dividends", "ownership", "peers", "sector", "macro", "news", "community"]);   // developer file 41: the funnel order
+    expect(ids).toEqual(["business", "notes", "price", "quarter", "financials", "trends", "segments", "ratios", "dividends", "ownership", "peers", "sector", "macro", "news", "community"]);   // developer file 41: the funnel order
     expect(page.indexOf("<Hero ")).toBeLessThan(page.indexOf('<PhoneFold page="stock"'));   // the header card and the Prism card stay open
     for (const id of ids) { const [t, line] = foldText(id); expect(t.length, id).toBeGreaterThan(2); expect(line.length, id).toBeGreaterThan(10); }
     expect(foldText("price")).toEqual([NAV.find((n) => n[0] === "price")![1], NAV.find((n) => n[0] === "price")![3]]);

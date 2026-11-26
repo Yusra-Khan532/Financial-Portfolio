@@ -22,7 +22,7 @@ describe("1 · Profit and loss in charts: three view tabs, one chart at a time",
   it("the walk, the ₹100 chart and the growth grid are the report's view tabs (they stood one under the other)", () => {
     const more = read("stock/MoreCharts.tsx"), pl = more.slice(more.indexOf("export function PlCharts"), more.indexOf("/* ---------------------------------------------------------------- balance sheet */"));
     expect(pl).toContain('<TabGroup label="Profit and loss in charts" views={[');
-    expect([...pl.matchAll(/\{ key: "([a-z]+)", label: "([^"]+)"/g)].map((m) => [m[1], m[2]])).toEqual([["walk", "Revenue to net profit"], ["hundred", "Where each ₹100 goes"], ["growth", "Growth by line"]]);
+    expect([...pl.matchAll(/\{ key: "([a-z]+)", label: "([^"]+)"/g)].map((m) => [m[1], m[2]])).toEqual([["growth", "Growth by line"], ["walk", "Revenue to net profit"], ["hundred", "Where each ₹100 goes"]]);   // developer file 44: Growth by line first
     expect(pl).not.toContain('className="cl-grid"');
     for (const h of ['help="pl-waterfall"', 'help="pl-margin-split"', 'help="yoy-growth"']) expect(pl).toContain(h);   // the three cards, each with its ? help
   });

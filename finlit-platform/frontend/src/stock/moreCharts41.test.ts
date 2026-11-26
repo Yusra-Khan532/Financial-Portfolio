@@ -12,7 +12,7 @@ const cardsWith = (ac: string) => [...more.matchAll(new RegExp(`<Card ac="${ac}"
 describe("the moved cards take their section's colour (Chart lab drew them all in gold)", () => {
   it("Price & technicals' pink for the price statistics, Financials' green for the statement charts, the gold of Dividends for the timeline", () => {
     expect(cardsWith("--p-tech")).toEqual(["monthly-returns", "drawdown", "volatility", "daily-histogram", "daily-box"]);
-    expect(cardsWith("--p-growth")).toEqual(["pl-waterfall", "pl-margin-split", "yoy-growth", "bs-assets", "bs-treemap", "cf-bridge"]);
+    expect(cardsWith("--p-growth")).toEqual(["yoy-growth", "pl-waterfall", "pl-margin-split", "bs-assets", "bs-treemap", "cf-bridge"]);   // developer file 44: Growth by line first
     expect(more).toContain('<Card help="events-timeline"');                                   // the default, gold, as Dividends' own cards
     const page = read("stock/Sections.tsx");
     expect(page).toContain('<SectionHead id="price" no="Price & technicals" icon="line" tier="basic"');

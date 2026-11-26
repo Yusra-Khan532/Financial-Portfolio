@@ -12,7 +12,7 @@ const files = (d: string): string[] => readdirSync(d).flatMap((n) => { const p =
 const read = (f: string) => readFileSync(join(__dirname, f), "utf8");
 const page = read("StockPage.tsx");
 /** The section ids in the order the page draws them (its phone rows; DuPont and Earnings & cash sit inside Ratios, right after it). */
-const drawn = () => [...page.matchAll(/<PhoneFold page="stock" \{\.\.\.foldOf\("([a-z-]+)"\)\}>/g)].map((m) => m[1]).filter((id) => id !== "company-brief");
+const drawn = () => [...page.matchAll(/<PhoneFold page="stock" \{\.\.\.foldOf\("([a-z-]+)"\)\}>/g)].map((m) => m[1]);
 /** Every report heading's id and the name it passes (`<SectionHead id="ratios" no="Ratios" …>`, or the HEAD object of Ownership). */
 const heads = () => files(__dirname).flatMap((f) => [...readFileSync(f, "utf8").matchAll(/id(?:=|:\s*)"([a-z-]+)",?\s*no(?:=|:\s*)"([^"]+)"/g)].map((m) => [m[1], m[2]] as [string, string]));
 
@@ -24,8 +24,7 @@ describe("company report order: from the company out to its industry, its sector
   });
   it("the page draws its sections in that order (DuPont and Earnings & cash are inside Ratios)", () => {
     expect(drawn()).toEqual(ids.filter((id) => !["prism", "dupont", "earnings"].includes(id)));
-    expect(page.indexOf('foldOf("company-brief")')).toBeGreaterThan(page.indexOf('foldOf("business")'));
-    expect(page.indexOf('foldOf("company-brief")')).toBeLessThan(page.indexOf('foldOf("notes")'));   // the company brief stays with the company
+    expect(page).not.toContain('foldOf("company-brief")');   // developer file 44: the Company brief is no longer in the report
   });
   it("the numbers run 01 to 17 with no gap, in that order; Scores has none", () => {
     expect(sectionNo("prism")).toBeNull();
