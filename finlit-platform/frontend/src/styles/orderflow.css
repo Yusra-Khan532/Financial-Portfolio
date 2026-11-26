@@ -457,6 +457,8 @@ a.oflow-tab:hover:not([aria-current]) { background: color-mix(in srgb, var(--gol
 .oflow-pop-t > div { display: flex; justify-content: space-between; gap: 8px; min-width: 0; }
 .oflow-pop-t dt { color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; }
 .oflow-pop-t dd { margin: 0; font-weight: 600; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* On a phone the card is about 370px wide: two label-value pairs a row cut the values short ("-1.8…"); one pair a row shows them whole. */
+@media (max-width: 560px) { .oflow-pop-t { grid-template-columns: 1fr; } }
 .oflow-pop-fd { display: inline-flex; align-items: center; gap: 3px; } .oflow-pop-fd i { width: 7px; height: 7px; border-radius: 50%; border: 1px solid var(--border); }
 .oflow-pop-fd i.on.gain { background: var(--gain); border-color: var(--gain); } .oflow-pop-fd i.on.loss { background: var(--loss); border-color: var(--loss); } .oflow-pop-fd i.unk { border-style: dashed; }
 .oflow-pop .oflow-candles { padding: 4px; }
