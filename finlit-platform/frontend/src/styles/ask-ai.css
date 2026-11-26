@@ -456,15 +456,30 @@
 .aif-hist .aif-hq span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .aif-hist .aif-hi.pinned .aif-hq { color: var(--text); }
 .aif-pin-i { flex: 0 0 auto; width: 13px; height: 13px; fill: none; stroke: var(--gold); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-.aif-hist .aif-hm { flex: 0 0 auto; width: 28px; padding: 4px 0; text-align: center; color: var(--muted); font: 700 var(--fs-16)/1 var(--sans); opacity: 0; }
+.aif-hist .aif-hm { flex: 0 0 auto; display: grid; place-items: center; width: 30px; height: 30px; margin-right: 3px; padding: 0; border-radius: var(--ui-r-pill); color: var(--muted); opacity: 0; }
+.aif-hm-i { width: 18px; height: 18px; fill: currentColor; }
 .aif-hist .aif-hi:hover .aif-hm, .aif-hist .aif-hi:focus-within .aif-hm, .aif-hist .aif-hi.open .aif-hm { opacity: 1; }
-.aif-hist .aif-hm:hover, .aif-hist .aif-hm:focus-visible { color: var(--text); background: var(--s1); }
+.aif-hist .aif-hm:hover, .aif-hist .aif-hm:focus-visible, .aif-hist .aif-hi.open .aif-hm { color: var(--text); background: color-mix(in srgb, var(--text) 10%, transparent); }
 @media (hover: none) { .aif-hist .aif-hm { opacity: 1; } }
-.aif-hmenu { position: absolute; z-index: 30; right: 0; top: calc(100% + 4px); min-width: 230px; padding: 6px; display: grid; gap: 1px; border: 1px solid var(--border-strong); border-radius: var(--r-ctl); background: var(--s1); box-shadow: var(--ui-pop-shadow); }
-.aif-hist .aif-hmenu button { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 8px 10px; border-radius: var(--r-ctl); color: var(--text); white-space: nowrap; }
-.aif-hist .aif-hmenu button:hover, .aif-hist .aif-hmenu button:focus-visible { background: var(--s2); }
-.aif-hist .aif-hmenu button.is-danger { color: var(--loss); }
-.aif-hmenu kbd { font: 600 var(--fs-11) var(--mono); color: var(--faint); background: none; border: 0; }
+/* Task #405: the menu is drawn at ⋯ (fixed, outside the History column, which clipped it), as wide as its longest item, inside the window */
+.aif-hmenu { position: fixed; z-index: 70; width: max-content; min-width: 220px; max-width: calc(100vw - 16px); padding: 6px; display: grid; gap: 2px; box-sizing: border-box;
+  border: 1px solid var(--border-strong); border-radius: var(--r-ctl); background: var(--s1); box-shadow: var(--ui-pop-shadow); animation: aif-hmenu-in .12s ease-out; }
+.aif-hmenu.up { animation-name: aif-hmenu-up; }
+@keyframes aif-hmenu-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+@keyframes aif-hmenu-up { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.aif-hmenu button { display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; align-items: center; gap: 12px; min-height: 38px; margin: 0; padding: 8px 10px; border: 0; border-radius: var(--r-ctl);
+  background: none; color: var(--text); font: 500 var(--fs-14)/1.3 var(--sans); text-align: left; white-space: nowrap; cursor: pointer; }
+.aif-hmenu button:hover, .aif-hmenu button:focus-visible { background: var(--s2); outline: none; }
+.aif-hmenu button:focus-visible { box-shadow: inset 0 0 0 2px var(--gold); }
+.aif-hmenu-i { width: 17px; height: 17px; color: var(--muted); fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.aif-hmenu button:hover .aif-hmenu-i, .aif-hmenu button:focus-visible .aif-hmenu-i { color: var(--text); }
+.aif-hmenu button.is-danger { position: relative; margin-top: 7px; color: var(--loss); }
+.aif-hmenu button.is-danger::before { content: ""; position: absolute; left: 6px; right: 6px; top: -5px; height: 1px; background: var(--border); }
+.aif-hmenu button.is-danger .aif-hmenu-i { color: var(--loss); }
+.aif-hmenu button.is-danger:hover, .aif-hmenu button.is-danger:focus-visible { background: color-mix(in srgb, var(--loss) 12%, transparent); }
+.aif-hmenu kbd { min-width: 20px; padding: 1px 5px; border: 1px solid var(--border); border-radius: var(--ui-r-mark); background: none; font: 600 var(--fs-11)/1.4 var(--mono); color: var(--faint); text-align: center; }
+@media (prefers-reduced-motion: reduce) { .aif-hmenu { animation: none; } }
+@media (hover: none) { .aif-hmenu button { min-height: 44px; } .aif-hmenu kbd { display: none; } }
 .aif-ren { width: 100%; padding: 6px 8px; border: 1px solid var(--gold); border-radius: var(--r-ctl); background: var(--s1); color: var(--text); font: var(--fs-13)/1.4 var(--sans); }
 .aif-hist-page { gap: 4px; margin-top: 8px; }
 .aif-hist-page .aif-hi { border: 1px solid var(--border); background: var(--s1); }

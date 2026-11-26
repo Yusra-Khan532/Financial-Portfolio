@@ -2,7 +2,7 @@
 // FinLit AI History: the ⋯ menu on a chat (owner, 25 Nov 2026): Pin, Rename, Save to Saved Questions, Copy question, Delete, each with its letter.
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { AskChatItem } from "./AskChatMenu";
+import { AskChatItem, placeMenu } from "./AskChatMenu";
 import { loadNames, loadPinned, loadRecent, pushRecent, removeRecent, renameChat, sideList, togglePinned } from "../lib/askExplorer";
 
 afterEach(cleanup);
@@ -100,5 +100,40 @@ describe("Chat History page (a phone has no side list)", () => {
     const list = screen.getByRole("list", { name: "Recent questions" });
     expect(Array.from(list.querySelectorAll(".aif-hq")).map((b) => b.textContent)).toEqual(["a", "b"]);
     expect(screen.getAllByRole("button", { name: /^More for/ })).toHaveLength(2);
+  });
+});
+
+// Task #405: the menu was cut off on the left by the History column (it clips its overflow, and its blur makes it the box even for position: fixed).
+describe("task #405: the ⋯ menu is drawn at the button, never cut off", () => {
+  it("it is drawn outside the History column, inside the FinLit AI window, as a menu with an icon on every item", () => {
+    const fn = { onAsk: vi.fn(), onPin: vi.fn(), onRename: vi.fn(), onSave: vi.fn(), onDelete: vi.fn() };
+    render(<section className="ai aif full"><aside className="aif-side"><ul className="aif-hist"><AskChatItem text={Q} pinned={false} saved={false} {...fn} /></ul></aside></section>);
+    const more = screen.getByRole("button", { name: `More for “${Q}”` });
+    expect(more.querySelector("svg.aif-hm-i")).toBeTruthy();                        // the ⋯ is a drawn icon, not a text character
+    fireEvent.click(more);
+    const menu = screen.getByRole("menu");
+    expect(menu.closest(".aif-side")).toBeNull();                                    // not inside the column that clipped it
+    expect(menu.parentElement?.classList.contains("aif")).toBe(true);                // still inside the window (its focus and Esc)
+    expect(menu.style.left).not.toBe(""); expect(menu.style.visibility).toBe("");     // placed before it shows
+    expect(screen.getAllByRole("menuitem").every((b) => b.querySelector("svg"))).toBe(true);
+    expect(document.activeElement).toBe(screen.getAllByRole("menuitem")[0]);
+    fireEvent.mouseDown(menu); expect(screen.queryByRole("menu")).not.toBeNull();   // a press inside the menu keeps it
+    fireEvent.click(screen.getAllByRole("menuitem")[2]); expect(fn.onSave).toHaveBeenCalled();
+  });
+  it("a press outside or a scroll of the list closes it", () => {
+    mount();
+    const more = screen.getByRole("button", { name: `More for “${Q}”` });
+    fireEvent.click(more); fireEvent.mouseDown(document.body);
+    expect(screen.queryByRole("menu")).toBeNull();
+    fireEvent.click(more); fireEvent.scroll(more.closest("ul")!);
+    expect(screen.queryByRole("menu")).toBeNull();
+  });
+  it("placeMenu: under the button from its left edge; moved in from the right edge; above the button near the bottom; inside the window when neither fits", () => {
+    const m = { width: 240, height: 230 };
+    expect(placeMenu({ left: 320, top: 380, bottom: 410 }, m, 1440, 900)).toEqual({ left: 320, top: 416, up: false });
+    expect(placeMenu({ left: 300, top: 380, bottom: 410 }, m, 390, 844)).toEqual({ left: 142, top: 416, up: false });   // 390 − 240 − 8
+    expect(placeMenu({ left: -20, top: 380, bottom: 410 }, m, 1440, 900).left).toBe(8);
+    expect(placeMenu({ left: 320, top: 760, bottom: 790 }, m, 1440, 900)).toEqual({ left: 320, top: 524, up: true });  // 760 − 6 − 230
+    expect(placeMenu({ left: 320, top: 100, bottom: 130 }, { width: 240, height: 800 }, 1440, 844).top).toBe(36);       // no room either way: as high as keeps its bottom 8 px in
   });
 });
