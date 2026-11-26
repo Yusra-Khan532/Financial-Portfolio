@@ -112,7 +112,7 @@ const NAV_TOP = 64;   // the site header's height: the bar sticks just under it
 const reduced = () => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 export function SectionNav({ company, solved, why }: { company: boolean; solved: boolean; why: string }) {
-  const bar = useRef<HTMLElement>(null), row = useRef<HTMLDivElement>(null), lock = useRef(0);
+  const bar = useRef<HTMLElement>(null), row = useRef<HTMLDivElement>(null), lock = useRef(0), chosen = useRef<string | null>(null);
   const [on, setOn] = useState<string | null>(null);
   const [edge, setEdge] = useState({ l: false, r: false });
   const ok = (n: NavItem) => (n.need === "company" ? company : solved);
@@ -127,6 +127,9 @@ export function SectionNav({ company, solved, why }: { company: boolean; solved:
       const end = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 4;
       let cur: string | null = null;
       for (const x of live) if (x.el!.getBoundingClientRect().top <= offset() + 8) cur = x.n.id;
+      // task #398: Assumptions and Required Growth sit side by side with the same top; the one the reader chose stays marked while its top is still at the bar
+      const ch = chosen.current ? live.find((x) => x.n.id === chosen.current) : undefined;
+      if (ch) { const t = ch.el!.getBoundingClientRect().top; if (Math.abs(t - offset()) <= 40) cur = ch.n.id; else chosen.current = null; }
       if (end && cur) cur = live[live.length - 1].n.id;
       setOn(cur);
     };
@@ -149,6 +152,7 @@ export function SectionNav({ company, solved, why }: { company: boolean; solved:
     lock.current = Date.now() + (reduced() ? 100 : 2500);
     const done = () => { lock.current = 0; window.removeEventListener("scrollend", done); };
     if (!reduced()) window.addEventListener("scrollend", done, { once: true });
+    chosen.current = n.id;
     setOn(n.id);
     window.scrollTo({ top: Math.max(0, el.getBoundingClientRect().top + window.scrollY - offset()), behavior: reduced() ? "auto" : "smooth" });
   };
