@@ -215,6 +215,7 @@ LIMIT_POLICY: Dict[str, str] = {
     "ipo-gmp": "deadline: no new page or NSE request after --max-minutes 10, at most --limit 300 pages and --nse-limit 80 NSE books a run, one a second (limit 14)",
     "quotes": "deadline: no new slice after --max-minutes 7 (each slice followed up inside it), Dhan phase 90 s, a company 30 s (limit 10)",
     "alerts-live": "fixed: members' own alerts only; measured about 3 s",
+    "market-mood": "fixed: eight Google News topics, about 100 new headlines scored by the sentiment model; measured about 30 s",
     "global-cues": "fixed: nine small FRED downloads (one series each); measured about 10 s",
     "lab-flow": "fixed: one Dhan quote call for every F&O stock and its two futures contracts; missing previous-session open interest is filled for at most 90 s a run, the rest next run (limit 4)",
     "listing": "fixed: two provider calls for the whole market list; measured about 13 s",
@@ -389,6 +390,10 @@ def build_jobs(env: Optional[Mapping[str, str]] = None) -> List[Job]:
             what="News sentiment (task #365): scores every news item and exchange filing not scored yet with the financial-news language model "
                  "(finlit/sentiment.py: an int8 ONNX DistilRoBERTa, one thread, about 300 MB), newest first, up to 40,000 a run; the score is "
                  "P(positive) - P(negative) from -1 to +1. Database only; continues where it stopped"),
+        Job("market-mood", ("refresh-market-mood",), priority=30, max_runtime_min=10, weight_mb=350, stall_min=10,
+            interval_min=30, active_hours=(6, 23), sla=Sla("active", 2.0), catchup=False,
+            what="Trading Lab Market mood: world headlines from Google News for eight topics that move Indian markets (the Fed, crude, the rupee, "
+                 "US and Chinese markets, foreign investors, ...), each scored by the news-sentiment model; the last 48 hours kept (lab/mood.py)"),
         Job("feed-sort", ("feed-sort", "--max-minutes", "20"), priority=45, max_runtime_min=30, weight_mb=120, stall_min=20,
             windows=(W("NIGHT", 20), W("MORNING", 14)), interval_min=180, sla=Sla("hours", 30), resumable=True, catchup=True,
             what="News & filings sorting (task #309): when the feed's sorting rules change (feed.SORT_RULES), re-sorts every stored filing once into result / "
