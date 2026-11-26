@@ -18,6 +18,7 @@ const SRC = join(process.cwd(), "src") + "/";
 const ZOOM = [
   "pages/MarketsToday.tsx",   // the Nifty 50 line (docs/MOBILE-APP.md)
   "pages/OrderFlow.tsx",      // Trading Lab > Order Flow: the market depth curve and the flow board
+  "components/lab/OptionPulse.tsx",   // Trading Lab > Order Flow > Option Pulse: the OI ladder and the max pain curve
   // company page
   "charts/MiniBars.tsx", "charts/PriceChart.tsx", "charts/IntradayChart.tsx", "charts/FinChart.tsx", "charts/LineChart.tsx", "charts/RoeLines.tsx", "charts/Waterfall.tsx", "charts/Radar.tsx", "charts/OutlookChart.tsx",
   "stock/Sections.tsx", "stock/Sections2.tsx", "stock/Sections3.tsx", "stock/ChartLab.tsx", "stock/SegmentMix.tsx", "stock/ProfitReality.tsx", "stock/RevenueCash.tsx",
