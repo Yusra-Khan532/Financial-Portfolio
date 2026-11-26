@@ -176,7 +176,7 @@ Memory is the recurring fault (`docs/ops/MEMORY-AND-503.md`).
 1. A PR is merged to `main`.
 2. `platform-image.yml` builds `ghcr.io/yusra-khan532/finlit-app:<sha>`. It runs only when `finlit-platform/**` changes.
 3. The server's timer runs `deploy/aws/auto-deploy.sh` about every 5 minutes:
-   1. It runs `git ls-remote` and takes a backup.
+   1. It runs `git ls-remote`, then waits until the checks that the push of that commit started are green (the checks gate, 25 Nov 2026: Platform CI, Security, Website, codeql; the image build is left to `deploy.sh`; scheduled checks never block it). A red commit is held, never deployed; a re-run that turns green, or a newer green commit, is deployed. `auto-deploy.sh skip-ci` deploys without waiting (emergencies only, logged); `CI_GATE=off` in `/opt/finlit/auto-deploy.conf` turns the gate off. Then it takes a backup.
    2. `deploy.sh` pulls the prebuilt image, waiting up to 20 minutes, or builds it locally.
    3. It tags the old image `previous` and starts the new one.
    4. It waits for `/api/ping` and `/api/health`.
@@ -184,7 +184,7 @@ Memory is the recurring fault (`docs/ops/MEMORY-AND-503.md`).
 4. A failed deploy rolls back to `previous`, and its SHA is never retried.
 
 **Fragile points:**
-- Nothing waits for CI; whatever lands on `main` is deployed.
+- ~~Nothing waits for CI~~: since 25 Nov 2026 a commit is deployed only once its checks are green (above). The server picks the gate up after the first deploy that carries it (the installed `auto-deploy.sh` replaces itself after a successful deploy).
 - A commit outside `finlit-platform/` gets no image, so the 2 GB server builds the image itself.
 - `tsc` runs only in the frontend workflow.
 
@@ -229,7 +229,7 @@ Before a push: `bash scripts/preflight.sh`.
 - #191 (Zerodha, Upstox, Groww connection), #212 (superinvestor portfolios from FinEdge) and #211 ("claude integration check") need scoping first.
 - ~~Should Cloudflare's proxy be turned on?~~ Done (on by 24 Nov 2026), and the EC2 security group is limited to Cloudflare's ranges (above).
 - Cheap safety fixes worth doing between tasks:
-  - deploy only after CI passes;
+  - ~~deploy only after CI passes~~ (done 25 Nov 2026, the checks gate in `auto-deploy.sh`);
   - one central plan-check dependency on the backend;
   - ~~ESLint for React hooks~~ (done 25 Nov 2026, `frontend/lint/`);
   - the layout guard in CI.
