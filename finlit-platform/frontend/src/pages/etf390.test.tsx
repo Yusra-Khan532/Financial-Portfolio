@@ -46,7 +46,7 @@ import { COST_BARS, EtfCards, EtfSince, costTip } from "../etf/pack/EtfTop";
 import { etfCards, etfStepFromParam, etfStepsOf } from "../lib/etfTop";
 import { companySizes, costCard, etfKeyFigures, underneath } from "../lib/etfKeyFigs";
 import { gainLoss } from "../portfolio/shared";
-import { ETF_PORTFOLIO_FAQ, etfLimitLine } from "../content/etfPortfolioFaqs";
+import { ETF_PORTFOLIO_FAQ, etfLimitLine, setEtfLimit } from "../content/etfPortfolioFaqs";
 import { planName } from "../lib/planNames";
 import { PLAN_FOR_PORTFOLIO } from "../lib/planGates";
 
@@ -163,16 +163,16 @@ describe("One section per step (T8, T9, U1, RB7, RB8)", () => {
     expect(etfStepFromParam(r, "each")).toBe("etp-each");
     expect(etfStepFromParam(r, "all")).toBe("all");
   });
-  it("T8a, U1a: step 1 shows Your ETFs, Where your gain or loss came from and Key figures only; a step shows its section only; All sections shows them all", async () => {
+  it("T8a, U1a: step 1 shows Your ETFs and Key figures only (file 39 v4 A1: gain or loss left the page); a step shows its section only; All sections shows them all", async () => {
     await show();
-    expect(heads()).toEqual(["Your ETFs", "Where your gain or loss came from", "Key figures"]);
+    expect(heads()).toEqual(["Your ETFs", "Key figures"]);
     fireEvent.click(within(bar()).getByRole("button", { name: /What changed/ }));
     expect(loc).toBe("?step=wc");
     await waitFor(() => expect(heads()).toEqual(["What changed at the companies inside your ETFs"]));
     fireEvent.click(within(bar()).getByRole("button", { name: "All sections" }));
     expect(loc).toBe("?step=all");
     expect(within(bar()).getByRole("button", { name: "All sections" }).getAttribute("aria-pressed")).toBe("true");
-    expect(heads()).toEqual(["Your ETFs", "Where your gain or loss came from", "Key figures", "What changed at the companies inside your ETFs", "What this means, in short"]);
+    expect(heads()).toEqual(["Your ETFs", "Key figures", "What changed at the companies inside your ETFs", "What this means, in short"]);
   });
   it("T8b, U1a: every view opens on its first step, with Key figures inside it", async () => {
     await show("/etf-portfolio?view=risk&step=each");
@@ -281,15 +281,12 @@ describe("Your ETFs (E1–E4, F6, IB1)", () => {
 });
 
 describe("Where your gain or loss came from (E5, L1–L6, B2)", () => {
-  it("its own section after the table: a row per ETF with a quantity, biggest gain first, the lead line in a tinted box", async () => {
-    await show();
-    const sec = await waitFor(() => { const s = document.getElementById("etp-gl"); expect(s).toBeTruthy(); return s!; });
-    expect(sec.previousElementSibling === document.getElementById("etp-etfs") || !!sec.compareDocumentPosition(document.getElementById("etp-etfs")!)).toBe(true);
-    expect(sec.querySelector(".sp-sub")!.textContent).toBe("Each ETF's gain or loss in rupees, on what you paid for it. Biggest gain at the top. ETFs with no quantity are left out.");
-    expect([...sec.querySelectorAll("li .n")].map((n) => n.textContent)).toEqual(["HNGSNGBEES", "BANKBEES", "JUNIORBEES", "ITBEES", "HDFCGOLD"]);   // PHARMABEES has no quantity
-    expect(sec.querySelector(".eqg-lead")!.textContent).toBe("One ETF explains the whole gain. HNGSNGBEES is up ₹31,575; the other 4 ETFs are down ₹2,294 together.");
-    expect(sec.querySelector("li .n")!.getAttribute("href")).toBe("/etfs/HNGSNGBEES");
-    expect(sec.textContent).not.toMatch(/\b(sell|buy|hold|reduce|should)\b/i);   // L6b
+  it("file 39 v4 A1: the section left the page and the Your ETFs step, with All sections too; the shared figures stay tested here", async () => {
+    await show("/etf-portfolio?step=all");
+    await waitFor(() => expect(document.getElementById("etp-etfs")).toBeTruthy());
+    expect(document.getElementById("etp-gl")).toBeNull();
+    expect(document.body.textContent).not.toMatch(/Where your gain or loss came from/);
+    expect(etfStepsOf("etfs")[0].secs).not.toContain("etp-gl");
   });
   it("L3b, L6a: two ETFs explain the whole loss; each (−₹N) stays with its name", () => {
     const g = gainLoss([{ symbol: "A", name: "SAMPLEA", gain: -1500, pct: -15 }, { symbol: "B", name: "SAMPLEB", gain: -900, pct: -9 }, { symbol: "C", name: "SAMPLEC", gain: 300, pct: 3 }], 0, "ETF", true);
@@ -338,6 +335,7 @@ describe("Key figures: a question and one big figure (E6, K1–K10, F5, W14, W18
   });
   it("E6b: on the page each card has a numbered question, the big figure, and its method behind its own i", async () => {
     await show();
+    fireEvent.click(await screen.findByRole("button", { name: "Show: Key figures" }));   // file 39 v4 A2: closed until clicked
     const c = [...document.querySelectorAll(".ptk-kf-c")];
     expect(c.map((x) => x.querySelector(".ptk-kf-qn")!.textContent)).toEqual(["1", "2", "3"]);
     expect(c.map((x) => x.querySelector(".ptk-kf-big > b")!.textContent)).toEqual(["0.42% a year", "6.42%", "+1.93%"]);
@@ -395,7 +393,7 @@ describe("i buttons (IB1, IB2)", () => {
     expect(labels).not.toContain("What does this mean?");
     expect(new Set(labels).size).toBe(labels.length);
     expect(labels).toContain("About “What your ETFs cost”");
-    expect(labels).toContain("About “Where your gain or loss came from”");
+    expect(labels).not.toContain("About “Where your gain or loss came from”");   // file 39 v4 A1: the section left the page
     expect(labels).toContain("About “What changed at the companies inside your ETFs”");
     cleanup();
     await show("/etf-portfolio?view=inside&step=all");
@@ -409,8 +407,17 @@ describe("Words and faults (F1, F4)", () => {
   it("F1, RB5: the questions box reads the plan name from the plan list; the ETF limit is said for the plans that have the page", () => {
     expect(ETF_PORTFOLIO_FAQ.plan).toBe(planName(PLAN_FOR_PORTFOLIO));
     expect(ETF_PORTFOLIO_FAQ.plan).not.toMatch(/Mutual Fund \+ ETF|Platinum/);
+    setEtfLimit(null);                                                  // a visitor, or a plan without the page: never "your plan" (fault 1)
     expect(etfLimitLine()).toBe("Silver and Gold hold up to 15 ETFs.");
     expect(JSON.stringify(ETF_PORTFOLIO_FAQ)).not.toMatch(/Your plan holds up to/);
+    // task #390 (developer file 39 v4, C1c): once the member's list has loaded, their own limit from /api/me/etf-portfolio, and no plan name
+    setEtfLimit(15);
+    expect(etfLimitLine()).toBe("Your plan holds up to 15 ETFs.");
+    expect(ETF_PORTFOLIO_FAQ.items[0].a).toMatch(/Your plan holds up to 15 ETFs\.$/);
+    expect(ETF_PORTFOLIO_FAQ.items[0].a).not.toMatch(/Silver|Gold/);
+    setEtfLimit(25);
+    expect(ETF_PORTFOLIO_FAQ.items[0].a).toMatch(/Your plan holds up to 25 ETFs\.$/);
+    setEtfLimit(null);
   });
   it("F4, W17: no list in the ETF page's files is joined as 'A and B and C'", () => {
     const root = resolve(__dirname, "..");
@@ -438,5 +445,30 @@ describe("Plans (G4)", () => {
     await show();
     expect(document.querySelectorAll("button.px-vw")).toHaveLength(3);
     expect(document.querySelector(".ptk-plan")!.textContent).toBe("Silver");
+  });
+});
+
+describe("Task #390 reopened (developer file 39 v4): A2 Key figures closed until clicked, E1 the shared bottom", () => {
+  it("A2: in each view Key figures arrives closed with Show ▾, even after an old 'shown' choice in this browser; Show opens it", async () => {
+    for (const [url, id] of [["/etf-portfolio", "etp-kf-etfs"], ["/etf-portfolio?view=inside", "etp-kf-inside"], ["/etf-portfolio?view=risk", "etp-kf-risk"]] as const) {
+      cleanup(); localStorage.setItem(`finlit.hide.pack.${id}`, "0");
+      await show(url);
+      const btn = await screen.findByRole("button", { name: "Show: Key figures" });
+      expect(btn.textContent).toBe("Show ▾");
+      expect(document.querySelectorAll(".ptk-kf-c")).toHaveLength(0);
+      fireEvent.click(btn);
+      await waitFor(() => expect(document.querySelectorAll(".ptk-kf-c").length).toBeGreaterThan(0));
+      expect(document.getElementById(id)).toBeTruthy();
+    }
+  });
+  it("E1: Questions in its folded form, closed on arrival; then the Disclaimer fold, closed; then the sources line", async () => {
+    await show();
+    const q = await waitFor(() => { const x = document.querySelector("details.pfq-fold.pfq-card") as HTMLDetailsElement; expect(x).toBeTruthy(); return x; });
+    const disc = document.querySelector(".pgb details.pgb-disc") as HTMLDetailsElement, src = document.querySelector(".pgb .pgb-src")!;
+    expect(q.open).toBe(false); expect(disc.open).toBe(false);
+    expect(q.compareDocumentPosition(disc) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(disc.compareDocumentPosition(src) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(disc.textContent).toMatch(/Information only, not investment advice/);
+    expect(document.querySelector(".mfp-disc")).toBeNull();
   });
 });

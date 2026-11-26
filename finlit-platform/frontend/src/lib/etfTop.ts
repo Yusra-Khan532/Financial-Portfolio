@@ -5,6 +5,7 @@ import type { KeyCard } from "./equityTop";
 import type { EtfPortfolio, EtfRisk, EtfRow, Inside } from "./etfPortfolio";
 import type { Sec } from "../portfolio/pack/PageTop";
 import { andList, countOf } from "../portfolio/shared/words";
+import { num as fmtNum } from "./format";
 
 export type EtfTab = "etfs" | "inside" | "risk";
 export type EtfTile = { id: EtfTab; k: string; v: string; sub: string; link: string; tone: "good" | "info" | "watch"; help: string; how: string; tag?: string };
@@ -12,7 +13,7 @@ export type EtfTile = { id: EtfTab; k: string; v: string; sub: string; link: str
 const NUM = ["no", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen"];
 const num = (n: number) => (n < NUM.length ? NUM[n] : String(n));
 const Num = (n: number) => num(n).replace(/^./, (c) => c.toUpperCase());
-const b2 = (x: number | null | undefined) => (x == null ? "–" : x.toFixed(2));
+const b2 = (x: number | null | undefined) => (x == null ? "–" : fmtNum(x));   // task #390 (file 39 C3): "−0.04", never a hyphen
 const sp = (x: number, d = 1) => `${x > 0 ? "+" : x < 0 ? "−" : ""}${Math.abs(x).toFixed(d)}%`;
 const TYPE_ORDER = ["indian", "gold", "silver", "abroad", "debt", "liquid"];
 const TYPE_LOWER: Record<string, string> = { indian: "Indian shares", gold: "gold", silver: "silver", abroad: "shares abroad", debt: "debt", liquid: "liquid" };
@@ -135,20 +136,20 @@ export function etfCards(d: EtfPortfolio | undefined, u: { companies: number; si
     { id: "etfs", k: "Your ETFs", v: countOf(xs.length, "ETF"), sub: far ?? "What each tracks, costs and earned, and how it trades" },
     { id: "inside", k: "What's inside", v: u && u.companies ? `${about(u.companies)} companies` : o.insidePending ? "Reading the files…" : countOf(idx, "index", "indexes"),
       sub: u && u.companies ? `Through ${countOf(u.shareEtfs.length, "share ETF")} · ${u.sizes} sizes · ${u.macros} macro sectors` : o.insideError ? "What sits inside could not be read right now" : "What your ETFs hold, and how alike they are" },
-    { id: "risk", k: "Risk analytics", v: b == null ? (o.riskPending ? "Working it out…" : "–") : `${word} · moves ${b.toFixed(2)}×`,
+    { id: "risk", k: "Risk analytics", v: b == null ? (o.riskPending ? "Working it out…" : "–") : `${word} · moves ${fmtNum(b)}×`,
       sub: rk?.list.swing != null && rk.bench.swing != null ? `Swings ${rk.list.swing.toFixed(1)}% a year; the Nifty 500 ${rk.bench.swing.toFixed(1)}%` : rk?.list.why ?? o.riskError ?? "Against the Nifty 500" },
   ];
 }
 
 /** Task #390 (developer file 34, Section bar, and Update 25 Nov row 1): one section per step. Key figures is no longer a step of its own: its cards sit in
- *  step 1 of every view (so do Where your gain or loss came from and Sold on Your ETFs), and a remembered "Key figures" opens step 1. `secs`: the DOM ids a
+ *  step 1 of every view (so does Sold on Your ETFs; task #390 file 39 A1: "Where your gain or loss came from" left the page, and with it etp-gl), and a remembered "Key figures" opens step 1. `secs`: the DOM ids a
  *  step holds (a jump to one of them opens the step). The address carries the step without its "etp-" (`&step=move`). */
 export type EtfStep = { id: string; label: string; badge?: string; secs: string[] };
 export const ETF_LABEL: Record<EtfTab, string> = { etfs: "Your ETFs", inside: "What's inside", risk: "Risk analytics" };
 export function etfStepsOf(view: EtfTab, o: { wcNew?: number; largest?: boolean; short?: boolean } = {}): EtfStep[] {
   const S = (id: string, label: string, more: string[] = []): EtfStep => ({ id, label, secs: [id, ...more] });
   const short = o.short === false ? [] : [S("etp-short", "In short", ["etp-short-h"])];
-  if (view === "etfs") return [S("etp-etfs", "Your ETFs", ["etp-gl", "etp-kf-etfs", "etp-sold", "etp-zone"]), { ...S("etp-wc", "What changed", ["wc-h-etf", "what-changed"]), ...(o.wcNew ? { badge: `${o.wcNew} new` } : {}) }, ...short];
+  if (view === "etfs") return [S("etp-etfs", "Your ETFs", ["etp-kf-etfs", "etp-sold", "etp-zone"]), { ...S("etp-wc", "What changed", ["wc-h-etf", "what-changed"]), ...(o.wcNew ? { badge: `${o.wcNew} new` } : {}) }, ...short];
   if (view === "inside") return [S("etp-own", "What they own", ["etp-kf-inside"]), S("etp-money", "Money in"), S("etp-secin", "Sectors in each"), S("etp-move", "Move together"),
     S("etp-shared", "Shared stocks"), S("etp-sizes", "Company sizes"), ...(o.largest === false ? [] : [S("etp-largest", "Largest stocks")]), ...short];
   return [S("etp-glance", "At a glance", ["etp-kf-risk"]), S("etp-build", "Beta build", ["etp-read"]), S("etp-n500", "Against the Nifty 500"), S("etp-fall", "If the market fell"),

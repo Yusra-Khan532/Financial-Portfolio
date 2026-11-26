@@ -74,10 +74,10 @@ describe("A1: Where your gain or loss came from leaves the MF page", () => {
     expect(document.querySelector("#mfp-funds")).toBeTruthy();
     expect(document.querySelector(".mff-t")).toBeTruthy();
   });
-  it("no dead code is left on the page; the shared section stays for the ETF page", () => {
+  it("no dead code is left on the page; the ETF page dropped it too (task #390, file 39 v4 A1)", () => {
     const page = src("pages/MfPortfolio.tsx");
     expect(page).not.toMatch(/GainLossSection|glRows|codeOfKey|GLRow|holdingFigs/);
-    expect(src("pages/EtfPortfolio.tsx")).toMatch(/<GainLossSection [^>]*id="etp-gl"/);
+    expect(src("pages/EtfPortfolio.tsx")).not.toMatch(/GainLossSection|etp-gl|glRows/);
   });
 });
 
@@ -103,11 +103,11 @@ describe("A2: Key figures closed on every visit, open for the visit once opened"
     render(<VisitFolds>{box(3)}</VisitFolds>);                         // a new visit
     expect(screen.queryByText("Stocks underneath")).toBeNull();
   });
-  it("the page wraps itself in VisitFolds and every view's Key figures passes `visit`; the ETF page is unchanged", () => {
+  it("the page wraps itself in VisitFolds and every view's Key figures passes `visit`; the ETF page does the same (task #390, file 39 v4 A2)", () => {
     const page = src("pages/MfPortfolio.tsx");
     expect(page).toMatch(/<KnowPop\.Provider value=\{true\}><VisitFolds><div className="wrap ipo mp sp mfp pfx">/);
     expect(page).toMatch(/<KeyFigsBox id=\{`mfp-kf-\$\{v\}`\}[^\n]*onGo=\{onGo\} visit \/>/);
-    expect(src("pages/EtfPortfolio.tsx")).not.toMatch(/KeyFigsBox[^\n]* visit/);
+    expect(src("pages/EtfPortfolio.tsx")).toMatch(/KeyFigsBox[^\n]* visit \/>/);
   });
 });
 

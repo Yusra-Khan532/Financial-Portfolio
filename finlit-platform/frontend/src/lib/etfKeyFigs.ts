@@ -6,6 +6,7 @@ import type { EtfPortfolio, EtfRisk, EtfRow, Inside } from "./etfPortfolio";
 import type { KfCard, KfGo } from "../portfolio/kit/keyFigs";
 import { pickCards } from "../portfolio/kit/keyFigs";
 import { andList } from "../portfolio/shared/words";
+import { num as fmtNum } from "./format";
 
 export type EtfKfCtx = { d: EtfPortfolio; ins?: Inside; rk?: EtfRisk };
 type Cand = (c: EtfKfCtx) => KfCard | null;
@@ -199,9 +200,9 @@ export const movesWithMarket: Cand = ({ rk }) => {
   const xs = rk.etfs.filter((e) => e.betaPast != null).sort((a, c) => (c.betaPast as number) - (a.betaPast as number));
   const max = Math.max(1.5, ...xs.map((e) => e.betaPast as number)), w = rk.etfs.find((e) => (e as { betaWindow?: BetaWindow }).betaWindow)?.betaWindow as BetaWindow;
   const calm = xs.filter((e) => e.differentAsset).map((e) => e.type?.word.toLowerCase() ?? e.symbol), shares = xs.filter((e) => e.type?.key === "indian");
-  return { id: "beta", tone: "good", k: "How it moves with the market", q: "How much does your list move with the market?", big: `${b.toFixed(2)}×`,
-    ans: `it has moved about ${Math.round(b * 10)}% when the Nifty 500 moved 10%`, lead: `${b.toFixed(2)}×`, rest: `: it has moved about ${Math.round(b * 10)}% when the Nifty 500 moved 10%.`,
-    rows: xs.map((e) => ({ label: e.symbol, value: Math.max(0, e.betaPast as number), max, text: (e.betaPast as number).toFixed(2) })), line: 1,
+  return { id: "beta", tone: "good", k: "How it moves with the market", q: "How much does your list move with the market?", big: `${fmtNum(b)}×`,
+    ans: `it has moved about ${Math.round(b * 10)}% when the Nifty 500 moved 10%`, lead: `${fmtNum(b)}×`, rest: `: it has moved about ${Math.round(b * 10)}% when the Nifty 500 moved 10%.`,
+    rows: xs.map((e) => ({ label: e.symbol, value: Math.max(0, e.betaPast as number), max, text: fmtNum(e.betaPast as number) })   /* task #390 (file 39 C3): the site's minus sign, "−0.04" */), line: 1,
     note: `${shares.length ? `The ${num(shares.length)} share ${shares.length === 1 ? "ETF moves" : "ETFs move"} with the market` : ""}${calm.length ? `${shares.length ? "; " : ""}${and([...new Set(calm)])} move on ${calm.length === 1 ? "its" : "their"} own ${calm.length === 1 ? "market" : "markets"} and bring the list's beta down` : ""}.`,
     from: betaWindowText(w ?? { index: "Nifty 500", grain: "weekly", window: "1y" }), go: go("See each ETF against the Nifty 500", "jump", "etp-n500") };
 };

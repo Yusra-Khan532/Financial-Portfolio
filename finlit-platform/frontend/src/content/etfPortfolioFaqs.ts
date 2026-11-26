@@ -3,13 +3,17 @@ import { LIMITS } from "../lib/auth";
 import { PLAN_LIST, planName } from "../lib/planNames";
 import { PLAN_FOR_PORTFOLIO } from "../lib/planGates";
 
-/** Task #390 (fault 1, and the questions box telling Basic "up to 15 ETFs"): how many ETFs each plan that has this page holds, from the plan list and the
- *  plan limits: "Silver and Gold hold up to 15 ETFs." (one line per limit when the plans differ). Exported for tests. */
-export function etfLimitLine(): string {
+/** Task #390 (developer file 39 v4, C1): the member's own limit, "Your plan holds up to 15 ETFs.", with the number from `limit` in
+ *  /api/me/etf-portfolio (the page passes it in with setEtfLimit once the list has loaded). Without it (a visitor, or a plan without the page: task #390
+ *  fault 1, Basic was told "up to 15 ETFs"), how many each plan that has the page holds, from the plan list and the plan limits. Exported for tests. */
+let shownLimit: number | null = null;
+export const setEtfLimit = (n: number | null) => { shownLimit = n; };
+export function etfLimitLine(n: number | null = shownLimit): string {
+  if (n != null) return `Your plan holds up to ${n} ETFs.`;
   const from = PLAN_LIST.findIndex((p) => p.id === PLAN_FOR_PORTFOLIO), by = new Map<number, string[]>();
-  for (const p of PLAN_LIST.slice(Math.max(0, from))) { const n = LIMITS[p.id].etf_holdings; by.set(n, [...(by.get(n) ?? []), p.name]); }
+  for (const p of PLAN_LIST.slice(Math.max(0, from))) { const k = LIMITS[p.id].etf_holdings; by.set(k, [...(by.get(k) ?? []), p.name]); }
   const and = (xs: string[]) => (xs.length <= 1 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`);
-  return [...by].map(([n, names]) => `${and(names)} ${names.length === 1 ? "holds" : "hold"} up to ${n} ETFs.`).join(" ");
+  return [...by].map(([k, names]) => `${and(names)} ${names.length === 1 ? "holds" : "hold"} up to ${k} ETFs.`).join(" ");
 }
 
 /** The ETF portfolio's seven questions (task #183 part 3, the 15 Nov pack 03 §5), in the pack's words. */

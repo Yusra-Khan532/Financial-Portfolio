@@ -258,10 +258,13 @@ describe("8 ETF column and Tracks · type; 3 Edit | Sell", () => {
 });
 
 describe("9 Key figures under the main section of each view; 5 company chips", () => {
+  // task #390 reopened (developer file 39 v4, A2): Key figures arrives closed on every visit; each test opens it as a member would
+  const openKf = () => fireEvent.click(screen.getByRole("button", { name: "Show: Key figures" }));
   // task #390 (E6, K1–K10): each card asks a question and answers with one big figure and its line
   const kf = () => [...document.querySelectorAll(".ptk-kf-c")].map((c) => `${c.querySelector(".ptk-kf-q .t")!.textContent} ${c.querySelector(".ptk-kf-big > b")!.textContent} ${c.querySelector(".ptk-kf-big strong")!.textContent}`);
   it("Your ETFs: cost, price against value (labelled by sign), the past year; each card with a bar, what it rests on and a link", async () => {
     await open();
+    openKf();
     expect(kf()).toEqual(["What do your ETFs cost a year? 0.50% a year on average: about ₹500 on ₹1 lakh", "Which ETF trades furthest from its value? 0.48% SILVERBEES traded below its value on 19 Nov, the furthest of the four",
       "How did they do over the past year? +3.10% on average over the past year, price only"]);
     const cards = [...document.querySelectorAll(".ptk-kf-c")];
@@ -277,6 +280,7 @@ describe("9 Key figures under the main section of each view; 5 company chips", (
   });
   it("What's inside: silver shows as silver (fix 2) in the key figure and in What your money is in; company chips open the company report", async () => {
     await open("/etf-portfolio?view=inside&step=all");
+    openKf();
     expect(kf()).toEqual(["What does your money hold? 50% Indian shares. Gold 24.6%, silver 25%, debt and cash under 1%", "Where is most of your money underneath? 11.3% of your list is in Financial Services, just ahead of Consumer Discretionary at 11.0%",
       "How big are the companies underneath? 22.8% of your list is in mid-sized companies"]);
     expect([...document.querySelectorAll(".ptk-kf-leg")][0].textContent).toBe("Indian shares 50%Gold 24.6%Silver 25%Debt and cash 0.4%");
@@ -290,6 +294,7 @@ describe("9 Key figures under the main section of each view; 5 company chips", (
   });
   it("Risk: beta with its window, where the swings come from, how much it swings with the index's window", async () => {
     await open("/etf-portfolio?view=risk");
+    openKf();
     expect(kf()).toEqual(["How much does your list move with the market? 0.54× it has moved about 5% when the Nifty 500 moved 10%", "Which ETF brings the most swing? 54% of the swings come from SILVERBEES, 25% of the list",
       "How much does it swing in a year? 17.0% in a typical year, against 14.4% for the Nifty 500"]);
     expect(document.querySelectorAll(".ptk-kf-f")).toHaveLength(0);
@@ -297,6 +302,7 @@ describe("9 Key figures under the main section of each view; 5 company chips", (
   it("a Key figures card with nothing to say is skipped, and the section hides to a slim card with Hidden · its subtitle and Show ▾", async () => {
     const l = FX("list") as { items: { premium: number | null }[] }; l.items.forEach((e) => { e.premium = null; }); st.list = l;
     await open();
+    openKf();
     expect(kf().map((k) => k.split("?")[0])).toEqual(["What do your ETFs cost a year", "How did they do over the past year"]);
     fireEvent.click(screen.getByRole("button", { name: "Hide: Key figures" }));
     const slim = document.querySelector(".ptk-hz")!;

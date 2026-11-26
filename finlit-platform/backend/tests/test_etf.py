@@ -537,7 +537,7 @@ async def test_rate_limit_stops_the_run_records_why_and_a_resumed_run_fetches_on
     # nothing left: the next retry makes no provider call at all
     prov = Provider()
     r3 = await etf.refresh(store, S(), transport=httpx.MockTransport(prov), now=NOW + timedelta(minutes=90), resume=True)
-    assert r3["status"] == "ok" and r3["fetched"] == 0 and prov.calls == []
+    assert r3["status"] == "ok" and r3["fetched"] == 0 and [c for c in prov.calls if "amfiindia" not in c] == []   # task #390 (C2): only AMFI's NAV file is read
     # the next evening everything is due again
     prov = Provider()
     r4 = await etf.refresh(store, S(), transport=httpx.MockTransport(prov), now=NOW + timedelta(days=1), resume=True)
@@ -791,3 +791,21 @@ async def test_the_list_carries_each_etfs_expense_ratio_with_its_date_and_sorts_
             await conn.execute("DELETE FROM disclosure_facts WHERE fkey = 'fam-gold-133'")
             await conn.execute("DELETE FROM mf_facts WHERE code IN (913301, 913302)")
             await conn.execute("DELETE FROM mf_schemes WHERE code IN (913301, 913302)")
+
+
+async def test_a_resumed_run_brings_amfis_newer_nav_to_the_etfs_it_skips(store):
+    """Task #390 (developer file 39, C2): on 26 Nov every ETF read the NAV of 23 Nov while AMFI's file held 25 Nov, because the resumed pass skipped
+    the ETFs already fetched after the close and so never read the newer NAV for them."""
+    await etf.refresh(store, S(), transport=httpx.MockTransport(Provider()), now=NOW)
+    good = await fund(store, "NIFTYBEES")
+    async with store.pool.acquire() as conn:                 # the stored NAV is older than AMFI's (the first pass ran before AMFI published)
+        await conn.execute("UPDATE etf_funds SET nav = nav * 0.9, nav_date = nav_date - 3, nav_premium = NULL")
+    prov = Provider()
+    r = await etf.refresh(store, S(), transport=httpx.MockTransport(prov), now=NOW + timedelta(minutes=50), resume=True)
+    assert r["fetched"] == 0 and not any("historical-candle" in c for c in prov.calls), r
+    assert r["nav_updated"] >= 15, r                          # 15 of the 17 ETFs are in the AMFI file
+    after = await fund(store, "NIFTYBEES")
+    assert (after["nav"], after["nav_date"]) == (good["nav"], good["nav_date"]) and after["nav_premium"] == pytest.approx(good["nav_premium"])
+    # never an older NAV: a later pass with the same file changes nothing
+    r2 = await etf.refresh(store, S(), transport=httpx.MockTransport(Provider()), now=NOW + timedelta(minutes=90), resume=True)
+    assert r2["nav_updated"] == 0, r2
