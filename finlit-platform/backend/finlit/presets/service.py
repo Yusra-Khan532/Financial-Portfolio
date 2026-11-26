@@ -18,6 +18,7 @@ from .registry import ALL, REGISTRY_VERSION, Preset
 
 log = logging.getLogger("finlit.presets")
 REDIS_TTL = 36 * 3600
+GROWTH_MIN, GROWTH_SHARE = 25, 0.05      # has_work: a rebuild of the same day once this many more companies' closes are in
 LOCK_TTL = 60
 COMPUTE_TIMEOUT = 45
 WAIT_S = 10
@@ -87,9 +88,21 @@ async def has_work(store, now: Optional[datetime] = None) -> Optional[bool]:
     the candles catch up, at any hour."""
     now = now or datetime.now(timezone.utc)
     async with store.pool.acquire() as conn:
-        newest = await listday.newest_day(conn, expected_session(now))
+        newest, loaded = await listday.newest(conn, expected_session(now))
         built = await lists_day(conn)
-    return newest is not None and (built is None or newest > built)
+        last = await conn.fetchval("SELECT value FROM preset_meta WHERE key = 'last_run'")
+    if newest is None:
+        return False
+    if built is None or newest > built:
+        return True
+    # 26 Nov 2026 (the founder: work with whatever closes are loaded, and keep updating): the same day, built while its closes were still arriving, is
+    # rebuilt once clearly more of them are in (at least 25 companies and 5% more than at the build)
+    try:
+        info = json.loads(last) if isinstance(last, str) else (last or {})
+    except ValueError:
+        info = {}
+    had = info.get("coverage") if str(info.get("asOf") or "")[:10] == newest.isoformat() else None
+    return isinstance(had, int) and loaded >= had + max(GROWTH_MIN, GROWTH_SHARE * had)
 
 
 BANDS = ((80, 4), (65, 3), (50, 2), (35, 1))     # Strong, Healthy, Average, Weak; under 35 is Poor (0)
@@ -393,7 +406,7 @@ async def refresh_presets(store, settings=None) -> dict:
         await conn.execute("DELETE FROM preset_results WHERE registry <> $1", REGISTRY_VERSION)
     if fr.not_traded_off:        # F8: the companies left off a list for no trade in the last five sessions, counted here and named in the log
         log.info("ready-made lists: %d companies left off for no trade in the last %d sessions: %s", len(fr.not_traded_off), listday.NO_TRADE_SESSIONS, sorted(fr.not_traded_off)[:50])
-    summary = {"asOf": fr.as_of.isoformat(), "listDayFromCandles": fr.market.day is not None, "notTradedLeftOff": len(fr.not_traded_off), "results": done, "failed": failed, "themeTagged": len(fr.tags), "themeLabelsUnmatched": theme_map.unmatched_labels(fr.t.sector_label),
+    summary = {"asOf": fr.as_of.isoformat(), "listDayFromCandles": fr.market.day is not None, "coverage": fr.market.loaded, "busiest": fr.market.busiest, "notTradedLeftOff": len(fr.not_traded_off), "results": done, "failed": failed, "themeTagged": len(fr.tags), "themeLabelsUnmatched": theme_map.unmatched_labels(fr.t.sector_label),
             "benchReady": bench_ready, "momentum": len(fr.momentum), "growth": len(fr.growth), "inPlay": len(fr.theme_eval.in_play) if fr.theme_eval else 0, **pattern_note, **history_note}
     try:        # the night's summary (counts and notes only) for the self-check page: why a pattern run was held, how many companies were left out, ...
         async with store.pool.acquire() as conn:
