@@ -41,7 +41,8 @@ const STEPS: { icon: string; title: string; text: string }[] = [
 
 const DISCLAIMER = "The Trading Lab is an education and research tool. It describes how rules and price patterns behaved in the past and simulates plans you enter; it does not tell anyone to buy, sell or hold, and it never places an order. Simulations and backtests are built from past prices and can be wrong or delayed; past results do not predict future returns. Intraday trading carries a high risk of loss, and most people who trade intraday lose money. Information only, not investment advice.";
 
-function Gate({ reason }: { reason: "sign_in" | "not_granted" }) {
+/** The message for a visitor (sign in, then come back to `next`) or a member without a grant. Shared by every Lab page. */
+export function LabGate({ reason, next = "/lab" }: { reason: "sign_in" | "not_granted"; next?: string }) {
   return (
     <div className="card tlab-gate" role="status">
       <span className="tlab-ic" aria-hidden="true"><Icon name="lock" /></span>
@@ -50,7 +51,7 @@ function Gate({ reason }: { reason: "sign_in" | "not_granted" }) {
         <p className="muted">{reason === "sign_in"
           ? "The Trading Lab is available to members the FinLit team has invited. Sign in first; if you have been invited, it opens here."
           : "It is not part of any plan: the FinLit team opens it to named members while the tools are being built and checked. Write to us if you would like to take part."}</p>
-        {reason === "sign_in" ? <Link className="btn primary" to="/login?next=/lab">Sign in</Link> : <Link className="btn" to="/contact">Contact the team</Link>}
+        {reason === "sign_in" ? <Link className="btn primary" to={`/login?next=${next}`}>Sign in</Link> : <Link className="btn" to="/contact">Contact the team</Link>}
       </div>
     </div>
   );
@@ -69,9 +70,14 @@ export function TradingLabPage() {
       <section className="sec" style={{ paddingTop: 16 }}><div className="wrap tlab">
         {(!ready || q.isPending) && <div className="skeleton" style={{ height: 160 }} aria-label="Checking your access" />}
         {q.isError && <div className="formerr" role="alert">Your access could not be checked right now. Reload the page in a moment.</div>}
-        {a && !a.access && <Gate reason={a.reason === "sign_in" ? "sign_in" : "not_granted"} />}
+        {a && !a.access && <LabGate reason={a.reason === "sign_in" ? "sign_in" : "not_granted"} />}
         {a?.access && <>
           <p className="tlab-who muted">{a.reason === "admin" ? "You have access as an administrator." : a.expiresAt ? `You have access until ${new Date(a.expiresAt).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}.` : "You have access."}</p>
+          <Link to="/lab/flow" className="card tlab-feature" aria-labelledby="tlab-flow-h">
+            <span className="tlab-ic" aria-hidden="true"><Icon name="activity" /></span>
+            <span className="tlab-feature-t"><b id="tlab-flow-h">Order Flow</b><small className="muted">How every NSE F&amp;O stock is moving now: market depth, futures build-up, sectors and the stocks with the most facts lined up.</small></span>
+            <span className="chip gold">Open</span>
+          </Link>
           <ol className="tlab-steps" aria-label="How the Lab works">{STEPS.map((s, i) => (
             <li key={s.title}><span className="tlab-ic" aria-hidden="true"><Icon name={s.icon} /></span><b><span className="tlab-n">{i + 1}</span>{s.title}</b><small className="muted">{s.text}</small></li>))}</ol>
           <div className="tlab-grid">{LAB_TOOLS.map((t) => (
