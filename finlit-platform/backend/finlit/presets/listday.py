@@ -154,6 +154,21 @@ async def load(store, symbols: Sequence[str], expected: date) -> Market:
     return Market(day=day, sessions=sessions, closes=closes, untraded=untraded)
 
 
+async def has_work(store, now=None) -> bool:
+    """Task #394, the presets job's probe: the candles now hold a newer list day than the lists were last built on (preset_meta 'last_run' asOf).
+    26 Nov 2026: the 25 Nov candles arrived in the morning and the charts moved to 25 Nov, but the lists, built at 01:57 IST, still said 23 Nov
+    until the next night. The list day is found exactly as the job finds it (sessions_from_counts, list_day), so a day still loading is not work."""
+    from datetime import datetime, timezone
+    from ..prism_candles import expected_session
+    expected = expected_session(now or datetime.now(timezone.utc))
+    lo = expected - timedelta(days=WINDOW_DAYS)
+    async with store.pool.acquire() as conn:
+        counts = {r["day"]: r["n"] for r in await conn.fetch("SELECT day, count(*) AS n FROM daily_candles WHERE day > $1 AND day <= $2 GROUP BY day", lo, expected)}
+        built = await conn.fetchval("SELECT value->>'asOf' FROM preset_meta WHERE key = 'last_run'")
+    day = list_day(sessions_from_counts(counts, expected), expected)
+    return day is not None and (not built or built < day.isoformat())
+
+
 def row_price(row: dict, dc: Optional[DayClose], day: str) -> None:
     """F3: a row's price, day change and price day from the official close of the list day (in place). The day change is worked out from the same two
     candles, so it always matches the prices; when it cannot be, it is None and `ret_1d_note` says why. A company with no candle on the list day shows
