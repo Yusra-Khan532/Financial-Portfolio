@@ -6,12 +6,23 @@ import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TipLayer } from "./FlowTips";
 import { TradingJournal } from "./TradingJournal";
-import { calendar, money, type Journal } from "../../lib/journal";
+import { calendar, latestReflections, money, type JReflection, type Journal } from "../../lib/journal";
+
+const R_INFY: JReflection = { held: "1 hour", returnPct: -0.67, nifty: { status: "intraday" }, assumption: { status: "none" },
+  sentences: ["Short INFY (quantity 10) was entered at ₹1,500 and exited at ₹1,510 after 1 hour, closing with a net loss of ₹100 with no fees entered: −0.67% on the ₹15,000 position.",
+    "Nifty 50 data for that window is not stored: the site keeps Nifty 50's daily closes, not its prices inside a session, so its move during this same-day trade is not shown.",
+    "No assumption was noted to check."], text: "" };
+R_INFY.text = R_INFY.sentences.join(" ");
+const R_REL: JReflection = { held: "1 hour 30 minutes", returnPct: 2.14, nifty: { status: "intraday" }, assumption: { status: "reached", level: 1420, way: "above", field: "setup" },
+  sentences: ["Long RELIANCE (quantity 10) was entered at ₹1,400 and exited at ₹1,430 after 1 hour 30 minutes, closing with a net gain of ₹300 with no fees entered: +2.14% on the ₹14,000 position.",
+    "Nifty 50 data for that window is not stored: the site keeps Nifty 50's daily closes, not its prices inside a session, so its move during this same-day trade is not shown.",
+    "The level noted in the setup, 1,420 (a move above it), was reached at the exit: the exit price of ₹1,430 is above it."], text: "" };
+R_REL.text = R_REL.sentences.join(" ");
 
 const J: Journal = { limit: 5000, trades: [
-  { id: 3, symbol: "TCS", side: "long", qty: 5, entryPrice: 3000, exitPrice: null, entryAt: "2026-11-26T10:00:00+05:30", exitAt: null, fees: 0, setup: null, notes: null, pnl: null },
-  { id: 2, symbol: "INFY", side: "short", qty: 10, entryPrice: 1500, exitPrice: 1510, entryAt: "2026-11-25T10:00:00+05:30", exitAt: "2026-11-25T11:00:00+05:30", fees: 0, setup: "Gap", notes: null, pnl: -100 },
-  { id: 1, symbol: "RELIANCE", side: "long", qty: 10, entryPrice: 1400, exitPrice: 1430, entryAt: "2026-11-24T09:30:00+05:30", exitAt: "2026-11-24T11:00:00+05:30", fees: 0, setup: "ORB", notes: "first one", pnl: 300 },
+  { id: 3, symbol: "TCS", side: "long", qty: 5, entryPrice: 3000, exitPrice: null, entryAt: "2026-11-26T10:00:00+05:30", exitAt: null, fees: 0, setup: null, notes: null, pnl: null, reflection: null },
+  { id: 2, symbol: "INFY", side: "short", qty: 10, entryPrice: 1500, exitPrice: 1510, entryAt: "2026-11-25T10:00:00+05:30", exitAt: "2026-11-25T11:00:00+05:30", fees: 0, setup: "Gap", notes: null, pnl: -100, reflection: R_INFY },
+  { id: 1, symbol: "RELIANCE", side: "long", qty: 10, entryPrice: 1400, exitPrice: 1430, entryAt: "2026-11-24T09:30:00+05:30", exitAt: "2026-11-24T11:00:00+05:30", fees: 0, setup: "ORB", notes: "first one", pnl: 300, reflection: R_REL },
 ], stats: { closed: 2, open: 1, net: 200, fees: 0, wins: 1, losses: 1, winRate: 50, profitFactor: 3, expectancy: 100, avgWin: 300, avgLoss: -100, largestWin: 300, largestLoss: -100,
   maxDrawdown: -100, bestDay: { day: "2026-11-24", net: 300 }, worstDay: { day: "2026-11-25", net: -100 }, longestWinRun: 1, longestLossRun: 1, currentRun: { kind: "loss", count: 1 },
   curve: [{ at: "2026-11-24T11:00:00+05:30", cum: 300, dd: 0 }, { at: "2026-11-25T11:00:00+05:30", cum: 200, dd: -100 }],
@@ -105,6 +116,51 @@ describe("Trading journal, the tab", () => {
     wrap(); await settle();
     const text = (document.body.textContent ?? "").toLowerCase();
     for (const w of ["buy", "sell", "target", "stop loss", "bullish", "bearish", "best setup"]) expect(text).not.toContain(w);
+  });
+});
+
+describe("Trading journal, reflections", () => {
+  it("only closed trades have a reflection, under an expander on their row", async () => {
+    wrap(); await settle();
+    const table = screen.getByRole("table", { name: "Your trades" });
+    const btns = within(table).getAllByRole("button", { name: "Reflection" });
+    expect(btns).toHaveLength(2);                                                   // RELIANCE and INFY; the open TCS trade has none
+    const rows = within(table).getAllByRole("row");
+    expect(within(rows[1]).queryByRole("button", { name: "Reflection" })).toBeNull();
+    expect(btns[0].getAttribute("aria-expanded")).toBe("false");
+    expect(table.textContent).not.toContain("No assumption was noted");
+    fireEvent.click(btns[0]);
+    expect(btns[0].getAttribute("aria-expanded")).toBe("true");
+    const panel = document.getElementById(btns[0].getAttribute("aria-controls")!)!;
+    expect(panel.textContent).toBe(R_INFY.text);
+    expect(within(table).getAllByRole("row")).toHaveLength(5);
+    fireEvent.click(btns[0]);
+    expect(btns[0].getAttribute("aria-expanded")).toBe("false"); expect(within(table).getAllByRole("row")).toHaveLength(4);
+  });
+  it("pointing at a closed trade's row shows its reflection; an open trade's shows none", async () => {
+    wrap(); await settle();
+    const rows = within(screen.getByRole("table", { name: "Your trades" })).getAllByRole("row");
+    point(rows[3]);
+    const pop = screen.getByRole("tooltip");
+    expect(within(pop).getByText("RELIANCE")).toBeTruthy(); expect(within(pop).getByText("+₹300.00")).toBeTruthy();
+    expect(pop.textContent).toContain(R_REL.sentences[2]);
+    point(rows[1]);
+    expect(screen.queryByRole("tooltip")).toBeNull();
+  });
+  it("lists the latest closed trades' reflections, newest exit first", async () => {
+    wrap(); await settle();
+    const items = within(screen.getByRole("list", { name: "Reflections on the latest closed trades" })).getAllByRole("listitem");
+    expect(items).toHaveLength(2);
+    expect(items[0].textContent).toContain("INFY"); expect(items[0].textContent).toContain(R_INFY.text);
+    expect(items[1].textContent).toContain("RELIANCE"); expect(items[1].textContent).toContain("+₹300.00");
+    expect(screen.getByRole("heading", { name: "Reflections" }).tagName).toBe("H3");
+    expect(latestReflections(J.trades).map((t) => t.id)).toEqual([2, 1]);
+  });
+  it("shows no reflections list when no trade is closed", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => json({ ...J, trades: [J.trades[0]] })));
+    wrap(); await settle();
+    expect(screen.queryByRole("heading", { name: "Reflections" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Reflection" })).toBeNull();
   });
 });
 

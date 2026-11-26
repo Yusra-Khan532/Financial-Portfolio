@@ -132,6 +132,33 @@ Up to 5,000 trades a member, 2,000 rows per CSV; a bad CSV line is listed with i
 factor, expectancy, average and largest win and loss, deepest drawdown from the running peak, best and worst day (exit date, Indian time), runs,
 P&L by the member's own setup tag, the cumulative P&L curve and a daily P&L calendar. A record of the member's own trades: it suggests none.
 
+### Journal reflection (built 26 Nov 2026)
+
+Build order item 5's reflection. Every closed trade (exit price and exit time) in `GET /api/lab/journal` carries `reflection`: three plain
+sentences worked out on read by `reflection(trade, nifty)` in `backend/finlit/lab/journal.py`. No model, no provider call, nothing stored (so no
+migration); PUT and POST answer with the trade's reflection too. Open trades have `reflection: null`.
+
+1. **What happened:** side, symbol, quantity, entry and exit price, time held ("45 minutes", "1 hour 30 minutes", "2 days 4 hours"), the net
+   gain or loss in ₹ after the fees entered (or "with no fees entered"), and the return on the position: net P&L ÷ (entry price × quantity).
+2. **Nifty 50 over the same period**, from the Nifty 50 daily closes in `flows_index` (code `NIF50`; the flows job's `nifty` step keeps five
+   years and adds each session after the close; read with one query per request covering every closed trade). The window is the last close at
+   or before the entry to the first close at or after the exit (a day's close counts from 15:30 Indian time), and the sentence names both
+   dates. A long is set against the index's move; a short against the index's move turned around (a short gains when prices fall), in
+   percentage points above or below. When either close is not stored within a week of the trade (for example the exit was today and the flows
+   job has not added today's close yet), it says "Nifty 50 data for that window is not stored". A trade opened and closed on the same day says
+   the same, with the reason: the site keeps Nifty 50's daily closes, not its prices inside a session (the 5-minute store, `intraday.py`, holds
+   stocks only), so a day's close-to-close move is never passed off as the trade's window.
+3. **The noted level:** only a simple, explicit case is read: a number written after "expected", "expecting", "target", "tgt", "aim" or
+   "looking for" in the setup or notes (at most 40 characters of words between, no percentage, not after "stop" or "SL", and between half and
+   twice the entry price). The direction is the one written ("above", "below", ...) or else the trade's side (long: above, short: below). The
+   sentence says whether the exit price reached it, and that prices between entry and exit are not checked. Two different levels: "no single
+   noted level is checked". Nothing written: "No assumption was noted to check." Nothing else is inferred from the text.
+
+Describe-only: a test runs every combination (long and short, win, loss and flat, fees, intraday, multi-day, Nifty missing, each kind of note)
+through a banned-word guard (lesson, should, next time, better, mistake, good, bad, best, buy, sell, hold, target, will, likely, forecast,
+expect ...). Page: a "Reflection" expander (`aria-expanded`) under each closed trade's row, the reflection in the row's hover card (`.oflow-pop`),
+and a "Reflections" list of the five latest closed trades above the table.
+
 ## Ideas from the MarketPulse video (founder, 26 Nov 2026)
 
 The founder shared a second reference video (a "MarketPulse" dashboard). What fits FinLit, built one at a time after the Order Flow pages,

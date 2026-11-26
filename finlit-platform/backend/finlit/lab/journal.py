@@ -15,15 +15,24 @@ P&L of a closed trade: (exit - entry) x qty for a long, (entry - exit) x qty for
 net P&L, win rate (P&L > 0 counts as a win, < 0 as a loss, 0 as neither), profit factor (gross wins / gross losses), expectancy (net / trades),
 average win and loss, the deepest drawdown of cumulative P&L from its running peak, best and worst day (by exit date, Indian time), the longest
 and current run of wins or losses, P&L by setup, and the daily P&L for the calendar.
+
+Reflection (docs/TRADING-LAB.md "Journal reflection"): every closed trade in the list answer carries `reflection`, two to four plain sentences
+worked out on read by reflection(trade, nifty) below: no model, no call to any provider, nothing stored. It says what happened (side, symbol,
+entry and exit price, time held, net P&L after the fees entered, return on the position), how Nifty 50 moved over the same period (its daily
+closes from flows_index, code NIF50, which the flows job keeps for five years; one query per request), and whether a level the member wrote in
+the setup or notes after "expected", "target" or "aim" was reached by the exit price. It describes; it never judges the trade or suggests one.
 """
 from __future__ import annotations
 
+import bisect
 import csv
 import io
+import logging
+import re
 from collections import OrderedDict, defaultdict
-from datetime import datetime
+from datetime import date, datetime, time, timedelta
 from decimal import Decimal
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Mapping, Optional, Tuple
 
 from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
@@ -34,6 +43,7 @@ from ..dhan import IST
 from .access import lab_ctx
 
 router = APIRouter()
+log = logging.getLogger("finlit.lab.journal")
 
 MAX_TRADES = 5000           # per member
 MAX_IMPORT = 2000           # rows per CSV
@@ -141,6 +151,196 @@ def stats(trades: List[Dict[str, Any]]) -> Dict[str, Any]:
     }
 
 
+# ---------------------------------------------------------------------------------------------------- reflection of a closed trade
+NIFTY_CODE = "NIF50"                 # flows_index: Nifty 50 daily closes kept by the flows job (finlit/flows.py step_nifty), five years back
+SESSION_CLOSE = time(15, 30)         # a daily close belongs to 15:30 Indian time of its day
+NIFTY_GAP = timedelta(days=7)        # the close before the entry / after the exit must be this close to it (weekends and holidays), or it is "not stored"
+NIFTY_NOT_STORED = "Nifty 50 data for that window is not stored, so its move over the same period is not shown."
+NIFTY_INTRADAY = ("Nifty 50 data for that window is not stored: the site keeps Nifty 50's daily closes, not its prices inside a session, "
+                  "so its move during this same-day trade is not shown.")
+NO_ASSUMPTION = "No assumption was noted to check."
+SEVERAL_LEVELS = "The setup and notes name more than one level, so no single noted level is checked."
+# A noted level: a cue word, then at most 40 characters of words (no digits), then the number. Only these simple, explicit cases are read.
+_CUE = re.compile(r"\b(?:expect(?:ed|ing|s)?|expectation|target(?:ed|ing|s)?|tgt|aim(?:ed|ing|s)?|looking for|look for)\b(?P<mid>[^0-9%\n]{0,40}?)"
+                  r"(?P<num>[0-9]{1,3}(?:,[0-9]{2,3})+(?:\.[0-9]+)?|[0-9]+(?:\.[0-9]+)?)(?![0-9.,]*\s*%)", re.I)
+_ABOVE = re.compile(r"\b(?:above|over|beyond|past|higher|up to|rise to|rally to)\b", re.I)
+_BELOW = re.compile(r"\b(?:below|under|beneath|lower|down to|fall to|drop to)\b", re.I)
+_STOP = re.compile(r"\b(?:stop|sl|stoploss|stop-loss)\b", re.I)
+
+
+def _group(n: int) -> str:
+    """Indian digit grouping of a whole number: 140000 -> 1,40,000."""
+    s = str(abs(n))
+    if len(s) <= 3:
+        return s
+    head, tail = s[:-3], s[-3:]
+    parts = []
+    while len(head) > 2:
+        parts.insert(0, head[-2:])
+        head = head[:-2]
+    return ",".join(([head] if head else []) + parts + [tail])
+
+
+def num_in(v: float) -> str:
+    """1420 -> "1,420"; 1420.5 -> "1,420.50" (paise only when there are any)."""
+    v = round(abs(v), 2)
+    whole = int(v)
+    paise = int(round((v - whole) * 100))
+    if paise == 100:
+        whole, paise = whole + 1, 0
+    return _group(whole) + (f".{paise:02d}" if paise else "")
+
+
+def rupees(v: float) -> str:
+    return "₹" + num_in(v)
+
+
+def signed_pct(v: float) -> str:
+    return ("+" if v > 0 else "−" if v < 0 else "") + f"{abs(v):.2f}%"
+
+
+def _plural(n: int, word: str) -> str:
+    return f"{n} {word}{'' if n == 1 else 's'}"
+
+
+def held_for(entry: datetime, exit_: datetime) -> str:
+    """Time between entry and exit: "45 minutes", "1 hour 30 minutes", "2 days 3 hours", "under a minute"."""
+    m = int((exit_ - entry).total_seconds() // 60)
+    if m < 1:
+        return "under a minute"
+    if m < 60:
+        return _plural(m, "minute")
+    if m < 24 * 60:
+        h, mm = divmod(m, 60)
+        return _plural(h, "hour") + (f" {_plural(mm, 'minute')}" if mm else "")
+    d, rest = divmod(m, 24 * 60)
+    h = rest // 60
+    return _plural(d, "day") + (f" {_plural(h, 'hour')}" if h else "")
+
+
+def _day_text(d: date) -> str:
+    return f"{d.day} {d.strftime('%b')} {d.year}"
+
+
+def nifty_window(entry: datetime, exit_: datetime, nifty: Mapping[date, float]) -> Dict[str, Any]:
+    """Nifty 50 over the trade, from its daily closes: the last close at or before the entry to the first close at or after the exit.
+    {"status": "intraday"} for a trade opened and closed on the same day (no stored prices inside a session), {"status": "missing"} when either
+    close is not stored within NIFTY_GAP of the trade, else {"status": "ok", "from", "to", "fromClose", "toClose", "pct"}."""
+    a, b = entry.astimezone(IST), exit_.astimezone(IST)
+    if a.date() == b.date():
+        return {"status": "intraday"}
+    days = sorted(d for d, c in nifty.items() if c and c > 0)
+    # the close of day d counts as "at or before" a moment on day d only from 15:30
+    i = bisect.bisect_right(days, a.date() if a.time() >= SESSION_CLOSE else a.date() - timedelta(days=1)) - 1
+    j = bisect.bisect_left(days, b.date() if b.time() <= SESSION_CLOSE else b.date() + timedelta(days=1))
+    if i < 0 or j >= len(days):
+        return {"status": "missing"}
+    d0, d1 = days[i], days[j]
+    if a.date() - d0 > NIFTY_GAP or d1 - b.date() > NIFTY_GAP or d1 <= d0:
+        return {"status": "missing"}
+    c0, c1 = float(nifty[d0]), float(nifty[d1])
+    return {"status": "ok", "from": d0.isoformat(), "to": d1.isoformat(), "fromClose": round(c0, 2), "toClose": round(c1, 2),
+            "pct": round((c1 / c0 - 1) * 100, 2)}
+
+
+def noted_level(t: Dict[str, Any]) -> Dict[str, Any]:
+    """A price level the member wrote after a cue word ("expected a move above 1,420", "target 1450") in the setup or notes, with the direction
+    they wrote (above / below), or the trade's side when they wrote none. {"status": "none"} when there is no such level (or it is far from the
+    entry price, so not a price), {"status": "several"} when different levels are written. Nothing else is read into the text."""
+    found: List[Tuple[float, str, str]] = []
+    entry = float(t["entryPrice"])
+    for field in ("setup", "notes"):
+        text = t.get(field) or ""
+        for m in _CUE.finditer(text):
+            mid = m.group("mid")
+            if _STOP.search(mid):
+                continue
+            level = float(m.group("num").replace(",", ""))
+            if not entry * 0.5 <= level <= entry * 2:
+                continue
+            way = "above" if _ABOVE.search(mid) else "below" if _BELOW.search(mid) else ("above" if t["side"] == "long" else "below")
+            found.append((level, way, field))
+    if not found:
+        return {"status": "none"}
+    if len({(lv, w) for lv, w, _ in found}) > 1:
+        return {"status": "several"}
+    level, way, field = found[0]
+    x = float(t["exitPrice"])
+    reached = x >= level if way == "above" else x <= level
+    return {"status": "reached" if reached else "not_reached", "level": level, "way": way, "field": field}
+
+
+def reflection(t: Dict[str, Any], nifty: Mapping[date, float]) -> Optional[Dict[str, Any]]:
+    """Two to four factual sentences on a closed trade (None while it is open): what happened, Nifty 50 over the same period, the noted level.
+    `nifty`: Nifty 50 daily closes by date (any span; only the closes either side of the trade are used). Pure: no database, no provider."""
+    if t.get("exitPrice") is None or not t.get("exitAt"):
+        return None
+    entry, exit_ = datetime.fromisoformat(t["entryAt"]), datetime.fromisoformat(t["exitAt"])
+    p = pnl(t)
+    cost = float(t["entryPrice"]) * float(t["qty"])
+    ret = round(p / cost * 100, 2) if cost > 0 else None
+    fees = float(t.get("fees") or 0)
+    qty = num_in(float(t["qty"]))
+    held = held_for(entry, exit_)
+    result = f"a net gain of {rupees(p)}" if p > 0 else f"a net loss of {rupees(p)}" if p < 0 else "no net gain or loss"
+    fee_text = f"after {rupees(fees)} of fees" if fees > 0 else "with no fees entered"
+    s1 = (f"{'Long' if t['side'] == 'long' else 'Short'} {t['symbol']} (quantity {qty}) was entered at {rupees(t['entryPrice'])} and exited at "
+          f"{rupees(t['exitPrice'])} after {held}, closing with {result} {fee_text}: {signed_pct(ret or 0)} on the {rupees(cost)} position.")
+    w = nifty_window(entry, exit_, nifty)
+    if w["status"] == "intraday":
+        s2 = NIFTY_INTRADAY
+    elif w["status"] == "missing":
+        s2 = NIFTY_NOT_STORED
+    else:
+        span = f"(its close on {_day_text(date.fromisoformat(w['from']))} before the entry to its close on {_day_text(date.fromisoformat(w['to']))} after the exit)"
+        ref = w["pct"] if t["side"] == "long" else -w["pct"]
+        gap = round((ret or 0) - ref, 2)
+        rel = "level with it" if gap == 0 else f"{abs(gap):.2f} percentage points {'above' if gap > 0 else 'below'} it"
+        if t["side"] == "long":
+            s2 = f"Nifty 50 moved {signed_pct(w['pct'])} over the same period {span}; the position's {signed_pct(ret or 0)} was {rel}."
+        else:
+            s2 = (f"Nifty 50 moved {signed_pct(w['pct'])} over the same period {span}; a short gains when prices fall, so against the index's move "
+                  f"turned around ({signed_pct(ref)}) the position's {signed_pct(ret or 0)} was {rel}.")
+        w = {**w, "against": ref, "gap": gap}
+    a = noted_level(t)
+    if a["status"] == "none":
+        s3 = NO_ASSUMPTION
+    elif a["status"] == "several":
+        s3 = SEVERAL_LEVELS
+    else:
+        where = "setup" if a["field"] == "setup" else "notes"
+        lv = num_in(a["level"])
+        side = "at it" if float(t["exitPrice"]) == a["level"] else a["way"] + " it"
+        if a["status"] == "reached":
+            s3 = f"The level noted in the {where}, {lv} (a move {a['way']} it), was reached at the exit: the exit price of {rupees(t['exitPrice'])} is {side}."
+        else:
+            s3 = (f"The level noted in the {where}, {lv} (a move {a['way']} it), was not reached at the exit: the exit price of {rupees(t['exitPrice'])} "
+                  f"is {'below' if a['way'] == 'above' else 'above'} it (prices between entry and exit are not checked).")
+    sentences = [s1, s2, s3]
+    return {"text": " ".join(sentences), "sentences": sentences, "held": held, "returnPct": ret, "nifty": w, "assumption": a}
+
+
+async def nifty_closes(conn, trades: List[Dict[str, Any]]) -> Dict[date, float]:
+    """Nifty 50 daily closes covering every closed trade in `trades`, in one query (the request's own copy: each trade reads from it)."""
+    closed = [t for t in trades if t.get("exitAt")]
+    if not closed:
+        return {}
+    lo = min(datetime.fromisoformat(t["entryAt"]).astimezone(IST).date() for t in closed) - NIFTY_GAP - timedelta(days=1)
+    hi = max(datetime.fromisoformat(t["exitAt"]).astimezone(IST).date() for t in closed) + NIFTY_GAP + timedelta(days=1)
+    try:
+        rows = await conn.fetch("SELECT d, close FROM flows_index WHERE code = $1 AND d BETWEEN $2 AND $3 ORDER BY d", NIFTY_CODE, lo, hi)
+    except Exception as exc:                         # noqa: BLE001 - the journal still answers; each reflection then says the data is not stored
+        log.warning("journal: Nifty 50 closes not read: %s", type(exc).__name__)
+        return {}
+    return {r["d"]: float(r["close"]) for r in rows}
+
+
+def with_reflections(trades: List[Dict[str, Any]], nifty: Mapping[date, float]) -> List[Dict[str, Any]]:
+    for t in trades:
+        t["reflection"] = reflection(t, nifty)
+    return trades
+
+
 def _row(r) -> Dict[str, Any]:
     out = {"id": r["id"], "symbol": r["symbol"], "side": r["side"], "qty": _f(r["qty"]), "entryPrice": _f(r["entry_price"]),
            "exitPrice": _f(r["exit_price"]), "entryAt": r["entry_at"].astimezone(IST).isoformat(),
@@ -166,8 +366,9 @@ async def _count(conn, uid: str) -> int:
 async def my_journal(request: Request, ctx: Ctx = Depends(lab_ctx)) -> Dict[str, Any]:
     async with request.app.state.store.pool.acquire() as conn:
         rows = await conn.fetch(f"SELECT {COLS} FROM lab_journal WHERE user_id = $1 ORDER BY entry_at DESC, id DESC", ctx.user_id)  # nosec B608 - only the fixed column list COLS is placed in the text; every value is a bound parameter
-    trades = [_row(r) for r in rows]
-    return {"trades": trades, "stats": stats(trades), "limit": MAX_TRADES}
+        trades = [_row(r) for r in rows]
+        nifty = await nifty_closes(conn, trades)
+    return {"trades": with_reflections(trades, nifty), "stats": stats(trades), "limit": MAX_TRADES}
 
 
 @router.post("/api/lab/journal")
@@ -177,7 +378,9 @@ async def add_trade(request: Request, body: Trade, ctx: Ctx = Depends(lab_ctx)) 
             raise fail(409, "journal_full", f"The journal holds up to {MAX_TRADES:,} trades. Remove some to add more.")
         r = await conn.fetchrow(f"""INSERT INTO lab_journal (user_id, symbol, side, qty, entry_price, exit_price, entry_at, exit_at, fees, setup, notes)
                                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING {COLS}""", ctx.user_id, *_vals(body))  # nosec B608 - only the fixed column list COLS is placed in the text; every value is a bound parameter
-    return {"trade": _row(r)}
+        t = _row(r)
+        with_reflections([t], await nifty_closes(conn, [t]))
+    return {"trade": t}
 
 
 @router.put("/api/lab/journal/{tid}")
@@ -185,9 +388,11 @@ async def change_trade(request: Request, tid: int, body: Trade, ctx: Ctx = Depen
     async with request.app.state.store.pool.acquire() as conn:
         sql = f"UPDATE lab_journal SET symbol = $3, side = $4, qty = $5, entry_price = $6, exit_price = $7, entry_at = $8, exit_at = $9, fees = $10, setup = $11, notes = $12 WHERE id = $1 AND user_id = $2 RETURNING {COLS}"  # nosec B608 - only the fixed column list COLS is placed in the text; every value is a bound parameter
         r = await conn.fetchrow(sql, tid, ctx.user_id, *_vals(body))
-    if r is None:
-        raise fail(404, "not_found", "That trade is not in your journal.")
-    return {"trade": _row(r)}
+        if r is None:
+            raise fail(404, "not_found", "That trade is not in your journal.")
+        t = _row(r)
+        with_reflections([t], await nifty_closes(conn, [t]))
+    return {"trade": t}
 
 
 @router.delete("/api/lab/journal/{tid}")

@@ -1,9 +1,16 @@
 // Trading Lab > Order Flow > Trading journal: the answer of /api/lab/journal (backend finlit/lab/journal.py) and small helpers for the page.
 // A member's own record; nothing here suggests a trade.
 
+/** A closed trade's reflection (backend journal.reflection): two to four factual sentences, worked out on read; null while the trade is open. */
+export type JReflection = {
+  text: string; sentences: string[]; held: string; returnPct: number | null;
+  nifty: { status: "ok"; from: string; to: string; fromClose: number; toClose: number; pct: number; against: number; gap: number } | { status: "intraday" | "missing" };
+  assumption: { status: "reached" | "not_reached"; level: number; way: "above" | "below"; field: "setup" | "notes" } | { status: "none" | "several" };
+};
 export type JTrade = {
   id: number; symbol: string; side: "long" | "short"; qty: number; entryPrice: number; exitPrice: number | null;
   entryAt: string; exitAt: string | null; fees: number; setup: string | null; notes: string | null; pnl: number | null;
+  reflection?: JReflection | null;
 };
 export type JStats = {
   closed: number; open: number; net: number; fees: number; wins: number; losses: number; winRate: number | null; profitFactor: number | null;
@@ -14,7 +21,11 @@ export type JStats = {
   setups: { setup: string; trades: number; net: number; wins: number }[];
 };
 export type Journal = { trades: JTrade[]; stats: JStats; limit: number };
-export type TradeIn = Omit<JTrade, "id" | "pnl">;
+export type TradeIn = Omit<JTrade, "id" | "pnl" | "reflection">;
+
+/** The latest closed trades that carry a reflection, newest exit first: the "Reflections" list. */
+export const latestReflections = (trades: JTrade[], n = 5) =>
+  trades.filter((t) => t.exitAt && t.reflection).sort((a, b) => (a.exitAt! < b.exitAt! ? 1 : a.exitAt! > b.exitAt! ? -1 : b.id - a.id)).slice(0, n);
 
 /** ₹ with Indian grouping and a sign: "+₹1,250.00", "−₹40.00". */
 export const money = (v: number | null | undefined, sign = true) =>

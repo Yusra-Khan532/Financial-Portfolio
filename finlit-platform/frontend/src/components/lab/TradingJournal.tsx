@@ -1,10 +1,12 @@
 // Trading Lab > Order Flow > Trading journal (docs/TRADING-LAB.md "Trading journal"): a Lab member's own trades, by hand or from a CSV, and the
 // numbers from the closed ones: net P&L, win rate, profit factor, expectancy, average win and loss, deepest drawdown, best and worst day, runs,
 // P&L by setup, the cumulative P&L curve with its drawdown and a daily P&L calendar. Private to the member (backend finlit/lab/journal.py).
-import { useState } from "react";
+// Each closed trade carries a reflection (docs/TRADING-LAB.md "Journal reflection"): what happened, Nifty 50 over the same period and whether a
+// level noted in the setup or notes was reached; shown under the trade's row (expander), in its hover card and in the "Reflections" list.
+import { Fragment, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError, apiGet, apiSend } from "../../lib/api";
-import { CSV_SAMPLE, calendar, fromInput, money, nowIst, toInput, type JStats, type JTrade, type Journal, type TradeIn } from "../../lib/journal";
+import { CSV_SAMPLE, calendar, fromInput, latestReflections, money, nowIst, toInput, type JStats, type JTrade, type Journal, type TradeIn } from "../../lib/journal";
 import { useTip } from "./FlowTips";
 import { ChartZoom } from "../ChartZoom";
 
@@ -88,6 +90,34 @@ export function Calendar({ s, today }: { s: JStats; today: string }) {
   );
 }
 
+const sideWord = (t: JTrade) => (t.side === "long" ? "Long" : "Short");
+
+/** The hover card of a closed trade: its P&L and its reflection, sentence by sentence. */
+function ReflectionPop({ t }: { t: JTrade }) {
+  return (
+    <>
+      <header className="oflow-pop-h"><div><b>{t.symbol}</b><small>{sideWord(t)} · closed {t.exitAt ? `${dmy(t.exitAt)} ${t.exitAt.slice(11, 16)}` : ""}</small></div>
+        <div className="r"><small>net P&L</small><b className={tone(t.pnl)}>{money(t.pnl)}</b></div></header>
+      <div className="jr-pop-refl"><b>Reflection</b>{t.reflection!.sentences.map((x, i) => <p key={i}>{x}</p>)}</div>
+    </>
+  );
+}
+
+/** The latest closed trades with their reflections, newest exit first. */
+export function Reflections({ trades }: { trades: JTrade[] }) {
+  const list = latestReflections(trades);
+  if (!list.length) return null;
+  return (
+    <div className="jr-refls">
+      <h3>Reflections</h3>
+      <p className="muted jr-refls-sub">The latest closed trades, newest first: what happened, Nifty 50 over the same period, and the level you noted.</p>
+      <ol aria-label="Reflections on the latest closed trades">{list.map((t) => (
+        <li key={t.id}><div className="jr-refls-h"><b>{t.symbol}</b><small className="muted">{sideWord(t)} · closed {dmy(t.exitAt!)} {t.exitAt!.slice(11, 16)}</small>
+          <span className={tone(t.pnl)}>{money(t.pnl)}</span></div><p>{t.reflection!.text}</p></li>))}</ol>
+    </div>
+  );
+}
+
 const BLANK = (): TradeIn => ({ symbol: "", side: "long", qty: 1, entryPrice: 0, exitPrice: null, entryAt: fromInput(nowIst()) as string, exitAt: null, fees: 0, setup: null, notes: null });
 
 function TradeForm({ start, onDone }: { start: JTrade | null; onDone: () => void }) {
@@ -153,6 +183,9 @@ export function TradingJournal({ today = new Date().toISOString().slice(0, 10) }
   const q = useQuery({ queryKey: KEY, queryFn: getJournal, retry: false });
   const [mode, setMode] = useState<"none" | "add" | "import" | number>("none");
   const [shown, setShown] = useState(PAGE);
+  const [opened, setOpened] = useState<Set<number>>(() => new Set());
+  const toggle = (id: number) => setOpened((o) => { const n = new Set(o); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const tip = useTip();
   const del = useMutation({ mutationFn: (id: number) => apiSend("DELETE", `/api/lab/journal/${id}`), onSuccess: () => qc.invalidateQueries({ queryKey: KEY }) });
   const j = q.data;
   const editing = typeof mode === "number" ? j?.trades.find((t) => t.id === mode) ?? null : null;
@@ -178,24 +211,30 @@ export function TradingJournal({ today = new Date().toISOString().slice(0, 10) }
             {j.stats.setups.length > 0 && <><h3>By setup</h3><ol className="jr-setups" aria-label="P&L by setup">{j.stats.setups.map((s) => (
               <li key={s.setup}><b>{s.setup}</b><span className={tone(s.net)}>{money(s.net)}</span><small className="muted">{s.trades} trade{s.trades === 1 ? "" : "s"} · {Math.round((s.wins / s.trades) * 100)}% won</small></li>))}</ol></>}</div>
         </div>
+        <Reflections trades={j.trades} />
         <div className="jr-table-wrap">
           <table className="jr-table" aria-label="Your trades">
             <thead><tr><th>Symbol</th><th>Side</th><th className="n">Qty</th><th className="n">Entry</th><th className="n">Exit</th><th>Opened</th><th>Closed</th><th className="n">Fees</th><th className="n">P&L</th><th>Setup</th><th aria-label="Actions" /></tr></thead>
-            <tbody>{j.trades.length ? j.trades.slice(0, shown).map((t) => (
-              <tr key={t.id}>
-                <td><b>{t.symbol}</b>{t.notes && <small className="muted jr-note">{t.notes}</small>}</td><td>{t.side === "long" ? "Long" : "Short"}</td>
+            <tbody onPointerLeave={() => tip.hide()}>{j.trades.length ? j.trades.slice(0, shown).map((t) => {
+              const r = t.exitPrice != null ? t.reflection : null;
+              const isOpen = r != null && opened.has(t.id);
+              const extra: ReactNode = isOpen ? <tr className="jr-refl-row" id={`jr-refl-${t.id}`}><td colSpan={11}><p className="jr-refl-txt">{r.text}</p></td></tr> : null;
+              return <Fragment key={t.id}>
+              <tr className={r ? "jr-closed" : undefined} onPointerMove={r ? (e) => tip.show(e, <ReflectionPop t={t} />) : () => tip.hide()}>
+                <td><b>{t.symbol}</b>{t.notes && <small className="muted jr-note">{t.notes}</small>}
+                  {r && <button type="button" className="jr-refl-btn" aria-expanded={isOpen} aria-controls={`jr-refl-${t.id}`} onClick={() => toggle(t.id)}>Reflection</button>}</td><td>{sideWord(t)}</td>
                 <td className="n">{t.qty.toLocaleString("en-IN")}</td><td className="n">{money(t.entryPrice, false)}</td><td className="n">{t.exitPrice == null ? <span className="muted">open</span> : money(t.exitPrice, false)}</td>
                 <td>{dmy(t.entryAt)} {t.entryAt.slice(11, 16)}</td><td>{t.exitAt ? `${dmy(t.exitAt)} ${t.exitAt.slice(11, 16)}` : "—"}</td>
                 <td className="n">{money(t.fees, false)}</td><td className={`n ${tone(t.pnl)}`}>{money(t.pnl)}</td><td>{t.setup ?? ""}</td>
                 <td className="jr-row-a"><button type="button" className="btn sm" onClick={() => setMode(t.id)}>{t.exitPrice == null ? "Close" : "Edit"}</button>
                   <button type="button" className="btn sm" onClick={() => { if (window.confirm(`Remove the ${t.symbol} trade?`)) del.mutate(t.id); }} aria-label={`Remove the ${t.symbol} trade`}>Remove</button></td>
-              </tr>)) : <tr><td colSpan={11} className="muted">No trades yet. Add one by hand or import a CSV.</td></tr>}</tbody>
+              </tr>{extra}</Fragment>; }) : <tr><td colSpan={11} className="muted">No trades yet. Add one by hand or import a CSV.</td></tr>}</tbody>
           </table>
         </div>
         {j.trades.length > shown && <div className="jr-more"><button type="button" className="btn" onClick={() => setShown(shown + PAGE)}>Show {Math.min(PAGE, j.trades.length - shown)} more</button>
           <small className="muted">{shown} of {j.trades.length} trades shown</small></div>}
       </>}
-      <details className="oflow-how"><summary>How it is worked out</summary><p className="muted oflow-method">P&L of a closed trade: (exit − entry) × quantity for a long, (entry − exit) × quantity for a short, less fees. The numbers use closed trades only, in the order they closed. Win rate: trades with P&L above zero out of all closed trades (zero counts as neither). Profit factor: the sum of winning trades divided by the sum of losing trades. Expectancy: net P&L divided by closed trades. Deepest drawdown: the largest fall of cumulative P&L from its running peak. Days are by exit date, Indian time. Your journal is private: only you can see or change it.</p></details>
+      <details className="oflow-how"><summary>How it is worked out</summary><p className="muted oflow-method">P&L of a closed trade: (exit − entry) × quantity for a long, (entry − exit) × quantity for a short, less fees. The numbers use closed trades only, in the order they closed. Win rate: trades with P&L above zero out of all closed trades (zero counts as neither). Profit factor: the sum of winning trades divided by the sum of losing trades. Expectancy: net P&L divided by closed trades. Deepest drawdown: the largest fall of cumulative P&L from its running peak. Days are by exit date, Indian time. Reflection of a closed trade: what happened (entry and exit, time held, net P&L after the fees you entered, and the return on the position: net P&L ÷ (entry price × quantity)); Nifty 50 over the same period, from its daily closes (the last close at or before the entry to the first close at or after the exit; for a short, set against the index's move turned around), or a plain note when those closes are not stored or the trade opened and closed on the same day; and, when your setup or notes name a price level after a word such as "expected" or "aim", whether the exit price reached it (prices between entry and exit are not checked). It describes the trade only. Your journal is private: only you can see or change it.</p></details>
     </section>
   );
 }
