@@ -233,7 +233,7 @@ async function record() {
   }
   // the end card: the site's own logo, title and main button, on the page background
   await page.evaluate(() => { const d = document.createElement("div"); d.id = "tour-end"; document.getElementById("tour-cap")?.remove();
-    d.innerHTML = '<img src="/brand/finlit-logo-on-light.png" alt=""><h2 class="ui-title ui-title--marketing">Research deeper.<br><em>Invest with clarity.</em></h2><p>Every listed Indian company, scored and explained.</p><a class="ui-btn ui-btn--primary">Start free at finlitventures.com</a>';
+    d.innerHTML = '<img src="/brand/finlit-ventures-logo-on-light.png" alt=""><h2 class="ui-title ui-title--marketing">Research deeper.<br><em>Invest with clarity.</em></h2><p>Every listed Indian company, scored and explained.</p><a class="ui-btn ui-btn--primary">Start free at finlitventures.com</a>';
     document.body.appendChild(d); });
   await sleep(300); const e0 = at(); await moveTo(page, 1500, 1000, 10); await sleep(3400); cuts.push({ url: "end", title: "End", from: e0, to: at() });
   const video = page.video(); await ctx.close(); const raw = await video.path(); await browser.close();
