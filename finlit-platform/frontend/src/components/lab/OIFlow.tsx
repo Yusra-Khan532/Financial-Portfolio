@@ -1,13 +1,14 @@
 // Trading Lab > Order Flow > Option Pulse > OI Flow (docs/TRADING-LAB.md, MarketPulse idea 2): how fast call and put open interest changes,
 // strike by strike, from snapshots of the index's nearest-expiry chain every 3 minutes in market hours (backend finlit/lab/oiflow.py).
 // Facts only: "call OI +2.1 L at 25,000 in 15 minutes", never what it means for the price.
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { compact, strikeText } from "../../lib/options";
 import { WINDOW_NAME, flowLine, getOIFlow, heatMax, windowNote, type FlowStrike, type FlowWindow, type OIFlow as Flow } from "../../lib/oiflow";
 import { useTip } from "./FlowTips";
 import { ChartZoom } from "../ChartZoom";
 
+const shortDay = (iso?: string) => (iso ? new Date(iso.slice(0, 10) + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short" }) : "—");
 const signed = (v: number | null | undefined) => (v == null ? "—" : `${v > 0 ? "+" : ""}${compact(v)}`);
 const tone = (v: number | null | undefined) => (v == null || v === 0 ? "" : v > 0 ? "gain" : "loss");
 const WINDOWS: FlowWindow[] = ["m15", "m60", "day"];
@@ -16,7 +17,7 @@ function StrikeFlowPop({ r, f }: { r: FlowStrike; f: Flow }) {
   const line = (name: string, v: number | null) => <div><dt>{name}</dt><dd className={tone(v)}>{signed(v)}</dd></div>;
   return (
     <>
-      <header className="oflow-pop-h"><div><b>{f.underlying} {strikeText(r.strike)}</b><small>{r.atm ? "At the money · " : ""}expiry {f.expiry} · as of {f.asOf} IST</small></div></header>
+      <header className="oflow-pop-h"><div><b>{f.underlying} {strikeText(r.strike)}</b><small>{r.atm ? "At the money · " : ""}expiry {shortDay(f.expiry)} · {f.asOf} IST</small></div></header>
       <div className="opul-pop2">
         {(["pe", "ce"] as const).map((s) => (
           <div key={s}><b>{s === "pe" ? "Put" : "Call"} OI {compact(r[s].oi)}</b>
@@ -61,14 +62,32 @@ function FlowBars({ f, w }: { f: Flow; w: FlowWindow }) {
 }
 
 /** Strike by time: the change in OI between one snapshot and the next (green added, red closed, stronger for larger). */
+const PHONE = "(max-width: 560px)";
+const PHONE_POINTS = 12;                 // on a phone the latest 12 snapshots (about 36 minutes), so strikes and times stay readable
+
+function usePhone(): boolean {
+  const [on, setOn] = useState(() => typeof matchMedia !== "undefined" && matchMedia(PHONE).matches);
+  useEffect(() => {
+    if (typeof matchMedia === "undefined") return;
+    const m = matchMedia(PHONE), on = () => setOn(m.matches);
+    m.addEventListener?.("change", on);
+    return () => m.removeEventListener?.("change", on);
+  }, []);
+  return on;
+}
+
 function Heat({ f, side }: { f: Flow; side: "ce" | "pe" }) {
   const tip = useTip();
-  const h = f.heat;
-  if (!h || h.times.length === 0) return <p className="muted">The heat map starts with the second snapshot of the session.</p>;
+  const phone = usePhone();
+  const full = f.heat;
+  if (!full || full.times.length === 0) return <p className="muted">The heat map starts with the second snapshot of the session.</p>;
+  const cut = phone ? Math.max(0, full.times.length - PHONE_POINTS) : 0;
+  const h = cut ? { ...full, from: full.times[cut - 1], times: full.times.slice(cut), ce: full.ce.map((r) => r.slice(cut)), pe: full.pe.map((r) => r.slice(cut)) } : full;
   const rows = h[side], max = heatMax(rows), n = h.times.length;
   const LBL = 56, CW = Math.max(8, Math.min(26, 640 / n)), RH = 16, W = LBL + n * CW, H = h.strikes.length * RH + 18;
-  const every = Math.max(1, Math.ceil(n / 8));
-  return (
+  const every = Math.max(1, Math.ceil(n / (phone ? 4 : 8)));
+  return (<>
+    {cut > 0 && <p className="muted oiflw-meta">The latest {n} snapshots; a wider screen shows the last {full.times.length}.</p>}
     <svg className="oiflw-heat" viewBox={`0 0 ${W} ${H}`} role="img"
       aria-label={`${f.underlying} ${side === "pe" ? "put" : "call"} OI change between snapshots, strike by time, ${h.times[0]} to ${h.times[n - 1]}`}>
       {h.strikes.map((k, i) => (
@@ -78,14 +97,14 @@ function Heat({ f, side }: { f: Flow; side: "ce" | "pe" }) {
             const a = v == null ? 0 : Math.min(1, Math.abs(v) / max);
             return <rect key={j} x={LBL + j * CW} y={i * RH} width={CW - 1} height={RH - 1} rx="2"
               className={`oiflw-cell ${v == null ? "na" : v >= 0 ? "add" : "gone"}`} style={{ opacity: v == null ? 1 : 0.18 + 0.82 * a }}
-              onPointerMove={(e) => tip.show(e, <><header className="oflow-pop-h"><div><b>{f.underlying} {strikeText(k)} {side === "pe" ? "put" : "call"}</b><small>{j ? h.times[j - 1] : "previous snapshot"} → {h.times[j]} IST</small></div>
+              onPointerMove={(e) => tip.show(e, <><header className="oflow-pop-h"><div><b>{f.underlying} {strikeText(k)} {side === "pe" ? "put" : "call"}</b><small>{j ? h.times[j - 1] : (h.from ?? "previous snapshot")} → {h.times[j]} IST</small></div>
                 <div className="r"><small>OI change</small><b className={tone(v)}>{signed(v)}</b></div></header></>)}
               onPointerLeave={() => tip.hide()} />;
           })}
         </g>))}
       {h.times.map((t, j) => (j % every === 0 ? <text key={t} x={LBL + j * CW + CW / 2} y={H - 3} textAnchor="middle" className="oiflw-ht">{t}</text> : null))}
     </svg>
-  );
+  </>);
 }
 
 export function OIFlow({ u }: { u: string }) {

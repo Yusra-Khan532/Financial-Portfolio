@@ -121,7 +121,7 @@ def flow(points: List[dict]) -> dict:
         return sum(vals) if vals else None
 
     heat_pts = same[-(HEAT_POINTS + 1):]
-    heat = {"times": [p["t"] for p in heat_pts[1:]], "strikes": [float(k) for k in shown], "ce": [], "pe": []}
+    heat = {"from": heat_pts[0]["t"], "times": [p["t"] for p in heat_pts[1:]], "strikes": [float(k) for k in shown], "ce": [], "pe": []}
     for s, name in ((0, "ce"), (1, "pe")):
         for k in shown:
             row = []

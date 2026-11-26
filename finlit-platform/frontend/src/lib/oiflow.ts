@@ -18,7 +18,7 @@ export type OIFlow = {
   strikes?: FlowStrike[];
   movers?: { ce: { build: Mover[]; unwind: Mover[] }; pe: { build: Mover[]; unwind: Mover[] } };
   totals?: { ce: Record<FlowWindow, number | null>; pe: Record<FlowWindow, number | null> };
-  heat?: { times: string[]; strikes: number[]; ce: (number | null)[][]; pe: (number | null)[][] };
+  heat?: { from?: string; times: string[]; strikes: number[]; ce: (number | null)[][]; pe: (number | null)[][] };
 };
 
 export const getOIFlow = (u: string) => apiGet<OIFlow>(`/api/lab/oiflow/${encodeURIComponent(u)}`);

@@ -61,7 +61,7 @@ def test_the_heat_map_holds_the_change_between_consecutive_snapshots():
     b = dict(a); b[25000] = (1300, 900, 1000, 1000)
     f = F.flow([point("09:15", a), point("09:18", b), point("09:21", b)])
     h = f["heat"]
-    assert h["times"] == ["09:18", "09:21"] and 25000.0 in h["strikes"]
+    assert h["from"] == "09:15" and h["times"] == ["09:18", "09:21"] and 25000.0 in h["strikes"]
     i = h["strikes"].index(25000.0)
     assert h["ce"][i] == [300, 0] and h["pe"][i] == [-100, 0]
 

@@ -19,7 +19,7 @@ const FLOW: Flow = {
   ],
   movers: { ce: { build: [{ strike: 25000, change: 230_000 }], unwind: [{ strike: 24950, change: -20_000 }] }, pe: { build: [{ strike: 24950, change: 210_000 }], unwind: [{ strike: 25000, change: -40_000 }] } },
   totals: { ce: { m15: 210_000, m60: 450_000, day: 850_000 }, pe: { m15: 170_000, m60: 210_000, day: 300_000 } },
-  heat: { times: ["11:24", "11:27", "11:30"], strikes: [24950, 25000, 25050], ce: [[1, -2, 3], [50, 0, 80_000], [null, 0, 0]], pe: [[0, 0, 0], [-10, 0, 0], [0, 0, null]] },
+  heat: { from: "11:21", times: ["11:24", "11:27", "11:30"], strikes: [24950, 25000, 25050], ce: [[1, -2, 3], [50, 0, 80_000], [null, 0, 0]], pe: [[0, 0, 0], [-10, 0, 0], [0, 0, null]] },
 };
 const json = (b: unknown) => new Response(JSON.stringify(b), { status: 200, headers: { "Content-Type": "application/json" } });
 let answer: unknown = FLOW;
@@ -53,6 +53,8 @@ describe("OI Flow", () => {
     expect(screen.getByRole("tooltip").textContent).toMatch(/NIFTY 25,000.*At the money.*Put OI.*Call OI/);
     fireEvent.pointerMove(document.querySelectorAll(".oiflw-cell")[5], { clientX: 120, clientY: 120 });
     expect(screen.getByRole("tooltip").textContent).toMatch(/NIFTY 25,000 call.*11:27 → 11:30 IST.*\+80/);
+    fireEvent.pointerMove(document.querySelectorAll(".oiflw-cell")[0], { clientX: 120, clientY: 120 });
+    expect(screen.getByRole("tooltip").textContent).toMatch(/NIFTY 24,950 call.*11:21 → 11:24 IST/);
     fireEvent.click(screen.getByRole("button", { name: "Puts" }));
     expect(screen.getByRole("img", { name: /put OI change between snapshots/ })).toBeTruthy();
     expect(document.body.textContent).not.toMatch(BANNED);
@@ -65,4 +67,15 @@ describe("OI Flow", () => {
     wrap(); await settle();
     expect(screen.getByText(/Last session \(2026-11-26\)/)).toBeTruthy();
   });
+  it("on a phone the heat map keeps the latest 12 snapshots, readable, and says so", async () => {
+    vi.stubGlobal("matchMedia", (q: string) => ({ matches: q.includes("560px"), addEventListener: () => {}, removeEventListener: () => {} }));
+    const times = Array.from({ length: 15 }, (_, i) => `10:${String(i * 3).padStart(2, "0")}`);
+    answer = { ...FLOW, heat: { from: "09:57", times, strikes: [25000], ce: [times.map((_, i) => i * 10)], pe: [times.map(() => 0)] } };
+    wrap(); await settle();
+    expect(document.querySelectorAll(".oiflw-cell")).toHaveLength(12);
+    expect(screen.getByText("The latest 12 snapshots; a wider screen shows the last 15.")).toBeTruthy();
+    fireEvent.pointerMove(document.querySelectorAll(".oiflw-cell")[0], { clientX: 120, clientY: 120 });
+    expect(screen.getByRole("tooltip").textContent).toMatch(/NIFTY 25,000 call.*10:06 → 10:09 IST.*\+30/);
+  });
 });
+
