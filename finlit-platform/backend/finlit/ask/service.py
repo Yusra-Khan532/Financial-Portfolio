@@ -208,30 +208,80 @@ def reads_like_advice(text: str) -> bool:
     return bool(ADVICE.search(text or ""))
 
 
-SUMMARY_VERSION = "v5"   # task #382: every figure with its meaning; a new version is not served an older cached summary
+SUMMARY_VERSION = "v6"   # task #404: a 3-4 sentence stance, no scores; a new version is not served an older cached summary
+OLD_SUMMARY_VERSIONS = ("v5",)   # task #404: a member who summarised a company today in the old form gets the new form once without using a summary
 
 
 def summary_question(symbol: str) -> str:
     """The AI summary at the top of the FinLit Prism card of the company page (task #228; task #312 (developer file 20): written from the card's own
-    figures, get_finlit_prism, read before the model starts). Task #228 rework 3 (the team, 22 Nov 2026): "make it summarize the score and nothing else
-    in pointer not paragraphs not big sentence instead create a major bucket headline then give point": numbered bucket headlines, each with short
-    points of the card's own figures. Task #382 (the team, 24 Nov 2026): "explain the meaning behind every number": every figure keeps its number and
-    band, followed by what it means and why it matters, read off the card's whatEachFigureMeans sheet (ask/prism_meaning, the method's own bands and
-    words), never made up; a figure the sheet cannot interpret is flagged. Written here, never by the browser: the summary allowance (quota kind
-    "summary") can only ever ask this."""
-    return (f"Summarise the FinLit Prism score of {symbol} (the card read above) and nothing else: no company news, business description or advice. "
-            "Write it as bucket headlines, each on its own line and numbered, in this order: \"1. Overall\", \"2. Sound\", \"3. In between\", "
-            "\"4. Weighs on it\", \"5. Price trend\". Under each headline, one point per figure, each on its own line starting with \"- \": first the "
-            "figure in **bold** with its number and band exactly as the card states them (for example **Valuation 37.8 (Weak)**), then a colon and one "
-            "short line, at most 22 words, saying what that band means and why it matters, taken from the card's whatEachFigureMeans sheet. "
-            "Sound: the parts that are Strong or Healthy. In between: Average. Weighs on it: Weak or Poor. Add the main reason the card gives where "
-            "it has one (its topPros and topCons, figures as stated, for example a profit streak as growth quarters out of the quarters judged). Overall: the overall score, its "
-            "label, whether it is Rated or Provisional, and what the label means. For Risk always say that a higher Risk score means lower risk. "
-            "Price trend: the short-term and the long-term score with their words, then the alignment and what it means; say these describe the share "
-            "price, not the business. Keep the business (Fundamental and growth, Quality), the price against earnings (Valuation) and the share's "
-            "trading (Risk, the trends) apart. If the sheet says a figure CANNOT BE INTERPRETED, write the figure with \"cannot be interpreted\" and "
-            "the sheet's reason; never guess. Use only the card's figures and the sheet's meanings, nothing that would fit any company. Leave out a "
-            "headline that has nothing under it. No paragraph. Describe, never advise: no should, consider, buy, sell, hold or avoid.")
+    figures, get_finlit_prism, read before the model starts). Written here, never by the browser: the summary allowance (quota kind "summary") can only
+    ever ask this.
+
+    Task #404 (the team, 26 Nov 2026): "in this we just need a 3-4 lines stance like inference of finlit prism or conclusion that we get from finlit
+    prism. mind it just dont put up the score give it something meaningfull. just dont say it is avg or something. give meaning to things and not just
+    tell in sentences the score which a person can already see". This replaces the numbered buckets of task #228 rework 3 / task #382: the card itself
+    already shows every score and band, so the summary is the conclusion the card leads to, in 3 to 4 sentences, with no score and no band word.
+    stance_problems() checks the answer; one that only restates the card is asked again once (ask/api.py)."""
+    return (f"Write the conclusion the FinLit Prism card of {symbol} (the card read above) leads to, and nothing else: no company news, business "
+            "description or advice. Write 3 to 4 short sentences as one paragraph: no headings, no numbering, no bullet points, no bold. "
+            "Do not repeat any score, any number out of 100, or any band or status word (Strong, Healthy, Average, Weak, Poor, Rated, Provisional): "
+            "the reader already sees them on the card. Instead say what the parts mean together for this company, read off the card's "
+            "whatEachFigureMeans sheet and its topPros and topCons: what the business shows (growth and margins, borrowing, cash), how the share "
+            "price sits against its earnings and its own history, how calmly or sharply the share has traded (a higher Risk score means calmer "
+            "trading, not more risk), and whether the recent and the longer price trends agree. Where the parts pull in different directions, say so "
+            "plainly (for example a sound business on a price that already asks a lot of it). Keep the business apart from the share price. You may "
+            "give a fact the card states, in plain words (a profit streak as quarters out of quarters, a margin change), but never a score. Use only "
+            "the card's facts, nothing that would fit any company. If the card has no overall rating, say in one sentence that too little data is "
+            "available for an overall reading, then describe only what the parts that exist show. Describe, never advise: no should, consider, buy, "
+            "sell, hold, avoid, target, best, undervalued, overvalued, cheap, attractive or opportunity.")
+
+
+# Task #404: what makes a Prism summary unfit (it restates the card, is a list, or reads like advice). Each problem is said in plain words and sent
+# back to the model once as the reason to rewrite (ask/api.py).
+_BAND = re.compile(r"\b(?:Strong|Healthy|Average|Weak|Poor|Provisional|Rated)\b")       # the card's band labels, written as labels (capitalised)
+_BAND_ANY = re.compile(r"\bavg\b|\((?:strong|healthy|average|weak|poor)\)|\b(?:is|reads|rated|labelled|scores?)\s+(?:as\s+)?(?:an?\s+)?average\b", re.I)
+_SCORE = re.compile(r"\b\d{1,3}\.\d\b(?!\s*(?:%|per ?cent|x\b|×|times|crore|cr\b|lakh))|\bout of 100\b|/\s?100\b", re.I)
+_LIST = re.compile(r"^\s*(?:\d+[.)]|[-*•])\s+", re.M)
+_ADVISE = re.compile(r"\b(?:should|consider|buy|sell|hold|avoid|target|best|undervalued|overvalued|cheap|attractive|opportunity|recommend\w*)\b", re.I)
+_SENT = re.compile(r"[.!?](?=\s|$)")          # a sentence end: never the point inside 12.4% or 2.5 times
+
+
+def _label_uses(t: str) -> List[str]:
+    """Band words used as the card's labels: capitalised where a sentence does not start ("… is Average"), or in the label forms in _BAND_ANY."""
+    found = [m.group(0) for m in _BAND_ANY.finditer(t)]
+    for m in _BAND.finditer(t):
+        before = t[:m.start()].rstrip()
+        if before and before[-1] not in ".!?:\n":
+            found.append(m.group(0))
+    return sorted({f.strip("()").lower() for f in found})
+
+
+def stance_problems(text: str) -> List[str]:
+    """Why a Prism summary is not the 3-4 sentence stance task #404 asks for; [] when it is."""
+    t = (text or "").strip()
+    if not t:
+        return ["it is empty"]
+    out: List[str] = []
+    bands = _label_uses(t)
+    if bands:
+        out.append("it repeats band words the card already shows (" + ", ".join(bands) + ")")
+    if _SCORE.search(t):
+        out.append("it repeats scores the card already shows")
+    if _LIST.search(t) or "**" in t or "\n#" in "\n" + t:
+        out.append("it is a list or has headings, not one short paragraph")
+    n = len(_SENT.findall(t))
+    if n > 5:
+        out.append(f"it has {n} sentences, not 3 to 4")
+    adv = sorted({m.group(0).lower() for m in _ADVISE.finditer(t)})
+    if adv:
+        out.append("it uses words that read like advice (" + ", ".join(adv) + ")")
+    return out
+
+
+def stance_retry_note(problems: List[str]) -> str:
+    """The one request to rewrite an unfit summary (task #404)."""
+    return ("Rewrite that summary. It is not what was asked because " + "; ".join(problems) + ". Write 3 to 4 short sentences as one paragraph that "
+            "say what the card's parts mean together for this company, with no score, no band or status word, no list and no advice.")
 
 
 # Task #255 ("chatbot is still not taking investor presentation data"): a question about what a company's own document says is answered from the
