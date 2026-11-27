@@ -634,3 +634,20 @@ a.oflow-tab:hover:not([aria-current]) { background: color-mix(in srgb, var(--gol
 .oflow-mkt-b { padding: 7px 16px; border-radius: var(--ui-r-pill); font-size: var(--fs-14); font-weight: 600; color: var(--muted); text-decoration: none; }
 .oflow-mkt-b:hover { color: var(--text); }
 .oflow-mkt-b[aria-pressed="true"] { background: var(--ui-on-bg); color: var(--ui-on-fg); }
+
+/* ---- Global trade (components/lab/GlobalTrade.tsx) ---- */
+.trd-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 14px 0; }
+.trd-trend { display: block; width: 100%; height: auto; }
+.trd-trend .zero { stroke: var(--border); } .trd-trend .ax { font-size: var(--fs-12); fill: var(--muted); }
+.trd-trend .x { fill: color-mix(in srgb, var(--gain) 75%, transparent); } .trd-trend .m { fill: color-mix(in srgb, var(--loss) 70%, transparent); }
+.trd-trend .hit { fill: transparent; } .trd-m:hover .hit { fill: color-mix(in srgb, var(--gold) 10%, transparent); }
+.trd-trend .bal { fill: none; stroke: var(--gold); stroke-width: 2.5; pointer-events: none; filter: drop-shadow(0 0 3px var(--gold)); }
+.opul-legend .sw.trd-sw-x { background: var(--gain); } .opul-legend .sw.trd-sw-m { background: var(--loss); } .opul-legend .sw.trd-sw-b { background: var(--gold); height: 3px; }
+.trd-bars { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 5px; }
+.trd-bars li { display: grid; grid-template-columns: minmax(0, 170px) minmax(0, 1fr) 84px 56px; gap: 8px; align-items: center; font-size: var(--fs-13);
+  font-variant-numeric: tabular-nums; padding: 2px 4px; border-radius: var(--r-ctl); }
+.trd-bars li:hover { background: color-mix(in srgb, var(--gold) 8%, transparent); }
+.trd-bars .n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .trd-bars .v { text-align: right; } .trd-bars small { text-align: right; font-size: var(--fs-12); }
+.trd-bars .b { height: 10px; background: var(--s2); border-radius: var(--ui-r-pill); overflow: hidden; }
+.trd-bars .b i { display: block; height: 100%; border-radius: var(--ui-r-pill); } .trd-bars .b i.exports { background: var(--gain); } .trd-bars .b i.imports { background: var(--loss); }
+@media (max-width: 560px) { .trd-stats { grid-template-columns: minmax(0, 1fr); } .trd-bars li { grid-template-columns: minmax(0, 110px) minmax(0, 1fr) 70px 48px; } }

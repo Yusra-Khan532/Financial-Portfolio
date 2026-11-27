@@ -867,6 +867,7 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
     app.include_router(__import__("finlit.lab.flow", fromlist=["router"]).router)
     app.include_router(__import__("finlit.lab.global_flow", fromlist=["router"]).router)  # /api/lab/flow/global: Order Flow, Global (US)
     app.include_router(__import__("finlit.lab.global_options", fromlist=["router"]).router)  # /api/lab/options/global/*: Option Pulse, Global (US)
+    app.include_router(__import__("finlit.lab.trade", fromlist=["router"]).router)  # /api/lab/trade: Global trade (India with the world, UN Comtrade)
     app.include_router(__import__("finlit.lab.global_cues", fromlist=["router"]).router)  # /api/lab/global: Trading Lab > Global cues (docs/GLOBAL-MARKETS.md)
     app.include_router(__import__("finlit.lab.mood", fromlist=["router"]).router)  # /api/lab/mood: Trading Lab > Market mood (docs/GLOBAL-MARKETS.md)
     app.include_router(__import__("finlit.jobs.status", fromlist=["router"]).router)   # GET /api/jobs/status: public, read-only (every job, every dataset's freshness, the pause)
