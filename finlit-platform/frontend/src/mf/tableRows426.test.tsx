@@ -16,7 +16,7 @@ import { FundTable, snapPad } from "./FundTable";
 vi.mock("../lib/auth", async (orig) => ({ ...(await orig<typeof import("../lib/auth")>()),
   useAuth: () => ({ ready: true, user: null, plan: "basic", limits: {}, isAdmin: false, seesAll: false, showcase: [], prismReportsPerDay: null, refresh: async () => {}, signOut: async () => {} }) }));
 
-const css = readFileSync(resolve(process.cwd(), "src", "styles", "mf341.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+const css = readFileSync(resolve(process.cwd(), "src", "styles", "fundRows426.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
 const row = (code: number, active = true) => ({ code, name: `Fund ${code}`, amc: "HDFC Mutual Fund", category: "Equity Scheme - Flexi Cap Fund", plan: "Regular", option: "IDCW", optionClass: "IDCW",
   nav: 79.59, navDate: "2026-11-26", change: null, active, r1y: 5.68, noReturns: null }) as unknown as FundRow;
 
@@ -36,6 +36,9 @@ describe("task #426: the frozen Scheme column lines up with its row and stays so
       expect(box.querySelector(".mf-wish")).toBeTruthy();
       expect(box.querySelector(".mf-nm a")).toBeTruthy();
     }
+  });
+  it("the rules live in their own file, loaded by the table itself", () => {
+    expect(readFileSync(resolve(process.cwd(), "src", "mf", "FundTable.tsx"), "utf8")).toContain('import "../styles/fundRows426.css";');
   });
   it("on the Mutual funds list the name cell is a table cell (full row height) and the side-by-side layout is inside it", () => {
     expect(css).toMatch(/\.mf-list \.mf-table tbody th\.mf-name \{ display: table-cell; vertical-align: middle; background-color: var\(--s1\);/);

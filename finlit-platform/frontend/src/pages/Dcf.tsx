@@ -21,7 +21,7 @@ import { useDocTitle } from "../lib/title";
 import { csvText, dateIN, nf } from "../lib/format";
 import { Gate } from "../components/Gate";
 import { Info } from "../components/Info";
-import { DcfIntro, useIntroOpen } from "../components/DcfIntro";
+import { DcfIntro, useIntroOpen, useOpenPref } from "../components/DcfIntro";
 import {
   GROWTH_PRESETS, INDIA_DEFAULTS, MOS_PRESETS, STATUS_TEXT, around, costOfCapital, defaultScenarios, impliedGrowth, impliedReturn, run, scenarios, sensitivity,
   type CostOfCapital, type DcfInputs, type DcfResult, type GrowthPreset, type Scenario,
@@ -603,11 +603,17 @@ function SavedScenarios({ enabled, form, onOpen }: { enabled: boolean; form: For
 }
 
 // ------------------------------------------------------------------------------------------------------------- methodology (task #396)
-/** The method in brief, below the calculator: the same formulas the engine uses (lib/dcf.ts), in words. */
-function Methodology() {
+/** The method in brief, below the calculator: the same formulas the engine uses (lib/dcf.ts), in words. Task #412: a drop-down, closed at first
+ *  (the whole title row opens it), remembered open or closed per member like "How this calculator works". */
+function Methodology({ member }: { member: string | null }) {
+  const { open, set } = useOpenPref("finlit.dcf.meth", member);
   return (
-    <section className="card dcx-meth" aria-labelledby="dcx-meth-h">
-      <h2 id="dcx-meth-h">Methodology and important notes</h2>
+    <details className="card dcx-meth" open={open} onToggle={(e) => { const v = (e.currentTarget as HTMLDetailsElement).open; if (v !== open) set(v); }}>
+      <summary>
+        <h2 id="dcx-meth-h">Methodology and important notes</h2>
+        <span className="dcx-ms">How the value is worked out: projection, terminal value, share value, safety price and FCF yield</span>
+        <span className="dcx-mtg" aria-hidden="true">{open ? "Hide" : "Show"}<span className={"dcx-chev" + (open ? " up" : "")} /></span>
+      </summary>
       <div className="dcx-mg">
         <div>
           <p><b>Projection.</b> Starting free cash flow grows at the years 1–5 rate, then at the years 6–10 rate. Year <i>t</i> cash flow is discounted by (1 + discount rate)<sup>t</sup>. With the mid-year convention on, cash is assumed to arrive mid-year, so year <i>t</i> is discounted by (1 + rate)<sup>t − 0.5</sup>.</p>
@@ -618,7 +624,7 @@ function Methodology() {
           <p><b>Safety price</b> = value per share × (1 − margin of safety). <b>FCF yield</b> compares next year's free cash flow with today's enterprise value (market cap + net debt).</p>
         </div>
       </div>
-    </section>
+    </details>
   );
 }
 
@@ -747,7 +753,7 @@ export function DcfPage() {
             <button type="button" tabIndex={mini ? 0 : -1} onClick={toCard}>See the working</button>
           </div>
         </Gate>
-        <Methodology />
+        <Methodology member={user?.id ?? null} />
         <p className="faint dcf-disc">A DCF value is only as good as its assumptions: small changes in growth or discount rate move it a lot. This is a calculation tool for education, not investment advice. The intrinsic value is an estimate from the inputs above, not a forecast of the future share price. <Link to="/glossary#discounted-cash-flow-dcf">What is a DCF?</Link></p>
       </div>
     </>

@@ -62,3 +62,22 @@ def test_build_needs_enough_history_and_summarises(reliance_bundle):
     s = ps.build(market.price_history(reliance_bundle["daily_quotes"]))
     assert s["available"] and s["sessions"] > 400 and s["monthly"]["years"] and s["histogram"]["days"] > 400
     assert s["drawdown"]["max"]["pct"] < 0 and not math.isnan(s["volatility"]["current"])
+
+
+def test_drawdown_line_ends_on_the_last_session_and_names_the_last_new_high():
+    # developer file 47: the chart's last point read -16% on 23 Nov while "current" said -14.3%: the last sampling window kept its deepest day
+    dates = [f"2024-{1 + i // 28:02d}-{1 + i % 28:02d}" for i in range(300)]
+    closes = [100.0 + i * 0.5 for i in range(200)] + [250.0] + [200.0] * 98 + [210.0]
+    d = ps.drawdown(dates, closes, max_points=40)
+    assert d["t"][-1] == dates[-1] and d["current"] == -16.0 and abs(d["dd"][-1] - d["current"]) < 0.05
+    assert d["lastHigh"] == dates[200]
+    assert d["t"] == sorted(d["t"]) and len(set(d["t"])) == len(d["t"])
+
+
+def test_volatility_line_ends_on_the_last_session_and_names_its_highest():
+    dates = [f"2024-{1 + i // 28:02d}-{1 + i % 28:02d}" for i in range(331)]
+    closes = [100 + (8 if i % 2 else -8) if 100 <= i < 160 else 100 * 1.001 ** i for i in range(331)]
+    v = ps.rolling_volatility(dates, closes, max_points=40)
+    assert v["t"][-1] == dates[-1] and v["vol"][-1] == v["current"]
+    assert v["high"]["v"] >= max(x for x in v["vol"] if x is not None)   # the exact highest, which the thinned line may skip
+    assert "2024-04" <= v["high"]["date"][:7] <= "2024-07"

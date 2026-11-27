@@ -178,7 +178,7 @@ export function PeerRanking({ lead, self, extras }: { lead: LeadershipOn; self: 
     </th>
   );
   return (
-    <div className="card acc ld-rank-card" style={{ "--ac": "var(--gold)", marginTop: 16 } as React.CSSProperties}>
+    <div className="card acc ld-rank-card" style={{ marginTop: 16 } as React.CSSProperties}>
       <div className="card-h"><h3><span className="ci"><Icon name="layers" /></span>How it ranks among {lead.peerGroup.ranked} {lead.peerGroup.short} peers</h3><span className="s">12-month return against {sectorBench(lead)}</span></div>
       <RankingStatus lead={lead} />
       <HScroll label="peer ranking">

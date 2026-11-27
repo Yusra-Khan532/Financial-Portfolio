@@ -44,7 +44,9 @@
    heights; the Schemes count, a count rather than a performance figure, is set apart with a raised surface and a firmer edge. */
 .mf-list .mf-sum { grid-auto-rows: 1fr; gap: 12px; }
 .mf-list .mf-sc, .mf-list .mf-sc.t-blue, .mf-list .mf-sc.t-green, .mf-list .mf-sc.t-amber, .mf-list .mf-sc.t-teal, .mf-list .mf-sc.t-grey { background: var(--s1); box-shadow: none; padding: 14px 16px; gap: 4px; }
-.mf-list .mf-sum > .mf-sc:first-child { background: var(--s2); border-color: var(--border-strong); }
+/* task #429 (team, 27 Nov 2026: "give all the boxes same colour as the first box"): every tile takes the Schemes tile's raised surface and firmer edge
+   (it was the first tile only). Tokens, so light and dark follow. */
+.mf-list .mf-sum > .mf-sc { background: var(--s2); border-color: var(--border-strong); }
 .mf-list .mf-sc span { font-size: var(--fs-12); line-height: var(--lh-12); }
 
 /* 13 (PR C): "Order by" list + three quick buttons, 36px. */
@@ -200,23 +202,9 @@
 .mf-list .mf-main { display: flex; flex-direction: column; gap: 16px; }
 .mf-list .mf-main > * { margin-top: 0; margin-bottom: 0; }
 
-/* Task #426 (team, 27 Nov 2026: "the boxes are not aligned properly we can see the mismatch and when we slide left to see other columns then all boxes
-   are going into each other"). Two causes, both in the frozen Scheme column:
-   (1) its cell was display:flex (mf.css), so it stopped being a table cell: it was only as tall as its own text (81px in a 117px row), its line under
-       the row sat higher than the other cells' lines, and the rows below showed through the gap while the table slid sideways. It is a table cell
-       again (full row height, its line meets the others); the tick, the star and the name sit side by side inside it (.mf-namein, FundTable.tsx).
-   (2) a stopped scheme's row was faded with opacity on the frozen cell too, which made it see-through: the figures sliding under it showed. The cell
-       now stays solid and only its contents are faded.
-   The frozen column keeps a solid surface and sits above the sliding cells (z-index 2; its heading 5, styles/frozen.css), light and dark. */
-.mf-list .mf-table tbody th.mf-name { display: table-cell; vertical-align: middle; background-color: var(--s1); background-clip: padding-box; }
-.mf-list .mf-table .mf-namein { display: flex; align-items: flex-start; gap: 10px; min-width: 0; }
-.mf-list .mf-table tbody tr.mf-stopped th.mf-name { opacity: 1; }
-.mf-list .mf-table tbody tr.mf-stopped th.mf-name .mf-namein { opacity: .72; }
-@media (max-width: 640px) { .mf-list .mf-table .mf-namein { gap: 5px; } }   /* the phone's gap, as mf.css had on the cell */
-/* (3) a column half under the frozen column showed a strip of its figures beside it while the table slid. The sideways scroll stops only where a
-       column starts right at the frozen column's edge (--mf-fz, its width, set by FundTable.tsx, which also pads the end so the last stop is a column
-       edge too): no column is ever half hidden, at the start, in the middle or at the end. While slid, the frozen column has a firm 2px edge in the
-       strong border colour (tokens, light and dark), on both header rows and every body row. */
-.mf-list .mf-tablecard .tw { scroll-snap-type: x mandatory; scroll-padding-inline-start: var(--mf-fz, 0px); }
-.mf-list .mf-table thead tr:last-child > th:not(:first-child) { scroll-snap-align: start; }
-.mf-list .tw.is-scrolled .mf-table tbody th.mf-name, .mf-list .tw.is-scrolled .mf-table thead tr > th:first-child { box-shadow: 2px 0 0 var(--border-strong), 6px 0 0 -2px var(--border); }
+/* Task #430 (team, 27 Nov 2026: "no need of write up ... just the numbers ... for all the columns"): the cells hold their figure only (FundTable.tsx).
+   A Growth option's return shown on an IDCW row (task #281) is still told apart without words: in italics with a dotted underline, named on hover. */
+.mf-list .mf-table td .mf-grf > span:first-child { font-style: italic; text-decoration: underline dotted; text-underline-offset: 3px; }
+/* the words kept for screen readers (sr-only, absolutely placed) are anchored inside their cell, so they stay inside the table's scroll box and never
+   widen the page (without this the page scrolled sideways by up to 190px when the table was wider than the screen) */
+.mf-list .mf-table td .mf-rf, .mf-list .mf-table td .mfs-cell, .mf-list .mf-table td .mf-na-x { position: relative; }

@@ -10,7 +10,7 @@ import { Icon } from "../lib/icons";
 import type { Table } from "../lib/api";
 import { DUPONT_LIMITS as LIM } from "../lib/dupontRules";
 import {
-  anomalies, averages, completeness, deepYears, driver, driverRows, evaluateInsights, explain, gapList, insightContext, move, qualityScore, requiredMargin, roeVerdict, simRanges, simRoe, simStart, clampTo, tableRows, thresholdNotes, waterfall,
+  anomalies, averages, completeness, deepYears, driver, driverRows, evaluateInsights, gapList, insightContext, move, qualityScore, requiredMargin, roeVerdict, simRanges, simRoe, simStart, clampTo, tableRows, waterfall,
   type Basis, type TableRow, type View, type Why,
 } from "../lib/dupontDeep";
 import { MINUS, nf } from "../lib/format";
@@ -36,7 +36,6 @@ export function DecodeRoe({ pl, bs, lender, said = NONE }: { pl: Table | undefin
   const [view, setView] = useState<View>("reported");
   const [basis, setBasis] = useState<Basis>("year-end");
   const [hint, setHint] = useState<string | null>(null);
-  const [pick, setPick] = useState<string | null>(null);
   const [goal, setGoal] = useState(String(GOAL_DEFAULT));
   const [canLink, setCanLink] = useState(false);
   useEffect(() => { setCanLink(!!document.getElementById("financials")); }, []);
@@ -59,7 +58,6 @@ export function DecodeRoe({ pl, bs, lender, said = NONE }: { pl: Table | undefin
   const simKey = start ? `${start.year.period}|${basis}` : "";
   const rng = useMemo(() => (start ? simRanges(start) : null), [start]);
   const cur = start && rng ? (sim?.key === simKey ? sim : { key: simKey, m: clampTo(start.margin, rng.m), t: clampTo(start.turnover, rng.t), e: clampTo(start.multiplier, rng.e) }) : null;
-  const chosen = years.find((y) => y.period === pick) ?? start?.year ?? years[years.length - 1];
 
   if (!years.length) return null;
   const fmtCell = (row: TableRow, v: number | string | null, i: number) => {
@@ -79,7 +77,6 @@ export function DecodeRoe({ pl, bs, lender, said = NONE }: { pl: Table | undefin
   const goNum = Number(goal), goalOk = goal.trim() !== "" && Number.isFinite(goNum) && goNum > 0;
   const need = goalOk && cur ? requiredMargin(goNum, cur.t, cur.e) : null;
   const goStatements = (e: React.MouseEvent) => { const el = document.getElementById("financials"); if (el) { e.preventDefault(); el.scrollIntoView({ behavior: "smooth", block: "start" }); } };
-  const lines = chosen ? explain(chosen, basis, lender) : [];
   const driverWhy = !mv ? "Needs two years with margin, turnover and multiplier." : "Return on equity barely moved, or a loss year makes the log shares undefined.";
 
   return (
@@ -123,7 +120,8 @@ export function DecodeRoe({ pl, bs, lender, said = NONE }: { pl: Table | undefin
         })()}
       </div>
 
-      {/* task #216 (README 3.10): the seven detail cards of Decoding ROE are one tab group */}
+      {/* task #216 (README 3.10): the detail cards of Decoding ROE are one tab group. Developer file 44 (founder, 27 Nov 2026): "How it is calculated" is
+         removed, and the What-if calculator tab wears a crown. */}
       <TabGroup label="Decoding ROE" hint="ROE by year shown here" views={[
         { key: "year", label: "ROE by year", content: <>
       <div className="card dp-card">
@@ -209,7 +207,7 @@ export function DecodeRoe({ pl, bs, lender, said = NONE }: { pl: Table | undefin
         </>) : <p className="faint">{wf.reason}</p>}
       </div>
         </> },
-        { key: "whatif", label: "What-if calculator", content: <>
+        { key: "whatif", label: "What-if calculator", crown: "Key view", content: <>
       <div className="card dp-card">
         <div className="card-h"><h3><span className="ci"><Icon name="gauge" /></span>What-if calculator</h3><span className="s">{start ? `Starts at ${start.year.label} · ${basis === "average" ? "average" : "year-end"} balances` : "Needs a year with all three factors"}</span></div>
         {cur && start && rng ? (<>
@@ -228,26 +226,6 @@ export function DecodeRoe({ pl, bs, lender, said = NONE }: { pl: Table | undefin
           </div>
           <p className="faint dp-note">required margin = ROE ÷ (asset turnover × equity multiplier). This is arithmetic on the ratios set above, not a forecast of what the company will earn.</p>
         </>) : <p className="faint">No year has margin, asset turnover and equity multiplier together, so there is nothing to start from.</p>}
-      </div>
-        </> },
-        { key: "how", label: "How it is calculated", content: <>
-      <div className="card dp-card">
-          <div id={uid + "-how"} className="dp-howbody">
-            <label className="dp-pick">Year <select value={chosen.period} onChange={(e) => setPick(e.target.value)}>{years.map((y) => <option key={y.period} value={y.period}>{y.label}</option>)}</select></label>
-            <HScroll className="" label="calculation steps">
-              <table className="dp-t dp-how-t">
-                <caption className="sr-only">Formulas for {chosen.label} with the actual numbers, in ₹ crore</caption>
-                <thead><tr><th scope="col">Step</th><th scope="col">Formula</th><th scope="col">With the numbers (₹ crore)</th><th scope="col">Result</th></tr></thead>
-                <tbody>{lines.map((l) => <tr key={l.label}><th scope="row">{l.label}</th><td>{l.formula}</td><td>{l.working}</td><td>{l.result}</td></tr>)}</tbody>
-              </table>
-            </HScroll>
-            <ul className="dp-notes faint">
-              <li>Year-end balances use the closing balance sheet, which is what the DuPont card above uses. When equity or assets change sharply in a year, year-end figures can overstate or understate the return; the average option uses the mean of the opening and closing balance.</li>
-              <li>Each factor's share of an ROE move uses logs: ln(ROE last ÷ ROE first) = ln(margin ratio) + ln(turnover ratio) + ln(multiplier ratio), so the shares add up to 100%. A log is undefined for zero or negative values, so those years show no share. Shares are also hidden when ROE moved by less than 1 point (or under 10% of its own size), because dividing by a tiny move gives huge, misleading percentages. A single share can exceed 100% when another factor pushes the other way.</li>
-              {thresholdNotes().map((t) => <li key={t}>{t}</li>)}
-              <li>Observation sentences come from a rule list with thresholds that can be tuned; each card shows the numbers behind its sentence.</li>
-            </ul>
-          </div>
       </div>
         </> },
       ]} />

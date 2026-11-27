@@ -2,36 +2,63 @@
 // plus the pure keyboard rule of the panel's grid.
 export type NavItem = [id: string, label: string, icon: string, hint: string];
 
+/** Developer file 41 (founder, 25 Nov 2026): the report runs like a funnel, from the company out to its industry, its sector and the economy; News and
+ *  filings and the Discussions stay last. Chart lab (old 08) is merged into the sections it repeated and Gold insights (old 15) is gone. This list is the
+ *  one order: the page draws its sections in it, and each section's number comes from it (a test holds the page to it). */
 export const NAV: NavItem[] = [
   ["prism", "Scores", "gauge", "The FinLit Prism score: financial health and the technical view, side by side"],
+  // the company
   ["business", "Company", "building", "What the company does and how it earns"],
-  ["macro", "Economy", "globe", "Is the economy helping its sector? The reading, its drivers and indicators"],
-  ["notes", "Strengths & watch-outs", "notes", "Every red flag, watch item and strength in one list, each linking to its section"],
-  ["price", "Price", "line", "Price chart, returns and technical levels"],
+  ["notes", "Strengths & weaknesses", "notes", "Every red flag, watch item and strength in one list, each linking to its section"],
+  ["price", "Price", "line", "Price chart, returns, technical levels and price statistics"],
   ["quarter", "Quarter", "notes", "The latest quarter against a year ago"],
-  ["financials", "Financials", "bars", "Profit and loss, balance sheet and cash flow, quarterly and yearly"],
+  ["financials", "Financials", "bars", "Profit and loss, balance sheet and cash flow, quarterly and yearly, in tables and charts"],
   ["trends", "Trends", "line", "How sales, profit and cash have moved"],
-  ["charts", "Charts", "bars", "Price history, statements and ownership in charts"],
+  ["segments", "Segments", "pie", "Where the revenue comes from"],
   ["ratios", "Ratios", "gauge", "Valuation, returns, margins and debt"],
   ["dupont", "DuPont analysis", "layers", "What drives return on equity"],
   ["earnings", "Earnings & cash", "coins", "Is the profit real, and is it turning into cash?"],
-  ["ownership", "Ownership", "pie", "Promoters, institutions and the public"],
+  ["dividends", "Dividends", "coins", "Dividend history, bonus issues and splits, and what it would pay you"],
+  ["ownership", "Shareholding", "pie", "Promoters, institutions and the public"],
+  // its industry, its sector and the economy
   ["peers", "Peers", "layers", "How the company compares with its peers"],
-  ["sector", "Where it stands", "activity", "Its industry, its peers, its own price and its risk, one question per tab"],
-  ["insights", "What to watch", "crown", "Triggers to watch and where the company fits"],
-  ["segments", "Segments", "pie", "Where the revenue comes from"],
-  ["dividends", "Dividends", "coins", "Dividend history and what it would pay you"],
+  ["sector", "Industry", "activity", "Its industry against the others, and where the company ranks inside it"],   // developer file 47: the peers are 13's; no Risk tab
+  ["macro", "Macro", "globe", "Is the economy helping its sector? The reading, its drivers and indicators"],
+  // what it has filed, and what members say
   ["news", "News & filings", "notes", "Everything the company has filed with NSE, by group; routine filings hidden"],
   ["community", "Discussions", "users", "What members are discussing about this company: read, reply or start one"],
 ];
 
-/** The first section of each reading group: the bar draws a thin separator before it. */
-export const GROUP_START = new Set(["price", "quarter", "ratios", "ownership", "insights", "dividends", "community"]);
+/** Each report section's one heading (developer file 48), in the founder's own words of 27 Nov 2026, 2:30 pm (developer file 49): the names analysts use, so
+ *  a reader finds the DuPont analysis or the shareholding pattern by its name. 04 to 07 kept file 48's headings; 10 and 15 were for us to name. The
+ *  section bar, the All sections panel and a phone's closed rows use the short names in NAV above, which match these. */
+export const HEADING: Record<string, string> = {
+  business: "Company description",
+  notes: "Strengths and weaknesses",
+  price: "Price, technicals and returns",
+  quarter: "Latest quarterly results",
+  financials: "Profit & loss, balance sheet and cash flow",
+  trends: "Sales, profit and cash over the years",
+  segments: "Revenue by business segment",
+  ratios: "Financial ratios and history",
+  dupont: "DuPont analysis",
+  earnings: "Earnings quality and cash conversion",   // is the profit backed by cash, collections and stock, one-off items, the six checks
+  dividends: "Dividends and history",
+  ownership: "Shareholding pattern",
+  peers: "Comparison with peers",
+  sector: "Industry analysis",
+  macro: "Macro impact on the sector",   // the founder asked "economy vs sector, or macro?": it shows how rates, prices and growth bear on the sector, not a contest
+  news: "Exchange filings and news",
+  community: "Community discussions",
+};
 
-/** Task #216 (README 1.8): each chip and each "All sections" line shows its section number ("01 Company" … "19 Discussions"); Scores has none.
- *  Task #222 (19 Nov pack): 18 is News and filings (#news), its own section; Discussions is 19. */
-const NUMBERS: Record<string, string> = { business: "01", macro: "02", notes: "03", price: "04", quarter: "05", financials: "06", trends: "07", charts: "08", ratios: "09",
-  dupont: "10", earnings: "11", ownership: "12", peers: "13", sector: "14", insights: "15", segments: "16", dividends: "17", news: "18", community: "19" };
+/** The first section of each reading group: the bar draws a thin separator before it (price · results · ratios · shareholders · industry, sector and
+ *  economy · filings and discussions). */
+export const GROUP_START = new Set(["price", "quarter", "ratios", "dividends", "peers", "news"]);
+
+/** Each chip, each "All sections" line and each section heading shows its number ("01 Company" … "17 Discussions"); Scores has none. The numbers follow
+ *  NAV, so moving a section renumbers every place at once. */
+const NUMBERS: Record<string, string> = Object.fromEntries(NAV.filter(([id]) => id !== "prism").map(([id], i) => [id, String(i + 1).padStart(2, "0")]));
 export const sectionNo = (id: string): string | null => NUMBERS[id] ?? null;
 /** The sections to list (Where it stands took over the old Leadership section, final pages pack board 17). Task #283: the Scores line names FinLit Prism,
  *  FinLit's only company score, for every plan. */

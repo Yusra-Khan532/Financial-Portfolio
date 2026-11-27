@@ -1,13 +1,14 @@
 /* Task #215: the forecast card at the right of section 06's heading (scoped to .fcst) */
 .sh-r:has(> .fcst) { flex: 0 1 560px; min-width: 0; align-items: stretch; }
-.fcst { width: 100%; padding: 14px 16px 12px; border: 1px solid color-mix(in srgb, var(--p-growth) 45%, var(--border)); border-radius: var(--r-ctl); background: color-mix(in srgb, var(--p-growth) 6%, var(--s1)); text-align: left; }
+/* developer file 45: the box is the brand gold and its figures ink (green means only up; the CAGR chips keep it) */
+.fcst { width: 100%; padding: 14px 16px 12px; border: 1px solid color-mix(in srgb, var(--gold) 45%, var(--border)); border-radius: var(--r-ctl); background: color-mix(in srgb, var(--gold) 6%, var(--s1)); text-align: left; }
 .fcst .fcst-t { display: flex; align-items: center; gap: 6px; margin: 0 0 10px; font: 700 var(--fs-14, 14px) var(--sans); color: var(--text); }
-.fcst .fcst-t svg { width: 16px; height: 16px; color: var(--p-growth); }
+.fcst .fcst-t svg { width: 16px; height: 16px; color: var(--gold); }   /* developer file 45: a heading's icon is gold */
 .fcst .fcst-g { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .fcst .fcst-h { min-width: 0; padding: 0 14px; } .fcst .fcst-h:first-child { padding-left: 0; } .fcst .fcst-h + .fcst-h { border-left: 1px solid var(--border); padding-right: 0; }
 .fcst .fcst-l { margin: 0; font: 500 var(--fs-12, 12px) var(--sans); color: var(--muted); }
 .fcst .fcst-v { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin: 4px 0 0; }
-.fcst .fcst-v b { font: 700 var(--fs-20)/1.2 var(--sans); color: var(--p-growth); white-space: nowrap; } .fcst .fcst-v b.fcst-na { color: var(--muted); }
+.fcst .fcst-v b { font: 700 var(--fs-20)/1.2 var(--sans); color: var(--text); white-space: nowrap; } .fcst .fcst-v b.fcst-na { color: var(--muted); }
 .fcst .fcst-c { padding: 2px 8px; border: 1px solid currentColor; border-radius: var(--ui-r-pill); font: 600 var(--fs-12, 12px) var(--sans); white-space: nowrap; }
 .fcst .up { color: var(--gain); } .fcst .down { color: var(--loss); } .fcst .na { color: var(--muted); }
 .fcst .fcst-y { margin: 4px 0 8px; font: 400 var(--fs-12, 12px)/1.4 var(--sans); color: var(--muted); }

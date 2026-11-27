@@ -195,7 +195,7 @@ function GrowthChart({ s, band }: { s: SipState; band: Band }) {
 }
 
 // ------------------------------------------------------------------------------------------------------------- page
-const TABS = [["table", "Year by year"], ["goal", "Goal planner"], ["wait", "Cost of waiting"], ["tax", "After tax"], ["how", "How it is worked out"]] as const;
+const TABS = [["table", "Year by year"], ["goal", "Goal planner"], ["wait", "Cost of waiting"], ["tax", "After tax"]] as const;  // task #413: the "How it is worked out" tab was removed
 type TabKey = (typeof TABS)[number][0];
 
 export function SipCalculator() {
@@ -305,7 +305,6 @@ export function SipCalculator() {
             {tab === "goal" && <GoalPlanner s={s} />}
             {tab === "wait" && <Waiting s={s} />}
             {tab === "tax" && <TaxPane s={s} />}
-            {tab === "how" && <HowItWorks s={s} />}
           </div>
         </section>
 
@@ -409,31 +408,6 @@ function TaxPane({ s }: { s: SipState }) {
         </div>
         <p className="sip-hint">Each instalment is its own purchase: held more than 12 months it is long-term, otherwise short-term. Assumes everything is sold in one financial year, no other gains that year, and no surcharge. Debt funds are taxed at your slab rate and are not modelled. Tax rules change; check the current rules or ask a tax adviser.</p>
       </details>
-    </div>
-  );
-}
-
-function HowItWorks({ s }: { s: SipState }) {
-  const r = project(toInput(s));
-  const plain = s.stepKind === "none" && !s.lumpSum && s.timing === "end" && s.compounding === "monthly" && !s.months;
-  return (
-    <div className="sip-how">
-      <div className="sip-formula" aria-label="FV equals P times the quantity one plus i to the power n minus one, divided by i">
-        <span>FV</span><span>=</span><span>P</span><span>×</span>
-        <span className="frac"><span>(1 + i)<sup>n</sup> − 1</span><span>i</span></span>
-      </div>
-      <dl className="sip-vars">
-        <div><dt>P</dt><dd>monthly SIP: {rupees(s.monthly)}</dd></div>
-        <div><dt>i</dt><dd>monthly rate: {s.compounding === "monthly" ? `${s.annualReturn} ÷ 1200 = ` : ""}{nf(r.i, 6)}</dd></div>
-        <div><dt>n</dt><dd>number of instalments: {s.months ? `12 × ${s.years} + ${s.months}` : `12 × ${s.years}`} = {r.n}</dd></div>
-        <div><dt>FV</dt><dd>{plain ? <>{rupees(s.monthly)} × ((1 + {nf(r.i, 6)})<sup>{r.n}</sup> − 1) ÷ {nf(r.i, 6)} = <b>{rupees(r.value)}</b></> : <>worked out month by month with your options: <b>{rupees(r.value)}</b></>}</dd></div>
-      </dl>
-      <ul className="sip-how-l">
-        <li>Total invested = P × n{s.stepKind !== "none" || s.lumpSum ? " (with the step-up and the one-time amount added)" : ""} = {rupees(r.invested)}. Wealth gained = FV − total invested = {rupees(r.gain)}.</li>
-        <li>{s.timing === "end" ? "Instalments at the end of each month (the formula above)." : "Instalments at the start of each month: the formula above × (1 + i)."}</li>
-        <li>Every figure is calculated to full precision and rounded to the rupee only on screen. With no options, the month-by-month result equals the formula exactly.</li>
-        <li>Today's money divides the value by (1 + inflation) for every year: {rupees(r.value)} ÷ (1 + {s.inflation}%)<sup>{nf(r.n / 12, r.n % 12 ? 2 : 0)}</sup> = {rupees(realValue(r.value, s.inflation, r.n))}.</li>
-      </ul>
     </div>
   );
 }

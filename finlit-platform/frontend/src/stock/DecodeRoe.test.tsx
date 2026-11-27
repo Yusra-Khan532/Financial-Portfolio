@@ -72,13 +72,10 @@ describe("Decoding ROE, Reliance", () => {
     expect(screen.getByText(/not a forecast/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /Reset to Mar 2026/ })); expect(Number(m.value)).toBeCloseTo((43851 / 524105) * 100, 6);
   });
-  it("'How it is calculated' shows the actual numbers of the chosen year", () => {
+  it("'How it is calculated' is gone (developer file 44, founder 27 Nov 2026: \"remove how it is calculated\")", () => {
     show();
-    tabTo(/How it is calculated/);   // the tab opens the working; no separate open/close button
-    const tbl = screen.getByRole("table", { name: /Formulas for Mar 2026/ }); expect(tbl.textContent).toContain("43,851 ÷ 5,24,105"); expect(tbl.textContent).toContain("8.37%");
-    fireEvent.change(screen.getByLabelText("Year"), { target: { value: "FY19" } });
-    expect(screen.getByRole("table", { name: /Formulas for Mar 2019/ }).textContent).toContain("35,163 ÷ 3,84,904");
-    expect(screen.getByText(/Year-end balances use the closing balance sheet/)).toBeTruthy();
+    expect(screen.queryByRole("tab", { name: /How it is calculated/ })).toBeNull();
+    expect(screen.queryByRole("table", { name: /Formulas for/ })).toBeNull();
   });
   it("offers no download (task #216: the report has no downloads)", () => {
     show();
@@ -86,8 +83,8 @@ describe("Decoding ROE, Reliance", () => {
   });
 
   it("steady, ordinary figures: the Checks tab says nothing was flagged (every blank says why)", () => { show(); tabTo(/Checks/); expect(screen.getByText(/No year stands out/)).toBeTruthy(); expect(document.querySelector(".dp-flags")).toBeNull(); });
-  it("the seven detail cards are one tab group, in the pack's order (task #216, README 3.10)", () => {
-    show(); expect(screen.getAllByRole("tab").map((x) => x.textContent?.replace(/^\d/, ""))).toEqual(["ROE by year", "ROE and ROA", "Checks", "What the figures say", "Extended DuPont", "What-if calculator", "How it is calculated"]);
+  it("the six detail cards are one tab group, in the pack's order (task #216, README 3.10; developer file 44)", () => {
+    show(); expect(screen.getAllByRole("tab").map((x) => x.textContent?.replace(/^\d/, ""))).toEqual(["ROE by year", "ROE and ROA", "Checks", "What the figures say", "Extended DuPont", "What-if calculator, Key view"]);   // developer file 44: no How it is calculated; a crown on What-if
   });
 });
 

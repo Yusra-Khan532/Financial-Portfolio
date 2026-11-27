@@ -7,6 +7,7 @@ import { useState } from "react";
 import { BAND_RANGE, KINDS, useFilingScores, type Band, type DocKind, type FsDoc, type FsPoint } from "../lib/filingScores";
 import { possessive } from "./DiscoverThemes";
 import "../styles/filing-scores.css";
+import { sectionNo } from "../lib/sectionNav";
 
 const KIND_LINE: Record<DocKind, string> = { P: "Slides and their notes, split by slide, bullet and table row.", C: "What management said on the call; analysts' questions and the moderator are left out.",
   R: "The results, notes and auditor's report, split by line and paragraph." };
@@ -38,7 +39,7 @@ function PointRow({ p }: { p: FsPoint }) {
 function DocCard({ k, d }: { k: DocKind; d: FsDoc }) {
   const [all, setAll] = useState(false);
   const head = <><h4 className="fs-h">{d.name}</h4><p className="fs-sub">{KIND_LINE[k]}</p></>;
-  if (d.status === "none") return <article className="fs-doc none">{head}<p className="fs-empty">No {d.name.toLowerCase()} in Section 18 or in the company's stored filings of the last 400 days.</p></article>;
+  if (d.status === "none") return <article className="fs-doc none">{head}<p className="fs-empty">No {d.name.toLowerCase()} in Section {sectionNo("news")} or in the company's stored filings of the last 400 days.</p></article>;
   const src = d.doc && <p className="fs-src">{day(d.doc.date)} · {d.doc.source === "section18" ? "from the list above" : "from the company's stored filings"} · <a href={d.doc.link} target="_blank" rel="noopener noreferrer">PDF ↗</a></p>;
   if (d.status === "reading") return <article className="fs-doc">{head}{src}<div className="fs-reading" aria-busy="true"><span className="skeleton" />Reading the file from the exchange. This takes up to a minute the first time.</div></article>;
   if (d.status === "unreadable") return <article className="fs-doc">{head}{src}<p className="fs-empty">{d.why}</p></article>;
@@ -77,8 +78,10 @@ export function FilingScores({ symbol, name }: { symbol: string; name: string })
   return (
     <div className="card fs-card" id="filing-scores" aria-labelledby="fs-title">
       <div className="fs-top">
-        <div><h3 id="fs-title" className="fs-title">The three filings, point by point</h3>
-          <p className="fs-lede">{possessive(name)} newest investor presentation, earnings call transcript and results filing, each broken into short points and scored from 0 to 100 by fixed word rules (no AI).</p></div>
+        {/* developer file 47 (founder, 27 Nov 2026: rename "The three filings, point by point" to "Sentiment analysis"): what task #266 asked for, the tone of
+            what each document says; the scores still show as numbers and colours only, never a word such as positive or negative */}
+        <div><h3 id="fs-title" className="fs-title">Sentiment analysis</h3>
+          <p className="fs-lede">The tone of {possessive(name)} newest investor presentation, earnings call transcript and results filing, point by point: each split into short points and scored from 0 to 100 by fixed word rules (no AI).</p></div>
         <p className="fs-legend" aria-label="Score ranges"><span><i className="fs-sw b-green" aria-hidden="true" />65–100</span><span><i className="fs-sw b-yellow" aria-hidden="true" />40–64</span><span><i className="fs-sw b-red" aria-hidden="true" />0–39</span></p>
       </div>
       {q.isLoading ? <div className="skeleton" style={{ height: 220 }} aria-busy="true" aria-label="Loading the filing scores" />

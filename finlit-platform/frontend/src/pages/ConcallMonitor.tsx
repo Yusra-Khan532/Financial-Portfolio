@@ -20,6 +20,7 @@ import { useDocTitle } from "../lib/title";
 import { ApiError } from "../lib/api";
 import { dayLabel, fileUrl, filedDay, shortDay, summaryBlocks, timeText, useCalls, writeSummary,
   type Call, type CallList, type Has, type Scope, type Sort, type Summary, type Tab } from "../lib/concalls";
+import { downloadSummaryPdf } from "../lib/summaryPdf";
 import { Chips, Dd, Ico, OptList, Sw, type Opt } from "../discovery/Toolbar";
 import "../styles/concall.css";
 import "../discovery/discover.css";
@@ -70,6 +71,7 @@ function PptPanel({ c }: { c: Call }) {
 function SummaryPanel({ c }: { c: Call }) {
   const { user, plan } = useAuth();
   const [state, setState] = useState<{ s?: Summary; err?: string; busy?: boolean }>({});
+  const [pdf, setPdf] = useState<"" | "busy" | "failed">("");
   const asked = useRef(false);
   const link = c.summary.link;
   const allowed = !!user && plan !== "basic";
@@ -86,14 +88,33 @@ function SummaryPanel({ c }: { c: Call }) {
   if (state.err) return <Why text={state.err} />;
   const s = state.s;
   if (!s) return null;
+  const download = () => {
+    setPdf("busy");
+    downloadSummaryPdf({ text: s.text, company: c.name, symbol: c.symbol, kind: c.kind, quarter: c.quarter, callDate: c.date ? shortDay(c.date) : null,
+      source: s.source, written: s.written ? new Date(s.written) : new Date(), disclaimer: s.disclaimer })
+      .then(() => setPdf(""), () => setPdf("failed"));
+  };
   return (
     <div className="ccm-sum">
-      {summaryBlocks(s.text).map((b, i) => "h" in b ? <h4 key={i}>{b.h}</h4> : <p key={i} className="ccm-li" dangerouslySetInnerHTML={{ __html: bold(b.li) }} />)}
+      {summaryBlocks(s.text).map((b, i) => "h" in b ? (b.sub ? <h5 key={i}>{b.h}</h5> : <h4 key={i}>{b.h}</h4>)
+        : <p key={i} className="ccm-li" dangerouslySetInnerHTML={{ __html: pageRefs(bold(b.li)) }} />)}
+      <div className="ccm-dl">
+        <button type="button" className="btn primary ccm-dl-btn" disabled={pdf === "busy"} onClick={download}>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0l-4.5-4.5M12 15l4.5-4.5M5 19h14" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          {pdf === "busy" ? "Preparing the PDF…" : "Download AI Summary"}</button>
+        <span className="ccm-dl-note">{pdf === "failed" ? "The PDF could not be made just now; try again." : "PDF · the whole summary with its page references"}</span>
+      </div>
       <p className="ccm-src">Written by FinLit AI from the {s.source === "transcript" ? "call's transcript" : "investor presentation (no transcript filed yet)"}
-        {s.cached ? " · opened free (written earlier)" : ` · ${s.used} of ${s.limit} AI summaries used this month`}</p>
+        {s.rewritten ? " · rewritten in the new, fuller form; none of your summaries was used"
+          : s.cached ? " · opened free (written earlier)" : ` · ${s.used} of ${s.limit} AI summaries used this month`}</p>
       <p className="ccm-disc">{s.disclaimer}</p>
       {link && <AiFeedback surface="concall_summary" refKey={link} text={s.text} label="this summary" />}
     </div>);
+}
+
+/** Task #432: a point's page reference, "(p. 5)" or "(pp. 5, 7)", as a small chip (the text is already escaped). */
+function pageRefs(html: string) {
+  return html.replace(/\((pp?\.\s*[\d,\s\-–and]+)\)/g, '<span class="ccm-pg">$1</span>');
 }
 
 /** **word** -> <b>word</b>, the rest escaped. */

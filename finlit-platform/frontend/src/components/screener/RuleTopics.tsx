@@ -2,7 +2,7 @@
 // lists its filters, each with a checkbox (show its column) and a down arrow (its range, inline; task #402), or the plan that has it. Every group of the catalogue is shown, with its own count; a group this map
 // does not know yet falls under "Other rules", so none is ever lost. The panel's search narrows every group at once to the filters that match, by name
 // first and then by meaning, and opens those groups. Each filter's (i) shows its own one-line meaning from the catalogue (no new definitions).
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Info } from "../Info";
 import { rankMetrics } from "../../lib/metricSearch";
 import { TIER, type Plan } from "../../lib/ui";
@@ -29,13 +29,38 @@ export function topicsOf<G extends { id: string }>(groups: G[]): { id: string; l
 const better = (m: MetricInfo) => (m.better === "higher" ? "Higher is better." : m.better === "lower" ? "Lower is better." : undefined);
 
 /** Task #402: each filter is a checkbox (ticked = its column is in the table with every company's figure, nothing filtered) and a down arrow that opens
- *  its range inline under the row; setting a range ticks the box. `range(m)` draws that metric's range card; `show`/`hide` add or take off its column. */
-export function RuleTopics({ groups, q, has, show, hide, range, ask }: {
+ *  its range inline under the row; setting a range ticks the box. `range(m)` draws that metric's range card; `show`/`hide` add or take off its column.
+ *  Task #415: the range card lives only here, in the dropdown (never as a second card above the list). So a range is never out of sight, a filter that
+ *  gets a range from anywhere (a typed rule, a saved or shared screen, + Add a rule) opens its group and its arrow once, and `focus` (the rule just
+ *  added or asked for) does the same. `rangedKeys` are the filters' keys with a range on. */
+export function RuleTopics({ groups, q, has, show, hide, range, ask, rangedKeys = [], focus = null }: {
   groups: GroupInfo[]; q: string; has: (k: string) => boolean; show: (m: MetricInfo) => void; hide: (m: MetricInfo) => void;
-  range: (m: MetricInfo) => ReactNode; ask: (tier: Plan, why: string) => void;
+  range: (m: MetricInfo) => ReactNode; ask: (tier: Plan, why: string) => void; rangedKeys?: string[]; focus?: string | null;
 }) {
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const [ranged, setRanged] = useState<Record<string, boolean>>({});
+  const groupOf = useMemo(() => new Map(groups.flatMap((g) => g.metrics.map((m) => [m.key, g.id] as const))), [groups]);
+  const seen = useRef<Set<string>>(new Set());
+  const lastFocus = useRef<string | null>(null);
+  const auto = useRef<Set<string>>(new Set());  // range boxes this opened by itself: they close again when their rule goes (× or Clear all)
+  const rangedSig = [...new Set(rangedKeys)].sort().join(",");
+  const onSig = groups.flatMap((g) => g.metrics.filter((m) => has(m.key) || !!(m.variants && Object.values(m.variants).some(has))).map((m) => m.key)).join(",");
+  useEffect(() => {
+    const now = rangedSig ? rangedSig.split(",") : [], on = new Set(onSig ? onSig.split(",") : []);
+    const fresh = now.filter((k) => !seen.current.has(k) && groupOf.has(k));
+    seen.current = new Set(now.filter((k) => groupOf.has(k)));
+    const asked = focus !== lastFocus.current && !!focus && groupOf.has(focus);   // the rule just added or asked for, once
+    lastFocus.current = focus;
+    const go = [...fresh, ...(asked ? [focus!] : [])];
+    const gone = [...auto.current].filter((k) => !on.has(k) && !go.includes(k));
+    gone.forEach((k) => auto.current.delete(k));
+    if (!go.length && !gone.length) return;
+    if (go.length) setOpen((o) => ({ ...o, ...Object.fromEntries(go.map((k) => [groupOf.get(k)!, true])) }));
+    setRanged((x) => {
+      go.forEach((k) => { if (!x[k]) auto.current.add(k); });
+      return { ...x, ...Object.fromEntries(go.map((k) => [k, true])), ...Object.fromEntries(gone.map((k) => [k, false])) };
+    });
+  }, [rangedSig, onSig, focus, groupOf]);
   const t = q.trim().toLowerCase();
   const shown = useMemo(() => groups.map((g) => {
     const all = g.metrics.filter((m) => !m.hidden);

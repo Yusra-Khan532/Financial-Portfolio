@@ -21,6 +21,10 @@
 .cz-scrim { position: fixed; inset: 0; }
 .cz-body { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; }
 .cz-body .cz-host { width: 100%; }
+/* developer file 49: in the company report the enlarged chart sits in copies of its own ancestors (ChartZoom scopeChain) so its section's styles still
+   match; the copies draw nothing, not even a ::before or ::after (a card's edge) */
+.cz-body [data-cz-scope] { display: contents !important; }
+.cz-body [data-cz-scope]::before, .cz-body [data-cz-scope]::after { content: none !important; display: none !important; }
 .cz-body .cz-host svg[viewBox] { max-height: calc(100dvh - 150px); }
 @media (max-width: 640px) { .cz-modal { inset: 0; border-radius: 0; border-width: 0; padding: 12px 12px calc(12px + env(safe-area-inset-bottom, 0px)); } }
 @media print { .cz-btn, .cz-modal, .cz-scrim { display: none !important; } }

@@ -49,8 +49,10 @@ def monthly_returns(dates: List[str], closes: List[float]) -> dict:
 
 def drawdown(dates: List[str], closes: List[float], max_points: int = 420) -> dict:
     peak, series = 0.0, []
-    worst, worst_day = 0.0, None
+    worst, worst_day, last_high = 0.0, None, None
     for t, c in zip(dates, closes):
+        if c >= peak:
+            last_high = t
         peak = max(peak, c)
         dd = (c / peak - 1) * 100 if peak else 0.0
         series.append(dd)
@@ -64,8 +66,12 @@ def drawdown(dates: List[str], closes: List[float], max_points: int = 420) -> di
         j = min(range(len(window)), key=lambda k: window[k])
         t_out.append(dates[i + j])
         d_out.append(_r(window[j], 2))
+    # developer file 47: the line ends on the last session, so its end matches "current" (the last window's deepest day could be days earlier)
+    if series and t_out and t_out[-1] != dates[-1]:
+        t_out.append(dates[-1])
+        d_out.append(_r(series[-1], 2))
     return {"t": t_out, "dd": d_out, "max": {"pct": _r(worst, 1), "date": worst_day},
-            "current": _r(series[-1], 1) if series else None}
+            "current": _r(series[-1], 1) if series else None, "lastHigh": last_high}
 
 
 def rolling_volatility(dates: List[str], closes: List[float], window: int = 60, max_points: int = 420) -> dict:
@@ -78,10 +84,16 @@ def rolling_volatility(dates: List[str], closes: List[float], window: int = 60, 
             vol[i] = math.sqrt(sum((x - m) ** 2 for x in w) / (window - 1)) * math.sqrt(252)
     step = max(1, len(vol) // max_points)
     idx = [i for i in range(0, len(vol), step) if vol[i] is not None]
-    last = next((v for v in reversed(vol) if v is not None), None)
+    known = [i for i in range(len(vol)) if vol[i] is not None]
+    # developer file 47: the line ends on the last session with a value, so its end matches "current"
+    if known and idx and idx[-1] != known[-1]:
+        idx.append(known[-1])
+    last = vol[known[-1]] if known else None
     clean = [v for v in vol if v is not None]
+    top = max(known, key=lambda i: vol[i]) if known else None
     return {"t": [dates[i] for i in idx], "vol": [_r(vol[i], 1) for i in idx], "window": window, "current": _r(last, 1),
-            "median": _r(sorted(clean)[len(clean) // 2], 1) if clean else None}
+            "median": _r(sorted(clean)[len(clean) // 2], 1) if clean else None,
+            "high": {"v": _r(vol[top], 1), "date": dates[top]} if top is not None else None}
 
 
 def histogram(closes: List[float]) -> dict:

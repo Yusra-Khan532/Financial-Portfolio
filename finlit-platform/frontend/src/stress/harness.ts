@@ -1,4 +1,5 @@
 // Test helpers for the Stress Lab page (task 79): draw a payload into a shadow root the way StressLab.tsx does, and press every control on it.
+import { afterEach } from "vitest";
 import StressEngine from "./engine";
 import { mountStressLab } from "./stressLab";
 import { skeleton } from "./skeleton";
@@ -14,6 +15,12 @@ export const peerOf = (p: Payload, sym = "PEERCO", name = "Peer Co Ltd") => {
   return { company: b.company, scenarios: b.scenarios, history: (b.history || []).map((h: any) => ({ ...h, [sym]: h[p.company.symbol] })), same_quarter: true, picked: false };
 };
 
+// Every lab drawn here is destroyed after its test: mountStressLab's destroy() removes its listeners and clears its timers (the 400 and 1500 ms
+// section-bar re-measures of task #401). Without it a timer could fire after the test file's page was torn down ("document is not defined"
+// in CI when a file finished within 1.5 s), an unhandled error that fails the run although every test passed.
+const drawn: { destroy: () => void }[] = [];
+afterEach(() => { while (drawn.length) drawn.pop()!.destroy(); });
+
 export function draw(p: Payload, view: "single" | "compare" = "single", peer: any = null, more: Record<string, unknown> = {}) {
   const el = document.createElement("div"); document.body.append(el);
   const root = el.attachShadow({ mode: "open" });
@@ -24,6 +31,7 @@ export function draw(p: Payload, view: "single" | "compare" = "single", peer: an
     d.history = d.history.map((r: any) => (byEp.get(r.episode)?.[peer.company.symbol] !== undefined ? { ...r, [peer.company.symbol]: byEp.get(r.episode)[peer.company.symbol] } : r));
   }
   const h = mountStressLab(root, StressEngine, d, { view, peer, logoUrl: () => "", search: () => [], onCompany() {}, onPeer() {}, requestPeer() {}, ...more } as never);
+  drawn.push(h as { destroy: () => void });
   return { root, h };
 }
 

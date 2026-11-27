@@ -24,7 +24,7 @@ const ZOOM = [
   "components/lab/TradingJournal.tsx", // Trading Lab > Order Flow > Trading journal: the cumulative P&L curve and the daily P&L calendar
   // company page
   "charts/MiniBars.tsx", "charts/PriceChart.tsx", "charts/IntradayChart.tsx", "charts/FinChart.tsx", "charts/LineChart.tsx", "charts/RoeLines.tsx", "charts/Waterfall.tsx", "charts/Radar.tsx", "charts/OutlookChart.tsx",
-  "stock/Sections.tsx", "stock/Sections2.tsx", "stock/Sections3.tsx", "stock/ChartLab.tsx", "stock/SegmentMix.tsx", "stock/ProfitReality.tsx", "stock/RevenueCash.tsx",
+  "stock/Sections.tsx", "stock/Sections2.tsx", "stock/Sections3.tsx", "stock/MoreCharts.tsx", "stock/SegmentMix.tsx", "stock/ProfitReality.tsx", "stock/RevenueCash.tsx",
   "stock/ScoreMoves.tsx", "stock/PrismHistory.tsx", "stock/MacroOutlook.tsx", "stock/own/OwnCharts.tsx", "stock/own/OwnersToday.tsx", "components/prism/pzr/History.tsx",
   // markets, flows, macro, sectors
   "pages/marketsIndex.tsx", "components/FlowsCharts.tsx", "pages/Macro.tsx",
@@ -43,6 +43,7 @@ const OWN: { file: string; needle: RegExp; why: string }[] = [
 
 /** Drawings with nothing to enlarge: sparklines, gauges and rings that show one figure, decorative art, icons, tiny inline bars. */
 const EXEMPT: Record<string, string> = {
+  "stock/ProfitCharts.tsx": "Financials' profit and loss walk and ₹100 chart (developer file 42): drawn inside stock/MoreCharts.tsx's Card, whose ChartZoom carries the enlarge arrow",
   "components/lab/FlowTips.tsx": "the small day's path inside an Order Flow hover card (founder, 26 Nov 2026); the card follows the pointer, so it cannot hold an arrow, and the full chart is on the page",
   "components/AskChatMenu.tsx": "only the pin mark on a pinned FinLit AI chat (owner, 25 Nov 2026); no data",
   "components/mobile/MobileApp.tsx": "icons only: the Menu sheet's close mark and the Tools button's plus (docs/MOBILE-APP.md)",
@@ -93,6 +94,7 @@ const EXEMPT: Record<string, string> = {
   "components/ChartSays.tsx": "The collapsible reading under a chart: it has a small caret icon, not a chart.",
   "charts/Small.tsx": "sparklines, the RSI gauge and a small donut (the donut is wrapped where it is a chart: Fundamentals)",
   "charts/Atlas.tsx": "chart primitives; the arrow is on the card that holds them (Chart lab cards, Fundamentals, fund portfolio mix)",
+  "charts/RiskLine.tsx": "the drawdown and volatility line of Price statistics (developer file 47); the arrow is on the card that holds it (MoreCharts' Card)",
   "components/GraphCharts.tsx": "chart builder primitives; the builder's cells have their own arrow (GraphStudio)",
   "components/DrawLayer.tsx": "drawing tool layer, not a chart",
   "components/Art.tsx": "decorative art", "components/BlogArt.tsx": "decorative art", "components/PageArt.tsx": "decorative art", "components/PageHeaderArt.tsx": "decorative art",

@@ -259,7 +259,16 @@
 
 /* methodology and important notes (task #396) */
 .dcx-meth{padding:18px 22px}
-.dcx-meth h2{margin:0 0 10px;font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif);color:var(--text)}
+.dcx-meth h2{margin:0;font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif);color:var(--text)}
+/* task #412: a drop-down; the whole title row opens and closes it */
+.dcx-meth>summary{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:2px 16px;cursor:pointer;list-style:none;border-radius:var(--r-ctl)}
+.dcx-meth>summary::-webkit-details-marker{display:none}
+.dcx-meth>summary:focus-visible{outline:2px solid var(--dcx-acc);outline-offset:4px}
+.dcx-meth>summary h2{grid-column:1}
+.dcx-meth .dcx-ms{grid-column:1;font:var(--fs-13)/1.45 var(--sans);color:var(--muted)}
+.dcx-meth .dcx-mtg{grid-column:2;grid-row:1/span 2;display:inline-flex;align-items:center;gap:8px;min-height:36px;padding:0 14px;border:1px solid var(--border-strong);border-radius:var(--ui-r-pill);background:var(--s1);color:var(--text);font:600 var(--fs-13) var(--sans)}
+.dcx-meth>summary:hover .dcx-mtg{border-color:var(--dcx-acc)}
+.dcx-meth[open]>summary{margin-bottom:14px}
 .dcx-mg{display:grid;grid-template-columns:1fr 1fr;gap:4px 32px}
 .dcx-mg p{margin:0 0 10px;font:var(--fs-13)/1.65 var(--sans);color:var(--muted)}
 .dcx-mg b{color:var(--text)}
@@ -340,6 +349,15 @@
   .dcx-num input{height:42px;font-size:var(--fs-16)}
   .dcx-mg{grid-template-columns:1fr}
   .dcx-meth{padding:16px 14px}
+  .dcx-meth .dcx-mtg{min-height:44px;padding:0 12px}
   .dcx-bridge tr.sub th{padding-left:8px}
 }
 @media (prefers-reduced-motion:reduce){.dcx .dcx-codet{animation:none}.dcx-chev{transition:none}}
+/* task #416: the bear, base, bull table's boxes and plain figures share one centre. Cause: dcf.css loads after this file in the build and its
+   ".dcf th,.dcf td{text-align:left;vertical-align:top}" (same weight as .dcx-t) pinned every cell top-left, so the 30px boxes and the plain text sat
+   at different heights and the base row's figures started left of the boxes above and below. Scoped to this table only, one class heavier. */
+.dcx .dcx-sc th,.dcx .dcx-sc td{text-align:center;vertical-align:middle}
+.dcx .dcx-sc thead th{vertical-align:middle}   /* the headers too, also where they wrap to two lines (1100px and below) */
+.dcx .dcx-sc tfoot th{text-align:left}
+.dcx .dcx-sc input{text-align:center;vertical-align:middle}
+.dcx .dcx-sc .lk{width:auto;padding:0}

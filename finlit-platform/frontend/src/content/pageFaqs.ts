@@ -199,7 +199,7 @@ export const PAGE_FAQS: PageFaq[] = [
    },
    {
     "q": "What is in a report?",
-    "a": "The FinLit Prism score and how it has moved, then sections for the company, the macro and sector outlook, what is going well and what to watch, price, latest quarter, financials, trends, chart lab, ratios, DuPont analysis, earnings and cash quality, ownership, peers, where the company stands, triggers, segments, dividends and community discussions. Use All sections to jump between them. Labels such as Basic, Silver and Gold show which plan opens each section."
+    "a": "The FinLit Prism score and how it has moved, then sections that go from the company out to its industry, its sector and the economy: the company, what is going well and what to watch, price, latest quarter, financials, trends, segments, ratios, DuPont analysis, earnings and cash quality, dividends, ownership, peers, where the company stands, the economy and its sector, news and filings, and community discussions. Use All sections to jump between them. Labels such as Basic, Silver and Gold show which plan opens each section."
    },
    {
     "q": "What does the FinLit Prism score at the top mean?",
@@ -478,7 +478,7 @@ export const PAGE_FAQS: PageFaq[] = [
   "items": [
    {
     "q": "How is the SIP value worked out?",
-    "a": "With the standard formula: monthly SIP × ((1 + i)^n − 1) ÷ i, where i is the annual return ÷ 12 and n the number of monthly instalments, paid at the end of each month. How it is worked out shows your numbers in the formula."
+    "a": "With the standard formula: monthly SIP × ((1 + i)^n − 1) ÷ i, where i is the annual return ÷ 12 and n the number of monthly instalments, paid at the end of each month."
    },
    {
     "q": "Why is my result different from another app?",

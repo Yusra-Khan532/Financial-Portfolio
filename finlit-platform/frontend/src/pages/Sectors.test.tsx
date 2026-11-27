@@ -19,6 +19,7 @@ vi.mock("../lib/leadership", async (orig) => ({ ...(await orig<typeof import("..
 vi.mock("../lib/ui", () => ({ useUI: () => ({ toast: vi.fn(), plan: "basic", upgrade: vi.fn(), has: () => true }), TIER: { basic: { n: "Basic", ic: "sprout", tc: "--t-basic" }, silver: { n: "Silver", ic: "medal", tc: "--t-silver" }, gold: { n: "Gold", ic: "crown", tc: "--t-gold" } } }));
 vi.mock("../lib/rotation", async (orig) => ({ ...(await orig<typeof import("../lib/rotation")>()), useRotationMap: () => ({ data: undefined, isLoading: false, isError: false }), useRotationCard: () => ({ data: rotationCard(), isLoading: false, isError: false }) }));   // the rotation card has its own tests (Rotation.test.tsx)
 vi.mock("../lib/title", () => ({ useDocTitle: () => undefined }));
+vi.mock("../lib/auth", async (orig) => ({ ...(await orig<typeof import("../lib/auth")>()), useAuth: () => ({ user: null }) }));   // developer file 43: Where it stands' notes pill keys its open cards by member
 vi.mock("../lib/planScore", async (orig) => ({ ...(await orig<typeof import("../lib/planScore")>()), usePlanModel: () => null, usePlanPrism: () => ({}) }));
 vi.mock("../lib/api", async (orig) => ({ ...(await orig<typeof import("../lib/api")>()), usePrice: () => ({ data: undefined }) }));
 import { LearnSectorSignalsPage } from "./LearnSectorSignals";
@@ -63,8 +64,7 @@ describe("helpers", () => {
 // The industry page itself (the final pages pack) is tested in SectorIndustry.test.tsx.
 
 // "Where it stands" (final pages pack, board 17) replaced the stock page's Sector & peers section: its industry tab, from the same sector JSON.
-const SUM = { returns: [], quote: { price: 100, high52: 120, marketCapCr: 8000 }, keyMetrics: [] } as never;
-const where = (sym = "SAMBHV", name = "Sambhv Steel Tubes") => render(<MemoryRouter><WhereStands symbol={sym} name={name} s={SUM} /></MemoryRouter>);
+const where = (sym = "SAMBHV", name = "Sambhv Steel Tubes") => render(<MemoryRouter><WhereStands symbol={sym} name={name} /></MemoryRouter>);
 describe("stock page section", () => {
   it("shows the industry's rotation box, rank, figures and the box that may change", () => {
     st.stock = { ...S, rotation: null };
@@ -78,7 +78,7 @@ describe("stock page section", () => {
   it("writes where the stock ranks inside its industry, from the sector JSON", () => {
     where();
     const t = screen.getByTestId("where-stands").textContent ?? "";
-    expect(t).toContain("Where Sambhv Steel Tubes stands"); expect(t).toContain("20th of 105");
+    expect(t).toContain("where Sambhv Steel Tubes ranks inside it");   // developer file 47: 14 is Industry, one heading and its line expect(t).toContain("20th of 105");
     expect(t).toContain("Inside its industry: 6-month return"); expect(t).toContain("Sector Pulse · the last few days");
     expect(screen.getByRole("link", { name: /Open the .* page/ }).getAttribute("href")).toBe("/sectors/industrial-products");
     expect(t).toContain("not a recommendation");
