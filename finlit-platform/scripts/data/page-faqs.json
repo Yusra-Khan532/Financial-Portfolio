@@ -486,7 +486,7 @@
   "items": [
    {
     "q": "How is the SIP value worked out?",
-    "a": "With the standard formula: monthly SIP × ((1 + i)^n − 1) ÷ i, where i is the annual return ÷ 12 and n the number of monthly instalments, paid at the end of each month. How it is worked out shows your numbers in the formula."
+    "a": "With the standard formula: monthly SIP × ((1 + i)^n − 1) ÷ i, where i is the annual return ÷ 12 and n the number of monthly instalments, paid at the end of each month."
    },
    {
     "q": "Why is my result different from another app?",
