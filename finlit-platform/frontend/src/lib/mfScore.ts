@@ -18,20 +18,17 @@ export function scoreFootLine(day: string | null, kind?: string | null, text?: s
 export const MF_SCORE_NOTE = "Describes the fund's health from its past NAVs, costs and holdings; not a recommendation.";
 export const MF_SCORE_COMPLIANCE = `${MF_SCORE_NOTE} Information only, not investment advice.`;
 export const MF_METHOD_URL = "/methodology/mf-score";
-/** Task #403: what a high and a low part mean, shown under the part bars wherever the score card shows them (one wording everywhere).
+/** Task #403 (reworked 27 Nov 2026: one line on each part, not one note under all four): what a high figure means on each of the Score's parts.
  *  Every part is read against funds of the same category, and higher is better on all four: on Risk and Cost a high figure means LOWER risk and LOWER costs. */
 export const PART_HIGH: Record<string, string> = {
   performance: "did better than similar funds",
-  risk: "lower risk: a calmer ride, smaller falls",
+  risk: "a calmer ride, smaller falls",
   cost: "lower costs",
-  quality: "proven, large enough and soundly built",
+  quality: "proven, large enough, soundly built",
 };
-export const HIGH_LOW_LEAD = "High and low:";
-export const HIGH_LOW_TAIL = "every part is read against funds of the same category, and higher is better on all four; low means the opposite.";
-const HIGH_LOW_ORDER = [["performance", "Performance"], ["risk", "Risk"], ["cost", "Cost"], ["quality", "Quality"]] as const;
-/** The whole note as one line of text (for tests and plain-text places). */
-export const highLowText = (): string => `${HIGH_LOW_LEAD} ${HIGH_LOW_TAIL} ${HIGH_LOW_ORDER.map(([k, n]) => `High ${n} = ${PART_HIGH[k]}`).join(" · ")}.`;
-export { HIGH_LOW_ORDER };
+export const PART_LEAD = "Higher is better:";
+/** The part's line ("Higher is better: lower costs"), or null for a key that is not one of the four parts. */
+export const partLine = (key: string): string | null => (PART_HIGH[key] ? `${PART_LEAD} ${PART_HIGH[key]}` : null);
 
 export const PILLAR_HELP: Record<string, string> = {
   performance: "Did the fund beat funds like it, over how long, and month after month?",
