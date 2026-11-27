@@ -7,6 +7,8 @@ GET  /api/concalls/file            the PDF of a call's presentation or transcrip
                                    archive refuses to be shown inside another site). Only files listed on the page.
 POST /api/concalls/summary         the AI summary of a call, written once from its transcript (or its presentation) and kept: the first member to ask for
                                    it uses one of the plan's AI summaries (Silver and Gold, counted with the FinLit Prism summaries); after that it opens free.
+                                   Task #432: headings the model chooses, points with page references (checked); one kept in the old short form is written
+                                   again once in the new form without using anyone's summaries.
 """
 from __future__ import annotations
 
@@ -224,20 +226,33 @@ class SummaryIn(BaseModel):
     link: str = Field(..., max_length=600)
 
 
-PROMPT = ("You are reading the {what} of {name} ({symbol}), filed with the exchange on {filed}. Write a short summary for an investor who did not "
-          "attend the call, from this document only. Use these headings, each followed by 2 to 4 lines starting with \"- \":\n"
-          "**What the quarter looked like** (figures exactly as the document states them, with the page in brackets, e.g. (p. 3)),\n"
-          "**What management said about the business** (segments, demand, costs, capacity, orders),\n"
-          "**Outlook as management stated it** (only what they said; write 'Not stated in the {what}.' when they gave none),\n"
-          "**What analysts asked about** (the main themes of the questions).\n"
-          "Rules: describe, never advise; never say buy, sell, hold, accumulate, target, top pick or 'best'; no opinion of your own; nothing that is not "
-          "in the document; name who said a thing when the page names the speaker. At most 220 words.")
+PROMPT = ("You are reading the {what} of {name} ({symbol}), filed with the exchange on {filed}. Write a detailed, well-organised summary for an "
+          "investor who did not attend the call, from this document only.\n"
+          "Format: Markdown lines only, no paragraphs.\n"
+          "- 4 to 8 main headings, each a line starting with \"## \". Choose them yourself from what this document actually covers (for example the "
+          "quarter's figures, a business segment, orders, capacity, costs, a new product or market, plans, risks, what management expects, what "
+          "analysts asked); do not use a fixed list, and name each heading after its content.\n"
+          "- Optional subheadings, lines starting with \"### \", when a heading has distinct parts.\n"
+          "- Under each heading or subheading, 2 to 6 lines starting with \"- \": one point each.\n"
+          "- Each point gives the figure exactly as the document states it, what it means or what the document compares it with (the quarter or year "
+          "before, the plan, the guidance), and ends with the page in brackets, e.g. (p. 5) or (pp. 5, 7).\n"
+          "Cover, where the document has them: the important financial figures, business developments, management's commentary, growth plans as "
+          "management described them, risks and challenges, and the outlook as management stated it. Leave out what the document does not cover.\n"
+          "Rules: describe, never advise; never say buy, sell, hold, accumulate, target price, top pick or 'best'; no opinion or forecast of your own; "
+          "nothing that is not in the document, and no figure the document does not state; no repetition, no generic lines; name who said a thing "
+          "when the page names the speaker. Between 350 and 900 words.")
+SUMMARY_TOKENS = 2600   # task #432: 4-8 headings of points (was 900 tokens for a 220-word summary)
+
+
+def is_sectioned(text: str) -> bool:
+    """Task #432: a summary in the current form has "## " headings the model chose; one written before (fixed "**Heading**" lines) does not."""
+    return any(ln.startswith("## ") for ln in (text or "").splitlines())
 
 
 async def _write_summary(request: Request, row: Dict[str, Any], pages: List[str], name: str) -> str:
     from ..ask.api import client_for
     st = request.app.state.settings
-    body, used = [], 0
+    body, used, sent = [], 0, {}
     for i, p in enumerate(pages, start=1):
         t = (p or "").strip()
         if not t:
@@ -245,21 +260,78 @@ async def _write_summary(request: Request, row: Dict[str, Any], pages: List[str]
         if used + len(t) > SUMMARY_CHARS:
             break
         body.append(f"[page {i}]\n{t}")
+        sent[i] = t
         used += len(t)
     what = "earnings-call transcript" if row["kind"] == "transcript" else "investor presentation"
     msg = await client_for(st.anthropic_api_key).messages.create(
-        model=st.ask_model, max_tokens=900,
+        model=st.ask_model, max_tokens=SUMMARY_TOKENS,
         system=PROMPT.format(what=what, name=name, symbol=row["symbol"], filed=row["filed"].strftime("%d %b %Y")),
         messages=[{"role": "user", "content": "\n\n".join(body)}])
-    return clean_summary("".join(getattr(b, "text", "") for b in msg.content))
+    return clean_summary("".join(getattr(b, "text", "") for b in msg.content), sent)
 
 
-def clean_summary(text: str) -> str:
-    """A line that reads as advice (buy / sell / hold, a target, 'best' ...) is dropped, never shown; so is a heading left with no line under it."""
+PAGE_REF = re.compile(r"\(pp?\.\s*([\d,\s\-–and]+)\)")
+FIGURE = re.compile(r"\d[\d,]*(?:\.\d+)?")
+
+
+def _refs(line: str) -> List[int]:
+    """The pages a point cites: "(p. 5)", "(pp. 5, 7)", "(pp. 5-7)" -> [5], [5, 7], [5, 6, 7]."""
+    out: List[int] = []
+    for grp in PAGE_REF.findall(line):
+        for lo, hi, one in re.findall(r"(\d+)\s*[-–]\s*(\d+)|(\d+)", grp):
+            if one:
+                out.append(int(one))
+            else:
+                out.extend(range(int(lo), min(int(hi), int(lo) + 30) + 1))
+    return out
+
+
+def _figures(text: str) -> List[str]:
+    """The figures of a line that a reader could check: two or more digits, commas dropped ("1,234.5" -> "1234.5")."""
+    return [f.replace(",", "") for f in FIGURE.findall(text) if len(f.replace(",", "").replace(".", "")) >= 2]
+
+
+def _cited_ok(line: str, sent: Dict[int, str]) -> bool:
+    """Task #432, citations checked: a point's page references must be pages the model was given, and when it carries figures at least one of them
+    must be printed on a page it cites (commas ignored). A point that fails is dropped, never shown. A point with no reference is kept."""
+    refs = _refs(line)
+    if not refs:
+        return True
+    if any(r not in sent for r in refs):
+        return False
+    figs = _figures(PAGE_REF.sub("", line))
+    if not figs:
+        return True
+    pages = " ".join(sent[r].replace(",", "") for r in refs)
+    return any(f in pages for f in figs)
+
+
+def _is_heading(ln: str) -> bool:
+    s = ln.strip()
+    return s.startswith("#") or (s.startswith("**") and s.rstrip(":").endswith("**"))
+
+
+def clean_summary(text: str, sent: Optional[Dict[int, str]] = None) -> str:
+    """A line that reads as advice (buy / sell / hold, a target, 'best' ...) is dropped, never shown; so is a point whose citation does not check out
+    (when the pages it was written from are given), and then any heading or subheading left with no point under it. Prose lines the model wrote
+    outside the headings are dropped too (task #432: points, not paragraphs)."""
     from ..ask.service import reads_like_advice
-    lines = [ln.rstrip() for ln in (text or "").strip().splitlines() if not reads_like_advice(ln)]
-    out = [ln for i, ln in enumerate(lines) if not (ln.startswith("**") and ln.endswith("**") and (i + 1 >= len(lines) or not lines[i + 1].lstrip().startswith("-")))]
-    return "\n".join(out).strip()
+    lines = [ln.rstrip() for ln in (text or "").strip().splitlines() if ln.strip() and not reads_like_advice(ln)]
+    lines = [ln for ln in lines if _is_heading(ln) or ln.lstrip().startswith(("-", "•", "*"))]
+    if sent is not None:
+        lines = [ln for ln in lines if _is_heading(ln) or _cited_ok(ln, sent)]
+    def level(ln: str) -> int:   # 2 a heading, 3 a subheading, 9 a point
+        return 3 if ln.lstrip().startswith("### ") else (2 if _is_heading(ln) else 9)
+    # from the end: a heading stays only when a point, or a kept subheading for a heading, sits under it
+    final: List[str] = []
+    for ln in reversed(lines):
+        lv = level(ln)
+        if lv < 9:
+            nxt = level(final[0]) if final else 0
+            if not (nxt == 9 or (lv == 2 and nxt == 3)):
+                continue
+        final.insert(0, ln)
+    return "\n".join(final).strip()
 
 
 @router.post("/summary")
@@ -275,7 +347,9 @@ async def summary(request: Request, body: SummaryIn, ctx: Ctx = Depends(secure_c
         kept = await conn.fetchrow("SELECT text, source_kind, created_at FROM concall_summaries WHERE link = $1", body.link)
         name = await conn.fetchval("SELECT name FROM companies WHERE symbol = $1", row["symbol"]) or row["symbol"]
     month = quota.month_of()
-    if kept:      # written before: opens free, for everyone on the plan
+    # task #432: a summary kept in the old short form (fixed headings) is written again once in the new form, without using anyone's summaries
+    upgrade = bool(kept) and not is_sectioned(kept["text"]) and bool(st.anthropic_api_key)
+    if kept and not upgrade:      # written before: opens free, for everyone on the plan
         n = await quota.used(store.pool, ctx.user_id, month, "summary")
         return _json({"text": kept["text"], "source": kept["source_kind"], "link": body.link, "written": kept["created_at"].isoformat(), "cached": True,
                       **quota.status(cap, n, month), "disclaimer": DISCLAIMER})
@@ -292,7 +366,7 @@ async def summary(request: Request, body: SummaryIn, ctx: Ctx = Depends(secure_c
                        "Try again in a few minutes.") from None
     if not any(p.strip() for p in pages or []):
         raise fail(422, "no_text", "The file is a scan with no text, so FinLit cannot summarise it; none of your summaries was used.")
-    n = await quota.take(store.pool, ctx.user_id, cap, month, "summary")
+    n = await (quota.used(store.pool, ctx.user_id, month, "summary") if upgrade else quota.take(store.pool, ctx.user_id, cap, month, "summary"))
     if n is None:
         nxt = quota.next_month(month).strftime("%d %b %Y")
         raise fail(429, "quota_used", f"You have used all {cap} AI summaries of this month. They renew on {nxt}. Summaries other members already opened "
@@ -301,12 +375,19 @@ async def summary(request: Request, body: SummaryIn, ctx: Ctx = Depends(secure_c
         text = await _write_summary(request, row, pages, name)
     except Exception:
         log.warning("concall summary failed for %s", body.link[-60:], exc_info=True)
-        await quota.give_back(store.pool, ctx.user_id, month, "summary")
-        raise fail(502, "not_written", "The summary could not be written just now; none of your summaries was used. Try again in a few minutes.") from None
+        text = ""
     if not text:
+        if upgrade:   # the old summary is still there: show it rather than nothing
+            return _json({"text": kept["text"], "source": kept["source_kind"], "link": body.link, "written": kept["created_at"].isoformat(),
+                          "cached": True, **quota.status(cap, n, month), "disclaimer": DISCLAIMER})
         await quota.give_back(store.pool, ctx.user_id, month, "summary")
-        raise fail(502, "not_written", "The summary could not be written just now; none of your summaries was used.")
+        raise fail(502, "not_written", "The summary could not be written just now; none of your summaries was used. Try again in a few minutes.")
     async with store.pool.acquire() as conn:
-        await conn.execute("INSERT INTO concall_summaries (link, symbol, source_kind, text, pages, model) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT (link) DO NOTHING",
-                           body.link, row["symbol"], row["kind"], text, len(pages), st.ask_model)
-    return _json({"text": text, "source": row["kind"], "link": body.link, "written": None, "cached": False, **quota.status(cap, n, month), "disclaimer": DISCLAIMER})
+        if upgrade:   # only over the old text, so two members asking at once keep one
+            await conn.execute("UPDATE concall_summaries SET text = $2, source_kind = $3, pages = $4, model = $5, created_at = now() "
+                               "WHERE link = $1 AND text = $6", body.link, text, row["kind"], len(pages), st.ask_model, kept["text"])
+        else:
+            await conn.execute("INSERT INTO concall_summaries (link, symbol, source_kind, text, pages, model) VALUES ($1,$2,$3,$4,$5,$6) "
+                               "ON CONFLICT (link) DO NOTHING", body.link, row["symbol"], row["kind"], text, len(pages), st.ask_model)
+    return _json({"text": text, "source": row["kind"], "link": body.link, "written": None, "cached": upgrade, "rewritten": upgrade,
+                  **quota.status(cap, n, month), "disclaimer": DISCLAIMER})
