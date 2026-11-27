@@ -2,6 +2,7 @@
 /** [icon, name, plan, line, parts, note, path, isNew, ownModel, tiles] */
 export type GoLiveTool = [string, string, string, string, string[], string, string, boolean, boolean, [string, string, string][] | null];
 export const AREAS: { id?: string; name: string; line: string; tools: GoLiveTool[] }[];
+/** `v`: one value per plan in PLANS.P order, then the combined plan's (task #411). */
 export type GoLivePlanRow = { n: string; line: string; k?: string; new?: boolean; usp?: boolean; v: string[]; ao?: string; subs: { n: string; line: string; v: string[]; ao?: string }[] };
 export const PLANS: {
   /** [name, price text, colour, note, { y: yearly price in rupees } | null] */
@@ -11,4 +12,5 @@ export const PLANS: {
 };
 export const CLIPS: Record<string, string>;
 /** Task #410: the combined plan (Equity Portfolio + Mutual Fund + ETF): its yearly price and the extras it adds from Gold ([name, line]). */
-export const COMBINED: { y: number; extras: [string, string][] };
+/** Task #411: `head`: the name and colour of its column in the landing page's table. */
+export const COMBINED: { head: [string, string]; y: number; extras: [string, string][] };

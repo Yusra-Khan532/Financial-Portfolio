@@ -28,6 +28,8 @@ export function PlansPage() {
     navigate: (to: string) => { void navigate(to); },
     searchIndex: () => Promise.resolve({ rows: [] }),
     quote: () => Promise.resolve(null),
+    // task #411: the landing page moved the combined plan into its table; /plans keeps its own layout (five columns, the combined plan's card)
+    combinedCard: true,
   }), [navigate]);
   return (
     <div className="pl410">
