@@ -16,7 +16,14 @@
   - Sitemap submitted, "Processing" (up to 48 h).
   - AI Performance (beta) is always on, with no switch.
 - [ ] IndexNow key + pings on changed URLs
-- [ ] Analytics option chosen and live (founder: step 3; recommended Option B, FinLit's own counter)
+- [ ] Analytics option chosen and live. **Owner's decision (27 Nov 2026): "both, in two steps".**
+  - **Step 1, FinLit's own cookie-free counter, in the analytics pull request:**
+    - `finlit/visits.py` (`POST /api/visits`, `GET /api/admin/visitors`) and migration 148 `site_visits` (daily totals per page, source and phone/desktop);
+    - `frontend/src/lib/visits.ts` (`VisitCounter` in `main.tsx`);
+    - Console > Visitors;
+    - a "Counting visits" section in the privacy notice.
+    - Nothing identifies a person. Administrators, crawlers, scripts and other sites are not counted. AI assistants (ChatGPT, Perplexity, Claude, Gemini, Copilot) are a source of their own, so AI referrals show in the numbers.
+  - **Step 2, GA4 for visitors who accept a cookie banner:** needs the owner's GA4 Measurement ID (`G-…`), a consent banner (Accept and Decline equally easy), a CSP opening for Google Analytics' addresses only, a privacy-notice line naming Google Analytics (lawyer's read), and loading only after consent.
 - [ ] Baseline recorded (indexed pages, top queries, CWV, AI panel of 50 questions)
 ## Phase 1 crawler-visible content
 - [ ] Company pages: facts, answer block, Q&A, peers/sector/glossary links, richer Corporation JSON-LD. **Part 1 is in the Phase 1 pull request (27 Nov 2026)**; the item stays open until parts 2 and 3 are done.
