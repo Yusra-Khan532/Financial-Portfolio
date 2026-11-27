@@ -100,9 +100,9 @@ ul.dv a { text-decoration: none; color: var(--text); display: grid; } ul.dv a sm
 
 /* ---- chart lab ---- */
 .cl-tabs { display: flex; flex-wrap: wrap; width: max-content; max-width: 100%; margin: 4px 0 16px; } .cl-tabs button { padding: 8px 14px; font-size: var(--fs-14); }
-.cl-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-bottom: 16px; } .cl-grid > .full, .cl.full { grid-column: 1 / -1; } .cl-grid > .gate { grid-column: 1 / -1; }
-.block > .gate .cl-grid, .block > .card.cl { margin-bottom: 16px; } @media (max-width: 860px) { .cl-grid { grid-template-columns: 1fr; } }
-.cl .mb { margin-top: 6px; } .cl-note { margin: 10px 0 0; color: var(--muted); font-size: var(--fs-14); } .cl-empty { padding: 14px 4px; }
+.cl-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-bottom: 16px; } .cl-grid > .full, .clc.full { grid-column: 1 / -1; } .cl-grid > .gate { grid-column: 1 / -1; }
+.block > .gate .cl-grid, .block > .card.clc { margin-bottom: 16px; } @media (max-width: 860px) { .cl-grid { grid-template-columns: 1fr; } }
+.clc .mb { margin-top: 6px; }   /* developer file 48: .clc, the report's chart cards (.cl is the callout card's, styles/callout.css) */ .cl-note { margin: 10px 0 0; color: var(--muted); font-size: var(--fs-14); } .cl-empty { padding: 14px 4px; }
 .rd { display: flex; flex-wrap: wrap; gap: 4px 14px; min-height: 22px; align-items: center; font-size: var(--fs-13); color: var(--muted); margin-bottom: 4px; } .rd b { color: var(--text); } .rd span { font-family: var(--mono); display: inline-flex; gap: 5px; align-items: center; } .cdot { width: 8px; height: 8px; border-radius: var(--ui-r-mark); display: inline-block; }
 .clg { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 8px; font-size: var(--fs-12); color: var(--muted); } .clg span { display: inline-flex; gap: 6px; align-items: center; } .clg i { width: 10px; height: 10px; border-radius: var(--ui-r-mark); display: inline-block; }
 .hg { display: grid; gap: 3px; overflow-x: auto; } .hg-r { display: grid; grid-template-columns: 112px repeat(var(--cols), minmax(38px, 1fr)); gap: 3px; align-items: center; min-width: min-content; }

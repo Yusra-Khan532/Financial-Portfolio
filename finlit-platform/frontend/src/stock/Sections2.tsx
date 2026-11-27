@@ -15,6 +15,8 @@ import { ChartZoom } from "../components/ChartZoom";
 import { CoLogo } from "../components/CoLogo";
 import { useClassification } from "../lib/taxonomy";
 import { divPlain, divView } from "../lib/dividends17";
+import { ActionsTimeline } from "./MoreCharts";
+import { sectionNo } from "../lib/sectionNav";
 
 const v = (n: string) => `var(${n})`;
 
@@ -31,16 +33,16 @@ export function BusinessSection({ s }: { s: Summary }) {
   const bseUrl = p.bse && /^\d{6}$/.test(String(p.bse)) ? `https://www.bseindia.com/stock-share-price/x/x/${p.bse}/` : null;
   const long = desc.length > 330;
   const stats: [string, string, string, string][] = [
-    ["cap", "Market cap", p.marketCapCr ? "₹" + cr(p.marketCapCr) + " Cr" : "—", "--p-growth"],
-    ["users", "Employees", p.employees ? nf(p.employees, 0) : "—", "--p-quality"],
+    ["cap", "Market cap", p.marketCapCr ? "₹" + cr(p.marketCapCr) + " Cr" : "—", "--gold"],   // developer file 45: the four facts are gold, like every icon of the page's structure
+    ["users", "Employees", p.employees ? nf(p.employees, 0) : "—", "--gold"],
     ["id", "NSE code", p.nse || "—", "--gold"],
-    ["tag", "BSE code", p.bse || "—", "--p-profit"],
+    ["tag", "BSE code", p.bse || "—", "--gold"],
   ];
   return (
-    <section className="block" style={{ "--sc": "var(--p-growth)" } as React.CSSProperties}>
-      <SectionHead id="business" no="01 · Company overview" icon="building" tier="basic" title={`What ${p.name.split(" ")[0]} does`} color="--p-growth" />
+    <section className="block">
+      <SectionHead id="business" no="Company overview" icon="building" tier="basic" />
       <div className="biz2">
-        <div className="card acc biz-main" style={{ "--ac": "var(--p-growth)" } as React.CSSProperties}>
+        <div className="card acc biz-main">
           <svg className="skyline" viewBox="0 0 400 120" aria-hidden="true" preserveAspectRatio="xMaxYMax meet">
             {[[10, 60, 36], [52, 30, 30], [88, 74, 26], [120, 20, 40], [166, 52, 30], [202, 38, 34], [244, 70, 28], [278, 14, 36], [320, 48, 30], [356, 66, 30]].map(([x, y, w], i) => <g key={i}><rect x={x} y={y} width={w} height={120 - y} rx="3" fill="var(--p-growth)" opacity={0.1 + (i % 3) * 0.05} />{Array.from({ length: 4 }, (_, j) => <rect key={j} x={x + 6 + (j % 2) * 12} y={y + 8 + Math.floor(j / 2) * 14} width="5" height="6" rx="1" fill="var(--gold)" opacity=".5" className="win" style={{ animationDelay: `${(i * 4 + j) * 140}ms` }} />)}</g>)}
           </svg>
@@ -74,24 +76,25 @@ export function DividendsSection({ e, price, r }: { e?: Events; price?: number |
   const monthly = (shares * d.ttm) / 12;
   const partLabel = d.partial ? (divs.filter((x) => x.forFY === d.partial!.p).length === 1 && divs.find((x) => x.forFY === d.partial!.p)?.type === "interim_dividend" ? "the interim dividend declared so far" : "the dividends declared so far") : "";
   return (
-    <section className="block" style={{ "--sc": "var(--gold-deep)" } as React.CSSProperties}>
-      <SectionHead id="dividends" no="17 · Dividends" icon="coins" tier="basic" title="Cash returned to shareholders" sub="Amounts are adjusted for splits and bonuses." color="--gold-deep" />
+    <section className="block">
+      <SectionHead id="dividends" no="Dividends" icon="coins" tier="basic" sub="Amounts are adjusted for splits and bonuses." />
       {e.dividendYieldTtm != null && <Plain tone={d.streak >= 5 && d.rising >= 3 ? "good" : "info"}>{divPlain(e.dividendYieldTtm, d, payout, nf)}</Plain>}
       <div className="dvk">
-        <div className="dk" style={{ "--dc": "var(--gold)" } as React.CSSProperties}>
+        {/* developer file 47 (founder, 27 Nov 2026: "section 11, the four boxes are too colourful"): one strip in the report's gold and ink, not four colours */}
+        <div className="dk">
           <div className="dk-ring"><svg viewBox="0 0 120 120" aria-hidden="true"><defs><linearGradient id="dvy" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#F3E6BF" /><stop offset=".5" stopColor="var(--gold)" /><stop offset="1" stopColor="var(--gold-deep)" /></linearGradient></defs><circle cx="60" cy="60" r={R} fill="none" stroke="var(--s3)" strokeWidth="10" /><circle className="ring-in" cx="60" cy="60" r={R} fill="none" stroke="var(--gold)" strokeWidth="10" strokeLinecap="round" strokeDasharray={`${(C * yld) / 100} ${C}`} transform="rotate(-90 60 60)" /></svg><b>{pct(e.dividendYieldTtm)}</b></div>
           <div><span className="label">Dividend yield</span><p>Yearly cash per ₹100 invested. Ring: against a 5% scale.</p></div>
         </div>
-        <div className="dk" style={{ "--dc": "var(--c2)" } as React.CSSProperties}>
+        <div className="dk">
           <span className="dk-i"><Icon name="percent" /></span>
           <div><span className="label">Share of profit paid out</span><b className="dk-v">{payout == null ? "—" : nf(payout, 0) + "%"}</b>{safe && <span className={"dk-tag " + safe[1]}>{safe[0]}</span>}<p>{payout == null ? "" : payout < 40 ? "Plenty of room to keep paying." : payout < 70 ? "A balanced split between owners and growth." : "Little left over; the dividend could be harder to sustain."}</p></div>
         </div>
-        <div className="dk" style={{ "--dc": "var(--c3)" } as React.CSSProperties}>
+        <div className="dk">
           <span className="dk-i"><Icon name="growth" /></span>
           <div><span className="label">Dividend growth</span><b className="dk-v">{d.cagr == null ? "—" : (d.cagr >= 0 ? "+" : "−") + nf(Math.abs(d.cagr), 0) + "% a year"}</b>
             <p>{d.first && d.last ? `From ₹${nf(d.first.v, 2)} (${d.first.p}) to ₹${nf(d.last.v, 2)} (${d.last.p}) per share.` : "No dividend in the years shown."}{d.partial ? ` ${d.partial.p} is not over yet.` : ""}</p></div>
         </div>
-        <div className="dk" style={{ "--dc": "var(--c4)" } as React.CSSProperties}>
+        <div className="dk">
           <span className="dk-i"><Icon name="check" /></span>
           <div><span className="label">Years paid in a row</span><b className="dk-v">{d.streak} of {d.total}</b><div className="dk-dots">{d.years.filter((y) => !y.part || y.v > 0).map((y) => <i key={y.p} className={(y.v > 0 ? "on" : "") + (y.part ? " part" : "")} title={y.part ? `${y.p} so far: ₹${nf(y.v, 2)}` : `${y.p}: ₹${nf(y.v, 2)}`} />)}</div></div>
         </div>
@@ -99,7 +102,7 @@ export function DividendsSection({ e, price, r }: { e?: Events; price?: number |
       <TabGroup label="Dividends" views={[
         { key: "history", label: "Dividend history", content: <>
       <div className="div3">
-        <div className="card acc" style={{ "--ac": "var(--gold)" } as React.CSSProperties}>
+        <div className="card acc">
           <div className="card-h"><h3><span className="ci"><Icon name="bars" /></span>Dividend per share<ChartHelp id="div-dps" /></h3><span className="s">₹ per financial year</span></div>
           <ChartZoom label="Dividend per share by year" className="cz-top">
           <div className="dbars" data-chart style={{ "--avg": `${(d.avg / d.max) * 150}px` } as React.CSSProperties}>
@@ -112,15 +115,15 @@ export function DividendsSection({ e, price, r }: { e?: Events; price?: number |
           </ChartZoom>
           <p className="faint" style={{ fontSize: "var(--fs-12)", margin: "14px 0 0" }}>{e.dividendsByFY.basis}.{d.partial ? ` *${d.partial.p} is in progress: ${partLabel}. The average line uses ended years.` : ""}</p>
         </div>
-        <div className="card acc" style={{ "--ac": "var(--c2)" } as React.CSSProperties}>
+        <div className="card acc">
           <div className="card-h"><h3><span className="ci"><Icon name="percent" /></span>Payout ratio over time<ChartHelp id="payout" /></h3><span className="s">% of profit paid as dividends</span></div>
-          {payHist.filter((x) => x != null).length > 1 ? <LineChart periods={r!.history.periods} series={[{ key: "payout", label: "Payout", color: "var(--c2)", values: payHist }]} fmt={(x) => nf(x, 0) + "%"} area height={300} /> : <p className="muted">Not enough history to chart.</p>}
+          {payHist.filter((x) => x != null).length > 1 ? <LineChart periods={r!.history.periods} series={[{ key: "payout", label: "Payout", color: "var(--c1)", values: payHist }]} fmt={(x) => nf(x, 0) + "%"} area height={300} /> : <p className="muted">Not enough history to chart.</p>}
         </div>
       </div>
         </> },
         { key: "pay", label: "What it would pay you", content: <>
       <div className="div3">
-        <div className="card acc dv-calc" style={{ "--ac": "var(--gold)" } as React.CSSProperties}>
+        <div className="card acc dv-calc">
           <div className="card-h"><h3><span className="ci"><Icon name="wallet" /></span>What would it pay you?<ChartHelp id="div-calc" /></h3><span className="s">Drag or type</span></div>
           <label className="dv-in"><span>If you owned</span><input type="number" min={1} max={1000000} value={shares} onChange={(ev) => setShares(Math.max(1, Math.min(1000000, Math.round(Number(ev.target.value) || 1))))} aria-label="Number of shares" /><span>shares</span></label>
           <input className="dv-rng" type="range" min={1} max={1000} value={Math.min(shares, 1000)} onChange={(ev) => setShares(Number(ev.target.value))} aria-label="Shares slider" />
@@ -131,15 +134,17 @@ export function DividendsSection({ e, price, r }: { e?: Events; price?: number |
           </div>
           <p className="faint" style={{ fontSize: "var(--fs-12)", margin: "12px 0 0" }}>Based on the dividends declared in the last 12 months (₹{nf(d.ttm, 2)} a share{d.ttmAdjusted ? (d.ttmSplit ? ", adjusted for the split" : ", adjusted for splits and bonuses") : ""}) and today's price, before tax. Past dividends do not guarantee future ones.</p>
         </div>
-        <div className="card acc" style={{ "--ac": "var(--gold)" } as React.CSSProperties}>
+        <div className="card acc">
           <div className="card-h"><h3><span className="ci"><Icon name="coins" /></span>When it usually pays<ChartHelp id="div-months" /></h3><span className="s">Months with past payouts</span></div>
           <div className="cal">{MONTHS.map((m, i) => <span key={m} className={paidMonths.has(i) ? "on" : ""}>{m}</span>)}</div>
           <div className="payouts">{recent.map((x, i) => <div className="pay" key={x.date + x.amount} style={{ animationDelay: `${i * 70}ms` }}><div className="pc">₹{nf(x.amount ?? 0, x.amount && x.amount % 1 ? 2 : 0)}</div><div><b>{x.type === "interim_dividend" ? "Interim" : x.type === "special_dividend" ? "Special" : "Final"}</b><span>{dateIN(x.date)}</span></div></div>)}</div>
         </div>
       </div>
         </> },
+        // developer file 41: the corporate actions timeline of the old Chart lab (section 08, Events & peers) is a view of this section
+        { key: "actions", label: "Bonus and splits", content: <ActionsTimeline e={e} /> },
       ]} />
-      <p className="faint nf-x">Board decisions, record dates and other dividend notices are listed in <a href="#news">18 News and filings</a>.</p>
+      <p className="faint nf-x">Board decisions, record dates and other dividend notices are listed in <a href="#news">{sectionNo("news")} News and filings</a>.</p>
     </section>
   );
 }
@@ -148,21 +153,31 @@ export function DividendsSection({ e, price, r }: { e?: Events; price?: number |
 export function SegmentCard({ seg }: { seg?: Segments }) {
   const latest = seg?.latest || [];
   const top = latest[0], conc = top?.sharePct ?? 0;
-  const colors = segmentColors(segmentNames(seg)).color;  // one colour per segment, shared by the strip, the tiles, the chart and the table
+  const colors = segmentColors(segmentNames(seg)).color;  // one colour per segment, shared by the rows, the chart and the table
   const col = (name: string) => colors[name] ?? OTHERS_COLOR;
   return (
-    <div className="card acc" style={{ "--ac": "var(--p-profit)" } as React.CSSProperties}>
+    <div className="card acc">
       <div className="card-h"><h3 className="seg-title"><span className="ci"><Icon name="pie" /></span>Revenue by business segment<ChartHelp id="segments" /></h3><span className="s">{seg?.periods[seg.periods.length - 1] || ""}</span></div>
       {latest.length ? (
         <>
-          <div className="rib" role="img" aria-label="Revenue share by segment">{latest.map((x) => <span key={x.name} title={`${x.name}: ${pct(x.sharePct)}`} style={{ flex: Math.max(x.sharePct || 0, 7), "--bc": col(x.name) } as React.CSSProperties}><b className={(x.sharePct || 0) < 9 ? "xs" : ""}>{(x.sharePct || 0) >= 10 ? pct(x.sharePct, 0) : pct(x.sharePct, 1)}</b></span>)}</div>
-          <ul className="seg-l2">{latest.map((x) => (
-            <li key={x.name} style={{ "--bc": col(x.name) } as React.CSSProperties}>
-              <div className="sl-h"><i /><b>{x.name}</b><em>{pct(x.sharePct)}</em></div>
-              <div className="sl-bar"><span style={{ width: `${Math.min(100, x.sharePct || 0)}%` }} /></div>
-              <div className="sl-m"><span>₹{cr(x.revenue)} Cr revenue</span><span className={x.growthPct == null ? "" : x.growthPct >= 0 ? "pos" : "neg"}>{signed(x.growthPct, 1)} vs last year</span>{x.ebit != null && x.revenue ? <span>{nf((x.ebit / x.revenue) * 100, 1)}% margin</span> : null}</div>
-              {x.includes?.length ? <div className="sl-i">Includes {x.includes.join(", ")}</div> : null}
-            </li>))}</ul>
+          {/* developer file 42 (founder, 26 Nov 2026: "Revenue by business segment" revamped): one ranked row a segment, with its share drawn as a
+              bar out of 100% and its revenue, growth and margin in columns, in place of the coloured strip and the tiles (five tiles in a grid of
+              three left a hole, the small segments' labels were squeezed, and each figure sat in a different place in each tile). */}
+          <div className="sgr" role="table" aria-label={`Revenue by business segment, ${seg?.periods[seg.periods.length - 1] || "latest year"}`}>
+            <div className="sgr-r sgr-hd" role="row"><span role="columnheader">Segment</span><span role="columnheader">Share of all segments' revenue</span><span role="columnheader">Revenue</span><span role="columnheader">vs last year</span><span role="columnheader" title="Segment result (EBIT) as a share of its revenue">Margin</span></div>
+            {latest.map((x) => {
+              const m = x.ebit != null && x.revenue ? (x.ebit / x.revenue) * 100 : null;
+              return (
+                <div className="sgr-r" role="row" key={x.name} style={{ "--bc": col(x.name) } as React.CSSProperties}>
+                  <span className="sgr-n" role="rowheader"><i aria-hidden="true" /><span><b>{x.name}</b>{x.includes?.length ? <small>Includes {x.includes.join(", ")}</small> : null}</span></span>
+                  <span className="sgr-s" role="cell"><span className="sgr-t" aria-hidden="true"><b style={{ width: `${Math.min(100, Math.max(0, x.sharePct || 0))}%` }} /></span><em>{x.sharePct == null ? "—" : pct(x.sharePct, 1)}</em></span>
+                  <span className="sgr-v" role="cell">{x.revenue == null ? "—" : `₹${cr(x.revenue)} Cr`}</span>
+                  <span className={"sgr-g " + (x.growthPct == null ? "" : x.growthPct >= 0 ? "pos" : "neg")} role="cell">{x.growthPct == null ? "—" : signed(x.growthPct, 1)}<small> vs last year</small></span>
+                  <span className="sgr-m" role="cell" title="Segment result (EBIT) as a share of its revenue">{m == null ? "—" : `${nf(m, 1)}%`}<small> margin</small></span>
+                </div>
+              );
+            })}
+          </div>
           <div className={"seg-note " + (conc >= 70 ? "warn" : "")}>{conc >= 70 ? `${top.name} brings in ${nf(conc, 0)}% of revenue, so the business depends mostly on one segment.` : "Revenue is spread across several segments, which spreads the risk."}</div>
           <SegmentHistory seg={seg} />
         </>

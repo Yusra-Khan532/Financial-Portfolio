@@ -84,7 +84,7 @@ describe("rules 1-3: the address, the redirect, which view opens", () => {
   it("the bar: '3 views · press one to switch' (Bulk & block deals added as the third), the numbered views with their counts, 'Showing: …'", () => {
     page();
     const bar = document.querySelector(".ctabs") as HTMLElement;
-    expect(bar.querySelector(".ctabs-h")!.textContent).toBe("⇆3 viewspress one to switch");
+    expect(bar.querySelector(".ctabs-h")!.textContent).toBe("⇆3 viewsSee 2 more→")   // developer file 46: See N more stands in for the hint until each view was opened; Bulk & block deals is the third view
     expect(within(bar).getAllByRole("tab").map((t) => t.textContent)).toEqual(["1Open and upcoming1", "2All IPOs since 202063", "3Bulk & block deals"]);
     expect(bar.querySelector(".ct-aside")!.textContent).toBe("Showing: Open, upcoming, about to list, and listed in the last 30 days");
     fireEvent.click(tab(/All IPOs since 2020/));

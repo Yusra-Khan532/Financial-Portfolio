@@ -2,6 +2,8 @@
 // Developer file 38 (founder, 24 Nov 2026): "the 'worth a closer look' one was a pop-up, that comes when we passed or reached section 5 of the company
 // report and disappears when we have scrolled the whole section 5, or if the user wants to cancel the pop-up can do that with the x button."
 // The layer is rendered as on the company report (the results bar, then section 05) and the reader's scrolling is played by moving the two boxes.
+// Founder, 26 Nov 2026: "why is there a pop on section 3, it opens when we reach section 5 and closes when section 5 ends": the card waits until the
+// section's start is in the top 35% of the screen (it came up at 70% before, over the section above, and stayed over it on the way back up).
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
@@ -43,17 +45,19 @@ describe("the earnings alert pops up over section 05, from its start to its end"
     expect(card()).toBeNull(); expect(edge()).toBeNull();
     scrollTo(700);                                                   // the section's start is just under the fold
     expect(card()).toBeNull();
+    scrollTo(400);                                                   // half-way up the screen: the section above still fills the top half
+    expect(card()).toBeNull();
   });
 
   it("pops up when section 05 is reached, as a floating card", () => {
-    page(); scrollTo(400);
+    page(); scrollTo(250);                                           // the section's start in the top 35% of the screen
     expect(card()).not.toBeNull();
     expect(screen.getByText("Worth a closer look")).toBeTruthy();
     expect(card()!.classList.contains("plf-floating")).toBe(false);  // the in-place pop-up; .plf-floating is only the one opened from the edge tab
   });
 
   it("stays while the reader is anywhere inside section 05, and goes once the whole of it has been scrolled past", () => {
-    page(); scrollTo(400);
+    page(); scrollTo(250);
     scrollTo(-700); expect(card()).not.toBeNull();                   // the middle of the section
     scrollTo(-SEC - 40 + 200); expect(card()).not.toBeNull();        // its last 200 px still on screen
     scrollTo(-SEC - 40 + 100); expect(card()).toBeNull();            // its end has gone up under the page header
@@ -61,14 +65,14 @@ describe("the earnings alert pops up over section 05, from its start to its end"
   });
 
   it("comes back each time the reader returns to section 05 (founder, 5 Nov), and goes when they scroll back above it", () => {
-    page(); scrollTo(400); scrollTo(-3000);
+    page(); scrollTo(250); scrollTo(-3000);
     expect(card()).toBeNull();
     scrollTo(-900); expect(card()).not.toBeNull();
-    scrollTo(650); expect(card()).toBeNull();                        // back up in section 04
+    scrollTo(350); expect(card()).toBeNull();                        // back up: the section above fills the top of the screen again
   });
 
   it("the x cancels it: it does not come back on scrolling, until Show details is pressed", () => {
-    page(); scrollTo(400);
+    page(); scrollTo(250);
     fireEvent.click(screen.getByRole("button", { name: "Dismiss" }));
     expect(card()).toBeNull(); expect(edge()).toBeNull();
     scrollTo(-3000); scrollTo(-500);

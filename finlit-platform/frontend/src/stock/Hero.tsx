@@ -73,8 +73,8 @@ export function Hero({ s, ratios, jump }: { s: Summary; ratios?: Ratios; jump: (
           <div className="hxd-strip">
             <div className="hx-rate"><span className="hx-k">Fundamental rating</span><RatingCell s={s} effPlan={effPlan} seesAll={seesAll} prismIn={prismIn} /><TechRows effPlan={effPlan} seesAll={seesAll} prismIn={prismIn} /></div>
             <div className="hxpeer"><span className="hx-k">Against peers</span><LeadLine symbol={p.symbol} jump={jump} /></div>
-            <div><span className="hx-k">Market cap</span><b>{p.marketCapCr != null ? marketCapLine(p.marketCapCr)?.replace(/^Market cap /, "") : "Not reported"}</b></div>
-            <div><span className="hx-k">Listed as</span><div className="tags"><span className="tag tk">{p.nse || p.symbol}</span><span className="tag">NSE</span>{p.bse && <span className="tag mono">BSE {p.bse}</span>}</div></div>
+            <div className="hx-cap"><span className="hx-k">Market cap</span><b>{p.marketCapCr != null ? marketCapLine(p.marketCapCr)?.replace(/^Market cap /, "") : "Not reported"}</b></div>
+            <div className="hx-list"><span className="hx-k">Listed as</span><div className="tags"><span className="tag tk">{p.nse || p.symbol}</span><span className="tag">NSE</span>{p.bse && <span className="tag mono">BSE {p.bse}</span>}</div></div>
           </div>
           <ClassPath symbol={p.symbol} fallback={p.industry} />
           <ThemeChips symbol={p.symbol} name={p.name} jump={jump} />{/* task #271 (report pack 20 Nov, change 20a): Discover's themes for this company */}

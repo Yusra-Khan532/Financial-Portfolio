@@ -5,7 +5,8 @@
   --sp-info: #0E6471; --sp-info-bg: #E2F0F2; --sp-info-bd: rgba(14, 100, 113, .2);
   --sp-bad: #A12E26; --sp-bad-bg: #FBE4E4; --sp-bad-bd: rgba(161, 46, 38, .2);
   --sp-panel: var(--s1); --sp-line: var(--border); --sp-ink: var(--text); --sp-mute: var(--muted); --sp-faint: var(--faint); }
-.sp { padding-bottom: 32px; }
+/* Developer file 47: not on svg. The report's sparklines (charts/Small.tsx Spark) carry the class sp too; once this sheet loaded they got this padding and drew in 0 to 19 px of their height. */
+.sp:not(svg) { padding-bottom: 32px; }
 :root[data-theme="dark"] .sp, :root[data-theme="dark"] .dsh, :root[data-theme="dark"] .wrap.mi { --sp-good: #7FD8A6; --sp-good-bg: rgba(46, 125, 87, .18); --sp-good-bd: rgba(127, 216, 166, .3);
   --sp-watch: #E9C46A; --sp-watch-bg: rgba(233, 185, 73, .14); --sp-watch-bd: rgba(233, 196, 106, .3);
   --sp-info: #7CC7D2; --sp-info-bg: rgba(14, 100, 113, .22); --sp-info-bd: rgba(124, 199, 210, .3);

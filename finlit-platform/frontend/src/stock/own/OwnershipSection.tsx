@@ -12,7 +12,7 @@ import { OwnMoves } from "./OwnMoves";
 import { OwnersToday } from "./OwnersToday";
 import { OwnDeals } from "./OwnDeals";
 
-const HEAD = { id: "ownership", no: "12 · Ownership", icon: "pie", tier: "basic" as const, title: "Who owns the company", color: "--p-balance" };
+const HEAD = { id: "ownership", no: "Ownership", icon: "pie", tier: "basic" as const };
 
 /** The series the section draws: the stored shareholding (every filing the provider has, so every year is selectable), else the insights' own 21 filings. */
 export function seriesOf(o?: Ownership, ins?: OwnInsights): OwnSeries | null {
@@ -39,7 +39,7 @@ export function OwnershipSection({ o, ins, insWhy, symbol }: { o?: Ownership; in
   const stale = !!ins?.as_of && ins.as_of !== periods[latest];
   const cur = parsePeriod(when);
   return (
-    <section className="block ow" style={{ "--sc": "var(--p-balance)" } as React.CSSProperties}>
+    <section className="block ow">
       <SectionHead {...HEAD} sub={`Shareholding pattern, ${periods[latest]}`} />
       {years.length > 0 && (
         <OwnershipYearPicker years={years.map((y) => y.year)} selected={cur?.year ?? null} onPick={(y) => { const f = years.find((z) => z.year === y); if (f) setPick(f.index); }}

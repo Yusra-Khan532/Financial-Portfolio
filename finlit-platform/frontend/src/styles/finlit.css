@@ -361,6 +361,8 @@ h2 { font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif); m
 .legend { display: flex; gap: 6px 18px; flex-wrap: wrap; font-size: var(--fs-13); color: var(--muted); margin-top: 14px; align-items: center; }
 .legend i { display: inline-block; width: 10px; height: 10px; border-radius: var(--ui-r-mark); margin-right: 7px; vertical-align: -1px; }
 .legend i.ln { height: 3px; border-radius: var(--ui-r-pill); vertical-align: 3px; width: 16px; }
+/* developer file 42: the price chart's candles say how long one candle is, under the chart */
+.pc-note { font-size: var(--fs-12); margin: 8px 0 0; }
 .tools { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; align-items: center; }
 .stats { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 18px; }
 .stat { padding: 9px 14px; border-radius: var(--r-ctl); background: var(--s2); border: 1px solid var(--border); }

@@ -1,13 +1,9 @@
 // Task #216 (company report handover, 17 Nov 2026, README 1.4): the texts of the 9 new i buttons, word for word from the pack's i-button-texts.json
-// ("new_i_buttons"): five in 15 (Size, Style, Income, Momentum, Where it fits) and four in 12's filing facts. The site's existing i buttons keep their own texts.
+// ("new_i_buttons"): four in Ownership's filing facts. The site's existing i buttons keep their own texts. The other five (Size, Style, Income, Momentum,
+// Where it fits) belonged to Gold insights, which the founder removed in developer file 41 (25 Nov 2026).
 import type { Glossary } from "./api";
 
 export const NEW_I: Record<string, string> = {
-  "Size": "FinLit’s fixed size bands: large above ₹75,000 Cr, mid ₹25,000–75,000 Cr, small ₹10,000–25,000 Cr, micro below ₹10,000 Cr.",
-  "Style": "Value, blend or growth, from the company’s valuation against its growth.",
-  "Income": "Low, moderate or high, from the dividend yield and how much profit is paid out.",
-  "Momentum": "Oversold, neutral or overbought, from the 14-day RSI.",
-  "Where it fits": "The theme and sector group the company belongs to on FinLit.",
   "Shareholders": "How many shareholders the company has, from its latest shareholding filing.",
   "Promoter shares pledged": "The share of promoter holdings pledged with lenders. Pledged shares can be sold if a loan goes bad.",
   "Shares outstanding": "Total shares issued. A rise means new shares were issued, which spreads profit across more shares.",
