@@ -19,7 +19,29 @@
 - [ ] Analytics option chosen and live (founder: step 3; recommended Option B, FinLit's own counter)
 - [ ] Baseline recorded (indexed pages, top queries, CWV, AI panel of 50 questions)
 ## Phase 1 crawler-visible content
-- [ ] Company pages: facts, answer block, Q&A, peers/sector/glossary links, richer Corporation JSON-LD
+- [ ] Company pages: facts, answer block, Q&A, peers/sector/glossary links, richer Corporation JSON-LD. **Part 1 is in the Phase 1 pull request (27 Nov 2026)**; the item stays open until parts 2 and 3 are done.
+  - **Done in part 1** (`seo.render_company` and `seo.company_facts`, and `web.company_facts`):
+    - Each company's stored snapshot (summary, financials, ownership, peers and events) is trimmed with the API's own `redact_section` at the visitor's plan, so the crawler HTML never shows more than a signed-out visitor is sent.
+    - The page writes the figures in this order:
+      - an answer-first "How healthy is X financially?";
+      - key figures with dates and glossary links;
+      - the latest quarter against a year earlier;
+      - five-year revenue and profit;
+      - the shareholding mix and its change;
+      - five questions answered with numbers;
+      - 5 peer links and the Sector Pulse group link;
+      - sources and the disclaimer;
+      - then the shared site links.
+    - Titles follow the brief's pattern, shortened step by step to fit 70 characters. Descriptions carry 2–3 real numbers.
+    - Corporation JSON-LD has legalName, alternateName, the NSE ticker, the ISIN (when stored), url/sameAs (the company's website) and dateModified.
+    - Tests are in `tests/test_seo_company.py`, including an advice-word scan of every crawler template.
+  - **Not done yet, with the reason:**
+    - The app page doesn't yet show the new answer and questions text. The figures are the same, but the wording appears only in the server HTML. **Part 2:** show the same block in the React company report, so people and crawlers read the same text.
+    - "Next results date": the results calendar comes from a provider feed, not a stored table. **Part 3**, once there is a cheap stored source.
+    - FinLit Prism or any score: plan-gated, so never in public HTML (not planned).
+    - `industry` in Corporation JSON-LD: schema.org's Organization has no such property. The industry appears in the page text instead.
+    - The ISIN is added by the API when it serves the page (`with_isin`), so it appears in the JSON-LD only when the stored summary carries it.
+  - **Live check after deploy:** `curl -A GPTBot` and `curl -A Googlebot` on 10 sample companies (facts present and unique), then URL Inspection in Search Console.
 - [ ] Shared link block shrunk; page content first
 - [ ] Sectors, ETFs, results, IPO, macro, superinvestors, screener lists: real content
 - [ ] Real lastmod + sitemap index split
@@ -41,7 +63,19 @@
 - [ ] M2 category hub pages (screener, research reports, mutual funds, sectors, calculators)
 - [ ] M3 comparison pages (founder OK + lawyer read: ____)
 - [ ] M4 outreach list of 30–50 cited pages + pitch draft
-- [ ] M5 profiles created by founder (URLs into sameAs). Checklist given: `PROFILE-CHECKLIST-FILLED.md` (27 Nov 2026)
+- [ ] M5 profiles: status on 27 Nov 2026, from the founder's browser assistant (prompt 2):
+  - LinkedIn company https://www.linkedin.com/company/finlitventures/: 10 specialties and the HQ (Jabalpur, India) added. Name, tagline, overview and website kept as they were (team decision).
+  - Crunchbase https://www.crunchbase.com/organization/finlit-ventures: submitted. Logo still to upload; X, YouTube and Instagram links to add once they exist.
+  - AlternativeTo: submitted, waiting for review (as "FinLit" by FinLit Ventures). None of the 7 competitors is listed there, so no "alternative to" links yet.
+  - X: @FinLitVentures exists (joined Nov 2026, 0 posts); the team confirms who owns it.
+  - YouTube, Instagram and the Facebook page: not created yet (founder). @finlitventures looked free on YouTube and Instagram.
+  - Nishant's own LinkedIn experience and headline, Product Hunt maker account, Quora and Reddit: Nishant does them himself (texts in PROFILE-CHECKLIST-FILLED.md).
+  - Handle: finlitventures on every platform.
+  - Organization `sameAs` (M1) gets the LinkedIn and Crunchbase URLs now, and the others as they go live.
+- Founder's named target query (27 Nov 2026, screenshot): "which is best financial research and analytics platform".
+  - Google's AI Overview names Value Research, StockEdge, Crisil/ICRA, Bloomberg/FactSet, Koyfin and Fiscal.ai.
+  - The cited sources are Value Research, StockEdge and Guideflow's "12 best financial research software tools for 2026" (a third-party list, so a candidate for M4).
+  - FinLit is not named. Track it with panel Q1 (similar); add the founder's exact wording to the M4 outreach notes.
 - [ ] M6 community guide   - [ ] M7 press pitch templates
 - [ ] M8 robots.txt: Claude-SearchBot / Claude-User in AI group (checked 27 Nov: robots.txt lists ClaudeBot, Claude-Web and anthropic-ai, but not Claude-SearchBot or Claude-User)
 - [ ] M9 AI-PANEL.md: 60 questions × 7 engines, monthly. Sheet ready 27 Nov 2026; the baseline run needs a person (Claude can't open those AI tools from its container)
@@ -81,5 +115,15 @@
   - Added the profile checklist (word for word, plus a filled-in, corrected copy) and the AI-panel sheet.
   - Recorded the founder's name, founding date and city.
   - Phase 1 company pages are built and tested locally (local branch `search-growth-phase1-companies`). They ship as their own pull request once this one is merged.
+- **27 Nov 2026, session 1, end:**
+  - PR #1014 (the memory docs) merged.
+  - Search Console and Bing verified (prompt 1).
+  - Profiles partly done (prompt 2; see M5).
+  - The founder named a target query (see M5).
+  - The Phase 1 part 1 pull request opened.
 ## Next step
-- Phase 1, company pages: `render_company()` in `backend/finlit/seo.py` writes the company's real stored facts into the crawler HTML (same as the app shows, dated and sourced, no plan-gated scores), following `render_fund()`, with an advice-word test over every crawler template.
+1. Phase 1 part 1: after it merges and deploys, run the live checks listed under Phase 1, then tick what passes.
+2. IndexNow: a key file at `/{key}.txt`, plus pings when results arrive, new funds appear or research pages change (a supervisor-run job; read docs/JOBS.md first).
+3. M1 identity: Organization JSON-LD gets `alternateName` "FinLit Ventures", `sameAs` (LinkedIn and Crunchbase now), `founder` Nishant Jain, `areaServed` IN, and the contactPoint contact@finlitventures.com; `foundingDate` only from 1 Dec 2026. The About page's first sentence too.
+4. Phase 1 part 2: the same answer and questions block in the React company report.
+5. M8: add Claude-SearchBot and Claude-User to robots.txt's AI group.

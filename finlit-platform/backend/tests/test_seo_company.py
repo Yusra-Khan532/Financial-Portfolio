@@ -191,9 +191,10 @@ async def test_the_server_page_shows_only_what_a_visitor_is_sent(site, monkeypat
 
 async def test_a_broken_snapshot_leaves_the_plain_company_page(site, monkeypatch):
     from finlit import web
-    async def boom(*a, **k):
+
+    def boom(sections):
         raise ValueError("bad snapshot")
     seo._cache.clear()
-    monkeypatch.setattr(web.seo, "company_facts", lambda s: (_ for _ in ()).throw(ValueError("bad")))
+    monkeypatch.setattr(web.seo, "company_facts", boom)
     r = await site.get("/stocks/EXIND")
     assert r.status_code == 200 and "Example Industries Ltd (EXIND) share analysis" in r.text and "How healthy" not in r.text
