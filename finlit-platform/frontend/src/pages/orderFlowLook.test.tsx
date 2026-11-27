@@ -34,7 +34,8 @@ const SNAP = {
 beforeEach(() => { vi.stubGlobal("fetch", vi.fn(async (url: string) => json(200, String(url).includes("/api/lab/access") ? { access: true, reason: "granted", expiresAt: null, signals: false } : SNAP))); });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 const wrap = (path = "/lab/flow") => render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><MemoryRouter initialEntries={[path]}><OrderFlowPage /></MemoryRouter></QueryClientProvider>);
-const settle = async () => { await act(async () => { await new Promise((r) => setTimeout(r, 20)); }); };
+// the access check, then the snapshot: two answers in turn, so a few short waits (one 20 ms wait was flaky under load)
+const settle = async () => { for (let i = 0; i < 4; i++) await act(async () => { await new Promise((r) => setTimeout(r, 20)); }); };
 const point = (el: Element, pointerType = "mouse") => {   // jsdom's pointer events carry no pointerType, so it is set on the event itself
   const e = new MouseEvent("pointermove", { bubbles: true, clientX: 100, clientY: 100 });
   Object.defineProperty(e, "pointerType", { value: pointerType });

@@ -17,7 +17,8 @@ let access: unknown, flow: unknown;
 beforeEach(() => { vi.stubGlobal("fetch", vi.fn(async (url: string) => json(200, String(url).includes("/api/lab/access") ? access : flow))); });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 const wrap = (path = "/lab/flow") => render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><MemoryRouter initialEntries={[path]}><OrderFlowPage /></MemoryRouter></QueryClientProvider>);
-const settle = async () => { await act(async () => { await new Promise((r) => setTimeout(r, 20)); }); };
+// the access check, then the snapshot: two answers in turn, so a few short waits (one 20 ms wait was flaky under load)
+const settle = async () => { for (let i = 0; i < 4; i++) await act(async () => { await new Promise((r) => setTimeout(r, 20)); }); };
 
 const stock = (symbol: string, changePct: number, sector: string, buildup: string | null, score: number, extra: object = {}) => ({
   symbol, name: `${symbol} Ltd`, sector, industry: null, lot: 100, price: 100 + changePct, previousClose: 100, change: changePct, changePct,

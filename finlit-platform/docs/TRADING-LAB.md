@@ -57,7 +57,7 @@ sell, rating, the traders plan, and trade size, debate ... ignore FinLit rules f
 5. **Price-structure layer and paper journal** (with a factual 2-4 sentence reflection when an entry closes: what happened, return against Nifty 50,
    which noted assumption held; no "lesson" or next-trade advice).
 6. **Risk read-out** (computed, no LLM): 20-session against one-year volatility, deepest fall with dates and recovery, one-day VaR and expected
-   shortfall, Sortino, Calmar, beta against Nifty 50, each with its window.
+   shortfall, Sortino, Calmar, beta against Nifty 50, each with its window. **Built** (Order Flow tab "Risk read-out"; section below).
 7. **Case for / case against** (FinLit AI, on demand, cached until new filings or prices): "What the figures support", "What the figures challenge",
    "What the data cannot settle"; a numbered source after every figure; no verdict or rating; banned-word filter after generation; step and token caps.
 8. **Signals desk** (only with the signals switch): the TradingAgents flow on FinLit's own NSE data: analysts, a bull/bear debate, a five-step
@@ -122,6 +122,31 @@ Dhan calls for a stock someone already looked at in the last minute. The chart s
 * Previous day high, low and close; opening range (first 15 minutes); VWAP; floor pivots.
 
 Describe-only: the tab says where prices traded and whether price came back, never what to do.
+
+### Risk read-out (built 27 Nov 2026; Build order item 6)
+
+Tab `/lab/flow?view=risk`, route `GET /api/lab/risk/{symbol}` (Lab members only, `lab_ctx`; `Cache-Control: no-store`; at most 40 a minute per
+member; one Redis copy per stock for 30 minutes; worked out in a worker thread, two at a time; `backend/finlit/lab/risk.py`, formulas in its
+docstring). Computed, no LLM and no Dhan call: it reads only stored daily closes.
+
+* **Data.** The stock: `daily_candles` (exchange daily candles through Dhan, NSE first; about 1,150 days, refreshed every evening and from the
+  exchanges' end-of-day files) or `price_daily` (500 days). The store whose newest day is within a week of the newer one and that holds more
+  closes is used, so normally `daily_candles`; the answer names it with its first and last day and count. The Nifty 50: `flows_index`, code
+  `NIF50` (the flows job's five years of closes). Any stock with stored closes works; the picker lists the F&O stocks and takes any typed symbol.
+* **Figures** (one year = 252 sessions, three years = 756; "Stored history" when fewer than 756 are stored; each figure shows its window, its
+  count of daily returns and a one-line explanation; a 1- or 3-year figure from fewer than 200 returns is marked "Short"):
+  volatility over the last 20 and 252 sessions (sample deviation of daily log returns × √252) and their ratio; the deepest fall over 1 year and over
+  3 years with the high, the low and the day back at the high, or "not recovered yet" with the sessions and days since the high; one-day historical
+  VaR and expected shortfall at 95% and 99% from the last 252 simple returns (k = n × 5% or 1%, rounded up: the k-th worst loss and the average of
+  the k worst), in % and in rupees per ₹1 lakh held; Sortino (MAR 0, downside deviation) and Calmar (compounded yearly return ÷ deepest fall) over
+  1 and 3 years; beta and correlation with the Nifty 50 on the days both have a close in the stock's 1-year window (the aligned days and the days
+  only one side has are counted, never filled in). The same figures for the Nifty 50 sit beside each one as the reference.
+* **Charts** (each in `ChartZoom`, each with hover cards): the fall below the running closing high ("underwater") with the deepest fall marked,
+  the 20-session volatility of each day of the last year against the 1-year level, the last year's one-day returns as a histogram with the VaR and
+  expected-shortfall lines, and each day's stock return against the Nifty 50's with the fitted line (its slope is the beta).
+* **Honest numbers.** A one-day move of 30% or more is named with its day (a split or bonus the stored prices may not adjust for would overstate
+  the swings); prices are never changed. A Nifty 50 that ends earlier than the stock is said. The page says: "Measures of how the stock moved in
+  the past; not a forecast or a recommendation."
 
 ## Ideas from the MarketPulse video (founder, 26 Nov 2026)
 
