@@ -9,14 +9,20 @@
 #   auto-deploy.sh status     what is deployed, what failed last, the timer, the last log lines
 #   auto-deploy.sh pause      stop deploying (nothing else changes);  auto-deploy.sh resume
 #   auto-deploy.sh force      deploy the new commit now AND move the jobs container at once, even while a long job runs (an urgent job fix)
-#   auto-deploy.sh skip-ci    deploy the new commit now WITHOUT waiting for its checks (an emergency only; it is logged)
+#   auto-deploy.sh skip-ci    deploy the branch's newest commit now WITHOUT waiting for its checks (an emergency only; it is logged)
 #
-# A commit is deployed only once its checks on GitHub are green (25 Nov 2026). Before deploying, this asks GitHub for the workflow runs that the push of that
+# A commit is deployed only once its checks on GitHub are green (25 Nov 2026). Before deploying, this asks GitHub for the workflow runs that the push of a
 # commit started (`event=push`, so the scheduled uptime and smoke checks, which fail while the site is down, never block the fix that brings it back) and:
-#   every run finished and passed (success, skipped, neutral)  -> deploy;
-#   a run still queued or running, or a required one (CI_REQUIRE) not started yet -> wait, ask again at the next tick;
-#   a run failed, was cancelled or timed out                   -> hold: never deployed while red; a re-run that turns green, or a newer commit, is deployed;
-#   GitHub cannot be asked                                    -> hold (the commit itself is read from GitHub too).
+#   every run finished and passed (success, skipped, neutral)  -> green: may be deployed;
+#   a run still queued or running, or a required one (CI_REQUIRE) not started yet -> pending: not yet;
+#   a run failed, was cancelled or timed out                   -> red: never deployed while red (a re-run that turns green is deployed);
+#   GitHub cannot be asked                                    -> unknown: not deployed.
+# The NEWEST GREEN commit is deployed, not only the branch's newest commit (27 Nov 2026). The backend checks take 70-90 minutes and merges arrive faster than
+# that, so the newest commit was almost never green and nothing was deployed for hours. Now each check looks at the branch's last AUTO_DEPLOY_LOOKBACK commits
+# (default 20, first-parent order, newest first) that are newer than the deployed one, and deploys the first green one; a pending or red commit is passed over
+# (it never blocks an older green one) and the next check looks again, so the newest commit is deployed as soon as it turns green. Never backwards: nothing at
+# or before the deployed commit is considered, and a commit whose deploy failed is never tried again. A green verdict is final and kept in $STATE/ci_verdicts
+# (a red one is asked again: a re-run can turn it green); GitHub is asked at most CI_ASK_MAX (default 6) times per check, within its limit of 60 an hour.
 # The image build (CI_IGNORE, default platform-image) is not part of the verdict: deploy.sh waits for the image, or builds it here when it fails.
 # Each change of verdict is logged once (not every tick); a wait longer than CI_WAIT_WARN_MIN minutes (default 90) is logged once as a warning.
 #
@@ -27,7 +33,7 @@
 #
 # Configuration: $FINLIT_HOME/auto-deploy.conf, lines NAME=value (read, never executed): REPO_URL, REPO_BRANCH, REPO_SUBDIR; for the checks: CI_GATE (on/off,
 # default on), CI_REPO (owner/name, default read from a github.com REPO_URL), CI_REQUIRE (comma-separated workflow names that must have run, default
-# "Platform CI,Security"), CI_IGNORE (default "platform-image"), CI_WAIT_WARN_MIN.
+# "Platform CI,Security"), CI_IGNORE (default "platform-image"), CI_WAIT_WARN_MIN, AUTO_DEPLOY_LOOKBACK (default 20), CI_ASK_MAX (default 6).
 # A private repository: put a read-only token alone in $FINLIT_HOME/git-token (chmod 600); it is handed to git for this run only, never printed.
 set -uo pipefail
 
@@ -174,10 +180,9 @@ failed="$(cat "$STATE/auto_failed_sha" 2>/dev/null || true)"
 if [ -z "$deployed" ] && [ -d "$FINLIT_HOME/src/.git" ] && [ "$(git -C "$FINLIT_HOME/src" rev-parse HEAD 2>/dev/null)" = "$remote" ]; then
   echo "$remote" > "$STATE/auto_deployed_sha"; deployed="$remote"      # the server already runs exactly this commit
 fi
-if [ "$remote" = "$deployed" ] || [ "$remote" = "$failed" ]; then
-  if [ "${1:-check}" = now ]; then
-    if [ "$remote" = "$deployed" ]; then echo "nothing to do: $remote is already deployed"; else echo "nothing to do: $remote failed before; it waits for a new commit"; fi
-  fi
+failed_before() { [ -n "$1" ] && { [ "$1" = "$failed" ] || grep -qx "$1" "$STATE/auto_failed_list" 2>/dev/null; }; }
+if [ "$remote" = "$deployed" ]; then
+  [ "${1:-check}" = now ] && echo "nothing to do: $remote is already deployed"
   if [ "${1:-check}" = force ] && [ -f "$DEPLOY_SH" ]; then
     log "force: moving the jobs container to the deployed code at once"; bash "$DEPLOY_SH" jobs force >> "$LOG" 2>&1
   else
@@ -187,29 +192,75 @@ if [ "$remote" = "$deployed" ] || [ "$remote" = "$failed" ]; then
 fi
 [ -x "$DEPLOY_SH" ] || [ -f "$DEPLOY_SH" ] || { log "cannot deploy $remote: $DEPLOY_SH not found (a first deploy by hand is needed)"; exit 0; }
 
-# The checks gate: deploy only a commit whose checks are green (see the header)
+# The commits newer than the deployed one, newest first (first-parent: the merges on the branch), at most AUTO_DEPLOY_LOOKBACK of them. A small bare copy of
+# the branch's recent history is kept in $STATE/git-cache; it never touches the checkout that runs the site.
+candidates() {
+  local cache="$STATE/git-cache" n; n="$(conf AUTO_DEPLOY_LOOKBACK 20)"
+  [ -d "$cache" ] || git init -q --bare "$cache" 2>/dev/null || return 1
+  git -C "$cache" fetch -q --depth "$n" "$REPO_URL" "refs/heads/$REPO_BRANCH" 2>/dev/null || return 1
+  git -C "$cache" rev-list --first-parent -n "$n" FETCH_HEAD 2>/dev/null | while read -r c; do
+    [ "$c" = "$deployed" ] && break                  # never backwards: stop at the deployed commit
+    printf '%s\n' "$c"
+  done
+}
+# ci_cached SHA: a green verdict seen before, else ask GitHub (at most CI_ASK_MAX times per check) and keep a final answer
+asked=0
+ci_cached() {
+  local v; v="$(grep -m1 "^$1 " "$STATE/ci_verdicts" 2>/dev/null | cut -d' ' -f2-)"
+  if [ -n "$v" ]; then printf '%s\n' "$v"; return; fi
+  if [ "$asked" -ge "$(conf CI_ASK_MAX 6)" ]; then echo "pending: not asked in this check (CI_ASK_MAX)"; return; fi
+  asked=$((asked + 1))
+  v="$(ci_verdict "$1")"
+  if [ "${v%%:*}" = green ]; then                 # only green is final: a red commit can still turn green on a re-run, so it is asked again
+    printf '%s %s\n' "$1" "$v" >> "$STATE/ci_verdicts"
+    tail -n 200 "$STATE/ci_verdicts" > "$STATE/ci_verdicts.tmp" && mv -f "$STATE/ci_verdicts.tmp" "$STATE/ci_verdicts"
+  fi
+  printf '%s\n' "$v"
+}
+
+# The checks gate: deploy the newest commit whose checks are green (see the header)
+target="$remote"
 if [ "${1:-check}" = skip-ci ]; then
+  if failed_before "$remote"; then log "skip-ci: $remote failed before; it waits for a new commit"; jobs_pending; exit 0; fi
   log "skip-ci: deploying $remote WITHOUT waiting for its checks (asked by hand)"
 elif [ "$(conf CI_GATE on)" != off ]; then
-  verdict="$(ci_verdict "$remote")"
-  ci_note "$remote" "$verdict" || { [ "${1:-check}" = now ] && echo "checks of $remote: $verdict"; }   # a new verdict is logged (and shown)
-  if [ "${verdict%%:*}" != green ]; then
-    if [ "${verdict%%:*}" = pending ]; then         # a wait that runs long is said once
-      since="$(sed -n "s/^$remote //p" "$STATE/ci_wait_since" 2>/dev/null)"
-      [ -n "$since" ] || { since="$(date +%s)"; echo "$remote $since" > "$STATE/ci_wait_since"; }
-      if [ $(( $(date +%s) - since )) -ge $(( $(conf CI_WAIT_WARN_MIN 90) * 60 )) ] && [ "$(cat "$STATE/ci_wait_warned" 2>/dev/null)" != "$remote" ]; then
-        echo "$remote" > "$STATE/ci_wait_warned"; log "WARNING: the checks of $remote have not finished after $(conf CI_WAIT_WARN_MIN 90) minutes; still waiting (skip-ci deploys it anyway)"
-      fi
+  list="$(candidates)" || list=""
+  [ -n "$list" ] || list="$remote"                   # the history could not be read: decide on the newest commit alone, as before
+  target=""; head_verdict=""
+  while read -r c; do
+    [ -n "$c" ] || continue
+    failed_before "$c" && continue                   # a commit whose deploy failed is never tried again
+    v="$(ci_cached "$c")"
+    [ "$c" = "$remote" ] && head_verdict="$v"
+    if [ "${v%%:*}" = green ]; then target="$c"; break; fi
+  done <<<"$list"
+  if [ -z "$head_verdict" ]; then
+    if failed_before "$remote"; then head_verdict="failed: its deploy failed before; it waits for a new commit"; else head_verdict="$(ci_cached "$remote")"; fi
+  fi
+  ci_note "$remote" "$head_verdict" || { [ "${1:-check}" = now ] && echo "checks of $remote: $head_verdict"; }   # a new verdict of the newest commit is logged (and shown)
+  if [ "${head_verdict%%:*}" = pending ]; then         # a wait that runs long is said once
+    since="$(sed -n "s/^$remote //p" "$STATE/ci_wait_since" 2>/dev/null)"
+    [ -n "$since" ] || { since="$(date +%s)"; echo "$remote $since" > "$STATE/ci_wait_since"; }
+    if [ $(( $(date +%s) - since )) -ge $(( $(conf CI_WAIT_WARN_MIN 90) * 60 )) ] && [ "$(cat "$STATE/ci_wait_warned" 2>/dev/null)" != "$remote" ]; then
+      echo "$remote" > "$STATE/ci_wait_warned"; log "WARNING: the checks of $remote have not finished after $(conf CI_WAIT_WARN_MIN 90) minutes; still waiting (skip-ci deploys it anyway)"
     fi
+  fi
+  if [ -z "$target" ]; then
+    [ "${1:-check}" = now ] && echo "nothing to do: no commit newer than ${deployed:-none} has green checks yet"
     jobs_pending
     exit 0
   fi
+  [ "$target" = "$remote" ] || log "the newest green commit is $target (the newest, $remote, is ${head_verdict%%:*}): deploying it"
+elif failed_before "$remote"; then
+  [ "${1:-check}" = now ] && echo "nothing to do: $remote failed before; it waits for a new commit"
+  jobs_pending; exit 0
 fi
-rm -f "$STATE/ci_wait_since" "$STATE/ci_wait_warned"
+if [ "$target" = "$remote" ]; then rm -f "$STATE/ci_wait_since" "$STATE/ci_wait_warned"; fi
 rm -f "$STATE/deploy_wait_note" "$STATE/deploy_now" "$STATE/jobs_note"   # deploy_* are notes of the old whole-deploy hold; nothing writes them now
 
-log "new commit $remote on $REPO_BRANCH (deployed: ${deployed:-none}): deploying"
-export REPO_URL REPO_BRANCH REPO_SUBDIR FINLIT_HOME
+log "new commit $target on $REPO_BRANCH (deployed: ${deployed:-none}): deploying"
+DEPLOY_SHA="$target"
+export REPO_URL REPO_BRANCH REPO_SUBDIR FINLIT_HOME DEPLOY_SHA
 log "backup before the deploy"
 bash "$DEPLOY_SH" backup >> "$LOG" 2>&1 || log "WARNING: the backup before the deploy failed (the deploy goes on: a nightly backup exists)"
 before="$(image_id)"
@@ -217,7 +268,7 @@ bash "$DEPLOY_SH" deploy >> "$LOG" 2>&1
 rc=$?
 after="$(image_id)"
 if [ "$rc" = 0 ]; then
-  echo "$remote" > "$STATE/auto_deployed_sha"; rm -f "$STATE/auto_failed_sha"
+  echo "$target" > "$STATE/auto_deployed_sha"; rm -f "$STATE/auto_failed_sha"
   # keep the installed copy of this script current (replaced atomically: the running copy is never edited in place)
   new="$FINLIT_HOME/src/$REPO_SUBDIR/deploy/aws/auto-deploy.sh"
   if [ -f "$new" ] && [ -d "$FINLIT_HOME/bin" ] && ! cmp -s "$new" "$FINLIT_HOME/bin/auto-deploy.sh"; then
@@ -225,16 +276,16 @@ if [ "$rc" = 0 ]; then
   fi
   if [ "${1:-check}" = force ]; then log "force: moving the jobs container at once"; bash "$DEPLOY_SH" jobs force >> "$LOG" 2>&1; fi
   [ -s "$STATE/jobs_pending" ] && log "the jobs container moves to this code when the running long job is done"
-  log "DEPLOYED $remote"
+  log "DEPLOYED $target"
   exit 0
 fi
-echo "$remote" > "$STATE/auto_failed_sha"
-log "FAILED: deploying $remote did not succeed (rc=$rc)"
+echo "$target" > "$STATE/auto_failed_sha"; echo "$target" >> "$STATE/auto_failed_list"
+log "FAILED: deploying $target did not succeed (rc=$rc)"
 if [ -n "$after" ] && [ "$after" != "$before" ]; then
   log "the new build is not healthy: going back to the previous build"
   if bash "$DEPLOY_SH" rollback >> "$LOG" 2>&1; then log "ROLLED BACK: the previous version is running again"; else log "ROLLBACK FAILED: look at the site by hand (deploy.sh status, deploy.sh logs app)"; fi
 else
   log "the running build was not touched (the deploy stopped before replacing it)"
 fi
-log "$remote will not be tried again; the next new commit will be"
+log "$target will not be tried again; the next new green commit will be"
 exit 1
