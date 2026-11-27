@@ -353,3 +353,11 @@
   .dcx-bridge tr.sub th{padding-left:8px}
 }
 @media (prefers-reduced-motion:reduce){.dcx .dcx-codet{animation:none}.dcx-chev{transition:none}}
+/* task #416: the bear, base, bull table's boxes and plain figures share one centre. Cause: dcf.css loads after this file in the build and its
+   ".dcf th,.dcf td{text-align:left;vertical-align:top}" (same weight as .dcx-t) pinned every cell top-left, so the 30px boxes and the plain text sat
+   at different heights and the base row's figures started left of the boxes above and below. Scoped to this table only, one class heavier. */
+.dcx .dcx-sc th,.dcx .dcx-sc td{text-align:center;vertical-align:middle}
+.dcx .dcx-sc thead th{vertical-align:middle}   /* the headers too, also where they wrap to two lines (1100px and below) */
+.dcx .dcx-sc tfoot th{text-align:left}
+.dcx .dcx-sc input{text-align:center;vertical-align:middle}
+.dcx .dcx-sc .lk{width:auto;padding:0}
