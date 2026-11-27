@@ -189,20 +189,24 @@ export function Histogram({ r }: { r: TmResult }) {
   const HH = 210, PBt = 28, bw = (W - PL - PR) / counts.length;
   const xv = (v: number) => PL + ((v - lo) / span) * (W - PL - PR);
   const lv: [string, number, string][] = ([["Lower", r.plan.lower, "l"], ["Start", r.plan.price, "p"], ["Upper", r.plan.upper, "u"]] as [string, number, string][]).filter(([, v]) => v >= lo && v <= hi);
+  const LABEL_W = 52, ROW_H = 13;          // a label closer than this to the one before it drops to the next row, so none overlaps on a phone
+  const rowOf: number[] = [];
+  lv.forEach(([, v], i) => { rowOf[i] = i > 0 && xv(v) - xv(lv[i - 1][1]) < LABEL_W ? rowOf[i - 1] + 1 : 0; });
+  const top0 = 16 + ROW_H * Math.max(0, ...rowOf);
   return (
     <div className="tm-chart" ref={box}>
       <svg className="tm-hist" viewBox={`0 0 ${W} ${HH}`} role="img" data-chart="tm-hist"
         aria-label={`Price at ${r.plan.flatBy} in ${n0(r.sample.replays)} replays, ${px(lo)} to ${px(hi)}; the middle replay ${px(r.histogram.median)}`}>
         <line className="tm-axis" x1={PL} x2={W - PR} y1={HH - PBt} y2={HH - PBt} />
         {counts.map((c, i) => {
-          const a = edges[i], b = edges[i + 1], mid = (a + b) / 2, h = (c / top) * (HH - PBt - 16);
+          const a = edges[i], b = edges[i + 1], mid = (a + b) / 2, h = (c / top) * (HH - PBt - top0);
           const side = mid < r.plan.price ? "loss" : mid > r.plan.price ? "gain" : "flat";
           return <rect key={i} className={`tm-bin ${side}`} x={PL + i * bw + 0.5} width={Math.max(1, bw - 1)} y={HH - PBt - h} height={Math.max(c ? 1 : 0, h)}
             onPointerMove={(e) => tip.show(e, <><header className="oflow-pop-h"><div><b>{px(a)} to {px(b)}</b><small>price at {r.plan.flatBy}</small></div><div className="r"><small>replays</small><b>{n0(c)}</b></div></header>
               <p className="tm-pop-p">{((c / r.sample.replays) * 100).toFixed(1)}% of {n0(r.sample.replays)} replays; {pc((mid / r.plan.price - 1) * 100)} from the start price.</p></>)}
             onPointerLeave={() => tip.hide()} />;
         })}
-        {lv.map(([k, v, c]) => <g key={k} className={`tm-lvl ${c}`}><line x1={xv(v)} x2={xv(v)} y1={8} y2={HH - PBt} /><text x={xv(v) + 4} y={16}>{k}</text></g>)}
+        {lv.map(([k, v, c], i) => <g key={k} className={`tm-lvl ${c}`}><line x1={xv(v)} x2={xv(v)} y1={8 + ROW_H * rowOf[i]} y2={HH - PBt} /><text x={xv(v) + 4} y={16 + ROW_H * rowOf[i]}>{k}</text></g>)}
         <text className="tm-tx" x={PL} y={HH - 8}>{px(lo)}</text><text className="tm-tx" x={W - PR} y={HH - 8} textAnchor="end">{px(hi)}</text>
       </svg>
       <p className="muted tm-legend">Where each replay stood at {r.plan.flatBy}, whether or not it reached a level first. Middle replay {px(r.histogram.median)}.</p>
@@ -229,9 +233,13 @@ function RowPop({ row, r }: { row: PastRow; r: TmResult }) {
   );
 }
 
+const PAST_FIRST = 15, PAST_STEP = 15;      // sessions listed at first, and added by each "Show more"
+
 function Past({ r, phone }: { r: TmResult; phone: boolean }) {
   const tip = useTip();
-  const rows = [...r.past.rows].reverse();         // newest first
+  const all = [...r.past.rows].reverse();          // newest first
+  const [shown, setShown] = useState(PAST_FIRST);
+  const rows = all.slice(0, shown), more = Math.min(PAST_STEP, all.length - rows.length);
   const hover = (row: PastRow) => ({ onPointerMove: (e: React.PointerEvent) => tip.show(e, <RowPop row={row} r={r} />), onPointerLeave: () => tip.hide() });
   return (
     <div className="tm-chart tm-past" data-chart="tm-past">
@@ -251,6 +259,7 @@ function Past({ r, phone }: { r: TmResult; phone: boolean }) {
               <td className={row.changePct > 0 ? "gain" : row.changePct < 0 ? "loss" : ""}>{pc(row.changePct)}</td>
             </tr>))}</tbody>
         </table>}
+      {more > 0 && <button type="button" className="ui-btn tm-more" onClick={() => setShown((n) => n + PAST_STEP)}>Show {more} more of {all.length} sessions</button>}
     </div>
   );
 }

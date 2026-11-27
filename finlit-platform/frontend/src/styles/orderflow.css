@@ -719,3 +719,4 @@ a.oflow-tab:hover:not([aria-current]) { background: color-mix(in srgb, var(--gol
   .cz:not(.cz-boxed) > .cz-slot .tm-chart { padding-right: 0; padding-top: 44px; }
   .tm-olist, .tm-ptot { flex-direction: column; }
 }
+.tm-more { margin-top: var(--sp-3, 12px); }

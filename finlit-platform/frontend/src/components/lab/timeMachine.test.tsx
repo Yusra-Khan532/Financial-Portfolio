@@ -168,6 +168,20 @@ describe("Time Machine, the tab", () => {
     expect(within(screen.getByRole("tooltip")).getByText("Lower level first at 09:25")).toBeTruthy();
   });
 
+  it("lists the latest 15 past sessions first, then 15 more at a time", async () => {
+    phone(false);
+    const rows = Array.from({ length: 40 }, (_, i) => ({ date: `2026-10-${String(i % 28 + 1).padStart(2, "0")}`.replace(/10-(\d+)$/, (_m, d) => (i < 28 ? `10-${d}` : `11-${String(i - 27).padStart(2, "0")}`)),
+      start: 1000, lower: 990, upper: 1010, outcome: "neither", touchAt: null, end: 1000, changePct: 0, bars: 75 }));
+    answer = () => json(200, { ...RESULT, past: { ...RESULT.past, rows } });
+    wrap(); await settle();
+    await run();
+    expect(document.querySelectorAll(".tm-table tbody tr")).toHaveLength(15);
+    fireEvent.click(screen.getByRole("button", { name: "Show 15 more of 40 sessions" }));
+    expect(document.querySelectorAll(".tm-table tbody tr")).toHaveLength(30);
+    fireEvent.click(screen.getByRole("button", { name: "Show 10 more of 40 sessions" }));
+    expect(document.querySelectorAll(".tm-table tbody tr")).toHaveLength(40);
+    expect(screen.queryByRole("button", { name: /more of 40 sessions/ })).toBeNull();
+  });
   it("every chart and the table carry the enlarge button", async () => {
     phone(false);
     wrap(); await settle();
