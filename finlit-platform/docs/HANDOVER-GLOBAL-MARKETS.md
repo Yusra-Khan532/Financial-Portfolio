@@ -59,6 +59,10 @@ cash, long-term debt). Banks have no operating income (show "—"). `/api/lab/co
 - Market mood: GDELT world tone (free); Reddit only via an official free app the team registers (no scraping).
 - Global cues: GIFT Nifty if a free feed is found (NSE IX pages are script-loaded; none yet).
 - Founder, 27 Nov 2026: the Lab and the Markets page are internal only and will not be made public; the licence flag is CLOSED (no action).
+- Founder, 27 Nov 2026 (explicit): "we want everything ... ignore the copyright things for now". Copyright notes and "personal use"
+  terms do NOT stop any data being used anywhere in the Lab or the internal Markets page (e.g. S&P 500, Dow, Nasdaq, Nikkei from FRED or
+  Yahoo, any index, any company, any feed). Do not drop or hide a series for licensing reasons. The only limits that stay: no secrets in the
+  repo, honest User-Agent, and no getting round a site's access controls (a 403/bot wall means find another free source).
   Paid items (X posts, GIFT Nifty live) are optional: skip them; cover everything else with the free sources.
 
 ## Test harness notes
