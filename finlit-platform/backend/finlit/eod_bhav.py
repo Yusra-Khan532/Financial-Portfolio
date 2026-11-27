@@ -187,12 +187,56 @@ def looking(now: datetime) -> Optional[date]:
     return t.date()
 
 
-async def has_work(store, now: Optional[datetime] = None) -> Optional[bool]:
-    """The probe: True while today's file of either exchange is not loaded yet, in the hours the files appear."""
-    day = looking(now or datetime.now(timezone.utc))
-    if day is None:
-        return False
+def previous_weekday(now: datetime) -> date:
+    """The last weekday before today (IST): the session a missed evening would have loaded."""
+    d = now.astimezone(IST).date() - timedelta(days=1)
+    while d.weekday() >= 5:
+        d -= timedelta(days=1)
+    return d
+
+
+def days_to_look(now: datetime) -> List[date]:
+    """27 Nov 2026: the previous weekday too, at any hour, so an evening the job missed (a deploy, a restart, a file out after 23:30) is loaded the next
+    morning instead of never; then today's, in its hours."""
+    days = [previous_weekday(now)]
+    today = looking(now)
+    if today is not None:
+        days.append(today)
+    return days
+
+
+async def missing(store, day: date) -> List[str]:
+    """The exchanges whose file for `day` is not loaded (nor known to be absent: a holiday)."""
+    out = []
     for exch in ("NSE", "BSE"):
         if not await store.redis.get(DONE_KEY.format(day=day.isoformat(), exch=exch)):
+            out.append(exch)
+    return out
+
+
+async def has_work(store, now: Optional[datetime] = None) -> Optional[bool]:
+    """The probe: True while a file of the previous weekday, or of today in the hours the files appear, is not loaded yet."""
+    for day in days_to_look(now or datetime.now(timezone.utc)):
+        if await missing(store, day):
             return True
     return False
+
+
+async def catch_up(store, now: Optional[datetime] = None, get: Optional[Getter] = None) -> List[Dict[str, Any]]:
+    """What the job does without --date: every day of days_to_look with a file missing. A past day that both exchanges still answer 404 for had no
+    session (a holiday): it is marked so, and not asked again."""
+    now = now or datetime.now(timezone.utc)
+    today = now.astimezone(IST).date()
+    out = []
+    for day in days_to_look(now):
+        need = await missing(store, day)
+        if not need:
+            continue
+        res = await load(store, day, get=get, only=need)
+        if day < today:
+            for exch in need:
+                if (res.get(exch) or {}).get("status") == "not out yet":
+                    await store.redis.set(DONE_KEY.format(day=day.isoformat(), exch=exch), "no session", ex=DONE_TTL)
+                    res[exch] = {"status": "no session (a holiday: the exchange has no file for this day)"}
+        out.append(res)
+    return out
