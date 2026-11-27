@@ -123,7 +123,7 @@ describe("task #289: Tracked investors tab", () => {
       PLAN = plan; open("/superinvestors");
       const lock = await screen.findByRole("heading", { name: "Superinvestor portfolios", level: 2 });
       expect(lock.closest(".gate")!.className).toMatch(/is-locked/);
-      expect(lock.closest(".lock-card")!.textContent).toMatch(/Gold plan.*Each tracked investor's stocks, under every name they file with.*Moves in the latest filings.*FinLit Prism, technical scores and peer tags.*an alert when they file a change.*Unlock with Gold/);
+      expect(lock.closest(".lock-card")!.textContent).toMatch(/Gold plan.*Each tracked investor's stocks, under every name they file with.*Moves in the latest filings.*FinLit Prism, technical scores and peer labels.*an alert when they file a change.*Unlock with Gold/);
       expect(get).not.toHaveBeenCalledWith("/api/superinvestors/tracked");
       expect(text()).not.toMatch(/Silver/);
       cleanup(); get.mockClear();

@@ -14,13 +14,17 @@ export type Reliability = { tier: "consistent" | "mixed" | "not_reliable" | "ins
 export type NotRanked = { symbol: string; name: string; reason: "history" | "stale" | "liquidity" | "no_prices" | "not_covered" | string; text: string };
 export type LeadParts = { rank: string; sector: { pts: string; name: string; v: number | null }; market: { pts: string; name: string; v: number | null } | null; direction: Direction };
 export type LeadDisplay = { chip: string | null; line: string; parts?: LeadParts; note: string | null; tooltip: string | null; benchmarkNote?: string; pending?: string | null };
+/** Task #409: the reading waiting for a second weekly run, or null. Shown only when the server says a reading is pending (`display.pending`, from the
+ *  weekly record's pending_to): a week without a rank, or a reading that already became the label, is never "→ …?". */
+export const pendingOf = (lead: { label: LeadLabel; rawLabel?: LeadLabel | null; display?: LeadDisplay }): LeadLabel | null =>
+  lead.display?.pending && lead.rawLabel && lead.rawLabel !== lead.label ? lead.rawLabel : null;
 export type LeadershipOn = {
   available: true; asOf: string; stale: boolean; held: boolean;
   /** `source` "list" is the indicator's peer list (`listed` names on it, as of `listAsOf`); "industry" (or absent, on older data) is the data provider's industry. */
   peerGroup: { id: string; name: string; short: string; kind: "industry" | "sector" | "basic_industry"; ranked: number; source?: "list" | "industry"; listed?: number | null; listAsOf?: string | null; leaderSlots?: number };
   benchmarks: { sector: { code: string | null; name: string; kind: "index" | "peer_average"; ret52: number | null }; market: { code: string; name: string; ret52: number | null } | null };
   rel: { w13: number | null; w26: number | null; w52: number | null; w52Market: number | null };
-  rank: number; label: LeadLabel; rawLabel: LeadLabel; direction: Direction; fundamentalNote: "below_peers" | "stronger_than_price" | null;
+  rank: number; label: LeadLabel; rawLabel: LeadLabel | null; direction: Direction; fundamentalNote: "below_peers" | "stronger_than_price" | null;
   fundamentalRank: number | null; fundamentalOf: number | null; labelSince: string | null; sectorReliability: Reliability; display: LeadDisplay; peers: LeadPeer[];
   /** Absent on an answer from before the peer lists. `runs52`: the published labels over the last 52 weeks (a count of the weekly checks that exist). */
   notRanked?: NotRanked[]; runs52?: { leader: number; in_line: number; laggard: number; total: number } | null;

@@ -10,7 +10,7 @@ import { STATE_HELP, WORD, keyOf, short } from "../../lib/pulsePack";
 import { BOX_HELP } from "../../lib/rotationPack";
 import { failureText, useSectorPage, useStockSector, type IndustryPage, type RankedStock } from "../../lib/sectors";
 import { useRotationCard } from "../../lib/rotation";
-import { useLeadership, useLeadershipHistory, type LeadershipOn, type LeadLabel } from "../../lib/leadership";
+import { pendingOf, useLeadership, useLeadershipHistory, type LeadershipOn, type LeadLabel } from "../../lib/leadership";
 import { usePrice, type Peers, type Summary } from "../../lib/api";
 import { capBucket } from "../../lib/capBuckets";
 import { ratingWord, trendAlignment } from "../../lib/prismTechnical";
@@ -62,7 +62,7 @@ export function WhereStands({ symbol, name, s, peers }: { symbol: string; name: 
           {key && <div className="ws-pill">Industry now <StateChip k={key} /><Tip text={STATE_HELP[key]} label="About the industry's state" /><button type="button" className="ws-go" onClick={() => open("industry")}>Its industry →</button></div>}
           {rot?.corner && rot.corner !== "middle" && <div className="ws-pill">Against other industries <BoxChip corner={rot.corner} /><Tip text={BOX_HELP[rot.corner]} label={`About “${rot.corner_name}”`} /><button type="button" className="ws-go" onClick={() => open("industry")}>Its industry →</button></div>}
           {sixRank && !locked && <div className="ws-pill">Inside its industry <b className={"ws-q q" + (sec?.quarter ?? 0)}>{sixRank}</b><button type="button" className="ws-go" onClick={() => open("industry")}>Its industry →</button></div>}
-          {lead && <div className="ws-pill">Against peers <PeerChip l={lead.label} />{lead.rawLabel !== lead.label && <span className="ws-next">→ {LABEL[lead.rawLabel]}?</span>}<button type="button" className="ws-go" onClick={() => open("peers")}>Against peers →</button></div>}
+          {lead && <div className="ws-pill">Against peers <PeerChip l={lead.label} />{pendingOf(lead) && <span className="ws-next">→ {LABEL[pendingOf(lead)!]}?</span>}<button type="button" className="ws-go" onClick={() => open("peers")}>Against peers →</button></div>}
           {align && <div className="ws-pill">Its own chart <b className="ws-own">{align}</b><button type="button" className="ws-go" onClick={() => open("chart")}>Price chart →</button></div>}
           {riskV != null && <div className="ws-pill">Prism Risk <b className="ws-own">{Math.round(riskV)} · {riskV >= 70 ? "Lower risk" : riskV >= 50 ? "Moderate risk" : "Higher risk"}</b><button type="button" className="ws-go" onClick={() => open("risk")}>Risk →</button></div>}
         </div>

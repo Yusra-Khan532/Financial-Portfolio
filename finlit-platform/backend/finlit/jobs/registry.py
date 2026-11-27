@@ -227,6 +227,7 @@ LIMIT_POLICY: Dict[str, str] = {
     "scores-export": "database: reads stored scores and screen lists only, at most one new day plus 3 back-fill days a run; measured in seconds",
     "presets": "database: builds the prebuilt screens from tables already held and runs the eleven chart-pattern scans on the stored daily candles; screens about 4 s, scans a few minutes (its own guard, so a scan problem never stops the screens)",
     "leadership": "database: weekly labels from stored prices, Saturdays only",
+    "peer-labels": "database: one time, builds the weekly peer-label record from the stored weekly readings (task #409)",
     "score-mf": "database: scores from tables already held; measured about 2 s",
     "mf-screen": "database: one transaction over tables already held; measured about 4 s",
     "backtest-leadership": "database: quarterly, stored weekly prices only",
@@ -404,6 +405,10 @@ def build_jobs(env: Optional[Mapping[str, str]] = None) -> List[Job]:
         Job("leadership", ("refresh-leadership", "--if-stale", "--backfill-from", "2022-10-01"), cls="bulk", priority=45, max_runtime_min=60, weight_mb=250,
             windows=(W("NIGHT", 144),), day_rule=_saturday, sla=Sla("hours", 192), boot=True, owns=("leadership",),
             what="weekly Leader / In line / Laggard labels (Saturday, after Friday's close)"),
+        # task #409: one time. While the weekly peer-label record is empty and stored weekly readings exist (probe "peer-labels"), build it from them with
+        # the two-run rule, so every page reads one label from the day this ships, not from the next Saturday. Afterwards the probe says no: it never runs again.
+        Job("peer-labels", ("rebuild-peer-labels",), cls="bulk", priority=44, max_runtime_min=20, weight_mb=250, probe="peer-labels", min_gap_min=30,
+            sla=Sla("none"), catchup=False, owns=(), what="one time: the weekly peer-label record from the stored weekly readings (task #409)"),
         Job("portfolios", ("refresh-portfolios",), cls="bulk", priority=50, max_runtime_min=120, weight_mb=200, group="funds", windows=night_morning,
             sla=Sla("hours", 26), resumable=True, gate=FUNDS_GATE, boot=True, what="fund holdings, sector split and exit loads (resumable)"),
         Job("score-mf", ("score-mf",), cls="bulk", priority=55, max_runtime_min=60, weight_mb=250, group="funds", windows=night_morning,

@@ -6,7 +6,7 @@ const rot = { corner: "ahead_gaining", rank: 2, ranked: 37, strength_pts: 19.2, 
 const S = { symbol: "RELIANCE", rank_6m: 12, ranked_6m: 12, quarter: 4, return_6m_pct: -8.1 } as never;
 const pt = (symbol: string) => ({ symbol, rank_6m: 1, return_6m_pct: 10 });
 const P = { stocks: [pt("GANDHAR"), pt("SOTL"), pt("PANAMAPET")] } as never;
-const L = { rank: 7, label: "laggard", rawLabel: "in_line", peerGroup: { ranked: 11, short: "energy" }, benchmarks: { sector: { name: "Nifty Energy" }, market: { name: "Nifty 50" } }, rel: { w52: -0.138, w52Market: -0.09, w13: 0.036 } } as never;
+const L = { rank: 7, label: "laggard", rawLabel: "in_line", display: { pending: "This week's reading says In line. The label changes if next week's reading agrees." }, peerGroup: { ranked: 11, short: "energy" }, benchmarks: { sector: { name: "Nifty Energy" }, market: { name: "Nifty 50" } }, rel: { w52: -0.138, w52Market: -0.09, w13: 0.036 } } as never;
 
 describe("Where Reliance stands", () => {
   it("the lead sentence", () => {
@@ -24,8 +24,16 @@ describe("Where Reliance stands", () => {
   it("Against peers: the cards", () => {
     const c = peerCards("Reliance", L, { pe: 21.7, roe: 8.7, peers: [{ pe: 4.4, roe: 20.3 }, { pe: 8.8, roe: 15.6 }, { pe: 57.2, roe: 2.7 }, { pe: 7.0, roe: 25.9 }] });
     expect(c[0]).toEqual({ kind: "warning", title: "A laggard among energy companies", text: "Reliance ranks 7th of 11 by price over 12 months: 13.8 points behind Nifty Energy and 9.0 behind Nifty 50." });
-    expect(c[1]).toEqual({ kind: "good", title: "But the recent direction has turned", text: "Over the last 3 months it is 3.6 points ahead of Nifty Energy, and this week's reading says In line. If next week agrees, the label changes." });
+    expect(c[1]).toEqual({ kind: "good", title: "But the recent direction has turned", text: "Over the last 3 months it is 3.6 points ahead of Nifty Energy, and this week's reading says In line. The label changes if next week's reading agrees." });
     expect(c[2].text).toBe("Reliance trades at 21.7 times profit, within the range of the other companies in its industry (4 to 57 times), with a lower return on equity (8.7%) than their average (16.1%).");
+  });
+  it("task #409: no pending reading, no 'this week's reading says' (a week without a rank, or a reading that already became the label)", () => {
+    const none = { ...(L as object), rawLabel: null, display: {} } as never;
+    expect(headline("Reliance", "Petroleum Products", "Bouncing back", S, rot, none)!.recent).toBeNull();
+    const c = peerCards("Reliance", none, { pe: 21.7, roe: 8.7, peers: [] });
+    expect(c[1].text).toBe("Over the last 3 months it is 3.6 points ahead of Nifty Energy.");
+    const stale = { ...(L as object), display: {} } as never;           // the server sends no pending text: nothing is pending, whatever rawLabel says
+    expect(headline("Reliance", "Petroleum Products", "Bouncing back", S, rot, stale)!.recent).toBeNull();
   });
   it("Price chart and Risk", () => {
     const c = priceCards({ last: 1302.5, high52: 1592.3, m1: 8.1, m12: -11.9, vs50: 3, vs200: 0.5, rsi: 67, align: "Bounce in a downtrend" });

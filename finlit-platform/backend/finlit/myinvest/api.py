@@ -284,7 +284,7 @@ async def _peers(store) -> Dict[str, str]:
     try:
         if await leadership_api.public_now(store):
             async with store.pool.acquire() as conn:
-                return {r["symbol"]: leadership_api.agreeing(r["label"], r["raw_label"], r["rel52"]) for r in await conn.fetch("SELECT symbol, label, raw_label, rel52 FROM leadership WHERE label IS NOT NULL")}   # task #183: never Leader at minus points
+                return {r["symbol"]: r["label"] for r in await conn.fetch("SELECT symbol, label FROM leadership WHERE label IS NOT NULL")}   # task #409: the weekly record's label, as on every page
     except Exception as exc:
         log.warning("all-investments: peer labels not read: %s", type(exc).__name__)
     return {}

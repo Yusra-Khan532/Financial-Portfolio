@@ -20,6 +20,7 @@ The slug is checked against the board (a fixed list), the symbol against NSE's c
 from __future__ import annotations
 
 import hashlib
+import logging
 import time
 from typing import Any, Dict, Optional
 
@@ -50,6 +51,7 @@ public_board, public_industry, public_rotation = _pub.public_board, _pub.public_
 public_rotation_group, public_stock_sector = _pub.public_rotation_group, _pub.public_stock_sector
 
 router = APIRouter()
+log = logging.getLogger("finlit.sector_api")
 PRIVATE_CACHE = "private, max-age=300, must-revalidate"      # the answer depends on the plan (Cookie), so no shared cache may keep it
 NO_STORE = "no-store"
 
@@ -367,7 +369,25 @@ async def industry(slug: str, request: Request, top: Optional[int] = None, show:
     if not page:
         reason = "Sector data is not loaded yet: this industry's page is missing from the current data set. It is rebuilt at the next nightly run."
         return _reply(request, {"available": False, "status": "not_loaded", "reason": reason, "detail": reason}, started, status=503, cache=NO_STORE)
-    return _reply(request, redact_sector_industry(public_industry(page, top_stocks=top), await _plan(request)), started)
+    return _reply(request, redact_sector_industry(await _record_peer_labels(request, public_industry(page, top_stocks=top)), await _plan(request)), started)
+
+
+async def _record_peer_labels(request: Request, page: Dict[str, Any]) -> Dict[str, Any]:
+    """Task #409: each stock's peer label on an industry page is the weekly record's latest label (the one the company report, the watchlist and the
+    screener show), not the sector build's own. Nothing changes while the record has no rows, or when it cannot be read (logged)."""
+    stocks = page.get("stocks") if isinstance(page, dict) else None
+    if not isinstance(stocks, list) or not stocks:
+        return page
+    try:
+        from . import peerlabels
+        async with request.app.state.store.pool.acquire() as conn:
+            if not await peerlabels.has_rows(conn):
+                return page
+            words = await peerlabels.label_words(conn, [str(s.get("symbol") or "").upper() for s in stocks if isinstance(s, dict)])
+    except Exception:
+        log.warning("industry page: the weekly peer-label record was not read; the sector build's labels are shown", exc_info=True)
+        return page
+    return {**page, "stocks": [({**s, "peer_label": words.get(str(s.get("symbol") or "").upper())} if isinstance(s, dict) and "peer_label" in s else s) for s in stocks]}
 
 
 @router.get("/api/technicals/{symbol}/sector")
