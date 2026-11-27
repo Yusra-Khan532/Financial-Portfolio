@@ -37,19 +37,20 @@ function ChecklistCell({ r, peers }: { r: FundRow; peers?: Record<string, PeerSt
     <button type="button" className={"mf-chk" + (c.of && c.pass / c.of >= 0.6 ? " hi" : "")} aria-label={label}
       onMouseEnter={(e) => show(g, e.currentTarget)} onMouseLeave={() => show(null)} onFocus={(e) => show(g, e.currentTarget)} onBlur={() => show(null)}
       onClick={(e) => { e.stopPropagation(); show(g, e.currentTarget); }}>
-      <span className="mf-meter" aria-hidden="true">{lines.map((l) => <i key={l.key} className={l.state} />)}</span>
-      <span className="mf-chk-n"><b>{c.pass}</b>/{c.of}</span>
+      <span className="mf-chk-n"><b>{c.pass}</b>/{c.of}</span>{/* task #430: the figure only (five marks sat beside it); each check is in the box on hover, focus or tap */}
     </button>
   );
 }
 
-/** A thin bar under a return, its length against the largest figure of that column on the page (green up, red down): a quick visual scale, nothing more. */
-const Bar = ({ v, max }: { v: number | null | undefined; max: number }) =>
-  v == null || !max ? null : <i className={"mf-rbar " + (v < 0 ? "neg" : "pos")} style={{ width: `${Math.max(4, Math.min(100, (Math.abs(v) / max) * 100))}%` }} aria-hidden="true" />;
+/** Task #430 (team, 27 Nov 2026: "there is no need of write up in this we just need the numbers to show nothing else and this is applicable for all the
+ *  columns"): every cell shows its figure only. The words that sat under a figure (a return's band, "Insufficient history", "Growth option's returns
+ *  (before payouts)", a fund size's band, a cost level, the score's word) and the thin bars are gone from the cells; each one's words are in that cell's
+ *  hover text and its screen-reader label instead, and "How to read this table" explains them. */
+const tipOf = (...parts: (string | null | undefined | false)[]) => parts.filter(Boolean).join(". ") || undefined;
 type Scale = Partial<Record<ColId, number>>;
 type Scores = { map: Map<number | null, ScoreItem>; locked: boolean; loading: boolean };
 
-function cell(c: ColDef, r: FundRow, peers?: Record<string, PeerStats>, scale: Scale = {}, scores?: Scores) {
+function cell(c: ColDef, r: FundRow, peers?: Record<string, PeerStats>, scores?: Scores) {
   const why = noReturnsText(r.noReturns);
   switch (c.id) {
     case "amc": return shortAmc(r.amc);
@@ -58,42 +59,40 @@ function cell(c: ColDef, r: FundRow, peers?: Record<string, PeerStats>, scale: S
     case "option": return r.option || "—";
     case "nav": return r.nav == null ? <span className="mf-na" aria-label="No NAV">—</span> : <span title={navFull(r.nav)}>{navText(r.nav)}</span>;
     case "navDate": return r.navDate ? dateIN(r.navDate, { day: "numeric", month: "short", year: "2-digit" }) : "—";
-    case "change": return <span className="mf-rf"><Fig v={r.change} why={r.active ? "The previous NAV is not on file yet." : why} />{r.change == null && <small>{r.active ? "no previous NAV" : "stopped"}</small>}</span>;
+    case "change": return <span className="mf-rf"><Fig v={r.change} why={r.active ? "No previous NAV: it is not on file yet." : tipOf("Stopped", why)} /></span>;
     case "r1y": case "r3y": case "r5y": {
       const years = c.id === "r1y" ? 1 : c.id === "r3y" ? 3 : 5;
       const own = r[c.id] ?? null;
       const g = own == null ? growthFigure(r, c.id) : null;   // task #281: an IDCW row shows its Growth option's return, labelled; never as its own
-      if (g != null && r.growthReturns) {
+      if (g != null && r.growthReturns) {   // task #281: never shown as the IDCW option's own figure: in italics, dotted underline, named on hover and to screen readers
         return <span className="mf-rf mf-grf" title={`${GROWTH_RETURNS_LABEL}: ${r.growthReturns.name} (${r.plan}, Growth). This option's own NAV change is not shown because payouts would make it wrong.`}>
-          <Fig v={g} why="" /><Bar v={g} max={scale[c.id] ?? 0} /><small className="mf-gr">{GROWTH_RETURNS_LABEL}</small></span>;
+          <Fig v={g} why="" /><span className="sr-only"> {GROWTH_RETURNS_LABEL}</span></span>;
       }
       const v = own;
-      const short = v == null ? shortWhy(r.noReturns, "Insufficient history") : "";
       const band = returnBand(c.id, v);
-      return <span className="mf-rf"><Fig v={v} why={why || `Younger than ${years} year${years > 1 ? "s" : ""}, or no NAV near the start date.`} /><Bar v={v} max={scale[c.id] ?? 0} />{short && <small>{short}</small>}
-        {band && <small className={"mf-band b" + band.step} title="A screening band, not a performance standard: equity, debt and hybrid funds need different yardsticks.">{band.label}</small>}</span>;
+      return <span className="mf-rf" title={v == null ? undefined : tipOf(band && `Band: ${band.label} (a screening band, not a performance standard; compare a fund with its own category)`)}>
+        <Fig v={v} why={tipOf(shortWhy(r.noReturns, "Insufficient history"), why || `Younger than ${years} year${years > 1 ? "s" : ""}, or no NAV near the start date.`)} /></span>;
     }
     case "sip3y": case "sip5y": {
       const years = c.id === "sip3y" ? 3 : 5;
       const v = r[c.id] ?? null;
-      return <span className="mf-rf"><Fig v={v} why={why || `Needs a month-end NAV for each of the last ${years * 12} months; younger schemes, and month-ends not loaded yet, have none.`} />
-        <Bar v={v} max={scale[c.id] ?? 0} />{v == null && <small>{shortWhy(r.noReturns, "Insufficient history")}</small>}</span>;
+      return <span className="mf-rf"><Fig v={v} why={tipOf(shortWhy(r.noReturns, "Insufficient history"), why || `Needs a month-end NAV for each of the last ${years * 12} months; younger schemes, and month-ends not loaded yet, have none.`)} /></span>;
     }
     case "aum": {
       if (r.aum == null) return <span className="mf-na" title="Fund size is not in AMFI's latest quarterly AUM report or the fund house's month-end portfolio file loaded." aria-label="No fund size">—</span>;
       const when = r.aumAsOf ? dateIN(r.aumAsOf, { month: "short", year: "numeric" }) : "";
       const src = r.aumKind === "m" ? `Net assets at the end of ${when}, all plans together (fund house's portfolio file)` : `Average for the quarter to ${when}, all plans together (AMFI)`;
       const size = aumBucket(r.aum);
-      return <span className="mf-aum" title={src}>{aumText(r.aum)}{size && <small className={"mf-size s" + size.step} title={`${size.range}. Size says how big the fund is, not how good it is.`}><i aria-hidden="true" />{size.label}</small>}</span>;
+      return <span className="mf-aum" title={tipOf(src, size && `Size: ${size.label} (${size.range}); size says how big the fund is, not how good it is`)}>{aumText(r.aum)}</span>;
     }
     case "ter": return r.ter == null
       ? <span className="mf-na" title="This plan is not in AMFI's latest expense ratio (TER) file." aria-label="No expense ratio">—</span>
       : (() => {
         const cost = costLevel(r.ter, r.checklist ? peers?.[r.checklist.peer]?.ter : null);
-        return <span className="mf-aum" title={`Total expense ratio of the ${r.plan} plan, percent a year${r.terDate ? `, as of ${dateIN(r.terDate)}` : ""} (AMFI)`}>{terText(r.ter)}
-          {cost && <small className={"mf-band c" + cost.step} title="Against the median of the same category and plan: low is 20% or more under it, high is 20% or more over it.">{cost.label} for category</small>}</span>;
+        return <span className="mf-aum" title={tipOf(`Total expense ratio of the ${r.plan} plan, percent a year${r.terDate ? `, as of ${dateIN(r.terDate)}` : ""} (AMFI)`,
+          cost && `${cost.label} for category: against the median of the same category and plan (low is 20% or more under it, high is 20% or more over it)`)}>{terText(r.ter)}</span>;
       })();
-    case "score": return <ScoreCell item={scores?.map.get(r.code)} locked={!!scores?.locked} loading={!!scores?.loading} etf={isEtfCategory(r.category)} why={r.optionClass !== "Growth" ? "Not scored: IDCW and other options show the score of the Growth option of the same plan, and this fund has none scored." : !r.active ? "Not scored: stopped publishing NAVs." : "Not scored yet."} />;
+    case "score": return <ScoreCell item={scores?.map.get(r.code)} locked={!!scores?.locked} loading={!!scores?.loading} etf={isEtfCategory(r.category)} bare why={r.optionClass !== "Growth" ? "Not scored: IDCW and other options show the score of the Growth option of the same plan, and this fund has none scored." : !r.active ? "Not scored: stopped publishing NAVs." : "Not scored yet."} />;
     case "checklist": return <ChecklistCell r={r} peers={peers} />;
   }
 }
@@ -172,7 +171,7 @@ export function FundTable({ rows, cols, q, onSort, picked, onPick, peers, wish }
                   {r.nav != null && <small className="mf-navm">NAV <span className="mono" title={navFull(r.nav)}>{navText(r.nav)}</span></small>}
                 </span>
               </th>
-              {defs.map((c) => <td key={c.id} className={cls(c) + (tint(c, r) ? " mf-tinted" : "")} style={tint(c, r)}>{cell(c, r, peers, scale, scores)}</td>)}
+              {defs.map((c) => <td key={c.id} className={cls(c) + (tint(c, r) ? " mf-tinted" : "")} style={tint(c, r)}>{cell(c, r, peers, scores)}</td>)}
             </tr>))}
         </tbody>
       </table>

@@ -201,3 +201,10 @@
    the table card), as between the page header and the cards above it; the boxes used to touch (0px). */
 .mf-list .mf-main { display: flex; flex-direction: column; gap: 16px; }
 .mf-list .mf-main > * { margin-top: 0; margin-bottom: 0; }
+
+/* Task #430 (team, 27 Nov 2026: "no need of write up ... just the numbers ... for all the columns"): the cells hold their figure only (FundTable.tsx).
+   A Growth option's return shown on an IDCW row (task #281) is still told apart without words: in italics with a dotted underline, named on hover. */
+.mf-list .mf-table td .mf-grf > span:first-child { font-style: italic; text-decoration: underline dotted; text-underline-offset: 3px; }
+/* the words kept for screen readers (sr-only, absolutely placed) are anchored inside their cell, so they stay inside the table's scroll box and never
+   widen the page (without this the page scrolled sideways by up to 190px when the table was wider than the screen) */
+.mf-list .mf-table td .mf-rf, .mf-list .mf-table td .mfs-cell, .mf-list .mf-table td .mf-na-x { position: relative; }
