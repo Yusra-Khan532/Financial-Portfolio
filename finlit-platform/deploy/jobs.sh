@@ -23,13 +23,26 @@ until $PY -m finlit.worker migrate >/dev/null; do
   log "waiting for the database (attempt $tries)..."; sleep 3
 done
 
-# 2. The site backend (FinLit Prism, ownership insights, the technical view writes) runs in the website container. The jobs reach it at app:8001 when it is
-#    switched on there; config.site_api_url_default() applies the SAME rule start.sh uses, so "not configured" stays "not configured" here too.
+# 2. The jobs' OWN site backend (founder, 16 Nov 2026: "model output for users must be fast"). The nightly Prism job, the real-time score refresh and the
+#    ownership and technical-view jobs used to send every calculation to the ONE site-backend worker in the website container, so a member's Prism report or
+#    score waited behind them (seen live: that worker at 120% CPU while the jobs container was idle). The jobs now get their own copy here, at a lower CPU
+#    priority (nice 10), so members always find the website's copy free and get the CPU first. config.site_api_url_default() applies the SAME rule start.sh
+#    uses, so "not configured" stays "not configured" here too. SITE_API_URL set in the env file (a separately hosted site backend) still wins.
 if [ -z "${SITE_API_URL:-}" ]; then
   here_url="$($PY -c 'from finlit.config import site_api_url_default; print(site_api_url_default())' 2>/dev/null || true)"
-  if [ -n "$here_url" ]; then
-    export SITE_API_URL="http://${SITE_API_PEER:-app}:8001"
-    log "site backend: $SITE_API_URL"
+  SITE_DIR="${SITE_API_DIR:-/app/site-api/backend}"; SITE_PY="${SITE_PYTHON:-/opt/site-venv/bin/python}"
+  if [ -n "$here_url" ] && [ -d "$SITE_DIR" ]; then
+    export SITE_API_URL="http://127.0.0.1:8001" DB_NAME="${DB_NAME:-finlit}"
+    ( cd "$SITE_DIR" && while true; do
+        MALLOC_ARENA_MAX=2 nice -n "${JOBS_SITE_API_NICE:-10}" "$SITE_PY" -m uvicorn server:app --host 127.0.0.1 --port 8001 --workers 1 --no-server-header 2>&1 \
+          | sed -u "s/^/[site-api:jobs] /" >> /tmp/site-api.log
+        echo "$(date '+%F %T') [site-api:jobs] stopped; restarting in 3 s" >> /tmp/site-api.log; sleep 3
+      done ) &
+    for _ in $(seq 1 60); do   # up to a minute: the first Prism job of the day must not meet a backend that is still starting
+      $PY -c 'import urllib.request; urllib.request.urlopen("http://127.0.0.1:8001/api/", timeout=2)' >/dev/null 2>&1 && break
+      sleep 1
+    done
+    log "site backend for the jobs: $SITE_API_URL (its own process, nice ${JOBS_SITE_API_NICE:-10}; members use the website's)"
   else
     log "site backend: not configured (Prism and ownership jobs say so)"
   fi

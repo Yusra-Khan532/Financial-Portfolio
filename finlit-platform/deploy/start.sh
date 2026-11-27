@@ -37,7 +37,7 @@ if [ -z "${SITE_API_URL:-}" ] && [ -d "$SITE_DIR" ] && site_api_wanted; then
       if [ "${SITE_API_DEV:-}" = "1" ]; then   # local testing only: in-memory MongoDB stand-in (see dev/site_api_dev.py)
         "$SITE_PY" "$HERE/../dev/site_api_dev.py" --backend "$SITE_DIR" --port 8001 2>&1 | sed -u "s/^/[site-api] /"
       else
-        # SITE_API_HOST=0.0.0.0 (AWS compose) lets the separate jobs container reach it as app:8001; it is still only on the private compose network
+        # SITE_API_HOST can open it to the private network; by default (also on AWS) only this container reaches it: the jobs run their own (deploy/jobs.sh)
         MALLOC_ARENA_MAX=2 "$SITE_PY" -m uvicorn server:app --host "${SITE_API_HOST:-127.0.0.1}" --port 8001 --workers 1 --no-server-header 2>&1 | sed -u "s/^/[site-api] /"
       fi
       echo "[site-api] stopped; restarting in 3 s"; sleep 3

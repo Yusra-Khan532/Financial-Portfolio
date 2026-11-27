@@ -389,6 +389,19 @@ class Supervisor:
         elif r.job.stall_min and now.timestamp() - r.handle.last_activity() > r.job.stall_min * 60:
             self._terminate(r, "timeout", f"no output or heartbeat for {r.job.stall_min:g} minutes (hung)")
 
+    def _running_detail(self) -> List[Dict[str, Any]]:
+        """Each running job as the admin console's Jobs section shows it (founder, 16 Nov 2026): when it started, its time limit, its memory, and its newest
+        output line (many jobs print their progress, e.g. "ingest-all: 120 / 2500"). Best effort: a job whose log cannot be read just has no line."""
+        out: List[Dict[str, Any]] = []
+        for name, r in sorted(self.running.items()):
+            try:
+                tail = r.handle.tail()
+            except Exception:
+                tail = ""
+            out.append({"name": name, "startedAt": r.started.timestamp(), "limitMin": r.job.max_runtime_min, "attempt": r.attempt,
+                        "peakMb": r.peak_mb or None, "tail": (tail or "")[:300]})
+        return out
+
     def _terminate(self, r: Running, status: str, reason: str) -> None:
         log.warning("stopping %s: %s", r.job.name, reason)
         r.kill_status, r.kill_reason, r.term_at = status, reason, time.monotonic()
@@ -579,7 +592,8 @@ class Supervisor:
         try:
             await self.signals.heartbeat(now, {"pid": __import__("os").getpid(), "ticks": self.ticks, "running": sorted(self.running), "startedAt": self.started_at.timestamp(),
                                                "dbOk": self.db_ok, "lastError": self.last_error,
-                                               "capacityMb": _capacity_mb()})   # this container's memory limit: the status page judges "can never start here" by it
+                                               "capacityMb": _capacity_mb(),   # this container's memory limit: the status page judges "can never start here" by it
+                                               "runningDetail": self._running_detail()})   # each running job's progress, for the admin console's Jobs section
         except Exception:   # nosec B110 - the heartbeat is best effort; the loop goes on
             pass
         if self.every_cycle is not None and (self._cycle_task is None or self._cycle_task.done()):

@@ -496,14 +496,14 @@ RESERVE_MB = 100   # what a bulk job leaves for the website (JobsConfig.reserve_
 
 
 def unfit_reason(job: Job, capacity_mb: Optional[int]) -> Optional[str]:
-    """A job that needs more memory than this server's app container can ever give it can never start here: the supervisor's memory gate would make it wait
+    """A job that needs more memory than the container the jobs run in can ever give it can never start here: the supervisor's memory gate would make it wait
     for ever, and the founder would be told every day that it is "overdue". It is reported as what it is instead (disabled, with the reason), never as late."""
     if not capacity_mb or job.cls == "ondemand":
         return None
     need = job.weight_mb + (RESERVE_MB if job.cls == "bulk" else 0)
     if need <= capacity_mb:
         return None
-    return (f"needs about {job.weight_mb} MB of memory and this server's app container has {capacity_mb} MB, so it can never start here "
+    return (f"needs about {job.weight_mb} MB of memory and the container the jobs run in has {capacity_mb} MB, so it can never start here "
             f"(build its data on a PC and upload it, or give the container more memory: see the job's document)")
 
 

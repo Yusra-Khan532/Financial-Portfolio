@@ -165,8 +165,8 @@ Caddy trusts `CF-Connecting-IP` only from Cloudflare's published ranges (#515) a
 | Service | Role | Memory |
 |---|---|---|
 | Caddy | Ports 80 and 443; automatic HTTPS; security headers; holds requests 90 s during restarts; also serves the workspace through `/etc/caddy/extra/*.caddy` | |
-| `app` | Research API, website files, and the site backend on port 8001 | 500 MB |
-| `jobs` | Job supervisor | 800 MB |
+| `app` | Research API, website files, and the members' site backend on port 8001 (127.0.0.1 only) | 500 MB |
+| `jobs` | Job supervisor, plus the jobs' own site backend (`deploy/jobs.sh`, `nice 10`), so a member's Prism report never waits behind a job | 1000 MB |
 | TimescaleDB | Database, about 1.8 GB on 17 Nov | |
 | Redis | Cache only | |
 | `backup` | Nightly `pg_dump` at 02:00 IST | |

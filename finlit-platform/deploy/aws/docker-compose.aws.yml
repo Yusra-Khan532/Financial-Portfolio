@@ -4,8 +4,9 @@
 #   ENV_FILE=/opt/finlit/.env.aws docker compose -p finlit -f deploy/aws/docker-compose.aws.yml --env-file /opt/finlit/.env.aws up -d
 #
 # Memory plan (2 GB total): Postgres shared_buffers 256 MB (limit 640 MB), Redis maxmemory 256 MB (limit 320 MB),
-# app 500 MB (website + research API + site backend) and jobs 800 MB (the job supervisor and the jobs it runs, the on-demand report lane, the commodity loop):
-# together 1300 MB, the 1200 MB the single container had plus room for the second Python process. APP_MEM_LIMIT / JOBS_MEM_LIMIT in the env file override them.
+# app 500 MB (website + research API + the members' site backend) and jobs 1000 MB (the job supervisor and the jobs it runs, the on-demand report lane, the
+# commodity loop and the jobs' own site backend). Measured 14-16 Nov 2026: app about 300 MB, jobs 260-340 MB, the whole server about 1.05 GB of 2 GB.
+# APP_MEM_LIMIT / JOBS_MEM_LIMIT in the env file override them.
 # Caddy about 40 MB; the rest is the OS and the 2 GB swapfile.
 # The limits are ceilings, not reservations: normal use is well below them.
 # Only Caddy publishes ports (80 and 443). The database, Redis and the app are reachable only on the private compose network.
@@ -35,10 +36,9 @@ services:
       # reads the chain from the right, skipping private (Docker network) addresses, so rate limits and sign-in lockouts see the real visitor.
       CLIENT_IP_HEADER: x-forwarded-for
       TZ: Asia/Kolkata
-      # The jobs run in the separate `jobs` service below, so a website deploy never stops one (founder, 14 Nov 2026); the site backend listens on the
-      # private network so the jobs reach it as app:8001 (nothing publishes that port).
+      # The jobs run in the separate `jobs` service below, so a website deploy never stops one (founder, 14 Nov 2026). The site backend in this container
+      # serves members only (127.0.0.1:8001); the jobs run their own copy (deploy/jobs.sh), so a member's Prism report never waits behind a job (16 Nov 2026).
       JOBS_IN_APP: "0"
-      SITE_API_HOST: "0.0.0.0"
     expose: ["8000"]
     # Sector pages (docs/SECTORS.md). Two folders of the host are mounted into the one app container:
     #   /opt/finlit/data/nse      NSE's daily files (about 240 MB, uploaded once by the founder); the nightly job adds the newest days to it.
@@ -86,7 +86,7 @@ services:
     depends_on:
       db: {condition: service_healthy}
       redis: {condition: service_healthy}
-    mem_limit: ${JOBS_MEM_LIMIT:-800m}        # the supervisor's memory gate reads this limit (finlit/jobs/resources.py); a sector job needs more (docs/SECTORS.md)
+    mem_limit: ${JOBS_MEM_LIMIT:-1000m}       # jobs + their own site backend (60-120 MB); the supervisor's memory gate reads this limit (finlit/jobs/resources.py)
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
     init: true
