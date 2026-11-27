@@ -20,11 +20,11 @@ PLANS = tuple(RANK)
 PLAN_KEYS = ("free", "mfetf", "equity", "combined", "gold", "platinum")
 PAID_KEYS = PLAN_KEYS[1:]
 TIER_OF = {"free": "basic", "mfetf": "silver", "equity": "silver", "combined": "silver", "gold": "gold", "platinum": "gold",
-           "basic": "basic", "silver": "silver"}            # the last two: names stored before migration 145, read the same way if one is ever seen
+           "basic": "basic", "silver": "silver"}            # the last two: names stored before migration 146, read the same way if one is ever seen
 KEY_RANK = {"free": 0, "basic": 0, "mfetf": 1, "equity": 1, "combined": 1, "silver": 1, "gold": 2, "platinum": 3}
 AREAS = {"free": frozenset(), "basic": frozenset(), "mfetf": frozenset({"mf"}), "equity": frozenset({"eq"}), "combined": frozenset({"mf", "eq"}),
          "silver": frozenset({"mf", "eq"}), "gold": frozenset({"mf", "eq"}), "platinum": frozenset({"mf", "eq"})}
-# Migration 145 moved every stored plan to the new names without anyone losing anything: basic -> free; silver and gold -> platinum (Platinum includes
+# Migration 146 moved every stored plan to the new names without anyone losing anything: basic -> free; silver and gold -> platinum (Platinum includes
 # everything either had); the old name stays in users.plan_legacy. After it, "basic" and "silver" are never stored; if one is ever read (an old cached
 # session, a test row) it keeps its old tier: basic is Free, silver is the combined plan (tier silver). "gold" is the new Gold plan (tier gold, as before).
 LEGACY_TO_KEY = {"basic": "free", "silver": "combined"}
