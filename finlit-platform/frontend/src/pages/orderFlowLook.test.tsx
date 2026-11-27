@@ -5,7 +5,7 @@
 // keeps the pop-up opaque, turns motion off for reduced motion, and keeps one path per stock on the board.
 import { readFileSync } from "node:fs";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { layout } from "../lib/flowboard";
@@ -34,7 +34,13 @@ const SNAP = {
 beforeEach(() => { vi.stubGlobal("fetch", vi.fn(async (url: string) => json(200, String(url).includes("/api/lab/access") ? { access: true, reason: "granted", expiresAt: null, signals: false } : SNAP))); });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 const wrap = (path = "/lab/flow") => render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><MemoryRouter initialEntries={[path]}><OrderFlowPage /></MemoryRouter></QueryClientProvider>);
-const settle = async () => { await act(async () => { await new Promise((r) => setTimeout(r, 20)); }); };
+// Waits until the page has its data: the access check and then the snapshot are two requests, each followed by a render, so a fixed 20 ms pause was too
+// short when the whole suite ran at once ("Unable to find ... article POLICYBZR" in CI). It now waits for what the data draws: a stock card on Market depth,
+// a line on the Flow board (up to 10 s, polled; it returns as soon as they are there).
+const settle = async () => {
+  await waitFor(() => { if (!screen.queryByRole("article", { name: "POLICYBZR" }) && !document.querySelector(".oflow-lines path")) throw new Error("the snapshot is not drawn yet"); }, { timeout: 10000 });
+  await act(async () => { await Promise.resolve(); });   // and the render that the data started has finished
+};
 const point = (el: Element, pointerType = "mouse") => {   // jsdom's pointer events carry no pointerType, so it is set on the event itself
   const e = new MouseEvent("pointermove", { bubbles: true, clientX: 100, clientY: 100 });
   Object.defineProperty(e, "pointerType", { value: pointerType });

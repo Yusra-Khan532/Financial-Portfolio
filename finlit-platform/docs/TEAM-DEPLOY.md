@@ -31,7 +31,7 @@ Open pull requests directly in the company repository. Run `bash finlit-platform
 
 ## 5. Automatic deploys (merge to `main` and the site updates by itself)
 A timer on the server (`deploy/aws/auto-deploy.sh`, installed by `deploy/aws/install-auto-deploy.sh`) looks at the company repository every 5 minutes. When `main` has a new commit it:
-0. waits until that commit's checks on GitHub are green (the checks gate, 25 Nov 2026): a commit whose checks fail is never deployed (a re-run that passes, or the next green commit, is); `... skip-ci` deploys without waiting, for emergencies only,
+0. waits until that commit's checks on GitHub are green (the checks gate, 25 Nov 2026): a commit whose checks fail is never deployed (a re-run that passes, or the next green commit, is); since 27 Nov 2026 it deploys the newest commit whose checks are all green, so a newer commit still being checked (or red) never holds back an older green one; `... skip-ci` deploys without waiting, for emergencies only,
 1. takes a database backup,
 2. runs the normal deploy (`deploy.sh`: fetch, rebuild, restart, wait for `/api/health`),
 3. if the new version is not healthy, goes back to the previous build by itself and does NOT retry that commit (it waits for the next new commit),
