@@ -31,9 +31,9 @@ export function median(values: (number | null | undefined)[]): number | null {
 /** Developer file 43 (founder, 27 Nov 2026: "reduce the size, use a drop-down or whatever suits"): the industry's 6-month returns as one strip of dots.
  *  Each stock's place along the strip (0 to 100, from the lowest return to the highest, 0% always inside) and its lane: dots closer than `gap` take the
  *  next lane up, so none hides another (at most `lanes` lanes; past that a dot goes to the lane whose last dot is furthest away). */
-export function stripDots(values: (number | null | undefined)[], gap = 1.8, lanes = 4): { lo: number; hi: number; at: (v: number) => number; dots: ({ i: number; pos: number; lane: number } | null)[] } {
+export function stripDots(values: (number | null | undefined)[], gap = 1.8, lanes = 4, zero = true): { lo: number; hi: number; at: (v: number) => number; dots: ({ i: number; pos: number; lane: number } | null)[] } {
   const nums = values.filter((v): v is number => typeof v === "number" && Number.isFinite(v));
-  let lo = Math.min(0, ...nums), hi = Math.max(0, ...nums); const pad = (hi - lo) * 0.03 || 1; lo -= pad; hi += pad;
+  let lo = Math.min(...(zero ? [0] : []), ...nums), hi = Math.max(...(zero ? [0] : []), ...nums);   // developer file 51: zero=false for a strip whose end labels are its lowest and highest const pad = (hi - lo) * 0.03 || 1; lo -= pad; hi += pad;
   const at = (v: number) => ((v - lo) / (hi - lo)) * 100;
   const order = values.map((v, i) => [v, i] as const).filter((x): x is readonly [number, number] => typeof x[0] === "number" && Number.isFinite(x[0])).sort((a, b) => a[0] - b[0]);
   const last: number[] = [], dots: ({ i: number; pos: number; lane: number } | null)[] = values.map(() => null);

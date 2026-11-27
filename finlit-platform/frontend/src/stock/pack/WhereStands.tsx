@@ -31,6 +31,7 @@ import "../../portfolio/pack/eq385.css";   // the pop-up's quiet card list (scop
 import type { Card } from "../../lib/pulsePack";
 import { SectionHead } from "../Sections";
 import { coTitle, shortLabel } from "../../lib/companyLabel";
+import { IndustryNumbers } from "./IndustryNumbers";
 
 const sp = (x: number | null | undefined, dp = 1, unit = "%") => (x == null ? "–" : `${x >= 0 ? "+" : "−"}${Math.abs(x).toFixed(dp)}${unit}`);
 const size = (cr: number | null | undefined) => capBucket(cr ?? null)?.label.replace(" cap", "") ?? "–";
@@ -119,6 +120,9 @@ function IndustryTab({ name, symbol, sec, locked, page, rot }: { name: string; s
         </> : <p className="sp-note">{rot?.note ?? "No rotation reading for this industry yet: it has too few counted stocks, or this week's files are not in."}</p>}
       </div>
     </div>
+    {/* developer file 51 (founder, 27 Nov 2026: "can we add something more to industry analysis?"): the company against its industry's median company on
+        nine measures from the screener figures, open to every plan as the Screener is */}
+    <IndustryNumbers symbol={symbol} name={name} g={g} />
     {locked ? <LockedBlock plan="gold" title="Where the stock ranks inside its industry is part of the Gold plan">Open to everyone: the industry's state and its place against other industries. Gold adds this stock's 6-month rank among its industry's counted stocks.</LockedBlock>
       : <div className="sp-sec">
         <h3 className="ws-h3">Inside its industry: 6-month return<Tip text={`Inside its industry. Where ${name}'s 6-month return falls among the actively traded stocks of its NSE industry.`} /></h3>

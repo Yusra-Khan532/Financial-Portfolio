@@ -109,3 +109,33 @@ a.ws-go { text-decoration: none; }
 details.ws6-dd { margin: 0 0 4px; }
 details.ws6-dd .ws-bars { margin-top: 0; }
 @media (prefers-reduced-motion: no-preference) { .ws6-dot { transition: box-shadow .12s; } }
+
+/* Developer file 51: "The industry in numbers" (stock/pack/IndustryNumbers.tsx). The company in blue (--c1), every other company in grey (--cmp), the
+   median as the section's dashed gold line (.ws6-med), as developer file 45's colour roles say. A desktop row: name · figures · strip · place; a phone row
+   puts the strip and the place under the name and figures. */
+.in-sec .in-lead { margin: 2px 0 8px; max-width: none; font-size: var(--fs-14); line-height: 1.5; color: var(--sp-ink); }
+.in-key { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 0 0 4px; font-size: var(--fs-12); color: var(--sp-mute); }
+.in-key span { display: inline-flex; align-items: center; gap: 6px; }
+.in-k-me, .in-k-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; }
+.in-k-me { background: var(--c1); } .in-k-dot { background: var(--cmp); }
+.in-grp { padding: 4px 0 2px; border-top: 1px solid var(--sp-line); }
+.in-gt { margin: 6px 0 0; font-size: var(--fs-12); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--sp-mute); }
+.in-row { display: grid; grid-template-columns: minmax(140px, 190px) minmax(150px, 190px) minmax(0, 1fr) minmax(150px, 200px); align-items: center; gap: 4px 16px; padding: 4px 0; }
+.in-l { display: inline-flex; align-items: center; gap: 4px; min-width: 0; font-size: var(--fs-14); color: var(--sp-ink); }
+.in-v { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; }
+.in-me { font-size: var(--fs-16); font-weight: 600; color: var(--c1); font-variant-numeric: tabular-nums; } .in-me.none { color: var(--sp-mute); }
+.in-md { font-size: var(--fs-13); color: var(--sp-mute); font-variant-numeric: tabular-nums; }
+.in-strip { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.in-end { flex: none; min-width: 40px; font-size: var(--fs-12); color: var(--sp-mute); font-variant-numeric: tabular-nums; } .in-end:last-child { text-align: right; }
+.in-track { position: relative; flex: 1; min-width: 60px; height: 26px; border-bottom: 1px solid var(--sp-line); }   /* the height follows its lanes (inline) */
+.in-track .in-med { top: 2px; bottom: -4px; }
+.in-dot { position: absolute; width: 8px; height: 8px; margin-left: -4px; border-radius: 50%; background: var(--cmp); }
+.in-dot.me { z-index: 2; width: 12px; height: 12px; margin-left: -6px; background: var(--c1); box-shadow: 0 0 0 2px var(--sp-panel); }
+.in-dot.out { background: transparent; border: 1.5px solid var(--cmp); } .in-dot.me.out { background: var(--sp-panel); border-color: var(--c1); }
+.in-pos { font-size: var(--fs-13); color: var(--sp-ink); } .in-pos small { font-size: var(--fs-12); color: var(--sp-mute); }
+.in-foot { margin-top: 8px; }
+@media (max-width: 760px) {   /* a phone: name and figures on one line, the place under them, a slim strip last */
+  .in-row { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "l v" "pos pos" "strip strip"; gap: 0 10px; padding: 3px 0; }
+  .in-l { grid-area: l; } .in-v { grid-area: v; justify-content: flex-end; } .in-pos { grid-area: pos; font-size: var(--fs-12); color: var(--sp-mute); }
+  .in-strip { grid-area: strip; margin-top: 0; } .in-grp { padding-top: 2px; } .in-gt { margin-top: 4px; }
+}

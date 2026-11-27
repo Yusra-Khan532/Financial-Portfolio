@@ -22,6 +22,7 @@ vi.mock("../lib/title", () => ({ useDocTitle: () => undefined }));
 vi.mock("../lib/auth", async (orig) => ({ ...(await orig<typeof import("../lib/auth")>()), useAuth: () => ({ user: null }) }));   // developer file 43: Where it stands' notes pill keys its open cards by member
 vi.mock("../lib/planScore", async (orig) => ({ ...(await orig<typeof import("../lib/planScore")>()), usePlanModel: () => null, usePlanPrism: () => ({}) }));
 vi.mock("../lib/api", async (orig) => ({ ...(await orig<typeof import("../lib/api")>()), usePrice: () => ({ data: undefined }) }));
+vi.mock("../stock/pack/IndustryNumbers", () => ({ IndustryNumbers: () => null }));   // developer file 51: the industry in numbers has its own tests (stock/report51.test.tsx)
 import { LearnSectorSignalsPage } from "./LearnSectorSignals";
 import { WhereStands } from "../stock/pack/WhereStands";
 
