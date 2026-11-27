@@ -1,6 +1,6 @@
 # Search growth progress (keep up to date every session)
 
-*Every session on search growth (SEO, AEO, GEO): read `MASTER-PROMPT.md` (the founder's brief, kept word for word), `PLAN.md` (the 27 Nov 2026 evaluation and plan) and this file first. Then continue with the first unchecked item, unless the founder asks for something else. Update this file in the same pull request as the work, and never end a session without updating it.*
+*Every session on search growth (SEO, AEO, GEO, and being named in AI answers to category questions): read `MASTER-PROMPT.md` (the founder's brief, kept word for word; updated 27 Nov 2026 with goal 5, workstream M and rule 10), `PLAN.md` (the evaluation and plan, with workstream M), `PROFILE-CHECKLIST.md` (the founder's profile texts, word for word), `PROFILE-CHECKLIST-FILLED.md` (the same, filled in and corrected, ready to paste), `AI-PANEL.md` (the monthly share-of-voice sheet) and this file first. Then continue with the first unchecked item, unless the founder asks for something else. Update this file in the same pull request as the work, and never end a session without updating it.*
 
 *Delivery note (27 Nov 2026): MASTER-PROMPT.md says the founder merges with "Create a merge commit". `finlit-platform/CLAUDE.md` (newer, and it wins) says work arrives as a pull request on this repository, squash-merged once every check passes. "Decide, do not ask" (owner, 18 Nov 2026) applies here as well.*
 
@@ -28,7 +28,15 @@
 ## Phase 5 topical authority
 - [ ] Glossary examples   - [ ] Pillar guides   - [ ] Substantial company sub-pages
 ## Phase 6 data stories (monthly)
-## Phase 7 off-site + AI presence
+## Phase 7 off-site + AI presence + category answers
+- [ ] M1 Organization JSON-LD (alternateName, sameAs, founder) + About first sentence
+- [ ] M2 category hub pages (screener, research reports, mutual funds, sectors, calculators)
+- [ ] M3 comparison pages (founder OK + lawyer read: ____)
+- [ ] M4 outreach list of 30–50 cited pages + pitch draft
+- [ ] M5 profiles created by founder (URLs into sameAs). Checklist given: `PROFILE-CHECKLIST-FILLED.md` (27 Nov 2026)
+- [ ] M6 community guide   - [ ] M7 press pitch templates
+- [ ] M8 robots.txt: Claude-SearchBot / Claude-User in AI group (checked 27 Nov: robots.txt lists ClaudeBot, Claude-Web and anthropic-ai, but not Claude-SearchBot or Claude-User)
+- [ ] M9 AI-PANEL.md: 60 questions × 7 engines, monthly. Sheet ready 27 Nov 2026; the baseline run needs a person (Claude can't open those AI tools from its container)
 ## Measurements log (date: indexed / clicks / impressions / top-10 keywords / AI citations / CWV)
 - 27 Nov 2026 (from PLAN.md's audit, before any change):
   - Search Console: not set up, so indexed pages, clicks and impressions are unknown.
@@ -36,15 +44,27 @@
   - `/stocks/TCS` crawler HTML: one sentence about the company, plus about 5,300 characters of a shared link list.
   - Speed: home LCP 3.7 s (simulated mid-range phone); the company page makes 139 requests.
   - AI citations: not measured yet.
+## Founder facts (given by the owner, 27 Nov 2026; use them, never guess)
+- **Founder's full name:** Nishant Jain (the same founder the site's Organization JSON-LD already names).
+- **Founded:** December 2026. Profiles may say "2026". `foundingDate` in JSON-LD only from 1 Dec 2026, so structured data never shows a date in the future.
+- **City:** Jabalpur (India).
+- **Profile texts:** `PROFILE-CHECKLIST.md` mentioned the retired FinLit IQ (task #283) and the old Silver and Gold plans (task #410 changed them). `PROFILE-CHECKLIST-FILLED.md` corrects every such line, marked "(corrected)". The extension's plan line is left out until Claude checks what the extension shows today.
 ## Waiting on the founder
 - `FOUNDER-STEPS.md`:
   - step 1, Search Console (DNS TXT record in Cloudflare);
   - step 2, Bing Webmaster import;
   - step 3, analytics, Option A or B.
+- Profiles (M5): create them from `PROFILE-CHECKLIST-FILLED.md`, then send the list of URLs in its section 12.
+- The first AI panel run (M9), about 1 hour, from `AI-PANEL.md`.
 - Later (step 4): company identity facts, a lawyer's read of the per-company DCF wording, whether `app.` is still used, the Mumbai move, outreach people.
 ## Session log
 - **27 Nov 2026, session 1:**
   - Kept the brief in the repository, so no session forgets it: MASTER-PROMPT.md, PLAN.md, this file, FOUNDER-STEPS.md, and a pointer at the top of `finlit-platform/CLAUDE.md`.
   - Wrote the founder's steps for Search Console, Bing and the analytics choice.
+- **27 Nov 2026, session 1, later:**
+  - The founder sent an updated brief and plan (goal 5, workstream M "be the platform AI names for category questions", rule 10 "earn recommendations; never fake them"), saved word for word.
+  - Added the profile checklist (word for word, plus a filled-in, corrected copy) and the AI-panel sheet.
+  - Recorded the founder's name, founding date and city.
+  - Phase 1 company pages are built and tested locally (local branch `search-growth-phase1-companies`). They ship as their own pull request once this one is merged.
 ## Next step
 - Phase 1, company pages: `render_company()` in `backend/finlit/seo.py` writes the company's real stored facts into the crawler HTML (same as the app shows, dated and sourced, no plan-gated scores), following `render_fund()`, with an advice-word test over every crawler template.

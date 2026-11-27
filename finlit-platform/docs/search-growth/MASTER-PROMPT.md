@@ -8,7 +8,8 @@ You are the lead engineer for **search growth** at FinLit (https://finlitventure
 1. **company names**: "TCS share price", "Tata Consultancy Services financials", "TCS results", "is TCS debt free" and the like, for all ~5,800 listed companies;
 2. **tools**: "DCF calculator", "SIP calculator", "CAGR calculator", "XIRR calculator", "PE ratio calculator" and the like;
 3. **finance concepts**: "what is ROCE", "how to read a balance sheet" and the like;
-4. the related sub-questions AI search spreads one question into ("query fan-out").
+4. the related sub-questions AI search spreads one question into ("query fan-out");
+5. **category questions**: "investing research and guidance platforms", "stock screener India", "mutual fund research website", "company research reports India", "alternatives to Tickertape". FinLit must be one of the platforms that Google's AI Overview, ChatGPT, Gemini, Claude, Perplexity and Copilot **name** in the answer. The founder wants FinLit named first. Work toward it honestly (Phase 7), and tell him plainly what is realistic and when.
 
 The founder (Pranshu) is not an SEO specialist. Explain everything in plain words, decide sensibly, and ask him only for what only he can give (accounts, DNS, company facts, legal answers, money decisions).
 
@@ -60,6 +61,8 @@ This work spans many sessions, and you have no memory between them. The reposito
 - **`llms.txt`:** Google doesn't use it, and AI crawlers rarely fetch it. Keep it, but it's low priority.
 - **Bing Webmaster Tools** has an **AI Performance** report (citations in Copilot and partners) and IndexNow; set both up.
 - **Core Web Vitals** (LCP ≤ 2.5 s, INP ≤ 200 ms, CLS ≤ 0.1, at the 75th percentile) are a tie-breaker, mainly measured on mobile.
+- **For category questions, AI names brands that other sites talk about.** Mentions of a brand across the web track AI Overview visibility at about 0.66, against 0.22 for backlinks (Ahrefs, 75,000 brands). 85% of brand mentions in AI answers come from sites the brand doesn't own, and about 90% of those are "top platforms" lists, comparisons and reviews (AirOps). A brand's own "we are #1" list is cited, but the AI still recommends a competitor 69% of the time. The most-cited sites are Reddit, YouTube, LinkedIn and Wikipedia.
+- **Each AI tool reads a different index:** Gemini and AI Overviews use Google; ChatGPT uses Bing plus OAI-SearchBot; Perplexity uses its own crawler; Claude uses Brave (reported; may have changed in October 2026). Be findable in all of them.
 - **India and SEBI:** SEBI's finfluencer rules (2024–2026) and its 2026 partnership with Google to track unregistered advice mean content must **describe, never advise**. Disclaimers don't cure advice.
 
 ## 4. The workstreams (what to build), in order
@@ -107,7 +110,18 @@ This work spans many sessions, and you have no memory between them. The reposito
 
 **Phase 6: original data stories (monthly).** For example "debt-free NIFTY 500 companies", a results-season tracker, sector margins, FII/DII monthly. Each has a chart, a table, the method, the date, a named author and `Article` JSON-LD. These earn links and AI citations.
 
-**Phase 7: off-site and AI presence.** List the MCP server (`/mcp`) in MCP directories; embeddable widgets with attribution; the Chrome Web Store listing for the extension; guidance for the founder's team on genuine Reddit, Quora, YouTube and LinkedIn participation (always disclose FinLit; never spam); the monthly AI-citation panel and Bing AI Performance review.
+**Phase 7: off-site and AI presence, and category answers** (full detail in workstream M of the plan; on 27 Nov 2026 no outside page mentioned FinLit Ventures, and the name "FinLit" is shared with several financial-literacy organisations).
+- **M1 identity:** the same name, the descriptor "Indian stock and mutual fund research platform" and the domain everywhere. `Organization` JSON-LD carries `alternateName: "FinLit Ventures"`, `sameAs`, `founder` and `areaServed`. The first sentence of the About page states what FinLit is in plain words.
+- **M2 category hubs:** stock screening, company research reports, mutual fund research, sectors and calculators. Each opens with a 40–60 word answer, followed by live examples. Upgrade existing pages; don't duplicate them.
+- **M3 comparison pages:** `/compare/stock-research-platforms-india` and `/compare/mutual-fund-research-platforms-india`. Each is a dated, sourced feature table: facts only, no "best", FinLit not ranked first, nothing negative about others. Re-check every 3 months. They need the founder's OK and a lawyer's read before going live.
+- **M4 outreach list:** from the M9 panel, collect the 30–50 outside pages AI cites for category questions (author, email, last updated). Draft a short factual pitch the founder can send. Never pay for a ranking.
+- **M5 profiles (founder):** LinkedIn, X, YouTube, Instagram, Crunchbase, Product Hunt, AlternativeTo, the Chrome Web Store, and MCP directories for `/mcp`. Give him a checklist with the exact text to paste (name, descriptor, 160-character bio, link). Wikidata only after independent press; never a self-written Wikipedia article.
+- **M6 community (founder and team):** a written guide for honest Reddit, Quora, LinkedIn and YouTube participation. Always disclose; no fake accounts, upvotes or reviews; tool demos and education only, never stock picks.
+- **M7 press:** a pitch template for the monthly data stories, and a FinLit launch story for startup media.
+- **M8 indexes:** Search Console, Bing and IndexNow (these feed ChatGPT and Copilot); Brave finds sites through links; PerplexityBot is already allowed. Add `Claude-SearchBot` and `Claude-User` to the AI group in robots.txt, under the same `/api/` and `/prism` rule.
+- **M9 share-of-voice panel:** about 60 fixed questions (20 category, 20 company, 20 tools and concepts) across Google AI Overview and AI Mode, ChatGPT, Gemini, Claude, Perplexity and Copilot, run monthly. For each, log: FinLit named (yes/no), its position, FinLit cited (yes/no), the competitors named and the sources cited, in `docs/search-growth/AI-PANEL.md`. Give the founder a ready-to-fill sheet.
+- Also: list the MCP server in MCP directories; embeddable widgets with attribution; review the Bing AI Performance report monthly.
+- **Expectation to state to the founder:** his own name and narrow questions in months 0–3; some lists, Reddit and YouTube answers in months 3–6; broad category answers in months 6–12+. Nobody can guarantee "first everywhere".
 
 **Later:** Hindi and other Indian languages, with real translation, review and `hreflang`.
 
@@ -138,7 +152,15 @@ This work spans many sessions, and you have no memory between them. The reposito
 ## Phase 5 topical authority
 - [ ] Glossary examples   - [ ] Pillar guides   - [ ] Substantial company sub-pages
 ## Phase 6 data stories (monthly)
-## Phase 7 off-site + AI presence
+## Phase 7 off-site + AI presence + category answers
+- [ ] M1 Organization JSON-LD (alternateName, sameAs, founder) + About first sentence
+- [ ] M2 category hub pages (screener, research reports, mutual funds, sectors, calculators)
+- [ ] M3 comparison pages (founder OK + lawyer read: ____)
+- [ ] M4 outreach list of 30–50 cited pages + pitch draft
+- [ ] M5 profiles created by founder (URLs into sameAs)
+- [ ] M6 community guide   - [ ] M7 press pitch templates
+- [ ] M8 robots.txt: Claude-SearchBot / Claude-User in AI group
+- [ ] M9 AI-PANEL.md: 60 questions × 7 engines, monthly
 ## Measurements log (date: indexed / clicks / impressions / top-10 keywords / AI citations / CWV)
 ## Waiting on the founder
 ## Next step
@@ -155,7 +177,9 @@ This work spans many sessions, and you have no memory between them. The reposito
 8. **Background jobs never stop** (see `docs/JOBS.md`). New jobs (IndexNow pings, sitemap rebuilds) follow the supervisor's rules.
 9. Follow `CLAUDE.md` for delivery: tests green, then commit, push, open a PR, give the founder the clickable PR link and the live pages to check, one server step at a time (say where it runs: the server window `ubuntu@ip-…`, or **PowerShell** on his PC), and ask for a screenshot.
 
+10. **Earn recommendations; never fake them.** No self-ranking "best" lists, no fake reviews, accounts, upvotes or testimonials, no undisclosed paid placements. Comparisons state checkable facts with a date and source, and say nothing negative about others.
+
 ## 7. How to report each session
 End every session with a short table: what shipped (PR link), what was measured before and after, what the founder must do (exact steps; PowerShell commands for anything on his PC), what's blocked, and the next step. Update PROGRESS.md in the same PR.
 
-**Start now:** do Section 0, then begin Phase 0 by writing the founder's exact step-by-step instructions for Search Console (DNS TXT method), Bing Webmaster import and the analytics choice. In parallel, start Phase 1 (company pages): it doesn't depend on Phase 0.
+**Start now:** do Section 0, then begin Phase 0 by writing the founder's exact step-by-step instructions for Search Console (DNS TXT method), Bing Webmaster import and the analytics choice. In parallel, start Phase 1 (company pages): it doesn't depend on Phase 0. In the first session, also give the founder the M5 profile checklist and run a first M9 panel as the baseline: it costs nothing and shows where FinLit starts.

@@ -3,6 +3,7 @@
 *Evaluation and plan, 27 November 2026. Site: https://finlitventures.com (code: `Yusra-Khan532/Financial-Portfolio`, folder `finlit-platform/`).*
 
 **Goal (founder, 27 Nov 2026):** FinLit pages rank at the top, and get quoted by AI answers, for:
+- **category questions** ("investing research platforms", "stock screener India", "mutual fund research website"): FinLit is one of the platforms AI answers name (workstream M);
 - company names (for example "TCS share price", "Tata Consultancy Services financials", "TCS results", "TCS shareholding");
 - tools ("DCF calculator", "SIP calculator", "PE ratio calculator" and others);
 - finance concepts ("what is ROCE", "how to read a balance sheet");
@@ -56,7 +57,7 @@
 
 ---
 
-## Part 4. Strategy: 12 workstreams
+## Part 4. Strategy: 13 workstreams
 
 ### A. Make every page readable without JavaScript (the foundation)
 1. **Company pages:** `render_company` must put the company's **real facts** into the HTML that every visitor and crawler receives:
@@ -154,6 +155,86 @@
 - No fake reviews or ratings in structured data; no copying others' content; no AI-mass-produced thin pages.
 - SEBI's finfluencer rules (2024–2026) and its partnership with Google to track unregistered advice raise the stakes. **Every new content template gets a compliance read before launch**, and a lawyer reviews valuation and score wording.
 
+### M. Be the platform AI names for category questions (added 27 Nov 2026)
+**The goal:** when someone asks Google, ChatGPT, Gemini, Claude, Perplexity or Copilot a **category question**, FinLit is one of the platforms the answer names. Examples: "investing research and guidance platforms", "stock screener India", "mutual fund research website", "where to read research reports on Indian companies", "alternatives to Tickertape".
+
+**Why this is different from ranking a page.** For a category question, the AI answer lists **brands**, and it picks them mostly from what **other websites** say about those brands, not from the brand's own site. The 2026 research:
+- Ahrefs (75,000 brands): mentions of a brand across the web track AI Overview visibility far more closely (0.66) than backlinks (0.22).
+- AirOps: 85% of brand mentions in AI answers come from sites the brand doesn't own, and nearly 90% of those are "top platforms" lists, comparisons and reviews.
+- Ahrefs: "best X" list articles were 43.8% of the pages ChatGPT cited.
+- A brand's own "we are #1" list gets cited, but the AI still recommends a competitor 69% of the time (Lily Ray's study of 100 queries). **Ranking ourselves first on our own site doesn't work**, and our rules forbid "best" anyway.
+- The most-cited sites across AI engines are Reddit, YouTube, LinkedIn and Wikipedia.
+- Each AI tool reads a different index:
+  - Gemini and AI Overviews use **Google**;
+  - ChatGPT uses **Bing** plus its own OAI-SearchBot crawl;
+  - Perplexity uses **its own crawler**;
+  - Claude uses **Brave Search** (one report says this changed in October 2026).
+  FinLit must be findable in all four.
+
+**Where FinLit stands (checked 27 Nov 2026):**
+- A web search for "FinLit Ventures" finds **no outside page about this FinLit**.
+- The name "FinLit" is also used by several financial-literacy organisations (in the UK and US, and The Fin Lit Project), so AI tools can mix them up.
+- Competitors are already doing this. Tapetide and Univest publish their own "best platforms" lists with themselves on top, and Tapetide serves Markdown copies of its comparison pages for AI tools.
+- Google's AI Overview for "investing research and guidance platforms" (the founder's screenshot) names Tickertape, StockEdge, Finology, Research 360, Value Research, FundsIndia, Sharekhan and MarketSmith India. Every one of them has years of outside mentions.
+
+**What to do:**
+- **M1. One clear identity everywhere.** Always use "FinLit", the descriptor "Indian stock and mutual fund research platform" and finlitventures.com together, in the same words, on the site, in `Organization` JSON-LD (`name`, `alternateName: "FinLit Ventures"`, `url`, `logo`, `description`, `founder`, `foundingDate`, `areaServed: IN`, `sameAs`) and on every outside profile. The first sentence of the About page says it plainly, because that sentence is what AI copies: "FinLit (finlitventures.com) is an Indian stock and mutual fund research platform that explains the financial health of 5,800+ listed companies and 1,700+ mutual funds from their filings, free."
+- **M2. Category hub pages on the site.** One real, useful page for each category FinLit covers:
+  - stock screening;
+  - company research reports;
+  - mutual fund research;
+  - sectors;
+  - calculators.
+
+  Each opens with a 40–60 word answer to "what can I do here", then shows live examples from real data. Upgrade the pages that already exist; don't make duplicates.
+- **M3. Honest comparison pages.** For example `/compare/stock-research-platforms-india` and `/compare/mutual-fund-research-platforms-india`.
+  - **What they contain:** a dated, sourced feature table covering FinLit, Screener, Tickertape, Trendlyne, StockEdge, Finology Ticker and Value Research. Facts only: coverage, free or paid, features, data sources.
+  - **Wording:** no "best", no ranking FinLit first, nothing negative about others.
+  - **Upkeep:** re-checked every 3 months.
+  - **Before launch:** a lawyer reads them, because comparative advertising has rules.
+
+  These are the pages AI quotes for "alternatives to X" questions.
+- **M4. Get into the lists AI reads (the biggest lever).** From the monthly AI panel (M9), list the 30–50 outside pages that Google and AI tools cite for the category questions. Email each author a short, factual note with free access, and ask them to consider FinLit at their next update.
+  - Typical targets: Analytics Insight, Winvesta, broker-comparison guides, independent finance bloggers and newsletters, and the YourStory and Inc42 startup lists.
+  - Never pay for a ranking. Any paid placement must be labelled "sponsored".
+- **M5. Profiles and directories (one afternoon, the founder):**
+  - social and company profiles: LinkedIn company page, X, YouTube, Instagram, Crunchbase;
+  - launch and listing sites: a Product Hunt launch; AlternativeTo (FinLit as an alternative to Screener, Tickertape and Value Research); G2- and Capterra-type listings;
+  - FinLit's own products: the Chrome Web Store page for the extension; MCP directories for the `/mcp` server;
+  - Google Business Profile, only with a real office address;
+  - Wikidata, only once there is independent press coverage. Never write our own Wikipedia article.
+- **M6. People and communities (ongoing, the founder and team, always disclosed):**
+  - Give genuinely helpful answers to real questions on r/IndiaInvestments, r/IndianStockMarket and r/mutualfunds, on Quora and on LinkedIn. Mention FinLit only where it truly answers the question, and say "I built this".
+  - Make short YouTube explainers, for example reading a balance sheet with FinLit's charts, or a walk-through of the DCF calculator.
+  - **Never** use fake accounts, bought upvotes or fake reviews. Reddit bans them, Google's spam rules penalise them, and AI tools learn from the backlash.
+  - Work with creators only on tool demos and education, never stock picks (SEBI's finfluencer rules).
+- **M7. Press.** Pitch the monthly data stories (E) to journalists at Economic Times, Moneycontrol, Mint, Business Standard, YourStory and Inc42. Pitch a launch story about FinLit itself (free platform, 5,800 companies explained in plain English) to startup media. A news mention is the strongest "this brand is real" signal AI tools use.
+- **M8. Be in every AI tool's index:**
+  - **Google:** Search Console.
+  - **Bing:** Webmaster Tools and IndexNow. This feeds ChatGPT and Copilot.
+  - **Brave:** it has no webmaster tool and finds sites through links, so M4–M7 matter here.
+  - **Perplexity:** PerplexityBot is already allowed.
+  - **robots.txt:** add `Claude-SearchBot` and `Claude-User` to the AI group, so the same `/api/` and `/prism` rule applies to them; public pages stay open to all of them.
+- **M9. Measure share of voice every month.** Run a fixed set of about 60 questions in Google (AI Overview and AI Mode), ChatGPT, Gemini, Claude, Perplexity and Copilot:
+  - 20 category questions;
+  - 20 company questions;
+  - 20 tool and concept questions.
+
+  For each, record:
+  - whether FinLit is named;
+  - its position in the list;
+  - whether a FinLit page is cited;
+  - which competitors are named and which outside pages are cited.
+
+  The outside pages cited become the M4 outreach list. Paid trackers (Ahrefs Brand Radar, Peec AI, Otterly) are optional, if the founder wants them.
+
+**Honest expectation:** nobody can guarantee that an AI names FinLit first for every question. Tickertape, Value Research and the others have 10+ years of mentions. The realistic order:
+1. **Months 0–3**, once A–C ship: FinLit's own name and very specific questions ("is X debt free", FinLit's own tools).
+2. **Months 3–6:** appearing in some lists, Reddit threads and YouTube answers.
+3. **Months 6–12+:** the broad category answers.
+
+Each step grows with real users and real mentions.
+
 ---
 
 ## Part 5. Order of work
@@ -167,7 +248,7 @@
 | **4. Speed** | Weeks 3–6 | J: home page LCP, company page requests; Mumbai migration plan | Claude; the region move is the founder's decision |
 | **5. Topical authority** | Month 2–3 | D: glossary examples, learning paths; B5 sub-pages where substantial | Claude + a reviewer |
 | **6. Data stories and links** | Month 2 onwards | E + H, monthly | Founder/team for outreach; Claude for the pages |
-| **7. AI presence** | Ongoing | G4–G6, the monthly AI-citation panel | Team + Claude |
+| **7. AI presence and category answers** | Profiles in week 1; the rest ongoing | G4–G6 and M1–M9: identity, hub and comparison pages, outreach to the lists AI reads, Reddit/YouTube/press, the monthly share-of-voice panel | Founder/team for profiles, outreach, community and press; Claude for pages, robots.txt and the panel template |
 
 **Realistic timing:** indexing improvements show in Search Console within 2–6 weeks of Phase 1. Ranking for big company-name terms against established brokers typically takes **3–9 months** of steady work. Long-tail questions ("is X debt free", "X ROCE 2026") and tools can move sooner.
 
@@ -181,6 +262,9 @@
 5. **The `app.` hostname:** is it still used, so that it can redirect to the main domain?
 6. **Region:** whether to plan the move from Sydney to Mumbai.
 7. **People for outreach:** who posts on Reddit, YouTube and LinkedIn, and who pitches data stories.
+8. **Brand profiles (M5):** create or confirm the LinkedIn company page, X, YouTube, Instagram, Crunchbase, Product Hunt and AlternativeTo, all with the same name, logo, descriptor and link. Send Claude the URLs for `sameAs`.
+9. **Comparison pages (M3):** your OK, plus a lawyer's read, before they go live.
+10. **The monthly AI panel (M9):** about 1 hour a month to run the questions (Claude gives a ready sheet), or a paid tracker.
 
 ---
 
@@ -195,4 +279,8 @@
 - Bing AI Performance and IndexNow: [Bing blog (Feb 2026)](https://blogs.bing.com/webmaster/February-2026/Introducing-AI-Performance-in-Bing-Webmaster-Tools-Public-Preview), [Bing blog (Jun 2026)](https://blogs.bing.com/search/June-2026/New-AI-Visibility-Insights-in-Bing-Webmaster-Tools-Intents-Topics-Citation-Share-Compare), [eSEOspace](https://eseospace.com/blog/bing-webmaster-tools-indexnow-ai-search/)
 - Core Web Vitals: [Meta Digital](https://www.metadigital.co.nz/core-web-vitals-in-2026-what-they-measure-and-whats-actually-worth-fixing/), [seo-kreativ](https://www.seo-kreativ.de/en/blog/core-web-vitals-optimizing/)
 - Competitors: [Tickertape TCS](https://www.tickertape.in/stocks/tata-consultancy-services-TCS), [Trendlyne TCS](https://trendlyne.com/equity/1372/TCS/tata-consultancy-services-ltd/), [Finology comparison](https://ticker.finology.in/discover/solutions/screener-vs-tickertape-vs-trendlyne), [Safal Niveshak DCF](https://www.safalniveshak.com/dcf-calculator/), [Freefincal](https://freefincal.com/stock-analysis-tools/)
+- Brand mentions and AI recommendations: [Ahrefs: 75,000 brands](https://ahrefs.com/blog/ai-overview-brand-correlation/), [Position Digital statistics](https://www.position.digital/blog/ai-seo-statistics/), [Search Labs: citation vs recommendation](https://www.searchlabs.com/citation-vs-recommendation-ai-search/), [BrandMentions](https://brandmentions.com/blog/brand-mentions-ai-visibility/), [Trellner](https://trellner.com/reports/what-correlates-with-being-named-by-an-assistant)
+- Which index each AI tool uses: [Writesonic](https://writesonic.com/blog/ai-engine-indexes), [Surfaced By](https://surfacedby.com/blog/ai-assistant-search-indexes), [Ryan Doser on Claude](https://ryandoser.com/what-search-engine-does-claude-use/)
+- Most-cited domains: [Search Engine Land](https://searchengineland.com/ai-search-engines-cite-reddit-youtube-and-linkedin-most-study-473138), [Peec AI (30M sources)](https://peec.ai/blog/top-domains-cited-by-ai-search-analysis-based-on-30m-sources), [Adweek](https://www.adweek.com/media/youtube-reddit-ai-search-engine-citations/)
+- Category lists AI reads today: [Analytics Insight](https://www.analyticsinsight.net/stocks/best-10-platforms-for-stock-research-in-2026-you-should-know), [Tapetide compare](https://tapetide.com/compare/best-stock-research-websites-india), [Winvesta](https://www.winvesta.in/blog/investors/fundamental-analysis-tools-and-screeners-2026-guide), [Univest](https://univest.in/blogs/best-stock-analysis-app-india-2026-top-7-picks-for-research-screeners-amp-advisory), [Tradomate](https://tradomate.one/blog/best-trendlyne-alternatives/)
 - SEBI and finfluencers: [Mondaq](https://www.mondaq.com/india/financial-services/1769464/safeguarding-indias-retail-investors-in-the-age-of-finfluencers), [CFA Institute](https://blogs.cfainstitute.org/marketintegrity/2026/10/22/india-needs-stronger-finfluencer-enforcement-and-global-regulators-need-greater-cooperation/), [Business Standard](https://www.business-standard.com/finance/news/sebi-announces-norms-to-restrict-finance-influencer-s-recommendations-124062701002_1.html)
