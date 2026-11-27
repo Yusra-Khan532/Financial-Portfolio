@@ -106,3 +106,74 @@ describe("Stress Lab QA 27 Nov", () => {
     expect(src).toMatch(/x\.back < h\.to \? '<br>within the episode'/);
   });
 });
+
+describe("Stress Lab #401: the founder's re-check of 27 Nov (ITC)", () => {
+  const chips = (root: ShadowRoot) => [...root.querySelectorAll<HTMLElement>(".chip[data-scen]")];
+  const readCss = async () => {
+    const { readFileSync } = await import("node:fs");
+    const { join } = await import("node:path");
+    return readFileSync(join(__dirname, "stresslab.css"), "utf8");
+  };
+
+  it("1. four 'What stands out' cards stay in one row on a desktop-wide page: two rows of two only under 700px of width", async () => {
+    const css = await readCss();
+    expect(css).toContain(".callsg.n4{grid-template-columns:repeat(4,minmax(0,1fr))}");
+    expect(css).not.toMatch(/@container \(max-width:900px\)\{\.callsg\.n4/);   // the rule that made 2 x 2 at a 1150px window with the side menu open
+    expect(css).toMatch(/@container \(max-width:700px\)\{\.callsg\.n4\{grid-template-columns:repeat\(2,minmax\(0,1fr\)\)\}\}/);
+    const { root } = draw(P("gold"));
+    root.querySelector<HTMLElement>('.chip[data-scen="oil"]')!.click();
+    expect(root.querySelector(".callsg")!.className).toMatch(/\bn4\b/);   // the Oil spike case the founder saw: four cards
+  });
+
+  it("2. 'How sure is this?' lists its values lowest first, with the estimate labelled, also when the estimate is above the usual range (ITC: 86%)", () => {
+    const p = P("gold"); p.company.exposure.pass_through = 0.86;
+    for (const pay of [P("gold"), p]) {
+      const { root } = draw(pay);
+      for (const c of chips(root)) {
+        c.click();
+        const b = [...root.querySelectorAll<HTMLElement>("[data-sure]")];
+        if (!b.length) continue;
+        const v = b.map((x) => +x.getAttribute("data-v")!);
+        expect(v).toEqual([...v].sort((x, y) => x - y));
+        expect(new Set(v).size).toBe(v.length);
+        const est = b.filter((x) => /estimated/.test(x.textContent || ""));
+        expect(est).toHaveLength(1);
+        const k = b[0].getAttribute("data-sure")!;
+        if (k !== "floating_debt") expect(+est[0].getAttribute("data-v")!).toBeCloseTo(pay.company.exposure[k], 3);
+      }
+    }
+  });
+
+  it("2b. the pass-on share's options for an 86% estimate read 40% · 86% estimated · 96%", async () => {
+    const src = (await import("node:fs")).readFileSync((await import("node:path")).join(__dirname, "stressLab.js"), "utf8");
+    const m = src.match(/k: 'pass_through'[^\n]*vals: function \(v\) \{ return (\[[^\]]+\]); \}/);
+    expect(m).not.toBeNull();
+    const vals = new Function("v", "return " + m![1])(0.86).map((x: number) => Math.round(x * 1000) / 1000);
+    expect(vals).toEqual([0.4, 0.86, 0.96]);
+    expect(new Function("v", "return " + m![1])(0.601).map((x: number) => Math.round(x * 1000) / 1000)).toEqual([0.4, 0.601, 0.8]);   // a usual estimate keeps 40% and 80%
+  });
+
+  it("3. a card's one-line snippet ends in a full stop, never in ; : or ,", () => {
+    for (const plan of ["gold", "silver"] as const) {
+      const { root } = draw(P(plan));
+      for (const c of chips(root)) {
+        c.click();
+        for (const s of txt(root, ".call .ln")) {
+          expect(s).not.toMatch(/[;:,]$/);
+          expect(s).toMatch(/[.!?]$/);
+        }
+      }
+    }
+  });
+
+  it("4. the picked row is tinted across every cell, also while the pointer is still on it (the hover colour no longer wins)", async () => {
+    const css = await readCss();
+    const last = css.lastIndexOf("table.t tbody tr.on td,table.t tbody tr.click.on:hover td{background:var(--heef5f4)}");
+    expect(last).toBeGreaterThan(css.lastIndexOf("table.t tr.click:hover td"));
+    expect(last).toBeGreaterThan(css.lastIndexOf("table.t tbody tr:nth-child(even)"));
+    const { root } = draw(P("gold"));
+    root.querySelector<HTMLElement>('#every tr[data-pick="rates"] td.r')!.click();
+    expect(root.querySelector('#every tr[data-pick="rates"]')!.classList.contains("on")).toBe(true);
+    expect(root.querySelector("#xr-rates")).not.toBeNull();
+  });
+});
