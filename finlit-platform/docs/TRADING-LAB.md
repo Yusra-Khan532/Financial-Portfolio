@@ -134,3 +134,33 @@ describe-only (calls such as "likely cap", "what's next" or strangle picks stay 
 4. **Liquidity map**: price with option walls, inside Stock zones (Order Flow step 4).
 5. **Stock radar**: the five facts drawn as a radar.
 6. **F&O Academy**: lessons with quizzes, inside Learn.
+
+### F&O Academy (built 27 Nov 2026; MarketPulse ideas, item 6)
+
+`/learn/fno-academy` (Learn menu > F&O Academy; `pages/FnoAcademy.tsx`, content in `frontend/src/content/academy/`, styles `styles/academy.css`).
+**Open to everyone, inside Learn**, not a Lab page: Learn's other pages (glossary, guides, blog) are public and education is describe-only, so
+there is no Lab gate. Only module 5's "See it on live data" links (to Option Pulse and Order Flow) are shown, and only to Trading Lab members.
+
+- **Curriculum:** 10 modules, 55 lessons (what derivatives are; futures; options basics; the Greeks; OI, PCR, max pain and build-ups;
+  volatility and IV; structures with payoff diagrams; costs and taxes; risk; rules and protections). Each lesson: short text, a worked example
+  in ₹, a 3-question quiz with a reason for every option, and the reminder that F&O carries a high risk of loss. Lessons are addressed
+  `/learn/fno-academy/<lesson-id>`; tools `/learn/fno-academy/payoff-diagram | greeks-explorer | costs-calculator`.
+- **Facts and sources (read on 27 Nov 2026):** STT from 1 April 2026 (Finance Act, 2026: futures 0.05%, options 0.15% of premium, exercise
+  0.15% of intrinsic value); NSE charges from 1 March 2026 (NSE/FA/73061: ₹183 and ₹3,553 per crore); SEBI's measures of 1 October 2024
+  (SEBI/HO/MRD/TPD/P/CIR/2024/132) with the effective dates SEBI's July 2025 study records; expiry days (26 May 2025 circular; NSE Tuesday
+  from 1 September 2025); position limits (29 May 2025 and 1 September 2025 circulars); risk disclosure (19 May 2023). Loss figures are quoted
+  from SEBI's studies only: the 23 September 2024 press release (FY22-FY24), the July 2025 study (FY25) and the two August 2026 studies
+  (FY25-FY26). Every changing rule says "check the exchange's current circular". Lot sizes and premiums in examples are illustrative.
+- **Tools:** payoff diagram for every structure (`lib/payoff.ts`: breakevens, largest profit and loss, a hover card per price with each leg),
+  the Greeks explorer (`lib/blackScholes.ts`, Black-Scholes-Merton with its assumptions on the page; across prices or days left; an
+  implied-volatility box), and the costs calculator (`lib/fnoCosts.ts`; the site had none). Charts sit in ChartZoom with `useTip` hover cards.
+- **Progress:** where Learn already keeps a member's things (the Word of the Day bookmarks): the site prefs, in the browser for everyone and
+  with the account when signed in (`academyDone`, `academyQuiz`, `academyLast` in `lib/prefs.ts` and backend `PrefsIn`). A visitor's progress
+  joins the account's on the first sign-in on that browser (`lib/academyMerge.ts`); it leaves the device on sign-out. Module bars, an overall
+  bar and "Continue where you left off" on the hub.
+- **Wording:** no buy/sell/hold/target/best/forecast/signal/strategy words anywhere (`content/academy/banned.ts`); the nouns buyer, seller and
+  writer name the sides of a contract. Tests scan the content, the source strings and every rendered page.
+- **Tests:** `content/academy/academy.test.ts` (schema, sources, wording), `lib/payoff.test.ts`, `lib/blackScholes.test.ts` (Hull's values),
+  `lib/fnoCosts.test.ts`, `lib/academy.test.tsx` (save, reload, continue, sign-in merge), `pages/fnoAcademy.test.tsx` (routing, quiz flow,
+  hover cards, Lab-only links, phone CSS, rendered wording); backend `test_auth.py` (prefs fields) and `test_seo.py` (public page, lesson
+  addresses).

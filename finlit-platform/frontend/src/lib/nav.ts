@@ -80,8 +80,10 @@ export const MENU: MenuGroup[] = [
     i("/funds/screener", "Mutual fund screener", "Filter every fund by type, cost, returns, risk and portfolio", "layers"),
     i("/etfs", "ETFs", "Exchange-traded funds: price, returns and risk", "bars"),
   ] },
-  { id: "learn", title: "Learn", line: "Glossary, bookmarked words, research notes and the forum", short: "Learn", icon: "book", items: [
+  { id: "learn", title: "Learn", line: "Glossary, F&O lessons, bookmarks, research notes, the forum", short: "Learn", icon: "book", items: [
     i("/glossary", "Glossary", "Terms in plain words, with formulas", "book"),
+    // MarketPulse ideas, item 6 (founder, 26 Nov 2026): lessons with quizzes, inside Learn; open to everyone like the rest of Learn
+    i("/learn/fno-academy", "F&O Academy", "Futures and options in short lessons, with quizzes, payoff diagrams and a costs calculator", "book", { newUntil: "2026-12-27" }),
     i("/dashboard#dsh-learn", "Your bookmark", "The words you bookmarked from Word of the Day, on your dashboard", "book"),   // task #315 (the team's name)
     // founder, 25 Nov 2026: the two Sector Pulse and Sector Rotation guides are off the Learn menu (and Find a page); they stay at their
     // addresses and open from the "full guide" link on Sector Pulse and Sector Rotation

@@ -361,6 +361,11 @@ class PrefsIn(BaseModel):
     aiMemory: bool = True   # task #349 PR 2: FinLit AI keeps the member's questions for 180 days (ask/memory.py); false writes nothing new
     # task #388 (developer file 36, change 9): blocks of a page the member hid ("eq:grid", the Equity portfolio's Share by share grid), so it stays hidden on every device
     hiddenBlocks: List[Annotated[str, StringConstraints(pattern=r"^[a-z0-9]{1,12}:[a-z0-9-]{1,24}$")]] = Field(default_factory=list, max_length=40)
+    # F&O Academy (Learn, 27 Nov 2026): lessons marked done (lesson ids), quiz scores "<lesson>:<highest score>:<questions>" and the lesson opened
+    # last, so progress and "Continue where you left off" follow the member to every device (frontend lib/academy.ts uses the same patterns)
+    academyDone: List[Annotated[str, StringConstraints(pattern=r"^[a-z0-9][a-z0-9-]{0,47}$")]] = Field(default_factory=list, max_length=120)
+    academyQuiz: List[Annotated[str, StringConstraints(pattern=r"^[a-z0-9][a-z0-9-]{0,47}:[0-9]:[1-9]$")]] = Field(default_factory=list, max_length=120)
+    academyLast: Optional[Annotated[str, StringConstraints(pattern=r"^(?:[a-z0-9][a-z0-9-]{0,47})?$")]] = None
 
 
 # ------------------------------------------------------------------ helpers

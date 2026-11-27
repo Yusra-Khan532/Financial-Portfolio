@@ -17,7 +17,9 @@ export type Prefs = { palette: PaletteId; density: Density; alerts: boolean; scr
 
   /** task #316: the dashboard's own choices, saved with the account like the Showing bar */ dashUi: DashUi;
   /** task #349 PR 2: FinLit AI keeps this member's questions for 180 days (Silver and Gold); false keeps nothing new. Older saved prefs: true */ aiMemory: boolean;
-  /** task #388 (developer file 36, change 9): blocks of a page the member hid ("eq:grid", the Equity portfolio's Share by share grid); remembered on every device */ hiddenBlocks: string[] };
+  /** task #388 (developer file 36, change 9): blocks of a page the member hid ("eq:grid", the Equity portfolio's Share by share grid); remembered on every device */ hiddenBlocks: string[];
+  /** F&O Academy (Learn, 27 Nov 2026): lessons marked done (lesson ids), quiz scores "<lesson>:<best score>:<questions>", and the lesson opened last
+   *  ("Continue where you left off"). Kept in this browser and with the account like the Word of the Day bookmarks (lib/academy.ts) */ academyDone: string[]; academyQuiz: string[]; academyLast: string };
 /** Task #316 (dashboard file 22): the section shown, the portfolio of "Your portfolios at a glance", the Global markets region, the sort of "Your investments today",
  *  whose results and filings ("From"), and the cards hidden from each card's ⋯ menu. The server checks the same values (auth/routes.py DashUi). */
 export const DASH_SECS = ["all", "money", "watch", "market", "news", "tools"] as const;
@@ -82,7 +84,7 @@ export const WIDGETS: { id: string; label: string; nav?: string; blurb: string; 
 /** The layout version this build draws (task #195). A layout saved under an older version is moved to it once (`migrateLayout`). */
 export const DASH_V = 2;
 const defaultLayout = (): WidgetPref[] => WIDGETS.map((w) => ({ id: w.id, on: !w.off, size: w.size }));
-const DEFAULTS: Prefs = { palette: "gold", density: "comfortable", alerts: true, screenAlerts: true, profitGap: true, rotationCorner: true, rotationRank: false, digest: false, dashboard: defaultLayout(), sectorWatch: [], sectorAlerts: [], dashV: DASH_V, dashPortfolios: { equity: "all", mf: "all", etf: "all" }, followThemes: [], viewsSeen: [], wordBookmarks: [], wordSeen: "", dashUi: DASH_UI_DEFAULT, aiMemory: true, hiddenBlocks: [] };
+const DEFAULTS: Prefs = { palette: "gold", density: "comfortable", alerts: true, screenAlerts: true, profitGap: true, rotationCorner: true, rotationRank: false, digest: false, dashboard: defaultLayout(), sectorWatch: [], sectorAlerts: [], dashV: DASH_V, dashPortfolios: { equity: "all", mf: "all", etf: "all" }, followThemes: [], viewsSeen: [], wordBookmarks: [], wordSeen: "", dashUi: DASH_UI_DEFAULT, aiMemory: true, hiddenBlocks: [], academyDone: [], academyQuiz: [], academyLast: "" };
 
 const KEY = "finlit-prefs-v1";
 const SIZES: readonly WidgetSize[] = ["quarter", "third", "half", "full"];
@@ -119,6 +121,9 @@ export const BLOCK_ID = /^[a-z0-9]{1,12}:[a-z0-9-]{1,24}$/;
 /** Whether the member hid a block, and the switch that hides or shows it (saved with the account like the other prefs). */
 export const blockHidden = (id: string, p: Prefs = state) => p.hiddenBlocks.includes(id);
 export const setBlockHidden = (id: string, hidden: boolean) => { const xs = state.hiddenBlocks.filter((x) => x !== id); prefs.set({ hiddenBlocks: hidden ? [...xs, id] : xs }); };
+/** An F&O Academy lesson id, and a quiz score "<lesson>:<best>:<of>" (backend PrefsIn.academyDone / academyQuiz use the same patterns). */
+export const LESSON_ID = /^[a-z0-9][a-z0-9-]{0,47}$/;
+export const QUIZ_SCORE = /^[a-z0-9][a-z0-9-]{0,47}:[0-9]:[1-9]$/;
 export const SECTOR_ALERT = /^(state|box|top5):(sectors|industries):[a-z0-9][a-z0-9-]{0,79}$/;
 function normalise(raw: Partial<Prefs> | null | undefined): Prefs {
   return { palette: isPalette(raw?.palette) ? raw!.palette! : "gold", density: raw?.density === "compact" ? "compact" : "comfortable", alerts: raw?.alerts !== false, screenAlerts: raw?.screenAlerts !== false, profitGap: raw?.profitGap !== false, rotationCorner: raw?.rotationCorner !== false, rotationRank: raw?.rotationRank === true, digest: raw?.digest === true, dashboard: (raw?.dashV ?? 0) >= DASH_V ? normaliseLayout(raw?.dashboard) : migrateLayout(raw?.dashboard), dashV: DASH_V, sectorWatch: [...new Set((Array.isArray(raw?.sectorWatch) ? raw!.sectorWatch : []).filter((x): x is string => typeof x === "string" && /^[a-z0-9][a-z0-9-]{0,79}$/.test(x)))].slice(0, 60),
@@ -131,7 +136,11 @@ function normalise(raw: Partial<Prefs> | null | undefined): Prefs {
 
     dashUi: normaliseDashUi(raw?.dashUi),
     aiMemory: raw?.aiMemory !== false,
-    hiddenBlocks: [...new Set((Array.isArray(raw?.hiddenBlocks) ? raw!.hiddenBlocks : []).filter((x): x is string => typeof x === "string" && BLOCK_ID.test(x)))].slice(0, 40) };
+    hiddenBlocks: [...new Set((Array.isArray(raw?.hiddenBlocks) ? raw!.hiddenBlocks : []).filter((x): x is string => typeof x === "string" && BLOCK_ID.test(x)))].slice(0, 40),
+    // F&O Academy: older saved prefs have none of the three; they load as nothing done yet
+    academyDone: [...new Set((Array.isArray(raw?.academyDone) ? raw!.academyDone : []).filter((x): x is string => typeof x === "string" && LESSON_ID.test(x)))].slice(0, 120),
+    academyQuiz: [...new Map((Array.isArray(raw?.academyQuiz) ? raw!.academyQuiz : []).filter((x): x is string => typeof x === "string" && QUIZ_SCORE.test(x) && +x.split(":")[1] <= +x.split(":")[2]).map((x) => [x.split(":")[0], x] as const)).values()].slice(0, 120),
+    academyLast: typeof raw?.academyLast === "string" && LESSON_ID.test(raw.academyLast) ? raw.academyLast : "" };
 }
 /** Saved prefs (this browser's or the account's), cleaned; a field an older save does not have takes its default. */
 export const normalisePrefs = (raw: Partial<Prefs> | null | undefined): Prefs => normalise(raw);

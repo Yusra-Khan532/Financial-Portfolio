@@ -12,6 +12,9 @@ import { prefs, type Prefs } from "./prefs";
 import { screens } from "./screens";
 import { watch } from "./watchlist";
 import { RANK } from "./ui";
+import { mergeAcademy } from "./academyMerge";
+
+const NO_ACADEMY = { academyDone: [], academyQuiz: [], academyLast: "" };
 
 const debounce = <A extends unknown[]>(fn: (...a: A) => void, ms = 900) => { let t = 0; return (...a: A) => { window.clearTimeout(t); t = window.setTimeout(() => fn(...a), ms); }; };
 
@@ -26,7 +29,7 @@ export function StateSync() {
     if (DEMO) return;
     if (!uid) {
       prefs.onSave(null); watch.onSave(null); screens.onSave(null); portfolio.onSave(null);
-      if (last.current) { watch.reset(); screens.replace([]); portfolio.reset(); prefs.set({ wordBookmarks: [] }, true); } // signed out: personal lists (and Word of the Day bookmarks) leave this device
+      if (last.current) { watch.reset(); screens.replace([]); portfolio.reset(); prefs.set({ wordBookmarks: [], ...NO_ACADEMY }, true); } // signed out: personal lists (and Word of the Day bookmarks and F&O Academy progress) leave this device
       last.current = null;
       return;
     }
@@ -48,8 +51,12 @@ export function StateSync() {
         const sp = saved.prefs as Partial<Prefs>;
         const mine = !owner && local.wordBookmarks.length ? [...new Set([...local.wordBookmarks, ...(Array.isArray(sp.wordBookmarks) ? sp.wordBookmarks : [])])] : null;
         const seen = local.wordSeen > (sp.wordSeen || "") ? local.wordSeen : null;
-        prefs.set({ ...sp, ...(mine ? { wordBookmarks: mine } : {}), ...(seen ? { wordSeen: seen } : {}) }, true);
-        if (mine || seen) savePrefs(prefs.get()).catch(quiet);
+        // F&O Academy: progress made as a visitor joins the account's the same way (lessons done from both, the higher quiz score); progress left by a
+        // different account on this browser is replaced by this account's
+        const acad = !owner ? mergeAcademy(local, sp) : null;
+        const other = owner && owner !== uid ? { academyDone: sp.academyDone ?? [], academyQuiz: sp.academyQuiz ?? [], academyLast: sp.academyLast ?? "" } : {};
+        prefs.set({ ...sp, ...other, ...(mine ? { wordBookmarks: mine } : {}), ...(seen ? { wordSeen: seen } : {}), ...(acad ?? {}) }, true);
+        if (mine || seen || acad) savePrefs(prefs.get()).catch(quiet);
       } else savePrefs(prefs.get()).catch(quiet);
       if (saved.screens?.length) screens.replace(saved.screens as never); else if (screens.get().length) saveScreens(screens.get()).catch(quiet);
       const wl = saved.watchlist;

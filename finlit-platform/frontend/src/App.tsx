@@ -53,6 +53,7 @@ const SectorPulsePage = lazy(() => import("./pages/SectorPulse").then((m) => ({ 
 const SectorRotationPage = lazy(() => import("./pages/SectorRotation").then((m) => ({ default: m.SectorRotationPage })));
 const LearnSectorRotationPage = lazy(() => import("./pages/LearnSectorRotation").then((m) => ({ default: m.LearnSectorRotationPage })));
 const SectorIndustryPage = lazy(() => import("./pages/SectorIndustry").then((m) => ({ default: m.SectorIndustryPage })));
+const FnoAcademyPage = lazy(() => import("./pages/FnoAcademy").then((m) => ({ default: m.FnoAcademyPage })));   // Learn > F&O Academy
 const LearnSectorSignalsPage = lazy(() => import("./pages/LearnSectorSignals").then((m) => ({ default: m.LearnSectorSignalsPage })));
 const MacroPage = lazy(() => import("./pages/Macro").then((m) => ({ default: m.MacroPage })));
 const FiiDiiPage = lazy(() => import("./pages/FiiDii").then((m) => ({ default: m.FiiDiiPage })));
@@ -179,6 +180,8 @@ export default function App() {
             <Route path="sectors/:slug" element={<SectorIndustryPage />} />
             <Route path="learn/sector-rotation" element={<LearnSectorRotationPage />} />
             <Route path="learn/sector-signals" element={<LearnSectorSignalsPage />} />
+            <Route path="learn/fno-academy" element={<FnoAcademyPage />} />   {/* Learn > F&O Academy (docs/TRADING-LAB.md "F&O Academy") */}
+            <Route path="learn/fno-academy/:slug" element={<FnoAcademyPage />} />
             <Route path="fii-dii" element={<FiiDiiPage />} />
             <Route path="results" element={<ResultsPage />} />
             <Route path="results/quarter" element={<QuarterResultsPage />} />

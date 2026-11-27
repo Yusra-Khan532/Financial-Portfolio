@@ -19,7 +19,7 @@ describe("site map", () => {
     expect(names("markets")).toEqual(["Sector Pulse", "Sector Rotation", "Market events & index", "FII & DII flows", "India economy"]);   // task #317: Commodity prices is off the site
     expect(names("news")).toEqual(["Results", "Concall Monitor", "IPOs", "News & filings"]);   // task #278 (after the pack): its line covers results and filings; task #329: one IPOs entry; task #330: one Results entry
     expect(names("funds")).toEqual(["Mutual funds", "Mutual fund screener", "ETFs"]);
-    expect(names("learn")).toEqual(["Glossary", "Your bookmark", "Insights & blog", "Discussion forums"]);   // founder, 25 Nov 2026: the two sector guides are off the menu
+    expect(names("learn")).toEqual(["Glossary", "F&O Academy", "Your bookmark", "Insights & blog", "Discussion forums"]);   // F&O Academy: MarketPulse ideas item 6 (26 Nov 2026)   // founder, 25 Nov 2026: the two sector guides are off the menu
     expect(names("apps")).toEqual(["Browser extension", "Connect AI assistants"]);
     // the rules for a heading: four words or fewer, one line under it, no plan names as headings
     for (const g of MENU) { expect(g.title.split(/\s+/).filter((w) => w !== "&").length, g.title).toBeLessThanOrEqual(4); expect(g.line.length, g.line).toBeLessThanOrEqual(59); expect(g.title).not.toMatch(/Gold|Silver|Basic/); }
@@ -40,7 +40,7 @@ describe("site map", () => {
   });
   it("founder, 25 Nov 2026: How to use Sector Pulse and How to use Sector Rotation are off the Learn menu and Find a page", () => {
     const learn = MENU.find((g) => g.id === "learn")!.items.map((i) => i.to);
-    expect(learn).toEqual(["/glossary", "/dashboard#dsh-learn", "/blog", "/forum"]);
+    expect(learn).toEqual(["/glossary", "/learn/fno-academy", "/dashboard#dsh-learn", "/blog", "/forum"]);
     const all = [DASHBOARD, ...MENU.flatMap((g) => g.items)].map((i) => i.to);
     expect(all).not.toContain("/learn/sector-signals");
     expect(all).not.toContain("/learn/sector-rotation");

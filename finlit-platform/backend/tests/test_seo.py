@@ -40,6 +40,14 @@ def test_every_route_in_the_app_is_classified_so_none_is_a_soft_404_by_accident(
         assert seo.is_known(concrete) is not False, f"route {raw} is not known to seo.py: add it to PUBLIC, PRIVATE or PARAM_PREFIXES"
 
 
+def test_the_fno_academy_is_public_and_its_lessons_are_known_addresses():
+    """Learn > F&O Academy (27 Nov 2026): the hub is a public page with its own head; each lesson and tool is one address under it."""
+    assert "learn/fno-academy" in seo.PUBLIC and not seo.is_private("learn/fno-academy")
+    assert seo.is_known("learn/fno-academy/delta") is True and seo.is_known("learn/fno-academy/a/b") is False
+    page = seo.PUBLIC["learn/fno-academy"]
+    assert "not investment advice" in page.intro and "high risk of loss" in page.intro
+
+
 def test_unknown_addresses_are_not_known_and_params_need_a_real_parent():
     for bad in ("this-page-does-not-exist", "stocks", "stocks/a/b", "funds/x/y/z", "docs", "wp-admin"):
         assert seo.is_known(bad) is False, bad

@@ -335,6 +335,15 @@ async def test_saved_state_and_plan_limits(app):
     assert (await basic.get("/api/me/state")).json()["prefs"]["hiddenBlocks"] == ["eq:grid"]
     for bad in ({"hiddenBlocks": ["grid"]}, {"hiddenBlocks": ["EQ:grid"]}, {"hiddenBlocks": "eq:grid"}, {"hiddenBlocks": [f"eq:g{i}" for i in range(41)]}):
         assert (await basic.put("/api/me/prefs", json=bad)).status_code == 422, bad
+    # F&O Academy (Learn): lessons done, the highest quiz scores and the last lesson are kept with the account, so progress follows the member
+    acad = {"academyDone": ["futures-contract", "calls-and-puts"], "academyQuiz": ["calls-and-puts:2:3"], "academyLast": "delta"}
+    assert (await basic.put("/api/me/prefs", json=acad)).status_code == 200
+    stored = (await basic.get("/api/me/state")).json()["prefs"]
+    assert {k: stored[k] for k in acad} == acad
+    assert (await basic.put("/api/me/prefs", json={"academyDone": [], "academyQuiz": [], "academyLast": ""})).status_code == 200   # nothing yet
+    for bad in ({"academyDone": ["Futures"]}, {"academyDone": ["a b"]}, {"academyDone": ["x" * 49]}, {"academyDone": [f"l{i}" for i in range(121)]}, {"academyDone": "delta"},
+                {"academyQuiz": ["delta:4"]}, {"academyQuiz": ["delta:10:3"]}, {"academyQuiz": ["delta:1:0"]}, {"academyQuiz": ["Delta:1:3"]}, {"academyLast": "../x"}, {"academyLast": "<b>"}):
+        assert (await basic.put("/api/me/prefs", json=bad)).status_code == 422, bad
     # one user never sees another's state
     assert (await silver.get("/api/me/state")).json()["prefs"] == {}
     for c in (basic, silver):
