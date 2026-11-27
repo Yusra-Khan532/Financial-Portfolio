@@ -7,7 +7,9 @@ import { afterEach, describe, expect, it } from "vitest";
 import { CategoryPicker } from "./Dashboard";
 import type { ListQuery, SubCat } from "../lib/mf";
 
-afterEach(cleanup);
+afterEach(() => { cleanup(); localStorage.clear(); });
+// task #427: the boxes sit inside the "Fund type" drop-down (closed at first), so each test opens it first
+const types = () => fireEvent.click(screen.getByRole("button", { name: /^Fund type/ }));
 const Q = { q: "", amc: "", plan: "", option: "", status: "", sort: "", dir: "desc", page: 1, size: 25, min1y: "", max1y: "", min5y: "", max5y: "", view: "", tab: "equity", cats: null } as ListQuery;
 const SUBS: SubCat[] = [{ key: "a", label: "Aggressive Hybrid", names: [], count: 30 }, { key: "b", label: "Arbitrage", names: [], count: 35 }];
 let tabs: string[] = [];
@@ -22,12 +24,14 @@ describe("task #362: the filter boxes on Mutual funds", () => {
   it("all boxes are closed when the page opens, and the type in use still shows its tick and count", () => {
     tabs = []; render(<Harness />);
     expect(opened()).toEqual([]);
-    for (const b of screen.getAllByRole("button")) expect(b.getAttribute("aria-expanded")).toBe("false");
+    types();
+    for (const b of document.querySelectorAll(".mf-acc-h")) expect(b.getAttribute("aria-expanded")).toBe("false");
     expect(head("Equity").textContent).toMatch(/2 of 2 selected/);
     expect(head("Equity").querySelector(".mf-acc-box.all")).toBeTruthy();
   });
   it("opening a box closes the one that was open, and its own header closes it", () => {
     tabs = []; render(<Harness />);
+    types();
     fireEvent.click(head("Equity"));
     expect(opened()).toEqual(["mf-acc-equity"]);
     expect(tabs).toEqual([]);                                    // already the type in use: nothing reloads
