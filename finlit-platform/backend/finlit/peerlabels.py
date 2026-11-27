@@ -6,7 +6,7 @@ and the Advanced screener). On 27 Nov 2026, of the 139 labelled stocks among the
 18 had two agreeing readings and an unchanged label ("if next week agrees" for weeks), and the history broke the printed rule for 134.
 
 Now:
-  * `peer_label_week` holds one row per stock per weekly run, written once (migration 145). A bad run is replaced by a correcting run for the same
+  * `peer_label_week` holds one row per stock per weekly run, written once (migration 146). A bad run is replaced by a correcting run for the same
     week; the old one is marked superseded in `peer_label_run`. Reads take the latest current run of each week.
   * `next_label` is the only place a reading becomes a label ("Labels change only when two weekly runs agree"), with `HOLD_UNRANKED` runs kept
     without a rank (decided: 2), then no label.
