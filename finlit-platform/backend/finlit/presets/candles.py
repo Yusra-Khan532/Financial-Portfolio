@@ -104,8 +104,15 @@ async def with_daily_closes(store, symbol: str, s: Dict[str, list]) -> Dict[str,
     try:
         after = date.fromisoformat(str(s["t"][-1])[:10])
         async with pool.acquire() as conn:
-            rows = await conn.fetch("SELECT day, open, high, low, close, volume FROM price_daily WHERE symbol = $1 AND day > $2 AND close > 0 ORDER BY day LIMIT $3",
-                                    symbol, after, DAILY_TAIL)
+            # 27 Nov 2026: the exchange's own daily candles first (daily_candles: the official closes the eod-candles job loads from NSE's and BSE's end-of-day
+            # files within minutes of their release, and Dhan's), the same series the charts are written from. On 27 Nov the 26 Nov closes of 4,944
+            # companies were there, but the scans read only the Dhan copy and price_daily, both still on 25 Nov, so the 98% gate held the scans and the 12
+            # chart-pattern screens stayed on 25 Nov while every other list said 26 Nov. price_daily (the main provider) then fills what is still missing.
+            rows = [dict(r) for r in await conn.fetch(
+                "SELECT day, open, high, low, close, volume FROM daily_candles WHERE symbol = $1 AND day > $2 AND close > 0 ORDER BY day LIMIT $3", symbol, after, DAILY_TAIL)]
+            last = rows[-1]["day"] if rows else after
+            rows += [dict(r) for r in await conn.fetch(
+                "SELECT day, open, high, low, close, volume FROM price_daily WHERE symbol = $1 AND day > $2 AND close > 0 ORDER BY day LIMIT $3", symbol, last, DAILY_TAIL)]
     except Exception:   # the series as it was; the scans then see the company as behind
         return s
     if not rows:
