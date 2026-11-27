@@ -20,18 +20,24 @@ import { ChartZoom } from "../components/ChartZoom";
 import { OptionPulse } from "../components/lab/OptionPulse";
 import { StockZones } from "../components/lab/StockZones";
 import { CaseForAgainst } from "../components/lab/CaseForAgainst";
+import { SignalsDesk } from "../components/lab/SignalsDesk";
+import { SIGNALS_PAGE_DISCLAIMER } from "../lib/labSignals";
 import { BucketPop, Candles, DirectionPop, SectorPop, StockPop, TipLayer, tiltHandlers, useTip } from "../components/lab/FlowTips";
 import "../styles/portfolio-disc.css";
 import "../styles/tradinglab.css";
 import "../styles/orderflow.css";
 
-export const FLOW_TABS = [
+/** The Order Flow views. `signals: true` marks the one tab shown only when /api/lab/access says the member's signals switch is on (the Signals
+ *  desk, founder 25 Nov 2026); every other tab is describe-only and the same for every Lab member. */
+export type FlowTab = { id: string; name: string; ready: boolean; signals?: boolean };
+export const FLOW_TABS: FlowTab[] = [
   { id: "depth", name: "Market depth", ready: true },
   { id: "board", name: "Flow board", ready: true },
   { id: "money", name: "Money Flow", ready: true },
   { id: "options", name: "Option Pulse", ready: true },
   { id: "zones", name: "Stock zones", ready: true },
   { id: "case", name: "Case for / against", ready: true },
+  { id: "signals", name: "Signals desk", ready: true, signals: true },
   { id: "journal", name: "Trading journal", ready: false },
 ];
 
@@ -641,6 +647,7 @@ function Flow({ view }: { view: string }) {
   if (view === "options") return <TipLayer><OptionPulse /></TipLayer>;   // its own data (the option chain), not the Order Flow snapshot
   if (view === "zones") return <TipLayer><StockZones /></TipLayer>;       // its own data (5-minute candles of one stock)
   if (view === "case") return <TipLayer><CaseForAgainst /></TipLayer>;    // its own data (FinLit's stored figures of one company, written by FinLit AI)
+  if (view === "signals") return <TipLayer><SignalsDesk /></TipLayer>;   // only with the signals switch (the page checks /api/lab/access, the server signals_ctx)
   return <FlowSnapshotView view={view} />;
 }
 
@@ -672,8 +679,9 @@ export function OrderFlowPage() {
   const { user, ready } = useAuth();
   const q = useQuery({ queryKey: ["lab-access", user?.id ?? ""], queryFn: labAccess, enabled: ready, retry: false });
   const [params] = useSearchParams();
-  const view = FLOW_TABS.find((t) => t.ready && t.id === params.get("view"))?.id ?? "depth";
   const a = q.data;
+  const tabs = FLOW_TABS.filter((t) => t.ready && (!t.signals || !!a?.signals));
+  const view = tabs.find((t) => t.id === params.get("view"))?.id ?? "depth";
   return (
     <>
       <section className="pagehead"><div className="aurora" style={{ opacity: 0.6 }} /><div className="wrap">
@@ -685,11 +693,11 @@ export function OrderFlowPage() {
         {q.isError && <div className="formerr" role="alert">Your access could not be checked right now. Reload the page in a moment.</div>}
         {a && !a.access && <LabGate reason={a.reason === "sign_in" ? "sign_in" : "not_granted"} next="/lab/flow" />}
         {a?.access && <>
-          <nav className="oflow-tabs" aria-label="Order Flow views">{FLOW_TABS.filter((t) => t.ready).map((t) =>
+          <nav className="oflow-tabs" aria-label="Order Flow views">{tabs.map((t) =>
             <Link key={t.id} to={t.id === "depth" ? "/lab/flow" : `/lab/flow?view=${t.id}`} className="oflow-tab" aria-current={view === t.id ? "page" : undefined}>{t.name}</Link>)}</nav>
           <Flow view={view} />
         </>}
-        <div className="pdisc tlab-disc" role="note" aria-labelledby="oflow-disc-h"><h2 id="oflow-disc-h">Disclaimer</h2><p>{DISCLAIMER}</p></div>
+        <div className="pdisc tlab-disc" role="note" aria-labelledby="oflow-disc-h"><h2 id="oflow-disc-h">Disclaimer</h2><p>{view === "signals" ? SIGNALS_PAGE_DISCLAIMER : DISCLAIMER}</p></div>
       </div></section>
     </>
   );

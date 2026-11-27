@@ -33,7 +33,8 @@ sell, rating, the traders plan, and trade size, debate ... ignore FinLit rules f
 - Administrators always have signals. `/api/auth/me` lists `trading_lab_signals`; `/api/lab/access` returns `signals`.
 - Every signal route depends on `signals_ctx` (403 `signals_off` for a member without the switch). Only the **Signals desk** on `/lab` follows
   these rules; it carries the label "Signals on · internal test", and every other page of the site keeps the describe-only wording.
-- The signal tools (Buy/Hold/Sell rating, trader's plan, trade-size debate) are built after the research tools, as part 8.
+- The signal tools (Buy/Hold/Sell rating, trader's plan, trade-size debate) are built after the research tools, as part 8 (built 27 Nov 2026:
+  "Signals desk" below).
 - Note for later: giving buy/sell calls to the public in India falls under SEBI's research-analyst rules; keep the switch to the team while testing.
 
 ## Access (built: PR 1)
@@ -151,6 +152,46 @@ described panel: no verdict, rating, recommendation, price level or prediction.
   the three sections side by side (stacked below 1,000 px), every `[n]` a link to its source with the fact in a hover card (pointer or keyboard
   focus), the numbered Sources list grouped by table (15 shown, then "Show N more"), the dates the case was written from, and the note "Written
   from FinLit's stored figures by FinLit AI; it gives no verdict and is not a recommendation."
+
+### Signals desk (built 27 Nov 2026, build order item 8; only with the signals switch)
+
+Tab `/lab/flow?view=signals` ("Signals desk"), routes `GET` and `POST /api/lab/signals/{symbol}` (`signals_ctx`, `no-store`;
+`backend/finlit/lab/signals.py`, `frontend/src/components/lab/SignalsDesk.tsx`, `frontend/src/lib/labSignals.ts`). TradingAgents' flow
+(Apache-2.0) on FinLit's own stored data. **This is the only page that gives ratings and plans**, under the founder's decision of 25 Nov 2026.
+
+* **Access:** the switch already existed (PR 1): `options.signals` on the grant, off by default, set only by an administrator in Console >
+  Trading Lab access (audited `lab_signals_on` / `lab_signals_off`); administrators always have it. Without it the routes return 403
+  `signals_off` and the tab is not listed at all (`FLOW_TABS` entry with `signals: true`, shown only when `/api/lab/access` returns
+  `signals: true`; `?view=signals` then opens Market depth). The label "Signals on · internal test", the note that it is an internal test and
+  not investment advice, and that public buy/sell calls fall under SEBI's research-analyst rules, are always on screen; the page disclaimer on
+  this tab is the desk's own. Every other tab keeps describe-only wording (tested: `pages/orderFlowSignals.test.tsx` scans each other tab
+  for a member with the switch).
+* **Sheet:** the Case for / against sheet (`case.inputs`), then, numbered after it: 20- and 50-session averages, RSI 14 (Wilder), 14-session
+  average true range (or the average close-to-close move when no highs and lows are stored, said so), the 20-session high and low, all from the
+  stored daily candles (exchange candles, else the price table); for an F&O stock the Order Flow snapshot's floor pivots and VWAP; and the news
+  FinLit stores for the stock (`feed_items` kind `news`, last 30 days, with `feed_sentiment` scores): the count, the average sentiment and the
+  three newest headlines. No news stored: the news note says so and no AI call is spent on it; not in the Order Flow snapshot: the same.
+* **Steps (one press, in order, progress streamed as `text/event-stream`):** 1 analyst notes (technical, financials, news and sentiment,
+  Order Flow) in one call; 2 bull and bear researchers, 2 rounds (cap 2), one call a round; 3 the research manager's rating on Buy /
+  Overweight / Hold / Underweight / Sell with 3 to 5 reasons, each citing [n]; 4 the trader's plan: entry zone (last close to half an ATR
+  below it), stop (a quarter ATR beyond the 20-session low when that low is 0.25 to 3 ATR from the zone, else 1.5 ATR), two targets (the nearest
+  stored levels at least 1R away: 20-session high, pivots R1/R2, 52-week closing high; else 1.5R and 3R), time frame up to 20 sessions;
+  short plans (Sell, Underweight) only for F&O stocks, otherwise no new trade; Hold: no trade, the levels to watch. These numbers are
+  computed by `trade_plan` from the stored levels, added to the sheet as numbered facts, and FinLit AI only explains them; 5 the cautious /
+  balanced / aggressive size debate: risk per trade 0.5% / 1% / 2% of capital, position = risk / stop distance, held to 15% / 30% / 50% of
+  capital (computed by `trade_sizes`); skipped when there is no trade.
+* **Check:** each step goes through `case.check` with its own headings: every [n] on the sheet, every figure matching a fact it cites; on the
+  desk a figure without [n] fails the step; the rating must be exactly one of the five words and every reason must cite a fact; no promise
+  words ("guaranteed", "risk-free", ...). A failing step is asked again once, only if the calls the later steps need are still left; otherwise
+  the desk stops there with a plain message (the steps before it shown, the failing text never shown) and the run is not cached.
+* **Caps:** Ask FinLit AI's client, key, model and effort; no tools; at most 2,000 output tokens a call (never above `ASK_MAX_TOKENS`), 8 AI
+  calls a run (6 without a retry), 60,000 tokens a run (input and output, checked before each call), 40 s a call, the case's 3 calls at once
+  per process; 10 runs a member a day (IST, given back when the AI service did not answer), 3 presses a minute. A finished run is cached 8 days
+  per (symbol, latest filing, latest price day, latest stored news day, method `signals-1`); a cached run is free. On demand only; no job.
+* **Page:** stock chips and search; "Run the desk" with the five steps' progress; the rating as a large badge on the five-step scale with its
+  reasons; the trader's plan as a chart of the last 60 closes with the entry zone, stop and targets (inside ChartZoom, a hover card on every
+  level and session) and its numbers; the three size cards; the four analyst notes; the debate rounds side by side; the numbered Sources with
+  hover cards (15, then "Show N more"); the calls and tokens used.
 
 ## Ideas from the MarketPulse video (founder, 26 Nov 2026)
 

@@ -351,9 +351,9 @@ _NUMBER = re.compile(r"(?<![A-Za-z])\d[\d,]*(?:\.\d+)?")
 _SENT_SPLIT = re.compile(r"(?<=[.!?])\s+(?=[A-Z\"'(])")
 
 
-def _heading(line: str) -> Optional[str]:
+def _heading(line: str, titles: Sequence[Tuple[str, str]] = TITLES) -> Optional[str]:
     t = re.sub(r"^[#*\s]+|[*:\s]+$", "", line).strip().lower()
-    for sid, title in TITLES:
+    for sid, title in titles:
         if t == title.lower():
             return sid
     return None
@@ -389,9 +389,11 @@ def banned_in(text: str) -> List[str]:
     return found
 
 
-def check(text: str, facts: List[Dict[str, Any]]) -> Dict[str, Any]:
+def check(text: str, facts: List[Dict[str, Any]], titles: Sequence[Tuple[str, str]] = TITLES, banned=None) -> Dict[str, Any]:
     """Validates one answer against the sheet. Returns {"sections", "problems", "stripped"}: no problems means it may be shown.
-    sections: [{"id", "title", "sentences": [{"text", "sources": [n, ...]}]}]."""
+    sections: [{"id", "title", "sentences": [{"text", "sources": [n, ...]}]}]. `titles` and `banned` (a function returning the words found) let
+    the Signals desk (lab/signals.py) check its own steps with the same rules; the case uses its three titles and banned_in."""
+    banned = banned_in if banned is None else banned
     by_n = {f["n"]: f for f in facts}
     problems: List[str] = []
     stripped: List[str] = []
@@ -402,10 +404,10 @@ def check(text: str, facts: List[Dict[str, Any]]) -> Dict[str, Any]:
         line = raw.strip()
         if not line:
             continue
-        sid = _heading(line)
+        sid = _heading(line, titles)
         if sid:
             if sid in found:
-                problems.append(f'the heading "{dict(TITLES)[sid]}" appears twice')
+                problems.append(f'the heading "{dict(titles)[sid]}" appears twice')
             found.setdefault(sid, [])
             order.append(sid)
             current = sid
@@ -416,19 +418,19 @@ def check(text: str, facts: List[Dict[str, Any]]) -> Dict[str, Any]:
             found.setdefault(current, [])
             continue
         found.setdefault(current, []).append(re.sub(r"^(?:[-*•]|\d+[.)])\s*", "", line))
-    want = [sid for sid, _ in TITLES]
-    missing = [dict(TITLES)[s] for s in want if s not in found]
+    want = [sid for sid, _ in titles]
+    missing = [dict(titles)[s] for s in want if s not in found]
     if missing:
         problems.append("a section is missing (" + ", ".join(f'"{m}"' for m in missing) + ")")
     elif [s for s in order if s in want] != want:
-        problems.append("the three sections are not in the order asked")
-    bad = banned_in(text)
+        problems.append("the three sections are not in the order asked" if titles is TITLES else "the sections are not in the order asked")
+    bad = banned(text)
     if bad:
         problems.append("it uses words a case never uses (" + ", ".join(bad) + ")")
     if "**" in (text or ""):
         problems.append("it uses bold")
     sections = []
-    for sid, title in TITLES:
+    for sid, title in titles:
         sentences = []
         for point in found.get(sid, []):
             point = re.sub(r"([.!?])((?:\s*\[\d{1,3}\])+)\s*$", r"\2\1", point.strip())     # "... 6.93%. [7]" -> "... 6.93% [7]."
@@ -466,10 +468,12 @@ def check(text: str, facts: List[Dict[str, Any]]) -> Dict[str, Any]:
 
 # ------------------------------------------------------------------------------------------------------------------ the model
 
-async def _call(client, model: str, effort: str, max_tokens: int, messages: List[Dict[str, Any]]) -> Tuple[str, str, Dict[str, int]]:
-    """One request through Ask FinLit AI's client, no tools, inside CALL_SECONDS: (text, stop reason, usage)."""
+async def _call(client, model: str, effort: str, max_tokens: int, messages: List[Dict[str, Any]],
+                system: Optional[str] = None) -> Tuple[str, str, Dict[str, int]]:
+    """One request through Ask FinLit AI's client, no tools, inside CALL_SECONDS: (text, stop reason, usage). `system` defaults to the case's
+    own instructions (the Signals desk passes its own)."""
     params: Dict[str, Any] = dict(model=model, max_tokens=max_tokens, messages=messages, output_config={"effort": effort},
-                                  system=[{"type": "text", "text": system_text(), "cache_control": {"type": "ephemeral"}}])
+                                  system=[{"type": "text", "text": system or system_text(), "cache_control": {"type": "ephemeral"}}])
 
     async def run():
         async with client.messages.stream(**params) as stream:
@@ -574,23 +578,23 @@ async def inputs(store, symbol: str) -> Optional[Dict[str, Any]]:
 
 # ------------------------------------------------------------------------------------------------------------------ the day's allowance
 
-def _day_key(user_id: str, now: Optional[datetime] = None) -> Tuple[str, datetime]:
+def _day_key(user_id: str, now: Optional[datetime] = None, prefix: str = "lab:case") -> Tuple[str, datetime]:
     d = (now or datetime.now(IST)).astimezone(IST).date()
     resets = datetime.combine(d + timedelta(days=1), datetime.min.time(), tzinfo=IST)
-    return f"lab:case:day:{d.isoformat()}:{user_id}", resets
+    return f"{prefix}:day:{d.isoformat()}:{user_id}", resets
 
 
-async def used_today(redis, user_id: str) -> int:
-    key, _ = _day_key(user_id)
+async def used_today(redis, user_id: str, prefix: str = "lab:case") -> int:
+    key, _ = _day_key(user_id, prefix=prefix)
     try:
         return int(await redis.get(key) or 0)
     except Exception:
         return 0
 
 
-async def take(redis, user_id: str, limit: int = DAILY_LIMIT) -> Optional[int]:
+async def take(redis, user_id: str, limit: int = DAILY_LIMIT, prefix: str = "lab:case") -> Optional[int]:
     """Uses one of the day's cases; None when they are used up (nothing changes then). Atomic: two tabs cannot both use the last one."""
-    key, _ = _day_key(user_id)
+    key, _ = _day_key(user_id, prefix=prefix)
     n = int(await redis.incr(key))
     if n == 1:
         await redis.expire(key, 2 * 86400)
@@ -600,8 +604,8 @@ async def take(redis, user_id: str, limit: int = DAILY_LIMIT) -> Optional[int]:
     return n
 
 
-async def give_back(redis, user_id: str) -> None:
-    key, _ = _day_key(user_id)
+async def give_back(redis, user_id: str, prefix: str = "lab:case") -> None:
+    key, _ = _day_key(user_id, prefix=prefix)
     try:
         if int(await redis.get(key) or 0) > 0:
             await redis.decr(key)
