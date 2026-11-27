@@ -28,7 +28,7 @@ LIVE: #961 access, #962 engine, #964 Market depth + Flow board, #965 Money Flow,
 
 | # | Task | Branch (pushed) | State |
 |---|---|---|---|
-| 1 | Global cues | `lab-global` | **PR #980**, merged with main at 3a2c1550; 9/10 checks green, backend running. Checked locally merged with the newer main (lint 0 errors, no Lab warnings; 5,539 frontend + 198 backend tests pass). FIRST: if #980 is not merged yet and all checks are green with no file overlap with newer main, squash-merge; verify live `/lab/flow?view=global` |
+| 1 | Global cues | `lab-global` | **MERGED** as b8e4b372 (PR #980) at 00:41 UTC 27 Nov. FIRST: when /api/health shows b8e4b37 (deploy waits for green checks on main), verify live `/lab/flow?view=global` in 4 views and `/api/lab/global` 401 for visitors; report to the founder; workspace note on task 397 |
 | 2 | Market mood (India) | `lab-mood` | built + tested; next PR |
 | 3 | India / Global switch + Global depth, board, Money Flow (500 largest US cos, Nasdaq screener, job `global-flow` every 5 min, skips holidays) | `lab-global-flow` | built + tested (50/50 shots) |
 | 4 | Global Option Pulse (Nasdaq option chain; OI change from Redis-kept previous day) | `lab-global-options` | built + tested |
