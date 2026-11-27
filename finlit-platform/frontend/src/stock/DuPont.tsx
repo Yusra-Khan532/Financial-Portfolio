@@ -38,11 +38,12 @@ export function DuPont({ symbol, lender, head }: { symbol: string; lender: boole
     <div className="dp">
       {has && (
         <div className="card dp-card dp-main" id="dupont-card">
+          {/* developer file 48 (founder, 27 Nov 2026: "too much white space"): one line; the side box ("What drives the return on equity?") was four lines
+              tall beside a one-line formula, so the row was as tall as the box */}
           <div className="dp-top">
             <div className="dp-title">
-              <p className="faint">ROE is broken into three components: <b>Net profit margin × Asset turnover × Equity multiplier</b></p>
+              <p className="faint dp-formula"><Icon name="info" /><span>ROE shows how efficiently a company turns equity into profit: <b>Net profit margin × Asset turnover × Equity multiplier</b></span></p>
             </div>
-            <aside className="dp-info" aria-label="What drives ROE"><Icon name="info" /><div><b>What drives the return on equity (ROE)?</b><span>ROE shows how efficiently a company turns equity into profits.</span></div></aside>
           </div>
           {now && (
             <div className="dp-strip" role="group" aria-label={`ROE equals ${lender ? "net profit over total income" : "net profit over revenue"} times asset turnover times equity multiplier, ${fy(now.period)}`}>

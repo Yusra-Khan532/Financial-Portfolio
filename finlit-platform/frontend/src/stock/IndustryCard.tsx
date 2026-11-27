@@ -91,8 +91,8 @@ function Score({ label, name, mine, indV, mktV, industry }: { label: string; nam
       <div className="aiq-bul" role="img" aria-label={aria}>
         {mine != null && <i className={"bar" + (mine < 0 ? " neg" : "")} style={{ left: `${Math.min(pos(mine), zero)}%`, width: `${Math.abs(pos(mine) - zero)}%` }} />}
         {zero > 0.5 && <span className="z" style={{ left: `${zero}%` }} />}
-        {indV != null && <span className={"tk ind " + edge(pos(indV))} style={{ left: `${pos(indV)}%` }}><em>Industry {signed(indV)}</em></span>}
-        {mktV != null && <span className={"tk mkt " + edge(pos(mktV))} style={{ left: `${pos(mktV)}%` }}><em>Market {signed(mktV)}</em></span>}
+        {indV != null && <span className={"tk tk-ind " + edge(pos(indV))} style={{ left: `${pos(indV)}%` }}><em>Industry {signed(indV)}</em></span>}
+        {mktV != null && <span className={"tk tk-mkt " + edge(pos(mktV))} style={{ left: `${pos(mktV)}%` }}><em>Market {signed(mktV)}</em></span>}
       </div>
     </article>
   );
@@ -199,7 +199,7 @@ export function IndustryCard({ read: r }: { read: IndustryRead }) {
         <Score label="Revenue growth" name={r.name} mine={rev} indV={iR} mktV={mR} industry={i.name} />
         <Score label="Profit growth" name={r.name} mine={profit} indV={iP} mktV={mP} industry={i.name} />
       </div>
-      <p className="aiq-key"><span><i />{r.name}</span><span><i className="ind" />Typical {i.name} company</span><span><i className="mkt" />Typical company, all industries</span></p>
+      <p className="aiq-key"><span><i />{r.name}</span><span><i className="tk-ind" />Typical {i.name} company</span><span><i className="tk-mkt" />Typical company, all industries</span></p>
       <div className="aiq-facts">
         <div className="aiq-f">
           <div><small>The industry against the market</small><b>{i.vsMarket ? VS_TEXT[i.vsMarket] : "No reading yet"}</b>{!i.vsMarket && <span className="aiq-why">Too few of its companies have figures to compare.</span>}</div></div>

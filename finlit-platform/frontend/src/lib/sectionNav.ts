@@ -29,6 +29,28 @@ export const NAV: NavItem[] = [
   ["community", "Discussions", "users", "What members are discussing about this company: read, reply or start one"],
 ];
 
+/** Developer file 48 (founder, 27 Nov 2026: "the headings of the sections are too vague"): each report section's one heading says what the section
+ *  shows, in plain words, without the company's name. The section bar and the All sections panel keep the short names in NAV above. */
+export const HEADING: Record<string, string> = {
+  business: "What the company does",
+  notes: "Strengths and points to watch",
+  price: "Share price and trend",
+  quarter: "Latest quarterly results",
+  financials: "Profit & loss, balance sheet and cash flow",
+  trends: "Sales, profit and cash over the years",
+  segments: "Revenue by business segment",
+  ratios: "Valuation, returns, margins and debt",
+  dupont: "What drives return on equity",
+  earnings: "Profit quality and cash flow",
+  dividends: "Dividends paid to shareholders",
+  ownership: "Who owns the shares",
+  peers: "How it compares with its peers",
+  sector: "How its industry is doing",
+  macro: "How the economy affects its sector",
+  news: "Exchange filings and news",
+  community: "Community discussions",
+};
+
 /** The first section of each reading group: the bar draws a thin separator before it (price · results · ratios · shareholders · industry, sector and
  *  economy · filings and discussions). */
 export const GROUP_START = new Set(["price", "quarter", "ratios", "dividends", "peers", "news"]);

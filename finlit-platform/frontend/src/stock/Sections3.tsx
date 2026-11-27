@@ -25,6 +25,7 @@ import { EarningsCash, useEarningsFindings } from "./EarningsCash";
 import { SegmentCard } from "./Sections2";
 import { PeerRanking } from "./Leadership";
 import { LeaderWhatIf } from "./pack/WhereStands";
+import { peerValueCard } from "../lib/standsPack";
 import { useLeadership } from "../lib/leadership";
 import { ChartZoom } from "../components/ChartZoom";
 import { CoLogo } from "../components/CoLogo";
@@ -242,7 +243,9 @@ export function PeersSection({ p, self, s }: { p?: Peers; self: string; s: Summa
   return (
     <section className="block">
       <SectionHead id="peers" no="Peers" icon="layers" tier="basic" sub="Select a company to open its report." />
-      <Plain>Comparing a company with its closest rivals is the quickest way to tell whether a number is good or just normal for the industry. {cls?.industry ? `${s.profile.name.split(" ")[0]} is in NSE's ${cls.industry} industry${cls.basic_industry ? ` (basic industry: ${cls.basic_industry})` : ""}; these ${N} are the companies the data provider lists as its peers.` : ""}</Plain>
+      {/* developer file 48 (founder, 27 Nov 2026: "in sections 13 and 14, check if we are missing something"): 14's peers tab said where the P/E sits among the
+          peers and how the return on equity compares; nothing else on the page did, so it is this section's plain words now (it opened with a general line) */}
+      <Plain>{peerValueCard(s.profile.name.split(" ")[0], { pe: me.pe, roe: me.roe, peers: peers.map((i) => ({ pe: i.pe ?? null, roe: i.roe ?? null })) })?.text ?? "Comparing a company with its closest rivals is the quickest way to tell whether a number is good or just normal for the industry."} {cls?.industry ? `${s.profile.name.split(" ")[0]} is in NSE's ${cls.industry} industry${cls.basic_industry ? ` (basic industry: ${cls.basic_industry})` : ""}; these ${N} are the companies the data provider lists as its peers.` : ""}</Plain>
       <div className="pr2">
         <div className="card acc orbit-card">
           <ChartZoom label="Peer map: companies in the same industry">

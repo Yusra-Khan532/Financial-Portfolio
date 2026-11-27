@@ -24,7 +24,7 @@ import { TabGroup } from "../components/TabGroup";
 import { ForecastCard } from "./ForecastCard";
 import { CfCharts, PlCharts, PriceStats } from "./MoreCharts";
 import { Defer } from "./Defer";
-import { sectionNo } from "../lib/sectionNav";
+import { HEADING, sectionNo } from "../lib/sectionNav";
 
 /** Section header (task #216, compact): the number large (40 px; 32 on phones), a thin rule, the eyebrow with the plan badge, the title (24 px), and under it
  *  one line: the counts as coloured chips (if any), a dot, then the description (13 px, muted). Controls (toggles, a link) go on the right in `aside`.
@@ -52,7 +52,7 @@ export function CountChips({ counts }: { counts: HeadCount[] }) {
  *  (often a question with the company's name) is gone, and the one-line description stays under it, small. */
 export function SectionHead({ id, no, icon, tier, sub, aside, counts }: { id: string; no: string; icon: string; tier?: "basic" | "silver" | "gold"; sub?: string; aside?: React.ReactNode; counts?: HeadCount[] }) {
   // developer file 41: a report section's number comes from the one order in lib/sectionNav (pass its name only); "07 · Name" still works elsewhere
-  const n = sectionNo(id), m = /^(\d{1,2})\s*·\s*(.+)$/.exec(no) ?? (n ? [no, n, no] : null);
+  const n = sectionNo(id), m = /^(\d{1,2})\s*·\s*(.+)$/.exec(no) ?? (n ? [no, n, HEADING[id] ?? no] : null);   // developer file 48: a report section's heading from HEADING
   return (
     <div className="sh" id={id} style={{ "--sc": "var(--gold)" } as React.CSSProperties}>
       <div className="sh-l">

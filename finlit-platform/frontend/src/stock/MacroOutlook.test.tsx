@@ -27,7 +27,7 @@ describe("Macro & Sector Outlook section", () => {
     const bar = await screen.findByRole("group", { name: "Macro backdrop summary" });
     expect(within(bar).getByText("Tailwind")).toBeTruthy(); expect(within(bar).getByText("Outlook group · Private banks")).toBeTruthy();   // FinLit's outlook group, named as such (task #192) expect(within(bar).getByText("74")).toBeTruthy(); expect(within(bar).getByText("/100")).toBeTruthy();
     expect(within(bar).getByText("Credit +")).toBeTruthy(); expect(within(bar).getByText("Deposits +")).toBeTruthy(); expect(screen.queryByText("How it works")).toBeNull(); expect(screen.queryByRole("button", { name: "How it works" })).toBeNull();
-    expect(screen.getByText("Economy and sector")).toBeTruthy();   // task #222 (19 Nov pack S2)
+    expect(screen.getByText("How the economy affects its sector")).toBeTruthy();   // task #222 (19 Nov pack S2); developer file 48: the section's heading
   });
   it("a one-sector company has no Sector impact panel (task #216: its single row repeats the backdrop, which shows the same reasons)", async () => {
     const { container } = wrap();

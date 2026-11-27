@@ -93,16 +93,21 @@ export function peerCards(name: string, lead: LeadershipOn, val: { pe: number | 
     if (lead.label !== "leader" && w13 > 0) out.push({ kind: "good", title: "But the recent direction has turned", text: `Over the last 3 months it is ${p1(w13)} points ahead of ${sec}${turned}` });
     else if (lead.label !== "laggard" && w13 < 0) out.push({ kind: "watch", title: "The recent direction has slowed", text: `Over the last 3 months it is ${p1(w13)} points behind ${sec}${turned}` });
   }
-  if (val?.pe != null && val.pe > 0) {
-    const pes = val.peers.map((x) => x.pe).filter((x): x is number => x != null && x > 0);
-    if (pes.length >= 2) {
-      const lo = Math.min(...pes), hi = Math.max(...pes), above = val.pe > hi, below = val.pe < lo;
-      const roes = val.peers.map((x) => x.roe).filter((x): x is number => x != null), mroe = roes.length ? roes.reduce((a, b) => a + b, 0) / roes.length : null;
-      const roe = val.roe == null || mroe == null ? "" : `, with a ${val.roe < mroe ? "lower" : "higher"} return on equity (${val.roe.toFixed(1)}%) than their average (${mroe.toFixed(1)}%)`;
-      out.push({ kind: "insight", title: "Cheap or expensive?", text: `${name} trades at ${val.pe.toFixed(1)} times profit, ${above ? "above" : below ? "below" : "within the range of"} the other companies in its industry (${lo.toFixed(0)} to ${hi.toFixed(0)} times)${roe}.` });
-    }
-  }
+  const v = peerValueCard(name, val);
+  if (v) out.push(v);
   return out;
+}
+
+/** The company's P/E against the range of its peers' and its return on equity against their average ("Cheap or expensive?"). Developer file 48: 13 Peers
+ *  shows it in its plain-words line, since 14's peers tab (where it was) is gone. Null without the company's P/E or two peers with one. */
+export function peerValueCard(name: string, val: { pe: number | null; roe: number | null; peers: { pe: number | null; roe: number | null }[] } | null): Card | null {
+  if (val?.pe == null || val.pe <= 0) return null;
+  const pes = val.peers.map((x) => x.pe).filter((x): x is number => x != null && x > 0);
+  if (pes.length < 2) return null;
+  const lo = Math.min(...pes), hi = Math.max(...pes), above = val.pe > hi, below = val.pe < lo;
+  const roes = val.peers.map((x) => x.roe).filter((x): x is number => x != null), mroe = roes.length ? roes.reduce((a, b) => a + b, 0) / roes.length : null;
+  const roe = val.roe == null || mroe == null ? "" : `, with a ${val.roe < mroe ? "lower" : "higher"} return on equity (${val.roe.toFixed(1)}%) than their average (${mroe.toFixed(1)}%)`;
+  return { kind: "insight", title: "Cheap or expensive?", text: `${name} trades at ${val.pe.toFixed(1)} times profit, ${above ? "above" : below ? "below" : "within the range of"} the other companies in its industry (${lo.toFixed(0)} to ${hi.toFixed(0)} times)${roe}.` };
 }
 
 // ------------------------------------------------------------------------------------------------ Risk

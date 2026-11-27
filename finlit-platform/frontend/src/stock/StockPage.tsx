@@ -30,6 +30,7 @@ import "../styles/report216.css";   // task #216: compact headings, drop-down ar
 import "../styles/company-report-layout.css";   // task #328 (developer file 27): the eight layout changes, after the sheets they adjust
 import "../styles/report45.css";   // developer file 45: the colour roles (gold, green and red, blue and grey, one palette)
 import "../styles/report47.css";
+import "../styles/report48.css";   // developer file 48: less white space, headings that say what a section shows
 import { installStickyHeads } from "../lib/stickyHeads";   // developer file 47: one plain heading per section, tighter spacing
 import { MiniBar } from "./MiniBar";
 import { useEarningsFindings } from "./EarningsCash";

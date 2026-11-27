@@ -176,7 +176,7 @@ describe("12 · one plain heading per section, smaller, without the company's na
   it("a section head has its number, one title and its plan chip on one line; the line under it is the section's description", () => {
     const { container } = render(<SectionHead id="ratios" no="Ratios" icon="gauge" tier="gold" sub="Valuation, returns, margins and debt." />);
     expect(container.querySelectorAll("h2")).toHaveLength(1);
-    expect(container.querySelector(".sh-tl h2")!.textContent).toBe("Ratios");
+    expect(container.querySelector(".sh-tl h2")!.textContent).toBe("Valuation, returns, margins and debt");   // developer file 48: the heading says what it shows
     expect(container.querySelector(".sh-tl + .sh-desc")!.textContent).toBe("Valuation, returns, margins and debt.");
   });
   it("no section passes a second title; 24 px numbers, 20 px titles (18 on a phone), 32 px between sections", () => {

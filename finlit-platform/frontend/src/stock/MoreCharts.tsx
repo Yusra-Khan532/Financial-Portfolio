@@ -72,7 +72,8 @@ function VolatilityChart({ s }: { s: Stats }) {
  *  other cards and heading use --p-tech, --p-growth and the gold; Chart lab drew them all in gold). */
 function Card({ title, sub, icon = "line", children, full, note, help }: { title: string; sub?: string; icon?: string; children: ReactNode; full?: boolean; note?: ReactNode; help?: string }) {
   return (
-    <div className={"card acc cl" + (full ? " full" : "")}>{/* developer file 45: every card's edge is the brand gold */}
+    <div className={"card acc clc" + (full ? " full" : "")}>{/* developer file 45: every card's edge is the brand gold. Developer file 48: class clc, not cl:
+        the callout cards' styles/callout.css owns .cl (display: flex, padding, a green tint), which reached these cards once a reader had seen a callout */}
       <div className="card-h"><h3><span className="ci"><Icon name={icon} /></span>{title}{help && <ChartHelp id={help} />}</h3>{sub && <span className="s">{sub}</span>}</div>
       <ChartZoom label={title} className="cz-card">{children}</ChartZoom>{note && <p className="cl-note">{note}</p>}
     </div>

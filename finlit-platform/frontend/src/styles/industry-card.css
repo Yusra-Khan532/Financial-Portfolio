@@ -41,19 +41,19 @@
 #aiq .aiq-bul .bar { position: absolute; top: 0; bottom: 0; border-radius: var(--ui-r-pill); background: var(--aq); }
 #aiq .aiq-bul .bar.neg { background: var(--loss); }
 #aiq .aiq-bul .tk { position: absolute; top: -5px; bottom: -5px; width: 2px; margin-left: -1px; border-radius: var(--ui-r-mark); }
-#aiq .aiq-bul .tk.ind { background: var(--text); }
-#aiq .aiq-bul .tk.mkt { background: var(--faint); }
+#aiq .aiq-bul .tk.tk-ind { background: var(--text); }
+#aiq .aiq-bul .tk.tk-mkt { background: var(--faint); }
 #aiq .aiq-bul .tk em { position: absolute; left: 50%; transform: translateX(-50%); white-space: nowrap; font: 500 var(--fs-12)/1 var(--sans); font-style: normal; font-variant-numeric: tabular-nums; }
-#aiq .aiq-bul .tk.ind em { bottom: calc(100% + 3px); color: var(--text); }
-#aiq .aiq-bul .tk.mkt em { top: calc(100% + 3px); color: var(--muted); }
+#aiq .aiq-bul .tk.tk-ind em { bottom: calc(100% + 3px); color: var(--text); }
+#aiq .aiq-bul .tk.tk-mkt em { top: calc(100% + 3px); color: var(--muted); }
 #aiq .aiq-bul .tk.al em { left: -2px; transform: none; }
 #aiq .aiq-bul .tk.ar em { left: auto; right: -2px; transform: none; }
 #aiq .aiq-bul .z { position: absolute; top: -3px; bottom: -3px; width: 1px; background: var(--muted); }
 #aiq .aiq-key { display: flex; flex-wrap: wrap; gap: 2px 14px; margin: 0; padding: 0 18px; font-size: var(--fs-12); color: var(--muted); max-width: none; }
 #aiq .aiq-key span { display: inline-flex; align-items: center; gap: 6px; }
 #aiq .aiq-key i { display: inline-block; width: 12px; height: 6px; border-radius: var(--ui-r-pill); background: var(--aq); }
-#aiq .aiq-key i.ind { width: 2px; height: 12px; background: var(--text); }
-#aiq .aiq-key i.mkt { width: 2px; height: 12px; background: var(--faint); }
+#aiq .aiq-key i.tk-ind { width: 2px; height: 12px; background: var(--text); }
+#aiq .aiq-key i.tk-mkt { width: 2px; height: 12px; background: var(--faint); }
 
 /* the three facts: one row of label and value, divided by hairlines (they were three tinted tiles with icons) */
 #aiq .aiq-facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 10px 18px 12px; border-top: 1px solid var(--border); padding-top: 8px; }
