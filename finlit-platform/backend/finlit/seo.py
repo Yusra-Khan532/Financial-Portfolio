@@ -27,6 +27,11 @@ SITE_NAME = "FinLit Ventures"
 OG_IMAGE = "/og-finlit-1200x630.png"
 SYMBOL = re.compile(r"^[A-Z0-9&_.\-]{1,24}$")
 DISCLAIMER = "Describes the company's financial health from its filings and prices; not a recommendation. Information only, not investment advice."
+IDENTITY = "Indian stock and mutual fund research platform"     # search growth M1: the same words on the site, in JSON-LD and on every outside profile
+ABOUT_FIRST = ("FinLit (finlitventures.com) is an Indian stock and mutual fund research platform. It explains the financial health of 5,800+ listed companies "
+               "and 1,700+ mutual funds from their filings, in plain English, free to start.")
+FOUNDED = date(2026, 12, 1)     # the owner, 27 Nov 2026: founded December 2026. foundingDate appears in the JSON-LD only from that day, never as a future date.
+CONTACT_EMAIL = "contact@finlitventures.com"   # the owner, 27 Nov 2026: FinLit's address (frontend content/site.ts COMPANY.email says the same)
 
 
 @dataclass(frozen=True)
@@ -81,7 +86,7 @@ PUBLIC: Dict[str, Page] = {
     "plans": Page("FinLit Plans and Pricing: Free to Platinum | FinLit", "Compare FinLit plans: what is free and what Mutual Fund + ETF, Equity Portfolio, Gold and Platinum add, with every feature listed.", "Plans and pricing", "What each FinLit plan includes.", "Plans"),
     "pricing": Page("FinLit Plans and Pricing: Free to Platinum | FinLit", "Compare FinLit plans: what is free and what Mutual Fund + ETF, Equity Portfolio, Gold and Platinum add, with every feature listed.", "Plans and pricing", "What each FinLit plan includes.", "Plans"),
     "services": Page("Portfolio Review and Financial Planning Services | FinLit", "Portfolio reviews and financial planning conversations with the FinLit team. Information and education, not investment advice.", "Services", "Portfolio reviews and planning conversations.", "Services"),
-    "about": Page("About FinLit Ventures: Who We Are and Why | FinLit", "FinLit Ventures builds free, plain-English financial research for Indian investors. Who we are, what we publish and how we work.", "About FinLit Ventures", "Who we are and what we publish.", "About"),
+    "about": Page("About FinLit Ventures: Who We Are and Why | FinLit", "FinLit Ventures builds free, plain-English financial research for Indian investors. Who we are, what we publish and how we work.", "About FinLit Ventures", ABOUT_FIRST, "About"),
     "why-we-exist": Page("Why FinLit Exists: Financial Research in Plain English", "Why FinLit Ventures was started: to make company filings and prices readable for everyone, with the working shown.", "Why we exist", "Why FinLit was started.", "Why we exist"),
     "contact": Page("Contact FinLit Ventures: Questions and Support", "Contact the FinLit Ventures team with questions about the site, the data, your account or the portfolio review and planning services.", "Contact us", "Reach the FinLit team.", "Contact"),
     "mcp": Page("Connect AI Assistants to FinLit Data | FinLit", "Free, read-only FinLit data for Claude, ChatGPT and Cursor through MCP, with what each tool returns.", "Connect AI assistants", "Read-only FinLit data for AI assistants.", "AI assistants"),
@@ -125,6 +130,7 @@ REDIRECTS: Dict[str, str] = {
 # Task #329 (developer file 29, 23 Nov 2026): All IPOs (/ipo/all) is the second view of the one IPOs page; its filters carry over.
 KEEP_QUERY: Dict[str, str] = {
     "ipo/all": "/ipo?view=all",
+    "deals": "/ipo?view=deals",              # Bulk & Block Deals (27 Nov 2026): the IPOs page's third view; its filters carry over
 }
 
 
@@ -170,13 +176,17 @@ def _crumbs(base: str, trail: List[Tuple[str, str]]) -> Dict[str, Any]:
     return {"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": i + 1, "name": n, "item": base + u} for i, (n, u) in enumerate([("Home", "/")] + trail)]}
 
 
-def organization(base: str) -> List[Dict[str, Any]]:
-    return [{"@context": "https://schema.org", "@type": "Organization", "name": SITE_NAME, "url": base + "/", "logo": base + "/icon-512.png",
-             "description": "Free, plain-English financial research for Indian investors: company filings and prices described with a 0 to 100 score that shows its working.",
-             "sameAs": ["https://www.linkedin.com/company/finlitventures/"],
-             "founder": {"@type": "Person", "name": "Nishant Jain", "sameAs": "https://www.linkedin.com/in/nishant-jain-1464071ab/"},
-             "contactPoint": {"@type": "ContactPoint", "contactType": "customer support", "email": "finlit.start@gmail.com", "areaServed": "IN", "availableLanguage": "English"}},
-            {"@context": "https://schema.org", "@type": "WebSite", "name": SITE_NAME, "url": base + "/"}]
+def organization(base: str, today: Optional[date] = None) -> List[Dict[str, Any]]:
+    """Organization and WebSite JSON-LD for the home page (search growth M1: one clear identity, the same everywhere)."""
+    org: Dict[str, Any] = {"@context": "https://schema.org", "@type": "Organization", "name": BRAND, "alternateName": SITE_NAME, "url": base + "/", "logo": base + "/icon-512.png",
+                           "description": ABOUT_FIRST + " Information only, not investment advice.",
+                           "slogan": IDENTITY, "areaServed": {"@type": "Country", "name": "India"},
+                           "sameAs": ["https://www.linkedin.com/company/finlitventures/"],
+                           "founder": {"@type": "Person", "name": "Nishant Jain", "sameAs": "https://www.linkedin.com/in/nishant-jain-1464071ab/"},
+                           "contactPoint": {"@type": "ContactPoint", "contactType": "customer support", "email": CONTACT_EMAIL, "areaServed": "IN", "availableLanguage": "English"}}
+    if (today or date.today()) >= FOUNDED:
+        org["foundingDate"] = FOUNDED.strftime("%Y-%m")
+    return [org, {"@context": "https://schema.org", "@type": "WebSite", "name": BRAND, "alternateName": SITE_NAME, "url": base + "/"}]
 
 
 @dataclass

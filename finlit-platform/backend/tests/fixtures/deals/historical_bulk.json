@@ -1,0 +1,4 @@
+{"data": [
+  {"_id": "a1", "BD_DT_DATE": "24-Nov-2026", "BD_SYMBOL": "KAYNES", "BD_SCRIP_NAME": "Kaynes Technology India Limited", "BD_CLIENT_NAME": "GOLDMAN SACHS (SINGAPORE) PTE", "BD_BUY_SELL": "BUY", "BD_QTY_TRD": 512000, "BD_TP_WATP": 6123.55, "BD_REMARKS": "-"},
+  {"_id": "a2", "BD_DT_DATE": "21-Nov-2026", "BD_SYMBOL": "SMLT", "BD_SCRIP_NAME": "Sarthak Metals Limited", "BD_CLIENT_NAME": "NEO APEX VENTURE PVT. LTD.", "BD_BUY_SELL": "SELL", "BD_QTY_TRD": 98000, "BD_TP_WATP": 109.1, "BD_REMARKS": null}
+]}

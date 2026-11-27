@@ -41,10 +41,10 @@ describe("Connect AI assistants page", () => {
     const { container } = show();
     const names = MCP_TOOLS.map((t) => t.name);
     expect(new Set(names).size).toBe(names.length);
-    expect(names.length).toBe(20);
+    expect(names.length).toBe(21);
     const listed = [...container.querySelectorAll(".ca-tools code")].map((c) => c.textContent);
     expect(listed.sort()).toEqual([...names].sort());
-    expect(screen.getByRole("heading", { name: "The tools (20)" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "The tools (21)" })).toBeTruthy();
     expect(container.textContent).toContain("read-only");
     for (const bad of ["add_", "delete_", "remove_", "watchlist", "portfolio_"]) expect(names.some((n) => n.includes(bad)), bad).toBe(false);
   });

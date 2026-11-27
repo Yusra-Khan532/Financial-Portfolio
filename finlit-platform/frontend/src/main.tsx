@@ -4,6 +4,7 @@ import { BrowserRouter } from "react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import App from "./App";
 import { apiGet } from "./lib/api";
+import { filtersFromParams, listPath, summaryPath } from "./lib/deals";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { UIProvider } from "./lib/ui";
 import { AuthProvider } from "./lib/auth";
@@ -65,6 +66,12 @@ const client = new QueryClient({ defaultOptions: { queries: { refetchOnWindowFoc
   if (/^\/ipo(\/all)?\/?$/.test(path)) {
     void client.prefetchQuery({ queryKey: ["ipo-history"], queryFn: () => apiGet("/api/ipos/history"), staleTime: 600_000 });
     void client.prefetchQuery({ queryKey: ["ipos", false], queryFn: () => apiGet<{ ipos: unknown[] }>("/api/ipos").then((d) => d.ipos), staleTime: 120_000 });
+  }
+  // Bulk & block deals (/ipo?view=deals, /deals): the list and the summary for the filters in the address, under the keys lib/deals.ts uses
+  if (/^\/(ipo\/?|deals\/?)$/.test(path) && (path.startsWith("/deals") || new URLSearchParams(window.location.search).get("view") === "deals")) {
+    const f = filtersFromParams(new URLSearchParams(window.location.search));
+    void client.prefetchQuery({ queryKey: ["deals", listPath(f)], queryFn: () => apiGet(listPath(f)), staleTime: 300_000 });
+    if (!f.client) void client.prefetchQuery({ queryKey: ["deals-summary", summaryPath(f)], queryFn: () => apiGet(summaryPath(f)), staleTime: 300_000 });
   }
 }
 

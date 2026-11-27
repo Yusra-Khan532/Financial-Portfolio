@@ -16,6 +16,7 @@ import { dateFormat, MINUS, nf } from "../lib/format";
 import { useGmpRecord } from "../lib/ipo";
 import { GR, gTally } from "../lib/ipoCalendar";
 import { leadText } from "../components/ipo/GmpRecord";
+import { useIpoDeals } from "../lib/deals";
 import {
   applyFilters, filtersFromParams, GAIN_OPTIONS, NO_FILTERS, optionCounts, paramsFromFilters, SIZE_OPTIONS, sortRows, STATUS_LABEL, SUB_OPTIONS, summarise, toCsv, useIpoHistory, yearOf,
   type Filters, type IpoRow, type IpoStatus, type SortKey,
@@ -136,6 +137,16 @@ function GmpLine({ onOpen }: { onOpen?: () => void }) {
     {onOpen && <button type="button" className="mg-link" onClick={onOpen}>See the breakdown by GMP range →</button>}</div>;
 }
 
+/** The optional column: net value of the bulk and block deals in the share since listing (bought minus sold, each trade once), with the count. */
+function DealsCell({ id, listed, q }: { id: number; listed: boolean; q: ReturnType<typeof useIpoDeals> }) {
+  if (!listed) return <>{MINUS}</>;
+  if (q.isLoading) return <span className="muted">…</span>;
+  if (q.isError || !q.data) return <span className="muted" title="The deals could not be loaded">{MINUS}</span>;
+  const x = q.data.byId[String(id)];
+  if (!x) return <span className="muted" title={q.data.historyFrom ? `No bulk or block deal held since listing (deals held from ${dateIn(q.data.historyFrom)})` : "No deals held yet"}>{MINUS}</span>;
+  return <><span className={tone(x.netCr)}>{x.netCr > 0 ? "+" : x.netCr < 0 ? MINUS : ""}{nf(Math.abs(x.netCr), 2)}</span><small>{nf(x.deals, 0)} {x.deals === 1 ? "trade" : "trades"}</small></>;
+}
+
 /** The second view of the IPOs page. `extra`: rows the table holds besides the IPO record's; `onGmp`: opens the GMP block in the first view. */
 export function IpoAllView({ extra, onGmp }: { extra?: IpoRow[]; onGmp?: () => void } = {}) {
   const { data, isLoading, isError } = useIpoHistory();
@@ -148,6 +159,8 @@ export function IpoAllView({ extra, onGmp }: { extra?: IpoRow[]; onGmp?: () => v
   const dir = params.get("dir") === "asc" ? "asc" : "desc";
   const [n, setN] = useState(PAGE);
   const [pop, setPop] = useState<string | null>(null);
+  const [dealsCol, setDealsCol] = useState(false);                        // the optional column: bulk and block deals since listing, net (fetched when switched on)
+  const ipoDeals = useIpoDeals(dealsCol);
   const rows = useMemo(() => (extra?.length ? [...(data?.items ?? []), ...extra] : data?.items ?? []), [data, extra]);
   const put = (p: Record<string, string>) => setParams({ view: "all", ...p }, { replace: true });
   const set = (next: Partial<Filters>, s: SortKey = sort, d: "asc" | "desc" = dir) => { put(paramsFromFilters({ ...f, ...next }, s, d)); setN(PAGE); };
@@ -215,6 +228,7 @@ export function IpoAllView({ extra, onGmp }: { extra?: IpoRow[]; onGmp?: () => v
             </div>
           </Dropdown>
         </div>
+        <button type="button" className={"dbx-ddb" + (dealsCol ? " on" : "")} aria-pressed={dealsCol} onClick={() => setDealsCol(!dealsCol)}>Deals column</button>
         <button type="button" className="dbx-ddb p4-csv" onClick={csv} disabled={!shown.length}>Download CSV</button>
       </div>
       {chips.length > 0 && <div className="dbx-chips" role="group" aria-label="Filters that are on">
@@ -233,6 +247,7 @@ export function IpoAllView({ extra, onGmp }: { extra?: IpoRow[]; onGmp?: () => v
               <thead><tr>
                 <th scope="col" aria-sort={sort === "name" ? (dir === "asc" ? "ascending" : "descending") : "none"}><button type="button" onClick={() => onSort("name")}>Company{sort === "name" ? (dir === "asc" ? " ▲" : " ▼") : ""}</button></th>
                 {COLS.map(([k, l, c]) => <th key={k} scope="col" className={c} aria-sort={sort === k ? (dir === "asc" ? "ascending" : "descending") : "none"}><button type="button" onClick={() => onSort(k)}>{l}{sort === k ? (dir === "asc" ? " ▲" : " ▼") : ""}</button></th>)}
+                {dealsCol && <th scope="col" className="r">Deals since listing (₹ Cr, net)</th>}
               </tr></thead>
               <tbody>{shown.slice(0, n).map((r) => (
                 <tr key={r.id} onClick={(e) => { if (r.id > 0 && !(e.target as HTMLElement).closest("a")) nav(`/ipo/${r.id}`, { state: from }); }}>
@@ -245,6 +260,7 @@ export function IpoAllView({ extra, onGmp }: { extra?: IpoRow[]; onGmp?: () => v
                   <td className={"r " + tone(r.listingPct)}>{pct(r.listingPct)}{r.listingPrice != null && <small>{rupees(r.listingPrice)}</small>}</td>
                   <td className={"r " + tone(r.listingClosePct)}>{pct(r.listingClosePct)}{r.listingClose != null && <small>{rupees(r.listingClose)}</small>}</td>
                   <td className={"r " + tone(r.sinceIpoPct)}>{pct(r.sinceIpoPct)}{r.lastClose != null && <small>{rupees(r.lastClose)}{r.lastDay ? ` on ${dateIn(r.lastDay)}` : ""}</small>}</td>
+                  {dealsCol && <td className="r"><DealsCell id={r.id} listed={r.status === "listed"} q={ipoDeals} /></td>}
                 </tr>))}</tbody>
             </table>
           </div>

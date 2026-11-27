@@ -748,3 +748,25 @@ tr.dbx-d > td { padding: 2px 16px 20px; background: var(--dsc-teal-b); }
   tr.dbx-d > td { display: block; padding: 0 10px 14px; }
   .dbx-dg { grid-template-columns: 1fr; gap: 4px; padding: 12px; }
 }
+
+/* Task #431 (team, 27 Nov 2026): "What's Inside & How to Use?" as a drop-down at the start of Discover, below the header, closed at first.
+   The same look as the Mutual funds list's "How to read this table" (styles/task376.css): one row with the title, a short line and Show/Hide. */
+.dsc-howto { margin: 0 0 16px; border: 1px solid var(--border); border-radius: var(--r-card, var(--r-ctl)); background: var(--s1); }
+.dsc-howto > summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: var(--ui-ctl-h); padding: 10px 16px; cursor: pointer; list-style: none; }
+.dsc-howto > summary::-webkit-details-marker { display: none; }
+.dsc-howto > summary:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; border-radius: var(--r-ctl); }
+.dsc-howto-tx { display: grid; gap: 2px; min-width: 0; }
+.dsc-howto-tx b { font: 700 var(--fs-16)/1.3 var(--sans); color: var(--text); }
+.dsc-howto-tx small { font-size: var(--fs-13); color: var(--muted); }
+.dsc-howto-show { flex: none; display: inline-flex; align-items: center; gap: 6px; font: 700 var(--fs-13)/1 var(--sans); color: var(--text); }
+.dsc-howto-h { display: none; } .dsc-howto[open] .dsc-howto-s { display: none; } .dsc-howto[open] .dsc-howto-h { display: inline; }
+.dsc-howto-chev { width: 7px; height: 7px; margin: 0 2px 3px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg); transition: transform .15s ease; }
+.dsc-howto[open] .dsc-howto-chev { margin-bottom: -3px; transform: rotate(-135deg); }
+.dsc-howto[open] > summary { border-bottom: 1px solid var(--border); }
+.dsc-howto-b { display: grid; gap: 8px; padding: 14px 16px 16px; max-width: 920px; color: var(--text); font-size: var(--fs-14); line-height: 1.55; }
+.dsc-howto-b p { margin: 0; }
+.dsc-howto-b h3 { margin: 6px 0 0; font: 700 var(--fs-label)/1.2 var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.dsc-howto-ways { display: grid; gap: 6px; margin: 0; padding-left: 18px; }
+.dsc-howto-ways b { font-weight: 700; }
+@media (max-width: 760px) { .dsc-howto > summary { padding: 10px 14px; } .dsc-howto-b { padding: 12px 14px 14px; } }
+@media (prefers-reduced-motion: reduce) { .dsc-howto-chev { transition: none; } }

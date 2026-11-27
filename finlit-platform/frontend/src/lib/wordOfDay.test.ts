@@ -13,7 +13,7 @@ const rankShown = new Map(TERMS.map((t, i) => [t.id, i]));   // the order the gl
 
 describe("Word of the Day: no repeats (checklist 4)", () => {
   it(`${N} consecutive days give ${N} different terms, every term once`, () => {
-    expect(N).toBe(1260);
+    expect(N).toBe(1261);
     const ids = Array.from({ length: N }, (_, k) => termForDay(day0 + 1000 + k).id);
     expect(new Set(ids).size).toBe(N);
     expect([...ids].sort()).toEqual(sortedIds);

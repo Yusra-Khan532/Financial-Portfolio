@@ -101,6 +101,7 @@ SLA kinds: `hours` a success within N hours; `active` N hours counted only from 
 | results (`refresh-results`) | light | 1 | 1.5 h active | int 25 min 08-23; MORNING; ignores pause |
 | results-light | light | 2 | 2 h active | int 55 min 08-23; MORNING; ignores pause |
 | calendars (`refresh-calendars`) | light | 3 | 1 h active | int 40 min 08-23; MORNING; ignores pause |
+| deals (`refresh-deals --backfill-months 1 --max-minutes 8`) | light | 3 | none | weekdays every 30 min 16:00-22:00 IST (NSE posts the bulk and block files after the close); MORNING (a missed evening, the next month of history); ignores pause; one request a second, stops after 5 refusals and tries next run; summary in `flows_meta` `deals:last` (docs/DEALS.md) |
 | quotes (`refresh-quotes`) | light | 4 | none | every minute with a visitor, every 15 min if only alerts, market hours |
 | alerts-live (`check-alerts --kind live`) | light | 5 | none | 15 min market hours, after quotes, only if alerts exist |
 | listing (`refresh-listing --force`) | light | 6 | 6 h | 30 min market hours; 15:50; AFTER_CLOSE; MORNING |
