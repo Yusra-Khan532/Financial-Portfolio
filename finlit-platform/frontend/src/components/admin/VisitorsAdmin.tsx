@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ApiError, apiGet } from "../../lib/api";
+import "../../styles/visitors-admin.css";
 
 export type VisitorsReport = {
   from: string; to: string; days: number; countingSince: string | null;
@@ -35,7 +36,7 @@ export function VisitorsAdmin() {
   const searchVisits = r.sources.filter((s) => ["google", "bing", "duckduckgo", "yahoo", "brave"].includes(s.source)).reduce((a, s) => a + s.visits, 0);
   return (
     <>
-      <section className="card acct-c">
+      <section className="card acct-c vis">
         <h2>Visitors</h2>
         <p className="muted">{r.how}{r.countingSince ? ` Counting since ${day(r.countingSince)}.` : " Nothing counted yet."}</p>
         <div className="seg" role="tablist" aria-label="Period">
@@ -50,7 +51,7 @@ export function VisitorsAdmin() {
         </div>
       </section>
 
-      <section className="card acct-c">
+      <section className="card acct-c vis">
         <h2>Where visits came from</h2>
         {r.sources.length ? <div className="tw"><table className="qtt">
           <thead><tr><th>Source</th><th className="n">Visits</th><th className="n">Share</th><th className="n">Pages opened</th></tr></thead>
@@ -58,16 +59,16 @@ export function VisitorsAdmin() {
         </table></div> : <p className="muted">No visits in this period yet.</p>}
       </section>
 
-      <section className="card acct-c">
+      <section className="card acct-c vis">
         <h2>Most-opened pages</h2>
         {r.pages.length ? <div className="tw"><table className="qtt">
           <thead><tr><th>Page</th><th className="n">Opened</th><th className="n">Visits started here</th></tr></thead>
-          <tbody>{r.pages.map((p) => <tr key={p.path}><td>{p.path}</td><td className="n">{num(p.views)}</td><td className="n">{num(p.visits)}</td></tr>)}</tbody>
+          <tbody>{r.pages.map((p) => <tr key={p.path}><td className="vis-path">{p.path}</td><td className="n">{num(p.views)}</td><td className="n">{num(p.visits)}</td></tr>)}</tbody>
         </table></div> : <p className="muted">No pages opened in this period yet.</p>}
         {r.devices.length > 0 && <p className="muted">{r.devices.map((d) => `${d.device === "mobile" ? "Phone" : "Desktop"}: ${share(d.views, r.totals.views)} of pages opened`).join(" · ")}</p>}
       </section>
 
-      <section className="card acct-c">
+      <section className="card acct-c vis">
         <h2>Day by day</h2>
         <div className="tw"><table className="qtt">
           <thead><tr><th>Day</th><th className="n">Visits</th><th className="n">Pages opened</th><th className="n">New members</th></tr></thead>
