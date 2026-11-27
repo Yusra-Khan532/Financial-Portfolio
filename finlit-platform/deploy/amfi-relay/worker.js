@@ -1,7 +1,9 @@
 // FinLit relay: a free Cloudflare Worker that fetches public files for the FinLit server from places that refuse the server's own address (AWS).
 //   1. AMFI, GET /api/<name>: expense ratio, fund size (facts job); fund houses, their schemes and each scheme's details incl. exit load (portfolio job).
 //   2. AMFI, POST (JSON body) /gateway/pollingsebi/api/amfi/fundperformance and /getsubcategory: benchmark, risk-o-meter, daily AUM (portfolio job).
-//   3. GET /fetch?u=<https address> for nseindia.com and bseindia.com (company brief) and barodabnpparibasmf.in (that fund house's monthly portfolios).
+//   3. GET /fetch?u=<https address> for nseindia.com, nseindia.in and bseindia.com (company brief, FII/DII, deals) and barodabnpparibasmf.in (that fund
+//      house's monthly portfolios). A redirect to another allowed host (NSE moved its API from www.nseindia.com to www.nseindia.in, Nov 2026) is
+//      followed here, with that host's own cookie, so the answer always comes from Cloudflare and never sends the server to NSE itself.
 // What it never does: forward any other host or path, any other method, or any request without the shared key (X-Relay-Key). No data is stored here.
 const AMFI = [
   /^\/api\/populate-ter-month$/,
@@ -15,13 +17,14 @@ const AMFI_POST = [
   /^\/gateway\/pollingsebi\/api\/amfi\/fundperformance$/,
   /^\/gateway\/pollingsebi\/api\/amfi\/getsubcategory$/,
 ];
-const EXCHANGE_HOST = /^(?:[a-z0-9-]+\.)*(?:nseindia\.com|bseindia\.com|barodabnpparibasmf\.in)$/;
+const EXCHANGE_HOST = /^(?:[a-z0-9-]+\.)*(?:nseindia\.com|nseindia\.in|bseindia\.com|barodabnpparibasmf\.in)$/;
+const MAX_HOPS = 3;            // redirects followed inside the worker, each to an allowed host
 const POST_MAX_BYTES = 4096;   // the two AMFI POSTs carry a few fields of JSON
 const BROWSER_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36";
 
 // NSE's API answers only with the cookie its home page sets: fetch the home page first, then ask with that cookie.
-async function nseCookie(ua) {
-  const home = await fetch("https://www.nseindia.com/", { headers: { "User-Agent": ua, "Accept": "text/html,application/xhtml+xml" }, redirect: "manual" });
+async function nseCookie(ua, host = "www.nseindia.com") {
+  const home = await fetch(`https://${host}/`, { headers: { "User-Agent": ua, "Accept": "text/html,application/xhtml+xml" }, redirect: "manual" });
   const list = typeof home.headers.getSetCookie === "function" ? home.headers.getSetCookie() : [];
   return list.map((c) => c.split(";")[0]).join("; ");
 }
@@ -39,9 +42,20 @@ async function exchangeFetch(request, u) {
   const ref = request.headers.get("X-Fwd-Referer");
   if (ref) headers["Referer"] = ref;
   try {
-    if (target.hostname === "www.nseindia.com" && target.pathname.startsWith("/api/")) headers["Cookie"] = await nseCookie(ua);
-    const upstream = await fetch(target.toString(), { headers, redirect: "manual" });
-    const out = { "X-Relay": "1", "Content-Type": upstream.headers.get("Content-Type") || "application/octet-stream" };
+    let upstream = null;
+    for (let hop = 0; hop <= MAX_HOPS; hop++) {
+      const h = { ...headers };
+      const nseApi = /^www\.nseindia\.(com|in)$/.test(target.hostname) && target.pathname.startsWith("/api/");
+      if (nseApi) h["Cookie"] = await nseCookie(ua, target.hostname);
+      upstream = await fetch(target.toString(), { headers: h, redirect: "manual" });
+      const loc = upstream.headers.get("Location");
+      if (upstream.status < 300 || upstream.status >= 400 || !loc) break;
+      let next;
+      try { next = new URL(loc, target); } catch (e) { break; }
+      if (next.protocol !== "https:" || next.port !== "" || !EXCHANGE_HOST.test(next.hostname)) break;   // not ours to follow: handed back as it is
+      target = next;
+    }
+    const out = { "X-Relay": "1", "X-Relay-Final": target.hostname + target.pathname, "Content-Type": upstream.headers.get("Content-Type") || "application/octet-stream" };
     const loc = upstream.headers.get("Location");
     if (loc) out["Location"] = loc;
     const noBody = upstream.status === 204 || upstream.status === 205 || upstream.status === 304;
