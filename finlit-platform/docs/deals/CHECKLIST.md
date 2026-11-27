@@ -133,7 +133,7 @@ a sentence asking for two things is split. Status and evidence are filled in as 
 | 22 | Code yes; to verify on the jobs server | A month a request, a second between requests, cookie flow plus relay fallback. From here the history API is unreachable |
 | 23–24 | Yes | `test_job_stops_after_five_refusals_and_keeps_today`; the UI "History from …" plus the coverage notice (`Deals.test.tsx` "short-history") |
 | 25 | NSE only, labelled | "Exchanges: NSE" in the header; BSE is phase 2 |
-| 26–34 | Yes | Migration 148; `test_numbers_dates_and_remarks`, `test_client_key_collapses_spelling`, `test_duplicate_rule_same_trade_and_near_misses`, re-run test, `deals:last` test |
+| 26–34 | Yes | Migration 149 (first 148; renamed, see docs/DEALS.md); `test_numbers_dates_and_remarks`, `test_client_key_collapses_spelling`, `test_duplicate_rule_same_trade_and_near_misses`, re-run test, `deals:last` test |
 | 35–39 | Yes | Registry entry, `LIMIT_POLICY`; jobs tests pass; CLI `refresh-deals` next to `refresh-ipo-prices` |
 | 40–47 | Yes | `test_list_filters_sorting_and_totals_counted_once`, `test_coverage_and_csv`, `test_summary_stock_client_and_ipos`, `test_stale_copy_is_sent_and_rebuilt_behind_it` |
 | 48–52, 54–70 | Yes | `Deals.test.tsx` (12 tests) and the shots |

@@ -15,7 +15,7 @@ Built 27 Nov 2026 from the founder's build prompt "Bulk & Block Deals (under the
 - **Counted once:** NSE lists most block deals in its bulk file too. Such a bulk line is kept with `also_block = true`, shown under Bulk with an "also block" tag, and left out of All deals, every total, the largest deals, the IPO figures and the notifications. The rule is one function, `finlit/deals.py mark_duplicates`: same exchange, day, share, side and normalised client, the same price to the paisa, and a quantity within one share.
 
 ## Data
-- **Table:** `market_deals` (migration 148). Unique on (exchange, kind, day, symbol, client, side, qty, price), `NULLS NOT DISTINCT`, so re-reading a day inserts nothing. Before inserting, `save()` also skips a line already held from another source under the same trade key.
+- **Table:** `market_deals` and `deal_follows` (migration 149; first numbered 148, renamed because `148_site_visits.sql` landed on main first). Unique on (exchange, kind, day, symbol, client, side, qty, price), `NULLS NOT DISTINCT`, so re-reading a day inserts nothing. Before inserting, `save()` also skips a line already held from another source under the same trade key.
 - **Sources, in the order a run reads them:**
   1. Today's archive files: `nsearchives.nseindia.com/content/equities/bulk.csv` and `block.csv`.
   2. The snapshot (`/api/snapshot-capital-market-largedeal`): short selling, plus a cross-check of the archive. It stands in for the archive when the archive does not answer.
