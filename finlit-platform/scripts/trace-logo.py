@@ -1,32 +1,47 @@
 #!/usr/bin/env python3
-"""Traces frontend/public/brand/finlit-logo.png into vector shapes (frontend/src/components/logoPaths.ts) so the logo is crisp at any size and its
-parts (stairs, person, letters, bars, arrow) can be animated one by one. Needs: pip install potracer numpy pillow scipy.
-The picture is split by colour into gold (stairs, L, i, t), green (bars, arrow) and light (F, n, the person, the first step); every connected piece is traced
-on its own. The circle heads (the dot of the first i, the dot of the second i) are exact circles. Run it from the repository root; review the result in a browser.
+"""Traces the FinLit Ventures logo (scripts/assets/finlit-ventures-logo-source.webp, the team's artwork from task #400) into vector shapes
+(frontend/src/components/logoPaths.ts), so the logo is crisp at any size and its parts (stairs, person, letters, bars, arrow) can be animated one by one
+(components/LogoLoader.tsx, styles/logo-loader.css). Needs: pip install potracer numpy pillow scipy. Run it from finlit-platform/.
+
+Only the wordmark on the green panel is traced ("VENTURES" under it is left out, as in the header). The picture is split by colour into gold (stairs with
+the L and the shelf under the bars, the i of "Lit", the t), green (bars, arrow) and light (F, n, the person and his head, the first steps); every connected
+piece is traced on its own and named by where it sits, so a re-export of the artwork keeps the names. The two round dots (the person's head and the dot
+of the i) are drawn as exact circles. Coordinates are the artwork's, halved (about 820 units wide).
 """
-import json, sys
+import json
 import numpy as np
 from PIL import Image
 from scipy import ndimage as ndi
 import potrace
 
-SRC = "frontend/public/brand/finlit-logo.png"
+SRC = "scripts/assets/finlit-ventures-logo-source.webp"
 OUT = "frontend/src/components/logoPaths.ts"
-a = np.array(Image.open(SRC).convert("RGBA")).astype(float)
-rgb, al = a[..., :3] / 255, a[..., 3] / 255
-mx, mn = rgb.max(2), rgb.min(2)
+CROP = (120, 470, 1800, 1300)   # x0, y0, x1, y1 of the wordmark in the 1920 x 1920 artwork (VENTURES starts below y 1340)
+K = 0.5                         # artwork pixels to logo units
+
+a = np.array(Image.open(SRC).convert("RGB").crop(CROP)).astype(float) / 255
+r, g, b = a[..., 0], a[..., 1], a[..., 2]
+mx, mn = a.max(2), a.min(2)
 sat = (mx - mn) / (mx + 1e-6)
-r, g, b = rgb[..., 0], rgb[..., 1], rgb[..., 2]
-op = al > 0.5
-masks = {"gold": op & (r > g) & (g > b) & (sat > 0.25), "green": op & (g > r) & (g > b) & (sat > 0.2), "light": op & (sat < 0.2) & (mx > 0.6)}
+masks = {"gold": (r > g) & (g > b) & (sat > 0.35) & (mx > 0.45), "green": (g > r) & (g >= b * 0.9) & (sat > 0.35) & (mx > 0.3), "light": (sat < 0.2) & (mx > 0.6)}
+OX, OY = CROP[0], CROP[1]
 
 
-def trace(mask, bbox, pad=6, up=3):
+def pieces(name, min_px=1500):
+    """The connected pieces of a colour layer, biggest first: [(mask, (y0, y1, x0, x1)), ...]."""
+    lab, n = ndi.label(masks[name], structure=np.ones((3, 3)))
+    out = []
+    for i, sl in enumerate(ndi.find_objects(lab), start=1):
+        m = lab == i
+        if m.sum() >= min_px: out.append((m, (sl[0].start, sl[0].stop, sl[1].start, sl[1].stop)))
+    return out
+
+
+def trace(mask, bbox, pad=6):
     y0, y1, x0, x1 = bbox
     y0, x0, y1, x1 = max(0, y0 - pad), max(0, x0 - pad), min(mask.shape[0], y1 + pad), min(mask.shape[1], x1 + pad)
-    sub = Image.fromarray((mask[y0:y1, x0:x1] * 255).astype("uint8")).resize(((x1 - x0) * up, (y1 - y0) * up), Image.LANCZOS)
-    plist = potrace.Bitmap(~(np.array(sub) > 127)).trace(turdsize=20, turnpolicy=potrace.POTRACE_TURNPOLICY_MINORITY, alphamax=1.0, opticurve=True, opttolerance=0.4)
-    f = lambda p: f"{p.x / up + x0:.1f} {p.y / up + y0:.1f}"
+    plist = potrace.Bitmap(~mask[y0:y1, x0:x1]).trace(turdsize=20, turnpolicy=potrace.POTRACE_TURNPOLICY_MINORITY, alphamax=1.0, opticurve=True, opttolerance=0.4)
+    f = lambda p: f"{(p.x + x0 + OX) * K:.1f} {(p.y + y0 + OY) * K:.1f}"
     d = []
     for c in plist:
         d.append("M" + f(c.start_point))
@@ -36,19 +51,44 @@ def trace(mask, bbox, pad=6, up=3):
     return "".join(d)
 
 
-def piece(name, i):   # the i-th connected piece (1-based, as numbered by scipy) of a colour layer
-    lab, _ = ndi.label(masks[name], structure=np.ones((3, 3)))
-    sl = ndi.find_objects(lab)[i - 1]
-    return trace(lab == i, (sl[0].start, sl[0].stop, sl[1].start, sl[1].stop))
+def circle(bbox):
+    y0, y1, x0, x1 = bbox
+    return {"cx": round((x0 + x1) / 2 * K + OX * K, 1), "cy": round((y0 + y1) / 2 * K + OY * K, 1), "r": round(((x1 - x0) + (y1 - y0)) / 4 * K, 1)}
 
 
-parts = {"stairsL_gold": piece("gold", 1), "hair": piece("gold", 2), "t": piece("gold", 5), "istem": piece("gold", 6),
-         "F": piece("light", 1), "n": piece("light", 2), "person": piece("light", 3), "stairL_white": piece("light", 4),
-         "arrow": piece("green", 1), "bar3": piece("green", 2), "bar2": piece("green", 3), "bar1": piece("green", 4),
-         "head": {"cx": 273.5, "cy": 335.5, "r": 16.7}, "idot": {"cx": 755.5, "cy": 336, "r": 14.7}}
-ts = "// GENERATED by scripts/trace-logo.py from public/brand/finlit-logo.png: the FinLit logo as vector shapes (viewBox 50 40 860 575). Do not edit by hand.\n"
-ts += 'export const LOGO_VIEWBOX = "50 40 860 575";\n'
+def area(p): return (p[1][1] - p[1][0]) * (p[1][3] - p[1][2])
+
+
+gold, green, light = pieces("gold"), pieces("green"), pieces("light")
+assert len(gold) == 4 and len(green) == 4 and len(light) == 5, (len(gold), len(green), len(light))
+# gold: the stairs + L + shelf is the widest; of the rest, the round one is the dot of the i, the tall thin one its stem, the right-most the t
+stairs = max(gold, key=lambda p: p[1][3] - p[1][2])
+rest = [p for p in gold if p is not stairs]
+t = max(rest, key=lambda p: p[1][2])
+rest = [p for p in rest if p is not t]
+idot = min(rest, key=lambda p: p[1][1] - p[1][0])
+istem = max(rest, key=lambda p: p[1][1] - p[1][0])
+# green: the arrow is the widest; the bars from left to right
+arrow = max(green, key=lambda p: p[1][3] - p[1][2])
+bars = sorted([p for p in green if p is not arrow], key=lambda p: p[1][2])
+# light: from left to right F, the white steps (lowest), the person, his head (smallest), n
+head = min(light, key=area)
+steps = max(light, key=lambda p: p[1][1])
+rest = sorted([p for p in light if p is not head and p is not steps], key=lambda p: p[1][2])
+F, person, n = rest
+
+parts = {"stairsL_gold": trace(*stairs), "t": trace(*t), "istem": trace(*istem),
+         "F": trace(*F), "n": trace(*n), "person": trace(*person), "stairL_white": trace(*steps),
+         "arrow": trace(*arrow), "bar1": trace(*bars[0]), "bar2": trace(*bars[1]), "bar3": trace(*bars[2]),
+         "head": circle(head[1]), "idot": circle(idot[1])}
+ys = [v for p in gold + green + light for v in (p[1][0], p[1][1])]
+xs = [v for p in gold + green + light for v in (p[1][2], p[1][3])]
+pad = 12
+vb = [round((min(xs) + OX) * K - pad), round((min(ys) + OY) * K - pad), round((max(xs) - min(xs)) * K + 2 * pad), round((max(ys) - min(ys)) * K + 2 * pad)]
+vbs = " ".join(map(str, vb))
+ts = f"// GENERATED by scripts/trace-logo.py from scripts/assets/finlit-ventures-logo-source.webp: the FinLit Ventures logo as vector shapes (viewBox {vbs}). Do not edit by hand.\n"
+ts += f'export const LOGO_VIEWBOX = "{vbs}";\n'
 for k, v in parts.items():
     ts += f"export const LOGO_{k.upper()} = {json.dumps(v)};\n"
 open(OUT, "w").write(ts)
-print("wrote", OUT, len(ts), "bytes")
+print("wrote", OUT, len(ts), "bytes; viewBox", vbs)
