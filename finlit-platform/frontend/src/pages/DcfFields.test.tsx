@@ -182,6 +182,28 @@ describe("the DCF page (task #396)", () => {
     expect(screen.getByRole("heading", { name: "Methodology and important notes" })).toBeTruthy();
     expect(document.querySelector(".dcf-disc")?.textContent).toMatch(/not a forecast of the future share price/);
   });
+  it("task #412: the methodology card is a drop-down, closed at first; its title row opens and closes it, remembered per member", async () => {
+    localStorage.clear();
+    openPage();
+    const card = document.querySelector("details.dcx-meth") as HTMLDetailsElement;
+    expect(card).toBeTruthy();
+    expect(card.open).toBe(false);
+    const row = card.querySelector(":scope > summary") as HTMLElement;
+    expect(row.querySelector("h2")?.textContent).toBe("Methodology and important notes");
+    expect(row.querySelector(".dcx-mtg")?.textContent).toBe("Show");
+    fireEvent.click(row);
+    await waitFor(() => expect(card.querySelector(".dcx-mtg")?.textContent).toBe("Hide"));
+    expect(card.open).toBe(true);
+    expect(localStorage.getItem("finlit.dcf.meth.1")).toBe("open");
+    expect(card.textContent).toMatch(/Gordon growth/);                                  // every note is still there, unchanged
+    fireEvent.click(row);
+    await waitFor(() => expect(card.open).toBe(false));
+    expect(localStorage.getItem("finlit.dcf.meth.1")).toBe("closed");
+    cleanup(); localStorage.setItem("finlit.dcf.meth.1", "open");
+    openPage();
+    expect((document.querySelector("details.dcx-meth") as HTMLDetailsElement).open).toBe(true);
+    expect(localStorage.getItem("finlit.dcf.intro.1")).toBeNull();                      // its own key: the intro card is not moved with it
+  });
 });
 
 describe("the page layout (tasks #302 and #396)", () => {

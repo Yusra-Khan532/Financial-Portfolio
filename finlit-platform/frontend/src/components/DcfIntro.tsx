@@ -10,18 +10,22 @@ const STEPS: [string, string][] = [
 const GET = ["Intrinsic value per share", "Price against estimated value", "Bear, Base and Bull cases", "Sensitivity grid", "Year-wise cash flow and terminal value", "Full calculation and assumptions"];
 
 // Task #302: closed at the start (the calculator comes first; the header's "Learn more" opens it), and remembered open or closed per member.
+// Task #412: the methodology card below the calculator is a drop-down too, remembered the same way under its own key.
 const KEY = "finlit.dcf.intro";
-const keyOf = (member: string | null) => `${KEY}.${member ?? "guest"}`;
-const read = (member: string | null) => { try { return localStorage.getItem(keyOf(member)) === "open"; } catch { return false; } };
-const save = (member: string | null, open: boolean) => { try { localStorage.setItem(keyOf(member), open ? "open" : "closed"); } catch { /* private mode */ } };
+const keyOf = (key: string, member: string | null) => `${key}.${member ?? "guest"}`;
+const read = (key: string, member: string | null) => { try { return localStorage.getItem(keyOf(key, member)) === "open"; } catch { return false; } };
+const save = (key: string, member: string | null, open: boolean) => { try { localStorage.setItem(keyOf(key, member), open ? "open" : "closed"); } catch { /* private mode */ } };
 
-/** Open or closed, as this member left it (closed the first time). */
-export function useIntroOpen(member: string | null) {
-  const [open, setOpen] = useState(() => read(member));
-  useEffect(() => { setOpen(read(member)); }, [member]);
-  const set = useCallback((v: boolean) => { setOpen(v); save(member, v); }, [member]);
+/** A card that opens and closes: open or closed as this member left it (closed the first time). */
+export function useOpenPref(key: string, member: string | null) {
+  const [open, setOpen] = useState(() => read(key, member));
+  useEffect(() => { setOpen(read(key, member)); }, [key, member]);
+  const set = useCallback((v: boolean) => { setOpen(v); save(key, member, v); }, [key, member]);
   return { open, set };
 }
+
+/** Open or closed, as this member left it (closed the first time). */
+export const useIntroOpen = (member: string | null) => useOpenPref(KEY, member);
 
 export function DcfIntro({ open: given, onOpenChange }: { open?: boolean; onOpenChange?: (open: boolean) => void } = {}) {
   const own = useIntroOpen(null);
