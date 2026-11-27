@@ -11,7 +11,8 @@ import { resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Call, CallList } from "../lib/concalls";
 
-const st = vi.hoisted(() => ({ asked: [] as string[], summary: [] as string[], user: null as unknown, plan: "basic" }));
+const st = vi.hoisted(() => ({ asked: [] as string[], summary: [] as string[], user: null as unknown, plan: "basic", text: "", pdf: [] as Record<string, unknown>[] }));
+vi.mock("../lib/summaryPdf", () => ({ downloadSummaryPdf: async (x: Record<string, unknown>) => { st.pdf.push(x); } }));
 vi.mock("../lib/title", () => ({ useDocTitle: () => undefined }));
 vi.mock("../components/PageHeader", () => ({ PageHeader: ({ title, description }: { title: string; description: string }) => <header><h1>{title}</h1><p>{description}</p></header> }));
 vi.mock("../components/CoLogo", () => ({ CoLogo: ({ name }: { name: string }) => <span className="logo">{name[0]}</span> }));
@@ -32,12 +33,12 @@ const list = (items: Call[], o: Partial<CallList> = {}): CallList => ({ items, t
   scopeNote: null, signIn: false, ...o });
 
 beforeEach(() => {
-  st.asked = []; st.summary = []; st.user = null; st.plan = "basic";
+  st.asked = []; st.summary = []; st.user = null; st.plan = "basic"; st.text = ""; st.pdf = [];
   vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
     const u = String(url);
     st.asked.push(u);
     if (u.includes("/api/concalls/transcript")) return new Response(JSON.stringify({ symbol: "ACME", link: "x", filed: "2026-11-21", pages: ["Moderator: welcome to the call.", "CFO: revenue grew 12%."] }));
-    if (u.includes("/api/concalls/summary")) { st.summary.push(String(init?.body)); return new Response(JSON.stringify({ text: "**What the quarter looked like**\n- Revenue grew **12%** (p. 2)", source: "transcript", link: "x", written: null, cached: false, limit: 10, used: 1, left: 9, resets: "2026-12-01", disclaimer: "Not advice." })); }
+    if (u.includes("/api/concalls/summary")) { st.summary.push(String(init?.body)); return new Response(JSON.stringify({ text: st.text || "**What the quarter looked like**\n- Revenue grew **12%** (p. 2)", source: "transcript", link: "x", written: null, cached: false, limit: 10, used: 1, left: 9, resets: "2026-12-01", disclaimer: "Not advice." })); }
     if (u.includes("scope=portfolio")) return new Response(JSON.stringify(list([], { scope: "portfolio", signIn: true, scopeNote: "Sign in to see the calls of the companies in your equity portfolio." })));
     if (u.includes("tab=upcoming")) return new Response(JSON.stringify(list([mk({ id: "UPC|2026-11-24", symbol: "UPC", name: "Upcoming Co", date: "2026-11-24", upcoming: true, listen: { why: "The call is on 24 Nov 2026." } })], { tab: "upcoming" })));
     return new Response(JSON.stringify(list([mk({}), BETA])));
@@ -121,6 +122,26 @@ describe("Concall Monitor", () => {
     expect(card("Acme Ltd").querySelector(".ccm-li b")!.textContent).toBe("12%");
     expect(st.summary).toEqual([JSON.stringify({ link: "https://nsearchives.nseindia.com/t.pdf" })]);
     expect(card("Acme Ltd").textContent).toContain("1 of 10 AI summaries used this month");
+  });
+
+  it("task #432: headings and subheadings the AI chose, page references as chips, and a Download AI Summary button right under the summary", async () => {
+    st.user = { id: "u" }; st.plan = "gold";
+    st.text = "## Revenue and margins\n- Revenue rose 12% to 115.79 crore against 103.4 crore a year earlier (p. 5)\n## Orders and capacity\n### Orders\n- Order book of 1,234 crore (pp. 6, 7)\n### Capacity\n- New plant adds 20% (p. 9)";
+    open();
+    await screen.findByText("Acme Ltd");
+    fireEvent.click(within(card("Acme Ltd")).getByRole("button", { name: "AI Summary" }));
+    await waitFor(() => expect(card("Acme Ltd").textContent).toContain("Revenue and margins"));
+    const a = card("Acme Ltd");
+    expect([...a.querySelectorAll(".ccm-sum h4")].map((h) => h.textContent)).toEqual(["Revenue and margins", "Orders and capacity"]);
+    expect([...a.querySelectorAll(".ccm-sum h5")].map((h) => h.textContent)).toEqual(["Orders", "Capacity"]);
+    expect([...a.querySelectorAll(".ccm-pg")].map((x) => x.textContent)).toEqual(["p. 5", "pp. 6, 7", "p. 9"]);
+    const btn = within(a).getByRole("button", { name: /Download AI Summary/ });
+    const lastPoint = [...a.querySelectorAll(".ccm-li")].pop()!;
+    expect(lastPoint.compareDocumentPosition(btn) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();       // below the summary
+    expect(btn.compareDocumentPosition(a.querySelector(".ccm-disc")!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    fireEvent.click(btn);
+    await waitFor(() => expect(st.pdf).toHaveLength(1));
+    expect(st.pdf[0]).toMatchObject({ company: "Acme Ltd", symbol: "ACME", quarter: "Q2 FY27", source: "transcript", text: st.text, disclaimer: "Not advice." });
   });
 
   it("Upcoming, Portfolio and search ask the server for exactly that", async () => {

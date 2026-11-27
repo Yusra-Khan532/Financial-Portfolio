@@ -43,8 +43,17 @@
 .ccm .ccm-text h4 { margin: 12px 0 4px; font: 600 var(--fs-12)/1 var(--sans); color: var(--faint); text-transform: uppercase; letter-spacing: .06em; }
 .ccm .ccm-text p { margin: 0 0 8px; font: 400 var(--fs-14)/1.6 var(--sans); color: var(--text); white-space: pre-wrap; overflow-wrap: anywhere; }
 .ccm .ccm-frame { display: block; width: 100%; height: 560px; border: 1px solid var(--border); border-radius: var(--r-ctl); margin-top: 8px; background: var(--bg); }
-.ccm .ccm-sum h4 { margin: 10px 0 4px; font: 600 var(--fs-14)/1.35 var(--sans); color: var(--text); }
+.ccm .ccm-sum h4 { margin: 16px 0 6px; padding-bottom: 4px; border-bottom: 1px solid var(--border); font: 600 var(--fs-16)/1.35 var(--sans); color: var(--text); }
 .ccm .ccm-sum h4:first-child { margin-top: 0; }
+/* task #432: subheadings the model chose, page references as small chips, the download button right under the summary */
+.ccm .ccm-sum h5 { margin: 10px 0 4px; font: 600 var(--fs-13)/1.35 var(--sans); color: var(--gold); letter-spacing: .01em; }
+.ccm .ccm-pg { display: inline-block; margin-left: 4px; padding: 0 6px; border: 1px solid var(--border); border-radius: var(--ui-r-pill); font: 500 var(--fs-12)/1.5 var(--sans);
+  color: var(--muted); white-space: nowrap; vertical-align: 1px; }
+.ccm .ccm-dl { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 14px 0 4px; }
+.ccm .ccm-dl-btn { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; }
+.ccm .ccm-dl-btn svg { width: 18px; height: 18px; }
+.ccm .ccm-dl-note { font: 400 var(--fs-12)/1.4 var(--sans); color: var(--faint); }
+@media (max-width: 600px) { .ccm .ccm-dl-btn { width: 100%; justify-content: center; } }
 .ccm .ccm-li { margin: 0 0 4px; padding-left: 14px; position: relative; font: 400 var(--fs-14)/1.55 var(--sans); color: var(--text); }
 .ccm .ccm-li::before { content: ""; position: absolute; left: 2px; top: .7em; width: 5px; height: 5px; border-radius: 50%; background: var(--gold); }
 .ccm .ccm-disc { margin: 8px 0 0; font: 400 var(--fs-12)/1.45 var(--sans); color: var(--faint); }
