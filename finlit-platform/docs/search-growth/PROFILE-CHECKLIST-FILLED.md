@@ -7,7 +7,7 @@
 >
 > It also corrects three things that changed on the live site and must not be pasted:
 > - **FinLit IQ was retired** (task #283); FinLit Prism is FinLit's only company score.
-> - **The plans are now** Free, Mutual Fund + ETF, Equity Portfolio, the combined plan, Gold and Platinum (task #410), not Silver and Gold.
+> - **The plans are now** Free, Mutual Fund + ETF, Equity Portfolio, Gold and Platinum (task #410; the five on finlitventures.com/plans, confirmed by the owner 27 Nov 2026), not Silver and Gold.
 > - **The browser extension's plan line** needs checking before the Chrome Web Store listing (see section 9).
 >
 > Each change is marked *(corrected)*. Everything else is the founder's text.

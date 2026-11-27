@@ -1,6 +1,6 @@
 # Search growth progress (keep up to date every session)
 
-*Every session on search growth (SEO, AEO, GEO, and being named in AI answers to category questions): read `MASTER-PROMPT.md` (the founder's brief, kept word for word; updated 27 Nov 2026 with goal 5, workstream M and rule 10), `PLAN.md` (the evaluation and plan, with workstream M), `PROFILE-CHECKLIST.md` (the founder's profile texts, word for word), `PROFILE-CHECKLIST-FILLED.md` (the same, filled in and corrected, ready to paste), `AI-PANEL.md` (the monthly share-of-voice sheet) and this file first. Then continue with the first unchecked item, unless the founder asks for something else. Update this file in the same pull request as the work, and never end a session without updating it.*
+*Every session on search growth (SEO, AEO, GEO, and being named in AI answers to category questions): read `MASTER-PROMPT.md` (the founder's brief, kept word for word; updated 27 Nov 2026 with goal 5, workstream M and rule 10), `PLAN.md` (the evaluation and plan, with workstream M), `PROFILE-CHECKLIST.md` (the founder's profile texts, word for word), `PROFILE-CHECKLIST-FILLED.md` (the same, filled in and corrected, ready to paste), `AI-PANEL.md` (the monthly share-of-voice sheet), `BROWSER-PROMPTS.md` (the three prompts the founder runs in his browser assistant) and this file first. Then continue with the first unchecked item, unless the founder asks for something else. Update this file in the same pull request as the work, and never end a session without updating it.*
 
 *Delivery note (27 Nov 2026): MASTER-PROMPT.md says the founder merges with "Create a merge commit". `finlit-platform/CLAUDE.md` (newer, and it wins) says work arrives as a pull request on this repository, squash-merged once every check passes. "Decide, do not ask" (owner, 18 Nov 2026) applies here as well.*
 
@@ -48,14 +48,18 @@
 - **Founder's full name:** Nishant Jain (the same founder the site's Organization JSON-LD already names).
 - **Founded:** December 2026. Profiles may say "2026". `foundingDate` in JSON-LD only from 1 Dec 2026, so structured data never shows a date in the future.
 - **City:** Jabalpur (India).
+- **Plans on the live site:** Free, Mutual Fund + ETF, Equity Portfolio, Gold, Platinum (no Silver). FinLit Prism is the only company score; FinLit IQ is retired (owner, 27 Nov 2026).
 - **Profile texts:** `PROFILE-CHECKLIST.md` mentioned the retired FinLit IQ (task #283) and the old Silver and Gold plans (task #410 changed them). `PROFILE-CHECKLIST-FILLED.md` corrects every such line, marked "(corrected)". The extension's plan line is left out until Claude checks what the extension shows today.
 ## Waiting on the founder
 - `FOUNDER-STEPS.md`:
   - step 1, Search Console (DNS TXT record in Cloudflare);
   - step 2, Bing Webmaster import;
   - step 3, analytics, Option A or B.
-- Profiles (M5): create them from `PROFILE-CHECKLIST-FILLED.md`, then send the list of URLs in its section 12.
-- The first AI panel run (M9), about 1 hour, from `AI-PANEL.md`.
+- The three browser-assistant prompts in `BROWSER-PROMPTS.md` (given to the founder 27 Nov 2026), each ending with a report to paste back:
+  1. Search Console + Bing (Phase 0);
+  2. profiles (M5);
+  3. the baseline AI panel (M9).
+- Analytics: a one-line reply, Option A or B (`FOUNDER-STEPS.md` step 3).
 - Later (step 4): company identity facts, a lawyer's read of the per-company DCF wording, whether `app.` is still used, the Mumbai move, outreach people.
 ## Session log
 - **27 Nov 2026, session 1:**

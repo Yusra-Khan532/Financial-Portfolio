@@ -10,7 +10,7 @@
 ## Checked against the repository (27 Nov 2026, before any change)
 These lines of CHECKLIST.md need re-checking first, because the repository or `docs/MAINTAINER-MAP.md` says something different. The founder's checklist is kept as written; the facts go here.
 - **"Lock the origin to Cloudflare" (section 2):** MAINTAINER-MAP section 5 says that since 24 Nov 2026 the EC2 security group accepts ports 80/443 only from Cloudflare's 15 IPv4 ranges. To check: a direct request to the server's IP should time out.
-- **"House rule: Everything stays free" (section 10):** CLAUDE.md now has the owner's plans of 27 Nov 2026 (task #410): Free, Mutual Fund + ETF, Equity Portfolio, the combined plan, Gold and Platinum, with prices in `frontend/src/landing/goliveData.js`. Payments are not live yet. The SEBI question (section 0, item 1) still stands before any paid plan is charged.
+- **"House rule: Everything stays free" (section 10):** The plans on the live site (task #410, confirmed by the owner 27 Nov 2026) are Free, Mutual Fund + ETF, Equity Portfolio, Gold and Platinum, with prices in `frontend/src/landing/goliveData.js`. There is no Silver plan, and FinLit IQ is retired: FinLit Prism is the only company score. Payments are not live yet. The SEBI question (section 0, item 1) still stands before any paid plan is charged.
 - **Uptime monitoring (section 3):** `deploy/aws/gatus/` and `deploy/aws/uptime-kuma/` exist. To check: are they running, and do their alerts reach the founder's phone?
 - **Backups (section 3):** `deploy/aws/backup.sh` (nightly, kept on the server) and `test-backup-prune.sh` exist. The offsite copy is the missing part.
 - **favicon.ico (section 8):** `frontend/public` has `favicon-16.png` and `favicon-32.png`, but no `favicon.ico`.
