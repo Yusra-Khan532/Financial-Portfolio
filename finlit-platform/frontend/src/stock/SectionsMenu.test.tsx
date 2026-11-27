@@ -30,11 +30,11 @@ describe("panel keyboard rule", () => {
 });
 
 describe("sections bar numbers and the plan's Scores line (task #216, README 1.8)", () => {
-  it("numbers every section 01 to 17 in the funnel order; Scores has none; Announcements is gone; Economy is 15, News & filings 16, Discussions 17 (developer file 41)", () => {
+  it("numbers every section 01 to 17 in the funnel order; Scores has none; Announcements is gone; Macro is 15, News & filings 16, Discussions 17 (developer files 41 and 49)", () => {
     expect(NAV.map(([id]) => sectionNo(id)).filter(Boolean)).toEqual(Array.from({ length: 17 }, (_, i) => String(i + 1).padStart(2, "0")));
     expect([sectionNo("prism"), sectionNo("announcements"), sectionNo("charts"), sectionNo("insights")]).toEqual([null, null, null, null]);
     expect(NAV.map(([id]) => id)).not.toContain("announcements");
-    expect(NAV.filter(([id]) => ["macro", "dividends", "news", "community"].includes(id)).map(([id, l]) => `${sectionNo(id)} ${l}`)).toEqual(["11 Dividends", "15 Economy", "16 News & filings", "17 Discussions"]);
+    expect(NAV.filter(([id]) => ["macro", "dividends", "news", "community"].includes(id)).map(([id, l]) => `${sectionNo(id)} ${l}`)).toEqual(["11 Dividends", "15 Macro", "16 News & filings", "17 Discussions"]);
   });
   it("task #283: every plan reads only FinLit Prism on the Scores line", () => {
     for (const m of ["prism", null, undefined] as const) {

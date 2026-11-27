@@ -35,8 +35,8 @@ describe("2 · each section's heading says what it shows", () => {
     for (const [id] of NAV) if (id !== "prism") expect(HEADING[id], id).toMatch(/^[A-Z][^.]+$/);
     expect(Object.values(HEADING).join(" ")).not.toMatch(/Reliance|\{name\}|company's name/);
     expect(HEADING.financials).toBe("Profit & loss, balance sheet and cash flow");
-    expect(HEADING.ratios).toBe("Valuation, returns, margins and debt");
-    expect(HEADING.dupont).toBe("DuPont analysis: what drives return on equity");   // the analysis is named where readers look for it
+    expect(HEADING.ratios).toBe("Financial ratios and history");   // developer file 49: the founder's names
+    expect(HEADING.dupont).toBe("DuPont analysis");
   });
   it("a report section's head shows its heading; the section bar keeps the short names", () => {
     const { container } = render(<SectionHead id="trends" no="Trends" icon="line" />);

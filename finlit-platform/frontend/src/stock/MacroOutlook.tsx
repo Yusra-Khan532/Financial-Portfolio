@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Icon } from "../lib/icons";
 import { dateIN } from "../lib/format";
 import { SectionHead } from "./Sections";
+import { HEADING } from "../lib/sectionNav";
 import "../styles/macro-outlook.css";
 import { GROUP_ICON, arrow, companyRows, driverText, indicatorsForReasons, insufficientText, pct, reasonsOf, shortName, signed, useCompanyMacro, useMacroHistory, useSectorImpact,
   MACRO_RANGES, macroSummary, macroWindow, readings, type MacroRange, type HistoryPoint,
@@ -218,5 +219,5 @@ export function MacroOutlookSection({ symbol }: { symbol: string }) {
         <p className="mo-disc">{c.disclaimer}</p>
       </>);
   }
-  return <section className="block mo" aria-label="Economy and sector">{head}{body}</section>;
+  return <section className="block mo" aria-label={HEADING.macro}>{head}{body}</section>;
 }

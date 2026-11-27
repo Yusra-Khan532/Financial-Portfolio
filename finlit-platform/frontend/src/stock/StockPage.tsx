@@ -54,7 +54,7 @@ function EarnDot({ s }: { s: NonNullable<ReturnType<typeof useSummary>["data"]> 
 
 /** The closed row of a report section on a phone: its name and one line, from the section bar's list (lib/sectionNav NAV). */
 const FOLD_EXTRA: Record<string, [string, string]> = {
-  ratios: ["Ratios", "Valuation, returns, margins and debt, with the DuPont analysis and earnings and cash quality"],
+  ratios: ["Ratios", "Financial ratios and history, the DuPont analysis, and earnings quality and cash conversion"],   // a phone folds 08 to 10 together
 };
 export const foldText = (id: string): [string, string] => { const n = NAV.find((x) => x[0] === id); return FOLD_EXTRA[id] ?? (n ? [n[1], n[3]] : [id, ""]); };
 const foldOf = (id: string) => { const [title, line] = foldText(id); return { id, title, line }; };

@@ -135,7 +135,7 @@ describe("7 · no Balance sheet in charts", () => {
 
 describe("8 · the notes under the ratio history and at the foot of 10 are one line", () => {
   it("a row of keys with swatches; one paragraph at full width with the disclaimer kept", () => {
-    expect(read("stock/Sections3.tsx")).toContain('<p className="faint tkey"><span><i className="tk-g" />Most favourable year</span><span><i className="tk-r" />Weakest</span>');
+    expect(read("stock/Sections3.tsx")).toContain('<p className="faint tkey tkey-top"><span><i className="tk-g" />Most favourable year</span><span><i className="tk-r" />Weakest</span>');
     const ec = read("stock/EarningsCash.tsx");
     expect(ec).toContain('<p className="faint ec-note ec-foot">');
     expect(ec).toContain("{DISCLAIMER}</p>");
@@ -176,15 +176,15 @@ describe("12 · one plain heading per section, smaller, without the company's na
   it("a section head has its number, one title and its plan chip on one line; the line under it is the section's description", () => {
     const { container } = render(<SectionHead id="ratios" no="Ratios" icon="gauge" tier="gold" sub="Valuation, returns, margins and debt." />);
     expect(container.querySelectorAll("h2")).toHaveLength(1);
-    expect(container.querySelector(".sh-tl h2")!.textContent).toBe("Valuation, returns, margins and debt");   // developer file 48: the heading says what it shows
+    expect(container.querySelector(".sh-tl h2")!.textContent).toBe("Financial ratios and history");   // developer files 48 and 49: the heading names what it shows
     expect(container.querySelector(".sh-tl + .sh-desc")!.textContent).toBe("Valuation, returns, margins and debt.");
   });
-  it("no section passes a second title; 24 px numbers, 20 px titles (18 on a phone), 32 px between sections", () => {
+  it("no section passes a second title; 28 px numbers, 24 px titles (20 on a phone; developer file 49), 32 px between sections", () => {
     for (const f of ["Sections.tsx", "Sections2.tsx", "Sections3.tsx", "Sections4.tsx", "pack/WhereStands.tsx"]) expect(read("stock/" + f), f).not.toMatch(/<SectionHead[^>]* title=/);
     expect(css47()).toContain(":root { --fs-num: var(--fs-24); --section-gap: 32px; }");
-    expect(css47()).toContain("section.block .sh { --ui-fs-h2: var(--fs-20); }");
+    expect(css47()).toContain("section.block .sh { --ui-fs-h2: var(--fs-24); --fs-num: var(--fs-28); }");   // developer file 49: bigger, scoped to the report
     expect(css47()).toMatch(/section\.block \.sh h2, section\.block \.sh-l:has\(\.sh-n\) h2 \{[^}]*var\(--ui-fs-h2\)/);
-    expect(css47()).toContain("@media (max-width: 760px) { section.block .sh { --ui-fs-h2: var(--fs-18); } }");
+    expect(css47()).toContain("@media (max-width: 760px) { section.block .sh { --ui-fs-h2: var(--fs-20); --fs-num: var(--fs-24); } }");
   });
 });
 

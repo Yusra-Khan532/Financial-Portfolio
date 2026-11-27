@@ -10,10 +10,12 @@ section.block .sh { margin-bottom: 12px; align-items: flex-start; }
 section.block .sh-l, section.block .sh-l:has(.sh-n) { gap: 12px; align-items: baseline; }
 section.block .sh-n { font: 400 var(--fs-num)/1 var(--font-serif); letter-spacing: -.02em; color: var(--gold); }
 section.block .sh-tl { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; }
-section.block .sh { --ui-fs-h2: var(--fs-20); }   /* the H2 role, at 20 px inside a report section head (24 px elsewhere) */
+/* developer file 49 ("make section heading bigger"): the H2 role at 24 px, as on every other page (file 47 had cut it to 20), under the 32 px company name;
+   the gold number 28 px (was 24). Set on the report's section head, not :root, so no other page's numbers change once a report has been opened. */
+section.block .sh { --ui-fs-h2: var(--fs-24); --fs-num: var(--fs-28); }
 section.block .sh h2, section.block .sh-l:has(.sh-n) h2 { margin: 0; max-width: none; font: var(--ui-fw-medium) var(--ui-fs-h2)/1.25 var(--font-serif); letter-spacing: -.01em; text-wrap: balance; }
 section.block .sh .sh-desc { margin: 2px 0 0; }
-@media (max-width: 760px) { section.block .sh { --ui-fs-h2: var(--fs-18); } }
+@media (max-width: 760px) { section.block .sh { --ui-fs-h2: var(--fs-20); --fs-num: var(--fs-24); } }   /* a phone: 20 px (was 18) under a 24 px company name */
 
 /* 6. Section 05's top ("highlight the forecast in section 5, and the 4 boxes are way too big"): the forecast is a gold band under the heading, its two
    halves side by side, each on two lines (label, figure, rate and the 1Y / 3Y / 5Y chips; then the years it reads); the four key figures are one strip of

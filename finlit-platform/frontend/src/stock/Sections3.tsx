@@ -95,7 +95,10 @@ export function HistoryTable({ r, profile }: { r: Ratios; profile?: unknown }) {
   return (
     <>
     <ReadingFilter readings={readings} value={group} onChange={setGroup} />
-    <HScroll className="" label="table"><table className="htab">
+    {/* developer file 49 (founder, 27 Nov 2026, 2:30 pm: "it is spilling out and bring it to the top"): the key reads first, above the table it explains;
+        it and Show all sit outside the sideways-scrolling box, inside the card's padding, and stay in the enlarged view */}
+    <HScroll className="" label="ratio history" head={<p className="faint tkey tkey-top"><span><i className="tk-g" />Most favourable year</span><span><i className="tk-r" />Weakest</span><span><i />Not coloured where “better” depends on the business</span><span><b>n/m</b> cannot be read that year (for example a negative base)</span><span>Describes; not a recommendation.</span></p>}
+      foot={(hidden > 0 || (all && group === "all" && everyRow.length > HEAD_RATIOS.length + 1)) && <p className="rh-more"><button type="button" className="mf-linkbtn" aria-expanded={all} onClick={() => setAll(!all)}>{all ? "Show the main eight" : `Show all ${everyRow.length}`}</button></p>}><table className="htab">
       <thead><tr><th>Ratio</th>{hist.periods.map((p, i) => <th key={p} className={i === hist.periods.length - 1 ? "latest" : ""}>{p}</th>)}<th>Change</th><th>Trend</th><th className="rr-col">What it tells you</th></tr></thead>
       <tbody>{rows.map(([k, vals]) => {
         const rd = readings[k];
@@ -121,7 +124,7 @@ export function HistoryTable({ r, profile }: { r: Ratios; profile?: unknown }) {
           </Fragment>
         );
       })}</tbody>
-    </table>{(hidden > 0 || (all && group === "all" && everyRow.length > HEAD_RATIOS.length + 1)) && <p className="rh-more" style={{ margin: "10px 0 0" }}><button type="button" className="mf-linkbtn" aria-expanded={all} onClick={() => setAll(!all)}>{all ? "Show the main eight" : `Show all ${everyRow.length}`}</button></p>}{/* developer file 47 (founder, 27 Nov 2026: "the 3 line sentence below the ratio history table takes a lot of space"): one line of keys */}<p className="faint tkey"><span><i className="tk-g" />Most favourable year</span><span><i className="tk-r" />Weakest</span><span><i />Not coloured where “better” depends on the business</span><span><b>n/m</b> cannot be read that year (for example a negative base)</span><span>Describes; not a recommendation.</span></p></HScroll>
+    </table></HScroll>
     </>
   );
 }
