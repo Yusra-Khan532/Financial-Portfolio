@@ -12,9 +12,12 @@ POST /api/concalls/summary         the AI summary of a call, written once from i
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import re
+import secrets
+import time
 from typing import Any, Dict, List, Optional, Sequence
 
 from fastapi import APIRouter, Depends, Query, Request, Response
@@ -334,6 +337,102 @@ def clean_summary(text: str, sent: Optional[Dict[int, str]] = None) -> str:
     return "\n".join(final).strip()
 
 
+UPGRADE_BACKOFF = 24 * 3600   # task #432: after a failed rewrite of an old summary, that call is not tried again for a day
+UPGRADE_LOCK = 180            # one rewrite of a call at a time (longer than a summary takes to write)
+_local: Dict[str, float] = {}  # the same two marks in this process, used when Redis cannot be reached
+
+
+def _ukey(kind: str, link: str) -> str:
+    return f"concall:upgrade:{kind}:{hashlib.sha256(link.encode()).hexdigest()[:32]}"
+
+
+def _local_live(key: str) -> bool:
+    until = _local.get(key)
+    if until is None:
+        return False
+    if until > time.monotonic():
+        return True
+    _local.pop(key, None)
+    return False
+
+
+async def _upgrade_blocked(store: Any, link: str) -> bool:
+    """True while a failed rewrite of this call is less than a day old."""
+    key = _ukey("failed", link)
+    try:
+        if await store.redis.exists(key):
+            return True
+    except Exception:
+        log.warning("redis unreachable for the concall rewrite backoff; using this process's memory")
+    return _local_live(key)
+
+
+async def _upgrade_failed(store: Any, link: str) -> None:
+    key = _ukey("failed", link)
+    _local[key] = time.monotonic() + UPGRADE_BACKOFF
+    try:
+        await store.redis.set(key, "1", ex=UPGRADE_BACKOFF)
+    except Exception:
+        log.warning("redis unreachable: the concall rewrite backoff is kept in this process only")
+
+
+async def _upgrade_lock(store: Any, link: str) -> Optional[str]:
+    """A token when this request may rewrite the call; None when another request is rewriting it now."""
+    key, token = _ukey("lock", link), secrets.token_hex(8)
+    try:
+        return token if await store.redis.set(key, token, nx=True, ex=UPGRADE_LOCK) else None
+    except Exception:
+        log.warning("redis unreachable for the concall rewrite lock; using this process's memory")
+    if _local_live(key):
+        return None
+    _local[key] = time.monotonic() + UPGRADE_LOCK
+    return token
+
+
+async def _upgrade_unlock(store: Any, link: str, token: str) -> None:
+    key = _ukey("lock", link)
+    _local.pop(key, None)
+    try:
+        if (await store.redis.get(key)) in (token, token.encode()):
+            await store.redis.delete(key)
+    except Exception:
+        pass
+
+
+async def _rewrite_old(request: Request, row: Dict[str, Any], kept: Any, name: str) -> Optional[str]:
+    """Task #432: an old short summary written again in the new form, at FinLit's cost (nobody's summaries are used). Guarded so that a call can
+    never trigger repeated paid writes: one rewrite of a call at a time (a 3-minute lock), and after one that fails (the file not given, no text,
+    the model failing or every point dropped) the call is not tried again for 24 hours; the old summary is shown meanwhile. None: keep the old one."""
+    from ..ask import docstore
+    from ..ask.pages import _read_pages
+    store, st, link = request.app.state.store, request.app.state.settings, row["link"]
+    if await _upgrade_blocked(store, link):
+        return None
+    token = await _upgrade_lock(store, link)
+    if token is None:
+        return None
+    try:
+        text, pages = "", []
+        try:
+            pages = await docstore.get_pages(store, link)
+            if not pages:
+                pages, _ = await _read_pages(store, {"link": link, "title": row["title"], "date": row["filed"]}, row["symbol"],
+                                             "Call transcript" if row["kind"] == "transcript" else "Investor presentation")
+            if any((p or "").strip() for p in pages or []):
+                text = await _write_summary(request, row, pages, name)
+        except Exception:
+            log.warning("concall summary rewrite failed for %s", link[-60:], exc_info=True)
+        if not text or not is_sectioned(text):
+            await _upgrade_failed(store, link)
+            return None
+        async with store.pool.acquire() as conn:   # only over the old text
+            await conn.execute("UPDATE concall_summaries SET text = $2, source_kind = $3, pages = $4, model = $5, created_at = now() "
+                               "WHERE link = $1 AND text = $6", link, text, row["kind"], len(pages), st.ask_model, kept["text"])
+        return text
+    finally:
+        await _upgrade_unlock(store, link, token)
+
+
 @router.post("/summary")
 async def summary(request: Request, body: SummaryIn, ctx: Ctx = Depends(secure_ctx)):
     from ..ask import docstore, quota
@@ -347,10 +446,13 @@ async def summary(request: Request, body: SummaryIn, ctx: Ctx = Depends(secure_c
         kept = await conn.fetchrow("SELECT text, source_kind, created_at FROM concall_summaries WHERE link = $1", body.link)
         name = await conn.fetchval("SELECT name FROM companies WHERE symbol = $1", row["symbol"]) or row["symbol"]
     month = quota.month_of()
-    # task #432: a summary kept in the old short form (fixed headings) is written again once in the new form, without using anyone's summaries
-    upgrade = bool(kept) and not is_sectioned(kept["text"]) and bool(st.anthropic_api_key)
-    if kept and not upgrade:      # written before: opens free, for everyone on the plan
+    if kept:      # written before: opens free, for everyone on the plan
         n = await quota.used(store.pool, ctx.user_id, month, "summary")
+        if not is_sectioned(kept["text"]) and st.anthropic_api_key:   # task #432: the old short form, rewritten once (guarded, see _rewrite_old)
+            text = await _rewrite_old(request, row, kept, name)
+            if text:
+                return _json({"text": text, "source": row["kind"], "link": body.link, "written": None, "cached": True, "rewritten": True,
+                              **quota.status(cap, n, month), "disclaimer": DISCLAIMER})
         return _json({"text": kept["text"], "source": kept["source_kind"], "link": body.link, "written": kept["created_at"].isoformat(), "cached": True,
                       **quota.status(cap, n, month), "disclaimer": DISCLAIMER})
     if not st.anthropic_api_key:
@@ -366,7 +468,7 @@ async def summary(request: Request, body: SummaryIn, ctx: Ctx = Depends(secure_c
                        "Try again in a few minutes.") from None
     if not any(p.strip() for p in pages or []):
         raise fail(422, "no_text", "The file is a scan with no text, so FinLit cannot summarise it; none of your summaries was used.")
-    n = await (quota.used(store.pool, ctx.user_id, month, "summary") if upgrade else quota.take(store.pool, ctx.user_id, cap, month, "summary"))
+    n = await quota.take(store.pool, ctx.user_id, cap, month, "summary")
     if n is None:
         nxt = quota.next_month(month).strftime("%d %b %Y")
         raise fail(429, "quota_used", f"You have used all {cap} AI summaries of this month. They renew on {nxt}. Summaries other members already opened "
@@ -377,17 +479,9 @@ async def summary(request: Request, body: SummaryIn, ctx: Ctx = Depends(secure_c
         log.warning("concall summary failed for %s", body.link[-60:], exc_info=True)
         text = ""
     if not text:
-        if upgrade:   # the old summary is still there: show it rather than nothing
-            return _json({"text": kept["text"], "source": kept["source_kind"], "link": body.link, "written": kept["created_at"].isoformat(),
-                          "cached": True, **quota.status(cap, n, month), "disclaimer": DISCLAIMER})
         await quota.give_back(store.pool, ctx.user_id, month, "summary")
         raise fail(502, "not_written", "The summary could not be written just now; none of your summaries was used. Try again in a few minutes.")
     async with store.pool.acquire() as conn:
-        if upgrade:   # only over the old text, so two members asking at once keep one
-            await conn.execute("UPDATE concall_summaries SET text = $2, source_kind = $3, pages = $4, model = $5, created_at = now() "
-                               "WHERE link = $1 AND text = $6", body.link, text, row["kind"], len(pages), st.ask_model, kept["text"])
-        else:
-            await conn.execute("INSERT INTO concall_summaries (link, symbol, source_kind, text, pages, model) VALUES ($1,$2,$3,$4,$5,$6) "
-                               "ON CONFLICT (link) DO NOTHING", body.link, row["symbol"], row["kind"], text, len(pages), st.ask_model)
-    return _json({"text": text, "source": row["kind"], "link": body.link, "written": None, "cached": upgrade, "rewritten": upgrade,
-                  **quota.status(cap, n, month), "disclaimer": DISCLAIMER})
+        await conn.execute("INSERT INTO concall_summaries (link, symbol, source_kind, text, pages, model) VALUES ($1,$2,$3,$4,$5,$6) "
+                           "ON CONFLICT (link) DO NOTHING", body.link, row["symbol"], row["kind"], text, len(pages), st.ask_model)
+    return _json({"text": text, "source": row["kind"], "link": body.link, "written": None, "cached": False, **quota.status(cap, n, month), "disclaimer": DISCLAIMER})
