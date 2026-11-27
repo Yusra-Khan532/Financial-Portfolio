@@ -28,6 +28,8 @@ export type LeadershipOn = {
   fundamentalRank: number | null; fundamentalOf: number | null; labelSince: string | null; sectorReliability: Reliability; display: LeadDisplay; peers: LeadPeer[];
   /** Absent on an answer from before the peer lists. `runs52`: the published labels over the last 52 weeks (a count of the weekly checks that exist). */
   notRanked?: NotRanked[]; runs52?: { leader: number; in_line: number; laggard: number; total: number } | null;
+  /** Task #408: the record's latest row changed the label in a real weekly run, and that row's week. */
+  changed?: boolean | null; weekEnd?: string | null;
 };
 export type LeadershipOff = { available: false; reason: "history" | "stale" | "liquidity" | "group" | "hidden" | "pending" | "not_compared"; asOf?: string; display?: LeadDisplay };
 export type Leadership = LeadershipOn | LeadershipOff;
@@ -51,7 +53,7 @@ export const useLeadershipList = (symbols: string[], enabled = true) => {
       const got = await Promise.all(parts.map((p) => apiGet<ListLeadFeed>(`/api/leadership/list?symbols=${encodeURIComponent(p.join(","))}`)));
       const off = got.find((g) => !g.available);
       if (off) return off;
-      return { available: true, asOf: (got[0] as Extract<ListLeadFeed, { available: true }>).asOf, rows: Object.assign({}, ...got.map((g) => (g as Extract<ListLeadFeed, { available: true }>).rows)) };
+      return { available: true, asOf: (got[0] as Extract<ListLeadFeed, { available: true }>).asOf, recordWeek: (got[0] as Extract<ListLeadFeed, { available: true }>).recordWeek ?? null, rows: Object.assign({}, ...got.map((g) => (g as Extract<ListLeadFeed, { available: true }>).rows)) };
     },
   });
 };

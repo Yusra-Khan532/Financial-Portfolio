@@ -67,7 +67,7 @@ const LINES: [string, string][] = [
   ["pages/MfScreener.tsx", "Filter every mutual fund and ETF by category, fund house, size, returns, cost, risk and portfolio."],
   ["pages/FundHeadToHead.tsx", "Two funds of one category, head to head on returns, risk, consistency and cost over 1–10 years."],
   ["pages/FundInsights.tsx", "Where India's fund money sits and where it moved last month, from AMFI's monthly report."],
-  ["lib/watchlistPack.ts", "The companies you follow: how they are doing, against their peers, and what to look at next."],
+  ["lib/watchlistPack.ts", "The companies you follow: what moved, what is near your target, and what is new."],
   ["pages/Dcf.tsx", "A company's intrinsic value from its projected cash flows, with every step shown and checked."],
   ["pages/ReverseValuation.tsx", "The growth, margin, exit multiple or return today's price assumes. It describes; it does not predict."],
   ["pages/Outlook.tsx", "Revenue and profit by year, with a 1-, 3- or 5-year estimate from past growth; not a prediction."],

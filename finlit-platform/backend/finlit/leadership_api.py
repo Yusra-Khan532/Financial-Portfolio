@@ -95,7 +95,12 @@ def overlay(row: Dict[str, Any], rec: Optional[Dict[str, Any]]) -> Dict[str, Any
     reading any more (task #183's `agreeing` did that, and it is why the label shown broke the printed two-run rule: KOTAKBANK, 27 Nov 2026)."""
     out = dict(row)
     out["pending_to"] = None
+    # task #408 (Watchlists, card 4 "Peer label changed"): whether the latest row changed the label, and its week. Only a real weekly run's change counts
+    # (source 'run'), as for the peer-label alerts (labelalerts.changes): the one-time rebuild's rows are never "changed this week".
+    out["changed"], out["week_end"] = None, None
     if rec is not None:
+        out["changed"] = bool(rec.get("changed")) and rec.get("source") == "run"
+        out["week_end"] = rec.get("week_end")
         out["label"] = rec["label"] if rec["label"] != "none" else None
         out["raw_label"] = rec["reading"] if rec["reading"] != "none" else None
         out["label_since"] = rec["label_since"]
@@ -127,6 +132,7 @@ def shape(row: dict, rel: Optional[dict], peers: List[dict], unranked: Optional[
         "rank": row["rank"], "label": row["label"], "rawLabel": row["raw_label"], "direction": row["direction"],
         "fundamentalNote": row["fundamental"], "fundamentalRank": row["fund_rank"], "fundamentalOf": row["fund_n"], "labelSince": _day(row["label_since"]),
         "sectorReliability": reliability, "display": shown, "peers": peers, "notRanked": unranked or [], "runs52": runs,
+        "changed": row.get("changed"), "weekEnd": _day(row.get("week_end")),
     }
 
 
@@ -143,7 +149,9 @@ def list_row(row: Optional[dict], reason: Optional[str]) -> Dict[str, Any]:
             "groupName": row["group_name"], "sector": row["sector_name"], "sectorKind": row["sector_kind"], "rel52": _f(row["rel52"]),
             "fundamentalRank": row["fund_rank"], "fundamentalOf": row["fund_n"], "fundamentalNote": row["fundamental"], "stale": (row["stale_runs"] or 0) >= STALE_AFTER_RUNS,
             # task #235 (the 18 Nov pack, live bug E4): what the Equity portfolio's table needs, so it reads one list instead of one call per share
-            "rawLabel": row.get("raw_label"), "direction": row.get("direction")}
+            "rawLabel": row.get("raw_label"), "direction": row.get("direction"),
+            # task #408: the weekly record's latest row changed the label (a real weekly run), and that row's week (card 4 on the Watchlists page)
+            "changed": row.get("changed"), "weekEnd": _day(row.get("week_end"))}
 
 
 @router.get("/api/leadership/list")
@@ -171,7 +179,9 @@ async def leadership_list(request: Request, symbols: str = Query("", max_length=
         rows = {s: overlay(r, recs.get(s)) for s, r in rows.items()}
         missing = [s for s in syms if s not in rows]
         why = {r["symbol"]: r["reason"] for r in await conn.fetch("SELECT symbol, reason FROM leadership_excluded WHERE symbol = ANY($1::text[])", missing)} if missing else {}
-    return _reply(request, {"available": True, "asOf": _day(as_of), "rows": {s: list_row(rows.get(s), why.get(s)) for s in syms}}, started, cache=CACHE if shown else PRIVATE)
+        week = await peerlabels.latest_week(conn)      # task #408: the latest committed weekly run of the record
+    return _reply(request, {"available": True, "asOf": _day(as_of), "recordWeek": _day(week), "rows": {s: list_row(rows.get(s), why.get(s)) for s in syms}}, started,
+                  cache=CACHE if shown else PRIVATE)
 
 
 @router.get("/api/stocks/{symbol}/leadership")

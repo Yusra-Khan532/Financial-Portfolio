@@ -443,26 +443,32 @@ async def test_the_retired_score_history_is_gone_and_data_health_is_admin_only(a
         await c.aclose()
 
 
-async def test_target_price_alert_fires_once_on_a_crossing(app, monkeypatch):
-    monkeypatch.setattr("finlit.mailpolicy.ALERT_EMAILS", True)   # the email path, kept for when alert emails are switched back on (mailpolicy.py)
+async def test_target_price_alert_fires_once_when_the_price_comes_near(app, monkeypatch):
+    """Task #408 (05-alerts): the older "crossed your target" check is now "Price near your target": within 5% either side, once per crossing,
+    re-armed only after the price moves more than 5% away, at most once a day per stock."""
     from finlit.alerts import check_alerts
     pool = app.state.store.pool
-    c = await signed_in(app, "b@example.com", plan="silver")
-    wl = {"lists": [{"id": "main", "name": "x", "symbols": ["RELIANCE"]}], "meta": {"RELIANCE": {"target": 1200, "added": 1}}}
+    c = await signed_in(app, "b@example.com", plan="equity")
+    wl = {"lists": [{"id": "main", "name": "x", "symbols": ["RELIANCE"], "alerts": {"target": True, "peer": "off", "filings": []}}], "meta": {"RELIANCE": {"target": 1200, "added": 1}}}
     assert (await c.put("/api/me/watchlist", json=wl)).status_code == 200
     async with pool.acquire() as conn:
-        await conn.execute("UPDATE scores SET price = 1100 WHERE symbol = 'RELIANCE'")
+        await conn.execute("DELETE FROM alert_state WHERE symbol = 'RELIANCE'")
+        await conn.execute("DELETE FROM auto_alert_sent WHERE kind = 'target_near'")
+        await conn.execute("UPDATE scores SET price = 1000 WHERE symbol = 'RELIANCE'")
     mailer = app.state.mailer
-    assert await check_alerts(pool, mailer, "http://test") == 0   # first look only records the side
+    assert await check_alerts(pool, mailer, "http://test") == 0   # 20% away: nothing
     async with pool.acquire() as conn:
-        await conn.execute("UPDATE scores SET price = 1250 WHERE symbol = 'RELIANCE'")
-    assert await check_alerts(pool, mailer, "http://test") == 1   # crossed upward
-    mail = await last_mail(app, "b@example.com")
-    assert "crossed your target" in mail["subject"] and "1,250.00" in mail["body"]
-    assert await check_alerts(pool, mailer, "http://test") == 0   # no repeat while it stays above
+        await conn.execute("UPDATE scores SET price = 1150 WHERE symbol = 'RELIANCE'")
+    assert await check_alerts(pool, mailer, "http://test") == 1   # 4.3% below the target: near
+    note = [n for n in (await c.get("/api/notifications")).json()["notifications"] if n["symbol"] == "RELIANCE"][0]
+    assert note["title"] == "RELIANCE is near your target" and note["body"] == "RELIANCE at ₹1,150.00 is 4.3% below your target of ₹1,200.00 (x)."
+    assert await check_alerts(pool, mailer, "http://test") == 0   # no repeat while it stays near
     async with pool.acquire() as conn:
-        await conn.execute("UPDATE scores SET price = 1100 WHERE symbol = 'RELIANCE'")
-    assert await check_alerts(pool, mailer, "http://test") == 0   # crossed back, but only one email a day per stock
+        await conn.execute("UPDATE scores SET price = 1000 WHERE symbol = 'RELIANCE'")
+    assert await check_alerts(pool, mailer, "http://test") == 0   # moved away: re-armed
+    async with pool.acquire() as conn:
+        await conn.execute("UPDATE scores SET price = 1190 WHERE symbol = 'RELIANCE'")
+    assert await check_alerts(pool, mailer, "http://test") == 0   # near again, but at most one a day per stock
     assert (await c.put("/api/me/prefs", json={"palette": "gold", "alerts": False})).status_code == 200
     await c.aclose()
 

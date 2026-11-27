@@ -45,7 +45,7 @@ async def test_watchlist_target_and_screen_alerts_are_in_the_bell_only(app):
     from finlit.screens import check_screens
     pool, mailer = app.state.store.pool, app.state.mailer
     c = await signed_in(app, "mp-wl@example.com", plan="gold")
-    wl = {"lists": [{"id": "main", "name": "x", "symbols": ["RELIANCE"]}], "meta": {"RELIANCE": {"target": 1200, "added": 1}}}
+    wl = {"lists": [{"id": "main", "name": "x", "symbols": ["RELIANCE"], "alerts": {"target": True, "peer": "off", "filings": []}}], "meta": {"RELIANCE": {"target": 1200, "added": 1}}}
     assert (await c.put("/api/me/watchlist", json=wl)).status_code == 200
     assert (await c.put("/api/me/screens", json={"screens": [{"name": "Tell me", "state": {"ranges": {"pe": {"max": 30}}}, "notify": True}]})).status_code == 200
     async with pool.acquire() as conn:
