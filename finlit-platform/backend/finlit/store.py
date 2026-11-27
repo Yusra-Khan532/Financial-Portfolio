@@ -258,7 +258,23 @@ class Store:
         await conn.execute("CREATE EXTENSION IF NOT EXISTS timescaledb")
         await conn.execute("SELECT create_hypertable('price_daily', 'day', if_not_exists => TRUE, migrate_data => TRUE)")
         await self._compress_prices(conn)
+        await self._candles_5m_hypertable(conn)
         return True
+
+    async def _candles_5m_hypertable(self, conn) -> None:
+        """The Trading Lab's 5-minute candles (migration 146, lab/candles5m.py) as a hypertable: 7-day chunks, compressed after 7 days (one segment per
+        share, newest bar first), chunks older than 100 days dropped by TimescaleDB's retention job. Idempotent. A failure is logged and the table stays
+        a plain one: the fill job then deletes rows older than 100 days itself (it checks which it is on every run)."""
+        try:
+            await conn.execute("SELECT create_hypertable('candles_5m', 'at', chunk_time_interval => INTERVAL '7 days', if_not_exists => TRUE, migrate_data => TRUE)")
+            on = await conn.fetchval("SELECT compression_enabled FROM timescaledb_information.hypertables WHERE hypertable_name = 'candles_5m'")
+            if not on:
+                await conn.execute("ALTER TABLE candles_5m SET (timescaledb.compress, timescaledb.compress_segmentby = 'security_id', "
+                                   "timescaledb.compress_orderby = 'at DESC')")
+            await conn.execute("SELECT add_compression_policy('candles_5m', INTERVAL '7 days', if_not_exists => TRUE)")
+            await conn.execute("SELECT add_retention_policy('candles_5m', INTERVAL '100 days', if_not_exists => TRUE)")
+        except Exception:
+            log.exception("candles_5m: the hypertable could not be set up; it stays a plain table and lab-candles prunes it")
 
     async def _compress_prices(self, conn) -> None:
         """Daily prices older than COMPRESS_AFTER days are kept compressed (TimescaleDB columnstore, one segment per company, newest day first): usually

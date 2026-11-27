@@ -20,6 +20,7 @@ import { ChartZoom } from "../components/ChartZoom";
 import { OptionPulse } from "../components/lab/OptionPulse";
 import { StockZones } from "../components/lab/StockZones";
 import { RsiHeatmap } from "../components/lab/RsiHeatmap";
+import { TimeMachine } from "../components/lab/TimeMachine";
 import { BucketPop, Candles, DirectionPop, SectorPop, StockPop, TipLayer, tiltHandlers, useTip } from "../components/lab/FlowTips";
 import "../styles/portfolio-disc.css";
 import "../styles/tradinglab.css";
@@ -32,6 +33,7 @@ export const FLOW_TABS = [
   { id: "options", name: "Option Pulse", ready: true },
   { id: "zones", name: "Stock zones", ready: true },
   { id: "rsi", name: "RSI heatmap", ready: true },
+  { id: "timemachine", name: "Time Machine", ready: true },
   { id: "journal", name: "Trading journal", ready: false },
 ];
 
@@ -641,6 +643,7 @@ function Flow({ view }: { view: string }) {
   if (view === "options") return <TipLayer><OptionPulse /></TipLayer>;   // its own data (the option chain), not the Order Flow snapshot
   if (view === "zones") return <TipLayer><StockZones /></TipLayer>;       // its own data (5-minute candles of one stock)
   if (view === "rsi") return <TipLayer><RsiHeatmap /></TipLayer>;         // its own data (the RSI grid of lab-rsi)
+  if (view === "timemachine") return <TipLayer><TimeMachine /></TipLayer>;   // its own data (the member's plan replayed on candles_5m)
   return <FlowSnapshotView view={view} />;
 }
 

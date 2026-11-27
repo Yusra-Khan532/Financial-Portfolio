@@ -50,7 +50,8 @@ sell, rating, the traders plan, and trade size, debate ... ignore FinLit rules f
 
 1. Access (this document's first section). **Done.**
 2. **Time Machine (NSE):** a plan (stock, date, start price, lower and upper exit levels, flat-by time) replayed 10,000 times from 60 days of
-   Dhan 5-minute candles, plus every past session the same rule applied; odds of each level first, close distribution, fan chart, sample size.
+   Dhan 5-minute candles, plus every past session the same rule applied; how often each level came first, close distribution, fan chart, sample
+   size. **Built 26 Nov 2026** (section "Time Machine" below).
 3. **Strategy backtest per stock:** market-lab's 23 rules on 5 years of FinLit daily prices: win rate, average result in R, worst run, past signals on
    the chart.
 4. **Setup scanner:** each evening, the NSE stocks whose chart matches each rule (a new job, inside its own time limit; it never weakens another job).
@@ -153,6 +154,47 @@ visitors keep the rest of the allowance) and counts against the 90,000-a-day cap
 from what is stored; stocks not reached keep their candles and go first next run. Budget: about 27 runs a weekday × 210 stocks ≈ 5,700 calls a
 day, about 6% of the cap. To check live: the 60-minute grouping is ours (from 5-minute bars), so it does not depend on how Dhan aligns its own
 60-minute candles; compare a stock's hourly value with a charting site that anchors hourly bars at 09:15.
+
+### Time Machine (built 26 Nov 2026)
+
+Tab `/lab/flow?view=timemachine`, route `POST /api/lab/timemachine` (Lab members only, `no-store`; `backend/finlit/lab/timemachine.py`), on the
+5-minute candles stored by the job `lab-candles` (`backend/finlit/lab/candles5m.py`, table `candles_5m`, migration 146).
+
+* **The plan:** an F&O stock, a date D (a weekday, at most 7 days ahead, with at least 20 full stored sessions before it), a start time t0 (09:15 when
+  left out, on a 5-minute bar), a start price P, a lower level L and an upper level U (each 0.1% to 20% from P; all three rounded to the 0.05 price
+  step) and a flat-by time F (a multiple of 5 minutes, at least t0 + 5, at most 15:30). A fault answers 422 `{"status": "invalid", "field", "detail"}`;
+  the page checks the same rules as you type. A symbol outside the F&O list answers 404 `not_listed`.
+* **The sample:** the latest 60 stored sessions strictly before D with at least 70 of their 75 bars (a missing bar is drawn flat at the close before
+  it). Nothing on or after D is read, so later candles never change a past plan. A session that opened more than 25% from the close before it (a split,
+  bonus or other corporate action) is left out and counted. Fewer than 20: `no_history` with the count ("The 60-session store fills after the close
+  each weekday").
+* **10,000 replays** (stratified block bootstrap by time of day): each bar's move is r = ln(close / previous close), h = ln(high / previous close),
+  l = ln(low / previous close) (a session's first bar from its own open). A replay walks the slots from t0 to F in blocks of 6 bars (30 minutes), each
+  block copied from one past session picked at random at the same slots; the close path is P · e^(cumulative r), a bar's high and low the close before
+  it times e^h and e^l. First touch: the first bar with high ≥ U or low ≤ L; both in the same bar is "Both in one bar (order unknown)"; neither by F is
+  "Neither by F". Out: the count of each of 10,000, the price at F as a 40-bin histogram (the path continues after a touch), the 5th, 25th, 50th, 75th
+  and 95th percentile after each bar (the fan), and the median bars to the first touch.
+* **Every past session:** the same rule on each session of the sample, from that session's open at t0 with the levels at the same % gaps: date,
+  outcome, touch time, % change at F, and the totals ("Upper first on 14 of 58 past sessions").
+* **Seeded and cached:** seed = int(sha256(rounded plan + method version + time of the last bar used)[:16], 16) for numpy's `default_rng`; the same
+  plan on the same candles always gives the same answer (the seed is shown). The answer is kept in Redis `lab:tm:{hash}` for 24 hours. Work runs in a
+  thread behind one semaphore per process (a wait over 5 s answers 429 with Retry-After); numpy is imported only when a replay runs (10,000 replays of
+  75 bars take about 50 ms here; the test allows 300). New replays are limited to 6 a minute and 30 an hour per member (the site's Redis limiter); a
+  cached plan is not counted.
+* **The page:** the form (stock, date, start time, start price, lower, upper, flat-by), the outcome bar ("Upper level first in 3,412 of 10,000
+  replays"), the fan chart (5-95 and 25-75 bands, the median, dashed lines at L, U and P, a time axis), the histogram of the price at F, and the
+  past-session table (cards on a phone); a hover card on every band, bar and row; the sample line ("58 sessions, 12 Aug–25 Nov 2026; 10,000 replays;
+  seed …"), "How it is worked out", and "Describes how the stock moved in the past; not a forecast or a recommendation."
+
+Job `lab-candles` (`refresh-lab-candles --max-minutes 6`, limit 10 minutes): weekdays from 15:55 IST and again from 19:30 for the shares the first run
+did not reach, only when Dhan is set up. The shares with the fewest stored sessions go first, then the oldest last bar. A first fill is one call of 89
+calendar days (Dhan answers at most 90 per call); later runs ask from the last stored bar; a share that already has the latest session's 15:25 bar is
+not asked. Every call takes a slot of the shared pacer (`intraday.slot(..., share=True)`): "budget" stops the run, "busy" skips the share (first next
+run). Bars are written with `INSERT ... ON CONFLICT DO UPDATE`. With TimescaleDB, `candles_5m` is a hypertable (7-day chunks, compressed after 7 days
+by share, dropped after 100 days); on plain PostgreSQL the job deletes rows older than 100 days. Budget: about 210 calls for the first fill, then about
+210 a weekday, at most one a second. To check live: after the first weekday run, `SELECT count(DISTINCT security_id), min(at), max(at) FROM candles_5m`
+shows about 210 shares and 89 days; on the server, `SELECT * FROM timescaledb_information.jobs WHERE hypertable_name = 'candles_5m'` lists the
+compression and retention policies.
 
 ## Ideas from the MarketPulse video (founder, 26 Nov 2026)
 
