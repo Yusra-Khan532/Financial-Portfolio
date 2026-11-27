@@ -57,6 +57,31 @@ function Head() {
   </header>;
 }
 
+/** Task #431 (team, 27 Nov 2026): "What’s Inside & How to Use?" as a drop-down at the start of the page, below the header, closed at first. The team's
+ *  text, worded to the page as it is: the six tabs by their real names, what a card shows, and how to narrow the list. It describes; it never points at a pick. */
+export const HOWTO_WAYS: [string, string][] = [
+  ["Themes", "companies grouped by the themes their own investor presentations talk about, such as AI, defence, solar, batteries and data centres."],
+  ["What changed", "recent filings by kind: order wins, new capacity, partnerships, acquisitions, fund raising, credit ratings, management changes and legal or regulatory orders."],
+  ["Sectors", "companies by NSE’s own sector and industry, with where each industry sits in Sector Rotation."],
+  ["All companies", "every company placed in Discover, in one table."],
+  ["Earnings calls", "what management says on results calls."],
+];
+export function HowTo() {
+  return <details className="dsc-howto" id="dsc-howto">
+    <summary><span className="dsc-howto-tx"><b id="dsc-howto-t">What’s inside &amp; how to use</b><small>The ways to look at companies here, and how to narrow them</small></span>
+      <span className="dsc-howto-show" aria-hidden="true"><span className="dsc-howto-s">Show</span><span className="dsc-howto-h">Hide</span><i className="dsc-howto-chev" /></span></summary>
+    <div className="dsc-howto-b" aria-labelledby="dsc-howto-t" role="region">
+      <p>Discover places listed companies by what they say they are building, from their own investor presentations and earnings calls, beside NSE’s sectors.</p>
+      <h3>What’s inside</h3>
+      <ul className="dsc-howto-ways">{HOWTO_WAYS.map(([k, v]) => <li key={k}><b>{k}:</b> {v}</li>)}</ul>
+      <h3>What each card shows</h3>
+      <p>A theme card shows how many companies it holds and their stage mix, the median price move over 3 months and 1 year, how many filings they made in the last 90 days, and, on plans with FinLit Prism, how many are in a long-term uptrend and the names with the highest Prism reading.</p>
+      <h3>How to use it</h3>
+      <p>Pick a tab and open a card for its companies. In the company table, use the filters and the sort to narrow the list, and add a company to your watchlist from its row. “Find a company in Discover” jumps straight to one name. Every figure comes from filings and prices; it is not a recommendation.</p>
+    </div>
+  </details>;
+}
+
 /** --dw-top: the height of the site header, so the tab bar sticks right under it. */
 function useTopHeight(ref: React.RefObject<HTMLDivElement | null>) {
   useLayoutEffect(() => {
@@ -76,6 +101,7 @@ function Page() {
   useTopHeight(page);
   return <div className="wrap dsc-page" ref={page}>
     <Head />
+    <HowTo />
     {b && <div className="dw-head">
       <p className="dw-meta">
         <span><b>{b.companies.toLocaleString("en-IN")}</b> companies placed<I k="placed" /></span>
