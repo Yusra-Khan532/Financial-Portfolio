@@ -5,8 +5,16 @@
 *Delivery note (27 Nov 2026): MASTER-PROMPT.md says the founder merges with "Create a merge commit". `finlit-platform/CLAUDE.md` (newer, and it wins) says work arrives as a pull request on this repository, squash-merged once every check passes. "Decide, do not ask" (owner, 18 Nov 2026) applies here as well.*
 
 ## Phase 0 measurement
-- [ ] Search Console verified (domain) + sitemap submitted (founder: `FOUNDER-STEPS.md` step 1)
-- [ ] Bing Webmaster verified + AI Performance report on (founder: step 2)
+- [x] Search Console verified (domain) + sitemap submitted. The founder's browser assistant did it on 27 Nov 2026 (`BROWSER-PROMPTS.md` prompt 1):
+  - Domain property `finlitventures.com`, verified through Cloudflare ("Domain name provider"). The `google-site-verification` TXT record at `@` must be kept.
+  - Owner: the founder's Google account (Nishant). Nobody else added yet.
+  - `sitemap.xml` submitted, status Success, but "Discovered pages 0" and "Last read Mar 7, 2022", shown as a "Sitemap index". The live file is a normal urlset of 8,848 URLs (checked 27 Nov: 200, `application/xml`, listed in robots.txt, 200 to a Googlebot user agent).
+  - The 2022 date most likely comes from an older Search Console record for this domain. Check again on 29 Nov: if it still shows 0 pages, remove that sitemap entry in Search Console and submit `sitemap.xml` again.
+- [x] Bing Webmaster verified + AI Performance report on (27 Nov 2026):
+  - Added by hand, not imported: the Search Console owner account could not be signed in there.
+  - Owner: Pranshu's Microsoft account. Verified with a CNAME record in Cloudflare (DNS only), which must be kept.
+  - Sitemap submitted, "Processing" (up to 48 h).
+  - AI Performance (beta) is always on, with no switch.
 - [ ] IndexNow key + pings on changed URLs
 - [ ] Analytics option chosen and live (founder: step 3; recommended Option B, FinLit's own counter)
 - [ ] Baseline recorded (indexed pages, top queries, CWV, AI panel of 50 questions)
@@ -44,6 +52,7 @@
   - `/stocks/TCS` crawler HTML: one sentence about the company, plus about 5,300 characters of a shared link list.
   - Speed: home LCP 3.7 s (simulated mid-range phone); the company page makes 139 requests.
   - AI citations: not measured yet.
+- 27 Nov 2026, Bing AI Performance (last 3 months): 0 citations, 0 cited pages, no grounding queries. This is the baseline.
 ## Founder facts (given by the owner, 27 Nov 2026; use them, never guess)
 - **Founder's full name:** Nishant Jain (the same founder the site's Organization JSON-LD already names).
 - **Founded:** December 2026. Profiles may say "2026". `foundingDate` in JSON-LD only from 1 Dec 2026, so structured data never shows a date in the future.
@@ -55,6 +64,7 @@
   - step 1, Search Console (DNS TXT record in Cloudflare);
   - step 2, Bing Webmaster import;
   - step 3, analytics, Option A or B.
+- Prompt 1 done 27 Nov 2026 (Search Console and Bing verified; see Phase 0).
 - The three browser-assistant prompts in `BROWSER-PROMPTS.md` (given to the founder 27 Nov 2026), each ending with a report to paste back:
   1. Search Console + Bing (Phase 0);
   2. profiles (M5);
