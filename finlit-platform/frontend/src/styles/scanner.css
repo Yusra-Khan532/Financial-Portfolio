@@ -1,0 +1,90 @@
+/* Trading Lab > Order Flow > Setup scanner (components/lab/SetupScanner.tsx). Site tokens only; shares the backtest's table and cards
+   (backtest.css) and the hover card .oflow-pop (orderflow.css). Every class here starts with lsc-. */
+.lsc-h3 { margin: 0 0 8px; font: var(--ui-fw-semibold) var(--ui-fs-h3)/1.3 var(--font-sans); }
+.lsc-h3 small { font: var(--fs-13) var(--font-sans); }
+.lsc-empty { margin-top: 12px; padding: 16px; border: 1px dashed var(--border); border-radius: var(--r-card); }
+.lsc-cov { margin-top: 10px; }
+
+/* the summary row: matches per rule, all 23 in list order; room on the right for the enlarge arrow */
+.lsc-sum { margin: 6px 0 12px; }
+.cz:not(.cz-boxed) > .cz-slot .lsc-sum { padding-right: 46px; }
+.lsc-bars { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-flow: column; grid-template-rows: repeat(12, auto); gap: 2px 24px; }
+.lsc-bar { display: grid; grid-template-columns: 22px minmax(0, 1.25fr) minmax(60px, 1fr) 40px; align-items: center; gap: 8px; width: 100%; padding: 5px 8px;
+  border: 1px solid transparent; border-radius: var(--r-ctl); background: none; color: var(--text); font: inherit; font-size: var(--fs-13); text-align: left; cursor: pointer; }
+.lsc-bar:hover { border-color: var(--border); background: color-mix(in srgb, var(--gold) 6%, transparent); }
+.lsc-bar[aria-pressed="true"] { background: var(--ui-on-bg); color: var(--ui-on-fg); }
+.lsc-bar[aria-pressed="true"] .muted { color: inherit; }
+.lsc-bar-i { font-size: var(--fs-12); text-align: right; font-variant-numeric: tabular-nums; }
+.lsc-bar-n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lsc-bar-t { position: relative; height: 12px; border-radius: var(--ui-r-pill); background: color-mix(in srgb, var(--text) 7%, transparent); overflow: hidden; }
+.lsc-bar-t i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: var(--ui-r-pill); background: color-mix(in srgb, var(--gold) 70%, var(--s1)); }
+.lsc-bar-t i.new { background: var(--gain); }
+.lsc-bar-c { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+.lsc-sw { display: inline-block; width: 12px; height: 12px; vertical-align: -1px; border-radius: var(--ui-r-mark); background: color-mix(in srgb, var(--gold) 70%, var(--s1)); }
+.lsc-sw.new { background: var(--gain); }
+
+/* filters */
+.lsc-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin: 14px 0 4px; }
+.lsc-filters label { display: flex; align-items: center; gap: 8px; font-size: var(--fs-14); min-width: 0; }
+.lsc-filters select { max-width: 320px; min-width: 0; padding: 7px 10px; border: 1px solid var(--border); border-radius: var(--r-ctl); background: var(--s1); color: var(--text);
+  font: inherit; font-size: var(--fs-14); }
+.lsc-filters .oflow-bchips { margin: 0; }
+.lsc-filters .oflow-bchip { padding: 6px 12px; }
+.lsc-filters .oflow-bchip:disabled { opacity: 0.55; cursor: not-allowed; }
+.lsc-none { margin: 12px 0; padding: 14px; border: 1px dashed var(--border); border-radius: var(--r-card); font-size: var(--fs-14); }
+
+/* the results table (shares .bt-table) */
+.lsc-table td, .lsc-table th { vertical-align: middle; padding: 7px 6px; }
+.lsc-table thead th { padding: 8px 6px; font-size: var(--fs-12); font-weight: 600; color: var(--muted); white-space: nowrap; line-height: 1.3; }
+.lsc-table tbody th { text-transform: none; letter-spacing: normal; }
+.lsc-table tbody th small { font-size: var(--fs-12); }
+.lsc-rule { min-width: 130px; }
+.lsc-table td small, .lsc-table th small { white-space: normal; }
+.lsc-stock { font-weight: 700; color: var(--text); text-decoration: none; border-bottom: 1px solid color-mix(in srgb, var(--text) 30%, transparent); }
+.lsc-stock:hover { border-bottom-color: var(--text); }
+.lsc-fno { display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: var(--ui-r-pill); border: 1px solid var(--border); font-size: var(--fs-12); font-weight: 600; color: var(--muted);
+  vertical-align: 1px; }
+.lsc-table td.lsc-sector { width: 130px; white-space: normal; overflow-wrap: anywhere; font-size: var(--fs-13); }
+.lsc-past { min-width: 150px; font-size: var(--fs-13); line-height: 1.45; }
+.lsc-table .lsc-pl { display: block; white-space: nowrap; }
+.lsc-since { display: inline-flex; flex-direction: column; font-size: var(--fs-13); font-weight: 600; white-space: nowrap; }
+.lsc-since.new { color: var(--gain); }
+.lsc-since.also { color: var(--text); }
+.lsc-since.na { color: var(--muted); font-weight: 400; }
+.lsc-since small { font-weight: 400; color: var(--muted); font-size: var(--fs-12); }
+.lsc-flag { display: block; margin-top: 2px; color: var(--loss); }
+.lsc-flag-t { color: var(--text); padding-left: 8px; border-left: 3px solid color-mix(in srgb, var(--loss) 60%, transparent); }
+.lsc-spark { display: block; overflow: visible; }
+.lsc-spark.big { width: 100%; height: 64px; margin: 4px 0 6px; }
+.lsc-line { fill: none; stroke-width: 1.5; }
+.lsc-line.gain { stroke: var(--gain); } .lsc-line.loss { stroke: var(--loss); }
+.lsc-lower { stroke: color-mix(in srgb, var(--text) 45%, transparent); stroke-width: 1; stroke-dasharray: 3 2; }
+.lsc-last { fill: var(--text); }
+.lsc-nospark { font-size: var(--fs-12); }
+
+/* phone cards */
+.lsc-cards { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.lsc-card { padding: 12px; border: 1px solid var(--border); border-radius: var(--r-card); background: var(--s1); min-width: 0; }
+.lsc-card header { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+.lsc-card header > div { min-width: 0; }
+.lsc-card h3 { margin: 0; font: var(--ui-fw-semibold) var(--ui-fs-h3)/1.3 var(--font-sans); }
+.lsc-card header small { display: block; overflow-wrap: anywhere; font-size: var(--fs-13); }
+.lsc-card-rule { margin: 8px 0 6px; font-size: var(--fs-14); font-weight: 600; }
+.lsc-card-rule small { display: block; font-weight: 400; font-size: var(--fs-12); }
+.lsc-card .lsc-spark { width: 100%; height: 44px; }
+.lsc-card .lsc-flag-t { margin: 8px 0 0; font-size: var(--fs-13); }
+.lsc-card .bt-card-g dd.lsc-dd-s { font-size: var(--fs-14); font-weight: 400; line-height: 1.45; }
+.lsc-open { margin-top: 10px; }
+
+@media (max-width: 860px) {
+  .lsc-bars { grid-template-columns: minmax(0, 1fr); grid-auto-flow: row; grid-template-rows: none; }
+}
+@media (max-width: 560px) {
+  .cz:not(.cz-boxed) > .cz-slot .lsc-sum { padding-right: 0; padding-top: 44px; }
+  .cz:not(.cz-boxed) > .cz-slot .lsc-cards { padding-top: 48px; }
+  .lsc-bar-n { white-space: normal; overflow-wrap: anywhere; line-height: 1.3; }
+  .lsc-bar { grid-template-columns: 20px minmax(0, 1.4fr) minmax(40px, 1fr) 34px; padding: 6px 4px; gap: 6px; }
+  .lsc-filters { gap: 8px; }
+  .lsc-filters label { width: 100%; }
+  .lsc-filters select { flex: 1; max-width: none; }
+}

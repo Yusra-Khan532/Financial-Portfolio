@@ -2,6 +2,7 @@
 // github.com/heysanjeevv/market-lab) run on one stock's stored daily prices by the backend (finlit/lab/backtest.py). Every rule is shown, in its
 // own list order, with its number of trades; results are net of the stated costs unless gross is chosen. Facts of past prices only.
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { ApiError, apiGet } from "../../lib/api";
 import { matchUnderlyings, type Underlyings } from "../../lib/options";
@@ -15,8 +16,14 @@ const getUnderlyings = () => apiGet<Underlyings>("/api/options/lab/underlyings")
 const getBacktest = (s: string, exit: string) => apiGet<Backtest>(`/api/lab/backtest/${encodeURIComponent(s)}?exit=${encodeURIComponent(exit)}`);
 const QUICK = ["RELIANCE", "HDFCBANK", "ICICIBANK", "INFY", "SBIN", "TCS"];
 const FIRST = 15;
+const SYMBOL = /^[A-Z0-9&_.-]{1,24}$/;
+/** A deep link (/lab/flow?view=backtest&symbol=…&rule=…, from the Setup scanner): the stock and rule it names, when they are well formed. */
+const linked = (p: URLSearchParams) => {
+  const sym = (p.get("symbol") ?? "").trim().toUpperCase(), rule = p.get("rule") ?? "";
+  return { sym: SYMBOL.test(sym) ? sym : "", rule: /^[a-z0-9]{1,24}$/.test(rule) ? rule : "" };
+};
 
-function usePhone() {
+export function usePhone() {
   const q = "(max-width: 560px)";
   const [on, setOn] = useState(() => typeof window !== "undefined" && !!window.matchMedia?.(q).matches);
   useEffect(() => {
@@ -340,12 +347,15 @@ function Chosen({ d, r, b, phone }: { d: Backtest; r: Rule; b: Basis; phone: boo
 // ------------------------------------------------------------------------------------------------------------------ tab
 export function StrategyBacktest() {
   const phone = usePhone();
-  const [sym, setSym] = useState("RELIANCE");
+  const [params] = useSearchParams();
+  const link = linked(params);
+  const [sym, setSym] = useState(link.sym || "RELIANCE");
   const [find, setFind] = useState("");
   const [exit, setExit] = useState("trail3");
   const [b, setB] = useState<Basis>("net");
   const [sort, setSort] = useState<Sort>(LIST_ORDER);
-  const [chosen, setChosen] = useState("");
+  const [chosen, setChosen] = useState(link.rule);
+  useEffect(() => { if (link.sym) setSym(link.sym); if (link.rule) setChosen(link.rule); }, [link.sym, link.rule]);   // a new link while the tab is open
   const und = useQuery({ queryKey: ["opul-und"], queryFn: getUnderlyings, retry: false, staleTime: 3600_000 });
   const q = useQuery({ queryKey: ["lab-backtest", sym, exit], queryFn: () => getBacktest(sym, exit), retry: false, staleTime: 600_000 });
   const matches = useMemo(() => (find.trim() && und.data ? matchUnderlyings(und.data.stocks, find, 8) : []), [find, und.data]);

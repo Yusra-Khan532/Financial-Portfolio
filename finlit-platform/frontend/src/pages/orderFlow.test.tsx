@@ -145,12 +145,27 @@ describe("Order Flow > Strategy backtest tab", () => {
   it("is listed after Stock zones and opens the backtest of one stock", async () => {
     wrap("/lab/flow?view=backtest"); await settle();
     const tabs = within(screen.getByRole("navigation", { name: "Order Flow views" })).getAllByRole("link").map((a) => a.textContent);
-    expect(tabs).toEqual(["Market depth", "Flow board", "Money Flow", "Option Pulse", "Stock zones", "Strategy backtest"]);
+    expect(tabs).toEqual(["Market depth", "Flow board", "Money Flow", "Option Pulse", "Stock zones", "Strategy backtest", "Setup scanner"]);
     const tab = screen.getByRole("link", { name: "Strategy backtest" });
     expect(tab.getAttribute("href")).toBe("/lab/flow?view=backtest");
     expect(tab.getAttribute("aria-current")).toBe("page");
     expect(screen.getByRole("heading", { name: "Strategy backtest" })).toBeTruthy();
     expect((fetch as unknown as { mock: { calls: string[][] } }).mock.calls.some((c) => String(c[0]).includes("/api/lab/backtest/RELIANCE?exit=trail3"))).toBe(true);
+  });
+});
+
+describe("Order Flow > Setup scanner tab", () => {
+  beforeEach(() => { access = { access: true, reason: "granted", expiresAt: null, signals: false }; flow = SNAP; });
+  afterEach(() => { vi.unstubAllGlobals(); });
+  it("is listed after Strategy backtest and opens the evening scan", async () => {
+    wrap("/lab/flow?view=scanner"); await settle();
+    const tabs = within(screen.getByRole("navigation", { name: "Order Flow views" })).getAllByRole("link").map((a) => a.textContent);
+    expect(tabs.slice(-2)).toEqual(["Strategy backtest", "Setup scanner"]);
+    const tab = screen.getByRole("link", { name: "Setup scanner" });
+    expect(tab.getAttribute("href")).toBe("/lab/flow?view=scanner");
+    expect(tab.getAttribute("aria-current")).toBe("page");
+    expect(screen.getByRole("heading", { name: "Setup scanner" })).toBeTruthy();
+    expect((fetch as unknown as { mock: { calls: string[][] } }).mock.calls.some((c) => String(c[0]).includes("/api/lab/scanner"))).toBe(true);
   });
 });
 

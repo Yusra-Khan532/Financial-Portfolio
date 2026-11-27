@@ -55,7 +55,7 @@ beforeEach(() => {
     return json({ ...BT, exit, symbol: String(url).split("/").pop()!.split("?")[0] }); }));
 });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
-const wrap = () => render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><MemoryRouter><TipLayer><StrategyBacktest /></TipLayer></MemoryRouter></QueryClientProvider>);
+const wrap = (path = "/lab/flow?view=backtest") => render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><MemoryRouter initialEntries={[path]}><TipLayer><StrategyBacktest /></TipLayer></MemoryRouter></QueryClientProvider>);
 const settle = async () => { for (let i = 0; i < 5; i++) await act(async () => { await new Promise((r) => setTimeout(r, 20)); }); };
 const point = (el: Element, x = 10) => { const e = new MouseEvent("pointermove", { bubbles: true, clientX: x, clientY: 10 }); Object.defineProperty(e, "pointerType", { value: "mouse" }); fireEvent(el, e); };
 const BANNED = [/\bbuy/, /\bsell/, /\bhold\b/, /\btarget/, /\bbest\b/, /\btop\b/, /top pick/, /\bwinning\b/, /forecast/, /recommend/, /\blikely\b/,
@@ -167,6 +167,15 @@ describe("Strategy backtest, the tab", () => {
     expect(within(cards[2]).getByText("32")).toBeTruthy();
     fireEvent.change(screen.getByRole("combobox", { name: "Order of the rules" }), { target: { value: "trades:desc" } });
     expect(screen.getAllByRole("article")[0].getAttribute("aria-label")).toBe("52-week high + volume");
+  });
+  it("a link from the Setup scanner opens that stock with that rule chosen; a malformed link falls back to the default", async () => {
+    wrap("/lab/flow?view=backtest&symbol=tatamotors&rule=r2"); await settle();
+    expect(urls.some((u) => u.endsWith("/api/lab/backtest/TATAMOTORS?exit=trail3"))).toBe(true);
+    expect(screen.getByRole("button", { name: "52-week high + volume" }).getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByRole("heading", { name: /52-week high \+ volume rule 3 of 23/ })).toBeTruthy();
+    cleanup(); urls.length = 0;
+    wrap("/lab/flow?view=backtest&symbol=bad%20sym&rule=<x>"); await settle();
+    expect(urls.some((u) => u.endsWith("/api/lab/backtest/RELIANCE?exit=trail3"))).toBe(true);
   });
   it("never tells anyone to trade", async () => {
     wrap(); await settle();

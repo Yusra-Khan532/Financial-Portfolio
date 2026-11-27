@@ -1244,6 +1244,8 @@ def build_parser() -> argparse.ArgumentParser:
     p_di.add_argument("--max-age-hours", type=float, default=None, help="skip when this ran fine in the last N hours")
     p_lf = sub.add_parser("refresh-lab-flow", help="every 3 minutes in market hours: the Trading Lab's Order Flow snapshot of every F&O stock (one Dhan quote call; lab/flow.py)")
     p_lf.add_argument("--history-seconds", type=float, default=90.0, help="at most this long filling missing previous-session open interest from Dhan's daily history")
+    p_ls = sub.add_parser("refresh-lab-scanner", help="weekday evenings, after the day's candles: which NSE stocks' latest daily bar matches each of the Trading Lab's 23 fixed rules (lab/scanner.py; stored candles only)")
+    p_ls.add_argument("--max-minutes", type=float, default=12.0, help="no new batch of stocks after this long; the result says it stopped early, after how many of how many")
     p_cm = sub.add_parser("refresh-commodities", help="commodity prices: MCX futures from Dhan and international prices from metals.dev / MetalpriceAPI into Redis (--loop: keeps running)")
     p_cm.add_argument("--loop", action="store_true")
     p_hp = sub.add_parser("history-probe", help="how many yearly statements each source holds for a few old companies (recorded at /api/mf/status, run:history-probe)")
@@ -1507,6 +1509,17 @@ async def main(argv: Optional[List[str]] = None, settings: Optional[Settings] = 
                     result = {"status": "failed", "error": str(e)}
             await record_run(store, args.cmd, result)
             print(result)
+            return 0 if result["status"] == "ok" else 1
+        if args.cmd == "refresh-lab-scanner":
+            from .jobs.reasons import PARTIAL_EXIT
+            from .lab import scanner as lab_scanner
+            from .mf import record_run
+            result = await lab_scanner.refresh(store, settings, max_minutes=args.max_minutes, progress=print)
+            await record_run(store, args.cmd, result)
+            print(result)
+            if result["status"] == "partial":      # stopped at its own deadline: what it checked is stored, with the note; tried again later
+                log.warning("refresh-lab-scanner: %s", result.get("why"))
+                return PARTIAL_EXIT
             return 0 if result["status"] == "ok" else 1
         if args.cmd == "refresh-instruments":
             from . import dhan

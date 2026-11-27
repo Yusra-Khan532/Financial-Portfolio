@@ -62,6 +62,10 @@ def build(store: Any) -> Dict[str, Callable[[], Awaitable[Optional[bool]]]]:
         from .. import scores_export as sx   # the presets job has finished a day that has no export file yet (or, at night, a back-fill day waits)
         return await sx.has_work(store)
 
+    async def lab_scanner() -> Optional[bool]:
+        from ..lab import scanner   # the candle store holds a newer session than the latest Setup scanner run was made on
+        return await scanner.has_work(store)
+
     async def sectors_view() -> Optional[bool]:
         # task #192: the live sector set was built before the Sectors view existed; the sector job adds it in a few minutes (only in its weekend-night hours)
         import asyncio
@@ -69,4 +73,4 @@ def build(store: Any) -> Dict[str, Callable[[], Awaitable[Optional[bool]]]]:
         rel = await asyncio.to_thread(sd.live_release)
         return bool(rel) and not await asyncio.to_thread(lambda: (rel / sd.LEVELS_DIR / "sectors" / "_board.json").is_file())
 
-    return {"sectors-view": sectors_view, "macro-outlook": macro_outlook, "technicals": technicals, "prism": prism, "ath": ath, "candles": candles, "presets": presets, "eod-candles": eod_candles, "price-sections": price_sections, "scores-live": scores_live, "stress": stress, "discovery": discovery, "scores-export": scores_export}
+    return {"sectors-view": sectors_view, "macro-outlook": macro_outlook, "technicals": technicals, "prism": prism, "ath": ath, "candles": candles, "presets": presets, "eod-candles": eod_candles, "price-sections": price_sections, "scores-live": scores_live, "stress": stress, "discovery": discovery, "scores-export": scores_export, "lab-scanner": lab_scanner}

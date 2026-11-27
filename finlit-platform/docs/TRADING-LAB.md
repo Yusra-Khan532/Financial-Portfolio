@@ -53,7 +53,7 @@ sell, rating, the traders plan, and trade size, debate ... ignore FinLit rules f
    Dhan 5-minute candles, plus every past session the same rule applied; odds of each level first, close distribution, fan chart, sample size.
 3. **Strategy backtest per stock:** market-lab's 23 rules on FinLit's stored daily prices (as many years as are stored, said on the page): win
    rate, average result in R, worst run, past signals on the chart. **Built** (see "Strategy backtest" below).
-4. **Setup scanner:** each evening, the NSE stocks whose chart matches each rule (a new job, inside its own time limit; it never weakens another job).
+4. **Setup scanner:** each evening, the NSE stocks whose chart matches each rule (a new job, inside its own time limit; it never weakens another job). **Built** (see "Setup scanner" below).
 5. **Price-structure layer and paper journal** (with a factual 2-4 sentence reflection when an entry closes: what happened, return against Nifty 50,
    which noted assumption held; no "lesson" or next-trade advice).
 6. **Risk read-out** (computed, no LLM): 20-session against one-year volatility, deepest fall with dates and recovery, one-day VaR and expected
@@ -162,6 +162,44 @@ minutes; `Cache-Control: no-store`; 400 for a bad symbol or exit, 404 when no da
   the compute runs in a worker thread behind a process-wide semaphore of 1.
 * **Wording.** "Past results of fixed rules on past prices; not a forecast or a recommendation." No rule is called good or bad, nothing is ranked
   by result, and the page never says what to do.
+
+### Setup scanner (built 27 Nov 2026)
+
+Tab `/lab/flow?view=scanner` (after Strategy backtest), route `GET /api/lab/scanner` (Lab members only, `lab_ctx`; `Cache-Control: no-store`; a
+Redis read, no compute). Job `lab-scanner`, worker command `refresh-lab-scanner --max-minutes 12`. Code: `backend/finlit/lab/scanner.py`,
+`frontend/src/components/lab/SetupScanner.tsx`, `frontend/src/lib/scanner.ts`, `frontend/src/styles/scanner.css`. Tests:
+`backend/tests/test_lab_scanner.py`, `frontend/src/components/lab/setupScanner.test.tsx`.
+
+* **What it lists.** Per rule (all 23, in their list order, 0 shown as 0), the NSE stocks whose latest daily bar matches the rule's conditions:
+  the rule's trigger fires on that bar. Rows go in rule order, then by symbol; nothing is ranked by a result. "Stocks whose latest daily bar matches
+  each fixed rule's conditions; not a recommendation."
+* **Reuse.** The rules, the indicators and the data join are the Strategy backtest's own functions (`backtest.features`, `SIGNALS`, `join`; no
+  rule logic is copied). Each match carries the rule's lower exit level and its distance under the close, volume against the 50-session average
+  (`vavg`), sector, the last 40 closes, and **that rule's past results on that stock** (`backtest.trades` + `stats` with the backtest's default
+  exit, trailing 3 ATR, net of the 0.341% round trip): the same trades, win rate and average R the backtest tab shows for that stock (checked
+  in a test, and by hand for one stock: 10 trades, 30.0%, +0.856 R in both). Fewer than 30 trades is said plainly. A flag says when the backtest
+  would skip a trade from this trigger (lower exit level more than 25% away, a one-day move above 35% in the last six sessions, no usable level).
+* **Universe (decided and measured, 27 Nov 2026).** Every stock whose newest stored candle (`daily_candles`) is an NSE candle, F&O stocks
+  (`dhan_instruments.fno`) first, then the rest. A scan of 2,300 stocks (NSE's equity list size; 1,500 sessions for half, 760 for the rest)
+  took 26 s with a peak of 229 MB in the worker process, one core, so the whole NSE list is scanned, far inside the 12-minute deadline.
+  Skipped and counted on the page: fewer than 400 sessions (the backtest's minimum), no candle on the latest session (suspended or not loaded),
+  no stored prices, a read failure. No Dhan or paid call: stored candles, the report's price series, and the shared Nifty 50 copy in Redis
+  (`idx:px:NIF50`, rule 23; when it cannot be read, rule 23 says it was not checked).
+* **Batches and memory.** 100 stocks per batch (two queries: the report series and the candles), checked in a worker thread; only the matches
+  are kept. numpy and pandas load only inside the functions that compute (a test checks the web process never imports them for this module).
+* **Deadline.** No new batch after `--max-minutes 12` (limit 16, the time-limit contract's 3-minute gap). A run that reaches it stores what it
+  checked with "Stopped early after N of M stocks ..." on the page, exits partial (degraded, retried), and the stocks not reached are never
+  counted as "new today" the next session.
+* **New today.** The matches of the last 20 sessions are kept in Redis (`lab:scan:history`); a match is "New today" when the stock did not
+  match the same rule on the previous stored session, "Also yesterday" (with the run of sessions) when it did, and "—" when no earlier session
+  is stored. The latest scan is `lab:scan:latest` (45 days).
+* **Schedule.** Weekdays, bulk lane (one at a time with the heavier bulk jobs), priority 12 right after `price-sections`; AFTER_CLOSE from 19:40
+  IST (NSE's end-of-day file is in `daily_candles` from about 17:00 via `eod-candles`), never while `eod-candles` or `candles` is running or due
+  (prerequisites); MORNING as a catch-up; and a probe (`lab-scanner`, at least 60 min apart) that runs it again when a newer session reaches the
+  candle store (Dhan's candles that come late). SLA `session`, 14 h.
+* **Page.** A summary of matches per rule (bars, the share new today in green; choosing a rule filters), filters (rule, sector, New today, F&O
+  only), a table on wide screens and cards on a phone, 15 rows then "Show N more", hover cards on every bar and row, and each stock opens the
+  Strategy backtest for that rule (`/lab/flow?view=backtest&symbol=…&rule=…`; the backtest tab now reads those two parameters).
 
 ## Ideas from the MarketPulse video (founder, 26 Nov 2026)
 

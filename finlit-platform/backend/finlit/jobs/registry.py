@@ -216,6 +216,7 @@ LIMIT_POLICY: Dict[str, str] = {
     "alerts-live": "fixed: members' own alerts only; measured about 3 s",
     "lab-flow": "fixed: one Dhan quote call for every F&O stock and its two futures contracts; missing previous-session open interest is filled for at most 90 s a run, the rest next run (limit 4)",
     "listing": "fixed: two provider calls for the whole market list; measured about 13 s",
+    "lab-scanner": "deadline: no new batch of stocks after --max-minutes 12 (limit 16); what it checked is stored with a 'stopped early after N of M stocks' note; stored candles only; measured 26 s and 229 MB at its peak for 2,300 stocks on one core",
     "alerts-flag": "fixed: one flag in Redis; measured about 4 s",
     "alerts-daily": "fixed: members' own alerts only; measured about 4 s",
     "screens": "fixed: members' saved screens only; measured about 2 s",
@@ -333,6 +334,14 @@ def build_jobs(env: Optional[Mapping[str, str]] = None) -> List[Job]:
             prerequisites=("candles",), probe="price-sections", min_gap_min=30,
             windows=(W("AFTER_CLOSE", 0), W("MORNING", 0)), sla=Sla("session", 12), owns=("price_sections",),
             what="the price charts (1M to MAX, and 3Y on daily candles) of every stored report from daily_candles, after the candles job: every chart ends on the latest close, no part-day candle; no provider calls"),
+        # Trading Lab > Setup scanner (docs/TRADING-LAB.md): every NSE stock's latest daily bar against the 23 fixed rules of the Strategy backtest. Weekday
+        # evenings once the session's candles are stored: AFTER_CLOSE from 19:40 IST (NSE's end-of-day file is in daily_candles from about 17:00), never while
+        # the candle jobs it reads are running or due (prerequisites), and again when a newer session reaches the candle store later (probe, e.g. the next
+        # morning). In the bulk lane, right after price-sections, so it never runs beside a heavier bulk job; database and Redis only, no provider calls
+        Job("lab-scanner", ("refresh-lab-scanner", "--max-minutes", "12"), cls="bulk", priority=12, max_runtime_min=16, weight_mb=260, stall_min=10,
+            prerequisites=("eod-candles", "candles"), probe="lab-scanner", min_gap_min=60, day_rule=_weekdays,
+            windows=(W("AFTER_CLOSE", 0, (19, 40)), W("MORNING", 0)), sla=Sla("session", 14), catchup=False,
+            what="Trading Lab Setup scanner: the NSE stocks whose latest daily bar matches each of the 23 fixed rules, with each rule's past results on the stock (stored candles only; docs/TRADING-LAB.md)"),
         # weekend nights only, at the lowest bulk priority (owner, 18 Nov 2026; docs/JOBS.md "The sector job on weekend nights"): one full build a week on the
         # week's data up to Friday's close; every daily and weekly job of the night goes first; never on a weekday night
         Job("sectors", ("refresh-sectors",), cls="bulk", priority=95, max_runtime_min=90, weight_mb=SECTORS_WEIGHT_MB, stall_min=45, prerequisites=("technicals",), resumable=True,
