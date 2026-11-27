@@ -4,7 +4,7 @@ import { act, cleanup, fireEvent, render, screen, within } from "@testing-librar
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { MemoryRouter } from "react-router";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { WordOfDayButton, WordOfDayMenuItem } from "./WordOfDay";
 import { WordPanel } from "./WordOfDayPanel";
 import { YourBookmarks } from "./dashboard/NewsBlocks";
@@ -12,11 +12,15 @@ import { TERMS, termOfTheDay } from "../lib/glossary";
 import { prefs } from "../lib/prefs";
 import { istDate } from "../lib/wordOfDay";
 
+// The sign-in state the panel reads: null (a visitor) unless a test sets a member (task #435: the team's picture was taken signed in).
+const authState = vi.hoisted(() => ({ value: null as unknown }));
+vi.mock("../lib/auth", async (orig) => ({ ...(await orig<typeof import("../lib/auth")>()), useAuthMaybe: () => authState.value }));
+
 const term = (id: string) => TERMS.find((t) => t.id === id)!;
 const withFormula = term("dupont-analysis");
 const noFormula = TERMS.find((t) => !t.formula && t.why)!;
 
-beforeEach(() => prefs.set({ wordBookmarks: [], wordSeen: "" }));
+beforeEach(() => { prefs.set({ wordBookmarks: [], wordSeen: "" }); authState.value = null; });
 afterEach(cleanup);
 
 describe("the header button (checklist 1)", () => {
@@ -72,20 +76,36 @@ describe("the header button (checklist 1)", () => {
 });
 
 describe("the panel (checklists 2 and 3)", () => {
-  it("shows the head, the term and its topic, the meaning, the formula as parts, why it matters, the bookmark and the glossary link, in that order", () => {
+  it("shows the head, the term and its topic, the meaning, the formula as parts, why it matters and the bookmark, in that order (task #435: no glossary link)", () => {
     render(<MemoryRouter><WordPanel term={withFormula} onClose={() => undefined} /></MemoryRouter>);
     const dlg = screen.getByRole("dialog", { name: "FinLit Word of the Day" });
     const text = dlg.textContent!;
     const at = (s: string) => { const i = text.indexOf(s); expect(i, s).toBeGreaterThanOrEqual(0); return i; };
-    const order = [at("FinLit Word of the Day"), at(withFormula.term), at(withFormula.topic), at(withFormula.meaning), at("ROE ="), at("Why it matters:"), at("Bookmark this word"), at("Open in the glossary →"), at("Your bookmarks")];
+    const order = [at("FinLit Word of the Day"), at(withFormula.term), at(withFormula.topic), at(withFormula.meaning), at("ROE ="), at("Why it matters:"), at("Bookmark this word"), at("Your bookmarks")];
     expect([...order].sort((a, b) => a - b)).toEqual(order);
     expect(dlg.querySelector(".wod-cal svg")).not.toBeNull();
     expect(dlg.querySelector(".wod-topic")!.className).toContain("ui-chip--gain");
     expect([...dlg.querySelectorAll(".wod-fx-pill")].map((e) => e.textContent)).toEqual(["Net margin", "Asset turnover", "Equity multiplier"]);
     expect([...dlg.querySelectorAll(".wod-fx-op")].map((e) => e.textContent)).toEqual(["×", "×"]);
     expect(dlg.querySelector(".wod-fx-text")!.textContent).toMatch(/^five-step:/);   // the second clause does not split cleanly: shown as written
-    expect(within(dlg).getByRole("link", { name: "Open in the glossary →" }).getAttribute("href")).toBe("/glossary#dupont-analysis");
+    // task #435: the team's marked picture removes "Open in the glossary →"; the bookmark is the only action left
+    expect(text).not.toContain("Open in the glossary");
+    expect(within(dlg).queryByRole("link", { name: /glossary/i })).toBeNull();
+    expect(dlg.querySelector(".wod-gl")).toBeNull();
+    expect([...dlg.querySelector(".wod-acts")!.children].map((e) => e.textContent)).toEqual(["Bookmark this word"]);
     expect(dlg.querySelector(".wod-why")!.textContent).toBe("Why it matters: " + withFormula.why);
+  });
+  it("task #435: the glossary link is gone from the panel's code and its style sheet (no left-over rule)", () => {
+    expect(readFileSync(resolve(__dirname, "WordOfDayPanel.tsx"), "utf8")).not.toMatch(/>Open in the glossary|wod-gl\b/);
+    expect(readFileSync(resolve(__dirname, "../styles/word-of-day.css"), "utf8")).not.toMatch(/\.wod-gl\b/);
+  });
+  it("task #435: signed in, as in the team's picture, the panel has no glossary link either; the note's link to Your bookmark stays", () => {
+    authState.value = { user: { id: 1, email: "m@example.com" } };
+    render(<MemoryRouter><WordPanel term={withFormula} onClose={() => undefined} /></MemoryRouter>);
+    const dlg = screen.getByRole("dialog", { name: "FinLit Word of the Day" });
+    expect(dlg.textContent).not.toContain("Open in the glossary");
+    expect([...dlg.querySelectorAll("a")].map((a) => a.getAttribute("href"))).toEqual(["/dashboard#dsh-learn"]);
+    expect(within(dlg).getByRole("button", { name: "Bookmark this word" })).toBeTruthy();
   });
   it("leaves the formula box out for a word without a formula", () => {
     render(<MemoryRouter><WordPanel term={noFormula} onClose={() => undefined} /></MemoryRouter>);

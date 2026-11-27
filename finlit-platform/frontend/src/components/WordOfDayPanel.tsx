@@ -1,6 +1,7 @@
 // Task #315: the Word of the Day panel (the team's picture 2). A dialog under the header button on a desktop, a sheet along the bottom on a phone.
 // Today's glossary term (the same one as the dashboard's "Term of the day"), its meaning, the formula as parts, why it matters, and a bookmark.
 // Every word comes from the glossary source (backend glossary_data.json); nothing here advises.
+// Task #435: the panel has no "Open in the glossary" link (the team marked it for removal); the word stays in the glossary page itself.
 import { useEffect, useId, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import { Link } from "react-router";
@@ -102,7 +103,6 @@ export function WordPanel({ term, onClose, anchor }: { term: Term; onClose: () =
           <div className="wod-acts">
             <button type="button" className={buttonClass("secondary", "md", "wod-bm")} aria-pressed={on} onClick={() => toggleBookmark(term.id)}>
               <BookmarkIcon on={on} />{on ? "Bookmarked" : "Bookmark this word"}</button>
-            <Link className="wod-gl" to={"/glossary#" + term.id} onClick={onClose}>Open in the glossary →</Link>
           </div>
           <p className="wod-note">{auth?.user
             ? <>Your bookmarks are on your dashboard, under <Link to="/dashboard#dsh-learn" onClick={onClose}>Learn → Your bookmark</Link>.</>
