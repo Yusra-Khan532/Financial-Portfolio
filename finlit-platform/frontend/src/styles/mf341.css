@@ -213,3 +213,10 @@
 .mf-list .mf-table tbody tr.mf-stopped th.mf-name { opacity: 1; }
 .mf-list .mf-table tbody tr.mf-stopped th.mf-name .mf-namein { opacity: .72; }
 @media (max-width: 640px) { .mf-list .mf-table .mf-namein { gap: 5px; } }   /* the phone's gap, as mf.css had on the cell */
+/* (3) a column half under the frozen column showed a strip of its figures beside it while the table slid. The sideways scroll stops only where a
+       column starts right at the frozen column's edge (--mf-fz, its width, set by FundTable.tsx, which also pads the end so the last stop is a column
+       edge too): no column is ever half hidden, at the start, in the middle or at the end. While slid, the frozen column has a firm 2px edge in the
+       strong border colour (tokens, light and dark), on both header rows and every body row. */
+.mf-list .mf-tablecard .tw { scroll-snap-type: x mandatory; scroll-padding-inline-start: var(--mf-fz, 0px); }
+.mf-list .mf-table thead tr:last-child > th:not(:first-child) { scroll-snap-align: start; }
+.mf-list .tw.is-scrolled .mf-table tbody th.mf-name, .mf-list .tw.is-scrolled .mf-table thead tr > th:first-child { box-shadow: 2px 0 0 var(--border-strong), 6px 0 0 -2px var(--border); }

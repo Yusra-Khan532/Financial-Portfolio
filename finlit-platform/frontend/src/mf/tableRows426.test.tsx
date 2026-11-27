@@ -11,7 +11,7 @@ import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EMPTY_QUERY, type FundRow } from "../lib/mf";
 import { UIProvider } from "../lib/ui";
-import { FundTable } from "./FundTable";
+import { FundTable, snapPad } from "./FundTable";
 
 vi.mock("../lib/auth", async (orig) => ({ ...(await orig<typeof import("../lib/auth")>()),
   useAuth: () => ({ ready: true, user: null, plan: "basic", limits: {}, isAdmin: false, seesAll: false, showcase: [], prismReportsPerDay: null, refresh: async () => {}, signOut: async () => {} }) }));
@@ -40,6 +40,18 @@ describe("task #426: the frozen Scheme column lines up with its row and stays so
   it("on the Mutual funds list the name cell is a table cell (full row height) and the side-by-side layout is inside it", () => {
     expect(css).toMatch(/\.mf-list \.mf-table tbody th\.mf-name \{ display: table-cell; vertical-align: middle; background-color: var\(--s1\);/);
     expect(css).toMatch(/\.mf-list \.mf-table \.mf-namein \{ display: flex; align-items: flex-start; gap: 10px; min-width: 0; \}/);
+  });
+  it("while it slides, the table stops only where a column starts at the frozen column's edge, so no column is half hidden beside it", () => {
+    expect(css).toMatch(/\.mf-list \.mf-tablecard \.tw \{ scroll-snap-type: x mandatory; scroll-padding-inline-start: var\(--mf-fz, 0px\); \}/);
+    expect(css).toMatch(/\.mf-list \.mf-table thead tr:last-child > th:not\(:first-child\) \{ scroll-snap-align: start; \}/);
+    // the end is padded so the last stop is a column edge too: columns start at 0, 96, 192, 300 past the frozen column, the box can scroll 250
+    expect(snapPad([0, 96, 192, 300], 250)).toBe(50);
+    expect(snapPad([0, 96, 192, 300], 192)).toBe(0);                  // already a column edge
+    expect(snapPad([0, 96], 0)).toBe(0);                              // nothing to scroll
+    expect(snapPad([0, 96], 400)).toBe(0);                            // no column edge past the end: left as it is
+  });
+  it("while slid, the frozen column has a firm edge on both header rows and every body row", () => {
+    expect(css).toMatch(/\.mf-list \.tw\.is-scrolled \.mf-table tbody th\.mf-name, \.mf-list \.tw\.is-scrolled \.mf-table thead tr > th:first-child \{ box-shadow: 2px 0 0 var\(--border-strong\)/);
   });
   it("a stopped scheme's frozen cell is not see-through: only its contents fade", () => {
     expect(css).toMatch(/\.mf-list \.mf-table tbody tr\.mf-stopped th\.mf-name \{ opacity: 1; \}/);

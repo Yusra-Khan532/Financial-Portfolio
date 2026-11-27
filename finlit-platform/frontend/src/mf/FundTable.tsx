@@ -1,7 +1,7 @@
 // The scheme table: sortable columns, the columns you chose, a tick box to add a scheme to the comparison. Wide tables scroll inside their own box.
 import { Link } from "react-router";
 import { HScroll } from "../components/HScroll";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { PHONE_ROWS, useIsPhone } from "../components/PhoneFold";
 import { useInfoPop } from "../components/Info";
 import {
@@ -108,6 +108,37 @@ function shortWhy(code: FundRow["noReturns"], young: string): string {
   }
 }
 
+/** Task #426 (team, 27 Nov 2026: "when we slide left to see other columns then all boxes are going into each other"). While the table slides, a column
+ *  half under the frozen Scheme column left a strip of its figures beside it ("…7", "…2"). The sideways scroll now stops only where a column starts
+ *  right at the frozen column's edge (CSS scroll snap, styles/mf341.css), so no column is ever half hidden. This sets the frozen column's width as the
+ *  snap offset (--mf-fz), and pads the end of the scroll box so the last stop is also a column edge (the box can scroll exactly that far).
+ *  Exported for the test. */
+export function snapPad(starts: number[], max: number): number {
+  if (max <= 0) return 0;
+  const s = starts.find((x) => x >= max - 1);
+  return s == null ? 0 : Math.max(0, Math.ceil(s - max));
+}
+function useSnapColumns(tref: React.RefObject<HTMLTableElement | null>, rows: unknown, cols: unknown) {
+  useEffect(() => {
+    const t = tref.current, sc = t?.parentElement;
+    if (!t || !sc || typeof ResizeObserver === "undefined") return;
+    const fit = () => {
+      const heads = [...t.querySelectorAll<HTMLElement>("thead tr:last-child > th")];
+      if (heads.length < 2) return;
+      const fz = heads[0].getBoundingClientRect().width;
+      sc.style.setProperty("--mf-fz", `${fz}px`);
+      sc.style.paddingRight = "0px";
+      const starts = heads.slice(1).map((c) => c.offsetLeft - fz).sort((a, b) => a - b);
+      const pad = snapPad(starts, sc.scrollWidth - sc.clientWidth);
+      if (pad) sc.style.paddingRight = `${pad}px`;
+    };
+    fit();
+    const ro = new ResizeObserver(fit);
+    ro.observe(t); ro.observe(sc);
+    return () => ro.disconnect();
+  }, [tref, rows, cols]);   // the columns and the rows decide the widths
+}
+
 export function FundTable({ rows, cols, q, onSort, picked, onPick, peers, wish }: {
   rows: FundRow[]; cols: ColId[]; q: ListQuery; onSort: (s: SortKey) => void; picked: number[]; onPick: (code: number, name?: string) => void; peers?: Record<string, PeerStats>;
   /** Task #375: the Mutual Funds page's wishlist star on each scheme (left out where the table is drawn elsewhere). */
@@ -132,6 +163,8 @@ export function FundTable({ rows, cols, q, onSort, picked, onPick, peers, wish }
   };
   const cls = (c: ColDef) => (c.num ? "num" : "txt") + (c.group ? ` mf-retcol mf-g-${c.group}` : "") + ` mf-c-${c.id}`;
   // task #310 part E (05-phone.md, fix 6): on a phone the list shows its first 5 schemes and a Show all button; desktop shows every row
+  const tref = useRef<HTMLTableElement>(null);
+  useSnapColumns(tref, rows, cols);
   const phone = useIsPhone();
   const [all, setAll] = useState(false);
   useEffect(() => { setAll(false); }, [rows]);
@@ -140,7 +173,7 @@ export function FundTable({ rows, cols, q, onSort, picked, onPick, peers, wish }
   return (
     <>
     <HScroll label="schemes table" controls={false} tall>{/* task #341: the header stays in view while the list scrolls down (styles/frozen.css) */}
-      <table className="mf-table">
+      <table className="mf-table" ref={tref}>
         <caption className="sr-only">Mutual fund schemes. Use the column buttons to sort.</caption>
         <thead>
           {runs.some((r) => r.group) && (
