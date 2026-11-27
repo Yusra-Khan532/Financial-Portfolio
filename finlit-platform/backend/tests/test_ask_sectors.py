@@ -195,8 +195,8 @@ def test_the_answer_links_the_sector_pages():
 
 
 # Task #349 PR 5: adding the two tools changed the tool list once (deliberately). Task #410 changed it once more (the sector tool says "on the paid plans",
-# not "on Silver"). This is its hash now; it must be the same for every question.
-TOOLS_SHA256 = "d852b889b7c229dcca3af66b4ba5b7d14be2879a187289138095a4979e9939c4"
+# not "on Silver"). Bulk & Block Deals (27 Nov 2026) added get_bulk_block_deals. This is its hash now; it must be the same for every question.
+TOOLS_SHA256 = "21da833e1f0c0ce63bfb92c42928562aa22fdd47c528f977e87109aaac98513f"
 
 
 def test_the_tool_list_is_one_fixed_list_with_the_sector_tools():

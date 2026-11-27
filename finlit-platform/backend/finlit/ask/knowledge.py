@@ -77,7 +77,9 @@ TOPICS: Dict[str, Dict[str, Any]] = {
         "Trend (higher highs and lows)", "SMA and EMA 20/50/100/200 and crossovers", "RSI", "MACD", "Stochastic", "ROC", "ADX", "ATR",
         "Bollinger Bands", "Volume and delivery volume", "VWAP", "OBV", "Support and resistance", "Relative strength vs a benchmark",
         "Bulk and block deals", "Futures open interest", "Put-call ratio", "Circuit limits"],
-        "read": "Technical readings describe past prices and trading; they do not predict the next move. FinLit's own technical view is in Prism."},
+        "read": "Technical readings describe past prices and trading; they do not predict the next move. FinLit's own technical view is in Prism. "
+                "Bulk and block deals come from NSE's files (the get_bulk_block_deals tool; the Bulk & Block Deals page, /ipo?view=deals): who traded, how much, "
+                "at what price, each trade counted once; they describe trades, not intentions."},
     "funds": {"title": "Mutual funds and ETFs", "measures": [
         "NAV", "AUM", "Expense ratio (TER)", "Exit load", "Benchmark", "Direct vs Regular", "Growth vs IDCW", "Portfolio turnover",
         "Manager tenure", "Style drift", "Rolling returns", "Category rank", "Sharpe, Sortino, alpha, beta, standard deviation", "Maximum drawdown",

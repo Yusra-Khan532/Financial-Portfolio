@@ -19,6 +19,7 @@ export const MCP_TOOLS: McpTool[] = [
   { name: "get_market_overview", what: "Index levels and India economy headline figures", group: "Markets" },
   { name: "get_fii_dii_flows", what: "Daily FII and DII cash-market flows", group: "Markets" },
   { name: "get_ipo_calendar", what: "Upcoming, open, closed and listed issues", group: "Markets" },
+  { name: "get_bulk_block_deals", what: "NSE's bulk, block and short-selling deals, each trade once", group: "Markets" },
   { name: "search_funds", what: "Find mutual fund schemes by name", group: "Funds" },
   { name: "get_fund_details", what: "One scheme: NAV, returns, fees, size", group: "Funds" },
   { name: "list_etfs", what: "Exchange-traded funds with price, NAV and returns", group: "Funds" },

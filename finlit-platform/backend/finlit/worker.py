@@ -1142,6 +1142,9 @@ def build_parser() -> argparse.ArgumentParser:
     p_ip = sub.add_parser("refresh-ipo-prices", help="listed IPOs' listing-day prices and latest close from the NSE and BSE daily price files")
     p_ip.add_argument("--max-dates", type=int, default=60, help="listing dates read in this run")
     p_ip.add_argument("--max-minutes", type=float, default=10.0, help="start no new file after this many minutes")
+    p_dl = sub.add_parser("refresh-deals", help="NSE's bulk, block and short-selling deals: today's files, then the history one month further back a run")
+    p_dl.add_argument("--backfill-months", type=int, default=1, help="months of history read further back in this run (until two years are held)")
+    p_dl.add_argument("--max-minutes", type=float, default=8.0, help="start no new request after this many minutes")
     p_ig = sub.add_parser("refresh-ipo-gmp", help="each IPO's record and GMP from InvestorGain's IPO pages (one page at a time), then NSE's subscription by category")
     p_ig.add_argument("--limit", type=int, default=100, help="pages read in this run")
     p_ig.add_argument("--nse-limit", type=int, default=40, help="listed mainboard issues whose NSE book is asked for in this run")
@@ -1882,6 +1885,9 @@ async def main(argv: Optional[List[str]] = None, settings: Optional[Settings] = 
             elif args.cmd == "refresh-ipo-prices":
                 from .ipobhav import refresh as refresh_ipo_prices
                 print(await refresh_ipo_prices(store, max_dates=args.max_dates, max_minutes=args.max_minutes))
+            elif args.cmd == "refresh-deals":
+                from .deals import refresh as refresh_deals
+                print(await refresh_deals(store, backfill_months=args.backfill_months, max_minutes=args.max_minutes))
             elif args.cmd == "refresh-ipo-gmp":
                 from .ipogmp import refresh as refresh_ipo_gmp
                 print(await refresh_ipo_gmp(store, limit=args.limit, max_minutes=args.max_minutes, nse_limit=args.nse_limit, pause_s=max(0.5, args.pause)))
