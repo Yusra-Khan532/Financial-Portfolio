@@ -22,7 +22,7 @@ from __future__ import annotations
 import hashlib
 import logging
 import time
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple
 
 import orjson
 from fastapi import APIRouter, Request, Response
@@ -246,16 +246,8 @@ def _nse_classes() -> Dict[str, Any]:
     return _NSE_FULL
 
 
-@router.get("/api/sectors/membership")
-async def sector_membership(request: Request, symbols: str = "", show: Optional[str] = None) -> Response:
-    """Which Sector Pulse group each of the given shares belongs to ("How your industries are doing", the final pages pack, 13 Nov 2026): {symbol: {slug, name}} for the ones
-    in a group with a reading; the others are left out (no NSE industry, or a group with too few stocks). Names only, open to every plan, at most 200 symbols."""
-    started = time.perf_counter()
-    rel = _base(sd.live_release(), show)
-    board = sd.read_json(rel / "sectors" / "_board.json") if rel else None
-    if not board:
-        return _no_board(request, started, show)
-    want = [s.strip().upper() for s in symbols.split(",") if s.strip()][:200]
+def _group_maps(board: Dict[str, Any]) -> Tuple[Dict[str, Dict[str, str]], Dict[str, Dict[str, str]]]:
+    """NSE industry -> its Sector Pulse group, and NSE sector -> its group (a sector-kind row), from the board."""
     by_ind: Dict[str, Dict[str, str]] = {}
     by_sec: Dict[str, Dict[str, str]] = {}
     for r in board.get("rows", []):
@@ -266,6 +258,36 @@ async def sector_membership(request: Request, symbols: str = "", show: Optional[
             by_sec[str(r.get("name") or "")] = ref
         for ind in r.get("industries") or []:
             by_ind[str(ind)] = ref
+    return by_ind, by_sec
+
+
+def group_of(symbol: str) -> Optional[Dict[str, str]]:
+    """The Sector Pulse industry group one company belongs to ({slug, name}), as /api/sectors/membership answers it for the default view; None when it has none
+    or the board is not loaded. Used by the company page's crawler HTML (search growth, Phase 1) to link the company to its group."""
+    rel = sd.live_release()
+    board = sd.read_json(rel / "sectors" / "_board.json") if rel else None
+    sym = symbol.strip().upper()
+    if not board or not sd.SYMBOL.match(sym):
+        return None
+    cls = _nse_classes().get(sym)
+    if not cls:
+        return None
+    by_ind, by_sec = _group_maps(board)
+    ind, sec = cls
+    return by_ind.get(ind) or (by_sec.get(sec) if sec else None)
+
+
+@router.get("/api/sectors/membership")
+async def sector_membership(request: Request, symbols: str = "", show: Optional[str] = None) -> Response:
+    """Which Sector Pulse group each of the given shares belongs to ("How your industries are doing", the final pages pack, 13 Nov 2026): {symbol: {slug, name}} for the ones
+    in a group with a reading; the others are left out (no NSE industry, or a group with too few stocks). Names only, open to every plan, at most 200 symbols."""
+    started = time.perf_counter()
+    rel = _base(sd.live_release(), show)
+    board = sd.read_json(rel / "sectors" / "_board.json") if rel else None
+    if not board:
+        return _no_board(request, started, show)
+    want = [s.strip().upper() for s in symbols.split(",") if s.strip()][:200]
+    by_ind, by_sec = _group_maps(board)
     cls = _nse_classes()
     out: Dict[str, Dict[str, str]] = {}
     for sym in want:

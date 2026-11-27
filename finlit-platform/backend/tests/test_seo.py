@@ -64,7 +64,7 @@ def test_the_head_has_one_of_each_tag_and_valid_json_ld():
 
 def test_company_and_term_pages_use_only_facts_we_hold():
     r = seo.render_company(BASE, "tcs", "Tata Consultancy Services Ltd", "Information Technology")
-    assert "TCS" in r.title and "Share Analysis" in r.title and r.status == 200
+    assert "Tata Consultancy Services" in r.title and "Share Price" in r.title and len(r.title) <= 70 and r.status == 200      # search growth, Phase 1: how people search
     text = (r.head + r.body).lower()
     for word in ("aggregaterating", "\"review\"", "ratingvalue", " buy ", " sell ", "target price"):
         assert word not in text, word                             # no plan-gated score, no invented rating or review, no advice

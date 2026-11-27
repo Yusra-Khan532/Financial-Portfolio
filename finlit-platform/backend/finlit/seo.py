@@ -249,15 +249,17 @@ def _explore(current: str, taken: set) -> str:
 _WORD = re.compile(r"[A-Za-z]{4,}")
 
 
-def _body(h1: str, paragraphs: List[str], links: List[Tuple[str, str]], current: str = "", extra: str = "") -> str:
+def _body(h1: str, paragraphs: List[str], links: List[Tuple[str, str]], current: str = "", extra: str = "", lead: str = "", lead_links: Tuple[str, ...] = ()) -> str:
+    """`lead` is the page's own content (search growth, Phase 1): it comes straight after the opening text, before the site's shared links. `lead_links` are the addresses
+    and link texts it already uses, so the shared blocks do not repeat them."""
     paragraphs = list(paragraphs)
     seen_text = " ".join(paragraphs).lower()
     if paragraphs and any(w.lower() not in seen_text for w in _WORD.findall(h1)):
         paragraphs[0] = f"{h1}. {paragraphs[0]}"      # the heading's words are said in the text too
-    taken: set = set()
-    nav = "".join(f'<li><a href="{_e(u)}">{_e(n)}</a></li>' for n, u in links if u not in taken and not taken.update((u, n.lower())))
+    taken: set = set(lead_links)
+    nav = "".join(f'<li><a href="{_e(u)}">{_e(n)}</a></li>' for n, u in links if u not in taken and n.lower() not in taken and not taken.update((u, n.lower())))
     return ('<main data-seo="1" style="max-width:760px;margin:0 auto;padding:24px;font-family:system-ui,sans-serif">' + f"<h1>{_e(h1)}</h1>" + "".join(f"<p>{_e(p)}</p>" for p in paragraphs)
-            + f'<nav aria-label="Main pages"><ul>{nav}</ul></nav>' + extra + _explore(current, taken) + "</main>")
+            + lead + f'<nav aria-label="Main pages"><ul>{nav}</ul></nav>' + extra + _explore(current, taken) + "</main>")
 
 
 def render_static(base: str, path: str) -> Rendered:
@@ -359,16 +361,340 @@ def render_fund(base: str, code: int, row: Dict[str, Any]) -> Rendered:
     return Rendered(200, _head(base, f"funds/{code}", title, desc, ok, ld, "article"), _body(name, facts, NAV, f"funds/{code}"), "index" if ok else "noindex", title)
 
 
-def render_company(base: str, symbol: str, name: str, sector: Optional[str]) -> Rendered:
+# ---------------------------------------------------------------------------------------------------------------- company pages (search growth, Phase 1)
+# The crawler HTML of /stocks/SYMBOL carries the company's real stored figures, the same ones the report shows a visitor who is not signed in (the summary, financials,
+# ownership, peers and events sections of its stored snapshot), each with its date and source. Never a plan-gated score, never a rating, never advice.
+
+_LTD = re.compile(r"\s+(?:ltd\.?|limited)$", re.I)
+MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+# the glossary entry each figure links to (search growth: company pages link the terms they use)
+METRIC_TERMS = {"pe": "price-to-earnings-ratio-p-e", "pb": "price-to-book-ratio-p-b", "roe": "return-on-equity-roe", "roce": "return-on-capital-employed-roce",
+                "debt_to_equity": "debt-to-equity-ratio-d-e", "dividend_yield": "dividend-yield", "market_cap": "market-capitalisation-market-cap",
+                "operating_margin": "operating-margin-opm", "ev_ebitda": "enterprise-value-to-ebitda-ev-ebitda", "dividend_payout": "dividend-payout-ratio",
+                "sales_cagr": "cagr-compound-annual-growth-rate", "profit_cagr": "cagr-compound-annual-growth-rate"}
+METRIC_ORDER = ("market_cap", "pe", "pb", "roe", "roce", "debt_to_equity", "dividend_yield", "operating_margin", "ev_ebitda", "dividend_payout", "sales_cagr", "profit_cagr")
+METRIC_NAMES = {"market_cap": "Market capitalisation", "pe": "Price to earnings (P/E)", "pb": "Price to book (P/B)", "roe": "Return on equity (ROE)", "roce": "Return on capital employed (ROCE)",
+                "debt_to_equity": "Debt to equity", "dividend_yield": "Dividend yield", "operating_margin": "Operating margin", "ev_ebitda": "EV / EBITDA",
+                "dividend_payout": "Dividend payout", "sales_cagr": "Sales growth a year (CAGR)", "profit_cagr": "Profit growth a year (CAGR)"}
+OWNERS = (("promoters", "promoters"), ("fii", "foreign institutions (FII/FPI)"), ("dii", "domestic institutions (DII)"), ("public", "the public"), ("government", "the government"))
+OWNER_TERMS = {"promoters": "promoter", "fii": "foreign-institutional-investors-fii-fpi", "dii": "domestic-institutional-investors-dii"}
+
+
+def possessive(name: str) -> str:
+    return name + ("'" if name.endswith("s") else "'s")
+
+
+def short_name(name: str) -> str:
+    """"Tata Consultancy Services Ltd" -> "Tata Consultancy Services": how people search for a company."""
+    return _LTD.sub("", name.strip()) or name.strip()
+
+
+def _num(v: Any) -> Optional[float]:
+    if isinstance(v, bool) or v is None:
+        return None
+    try:
+        f = float(v)
+    except (TypeError, ValueError):
+        return None
+    return f if f == f and abs(f) != float("inf") else None
+
+
+def inr(v: float, dec: int = 0) -> str:
+    """Indian digit grouping: 935981.13 -> "9,35,981"; 2572.5 with dec=2 -> "2,572.50"."""
+    neg, v = v < 0, abs(v)
+    whole, frac = f"{v:.{dec}f}".split(".") if dec else (f"{v:.0f}", "")
+    head, tail = whole[:-3], whole[-3:]
+    groups = []
+    while len(head) > 2:
+        groups.insert(0, head[-2:])
+        head = head[:-2]
+    if head:
+        groups.insert(0, head)
+    out = ",".join(groups + [tail]) if groups else tail
+    return ("-" if neg else "") + out + (f".{frac}" if frac else "")
+
+
+def _day(iso: Any) -> Optional[date]:
+    try:
+        return date.fromisoformat(str(iso)[:10])
+    except (TypeError, ValueError):
+        return None
+
+
+def say_day(d: Optional[date]) -> str:
+    return f"{d.day} {MONTHS[d.month - 1]} {d.year}" if d else ""
+
+
+def _metric_value(key: str, v: float) -> str:
+    if key == "market_cap":
+        return f"₹{inr(v)} crore"
+    if key in ("pe", "pb", "ev_ebitda", "debt_to_equity"):
+        return f"{v:.2f}"
+    return f"{v:.2f}%"
+
+
+def _period(p: Any) -> str:
+    p = str(p or "")
+    return {"TTM": "last twelve months", "Today": "today", "5Y": "over 5 years"}.get(p, p[6:] if p.startswith("As of ") else p)
+
+
+def company_facts(sections: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """The compact facts the company page needs, from the stored snapshot's sections (each the exact JSON the report reads). None when the summary is missing.
+    Only figures that are there are kept; a missing one is left out, never guessed."""
+    s = sections.get("summary")
+    if not isinstance(s, dict):
+        return None
+    meta, prof, quote_ = s.get("meta") or {}, s.get("profile") or {}, s.get("quote") or {}
+    dq = s.get("dataQuality") or {}
+    out: Dict[str, Any] = {"legal": prof.get("name"), "nse": prof.get("nse"), "bse": prof.get("bse"), "isin": meta.get("isin"), "industry": prof.get("industry"),
+                           "basic": prof.get("subIndustry") or prof.get("sector"), "macro": prof.get("macroSector"), "website": prof.get("website"),
+                           "statement": meta.get("statement") or dq.get("statement"), "built": str(meta.get("generatedAt") or "")[:10] or None,
+                           "priceAsOf": dq.get("priceAsOf"), "fundamentalsAsOf": dq.get("fundamentalsAsOf"), "isBank": bool(dq.get("isBank"))}
+    price = _num(quote_.get("price"))
+    if price and price > 0:
+        out["price"], out["priceDay"] = price, str(quote_.get("asOf") or dq.get("priceAsOf") or "")[:10] or None
+    for k in ("high52", "low52"):
+        if _num(quote_.get(k)):
+            out[k] = _num(quote_.get(k))
+    metrics = {}
+    for m in s.get("keyMetrics") or []:
+        if isinstance(m, dict) and m.get("key") in METRIC_NAMES and _num(m.get("value")) is not None:
+            metrics[m["key"]] = {"v": _num(m["value"]), "p": m.get("period")}
+    out["metrics"] = metrics
+    fin = sections.get("financials") or {}
+    q = ((fin.get("quarterly") or {}).get("pl") or {}) if isinstance(fin, dict) else {}
+    per, rows = q.get("periods") or [], q.get("rows") or {}
+    if len(per) >= 5:
+        def pair(key: str) -> Optional[List[Optional[float]]]:
+            vals = rows.get(key) or []
+            return [_num(vals[-1]), _num(vals[-5])] if len(vals) == len(per) else None
+        out["quarter"] = {"now": per[-1], "before": per[-5], "revenue": pair("revenue"), "profit": pair("net_profit")}
+    y = ((fin.get("yearly") or {}).get("pl") or {}) if isinstance(fin, dict) else {}
+    yp, yr = y.get("periods") or [], y.get("rows") or {}
+    if len(yp) >= 6:
+        def span(key: str) -> Optional[List[Optional[float]]]:
+            vals = yr.get(key) or []
+            return [_num(vals[-6]), _num(vals[-1])] if len(vals) == len(yp) else None
+        out["years"] = {"from": yp[-6], "to": yp[-1], "revenue": span("revenue"), "profit": span("net_profit")}
+    own = sections.get("ownership") or {}
+    ser = own.get("series") or {} if isinstance(own, dict) else {}
+    if ser and own.get("asOf"):
+        per_o = own.get("periods") or []
+        back = per_o.index(own["comparedWith"]) - len(per_o) if own.get("comparedWith") in per_o else None
+        mix = {}
+        for k, _ in OWNERS:
+            vals = ser.get(k) or []
+            if vals and _num(vals[-1]) is not None:
+                mix[k] = [_num(vals[-1]), _num(vals[back]) if back is not None and len(vals) == len(per_o) else None]
+        if mix:
+            out["owners"] = {"asOf": own["asOf"], "comparedWith": own.get("comparedWith") if back is not None else None, "mix": mix}
+    peers = sections.get("peers") or {}
+    out["peers"] = [{"symbol": p["symbol"], "name": p.get("name") or p["symbol"]} for p in (peers.get("items") or []) if isinstance(p, dict) and SYMBOL.match(str(p.get("symbol", "")))][:5]
+    ev = sections.get("events") or {}
+    div = ev.get("dividendsByFY") or {} if isinstance(ev, dict) else {}
+    if div.get("endedFY") in (div.get("periods") or []):
+        dps = _num((div.get("dps") or [None] * 99)[div["periods"].index(div["endedFY"])]) if len(div.get("dps") or []) == len(div["periods"]) else None
+        if dps is not None:
+            out["dividend"] = {"fy": div["endedFY"], "dps": dps}
+    return out
+
+
+def _growth(now: Optional[float], before: Optional[float]) -> Optional[float]:
+    return (now - before) / abs(before) * 100 if now is not None and before not in (None, 0) else None
+
+
+def _change(word: str, now: float, before: Optional[float]) -> str:
+    g = _growth(now, before)
+    if g is None or before is None:
+        return f"{word} was ₹{inr(now)} crore"
+    return f"{word} was ₹{inr(now)} crore, {'up' if g >= 0 else 'down'} {abs(g):.1f}% from ₹{inr(before)} crore"
+
+
+def _term_link(tid: Optional[str], text: str) -> str:
+    return f'<a href="/glossary/{_e(tid)}">{_e(text)}</a>' if tid and tid in TERMS else _e(text)
+
+
+def _company_lead(name: str, sym: str, f: Dict[str, Any], group: Optional[Dict[str, str]]) -> Tuple[str, List[str], List[str]]:
+    """The company's own content: the answer-first reading, key figures, latest quarter, five years, owners, questions, peers and sector. Returns the HTML, the plain
+    sentences used for the description, and the addresses it links (so the shared blocks do not repeat them)."""
+    m, short, links = f.get("metrics") or {}, short_name(name), []
+    of = possessive(short)
+    asof = say_day(_day(f.get("priceAsOf")))
+    basis = "consolidated" if f.get("statement") == "consolidated" else "standalone"
+    fy = f.get("fundamentalsAsOf") or ""
+    h: List[str] = []
+
+    # 1. the answer first: what the figures say about its finances, in numbers only
+    parts = []
+    if "debt_to_equity" in m and not f.get("isBank"):
+        parts.append(f"a debt to equity ratio of {m['debt_to_equity']['v']:.2f}")
+    if "roce" in m:
+        parts.append(f"a return on capital employed of {m['roce']['v']:.1f}%")
+    elif "roe" in m:
+        parts.append(f"a return on equity of {m['roe']['v']:.1f}%")
+    if "operating_margin" in m:
+        parts.append(f"an operating margin of {m['operating_margin']['v']:.1f}%")
+    answer = []
+    if parts:
+        answer.append(f"Over the last twelve months {short} reported " + (", ".join(parts[:-1]) + " and " + parts[-1] if len(parts) > 1 else parts[0]) + f" ({basis} figures to {fy}).".replace(" to )", ")"))
+    if "sales_cagr" in m and "profit_cagr" in m:
+        answer.append(f"Over five years its sales grew {m['sales_cagr']['v']:.1f}% a year and its net profit {m['profit_cagr']['v']:.1f}% a year.")
+    if answer:
+        answer.append("Each figure is worked out from its filings; the report shows the working.")
+        h.append(f"<h2>How healthy is {_e(short)} financially?</h2><p>{_e(' '.join(answer))}</p>")
+
+    # 2. key figures, each with its period and the glossary entry that explains it
+    rows = []
+    if f.get("price"):
+        day = say_day(_day(f.get("priceDay"))) or asof
+        rows.append(f"<tr><th scope=\"row\">Share price</th><td>₹{inr(f['price'], 2)}</td><td>{_e(day)}</td></tr>")
+    if f.get("high52") and f.get("low52"):
+        rows.append(f"<tr><th scope=\"row\">52-week range</th><td>₹{inr(f['low52'], 2)} to ₹{inr(f['high52'], 2)}</td><td>last 52 weeks</td></tr>")
+    links_seen: set = set()
+    for k in METRIC_ORDER:
+        if k in m and not (k == "debt_to_equity" and f.get("isBank")):
+            tid = METRIC_TERMS.get(k)
+            if tid in links_seen:
+                tid = None                     # sales and profit growth share the CAGR entry: linked once
+            if tid and tid in TERMS:
+                links.append(f"/glossary/{tid}")
+                links_seen.add(tid)
+            rows.append(f"<tr><th scope=\"row\">{_term_link(tid, METRIC_NAMES[k])}</th><td>{_e(_metric_value(k, m[k]['v']))}</td><td>{_e(_period(m[k]['p']))}</td></tr>")
+    if rows:
+        h.append(f"<h2>{_e(short)} key figures</h2><table><thead><tr><th scope=\"col\">Figure</th><th scope=\"col\">Value</th><th scope=\"col\">Period</th></tr></thead><tbody>{''.join(rows)}</tbody></table>")
+
+    # 3. the latest quarter against the same quarter a year before
+    qd = f.get("quarter") or {}
+    qs = []
+    if (qd.get("revenue") or [None])[0] is not None:
+        qs.append(_change("revenue", qd["revenue"][0], qd["revenue"][1]))
+    if (qd.get("profit") or [None])[0] is not None:
+        qs.append(_change("net profit", qd["profit"][0], qd["profit"][1]))
+    if qs:
+        line = "In the quarter to " + str(qd["now"]) + ", " + " and ".join(qs) + " a year earlier (" + str(qd["before"]) + "). These are " + basis + " figures from its quarterly filings."
+        h.append(f"<h2>{_e(short)} latest quarterly results</h2><p>{_e(line)}</p>")
+
+    # 4. five years in sentences
+    yd = f.get("years") or {}
+    ys = []
+    for word, key in (("Revenue", "revenue"), ("Net profit", "profit")):
+        a, b = (yd.get(key) or [None, None])
+        if a is not None and b is not None:
+            ys.append(f"{word} went from ₹{inr(a)} crore in {yd['from']} to ₹{inr(b)} crore in {yd['to']}.")
+    if ys:
+        h.append(f"<h2>{_e(short)} five-year growth</h2><p>{_e(' '.join(ys))}</p>")
+
+    # 5. who owns it
+    od = f.get("owners") or {}
+    if od.get("mix"):
+        bits = []
+        for k, label in OWNERS:
+            if k in od["mix"] and not (k == "government" and not od["mix"][k][0]):
+                now, before = od["mix"][k]
+                tid = OWNER_TERMS.get(k)
+                if tid and tid in TERMS:
+                    links.append(f"/glossary/{tid}")
+                bits.append(f"{_term_link(tid, label)} {now:.2f}%" + (f" ({'up' if now > before else 'down' if now < before else 'unchanged'} from {before:.2f}%)" if before is not None and od.get("comparedWith") else ""))
+        if "shareholding-pattern" in TERMS:
+            links.append("/glossary/shareholding-pattern")
+        than = f", compared with {_e(od['comparedWith'])}" if od.get("comparedWith") else ""
+        h.append(f"<h2>Who owns {_e(short)}?</h2><p>In the {_term_link('shareholding-pattern', 'shareholding pattern')} for {_e(od['asOf'])}{than}: " + "; ".join(bits) + ".</p>")
+
+    # 6. the questions people ask, each answered with a dated number
+    qa = []
+    if "debt_to_equity" in m and not f.get("isBank"):
+        de = m["debt_to_equity"]["v"]
+        qa.append((f"Is {short} debt free?", f"{of} debt to equity ratio was {de:.2f} over the last twelve months: " + ("its borrowings were nil or close to nil against shareholders' equity." if de < 0.005 else f"its borrowings were {de:.2f} times shareholders' equity.")))
+    if "dividend_yield" in m:
+        dv = f.get("dividend") or {}
+        tail = f" For {dv['fy']} it declared ₹{dv['dps']:.2f} per share in dividends." if dv else ""
+        qa.append((f"What is {of} dividend yield?", f"{of} dividend yield was {m['dividend_yield']['v']:.2f}% over the last twelve months, at the {asof} share price.{tail}"))
+    if "pe" in m:
+        qa.append((f"What is {of} P/E ratio?", f"{of} price to earnings ratio was {m['pe']['v']:.2f} as of {_period(m['pe']['p'])}: the share price was {m['pe']['v']:.2f} times its earnings per share."))
+    if "market_cap" in m:
+        qa.append((f"What is {of} market capitalisation?", f"{of} market capitalisation was ₹{inr(m['market_cap']['v'])} crore, the share price times the number of shares."))
+    if od.get("mix", {}).get("promoters"):
+        qa.append((f"How much of {short} do its promoters own?", f"Promoters held {od['mix']['promoters'][0]:.2f}% of {short} in the shareholding pattern for {od['asOf']}."))
+    if qa:
+        h.append(f"<h2>Questions about {_e(short)}</h2>" + "".join(f"<h3>{_e(qn)}</h3><p>{_e(an)}</p>" for qn, an in qa))
+
+    # 7. peers and the industry group
+    peer_li = [f'<li><a href="/stocks/{_e(p["symbol"])}">{_e(p["name"])} ({_e(p["symbol"])})</a></li>' for p in f.get("peers") or [] if p["symbol"] != sym]
+    links += [f"/stocks/{p['symbol']}" for p in f.get("peers") or []]
+    grp = ""
+    if group and group.get("slug"):
+        links.append(f"/sectors/{group['slug']}")
+        grp = f'<p>{_e(short)} is in the <a href="/sectors/{_e(group["slug"])}">{_e(group.get("name") or group["slug"])} industry group</a> on Sector Pulse, which tracks how its shares are moving together.</p>'
+    if peer_li or grp:
+        h.append(f"<h2>{_e(short)} peers</h2>" + (f"<p>Companies in the same line of business:</p><ul>{''.join(peer_li)}</ul>" if peer_li else "") + grp)
+
+    # 8. where the figures come from
+    built = say_day(_day(f.get("built")))
+    src = (f"Figures are from {of} {basis} filings with the stock exchanges (NSE and BSE) and exchange prices" + (f" to {asof}" if asof else "")
+           + (f", in the FinLit report built on {built}" if built else "") + ". A figure the filings do not give is left out, never estimated.")
+    h.append(f"<h2>Sources</h2><p>{_e(src)}</p><p>{_e(DISCLAIMER)}</p>")
+    return "".join(h), answer, links
+
+
+def render_company(base: str, symbol: str, name: str, sector: Optional[str], facts: Optional[Dict[str, Any]] = None, group: Optional[Dict[str, str]] = None) -> Rendered:
     sym = symbol.upper()
-    title = f"{name} ({sym}) Share Analysis and Financial Health | {BRAND}"
+    f = facts or {}
+    short = short_name(name)
+    m = f.get("metrics") or {}
+    price_day = _day(f.get("priceAsOf")) or _day(f.get("priceDay"))
+    year = f" {price_day.year}" if price_day and m else ""
+    title = f"{short} Share Price, Financials, Results & Analysis{year} | {BRAND}"
+    for alt in (f"{short} Share Price, Financials & Results{year} | {BRAND}", f"{short} Share Price & Financials{year} | {BRAND}", f"{sym} Share Price & Financials{year} | {BRAND}"):
+        if len(title) <= 70:
+            break
+        title = alt
     if len(title) > 70:
-        title = f"{name[:34].rstrip()} ({sym}) Share Analysis | {BRAND}"
-    where = f" in the {sector} sector" if sector else ""
-    desc = f"{name} ({sym}){where}: financial statements, ratios, peers, ownership and a plain-English reading of its financial health. Information only, not investment advice."
-    ld = [_crumbs(base, [("Research", "/research"), (name, f"/stocks/{sym}")]), {"@context": "https://schema.org", "@type": "WebPage", "name": title, "url": f"{base}/stocks/{sym}", "description": desc,
-                                                                               "about": {"@type": "Corporation", "name": name, "tickerSymbol": sym}}]
-    body = _body(f"{name} ({sym}) share analysis", [f"{name} is a listed Indian company{where}. FinLit describes its financial health from its filings and prices: statements, ratios, growth, peers, ownership and filings.", DISCLAIMER], NAV)
+        title = f"{short[:40].rsplit(' ', 1)[0]} Share Price | {BRAND}"
+    ind = f.get("basic") or f.get("industry") or sector
+    where = f" in the {ind} industry" if ind else ""
+    codes = ", ".join(x for x in (f"NSE: {f['nse']}" if f.get("nse") else f"NSE: {sym}", f"BSE: {f['bse']}" if f.get("bse") else "") if x)
+    nums = []
+    if "market_cap" in m:
+        nums.append(f"market cap ₹{inr(m['market_cap']['v'])} crore")
+    if "pe" in m:
+        nums.append(f"P/E {m['pe']['v']:.1f}")
+    if "roce" in m:
+        nums.append(f"ROCE {m['roce']['v']:.1f}%")
+    elif "roe" in m:
+        nums.append(f"ROE {m['roe']['v']:.1f}%")
+    if "debt_to_equity" in m and not f.get("isBank"):
+        nums.append(f"debt to equity {m['debt_to_equity']['v']:.2f}")
+    if nums:
+        nse = f"NSE: {f.get('nse') or sym}"
+        desc = f"{short} ({nse}): " + ", ".join(nums) + (f" ({say_day(price_day)})" if price_day else "") + ". Results, five-year growth, owners and peers, described from filings."
+        while len(desc) > 165 and len(nums) > 1:
+            nums.pop()
+            desc = f"{short} ({nse}): " + ", ".join(nums) + (f" ({say_day(price_day)})" if price_day else "") + ". Results, growth, owners and peers, described from filings."
+    else:
+        desc = f"{name} ({sym}){where}: financial statements, ratios, peers, ownership and a plain-English reading of its financial health. Information only, not investment advice."
+    if len(desc) > 165:
+        desc = desc[:162].rsplit(" ", 1)[0] + "..."
+    corp: Dict[str, Any] = {"@type": "Corporation", "name": short, "legalName": f.get("legal") or name, "tickerSymbol": f"NSE:{f.get('nse') or sym}"}
+    alt_names = [x for x in dict.fromkeys((name, f.get("legal"), sym)) if x and x != short]
+    if alt_names:
+        corp["alternateName"] = alt_names
+    if f.get("isin"):
+        corp["identifier"] = {"@type": "PropertyValue", "propertyID": "ISIN", "value": f["isin"]}
+    site = str(f.get("website") or "").strip()
+    if site and re.match(r"^(https?://)?[a-z0-9.-]+\.[a-z]{2,}(/\S*)?$", site, re.I):
+        site = site if site.lower().startswith("http") else "https://" + site
+        corp["url"] = site
+        corp["sameAs"] = [site]
+    page: Dict[str, Any] = {"@context": "https://schema.org", "@type": "WebPage", "name": title, "url": f"{base}/stocks/{sym}", "description": desc, "about": corp}
+    if f.get("built"):
+        page["dateModified"] = f["built"]
+    ld = [_crumbs(base, [("Research", "/research"), (short, f"/stocks/{sym}")]), page]
+    lead, _, links = _company_lead(name, sym, f, group) if f else ("", [], [])
+    intro = f"{f.get('legal') or name} ({codes}) is a listed Indian company{where}" + (f", part of {f['macro']}" if f.get("macro") and f.get("macro") != ind else "") + "."
+    intro += f" Below are {possessive(short)} share price, key financials, latest results, five-year growth, owners and peers, from its filings and exchange prices." if lead else \
+             " FinLit describes its financial health from its filings and prices: statements, ratios, growth, peers, ownership and filings."
+    body = _body(f"{short} share price, financials and results" if lead else f"{name} ({sym}) share analysis", [intro] if lead else [intro, DISCLAIMER], NAV, f"stocks/{sym}",
+                 lead=lead, lead_links=tuple(links))
     return Rendered(200, _head(base, f"stocks/{sym}", title, desc, True, ld, "article"), body, "index", title)
 
 
