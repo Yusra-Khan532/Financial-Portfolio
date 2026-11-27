@@ -3,5 +3,5 @@ ALTER TABLE users DROP CONSTRAINT IF EXISTS users_plan_check;
 ALTER TABLE plan_requests DROP CONSTRAINT IF EXISTS plan_requests_plan_check;
 UPDATE users SET plan = 'silver' WHERE plan = 'bronze';
 UPDATE plan_requests SET plan = 'silver' WHERE plan = 'bronze';
-ALTER TABLE users ADD CONSTRAINT users_plan_check CHECK (plan IN ('basic', 'silver', 'gold')) NOT VALID;   -- NOT VALID (task #410): a re-run after migration 145 must not fail on 'free' or 'platinum' rows; 145 sets the real check
+ALTER TABLE users ADD CONSTRAINT users_plan_check CHECK (plan IN ('basic', 'silver', 'gold')) NOT VALID;   -- NOT VALID (task #410): a re-run after migration 146 must not fail on 'free' or 'platinum' rows; 146 sets the real check
 ALTER TABLE plan_requests ADD CONSTRAINT plan_requests_plan_check CHECK (plan IN ('silver', 'gold')) NOT VALID;

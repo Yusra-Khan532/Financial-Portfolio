@@ -1,6 +1,6 @@
 """Task #410 (owner, 27 Nov 2026): the plans on sale are the landing page's (Free, Mutual Fund + ETF, Equity Portfolio, the combined plan, Gold, Platinum).
 Each plan opens an access tier for the gates written before (entitlements.TIER_OF); Platinum-only tools check the plan itself; the one-area plans open
-only their area. Migration 145 moved every stored plan to the new names without anyone losing access."""
+only their area. Migration 146 moved every stored plan to the new names without anyone losing access."""
 import pytest
 
 from finlit.auth.entitlements import (AREAS, KEY_RANK, LEGACY_TO_KEY, PLAN_KEYS, TIER_OF, has, in_area, is_platinum, plan_key, sees_all,
@@ -28,7 +28,7 @@ def test_a_stored_value_reads_as_a_plan(stored, key):
 
 
 def test_no_one_loses_a_tier_gate_when_moved_by_the_migration():
-    # migration 145: basic -> free, silver and gold -> platinum. Every gate an old plan passed, the new plan passes.
+    # migration 146: basic -> free, silver and gold -> platinum. Every gate an old plan passed, the new plan passes.
     moved = {"basic": "free", "silver": "platinum", "gold": "platinum"}
     for old, new in moved.items():
         for need in ("basic", "silver", "gold"):
@@ -90,7 +90,7 @@ async def test_the_migration_moves_old_plans_without_loss_and_keeps_the_old_name
         for e, p in (("b@example.com", "basic"), ("s@example.com", "silver"), ("o@example.com", "gold")):
             await conn.execute("INSERT INTO users (email, name, password_hash, plan) VALUES ($1, 'x', 'x', 'free')", e)
             await conn.execute("UPDATE users SET plan = $2, plan_legacy = NULL WHERE email = $1", e, p)
-        sql = open(__file__.replace("tests/test_plans_410.py", "finlit/migrations/145_plans_410.sql")).read()
+        sql = open(__file__.replace("tests/test_plans_410.py", "finlit/migrations/146_plans_410.sql")).read()
         await conn.execute("ALTER TABLE users DROP CONSTRAINT IF EXISTS users_plan_check")
         await conn.execute(sql)
         await conn.execute(sql)                                                                # safe to run twice

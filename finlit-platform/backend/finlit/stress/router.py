@@ -30,7 +30,7 @@ RANGES = {"crude": (-90.0, 300.0), "usdinr": (1 / 1.4 * 100 - 100, 1 / 0.67 * 10
           "rate_bp": (-500.0, 1000.0), "demand": (-60.0, 30.0), "erp_bp": (-300.0, 600.0)}
 
 
-# Task #410: Stress Lab is a Platinum tool (goliveData: Platinum, or the Stress Lab add-on). Accounts that had it before keep it: migration 145 moved
+# Task #410: Stress Lab is a Platinum tool (goliveData: Platinum, or the Stress Lab add-on). Accounts that had it before keep it: migration 146 moved
 # every old Silver and Gold account to Platinum.
 async def silver_ctx(ctx: Ctx = Depends(user_ctx)) -> Ctx:
     if not is_platinum(ctx):
