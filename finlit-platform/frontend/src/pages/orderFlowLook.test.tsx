@@ -5,7 +5,7 @@
 // keeps the pop-up opaque, turns motion off for reduced motion, and keeps one path per stock on the board.
 import { readFileSync } from "node:fs";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { layout } from "../lib/flowboard";
@@ -13,6 +13,7 @@ import { layout } from "../lib/flowboard";
 const auth = { ready: true, user: { id: "u1", email: "m@example.com", role: "investor" } as unknown, features: ["trading_lab"] as string[] };
 vi.mock("../lib/auth", () => ({ useAuth: () => auth }));
 import { OrderFlowPage } from "./OrderFlow";
+import { settle } from "../testing/settle";
 
 const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 const stock = (symbol: string, changePct: number, sector: string, buildup: string | null, score: number) => ({
@@ -34,7 +35,6 @@ const SNAP = {
 beforeEach(() => { vi.stubGlobal("fetch", vi.fn(async (url: string) => json(200, String(url).includes("/api/lab/access") ? { access: true, reason: "granted", expiresAt: null, signals: false } : SNAP))); });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 const wrap = (path = "/lab/flow") => render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><MemoryRouter initialEntries={[path]}><OrderFlowPage /></MemoryRouter></QueryClientProvider>);
-const settle = async () => { await act(async () => { await new Promise((r) => setTimeout(r, 20)); }); };
 const point = (el: Element, pointerType = "mouse") => {   // jsdom's pointer events carry no pointerType, so it is set on the event itself
   const e = new MouseEvent("pointermove", { bubbles: true, clientX: 100, clientY: 100 });
   Object.defineProperty(e, "pointerType", { value: pointerType });
