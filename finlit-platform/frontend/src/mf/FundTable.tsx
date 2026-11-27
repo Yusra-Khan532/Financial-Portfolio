@@ -157,6 +157,9 @@ export function FundTable({ rows, cols, q, onSort, picked, onPick, peers, wish }
           {shown.map((r) => (
             <tr key={r.code} className={r.active ? "" : "mf-stopped"}>
               <th scope="row" className="mf-name">
+                {/* task #426: the cell stays a table cell (it was display:flex, so it was only as tall as its own text and its row's lines did not meet);
+                    the tick, the star and the name sit side by side in this box instead */}
+                <span className="mf-namein">
                 <span className="mf-rowacts">{/* task #375: the compare tick and, under it, the wishlist star */}
                 <label className="mf-pickbox" title={picked.includes(r.code) ? "Remove from comparison" : "Add to comparison"}>
                   <input type="checkbox" checked={picked.includes(r.code)} onChange={() => onPick(r.code, r.name)} aria-label={`Compare ${r.name}`} />
@@ -170,6 +173,7 @@ export function FundTable({ rows, cols, q, onSort, picked, onPick, peers, wish }
                   <Link to={`/funds/${r.code}`} title={r.name}>{r.name}</Link>
                   <small><span className="mf-house">{shortAmc(r.amc)}</span><PlanChip plan={r.plan} option={r.option} category={r.category} />{!r.active && <span className="chip ghost">Stopped publishing</span>}</small>
                   {r.nav != null && <small className="mf-navm">NAV <span className="mono" title={navFull(r.nav)}>{navText(r.nav)}</span></small>}
+                </span>
                 </span>
               </th>
               {defs.map((c) => <td key={c.id} className={cls(c) + (tint(c, r) ? " mf-tinted" : "")} style={tint(c, r)}>{cell(c, r, peers, scale, scores)}</td>)}

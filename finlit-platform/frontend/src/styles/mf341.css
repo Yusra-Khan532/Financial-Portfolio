@@ -199,3 +199,17 @@
    the table card), as between the page header and the cards above it; the boxes used to touch (0px). */
 .mf-list .mf-main { display: flex; flex-direction: column; gap: 16px; }
 .mf-list .mf-main > * { margin-top: 0; margin-bottom: 0; }
+
+/* Task #426 (team, 27 Nov 2026: "the boxes are not aligned properly we can see the mismatch and when we slide left to see other columns then all boxes
+   are going into each other"). Two causes, both in the frozen Scheme column:
+   (1) its cell was display:flex (mf.css), so it stopped being a table cell: it was only as tall as its own text (81px in a 117px row), its line under
+       the row sat higher than the other cells' lines, and the rows below showed through the gap while the table slid sideways. It is a table cell
+       again (full row height, its line meets the others); the tick, the star and the name sit side by side inside it (.mf-namein, FundTable.tsx).
+   (2) a stopped scheme's row was faded with opacity on the frozen cell too, which made it see-through: the figures sliding under it showed. The cell
+       now stays solid and only its contents are faded.
+   The frozen column keeps a solid surface and sits above the sliding cells (z-index 2; its heading 5, styles/frozen.css), light and dark. */
+.mf-list .mf-table tbody th.mf-name { display: table-cell; vertical-align: middle; background-color: var(--s1); background-clip: padding-box; }
+.mf-list .mf-table .mf-namein { display: flex; align-items: flex-start; gap: 10px; min-width: 0; }
+.mf-list .mf-table tbody tr.mf-stopped th.mf-name { opacity: 1; }
+.mf-list .mf-table tbody tr.mf-stopped th.mf-name .mf-namein { opacity: .72; }
+@media (max-width: 640px) { .mf-list .mf-table .mf-namein { gap: 5px; } }   /* the phone's gap, as mf.css had on the cell */
