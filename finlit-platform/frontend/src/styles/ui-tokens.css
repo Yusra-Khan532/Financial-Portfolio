@@ -183,3 +183,14 @@
   --ui-eqp-weak: #e3c46c;
   --ui-pop-shadow: 0 22px 50px -20px rgba(0, 0, 0, .7);
 }
+
+/* Task #438 (All my investments, developer pack of 28 Nov 2026): the gold of a sorted heading, its arrow and the sort chip (styles/sort438.css only). */
+:root, :root[data-theme="light"] {
+  --ui-sort-accent: #a8843a;
+  --ui-sort-ink: #7a5b16;
+}
+:root[data-theme="dark"],
+:root:not([data-theme="light"]) {
+  --ui-sort-accent: #e0bd6e;
+  --ui-sort-ink: #e0bd6e;
+}
