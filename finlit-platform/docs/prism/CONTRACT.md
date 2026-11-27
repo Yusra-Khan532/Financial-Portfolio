@@ -1,7 +1,7 @@
 # FinLit Prism: integration contract
 
 **FinLit Prism** is the Gold plan's advanced financial-health rating. It is the model merged from
-`Yusra-Khan532/financial-portfolio` (engine 3.6.18 plus the additive ST/LT technical assessment; see `premium-model-implementation.md`), renamed for the website.
+`Yusra-Khan532/financial-portfolio` (engine 3.6.21 plus the additive ST/LT technical assessment; see `premium-model-implementation.md`), renamed for the website.
 The name is in one place on each side: `PRISM_NAME` in `backend/finlit/prism.py` and in `frontend/src/lib/prism.ts`.
 
 A prism splits light into its bands: the rating splits a company into its four parts (Growth & Profitability, Valuation, Quality, Risk).
@@ -46,7 +46,7 @@ or `standalone`.
 
 ### Scoring-version freshness
 
-Stored reports must match the current financial model version, 3.6.18. An older
+Stored reports must match the current financial model version, 3.6.21 (a 3.6.18, 3.6.19 or 3.6.20 report stays on screen with its date while it is rebuilt; see SHOWN_WHILE_REBUILDING in finlit/prism.py). An older
 calculation is not returned as the latest report or reused by generation just
 because it was created recently. The page starts a fresh calculation when the
 latest endpoint returns no current-model report. The nightly precompute queue
@@ -65,7 +65,9 @@ provider call is retried, and if it still fails the calculation stops and the st
 consolidated-only report. Version 3.6.18 also switches to standalone when the consolidated statements stop earlier (standalone latest year at
 least 360 days, or latest quarter at least 170 days, newer: the main site's rule), and stops a calculation when the data provider does not answer for
 the company's own statements, quote, prices, P/E history or ownership filings (a "no data" answer is not a failure; a peer that cannot be read is
-left out of the benchmark as before). Reports of an older version are rebuilt.
+left out of the benchmark as before). Version 3.6.20 (task #199) takes the interest cover from FinEdge's reported trailing-12-month interest
+coverage (the company report's figure; else the latest full year's calculation, named on the row) and scores it for every non-financial company,
+low-debt ones included. Version 3.6.21 (owner Pranjal, task #318) rates recently listed companies on what their filings supply: when the latest four quarters give no EPS the latest full year's EPS stands in (the P/E rows name the basis), the margin change falls back to full years, and the largest fall of a company with fewer than 250 sessions is measured since listing (at least 120, counted in confidence as sessions / 250); a company with complete data scores as in 3.6.20. The nightly rebuild takes the NOT RATED reports first. Reports of an older version are rebuilt.
 
 ### Storage
 

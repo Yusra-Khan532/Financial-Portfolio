@@ -1,0 +1,141 @@
+/* Task #328: company report layout fixes, developer file 27 (22 Nov 2026), rules 1 to 8 as the pack sets them. Site tokens only. */
+
+/* 1 · FinLit Prism card: the date and the report button sit under the technical panel, not in a row of their own */
+.pcx-body{align-items:stretch}
+.pcx-sec.tech{display:flex;flex-direction:column}
+.pcx-sec.tech .dk-cta{margin-top:auto;padding:14px 24px 18px;border-top:1px dashed var(--border);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.pcx-sec.tech .pzt-asof{margin-bottom:14px}
+
+/* 2 · Economy and sector: indicator groups sit side by side; the history card is as tall as its chart */
+.mo-gl>.mo-panel:first-child{display:flex;flex-wrap:wrap;gap:0 12px;align-content:flex-start}
+.mo-gl>.mo-panel:first-child>.mo-h,.mo-gl>.mo-panel:first-child>.mo-why{flex:0 0 100%}
+.mo-gl>.mo-panel:first-child>.mo-grp{flex:1 1 210px;max-width:340px;min-width:0}
+.mo-gl>.mo-panel:first-child>.mo-grp ul{grid-template-columns:1fr}
+.mo-gl{display:flex;flex-direction:column}
+.mo-gl>.mo-panel:last-child{flex:1}
+.mo-hist{display:flex;flex-direction:column}
+.mo-hist .mo-foot{margin-top:auto}
+
+/* 3 · Latest quarter: the industry's biggest companies are a tab, not a closed row */
+.aiq-tabs{display:flex;gap:8px;flex-wrap:wrap;padding:12px 26px 0}
+.aiq-tabs button{font:600 13px/1 var(--sans);min-height:36px;padding:0 14px;border-radius:var(--ui-r-pill);border:1px solid var(--border-strong);background:var(--s1);color:var(--text);cursor:pointer;display:inline-flex;align-items:center;gap:8px}
+.aiq-tabs button b{font:600 12px/1 var(--sans);color:var(--muted)}
+.aiq-tabs button[aria-selected=true]{background:var(--text);border-color:var(--text);color:var(--bg)}
+.aiq-tabs button[aria-selected=true] b{color:inherit;opacity:.75}
+.aiq-tabs button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.aiq-pane[hidden]{display:none}
+.aiq-pane.peers{padding:4px 26px 18px}
+
+/* 4 · Key takeaways and risks: two closed rows under the quarter's table */
+.kq2{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start;margin-top:16px}
+.kq2 details{border:1px solid var(--border);border-top:2px solid var(--ac);border-radius:var(--r-ctl);background:var(--s1)}
+.kq2 summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px;min-height:52px;padding:0 16px;font:600 16px/1.3 var(--sans)}
+.kq2 summary::-webkit-details-marker{display:none}
+.kq2 summary .ci{flex:none}
+.kq2 summary .n{font:600 12px/1 var(--sans);color:var(--muted);border:1px solid var(--border);border-radius:var(--ui-r-pill);padding:4px 8px}
+.kq2 summary .lead{font:400 13px/1.3 var(--sans);color:var(--muted);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.kq2 summary .cv{margin-left:auto;flex:none;width:24px;height:24px;border:1px solid var(--border-strong);border-radius:50%;display:grid;place-items:center;font-size:var(--fs-12);transition:transform .15s}
+.kq2 details[open] summary .cv{transform:rotate(180deg)}
+.kq2 details[open] summary .lead{visibility:hidden}
+.kq2 ul{margin:0;padding:4px 16px 14px 34px}
+.kq2 li{font:400 14px/1.5 var(--serif);margin:6px 0}
+.kq2 summary:focus-visible{outline:2px solid var(--gold);outline-offset:2px;border-radius:var(--r-ctl)}
+
+/* 5 · Valuation history: chart at its drawn size, the three figures beside it */
+.vh .cz-host{display:grid;grid-template-columns:minmax(0,720px) minmax(220px,1fr);gap:14px 20px;align-items:start}
+.vh .cz-host>.tools{grid-column:1/-1}
+.vh .cz-host>.lc{grid-column:1;grid-row:2}
+.vh .cz-host>.vh-top{grid-column:2;grid-row:2;display:grid;grid-template-columns:1fr;gap:10px}
+.vh .vh-side{grid-column:2;grid-row:2;display:grid;gap:10px;align-content:start}
+.vh .vh-side .vh-top{display:grid;grid-template-columns:1fr;gap:10px}
+.vh .vh-side .plain{margin:0}
+
+/* 6 · DuPont: the "driven by" box shows the three drivers; the ROE chart is drawn at its own size */
+.dp-drv{list-style:none;margin:14px 0 0;padding:0;display:grid;gap:8px}
+.dp-drv li{display:grid;grid-template-columns:minmax(0,1.2fr) auto auto;gap:4px 14px;align-items:baseline;padding:10px 12px;border:1px solid var(--border);border-radius:var(--r-ctl);background:var(--bg)}
+.dp-drv li.top{border-color:var(--border-strong)}
+.dp-drv .n{font:600 14px/1.3 var(--sans)}
+.dp-drv .n small{display:block;font:400 12px/1.3 var(--sans);color:var(--muted)}
+.dp-drv .v{font:500 13px/1.3 var(--mono,ui-monospace,monospace);white-space:nowrap}
+.dp-drv .e{font:600 12px/1.3 var(--sans);white-space:nowrap}
+.dp-drv .e.up{color:var(--gain)}.dp-drv .e.dn{color:var(--loss)}
+.dp-drv-f{font:400 12px/1.4 var(--sans);color:var(--muted);margin:10px 0 0}
+.dp-roe .dp-roe-g{display:grid;grid-template-columns:minmax(0,760px) minmax(220px,1fr);gap:16px 24px;align-items:start}
+.dp-roe .dp-aside{display:grid;gap:12px;align-content:start;padding-top:8px}
+.dp-roe .dp-aside .dp-legend{display:grid;gap:8px;margin:0}
+.dp-roe .dp-aside .dp-note{margin:0;max-width:none}
+
+/* 7 · All filings: one line a filing, the text opens on demand, six shown first */
+.nf-card .nf-list{display:block}
+.nf-card .nf-m{margin:12px 0 4px}
+.nf-card .nf-l{display:block;margin:0;padding:0}
+.nf-card .nf-r{display:grid;grid-template-columns:86px minmax(0,1fr) auto;align-items:center;gap:0 12px;min-height:44px;border-bottom:1px solid var(--border);margin:0;padding:0}
+.nf-card .nf-d{display:flex;align-items:baseline;gap:5px;font:500 13px/1.2 var(--sans);color:var(--muted);text-transform:none;letter-spacing:0;padding:0;border:0;min-width:0;width:auto;text-align:left}
+.nf-card .nf-d b{font:600 14px/1.2 var(--sans);color:var(--text)}
+.nf-card .nf-d small{display:none}
+.nf-card .nf-b{display:grid;grid-template-columns:190px minmax(0,1fr) auto;align-items:center;gap:0 12px;background:none;border:0;border-radius:0;padding:8px 0;min-width:0;box-shadow:none}
+.nf-card .nf-c{font:700 12px/1.2 var(--sans);letter-spacing:.06em;text-transform:uppercase;color:var(--gc);display:flex;align-items:center;gap:7px;min-width:0}
+.nf-card .nf-c::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--gc);flex:none}
+/* QA of 23 Nov: the group label stays on one line in its column (a short label; an ellipsis if a long one still does not fit; the full label is its title) */
+.nf-card .nf-cl{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nf-card .nf-t{font:400 14px/1.4 var(--sans);color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.nf-card .nf-k{display:none}
+.nf-card .nf-go{position:static;font:600 12px/1 var(--sans);white-space:nowrap}
+.nf-card .nf-exp{align-self:center;width:28px;height:28px;border:1px solid var(--border-strong);border-radius:50%;background:var(--s1);color:var(--text);cursor:pointer;font-size:var(--fs-12);display:grid;place-items:center}
+.nf-card .nf-r.open{align-items:start}
+.nf-card .nf-r.open .nf-d{padding-top:11px}.nf-card .nf-r.open .nf-exp{margin-top:8px;transform:rotate(180deg)}
+.nf-card .nf-r.open .nf-b{align-items:start}
+.nf-card .nf-r.open .nf-t{white-space:normal}
+.nf-card .nf-r.open .nf-k{display:block;grid-column:2;font:400 12px/1.4 var(--sans);color:var(--muted);margin-top:4px}
+.nf-card .nf-r.nf-hid{display:none}
+.nf-card.all .nf-r.nf-hid{display:grid}
+.nf-card .nf-mo.nf-hid{display:none}.nf-card.all .nf-mo.nf-hid{display:block}
+.nf-card.all .nf-list{max-height:560px;overflow:auto;padding-right:6px}
+
+/* 8 · The three filings: scores first, the points behind a drop-down for each filing */
+.fs-card .fs-grid{align-items:start}
+.fs-card .fs-doc{align-self:stretch}
+.fs-kp{border-top:1px solid var(--border);margin-top:10px}
+.fs-kp>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:8px;min-height:44px;font:600 13px/1.2 var(--sans)}
+.fs-kp>summary::-webkit-details-marker{display:none}
+.fs-kp>summary .n{font:600 12px/1 var(--sans);color:var(--muted)}
+.fs-kp>summary .cv{margin-left:auto;width:24px;height:24px;border:1px solid var(--border-strong);border-radius:50%;display:grid;place-items:center;font-size:var(--fs-12)}
+.fs-kp[open]>summary .cv{transform:rotate(180deg)}
+.fs-kp>summary:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.fs-card .fs-foot{max-width:none}
+
+@media (max-width:900px){
+  .vh .cz-host,.dp-roe .dp-roe-g{grid-template-columns:1fr}
+  .vh .vh-side{grid-column:1;grid-row:auto}
+  .vh .vh-side .vh-top{grid-template-columns:repeat(3,1fr)}
+  .kq2{grid-template-columns:1fr}
+  .mo-gl>.mo-panel:first-child>.mo-grp{max-width:none}
+}
+@media (max-width:640px){
+  .vh .vh-side .vh-top{grid-template-columns:1fr}
+  .aiq-tabs{padding:10px 14px 0}.aiq-tabs button{flex:1 1 100%;justify-content:center}
+  .aiq-pane.peers{padding:4px 14px 14px}
+  .nf-card .nf-r{grid-template-columns:58px minmax(0,1fr) auto;gap:0 8px}
+  .nf-card .nf-b{grid-template-columns:1fr auto;gap:2px 8px}
+  .nf-card .nf-c{grid-column:1/-1}
+  .dp-drv li{grid-template-columns:1fr auto}
+  .dp-drv .e{grid-column:1/-1}
+}
+/* 5b · the three figures as rows, so the side column is as tall as the chart */
+.vh .vh-side .vh-top{gap:8px}
+.vh .vh-side .vh-k{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:10px 14px;min-height:0}
+.vh .vh-side .vh-k b{font-size:var(--fs-18);line-height:1.2;white-space:nowrap}
+@media (max-width:900px){.vh .vh-side .vh-k{display:block}}
+.kq2 details,.kq2 summary{min-width:0}
+.kq2 summary>span:nth-child(2){white-space:nowrap}
+@media (max-width:640px){.kq2 summary .lead{display:none}}
+@media (min-width:901px) and (max-width:1180px){
+  .vh .vh-side{display:contents}
+  .vh .vh-side .vh-top{grid-column:2;grid-row:2;align-content:start}
+  .vh .vh-side .plain{grid-column:1/-1;grid-row:3}
+  .vh .vh-side .vh-k{display:block}
+}
+.nf-card .nf-b,.nf-card .nf-t,.nf-card .nf-c{text-align:left}
+/* 6 · task #328: under 1180 px the driven-by box is narrow (two boxes side by side, about 400 px): the direction goes under the name and the values */
+.dp-sum .dp-stat{min-width:0}
+@media (max-width:1180px){.dp-drv li{grid-template-columns:minmax(0,1fr) auto}.dp-drv .e{grid-column:1/-1;white-space:normal}}

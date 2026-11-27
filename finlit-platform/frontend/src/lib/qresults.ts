@@ -6,7 +6,7 @@ import { MINUS, csvText, nf } from "./format";
 
 export type QStatus = "declared" | "awaiting" | "due" | "missing";
 export type QRow = {
-  date: string; symbol: string; name: string; sector: string | null; marketCap: number | null; cap: "Large" | "Mid" | "Small" | null; indices: string[];
+  date: string; symbol: string; name: string; sector: string | null; /** the NSE industry the verdict compares with */ industry?: string | null; marketCap: number | null; cap: "Large" | "Mid" | "Small" | "Micro" | null; indices: string[];
   confirmed: boolean; periodEnd: string; loadedPeriodEnd: string | null; status: QStatus; awaiting: boolean; hasNumbers: boolean; locked: boolean;
   revenue: number | null; revenueYoY: number | null; revenueQoQ: number | null; operatingProfit: number | null; opYoY: number | null; opQoQ: number | null; opYoYWhy: string | null; opQoQWhy: string | null; opm: number | null;
   netProfit: number | null; profitYoY: number | null; profitQoQ: number | null; npm: number | null; npmChange: number | null; eps: number | null;
@@ -34,6 +34,7 @@ export type QResp = {
   total: number; offset: number; limit: number; summary: QSummary; totals: QSummary; rows: QRow[]; days: { date: string; n: number }[];
   facets: { sectors: { name: string; n: number }[]; indices: { code: string; n: number }[] }; gapFlag?: number; updatedAt?: string;
   dates?: QDates | null; dateMeaning?: string;
+  /** Task #330: each verdict's count over the rows the other filters leave (Silver; null below). */ verdictCounts?: Record<string, number> | null;
   /** Null when no growth filter is on. Counts are over every company with figures (before paging). */
   growth?: GrowthSummary | null; distribution?: QDistribution;
   /** Null when no price-position filter is on. */
@@ -57,7 +58,7 @@ export type QDates = {
 };
 export type QParams = {
   quarter?: string; q?: string; sector?: string; industry?: string; cap?: string; index?: string; scope?: "all" | "watchlist" | "portfolio"; flagged?: boolean; status?: string;
-  sort?: string; dir?: "asc" | "desc"; offset?: number; limit?: number;
+  sort?: string; dir?: "asc" | "desc"; offset?: number; limit?: number; /** Task #330: one verdict (the chips above the companies table) */ verdict?: string;
   date?: string; from?: string; to?: string;   // the announcement date (one day) or a from-to range, India dates as YYYY-MM-DD
 } & Partial<Record<`${CellKey}Op` | `${CellKey}Value` | "join" | PriceQueryKey, string>>;
 
@@ -246,6 +247,21 @@ export const priceWhy = (r: QRow, k: PriceKey): string => {
 export const pctOf = (n: number, total: number) => (total > 0 ? (n / total) * 100 : 0);
 
 export const PAGE = 50;
+/** Rows per page of the Companies table (the server serves at most 100 a page). */
+export const PAGE_SIZES = [50, 100] as const;
+
+/** What the Price position filter can find, from the server's count over every company in the table (`priceStrip`).
+ *  It used to sit above the results table; it belongs with the filter it describes. A high that is on file for no company says so in words
+ *  (never "0 of 0"), with what that means for the column and the filter. */
+export function priceHeldLines(s: NonNullable<QResp["priceStrip"]>): string[] {
+  const all = s.companies, n = (v: number) => nf(v, 0);
+  const out: string[] = [];
+  if (s.have52 > 0) out.push(`${n(s.near52)} of the ${n(s.have52)} companies with a 52-week high are within 5% of it${all > s.have52 ? `; ${n(all - s.have52)} have no 52-week high on file` : ""}.`);
+  else out.push(`No 52-week high is on file for any of these ${n(all)} companies, so the Below 52-week high column shows a dash and a 52-week-high condition matches none.`);
+  if (s.haveAth > 0) out.push(`${n(s.nearAth)} of the ${n(s.haveAth)} companies with an all-time high are within 5% of it${all > s.haveAth ? `; ${n(all - s.haveAth)} have no all-time high on file` : ""}.`);
+  else out.push(`No all-time high is on file for any of these ${n(all)} companies, so the Below all-time high column shows a dash and an all-time-high condition matches none.`);
+  return out;
+}
 export const GAP_FLAG = 15;
 export const GAP_LABEL = "Profit and sales moved apart";
 
@@ -255,8 +271,8 @@ export const queryString = (p: QParams) => {
   return u.toString();
 };
 
-export const useQuarterResults = (p: QParams) => useQuery({
-  queryKey: ["quarter-results", queryString(p)], staleTime: 60_000, retry: (n, e) => !(e instanceof ApiError && e.status < 500) && n < 1, placeholderData: keepPreviousData,
+export const useQuarterResults = (p: QParams, enabled = true) => useQuery({
+  queryKey: ["quarter-results", queryString(p)], staleTime: 60_000, enabled, retry: (n, e) => !(e instanceof ApiError && e.status < 500) && n < 1, placeholderData: keepPreviousData,
   queryFn: () => apiGet<QResp>(`/api/results/quarter?${queryString({ limit: PAGE, ...p })}`),
 });
 

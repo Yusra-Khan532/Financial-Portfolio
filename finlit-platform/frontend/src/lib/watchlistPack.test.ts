@@ -6,28 +6,29 @@ import { concentrationTile, dayName, dayTile, disagree, groups, listCards, peerC
 const L = (rank: number, fr: number, rel52: number): ListLead => ({ available: true, label: "leader", rank, ranked: 20, group: "Auto Parts: OEM", sector: "Nifty Auto", sectorKind: "index", rel52,
   fundamentalRank: fr, fundamentalOf: 20, fundamentalNote: "below_peers" });
 const PACK: Item[] = [
-  { symbol: "WHEELS", name: "Wheels India Ltd", sector: "Auto Components & Equipments", marketCap: 6235, change: -3.49, score: 73, word: "Healthy", lead: L(2, 16, 1.524679) },
-  { symbol: "SSWL", name: "Steel Strips Wheels Ltd", sector: "Auto Components & Equipments", marketCap: 8475, change: 1.48, score: 70, word: "Healthy", lead: L(3, 18, 1.424434) },
-  { symbol: "LOTUSDEV", name: "Sri Lotus Developers & Realty Ltd", sector: "Realty", marketCap: 11412, change: -0.09, score: 69, word: "Healthy", lead: { available: false, reason: "history", text: "Under a year of prices" } },
+  { symbol: "WHEELS", name: "Wheels India Ltd", industry: "Auto Components", marketCap: 6235, change: -3.49, score: 73, word: "Healthy", lead: L(2, 16, 1.524679) },
+  { symbol: "SSWL", name: "Steel Strips Wheels Ltd", industry: "Auto Components", marketCap: 8475, change: 1.48, score: 70, word: "Healthy", lead: L(3, 18, 1.424434) },
+  { symbol: "LOTUSDEV", name: "Sri Lotus Developers & Realty Ltd", industry: "Realty", marketCap: 11412, change: -0.09, score: 69, word: "Healthy", lead: { available: false, reason: "history", text: "Under a year of prices" } },
 ];
 
 describe("the five tiles", () => {
   it("say what the pack's tiles say", () => {
-    expect(stocksTile(PACK)).toEqual({ value: "3", sub: "2 small · 1 mid company" });
+    expect(stocksTile(PACK)).toEqual({ value: "3", sub: "2 micro · 1 small company" });   // task #262: below ₹10,000 Cr is Micro, ₹11,412 Cr Small
     expect(dayTile(PACK)).toEqual({ value: "1 up · 2 down", sub: "WHEELS −3.5%, LOTUSDEV −0.1%, SSWL +1.5%" });
     expect(dayName("2026-11-06", false)).toBe("On Friday");
     expect(dayName("2026-11-06", true)).toBe("Today");
     expect(scoreTile(PACK)).toEqual({ value: "71", sub: "All three Healthy" });
     expect(peersTile(PACK)).toEqual({ value: "2 lead", sub: "1 not compared (under a year of prices)" });
-    expect(concentrationTile(PACK)).toMatchObject({ value: "67%", sub: "in one industry: auto components & equipments" });
+    expect(concentrationTile(PACK)).toMatchObject({ value: "67%", sub: "in one industry: Auto Components" });
   });
   it("handle mixed words, missing scores and an empty list without inventing figures", () => {
     const mixed = [{ ...PACK[0], word: "Mixed" }, PACK[1], { ...PACK[2], score: null, word: null }];
     expect(scoreTile(mixed)).toEqual({ value: "72", sub: "1 Mixed · 1 Healthy · 1 not scored yet" });
     expect(scoreTile([{ ...PACK[0], score: null }])).toEqual({ value: "—", sub: "Not scored yet" });
     expect(scoreTile([PACK[0], PACK[1]]).sub).toBe("Both Healthy");
-    expect(stocksTile([PACK[0]]).sub).toBe("1 small company");
-    expect(stocksTile([PACK[0], PACK[1]]).sub).toBe("2 small companies");
+    expect(stocksTile([PACK[0]]).sub).toBe("1 micro company");
+    expect(stocksTile([PACK[0], PACK[1]]).sub).toBe("2 micro companies");
+    expect(stocksTile([{ ...PACK[0], marketCap: 90000 }, { ...PACK[1], marketCap: 30000 }, PACK[2], { ...PACK[0], symbol: "X", marketCap: null }]).sub).toBe("1 large · 1 mid · 1 small company");
     expect(dayTile([]).sub).toBe("No price change yet");
     expect(peersTile([{ ...PACK[0], lead: null }]).sub).toBe("1 not compared (not checked yet)");
     expect(concentrationTile([]).value).toBe("—");
@@ -39,8 +40,8 @@ describe("the insight cards", () => {
     const cards = listCards(PACK);
     expect(cards.map((c) => [c.kind, c.title])).toEqual([["watch", "Price leads, the business lags"], ["warning", "Two of three stocks in one industry"], ["insight", "LOTUSDEV has under a year of prices"]]);
     expect(cards[0].text).toBe("WHEELS and SSWL are 2nd and 3rd of 20 Auto Parts: OEM companies on price, but 16th and 18th on the business score. Worth reading their reports to see why.");
-    expect(cards[1].text).toBe("A downturn in auto components & equipments would hit most of this list at once.");
-    expect(cards[2].text).toBe("With less than a year of share prices, it has no peer tag yet. It gets one once it has a full year of prices.");
+    expect(cards[1].text).toBe("A downturn in the Auto Components industry would hit most of this list at once.");
+    expect(cards[2].text).toBe("With less than a year of share prices, it has no peer label yet. It gets one once it has a full year of prices.");
   });
   it("name a business ahead of its price, and stocks in different groups one by one", () => {
     const b: Item = { ...PACK[0], lead: { ...(PACK[0].lead as Extract<ListLead, { available: true }>), label: "laggard", rank: 17, fundamentalRank: 3, fundamentalNote: "stronger_than_price" } };
@@ -66,7 +67,16 @@ describe("the table", () => {
     expect(peerCell(PACK[0].lead)).toEqual({ chip: "Leader", tone: "good", line: "2 of 20 Auto Parts: OEM" });
     expect(peerCell(PACK[2].lead)).toEqual({ chip: "Not compared", tone: "none", line: "Under a year of prices" });
     expect(groups("peers", PACK).map(([k, v]) => [k, v.length])).toEqual([["Leaders", 2], ["Not compared", 1]]);
-    expect(groups("size", PACK).map(([k]) => k)).toEqual(["Mid", "Small"]);
-    expect(groups("industry", PACK).map(([k]) => k)).toEqual(["Auto Components & Equipments", "Realty"]);
+    expect(groups("size", PACK).map(([k]) => k)).toEqual(["Small", "Micro"]);
+    expect(groups("size", [...PACK, { ...PACK[0], symbol: "BIG", marketCap: 80000 }, { ...PACK[0], symbol: "NA", marketCap: null }]).map(([k]) => k)).toEqual(["Large", "Small", "Micro", "Size not known"]);
+    expect(groups("industry", PACK).map(([k]) => k)).toEqual(["Auto Components", "Realty"]);   // NSE industries (task #192)
+  });
+});
+
+describe("task #192: the watchlist groups by NSE's industry", () => {
+  it("a stock NSE's lists do not place is grouped as Not classified, and names keep NSE's spelling", () => {
+    const loose = { ...PACK[2], symbol: "XYZ", industry: null };
+    expect(groups("industry", [...PACK, loose]).map(([k]) => k)).toContain("Not classified");
+    expect(concentrationTile(PACK).sub).toBe("in one industry: Auto Components");   // before: the mixed column, lower-cased
   });
 });

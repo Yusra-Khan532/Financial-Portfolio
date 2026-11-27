@@ -1,0 +1,42 @@
+/* Section 18 News and filings (task #222, 19 Nov pack S1; reference/S1-news-and-filings.css, on the site's type scale: no size under 12 px). */
+.nf-cap { margin: 4px 0 10px; }
+.nf-hl { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
+.nf-h { --gc: var(--k1); display: flex; flex-direction: column; gap: 8px; min-width: 0; padding: 14px 16px; border: 1px solid color-mix(in srgb, var(--gc) 30%, var(--border)); border-top: 3px solid var(--gc); border-radius: var(--r-ctl); background: linear-gradient(170deg, color-mix(in srgb, var(--gc) 8%, var(--s1)), var(--s1) 70%); color: var(--text); text-decoration: none; transition: border-color .15s, transform .15s; }
+a.nf-h:hover { border-color: var(--gc); transform: translateY(-1px); }
+.nf-hk { font: 700 var(--fs-12) var(--sans); letter-spacing: .1em; text-transform: uppercase; color: color-mix(in srgb, var(--gc) 75%, var(--text)); }
+.nf-h > b { font: 600 var(--fs-14)/1.4 var(--sans); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.nf-h .snt { align-self: flex-start; }   /* task #365: the latest filing's sentiment, its own width under the subject */
+.nf-hd { margin-top: auto; font: 600 var(--fs-12) var(--mono, ui-monospace, monospace); color: var(--muted); }
+.nf-hd i { font-style: normal; color: var(--gc); }
+.nf-s { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: var(--fs-13); }
+.nf-rtb { border: 0; background: none; padding: 0; font: 600 var(--fs-13) var(--sans); color: var(--k1); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.nf-f { margin: 0 0 6px; }
+.nf-f .chip-b { display: inline-flex; align-items: center; gap: 7px; }
+.nf-f .chip-b i { width: 8px; height: 8px; border-radius: 50%; background: var(--gc); }
+.nf-f .chip-b span { font: 600 var(--fs-12) var(--mono, ui-monospace, monospace); color: var(--muted); }
+.nf-m { margin: 18px 0 8px; font: 700 var(--fs-12) var(--sans); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; gap: 10px; }
+.nf-m::after { content: ""; flex: 1; border-top: 1px solid var(--border); }
+.nf-l { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.nf-r { display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 14px; align-items: start; }
+.nf-d { display: grid; justify-items: end; font: 600 var(--fs-12) var(--sans); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); padding-top: 8px; }
+.nf-d b { font: 500 var(--fs-20)/1 var(--serif); letter-spacing: 0; color: var(--text); }
+.nf-d small { font: 500 var(--fs-12) var(--mono, ui-monospace, monospace); letter-spacing: 0; text-transform: none; margin-top: 3px; }
+.nf-b { --gc: var(--k1); position: relative; display: grid; gap: 3px; min-width: 0; padding: 10px 64px 10px 14px; border: 1px solid var(--border); border-left: 3px solid var(--gc); border-radius: var(--r-ctl); background: var(--s2); color: inherit; text-decoration: none; transition: border-color .15s; }
+a.nf-b:hover { border-color: color-mix(in srgb, var(--gc) 60%, var(--border)); border-left-color: var(--gc); }
+.nf-c { font: 700 var(--fs-12) var(--sans); letter-spacing: .08em; text-transform: uppercase; color: color-mix(in srgb, var(--gc) 75%, var(--text)); }
+.nf-t { font-size: var(--fs-14); line-height: 1.45; color: var(--text); overflow-wrap: anywhere; }
+.nf-k { font-size: var(--fs-12); color: var(--muted); }
+.nf-go { position: absolute; top: 10px; right: 12px; font: 600 var(--fs-12) var(--sans); color: var(--k1); }
+.nf-card .nf-r.nf-rt .nf-b { border-style: dashed; border-left-style: solid; background: var(--s1); }
+.nf-all { display: inline-flex; margin-top: 14px; padding: 7px 16px; border: 1px solid var(--border-strong); border-radius: var(--ui-r-pill); background: var(--s1); font: 600 var(--fs-13) var(--sans); color: var(--text); cursor: pointer; }
+.nf-all:hover { border-color: var(--k1); }
+.nf-foot { font-size: var(--fs-12); margin: 16px 0 0; }
+@media (max-width: 1100px) { .nf-hl { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) {
+  .nf-hl { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: 82%; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 6px; margin-inline: -2px; }
+  .nf-h { scroll-snap-align: start; }
+  .nf-r { grid-template-columns: 40px minmax(0, 1fr); gap: 10px; }
+  .nf-d b { font-size: var(--fs-18); }
+  .nf-b { padding: 10px 12px 26px; }
+  .nf-go { top: auto; bottom: 8px; }
+}

@@ -16,62 +16,100 @@ const SRC = join(process.cwd(), "src") + "/";
 
 /** Files whose charts carry the shared arrow: each must use ChartZoom (or MiniBars' zoomLabel). */
 const ZOOM = [
+  "pages/MarketsToday.tsx",   // the Nifty 50 line (docs/MOBILE-APP.md)
+  "pages/OrderFlow.tsx",      // Trading Lab > Order Flow: the market depth curve and the flow board
+  "components/lab/OptionPulse.tsx",   // Trading Lab > Order Flow > Option Pulse: the OI ladder and the max pain curve
+  "components/lab/GlobalCues.tsx",    // Trading Lab > Order Flow > Global cues: a small line per cue
+  "components/lab/StockZones.tsx",    // Trading Lab > Order Flow > Stock zones: the candles with their zones and levels
+  "components/lab/TradingJournal.tsx", // Trading Lab > Order Flow > Trading journal: the cumulative P&L curve and the daily P&L calendar
   // company page
   "charts/MiniBars.tsx", "charts/PriceChart.tsx", "charts/IntradayChart.tsx", "charts/FinChart.tsx", "charts/LineChart.tsx", "charts/RoeLines.tsx", "charts/Waterfall.tsx", "charts/Radar.tsx", "charts/OutlookChart.tsx",
   "stock/Sections.tsx", "stock/Sections2.tsx", "stock/Sections3.tsx", "stock/ChartLab.tsx", "stock/SegmentMix.tsx", "stock/ProfitReality.tsx", "stock/RevenueCash.tsx",
   "stock/ScoreMoves.tsx", "stock/PrismHistory.tsx", "stock/MacroOutlook.tsx", "stock/own/OwnCharts.tsx", "stock/own/OwnersToday.tsx", "components/prism/pzr/History.tsx",
   // markets, flows, macro, sectors
-  "pages/Markets.tsx", "components/FlowsCharts.tsx", "pages/Macro.tsx",
+  "pages/marketsIndex.tsx", "components/FlowsCharts.tsx", "pages/Macro.tsx",
   // funds, MF, ETFs
-  "mf/FundChart.tsx", "mf/H2HChart.tsx", "mf/Radar.tsx", "mf/ScoreHistory.tsx", "mf/ScoreCompare.tsx", "mf/screen/Graphics.tsx", "pages/FundInsights.tsx", "pages/Funds.tsx", "pages/MfPortfolio.tsx", "etf/EtfChart.tsx", "etf/Detail.tsx", "etf/Compare.tsx",
+  "mf/FundChart.tsx", "mf/H2HChart.tsx", "mf/Radar.tsx", "mf/ScoreHistory.tsx", "mf/ScoreCompare.tsx", "mf/screen/Graphics.tsx", "pages/FundInsights.tsx", "pages/Funds.tsx", "etf/EtfChart.tsx", "etf/Detail.tsx", "etf/Compare.tsx",
   // portfolio, dashboard, calculators, tools
-  "pages/Portfolio.tsx", "holdings/HoldingsSection.tsx", "components/dashboard/MarketToday.tsx", "pages/SipCalculator.tsx", "pages/EpsCalculator.tsx", "pages/Dcf.tsx",
-  "pages/Fundamentals.tsx", "pages/OptionChain.tsx", "pages/Ipo.tsx", "components/AdvScatter.tsx", "components/QrGrowth.tsx", "components/TableZoom.tsx",
+  "pages/Portfolio.tsx", "holdings/HoldingsSection.tsx", "pages/SipCalculator.tsx", "pages/EpsCalculator.tsx", "pages/Dcf.tsx",
+  "pages/OptionChain.tsx", "pages/Ipo.tsx", "pages/QuarterResults.tsx", "components/ipo/GmpRecord.tsx", "components/ipo/ReportCharts.tsx", "components/AdvScatter.tsx", "components/TableZoom.tsx",
 ];
 
 /** Charts that already had their own enlarge arrow before the shared one: the file must still carry it. */
 const OWN: { file: string; needle: RegExp; why: string }[] = [
   { file: "pages/GraphStudio.tsx", needle: /Enlarge chart \$\{i \+ 1\}|ZoomGlyph/, why: "chart builder cells: .gx-zoom enlarges a cell over the page (now drawn with the shared glyph)" },
-  { file: "pages/QuarterResults.tsx", needle: /setZoom\(/, why: "Latest results panel: its own enlarge arrow (task #9) opens the whole panel over the page" },
   { file: "stock/Sections4.tsx", needle: /Expand \$\{c\.title\}/, why: "Trends cards: .tr-x grows a card to the full row" },
 ];
 
 /** Drawings with nothing to enlarge: sparklines, gauges and rings that show one figure, decorative art, icons, tiny inline bars. */
 const EXEMPT: Record<string, string> = {
+  "components/lab/FlowTips.tsx": "the small day's path inside an Order Flow hover card (founder, 26 Nov 2026); the card follows the pointer, so it cannot hold an arrow, and the full chart is on the page",
+  "components/AskChatMenu.tsx": "only the pin mark on a pinned FinLit AI chat (owner, 25 Nov 2026); no data",
+  "components/mobile/MobileApp.tsx": "icons only: the Menu sheet's close mark and the Tools button's plus (docs/MOBILE-APP.md)",
+  "portfolio/kit/AddBox.tsx": "the add box's magnifier icon (task #276); no data",
+  "pages/IpoHistory.tsx": "only the toolbar's icons on All IPOs (task #308): magnifier, chevrons, More filters, ×, tick; no data",
+  "superinvestors/Follow.tsx": "the bell icon of the Follow button (task #289); no data",
+  "mf/FundTable.tsx": "the wishlist star beside each scheme (task #375); the table itself enlarges with its card's own arrow; no chart",
+  "components/dashboard/MarketToday.tsx": "the Nifty 50 and Sensex chart of Market today enlarges with the card's own expand button, the dashboard's expanded view (task #316, dashboard file 22: it replaces Enlarge chart)",
+  "components/dashboard/dx.tsx": "only the icons of the dashboard's dropdowns, expand button and card menu (task #316); no chart",
+  "components/dashboard/MarketRead.tsx": "only the chevron of the Show the six readings fold (task #316); no chart",
+  "pages/Markets.tsx": "the Market events page frame: the expand icon and tiles; its charts are in pages/marketsIndex.tsx (task #322)",
+  "components/MkDd.tsx": "the Market events dropdown's chevron icon (task #322); no data",
+  "components/dashboard/GlobalMarkets.tsx": "the world view and the 1-month lines of the Global markets card (task #294): every figure is in the table beside them",
+  "superinvestors/InvestorBody.tsx": "the 8-quarter stake sparkline inside a holdings row (task #289); its figures are in the line's label",
+  "portfolio/kit/FilterRow.tsx": "the Find box's magnifier icon (task #276); no data",
+  "portfolio/kit/KitSection.tsx": "the Hide button's eye icon (task #276); no data",
+  "portfolio/kit/ViewCards.tsx": "the view cards' check and arrow icons (task #276); no data",
+  "stock/IndustryCard.tsx": "section 05's Against its industry card (task #222): small bullet bars and table bars read with their printed figures, as the owner's pack draws them; no enlarge arrow in the pack",
+  "landing/GoLiveMarkup.tsx": "the landing page from the go-live pack (task #407): pictures of the Prism and Mutual Fund Score cards (rings and part bars, each with its printed figure) and small icons; a sample, not a chart to study",
+  "components/MfScoreShowcase.tsx": "the landing page's Mutual Fund Score card (task #239): small score rings and part bars, each read with its printed figure, as the Prism card above it; a sample, not a chart to study",
+  "components/AnswerText.tsx": "a small sketch of a series inside a FinLit AI answer (task #201); every figure is also in the answer's own text, so enlarging adds nothing",
   "components/ExploreTools.tsx": "decorative corner art on the six platform group cards; no data",
   "components/screener/presets/ScreensStrip.tsx": "the Ready-made screens strip's crown and group icons (task #64, N-38); no data",
   "components/SideRail.tsx": "the folded side menu's group icons (the final pages pack); no data",
   "components/Hideable.tsx": "only the eye icon of the Hide button; no data",
+  "components/results/pack/IndustriesView.tsx": "only the round chevron at the start of each Industries row and in the hint above the table (task #224, A2); no data",
+  "components/results/pack/QuarterTop.tsx": "only the chevron of the quarter dropdown (task #194); no data",
+  "components/dashboard/FundsGlance.tsx": "the ring of Your ETFs at a glance (task #223, dashboard pack of 18 Nov, D2): a donut of what the ETFs track, every count written in the legend beside it; the pack draws it without an enlarge arrow",
   "components/dashboard/DashCards.tsx": "only the round icon and the chevron of the dashboard's insight cards (task #135); no data",
+  "portfolio/pack/EqTop.tsx": "only the check and arrow icons on the Equity view tabs and the Next view card (task #274); no data",
   "components/sectors/pack/Common.tsx": "the (i), card and chip icons and the small 6-month line inside a table row (the final pages pack draws them without an enlarge arrow)",
   "components/sectors/pack/PulseSimple.tsx": "Sector Pulse as the final pages pack draws it (docs/design/finlit-final-pages/05): its mood chart and industry map have Hide, not an enlarge arrow, and each has the same figures as a table or list beside it",
+  "components/sectors/pack/PulseMap.tsx": "Sector Pulse map and mood chart, moved here by task #333 (file 30): the map has filters, playback and a list of every group beside it; the mood chart is a row of columns, each opening its counts in a line under it",
   "components/rotation/pack/RotationSimple.tsx": "Sector Rotation as the final pages pack draws it (08): the map has box toggles, rings and paths and scrolls sideways on a phone; its bars and rank lines sit in rows; no enlarge arrow in the pack",
   "components/rotation/pack/RotationTable.tsx": "the Full table view as the final pages pack draws it (09): rank lines inside table rows and Six months of ranks, which scrolls sideways on a phone; no enlarge arrow in the pack",
   "components/sectors/pack/IndustryPack.tsx": "an industry page as the final pages pack draws it (07): A year of <industry> scrolls sideways on a phone and has Hide, its numbers are in the story and a dropdown table, and the rank line is small; no enlarge arrow in the pack",
   "stock/pack/WhereStands.tsx": "Where the company stands as the final pages pack draws it (17): the breadth sparkline, the 6-month bars, the 12-month price line and the group-leader lines sit inside their tab with every figure written beside them; the pack has no enlarge arrow on them",
-  "portfolio/pack/EquityPack.tsx": "the Equity portfolio as the final pages pack draws it (12-14): the score rings, the small group-leader lines and the bars sit inside cards with their figures written beside them; no enlarge arrow in the pack",
+  "portfolio/ViewKit.tsx": "task #235: the view tabs' and the sticky switcher's line icons only; no chart",
+  "discovery/CompanyTable.tsx": "task #251: only the ▸ chevron that opens a company's details row; no chart",
+  "discovery/Toolbar.tsx": "task #303: only the dropdown icons of the Discover toolbar (search, chevron, check, close); no chart",
+  "discovery/Sources.tsx": "task #303: only the chevron that opens a bucket row's details; no chart",
+  "portfolio/HoldingCells.tsx": "task #249: only the chevron of the buys drop-down next to a holding's name; no chart",
+  "portfolio/pack/DivPack.tsx": "task #235 (pack B3): the spread score's small ring sits inside its card with the score written in it and the two readings beside it; no enlarge arrow in the pack",
+  "portfolio/pack/Div385.tsx": "task #385 (developer file 33): the pairs chart of Share by share fits its card at every width and reads each dot in words below it, as the pack draws it; no enlarge arrow in the pack",
+  "portfolio/pack/EquityPack.tsx":"the Equity portfolio as the final pages pack draws it (12-14): the score rings, the small group-leader lines and the bars sit inside cards with their figures written beside them; no enlarge arrow in the pack",
   "components/sectors/pack/PulseTable.tsx": "the Full table view as the final pages pack draws it (06): 6-month lines inside table rows and the Friday squares, which scroll sideways on a phone; no enlarge arrow in the pack",
   "components/diversification/DiversificationCard.tsx": "small icons on the list row; its charts are bars drawn in sections.tsx",
   "components/ChartSays.tsx": "The collapsible reading under a chart: it has a small caret icon, not a chart.",
-  "charts/Dial.tsx": "score dial: one figure, drawn as a ring",
   "charts/Small.tsx": "sparklines, the RSI gauge and a small donut (the donut is wrapped where it is a chart: Fundamentals)",
   "charts/Atlas.tsx": "chart primitives; the arrow is on the card that holds them (Chart lab cards, Fundamentals, fund portfolio mix)",
   "components/GraphCharts.tsx": "chart builder primitives; the builder's cells have their own arrow (GraphStudio)",
   "components/DrawLayer.tsx": "drawing tool layer, not a chart",
   "components/Art.tsx": "decorative art", "components/BlogArt.tsx": "decorative art", "components/PageArt.tsx": "decorative art", "components/PageHeaderArt.tsx": "decorative art",
   "components/LogoLoader.tsx": "logo animation", "components/Assistant.tsx": "icon in the chat header", "pages/Feedback.tsx": "a decorative line in the side panel, no data", "components/TierEmblem.tsx": "plan emblem", "lib/icons.tsx": "icons",
-  "components/AppShell.tsx": "icons", "components/Layout.tsx": "icons", "components/PageFaqs.tsx": "icon", "components/QueryRules.tsx": "icons", "components/SearchFilters.tsx": "icons",
-  "components/SplitDivider.tsx": "panel divider handle", "components/screener/FilterGroup.tsx": "icons", "components/screener/PageParts.tsx": "small completeness ring in a summary strip", "components/screener/RatioDrawer.tsx": "small spread chart of one ratio inside the Custom ratio drawer",
+  "components/AppShell.tsx": "icons", "components/Layout.tsx": "icons", "components/SheetTools.tsx": "the theme icons (task #310 part E)", "components/PageFaqs.tsx": "icon", "components/QueryRules.tsx": "icons", "components/BasketsView.tsx": "the drop-down's chevron (developer file 40)", "components/SearchFilters.tsx": "icons",
+  "components/SplitDivider.tsx": "panel divider handle", "components/screener/FilterGroup.tsx": "icons", "components/AiFeedback.tsx": "icons (copy, thumbs)", "components/screener/RuleTopics.tsx": "icons (chevrons)", "components/screener/PageParts.tsx": "small completeness ring in a summary strip", "components/screener/RatioDrawer.tsx": "small spread chart of one ratio inside the Custom ratio drawer",
   "components/search/SearchOverlay.tsx": "icons", "components/search/parts.tsx": "sparklines and icons in search rows", "components/search/prismParts.tsx": "score ring in a search row",
   "components/prism/pzr/Hero.tsx": "score ring and scale: one figure", "components/prism/pzr/Landing.tsx": "decorative mark", "components/prism/shared/PartTile.tsx": "score tile ring",
   "components/prism/shared/PrismGlyph.tsx": "glyph", "components/rotation/Parts.tsx": "corner glyphs and a sparkline in a table row",
   "mf/ScoreCard.tsx": "score ring: one figure", "pages/Blog.tsx": "icons", "pages/Compare.tsx": "score ring; its radar charts carry the arrow (charts/Radar.tsx)", "pages/FundScoreScreener.tsx": "score ring",
   "pages/Forum.tsx": "icons", "components/forum/ForumParts.tsx": "icons (vote arrow, comment bubble, pencil)", "pages/Home.tsx": "FinLit IQ dial: one figure", "pages/Plans.tsx": "icons", "stock/Hero.tsx": "price sparkline in the header", "stock/PlFlagsLayer.tsx": "icons and small revenue-against-profit gap bars",
-  "stock/PrismCardView.tsx": "score rings, scale bar and info icon", "components/prism/pzr/Technical.tsx": "technical gauges: one figure each",
+  "stock/PrismCardView.tsx": "score rings, scale bar and info icon", "components/ScoreRing.tsx": "one score ring on a card; the figures are written beside it",
+  "components/Callout.tsx": "a small count bar inside a callout card; its counts are written under it", "components/StepsBar.tsx": "icons of the sections bar, no chart", "components/DropChev.tsx": "the drop-down arrow icon, no chart", "components/TabGroup.tsx": "the Key view crown icon, no chart", "components/prism/pzr/Technical.tsx": "technical gauges: one figure each",
   "components/dashboard/Legacy.tsx": "six-bar spark inside a link card", "components/dashboard/Snapshot.tsx": "one breadth bar", "components/FlowsPanel.tsx": "46px bars under two figures (the full charts are on the FII/DII page)",
-  "pages/ScreenerPro.tsx": "small distribution histogram inside a filter and a completeness ring", "pages/ScoreScreener.tsx": "completeness ring", "pages/AdvancedScoreScreener.tsx": "completeness ring",
+  "pages/ScreenerPro.tsx": "small distribution histogram inside a filter and a completeness ring", "pages/AdvancedScoreScreener.tsx": "completeness ring",
   "pages/Watchlist.tsx": "one stacked industry strip", "stock/DuPont.tsx": "per-factor mini bars inside a table", "stock/CompanyBrief.tsx": "inline progress bars", "pages/PremiumReport.tsx": "inline score bars",
-  "components/sectors/Parts.tsx": "three small bars inside a table cell", "components/dashboard/Flows.tsx": "30 small bars inside a dashboard card; the full charts are on the FII / DII page", "components/dashboard/Portfolio.tsx": "one colour strip and four short bars inside a dashboard card", "components/dashboard/parts.tsx": "only the chevron icon of the Show more button", "components/prism/pzr/Parts.tsx": "a small score ring and one bar on each part card", "components/PrismShowcase.tsx": "the landing page's drawn sample of the FinLit Prism card (task #122): score rings and bars of one dated example, no enlarge arrow in the team's picture", "etf/common.tsx": "sparklines in list rows", "pages/Fundamentals.tsx.exempt": "",
+  "components/sectors/Parts.tsx": "three small bars inside a table cell", "components/sectors/pack/Guide.tsx": "only the icons of the page guide and the sections bar (task #192)", "components/dashboard/Flows.tsx": "30 small bars inside a dashboard card; the full charts are on the FII / DII page", "components/dashboard/Portfolio.tsx": "one colour strip and four short bars inside a dashboard card", "components/dashboard/parts.tsx": "only the chevron icon of the Show more button", "stock/DiscoverThemes.tsx": "only the spark and chevron icons of the Discover themes row and card (task #271), no chart", "myinvest/Top.tsx": "the check and arrow icons of the view tabs and a thin bar of shares under each (task #277, All my investments pack of 20 Nov), with the figures written beside it; no enlarge arrow in the pack", "components/prism/pzr/Parts.tsx": "a small score ring and one bar on each part card", "components/PrismShowcase.tsx": "the landing page's drawn sample of the FinLit Prism card (task #122): score rings and bars of one dated example, no enlarge arrow in the team's picture", "etf/common.tsx": "sparklines in list rows", "pages/ConcallMonitor.tsx": "only the icons of the four call buttons and the search button (task #278), no chart", "pages/News.tsx": "only the Date button's calendar icon (task #309), no chart","components/WordOfDayPanel.tsx": "only the calendar, bulb, bookmark and close icons of the Word of the Day panel (task #315), no chart","pages/Fundamentals.tsx.exempt": "", "portfolio/pack/Round388.tsx": "only the search icon of the peers Find box (task #388, developer file 36), no chart", "mf/pack/MfTop.tsx": "the Mutual Fund Score card's small ring and the crown icon (task #389, developer file 32), with the figure written inside; no enlarge arrow in the pack", "portfolio/pack/EqTop385.tsx": "the score card's small ring and the crown icon (task #385, developer file 33), with the figure written inside; no enlarge arrow in the pack",
 };
 delete EXEMPT["pages/Fundamentals.tsx.exempt"];
 
@@ -87,7 +125,7 @@ const DRAWS = /useChart\(|<svg[^>]*role="(?:img|group)"|<svg[^>]*viewBox|data-ch
 
 describe("every chart has the enlarge arrow, or a reason not to", () => {
   it("each file on the list uses the shared wrapper", () => {
-    for (const f of ZOOM) expect(/ChartZoom|zoomLabel=/.test(text(f)), `${f} should use ChartZoom`).toBe(true);
+    for (const f of ZOOM) expect(/ChartZoom|TableZoom|zoomLabel=/.test(text(f)), `${f} should use ChartZoom (or TableZoom, the same arrow for a table)`).toBe(true);
   });
 
   it("charts that kept their own arrow still have it", () => {

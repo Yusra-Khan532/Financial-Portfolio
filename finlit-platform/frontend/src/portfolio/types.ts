@@ -2,7 +2,7 @@
 import type { StyleTilt } from "../components/diversification/types";
 
 export type Mode = "eq" | "mc";
-export type SizeCode = "L" | "M" | "S" | "U";
+export type SizeCode = "L" | "M" | "S" | "X" | "U";   // Large, Mid, Small, Micro (X, task #262), U = not known
 export type Reading = { rule: string; section: "where" | "together" | "risk" | "market" | "data"; priority: number; text: string; mode: Mode | "both" };
 export type Group = { members: string[]; avg_corr: number; letter: string };
 export type Seg = { pairs: number; avg: number | null; median: number | null; at_least_05: number; share_at_least_05: number | null; top: { a: string; b: string; corr: number }[]; hist: number[] };
@@ -19,7 +19,7 @@ export type PageObject = {
   first_k?: { k: number; effective_stocks: number; rest: number; added: number } | null;
   readings: Reading[]; summary: PerMode<Reading[]>; together_open_by_default: boolean; short_history: string[];
 };
-export type Meta = { name: string; sector: string | null; size: SizeCode; mcap_cr: number | null };
+export type Meta = { name: string; sector: string | null; size: SizeCode; mcap_cr: number | null; nse?: { macro_sector: string | null; sector: string | null; industry: string | null } };
 export type PageResponse = {
   week: string; symbols: string[]; unknown: string[]; noPrices: string[]; page: PageObject | null; meta: Record<string, Meta>; styleTilt?: StyleTilt;
 };

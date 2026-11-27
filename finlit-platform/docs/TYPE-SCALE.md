@@ -5,7 +5,7 @@ Every font size on the site is one of eleven sizes (the team's type-scale handov
 
 | Token | Size / line | Use |
 |---|---|---|
-| `--fs-11` | 11 / 16 | Eyebrows, chart axis ticks, legend keys. Uppercase labels only, never sentences |
+| (no `--fs-11`) | | Removed by task #227 (18 Nov 2026): no page text under 12px. Eyebrows, chips and legend keys use `--fs-12`. Only chart axis text an SVG draws itself (a `fontSize` attribute in a `.tsx` file) may be 11px |
 | `--fs-12` | 12 / 16 | Captions, timestamps, chips, footnotes |
 | `--fs-13` | 13 / 18 | Secondary text, labels, dense table cells |
 | `--fs-14` | 14 / 20 | Default: card and table text, menus, buttons |
@@ -28,6 +28,11 @@ The team's `--type-*` tokens in `design-system.css` are in rem on the same sizes
    11.5 to 12 (154), 15 to 16 (145), 10.5 to 11 (102), 10 to 11 (82), 14.5 to 14 (73), 22 to 20 (53), 17 to 16 (44), 19 to 18 (34),
    26 to 24 (29), 9.5 to 11 (23), 21 to 20 (21), 30 to 32 (19), and the rest in smaller groups (including every 6 to 9px size to 11).
    Not touched: `src/content/*.json`, `node_modules`, 0px (text hidden on purpose), 44px and up, `pt` sizes inside `@media print`.
+   **Exception, task #261 (20 Nov 2026, the team's pack "05 Dashboard · Index heatmap"):** on the dashboard's Index heatmap **Map** view every tile
+   carries its symbol, the font sized to the tile from 15px down to 7px (`components/dashboard/heatmapLogic.ts` `mapLabel`, inline styles), as the
+   pack asks; before, a tile too small for 11px had no label, and the smallest companies of an index were blank boxes. A symbol too long even at 7px
+   ends in "…"; the hover or tap card and the `aria-label` give it in full, and the default **Grid** view shows every symbol at 14px. Every fixed size
+   of the card is on the scale (the pack's 13.5, 12.5, 11.5, 11, 9.5 and 17px are 14, 13, 12, 12, 12 and 16).
 2. **The codemod's by-hand list (relative and computed sizes), each fixed**
    - `charts/MiniBars.tsx` axis labels (9.5 or 11): 11 in both modes; label spacing assumes 6.8px per character in both.
    - `components/markets/MarketsBlock.tsx` + `lib/markets.ts` heat-map tiles: `labelFont()` no longer shrinks to 8.5px. It steps down
@@ -56,7 +61,7 @@ The team's `--type-*` tokens in `design-system.css` are in rem on the same sizes
 ## Checks
 
 - `frontend/src/styles/typescale.test.ts` scans every `.css`, `.ts`, `.tsx` in `src/` (not `content/`) and fails with `file:line` for any font size under
-  11px, off the scale, relative or computed, unknown `--fs-N`, or a `clamp()` whose largest value is under 28px. Allowed: 44px and up, 0, `inherit`, `clamp()` 28px and up.
+  11px (12px in a stylesheet, task #227), off the scale, relative or computed, unknown `--fs-N`, or a `clamp()` whose largest value is under 28px. Allowed: 44px and up, 0, `inherit`, `clamp()` 28px and up.
 - `src/lib/svgText.test.ts` (chart text), `src/lib/markets.test.ts` (heat-map label steps and tile contrast).
 - Real-browser measurement: see the delivery notes (computed sizes per page, before and after).
 

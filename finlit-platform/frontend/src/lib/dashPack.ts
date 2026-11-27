@@ -1,7 +1,7 @@
 // The dashboard as the "FinLit final pages" pack draws it (founder, 13 Nov 2026; docs/design/finlit-final-pages/04): the sentences and cards the blocks add, worked out
 // from what the page already loads (quotes, results, peer labels, the market snapshot, macro, FII/DII flows, Prism, the Sector Pulse board). Every figure comes from the
 // server; this file only chooses, counts and words. Describes the market and the member's stocks; never advice.
-import type { Card, CardChip } from "./pulsePack";
+import type { Card, CardChip, CardGroup } from "./pulsePack";
 import type { Flows } from "./flows";
 import type { Board } from "./sectors";
 
@@ -10,7 +10,6 @@ const NUM = ["no", "one", "two", "three", "four", "five", "six", "seven", "eight
 const WEEKDAY = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const MONTH = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-const list = (xs: string[]) => (xs.length <= 1 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`);
 const sp = (v: number, d = 1) => `${v > 0 ? "+" : v < 0 ? MINUS : ""}${Math.abs(v).toFixed(d)}%`;
 const n0 = (v: number) => v.toLocaleString("en-IN");
 const dm = (d: string) => `${+d.slice(8, 10)} ${MON[+d.slice(5, 7) - 1]}`;
@@ -35,35 +34,41 @@ export function dayWord(now: Date, asOf: string | null): string {
 }
 
 // ------------------------------------------------------------------------------------------------ Your stocks today: the three cards
-export type MyStock = { symbol: string; name?: string | null; chg: number | null; size: "Large" | "Mid" | "Small" | null; profit: number | null; profitText: string | null; reported: boolean; peer: "leader" | "laggard" | "inline" | "unranked" | null };
-const SIZE_WORD = { Large: "large", Mid: "mid-sized", Small: "small" } as const;
-export function myStockCards(items: MyStock[], day: string, quarterEnd: string | null): Card[] {
-  const out: Card[] = [], on = day === "Today" ? "today" : `on ${day}`;
+export type MyStock = { symbol: string; name?: string | null; chg: number | null; size: "Large" | "Mid" | "Small" | "Micro" | null; profit: number | null; profitText: string | null; reported: boolean; peer: "leader" | "laggard" | "inline" | "unranked" | null };
+const SIZE_WORD = { Large: "large", Mid: "mid-sized", Small: "small", Micro: "micro" } as const;
+/** Task #195 (dashboard pack, 15 Nov 2026), "What your stocks say": one card per signal. Each card has its kind, a short headline, one line of meaning, a count bar and
+ *  a dropdown (its button word in `more`) with the names as chips, grouped and coloured, each with its figure. No sentence lists the symbols: the chips carry the names. */
+export type SignalPart = { n: number; word: string; tone: "up" | "down" | "none" };
+export type Signal = { kind: Card["kind"]; title: string; line: string; meter: SignalPart[]; more: string; groups: CardGroup[]; note?: string };
+export function myStockSignals(items: MyStock[], day: string, quarterEnd: string | null): Signal[] {
+  const out: Signal[] = [], on = day === "Today" ? "today" : `on ${day}`, priced = items.filter((s) => s.chg != null).length;
   const fell = items.filter((s) => s.chg != null && s.chg <= -10).sort((a, b) => a.chg! - b.chg!), rose = items.filter((s) => s.chg != null && s.chg >= 10).sort((a, b) => b.chg! - a.chg!);
-  if (fell.length) {
-    const sizes = [...new Set(fell.map((s) => s.size))], same = sizes.length === 1 && sizes[0] ? SIZE_WORD[sizes[0]] : null;
-    const who = fell.length === 1 ? "It is" : fell.length === 2 ? "Both are" : `All ${NUM[fell.length] ?? fell.length} are`;
-    out.push({ kind: "warning", title: `${fell.length === 1 ? "One" : cap(NUM[fell.length] ?? String(fell.length))} of your stocks fell 10% or more ${on}`.replace(/^(\w)/, (c) => c.toUpperCase()),
-      text: `${list(fell.map((s) => `${s.symbol} ${sp(s.chg!)}`))}.${same ? ` ${who} ${fell.length === 1 ? `a ${same} company` : `${same} companies`}.` : ""} Check News & filings before reacting.`,
-      groups: [{ label: `Fell 10% or more · ${fell.length}`, tone: "down", chips: fell.map((s) => chip(s, sp(s.chg!))) }] });
-  } else if (rose.length) {
-    out.push({ kind: "good", title: `${cap(NUM[rose.length] ?? String(rose.length))} of your stocks rose 10% or more ${on}`, text: `${list(rose.map((s) => `${s.symbol} ${sp(s.chg!)}`))}. Check News & filings for what moved ${rose.length === 1 ? "it" : "them"}.`,
-      groups: [{ label: `Rose 10% or more · ${rose.length}`, tone: "up", chips: rose.map((s) => chip(s, sp(s.chg!))) }] });
+  const big = fell.length ? fell : rose, down = fell.length > 0;
+  if (big.length) {
+    const sizes = [...new Set(big.map((s) => s.size))], same = sizes.length === 1 && sizes[0] ? SIZE_WORD[sizes[0]] : null;
+    out.push({ kind: down ? "warning" : "good", title: `${big.length} of your stocks ${down ? "fell" : "rose"} 10% or more ${on}`,
+      line: `A move of 10% or more in one session${same ? `; ${big.length === 1 ? "it is a" : "all are"} ${same} ${big.length === 1 ? "company" : "companies"}` : ""}. News and filings often explain such moves.`,
+      meter: [{ n: big.length, word: down ? "fell 10% or more" : "rose 10% or more", tone: down ? "down" : "up" }, { n: Math.max(0, priced - big.length), word: "moved less", tone: "none" }],
+      more: `See the ${big.length}`, groups: [{ label: `${down ? "Fell" : "Rose"} 10% or more · ${big.length}`, tone: down ? "down" : "up", chips: big.map((s) => chip(s, sp(s.chg!))) }] });
   }
   const rep = items.filter((s) => s.reported), up = rep.filter((s) => (s.profit != null && s.profit > 0) || s.profitText === "Turned profit" || s.profitText === "Loss narrowed");
   if (rep.length) {
-    const down = rep.filter((s) => !up.includes(s)), q = quarterEnd ? `${MONTH[+quarterEnd.slice(5, 7) - 1]}-quarter profit` : "Latest-quarter profit";
-    const named = down.slice(0, 4).map((s) => `${s.symbol} (${s.profit != null ? sp(s.profit) : (s.profitText ?? "").toLowerCase()})`);
-    const fellGroup = down.length ? [{ label: `Profit fell, against a year ago · ${down.length}`, tone: "down" as const, chips: down.map((s) => chip(s, s.profit != null ? sp(s.profit) : s.profitText ?? undefined)) }] : [];
-    out.push(up.length * 2 >= rep.length
-      ? { kind: "good", title: `Profit grew at ${up.length} of the ${rep.length} that reported`, text: down.length ? `${q} was higher than a year ago everywhere except ${list(named)}${down.length > 4 ? ` and ${down.length - 4} more` : ""}.` : `${q} was higher than a year ago at every one of them.`, groups: fellGroup }
-      : { kind: "watch", title: `Profit fell at ${down.length} of the ${rep.length} that reported`, text: `${q} was lower than a year ago at ${list(named)}${down.length > 4 ? ` and ${down.length - 4} more` : ""}.`, groups: fellGroup });
+    const dn = rep.filter((s) => !up.includes(s)), q = quarterEnd ? `the ${MONTH[+quarterEnd.slice(5, 7) - 1]} quarter` : "the latest quarter";
+    const fig = (s: MyStock) => (s.profit != null ? sp(s.profit) : s.profitText ?? undefined);
+    const fellG: CardGroup = { label: `Profit fell, against a year ago · ${dn.length}`, tone: "down", chips: dn.map((s) => chip(s, fig(s))) };
+    const grewG: CardGroup = { label: `Profit grew, against a year ago · ${up.length}`, tone: "up", chips: up.map((s) => chip(s, fig(s))) };
+    const goodNews = up.length * 2 >= rep.length;
+    out.push({ kind: goodNews ? "good" : "watch", title: goodNews ? `Profit grew at ${up.length} of ${rep.length}` : `Profit fell at ${dn.length} of ${rep.length}`,
+      line: `of your shares that have reported ${q}, against a year ago.`,
+      meter: [{ n: up.length, word: "grew", tone: "up" }, { n: dn.length, word: "fell", tone: "down" }],
+      more: dn.length ? `See the ${dn.length} that fell` : `See the ${up.length} that grew`, groups: (dn.length ? [fellG, ...(goodNews ? [] : [grewG])] : [grewG]).filter((g) => g.chips.length > 0) });
   }
-  const leadS = items.filter((s) => s.peer === "leader"), lagS = items.filter((s) => s.peer === "laggard");
-  const lead = leadS.map((s) => s.symbol), lag = lagS.map((s) => s.symbol), none = items.filter((s) => s.peer === "unranked").length;
-  if (lead.length || lag.length) out.push({ kind: "insight", title: `${lead.length} lead their peers, ${lag.length} lag`,
-    text: `${[lead.length ? `${lead.join(", ")} lead` : "", lag.length ? `${lag.join(", ")} lag` : ""].filter(Boolean).join("; ")}.${none ? ` ${none} ${none === 1 ? "is" : "are"} not ranked (too new or too thinly traded).` : ""}`,
-    groups: [...(lead.length ? [{ label: `Lead · ${lead.length}`, tone: "up" as const, chips: leadS.map((s) => chip(s)) }] : []), ...(lag.length ? [{ label: `Lag · ${lag.length}`, tone: "down" as const, chips: lagS.map((s) => chip(s)) }] : [])],
+  const leadS = items.filter((s) => s.peer === "leader"), lagS = items.filter((s) => s.peer === "laggard"), none = items.filter((s) => s.peer === "unranked").length;
+  if (leadS.length || lagS.length) out.push({ kind: "insight", title: `${leadS.length} lead their peers, ${lagS.length} lag`,
+    line: "Price strength against companies in the same peer group, over the last 12 months.",
+    meter: [{ n: leadS.length, word: "lead", tone: "up" }, { n: lagS.length, word: "lag", tone: "down" }, ...(none ? [{ n: none, word: "not ranked", tone: "none" as const }] : [])],
+    more: "See the names",
+    groups: [...(leadS.length ? [{ label: `Lead · ${leadS.length}`, tone: "up" as const, chips: leadS.map((s) => chip(s)) }] : []), ...(lagS.length ? [{ label: `Lag · ${lagS.length}`, tone: "down" as const, chips: lagS.map((s) => chip(s)) }] : [])],
     note: none ? `${none} ${none === 1 ? "is" : "are"} not ranked: too new, or too thinly traded to compare fairly.` : undefined });
   return out;
 }
@@ -145,11 +150,13 @@ export function marketRead(x: ReadIn): { lead: string; rest: string; tail: strin
     : up > down * 1.5 ? { k: "Big moves", badge: "Buying had the edge", tone: "good", head: `${n0(up)} up 4%+, ${n0(down)} down 4%+`, text: "Sharp rises outnumbered sharp falls.", base: `${n0(x.big.n)} stocks with a price ${on}` }
     : { k: "Big moves", badge: "Balanced", tone: "mixed", head: `${n0(up)} up 4%+, ${n0(down)} down 4%+`, text: "Sharp rises and sharp falls were close to even.", base: `${n0(x.big.n)} stocks with a price ${on}` });
   // 3 leadership
+  // task #262: `size.small` is the typical Micro company (below ₹10,000 Cr), the band the old "Small" covered, so the reading still sets the two ends
+  // of the scale against each other; the words say "micro" to match the four sizes.
   const L = x.size.large, S = x.size.small;
   if (L != null && S != null) {
     const d = L - S;
-    R.push(Math.abs(d) >= 2 ? { k: "Leadership", badge: d > 0 ? "Large companies lead" : "Small companies lead", tone: "good", head: `${sp(d > 0 ? L : S)} vs ${sp(d > 0 ? S : L)}`, text: `Over the last month the typical ${d > 0 ? "large" : "small"} company ${(d > 0 ? L : S) >= 0 ? "rose" : "fell"} ${Math.abs(d > 0 ? L : S).toFixed(1)}%; the typical ${d > 0 ? "small" : "large"} company ${(d > 0 ? S : L) >= 0 ? "rose" : "fell"} ${Math.abs(d > 0 ? S : L).toFixed(1)}%.`, base: `${n0(x.size.n)} listed companies, by size` }
-      : { k: "Leadership", badge: "No size leads", tone: "mixed", head: `${sp(L)} vs ${sp(S)}`, text: `Over the last month the typical large company moved ${sp(L)} and the typical small company ${sp(S)}.`, base: `${n0(x.size.n)} listed companies, by size` });
+    R.push(Math.abs(d) >= 2 ? { k: "Leadership", badge: d > 0 ? "Large companies lead" : "Micro companies lead", tone: "good", head: `${sp(d > 0 ? L : S)} vs ${sp(d > 0 ? S : L)}`, text: `Over the last month the typical ${d > 0 ? "large" : "micro"} company ${(d > 0 ? L : S) >= 0 ? "rose" : "fell"} ${Math.abs(d > 0 ? L : S).toFixed(1)}%; the typical ${d > 0 ? "micro" : "large"} company ${(d > 0 ? S : L) >= 0 ? "rose" : "fell"} ${Math.abs(d > 0 ? S : L).toFixed(1)}%.`, base: `${n0(x.size.n)} listed companies, by size` }
+      : { k: "Leadership", badge: "No size leads", tone: "mixed", head: `${sp(L)} vs ${sp(S)}`, text: `Over the last month the typical large company moved ${sp(L)} and the typical micro company ${sp(S)}.`, base: `${n0(x.size.n)} listed companies, by size` });
   }
   // 4 and 5: trends across the counted stocks
   const bb = boardBreadth(x.board), base = `${n0(x.board?.universe?.counted_in_groups_with_reading ?? bb?.n ?? 0)} actively traded stocks`;

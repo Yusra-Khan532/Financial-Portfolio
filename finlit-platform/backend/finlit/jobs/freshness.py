@@ -313,6 +313,11 @@ async def gather(store: Any, now: datetime) -> Dict[str, Any]:
         f["mf_nav"] = await _one(conn, "SELECT max(nav_date) FROM mf_schemes WHERE active")
         f["mf_score_run"] = await _one(conn, "SELECT max(run_date) FROM mf_scores")
         f["etf_price"] = await _one(conn, "SELECT max(price_date) FROM etf_funds WHERE active")
+        # 26 Nov 2026: the close the ready-made screens are built on (they read "Updated after the 23 Nov close" on 26 Nov and nothing said so)
+        f["lists_day"] = await _one(conn, "SELECT max(as_of) FROM preset_results")
+        # 26 Nov 2026: the newest day whose official closes are in for most companies (at least 90% of the busiest day of the last three weeks)
+        f["closes_day"] = await _one(conn, "WITH c AS (SELECT day, count(*) AS n FROM daily_candles WHERE day >= current_date - 21 GROUP BY day) "
+                                           "SELECT max(day) FROM c WHERE n >= 0.9 * (SELECT max(n) FROM c)")
         f["news_newest"] = await _one(conn, "SELECT max(item_date) FROM feed_items WHERE kind = 'news'")
         f["leadership"] = await _one(conn, "SELECT max(as_of) FROM leadership")
         f["ownership_built"] = None     # the last COMPLETED run of the ownership job (an idle night changes no row, so row dates would look late)
@@ -410,9 +415,13 @@ def evaluate_facts(f: Dict[str, Any], now: datetime, credentials: Optional[List[
     # only while the sector pages AND the sector job are switched on: with the job switched off by the founder's written exception (SECTORS_JOB), the board keeps the
     # last published data on purpose, and the console already says so as "switched off by configuration" (not a second, red "stale" line)
     if f.get("sector_enabled") and not f.get("sector_job_off"):
-        ds.append(judge_session("sectors", "Sector pulse", ["sectors"], f.get("sector_board_date"), exp, now, 4.0, 14.0, "board date vs expected session"))
+        # the sector job runs on weekend nights (owner, 18 Nov 2026): the board holds the week up to Friday's close. Fresh up to 9 days old (a Friday board
+        # until the next weekend's run), late from 10 (one weekend missed), stale after 13 (two missed)
+        sec = judge_weekly("sectors", "Sector pulse", ["sectors"], f.get("sector_board_date"), today, 9, 13)
+        sec.expected, sec.detail = "the week up to the last Friday's close, built on weekend nights", "board date (the last session it holds)"
+        ds.append(sec)
     ds.append(judge_age("prism", "Prism ratings", ["prism"], f.get("prism_newest"), now, 30.0, 60.0))
-    ds.append(judge_age("scores", "FinLit IQs", ["score"], f.get("scores_newest"), now, 30.0, 60.0))
+    ds.append(judge_age("scores", "Retired overall scores (not shown)", ["score"], f.get("scores_newest"), now, 30.0, 60.0))
     if f.get("score_lag") is not None:
         ds.append(judge_score_lag(f["score_lag"], now, bool(f.get("visitors"))))
     if f.get("results_waiting") is not None:
@@ -426,6 +435,12 @@ def evaluate_facts(f: Dict[str, Any], now: datetime, credentials: Optional[List[
     ds.append(judge_nav(f.get("mf_nav"), now))
     ds.append(judge_age("fund_scores", "Fund scores", ["score-mf"], datetime.combine(_d(f["mf_score_run"]), time(12, 0), IST) if f.get("mf_score_run") else None, now, 40.0, 80.0))
     ds.append(judge_session("etf_prices", "ETF prices", ["etf"], f.get("etf_price"), exp, now, 3.0, 16.0))
+    # the day's official closes for (nearly) every company: due by 19:30 IST, an hour after the exchanges' end-of-day files normally appear; stale at 22:30
+    ds.append(judge_session("closing_prices", "Closing prices (every company)", ["eod-candles", "candles"], f.get("closes_day"), exp, now, 1.0, 3.0,
+                            "the newest day with official closes for at least 90% of companies"))
+    # the lists follow the exchange candles, which can arrive late in the evening: due by 02:30 IST (8 h after the data is final), stale 16 h later
+    ds.append(judge_session("ready_lists", "Ready-made screens", ["presets", "candles"], f.get("lists_day"), exp, now, 8.0, 16.0,
+                            "the close every ready-made list is built on"))
     ds.append(judge_weekly("news", "News and filings", ["calendars"], f.get("news_newest"), today, 3, 6))
     ds.append(judge_weekly("leadership", "Leadership labels", ["leadership"], f.get("leadership"), today, 9, 14))
     if f.get("ownership_built") is not None:

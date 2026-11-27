@@ -10,11 +10,11 @@
   "items": [
    {
     "q": "What does the dashboard show?",
-    "a": "At the top, Your investments today: your shares, watchlist and mutual funds in one table (All, Watchlist, Shares, Mutual funds and ETFs), with price or NAV, the day's move, 1 year and the FinLit reading, then What your stocks say and the three at a glance panels for your shares, mutual funds and ETFs. Below them is the market: index levels and chart, prices and rates, breadth, sectors, FII/DII flows, the heatmap, then results, filings, IPOs, alerts and more."
+    "a": "Five numbered steps, with a sections bar to jump between them. 1 Your money: Your investments today (your shares, watchlist and mutual funds in one table, the biggest moves first), What your stocks say, and your shares, mutual funds and ETFs at a glance. 2 Your watchlist: movers, Worth a second look and the watchlist by band. 3 The market: index levels and chart, what the market adds up to, the snapshot, sectors, FII/DII flows and the heatmap. 4 Results and news: results, filings, the latest quarter results and IPOs. 5 Tools: alerts and saved screens, Stress Lab, the DCF calculator and the term of the day, with Your bookmark (the words you bookmarked from Word of the Day in the top bar)."
    },
    {
     "q": "How do I change the layout or colours?",
-    "a": "Select Customise. You can pick a colour palette (Ivory & Gold, Champagne, Copper, Graphite, Midnight or Emerald), set each widget to Half or Full width, hide it, or move it up and down. Reset layout puts everything back; select Done when you have finished."
+    "a": "Select Customise. You can pick a colour palette (Ivory & Gold, Champagne, Copper, Graphite, Midnight or Emerald), set each widget to Quarter, Third, Half or Full width, hide it, or move it up and down within its step. Reset layout puts everything back; select Done when you have finished."
    },
    {
     "q": "What is the difference between “Market” and “My stocks” on a widget?",
@@ -34,11 +34,11 @@
    },
    {
     "q": "Why is a stock listed under “Worth a second look”?",
-    "a": "A stock from your watchlist is flagged when it has a weak FinLit band, a weak balance sheet, a fall of 10% or more in a month, a P/E of 60 or more, or a price near the target you set. A flag is a reason to look closer, not a reason to buy or sell."
+    "a": "A company from your watchlist is listed when its FinLit Prism score is Strong or Healthy (65 or more) and its Prism Valuation part is 65 or more: the share price against earnings, book value and its own history. It is shown on a plan that has FinLit Prism. It describes the scores; it is not a recommendation."
    },
    {
     "q": "What is “Watchlist by band”?",
-    "a": "A bar showing how the stocks you follow split across the FinLit IQ bands: Strong, Healthy, Mixed and Watch."
+    "a": "A bar showing how the stocks you follow split across the FinLit Prism bands: Strong (80 or more), Healthy (65 to 79), Average (50 to 64) and Weak (below 50)."
    },
    {
     "q": "Where can I see every index and its valuation history?",
@@ -61,11 +61,11 @@
    },
    {
     "q": "What can I filter on?",
-    "a": "Every listed company, with close to 200 filters grouped as the FinLit model (the FinLit IQ on Silver, FinLit Prism on Gold and Platinum), Sector, Index, Size & price, Returns, Valuation, Profitability, Growth, Quarterly results, Financial health, Liquidity, Solvency, Efficiency, Ownership, Company events, Red flags, Banks & lenders and Volume, range & trend. Type in “Search for a filter” to jump to one, for example ROE or promoter."
+    "a": "Every listed company, with close to 200 filters grouped as the FinLit model (FinLit Prism), Sector, Index, Size & price, Returns, Valuation, Profitability, Growth, Quarterly results, Financial health, Liquidity, Solvency, Efficiency, Ownership, Company events, Red flags, Banks & lenders and Volume, range & trend. Type in “Search for a filter” to jump to one, for example ROE or promoter."
    },
    {
     "q": "What are Quick screens?",
-    "a": "Ready-made sets of filters you can apply in one click, such as Low debt, Dividend payers, Steady compounders or No red flags, and screens on the FinLit model (the FinLit IQ on Silver, FinLit Prism on Gold and Platinum). Every screen here is open to every plan that has this page, and several can be on at once."
+    "a": "Ready-made sets of filters you can apply in one click, such as Low debt, Dividend payers, Steady compounders or No red flags, and screens on the FinLit model (FinLit Prism). Every screen here is open to every plan that has this page, and several can be on at once."
    },
    {
     "q": "Can I filter on a ratio's past average?",
@@ -90,47 +90,7 @@
   ]
  },
  {
-  "declared": 7,
-  "id": "basic-score-screener",
-  "title": "Basic stock screener",
-  "section": "Find stocks",
-  "routes": [
-   "/score-screener"
-  ],
-  "plan": "Silver (full table)",
-  "items": [
-   {
-    "q": "What is the FinLit IQ?",
-    "a": "A score from 0 to 100 built from a company's filed statements and prices, across Quality, Growth, Profitability, Balance sheet and Technical. It is free on each company's own page; this full table is part of Silver."
-   },
-   {
-    "q": "What do Strong, Healthy, Mixed and Watch mean?",
-    "a": "They are the FinLit IQ's four rating words, from the highest: Strong, Healthy, Mixed and Watch. They describe the company's financial health from its filings and prices; they are not advice."
-   },
-   {
-    "q": "What do the Quick views do?",
-    "a": "They apply common combinations in one click: Strong on both (Growth & Profitability and Technical both 78 or more), Strong growth & profitability with a weak trend, and a strong trend with a weaker Growth & Profitability score."
-   },
-   {
-    "q": "How is Large, Mid or Small cap decided?",
-    "a": "By market value, one scale for the whole site: Large cap above ₹50,000 Cr, Mid cap ₹10,000 to 50,000 Cr, Small cap below ₹10,000 Cr. A company with no market value has no size."
-   },
-   {
-    "q": "Why is a company not scored?",
-    "a": "Scores are filled in every night, so some companies are not scored yet. Opening a company's report scores it straight away."
-   },
-   {
-    "q": "What does a dash or a lock mean?",
-    "a": "The figure is not available: not scored yet, not enough data, or not included in your plan. It never counts as passing a filter and is never treated as zero."
-   },
-   {
-    "q": "Can I compare or export companies?",
-    "a": "Yes. Tick 2 to 4 companies and choose Compare, or add them to a watchlist. You can export the companies you selected or the whole result."
-   }
-  ]
- },
- {
-  "declared": 7,
+  "declared": 6,
   "id": "advanced-score-screener",
   "title": "Advanced stock screener",
   "section": "Find stocks",
@@ -141,7 +101,7 @@
   "items": [
    {
     "q": "What is FinLit Prism?",
-    "a": "FinLit's advanced rating (Gold). It splits a company into four parts, Growth & Profitability, Valuation, Quality and Risk, and weighs them into one score from 0 to 100 with a label: Strong, Healthy, Average, Weak or Poor."
+    "a": "FinLit's only company score (Gold). It splits a company into four parts, Growth & Profitability, Valuation, Quality and Risk, and weighs them into one score from 0 to 100 with a label: Strong, Healthy, Average, Weak or Poor."
    },
    {
     "q": "What does each Prism part measure?",
@@ -160,17 +120,13 @@
     "a": "Each rating takes about 30 seconds to calculate, so they are added in steps, largest companies first, with more every night. For a company that is not rated yet, select Rate now on its row: its Prism page starts the calculation."
    },
    {
-    "q": "How is this different from the Basic stock screener?",
-    "a": "The Basic stock screener uses the FinLit IQ (five parts, Silver). This page uses the FinLit Prism rating with its four parts and two technical views (Gold)."
-   },
-   {
-    "q": "What do the Quick views do?",
-    "a": "They set common filters in one click: Prism strong and lower risk, Strong Growth & Profitability at a fair valuation, Uptrend on both technical views, and Growth & Profitability strong but valuation weak."
+    "q": "Which screener should I use?",
+    "a": "Use this Advanced stock screener (Gold) to sort and filter every company by the FinLit Prism rating, its four parts and its two technical views, or to open a ready-made screen. The Stock screener combines many rules on figures such as P/E, debt and returns, and the Query builder lets you type rules such as P/E < 15 instead of clicking."
    }
   ]
  },
  {
-  "declared": 7,
+  "declared": 12,
   "id": "query-builder",
   "title": "Query builder",
   "section": "Find stocks",
@@ -184,7 +140,7 @@
    },
    {
     "q": "Which ratios can I use?",
-    "a": "192 ratios, under more than 1,400 accepted names. Select Show all ratios for the full list. A ratio we do not calculate gives an error instead of being quietly ignored."
+    "a": "More than 200 ratios, under more than 1,500 accepted names; the line at the foot of the page gives today's count. Select Show all ratios for the full list. A ratio we do not calculate gives an error instead of being quietly ignored."
    },
    {
     "q": "Can I start from an example?",
@@ -196,7 +152,7 @@
    },
    {
     "q": "How do I keep a query?",
-    "a": "Give it a name (and an optional note) under Keep this query as a basket and select Save as basket. Your baskets are listed on the My baskets page; you can keep up to 100."
+    "a": "Give it a name (and an optional note) under Keep this query as a basket and select Save as basket. It is then listed under My baskets on this page, above the examples."
    },
    {
     "q": "Can I change the columns or download the results?",
@@ -205,11 +161,31 @@
    {
     "q": "How long can a query be?",
     "a": "Up to 2,000 characters."
+   },
+   {
+    "q": "What is a basket?",
+    "a": "A query you wrote and named: your own screen, not a model portfolio. The list changes as company figures change, and each basket shows how many companies match today."
+   },
+   {
+    "q": "How do I open, rename or delete a basket?",
+    "a": "Select My baskets on this page. Open puts a basket's query into the query box, ready to run or change; Rename, Duplicate and Delete are on each basket."
+   },
+   {
+    "q": "How is a basket different from a watchlist?",
+    "a": "A watchlist is a fixed list of stocks you pick. A basket is a set of rules, so the companies in it change as their figures change."
+   },
+   {
+    "q": "How many baskets can I keep?",
+    "a": "3 with a free account, 20 on Mutual Fund + ETF, Equity Portfolio and the combined plan, and 100 on Gold and Platinum."
+   },
+   {
+    "q": "Why did a basket's count change?",
+    "a": "Counts use today's data and your current plan, so they move as company figures update."
    }
   ]
  },
  {
-  "declared": 10,
+  "declared": 9,
   "id": "company-report",
   "title": "Company report",
   "section": "Analyse a company",
@@ -224,11 +200,11 @@
    },
    {
     "q": "What is in a report?",
-    "a": "Sections for the company, its scorecard and key findings, price, latest quarter, financials, trends, ratios, DuPont analysis, earnings and cash quality, historical trend, ownership, peers, insights, dividends and pros & cons. Use All sections to jump between them. Labels such as Basic, Silver and Gold show which plan opens each section."
+    "a": "The FinLit Prism score and how it has moved, then sections for the company, the macro and sector outlook, what is going well and what to watch, price, latest quarter, financials, trends, chart lab, ratios, DuPont analysis, earnings and cash quality, ownership, peers, where the company stands, triggers, segments, dividends and community discussions. Use All sections to jump between them. Labels such as Basic, Silver and Gold show which plan opens each section."
    },
    {
-    "q": "What does the FinLit IQ at the top mean?",
-    "a": "A score out of 100: the average of five pillars, Quality, Growth, Profitability, Balance sheet and Technical. “The read” sums it up in a sentence and “What stands out” lists the main strengths. It is a research summary, not a recommendation."
+    "q": "What does the FinLit Prism score at the top mean?",
+    "a": "A score out of 100 for the company’s business and financial strength, built from four parts: Growth & Profitability, Valuation, Quality and Risk. Beside it, two technical views, short term (5 to 20 sessions) and long term (6 to 18 months), read the price trend from −100 to +100; they are shown separately and are not part of the score. It is a research summary, not a recommendation."
    },
    {
     "q": "What do the six dots next to the company's name mean?",
@@ -239,16 +215,12 @@
     "a": "Consolidated figures include the company's subsidiaries; Standalone covers the parent company alone. Switch between them at the top of the score."
    },
    {
-    "q": "What can I download?",
-    "a": "Download offers a print-ready research note (PDF), an offline copy (HTML) that opens without internet, the full FinLit Prism report (PDF), and the data (CSV) with statements, ratios and scores for Excel."
-   },
-   {
     "q": "What do the F&O and margin trading lines mean?",
     "a": "They say whether the stock trades in futures and options (with the NSE lot size) and whether it is eligible for margin trading, as listed by the broker Dhan. Each broker sets its own list and terms."
    },
    {
     "q": "What can I do from the report?",
-    "a": "Set an alert, add the company to a watchlist, value it in the DCF calculator, download or share the report."
+    "a": "Set an alert, add the company to a watchlist, value it in the DCF calculator, or share the report."
    },
    {
     "q": "What are buckets, triggers and segments?",
@@ -275,7 +247,7 @@
    },
    {
     "q": "What does each tab show?",
-    "a": "Overview has the basics and the five FinLit pillars; Financials, Valuation, Quality & Risk, Growth and Technical compare those measures; Spider puts eight measures on one chart; Build your own lets you choose the measures."
+    "a": "Overview has the basics and FinLit Prism; Financials, Valuation, Quality & Risk, Growth and Technical compare those measures; Spider puts eight measures on one chart; Build your own lets you choose the measures."
    },
    {
     "q": "What does “beats 46%” mean?",
@@ -312,7 +284,7 @@
   "items": [
    {
     "q": "What do I get from Prism?",
-    "a": "A score out of 100 with a label from Strong to Poor (or Not rated when the evidence is thin), the four parts (Growth & Profitability, Valuation, Quality, Risk) each with what supports and weighs on it, every factor with its value and its reading, the inputs that are missing, and a PDF of this report, prepared for you."
+    "a": "A score out of 100 with a label from Strong to Poor (or Not rated when the evidence is thin), the four parts (Growth & Profitability, Valuation, Quality, Risk) each with what supports and weighs on it, every factor with its value and its reading, and the inputs that are missing."
    },
    {
     "q": "Why does the report not show the weights or the points?",
@@ -324,11 +296,11 @@
    },
    {
     "q": "Is there a limit on calculations?",
-    "a": "Yes. Each member can calculate 20 ratings a day."
+    "a": "Yes. On the Gold plan you can open 10 different reports a day; a report you opened earlier the same day does not count again. Each member can also calculate 20 ratings a day, and Recalculate can be pressed a few times in ten minutes."
    },
    {
-    "q": "What does “100% of inputs available” mean?",
-    "a": "How complete the data behind the score was. It is not a probability and does not predict returns. Any input that was missing or estimated is marked on its factor."
+    "q": "What does “Some figures are missing” mean?",
+    "a": "Some of the figures behind the score were not reported; when every figure is there, the card says nothing. It is not a probability and does not predict returns. Any figure that was missing or estimated is marked on its factor."
    },
    {
     "q": "Is the technical view part of the score?",
@@ -398,7 +370,7 @@
    },
    {
     "q": "What is in it?",
-    "a": "The FinLit IQ and band, a one-line summary, what drives the score (the five pillars), strengths and watch-outs, key ratios, who owns the company and how that changed in a year, and how its peers score."
+    "a": "The FinLit Prism score and its word, a one-line summary, its four parts, strengths and watch-outs, key ratios, who owns the company and how that changed in a year, and how its peers score."
    },
    {
     "q": "How do I save it as a PDF?",
@@ -714,56 +686,13 @@
   ]
  },
  {
-  "declared": 8,
-  "id": "commodity-prices",
-  "title": "Commodity prices",
-  "section": "Markets",
-  "routes": [
-   "/commodities"
-  ],
-  "plan": "Free, no sign-in",
-  "items": [
-   {
-    "q": "Is the MCX gold price what my jeweller will charge?",
-    "a": "No. MCX and import-parity figures leave out GST. A jeweller adds 3% GST, making charges (commonly 8% to 25%), wastage and a local premium, and usually sells 22K or 18K rather than 24K."
-   },
-   {
-    "q": "Why does each card show a contract month?",
-    "a": "MCX prices are futures prices, not spot prices. The nearest contract that has not expired is shown, and the next one once it trades more. On the day the contract changes, the day change is hidden."
-   },
-   {
-    "q": "How is the per-gram price worked out?",
-    "a": "Gold is quoted per 10 grams, so per gram is the quote ÷ 10. Silver is quoted per kilogram, so per gram is the quote ÷ 1,000."
-   },
-   {
-    "q": "How are the 22K and 18K prices calculated?",
-    "a": "From the MCX price: 22K is 22/24 of the 24K price and 18K is 18/24, the usual shop convention. The hallmark standard of 916 would give a figure about 0.07% lower."
-   },
-   {
-    "q": "What is import parity?",
-    "a": "An indicative cost of bringing a gram in at the international price: the US dollar price per troy ounce ÷ 31.1034768 grams × the rupee rate × (1 + customs duty + agriculture cess), with GST shown separately. It is worked out for gold and silver; platinum is hidden until its duty rate is confirmed, energy and base metals have none, and parity is hidden if the duty rate has not been checked in the last 120 days."
-   },
-   {
-    "q": "Why are the international price and import parity blank?",
-    "a": "They need the international price and the USD/INR rate. When the international feed is not connected, the page shows only MCX prices."
-   },
-   {
-    "q": "How many grams are in a tola?",
-    "a": "11.6638038 grams (180 grains); a troy ounce is 31.1034768 grams. Use the weight converter on the page for grams, tola, 10 g, 8 g (sovereign), kilograms and troy ounces."
-   },
-   {
-    "q": "When are prices updated?",
-    "a": "Live while MCX is open (until 23:30 IST). When it is closed, the last traded price is shown. MCX prices come through Dhan."
-   }
-  ]
- },
- {
-  "declared": 6,
+  "declared": 14,
   "id": "results-calendar",
-  "title": "Results calendar",
+  "title": "Results",
   "section": "News & events",
   "routes": [
-   "/results"
+   "/results",
+   "/results/quarter"
   ],
   "items": [
    {
@@ -776,33 +705,22 @@
    },
    {
     "q": "How do I see every company due on a day?",
-    "a": "Select the day in the calendar to see all its companies, with a link to the filing once it is out. Use the arrows or Today to move between months."
+    "a": "Select the day in the calendar, or pick it in the day list above the declared table (← and → step through the days, Today jumps to today); the day goes into the page link, so you can share it. Use the arrows or Today above the calendar to move between months."
    },
    {
-    "q": "What are Coming up and Recently reported?",
-    "a": "Coming up lists the next results dates. Recently reported lists the latest results filings, each with a link to the exchange filing."
+    "q": "What are Coming up this week and the tiles?",
+    "a": "Coming up this week lists every company whose board meets on results in the next seven days, the same companies the calendar shows as due, with how its industry has done so far and that industry's typical profit growth. The six tiles at the top count what is declared, what is due in the next seven days and your own companies, with the quarter's typical revenue and profit growth and the share of companies that beat their industry; 3 more figures under them add Profit up, Net margin up and the last full day."
    },
    {
     "q": "Where can I see the actual numbers?",
-    "a": "Select See all quarter results to open Latest results, which has revenue, profit and margins for every company."
+    "a": "Press Companies in the view bar: it has revenue, profit and margins for every company. From a day in the calendar, All … in the Companies view opens it with that day already chosen."
    },
    {
     "q": "Can I get a reminder before a company reports?",
     "a": "Yes. On the Alerts page, the Results announced quick alert (or the Results due within (days) condition) tells you when a results date is near."
-   }
-  ]
- },
- {
-  "declared": 8,
-  "id": "latest-results",
-  "title": "Latest results",
-  "section": "News & events",
-  "routes": [
-   "/results/quarter"
-  ],
-  "items": [
+   },
    {
-    "q": "What does this page show?",
+    "q": "What does the Companies view show?",
     "a": "Every company's results for one quarter, grouped by the day it declared, most recent first: revenue, operating profit and margin, net profit and margin, and EPS, with growth against a year ago (YoY) and the quarter before (QoQ)."
    },
    {
@@ -811,7 +729,7 @@
    },
    {
     "q": "How do I look at another quarter?",
-    "a": "Choose it in the Quarter menu at the top."
+    "a": "Choose it in the Quarter menu at the top. It applies to all three views; on a past quarter the calendar opens on that quarter's busiest month."
    },
    {
     "q": "What does the “Sales and profit apart” flag mean?",
@@ -908,7 +826,7 @@
   "items": [
    {
     "q": "Which funds are listed?",
-    "a": "Schemes from AMFI's NAV files, by group (Equity, Hybrid, Debt, Solution oriented, Others) and sub-category. Older schemes that stopped publishing NAVs are hidden unless you tick the option to include them. A few fund houses are not listed; they are named at the bottom of the page."
+    "a": "Schemes from AMFI's NAV files, by group (Equity, Hybrid, Debt, Solution oriented, Others) and sub-category. Every scheme is listed when the page opens, older schemes that stopped publishing NAVs too (marked “Stopped publishing”); choose Status “Still publishing” to leave them out. A few fund houses are not listed; they are named at the bottom of the page."
    },
    {
     "q": "Direct or Regular, Growth or IDCW?",
@@ -1041,7 +959,7 @@
    },
    {
     "q": "What does \"Need a second look\" count?",
-    "a": "The cards over the table name the stocks worth a second look: a share price far ahead of the business score (or the other way round), most of the list in one industry, and stocks with no peer tag yet. They describe the figures; they are not advice."
+    "a": "The cards over the table name the stocks worth a second look: a share price far ahead of the business score (or the other way round), most of the list in one industry, and stocks with no peer label yet. They describe the figures; they are not advice."
    },
    {
     "q": "Can I set an alert from here?",
@@ -1088,11 +1006,11 @@
    },
    {
     "q": "Why can the size band differ from the screener?",
-    "a": "FinLit sizes a company by its market value in three bands: Large cap above ₹50,000 crore, Mid cap ₹10,000–50,000 crore and Small cap below ₹10,000 crore, so a company has the same size on every page. A mutual fund's own label can differ, because funds follow SEBI's ranking."
+    "a": "FinLit sizes a company by its market value in four bands: Large cap above ₹75,000 crore, Mid cap ₹25,000–75,000 crore, Small cap ₹10,000–25,000 crore and Micro cap below ₹10,000 crore, so a company has the same size on every page. A mutual fund's own label can differ, because funds follow SEBI's ranking."
    },
    {
     "q": "Can I export my list?",
-    "a": "Yes. Select Export CSV."
+    "a": "No. The portfolio pages have no download (team decision, 15 Nov 2026); your list stays in your account."
    }
   ]
  },
@@ -1107,7 +1025,7 @@
   "items": [
    {
     "q": "What can I set an alert on?",
-    "a": "Price and price moves, circuits, volume, 52-week high and low, returns, RSI, moving averages, valuation and profitability ratios, the FinLit IQ and its pillars, quarterly profit and revenue, promoter and FII holding changes, upcoming results dates, and news or new filings for a company."
+    "a": "Price and price moves, circuits, volume, 52-week high and low, returns, RSI, moving averages, valuation and profitability ratios, quarterly profit and revenue, promoter and FII holding changes, upcoming results dates, and news or new filings for a company."
    },
    {
     "q": "How often are alerts checked?",
@@ -1115,7 +1033,7 @@
    },
    {
     "q": "How will I be told?",
-    "a": "In the app (your notifications), and by email or in your browser if you choose. Mobile app alerts are coming soon."
+    "a": "In the app (your notifications), and in your browser if you choose. Mobile app alerts are coming soon."
    },
    {
     "q": "Once or every time?",
@@ -1127,78 +1045,11 @@
    },
    {
     "q": "What are Quick alerts?",
-    "a": "Ready-made conditions such as a price target, a big move in a day, a volume spike, RSI oversold or overbought, near the 52-week high, a FinLit IQ upgrade, results announced or promoter holding falling. Pick one, then choose the stock."
+    "a": "Ready-made conditions such as a price target, a big move in a day, a volume spike, RSI oversold or overbought, near the 52-week high, results announced or promoter holding falling. Pick one, then choose the stock."
    },
    {
     "q": "How do I manage my alerts?",
     "a": "Under My alerts, filter by All, Active, Paused or Triggered, or search by stock or metric."
-   }
-  ]
- },
- {
-  "declared": 5,
-  "id": "my-baskets",
-  "title": "My baskets",
-  "section": "Your workspace",
-  "routes": [
-   "/baskets"
-  ],
-  "items": [
-   {
-    "q": "What is a basket?",
-    "a": "A query you wrote and named: your own screen, not a model portfolio. The list changes as company figures change, and each basket shows how many companies match today."
-   },
-   {
-    "q": "How do I create a basket?",
-    "a": "Write a query in the Query builder and choose Save as basket, or select New basket."
-   },
-   {
-    "q": "How is a basket different from a watchlist?",
-    "a": "A watchlist is a fixed list of stocks you pick. A basket is a set of rules, so the companies in it change as their figures change."
-   },
-   {
-    "q": "How many baskets can I keep?",
-    "a": "Up to 100."
-   },
-   {
-    "q": "Why did a basket's count change?",
-    "a": "Counts use today's data and your current plan, so they move as company figures update."
-   }
-  ]
- },
- {
-  "declared": 6,
-  "id": "stock-fundamentals",
-  "title": "Company financials",
-  "section": "Gold dashboards",
-  "routes": [
-   "/premium/fundamentals"
-  ],
-  "plan": "Gold",
-  "items": [
-   {
-    "q": "What is on this dashboard?",
-    "a": "A company's full financials in tables and charts: Snapshot, Income statement, Balance sheet, Cash flow, Ratios, Shareholders (named holders) and Peers & actions."
-   },
-   {
-    "q": "Can I switch between consolidated, standalone, yearly and quarterly?",
-    "a": "Yes, with the buttons next to the search box."
-   },
-   {
-    "q": "How do I chart a line from a table?",
-    "a": "Click any line in a table to chart it. Export CSV downloads the table."
-   },
-   {
-    "q": "What do “below by 71%” or “above by 12%” mean next to P/E and P/B?",
-    "a": "How the company's ratio compares with its sector's."
-   },
-   {
-    "q": "Where do the figures come from?",
-    "a": "Company filings, through FinEdge. A missing value shows a dash."
-   },
-   {
-    "q": "How is this different from the company report?",
-    "a": "The company report summarises and scores the company; this dashboard gives the full statement tables. Links at the top open the research page and the premium report."
    }
   ]
  },
@@ -1214,23 +1065,23 @@
   "items": [
    {
     "q": "What is on this dashboard?",
-    "a": "The week ahead in one place: the IPO and results calendars, company announcements, earnings call transcripts, live index levels, index valuation history and commodity indices."
+    "a": "What companies told the exchanges this week (announcements and call transcripts), every NSE and BSE index with its valuation and returns against its own history, one index in detail, and monthly commodity indices. The IPO and results calendars have their own free pages; the two tiles at the top open them."
    },
    {
-    "q": "Which dates are shown?",
-    "a": "The next two weeks unless you choose dates. You can pick up to a year at a time; call transcripts go up to 7 days at a time."
+    "q": "Why are some announcements hidden?",
+    "a": "Routine notices (meeting schedules, newspaper copies, trading-window and certificate filings) are hidden until you choose Show everything or a category. My stocks shows only the companies in your portfolio and watchlists. Announcements cover the last 7 days unless you choose dates, up to 7 days at a time."
    },
    {
     "q": "How often do index levels update?",
     "a": "Every minute while the market is open. Valuations (P/E, P/B, dividend yield) are published once a day."
    },
    {
-    "q": "How do I see an index's valuation history?",
-    "a": "Open Index valuation history and pick an index, or select History beside an index in Indices live."
+    "q": "What does Low, Usual or High for this index mean?",
+    "a": "Where today's P/E sits in that index's own last five years: Low is lower than on three days in four, High is higher than on three days in four. It describes the past, not what comes next. Open beside an index shows it in detail."
    },
    {
     "q": "What are the commodity figures here?",
-    "a": "Monthly commodity indices and the eight core industries. They are index levels, not rupee prices; live MCX prices are on the Commodity prices page."
+    "a": "Monthly wholesale commodity indices. They are index levels, not rupee prices."
    },
    {
     "q": "Can I export the tables?",

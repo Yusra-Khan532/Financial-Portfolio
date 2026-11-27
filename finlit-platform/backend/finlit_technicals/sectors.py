@@ -549,6 +549,17 @@ class SectorEngine:
         self.col = {k: j for j, k in enumerate(p.keys)}
         self._ready = True
 
+    def at_level(self, level: str) -> "SectorEngine":
+        """FinLit patch (task #192, 22 Nov 2026): the same market (panel, universe, classification, rules) read with groups at another NSE level.
+        level="sector": one group per NSE sector (22). The prices and the universe are shared, not loaded again; only the groups differ."""
+        import copy
+        self._build()
+        view = copy.copy(self)
+        view.groups, view.meta = build_groups(self.panel.keys, self.member[-1], self.cls, self.min_members, level=level)
+        view._res = {}
+        view.level = level
+        return view
+
     def calendar(self) -> pd.DatetimeIndex:
         self._build()
         return self.panel.dates

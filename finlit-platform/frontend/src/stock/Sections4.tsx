@@ -5,9 +5,12 @@ import { Icon } from "../lib/icons";
 import { MiniBars, type BarSeries } from "../charts/MiniBars";
 import { Plain } from "../components/Plain";
 import { MINUS, cr, nf, num } from "../lib/format";
-import type { Events, Financials, Ratios, Table } from "../lib/api";
-import { SectionHead } from "./Sections";
+import { useSection, type Events, type Financials, type Ratios, type Table } from "../lib/api";
+import { useBasis, type Basis } from "../lib/basis";
+import { SectionHead, yearGaps } from "./Sections";
+import { TabGroup } from "../components/TabGroup";
 import { badgeOf, insightLine, lastIndex, shortPeriod, yoyChange, type Tone } from "../lib/trendInsight";
+import { IndustryCard, industryKeyLine, useIndustryRead } from "./IndustryCard";
 
 const crf = (v: number) => (v < 0 ? MINUS : "") + (Math.abs(v) >= 1000 ? cr(Math.abs(v)) : nf(v, Math.abs(v) < 10 && v !== 0 ? 1 : 0));
 const pctf = (v: number) => num(v, 1) + "%";
@@ -41,7 +44,20 @@ function readQuarter(q: Table) {
 }
 
 /* ============== Latest quarter results ============== */
+/** 05's second row: the quarter's own movements to watch. Red flags are only those of section 03 (the profit and loss checks). */
+export const KQ_RISK_TITLE = "Key risks to watch this quarter";
+/** One closed row of 05's takeaways or risks (task #328, file 27 change 4): the count and the first line show; the list opens on a press. */
+export function KqRow({ tone, icon, title, items, take, empty }: { tone: string; icon: string; title: string; items: string[]; take?: string | null; empty: string }) {
+  return (
+    <details style={{ "--ac": tone } as React.CSSProperties}>
+      <summary><span className="ci"><Icon name={icon} /></span><span>{title}</span><span className="n">{items.length}</span><span className="lead">{items[0] ?? empty}</span><span className="cv" aria-hidden="true">▾</span></summary>
+      {items.length ? <ul>{items.map((t) => <li key={t} className={t === take ? "aiq-take" : undefined}>{t}</li>)}</ul> : <ul><li className="muted">{empty}</li></ul>}
+    </details>
+  );
+}
+
 export function QuarterSection({ f }: { f?: Financials }) {
+  const ind = useIndustryRead(f?.meta.symbol);   // task #222: the company against its industry this quarter (Latest results -> Industries)
   const q = f?.quarterly.pl;
   if (!f || !q || q.periods.length < 2) return null;
   const n = q.periods.length, last = n - 1, yoy = n >= 5 ? n - 5 : -1;
@@ -69,21 +85,23 @@ export function QuarterSection({ f }: { f?: Financials }) {
           <div className="qt-d"><Delta v={chg(t.v[last], yoy >= 0 ? t.v[yoy] : null)} label="vs year ago" /><Delta v={chg(t.v[last], t.v[last - 1])} label="vs last quarter" /></div>
           <MiniBars labels={q.periods.slice(-8)} series={[{ key: t.k, label: t.k, values: t.v.slice(-8), color: t.c }]} fmt={t.bar} height={116} highlight={7 - (t.v.slice(-8).length < 8 ? 8 - t.v.slice(-8).length : 0)} />
         </div>))}</div>
-      {(() => { const k = readQuarter(q); return (k.good.length || k.bad.length) ? (
-        <div className="kq">
-          <div className="card acc kq-c" style={{ "--ac": "var(--gain)" } as React.CSSProperties}><div className="card-h"><h3><span className="ci"><Icon name="check" /></span>Key takeaways</h3></div>
-            {k.good.length ? <ul>{k.good.map((t) => <li key={t}>{t}</li>)}</ul> : <p className="muted">Nothing stands out on the upside this quarter.</p>}</div>
-          <div className="card acc kq-c" style={{ "--ac": "var(--loss)" } as React.CSSProperties}><div className="card-h"><h3><span className="ci"><Icon name="alert" /></span>Key risks and red flags</h3></div>
-            {k.bad.length ? <ul>{k.bad.map((t) => <li key={t}>{t}</li>)}</ul> : <p className="muted">No red flags in the reported numbers this quarter.</p>}</div>
-        </div>) : null; })()}
+      <IndustryCard read={ind} />
       <div className="card acc qtab" style={{ "--ac": "var(--gold)" } as React.CSSProperties}>
         <div className="card-h"><h3><span className="ci"><Icon name="table" /></span>Profit and loss for the quarter<ChartHelp id="quarter-table" /></h3><span className="s">₹ Crore · latest quarter’s change shown under its figure</span></div>
         <HScroll className="" label="table"><table className="qtt"><thead><tr><th>Line</th>{cols.map((i, j) => <th key={i} className={j === 0 ? "latest" : ""}>{q.periods[i]}{j === 0 ? " (latest)" : j === 1 ? " (last quarter)" : " (year ago)"}</th>)}</tr></thead>
           <tbody>{lines.map(([k, v, b]) => { const qoq = chg(v[last], v[last - 1]), yoyC = yoy >= 0 ? chg(v[last], v[yoy]) : null;
             const tag = (c: number | null, label: string) => c == null ? null : <small className={"chg " + (c >= 0 ? "pos" : "neg")} title={label}>{c >= 0 ? "+" : MINUS}{nf(Math.abs(c), 1)}% {label}</small>;
             return <tr key={k} className={(b ? "sub" : "") + (k === "Revenue" || k === "Net profit" ? " hl" : "")}><td>{k}</td>{cols.map((i, j) => { const x = v[i]; return <td key={i} className={j === 0 ? "latest" : ""}>{x == null ? "—" : num(x, k.startsWith("EPS") ? 2 : 0)}{j === 0 && <span className="chgs">{tag(qoq, "vs last quarter")}{tag(yoyC, "vs year ago")}</span>}</td>; })}</tr>; })}</tbody></table></HScroll>
-        <p className="faint" style={{ fontSize: 12, margin: "10px 0 0" }}>Under each latest-quarter figure: how much it changed against the previous quarter, and against the same quarter a year earlier. Figures are as reported on the exchange filing.</p>
+        <p className="faint" style={{ fontSize: "var(--fs-12)", margin: "10px 0 0" }}>Under each latest-quarter figure: how much it changed against the previous quarter, and against the same quarter a year earlier. Figures are as reported on the exchange filing.</p>
       </div>
+      {/* task #328 (developer file 27, change 4): the takeaways and the risks are two closed rows under the quarter's table, each with its count and first line */}
+      {(() => { const k = readQuarter(q), line = industryKeyLine(ind); return (k.good.length || k.bad.length || line) ? (
+        <div className="kq2">
+          <KqRow tone="var(--gain)" icon="check" title="Key takeaways" items={[...k.good, ...(line ? [line] : [])]} take={line} empty="Nothing stands out on the upside this quarter." />
+          {/* QA of 23 Nov: these are the quarter's own movements, not the red flags of section 03's profit and loss checks, so they are named risks to watch
+              (HDFC Bank showed "Red flag 0" in 03 beside "Key risks and red flags 1" here) */}
+          <KqRow tone="var(--loss)" icon="alert" title={KQ_RISK_TITLE} items={k.bad} empty="No risks to watch in the reported numbers this quarter." />
+        </div>) : null; })()}
     </section>
   );
 }
@@ -109,8 +127,28 @@ const segKeys = (e: React.KeyboardEvent<HTMLElement>) => {
   bs[to].focus(); bs[to].click();
 };
 
-export function TrendsSection({ f, e, r }: { f?: Financials; e?: Events; r?: Ratios }) {
+export function TrendsSection({ f: pageF, e, r: pageR }: { f?: Financials; e?: Events; r?: Ratios }) {
   const [tab, setTab] = useState<"key" | "margin" | "div">("key");
+  // Task #198 (same rules as section 06, task #190): the reader can switch THIS section between consolidated and standalone accounts; the rest of the
+  // page keeps its basis. The other basis's financials and ratios are asked for only when its button is pressed, and its cards are drawn only once an
+  // answer for exactly that basis is here (never the previous basis's figures under the new label). Dividend per share is per share: the same on either.
+  const sym = pageF?.meta.symbol ?? "";
+  const pageBasis = useBasis(sym);
+  const [pick, setPick] = useState<{ sym: string; b: Basis } | null>(null);
+  const chosen: Basis | null = pick && pick.sym === sym ? pick.b : null;
+  const wantOther = !!pageF && chosen != null && chosen !== pageF.meta.statement;
+  const finQ = useSection<Financials>(sym, "financials", wantOther, chosen ?? undefined);
+  const ratQ = useSection<Ratios>(sym, "ratios", wantOther, chosen ?? undefined);
+  const finReady = wantOther && finQ.data?.meta.symbol === sym && finQ.data.meta.statement === chosen ? finQ.data : undefined;
+  const ratReady = wantOther && ratQ.data?.meta.symbol === sym && ratQ.data.meta.statement === chosen ? ratQ.data : undefined;
+  const ratDone = !!ratReady || ratQ.isError;            // ratios that fail leave their two cards out (listed as not shown); the rest still draws
+  const f = wantOther ? (finReady && ratDone ? finReady : undefined) : pageF;
+  const r = wantOther ? ratReady : pageR;
+  const emptyFin = (x?: Financials) => !!x && x.yearly.pl.periods.length === 0 && x.quarterly.pl.periods.length === 0;
+  const [none, setNone] = useState<string[]>([]);       // a basis found to have no statements stays greyed out, with its reason, for this company
+  useEffect(() => { if (finReady && emptyFin(finReady) && chosen && !none.includes(sym + ":" + chosen)) setNone((n) => [...n, sym + ":" + chosen]); }, [finReady, chosen, sym, none]);
+  const isNone = (b: Basis) => none.includes(sym + ":" + b) || (b === chosen && !!finReady && emptyFin(finReady));
+  const noneFor: Basis | null = chosen && isNone(chosen) ? chosen : null;
   const [mode, setModeRaw] = useState<"q" | "a">(readMode);
   const setMode = (m: "q" | "a") => { setModeRaw(m); try { sessionStorage.setItem(MODE_KEY, m); } catch { /* private window */ } };
   const [big, setBig] = useState<string | null>(null);
@@ -119,7 +157,31 @@ export function TrendsSection({ f, e, r }: { f?: Financials; e?: Events; r?: Rat
     const k = (e: KeyboardEvent) => { if (e.key === "Escape") setBig(null); };
     window.addEventListener("keydown", k); return () => window.removeEventListener("keydown", k);
   }, [big]);
-  if (!f) return null;
+  if (!pageF) return null;
+  const nameOf = (b: Basis) => (b === "consolidated" ? "Consolidated" : "Standalone");
+  const active: Basis = chosen ?? pageF.meta.statement;
+  const basisSeg = (
+    <div className="seg" role="group" aria-label="Accounts: consolidated or standalone">
+      {(["consolidated", "standalone"] as Basis[]).map((b) => {
+        const off = isNone(b);
+        return <button key={b} type="button" aria-pressed={active === b} disabled={off && active !== b}
+          title={(b === "consolidated" ? "The group: the company and its subsidiaries together" : "The parent company alone, without its subsidiaries") + (off ? ". Not available for this company." : "")}
+          onClick={() => setPick(b === pageF.meta.statement ? null : { sym, b })}>{nameOf(b)}</button>;
+      })}
+    </div>);
+  const head = (b: Basis) => `${nameOf(b)} accounts. Quarter by quarter or year by year. Hover a column for its exact value.`;
+  if (!f || noneFor) {
+    const why = noneFor ? `${nameOf(noneFor)} statements are not available for this company in our data sources, so this section can only show ${pageF.meta.statement} accounts.`
+      : finQ.isError ? `${nameOf(chosen as Basis)} accounts could not be loaded right now (${finQ.error?.status === 503 ? "the data provider did not answer" : "please try again in a moment"}). The ${pageF.meta.statement} accounts are still here: press ${nameOf(pageF.meta.statement)}.`
+        : `Loading ${chosen as Basis} accounts…`;
+    return (
+      <section className="block" style={{ "--sc": "var(--gold)" } as React.CSSProperties}>
+        <SectionHead id="trends" no="07 · Trends" icon="line" tier="basic" title="How sales, profit and cash have moved" sub={head(chosen as Basis)} color="--gold" />
+        <div className="tr-bar"><span className="faint" style={{ fontSize: "var(--fs-13)", alignSelf: "center" }}>Accounts</span>{basisSeg}</div>
+        <p className={noneFor || finQ.isError ? "muted" : "faint"} role="status" style={{ fontSize: "var(--fs-14)", margin: "6px 2px 0" }}>{why}</p>
+        {!noneFor && !finQ.isError && <div className="skeleton" style={{ height: 320, marginTop: 14 }} />}
+      </section>);
+  }
   const A = f.yearly, Q = f.quarterly.pl;
   const tbl = (m: "q" | "a") => (m === "q" ? Q : A.pl);
   const mk = (title: string, key: string, color: string, fmt = crf, x: Partial<Card> = {}): Card => ({ id: key, title, ...x, build: (m) => { const t = tbl(m); return { labels: t.periods, series: [{ key, label: title, values: row(t, key), color }], fmt }; } });
@@ -155,20 +217,26 @@ export function TrendsSection({ f, e, r }: { f?: Financials; e?: Events; r?: Rat
   const missing = built.filter((b) => !b.d).map((b) => b.c.title);
   return (
     <section className="block" style={{ "--sc": "var(--gold)" } as React.CSSProperties}>
-      <SectionHead id="trends" no="07 · Trends" icon="line" tier="basic" title="How sales, profit and cash have moved" sub="Quarter by quarter or year by year. Hover a column for its exact value." color="--gold"
-        aside={<div className="seg" role="group" aria-label="Period" onKeyDown={segKeys}><button type="button" aria-pressed={mode === "q"} tabIndex={mode === "q" ? 0 : -1} onClick={() => setMode("q")}>Quarterly</button><button type="button" aria-pressed={mode === "a"} tabIndex={mode === "a" ? 0 : -1} onClick={() => setMode("a")}>Annual</button></div>} />
-      <div className="tr-bar">
-        <div className="seg" role="tablist" aria-label="Trend groups" onKeyDown={segKeys}>{([["key", "Key metrics"], ["margin", "Margins and investment"], ["div", "Dividends"]] as const).map(([k, l]) => <button key={k} type="button" role="tab" id={"trtab-" + k} aria-controls="trpanel" tabIndex={tab === k ? 0 : -1} aria-selected={tab === k} onClick={() => setTab(k)}>{l}</button>)}</div>
-      </div>
+      <SectionHead id="trends" no="07 · Trends" icon="line" tier="basic" title="How sales, profit and cash have moved" sub={head(f.meta.statement)} color="--gold"
+        aside={<>{basisSeg}<div className="seg" role="group" aria-label="Period" onKeyDown={segKeys}><button type="button" aria-pressed={mode === "q"} tabIndex={mode === "q" ? 0 : -1} onClick={() => setMode("q")}>Quarterly</button><button type="button" aria-pressed={mode === "a"} tabIndex={mode === "a" ? 0 : -1} onClick={() => setMode("a")}>Annual</button></div></>} />
+      {/* task #216 (README 3.7): the trend groups are the report's tab group; Consolidated | Standalone sits in the heading row, left of Quarterly | Annual */}
+      <TabGroup label="Trend groups" value={tab} onChange={(k) => setTab(k as typeof tab)} next={false} hint={`${tabName} shown here`}
+        views={[{ key: "key", label: "Key metrics" }, { key: "margin", label: "Margins and investment" }, { key: "div", label: "Dividends" }]} />
+      {chosen && f.meta.statement !== pageBasis && <p className="faint" style={{ fontSize: "var(--fs-13)", margin: "0 2px 12px" }}>This section now shows {f.meta.statement} accounts; the rest of this page uses {pageBasis} accounts.</p>}
+      {mode === "a" && yearGaps(A.pl.periods).map((g) => <p key={g} className="faint" style={{ fontSize: "var(--fs-13)", margin: "0 2px 12px" }}>No {f.meta.statement} figures for {g} in our data sources: neighbouring columns and the trend lines below skip those years.</p>)}
+      {chosen && wantOther && ratQ.isError && <p className="faint" style={{ fontSize: "var(--fs-13)", margin: "0 2px 12px" }}>The {chosen} ratios (return on equity and capital, payout) could not be loaded right now, so those charts are left out.</p>}
       <p className="sr-only" role="status" aria-live="polite">{`Showing ${mode === "q" ? "quarterly" : "annual"} figures, ${shownCount} of ${list.length} charts in ${tabName}.`}</p>
-      <div className="tr-grid" role="tabpanel" id="trpanel" aria-labelledby={"trtab-" + tab}>{built.map(({ c, d }) => {
+      <div className="tr-grid" id="trpanel" aria-label={tabName}>{built.map(({ c, d }) => {
         if (!d) return null;
         const open = big === c.id, unit = c.unit ?? "cr", money = trendMoney(unit), single = d.series.length === 1;
         const kind = c.kind ?? (single ? "flow" : "pair");
         const v0 = d.series[0].values, li = single ? lastIndex(v0) : -1;
         const hi = single ? (li < 0 ? d.labels.length - 1 : li) : d.labels.length - 1;
-        const ch = single ? yoyChange(v0, mode, kind === "ratio") : null, bd = ch ? badgeOf(ch) : null;
-        const line = insightLine({ kind, name: c.iname ?? c.title, labels: d.labels, mode, series: d.series.map((x) => ({ label: x.label, values: x.values })), money, since: c.since });
+        // task #312 (developer file 20, change 4): an annual-only card's series is yearly whatever the switch says, so its YoY is one step back (FY26
+        // against FY25). It was given the page's Quarterly mode and stepped back four years (FY26 against FY22: free cash flow "+558.5% YoY").
+        const cm: "q" | "a" = c.annualOnly ? "a" : mode;
+        const ch = single ? yoyChange(v0, cm, kind === "ratio") : null, bd = ch ? badgeOf(ch) : null;
+        const line = insightLine({ kind, name: c.iname ?? c.title, labels: d.labels, mode: cm, series: d.series.map((x) => ({ label: x.label, values: x.values })), money, since: c.since });
         const latest = (x: BarSeries) => { const i = lastIndex(x.values); return i < 0 ? null : money(x.values[i] as number); };
         const summary = `${c.title} by period. ` + (single && li >= 0 ? `Latest, ${shortPeriod(d.labels[li])}: ${money(v0[li] as number)}. ` : "") + line.text;
         return (
@@ -184,9 +252,9 @@ export function TrendsSection({ f, e, r }: { f?: Financials; e?: Events; r?: Rat
             <p className={"tr-in " + line.tone}><Icon name={line.tone === "down" ? "decline" : line.tone === "up" ? "growth" : "line"} />{line.text}</p>
           </div>);
       })}</div>
-      {shownCount === 0 && <p className="faint" style={{ fontSize: 13, margin: "10px 2px" }}>– No {tabName.toLowerCase()} figures are available for this company in the {mode === "q" ? "quarterly" : "annual"} view.</p>}
-      {shownCount > 0 && missing.length > 0 && <p className="faint" style={{ fontSize: 12, margin: "10px 2px 0" }}>– Not shown, no reported figures: {missing.join(", ")}.</p>}
-      <p className="faint" style={{ fontSize: 12, margin: "10px 2px 0" }}>₹ Crore unless stated. Cash flow and balance sheet items are reported once a year, so they stay annual.</p>
+      {shownCount === 0 && <p className="faint" style={{ fontSize: "var(--fs-13)", margin: "10px 2px" }}>– No {tabName.toLowerCase()} figures are available for this company in the {mode === "q" ? "quarterly" : "annual"} view.</p>}
+      {shownCount > 0 && missing.length > 0 && <p className="faint" style={{ fontSize: "var(--fs-12)", margin: "10px 2px 0" }}>– Not shown, no reported figures: {missing.join(", ")}.</p>}
+      <p className="faint" style={{ fontSize: "var(--fs-12)", margin: "10px 2px 0" }}>₹ Crore unless stated. Cash flow and balance sheet items are reported once a year, so they stay annual.</p>
     </section>
   );
 }

@@ -45,8 +45,8 @@ async def put(store, rows):  # noqa: F811
         await conn.execute("DELETE FROM prism_reports")
         for rep in rows:
             r = rep["rating"]
-            await conn.execute("INSERT INTO prism_reports (symbol, statement, id, report, model_version, final, label, status) VALUES ($1,'consolidated',$2,$3::jsonb,'3.6.18',$4,$5,$6)",
-                               rep["company"]["symbol"], rep["id"], json.dumps(rep), r["final"], r["label"], r["status"])
+            await conn.execute("INSERT INTO prism_reports (symbol, statement, id, report, model_version, final, label, status) VALUES ($1,'consolidated',$2,$3::jsonb,$7,$4,$5,$6)",
+                               rep["company"]["symbol"], rep["id"], json.dumps(rep), r["final"], r["label"], r["status"], prism.REQUIRED_MODEL_VERSION)
 
 
 ROWS = [

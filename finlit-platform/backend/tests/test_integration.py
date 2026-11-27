@@ -1,10 +1,12 @@
 """End-to-end: fixtures -> worker -> Postgres/Redis -> API. Needs DATABASE_URL and REDIS_URL;
 skipped when they are not reachable (CI provides both as service containers)."""
 
+import asyncio
 import os
 import statistics
 import time
 
+import asyncpg
 import httpx
 import orjson
 import pytest
@@ -39,16 +41,24 @@ async def store():
     except Exception as exc:  # pragma: no cover
         await s.close()
         pytest.skip(f"redis not available: {exc}")
-    async with s.pool.acquire() as conn:
-        # Timescale refuses to drop a hypertable in the same statement as other tables.
-        await conn.execute("DROP TABLE IF EXISTS price_daily CASCADE")
-        await conn.execute("DROP TABLE IF EXISTS snapshots, scores, companies, ingest_runs, "
-                           "ingest_queue, schema_migrations, users, sessions, email_tokens, audit_events, user_state, "
-                           "plan_requests, outbox, score_history, alert_state, ipos, feed_items, screen_state, digest_log CASCADE")
+    for attempt in range(5):   # TimescaleDB's compression job (price_daily, docs/PRICE-STORAGE.md) can hold a chunk: a deadlock is tried again
+        try:
+            async with s.pool.acquire() as conn:
+                # Timescale refuses to drop a hypertable in the same statement as other tables.
+                await conn.execute("DROP TABLE IF EXISTS price_daily CASCADE")
+                await conn.execute("DROP TABLE IF EXISTS snapshots, scores, companies, ingest_runs, "
+                                   "ingest_queue, schema_migrations, users, sessions, email_tokens, audit_events, user_state, "
+                                   "plan_requests, outbox, score_history, alert_state, ipos, feed_items, screen_state, digest_log CASCADE")
+            break
+        except asyncpg.exceptions.DeadlockDetectedError:
+            if attempt == 4:
+                raise
+            await asyncio.sleep(0.5 * (attempt + 1))
     await s.redis.flushdb()
     await s.migrate()
     async with s.pool.acquire() as conn:   # tables the drop list above does not cover but tests here write to
         await conn.execute("DELETE FROM index_members")
+        await conn.execute("DELETE FROM feedback")        # test_feedback counts every row: a second run on the same database saw the first run's too
     yield s
     await s.close()
 
@@ -76,23 +86,41 @@ async def test_summary_served_with_etag_and_304(api):
     assert r.status_code == 200
     assert r.headers["cache-control"].startswith("private") and "Cookie" in r.headers["vary"]  # plan-dependent section
     body = r.json()
-    assert body["meta"]["symbol"] == "RELIANCE" and body["score"]["overall"] is not None
+    assert body["meta"]["symbol"] == "RELIANCE" and body["profile"]["name"] and "score" not in body     # task #283 PR C: the retired FinLit IQ is not served
     again = await api.get("/api/stocks/RELIANCE", headers={"If-None-Match": r.headers["etag"]})
     assert again.status_code == 304 and again.content == b""
 
 
-async def test_screener_universe(api):
+async def test_screener_universe(api, store):
     r = await api.get("/api/screener/universe")
     assert r.status_code == 200 and r.headers["cache-control"].startswith("private") and "Cookie" in r.headers["vary"]
     rows = {x["symbol"]: x for x in r.json()["rows"]}
     rel = rows["RELIANCE"]
     assert rel["name"] == "Reliance Industries Ltd" and rel["sector"]
     # every field the screener and comparison pages read is present and numeric (or null)
-    for k in ("overall", "pe", "pb", "roe", "roce", "debt_to_equity", "sales_cagr", "profit_cagr", "operating_margin",
-              "change_pct", "return_1m", "return_1y", "market_cap", "price", "dividend_yield", "pillar_quality", "pillar_balance"):
+    for k in ("pe", "pb", "roe", "roce", "debt_to_equity", "sales_cagr", "profit_cagr", "operating_margin",
+              "change_pct", "return_1m", "return_1y", "market_cap", "price", "dividend_yield"):
         assert k in rel and (rel[k] is None or isinstance(rel[k], (int, float))), k
-    assert rel["overall"] is not None and rel["band"] in {"strong", "healthy", "mixed", "watch"}
+    for k in ("overall", "band", "pillar_quality", "pillar_balance", "score_change"):       # task #283 PR C: the retired FinLit IQ goes to no plan
+        assert k not in rel, k
+    assert rel["scored"] is True
     assert "statement" not in rel and "updated_at" not in rel
+    # task #64, 14 Nov N-28 / N-34: NSE's sector and industry come with every row (null when the company is in neither list), for the Sector and industry filter
+    assert all("nse_sector" in x and "nse_industry" in x for x in rows.values())
+    # every sector sent is the catalog's sector for that company's NSE industry (never the company's own label), so the filter shows NSE's sectors only
+    cat = (await api.get("/api/screener/catalog")).json()
+    sector_of = {i["name"]: i["sector"] for i in cat["industries"] if i.get("sector")}
+    for x in rows.values():
+        assert (x["nse_sector"] is None) == (x["nse_industry"] is None), x["symbol"]
+        if x["nse_industry"]:
+            assert sector_of.get(x["nse_industry"]) == x["nse_sector"], x["symbol"]
+    # task #258 (SHARED §1): the three NSE levels come from the stored classification (task #192), exactly as stored; null for a company it does not hold.
+    # (Compared with the table, not with NSE's tree: other test files store made-up classifications in the same test database.)
+    assert all({"cls_macro", "cls_sector", "cls_industry"} <= set(x) for x in rows.values())
+    async with store.pool.acquire() as conn:
+        held = {x["symbol"]: (x["macro_sector"] or None, x["sector"] or None, x["industry"] or None) for x in await conn.fetch("SELECT symbol, macro_sector, sector, industry FROM company_classification")}
+    for x in rows.values():
+        assert (x["cls_macro"], x["cls_sector"], x["cls_industry"]) == held.get(x["symbol"], (None, None, None)), x["symbol"]
 
 
 async def test_every_section_and_range(api):
@@ -166,7 +194,18 @@ async def test_prices_and_scores_persisted(ingested):
         days = await conn.fetchval("SELECT count(*) FROM price_daily WHERE symbol = 'RELIANCE'")
         score = await conn.fetchrow("SELECT * FROM scores WHERE symbol = 'RELIANCE'")
         run = await conn.fetchrow("SELECT * FROM ingest_runs ORDER BY id DESC LIMIT 1")
-    assert days > 400 and score["overall"] is not None and run["status"] in ("ok", "warnings") and run["calls"] >= 21
+    # price_daily keeps the last PRICE_DAYS days (docs/PRICE-STORAGE.md): exactly the recorded days inside that window are stored
+    import datetime as dt
+    import json
+    import pathlib
+    from finlit.store import PRICE_DAYS
+    since = dt.date.today() - dt.timedelta(days=PRICE_DAYS)
+    recorded = json.loads((pathlib.Path(__file__).parent / "fixtures" / "finedge" / "daily_quotes_reliance.json").read_text())["price"]
+    inside = {str(r["quote_date"])[:10] for r in recorded if str(r["quote_date"])[:10] >= since.isoformat()}
+    assert score["overall"] is not None and run["status"] in ("ok", "warnings") and run["calls"] >= 21
+    async with ingested.pool.acquire() as conn:
+        oldest = await conn.fetchval("SELECT min(day) FROM price_daily WHERE symbol = 'RELIANCE'")
+    assert abs(days - len(inside)) <= 5 and (oldest is None or oldest >= since)   # a few recorded days are dropped as bad ticks
 
 
 async def test_refresh_quotes_patches_summary(ingested):
@@ -287,13 +326,14 @@ async def test_probe_reports_every_endpoint(store):
 
 
 async def test_score_history_and_health(api, ingested):
-    h = await api.get("/api/stocks/RELIANCE/score-history")  # showcase symbol: open
-    pts = h.json()["points"]
-    assert h.status_code == 200 and len(pts) == 1 and pts[0]["overall"] is not None
+    h = await api.get("/api/stocks/RELIANCE/score-history")  # task #283 PR C: the retired FinLit IQ's history is not served, even for the showcase company
+    assert h.status_code == 410 and h.json()["status"] == "retired"
+    assert len(await ingested.score_history("RELIANCE")) == 1   # ... but the IQ job keeps writing it (hidden, for a rollback)
     await worker.ingest_one(FinEdgeClient(make_settings()), ingested, "RELIANCE")  # same day: still one point
-    assert len((await api.get("/api/stocks/RELIANCE/score-history")).json()["points"]) == 1
+    assert len(await ingested.score_history("RELIANCE")) == 1
     health = await ingested.health()
     assert health["universe"] > 5000 and health["loaded"] == 1 and health["scored"] >= 1 and "runs24h" in health
+    assert health["prismGap"]["retiredScored"] >= 1 and health["prismGap"]["retiredNoPrism"] <= health["prismGap"]["retiredScored"]     # task #283 PR C
 
 
 async def test_exchange_announcements_become_feed_items(api, ingested):
@@ -404,12 +444,9 @@ async def test_search_quotes_and_logos(ingested):
                 body = r.json()
                 rows = {x[0]: x for x in body["rows"]}
                 rel = rows["RELIANCE"]
-                assert body["fields"] == ["symbol", "price", "changePct", "priceDate", "score", "band", "logo"] and body["level"] == "basic"
+                assert body["fields"] == ["symbol", "price", "changePct", "priceDate", "score", "band", "logo", "logoBackup"] and body["level"] == "basic"
                 assert rel[1] > 0 and len(rel[3]) == 10 and rel[6] == f"/api/logos/{sha}.png"
-                if want == "open":
-                    assert isinstance(rel[4], int) and rel[5] in {"strong", "healthy", "mixed", "watch"}
-                else:
-                    assert rel[4] is None and rel[5] == "locked"             # never a Silver score in a Basic answer
+                assert rel[4] is None and rel[5] is None and want in ("open", "locked")   # task #283 PR C: the score and band held the retired FinLit IQ; never sent
                 assert body["amcLogos"] == {"sbi": f"/api/logos/{sha}.png"}
                 assert (await api.get("/api/search/quotes", headers={"If-None-Match": r.headers["etag"]})).status_code == 304
                 img = await api.get(rel[6])

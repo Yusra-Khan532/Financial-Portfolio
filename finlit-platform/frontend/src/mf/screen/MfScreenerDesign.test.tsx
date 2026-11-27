@@ -32,7 +32,7 @@ vi.mock("../../lib/api", async (orig) => ({
   }),
 }));
 vi.mock("../../lib/ui", () => ({ useUI: () => ({ has: (p: string) => (p === "gold" ? st.gold : true), upgrade: vi.fn(), toast: vi.fn() }), TIER: {} }));
-import { MfScreenerPage, defaultChips } from "../../pages/MfScreener";
+import { MfScreenerPage } from "../../pages/MfScreener";
 import { flowRows, axisPct } from "./Graphics";
 import { GROUPS, findGroup, planOn } from "./Panel";
 import { DEFAULTS } from "../../lib/mfScreen";
@@ -48,10 +48,10 @@ beforeEach(() => { st.calls = []; st.gold = true; setNarrow(false); try { localS
 afterEach(() => { cleanup(); vi.useRealTimers(); });
 
 describe("task #131: the Mutual Fund Screener as the team's design", () => {
-  it("C-1 the 11 presets are one wrapping row of buttons; the one that is on is dark and its filters show as chips; clicking again turns it off", async () => {
+  it("C-1 the 11 presets (task #356: in five labelled rows); the one that is on is dark and its filters show as chips; clicking again turns it off", async () => {
     mount(); await screen.findAllByText("Alpha Mid Cap Fund");
-    const row = document.querySelector(".mfs-prow")!;
-    expect(row.querySelectorAll(".mfs-preset")).toHaveLength(11);
+    expect(document.querySelectorAll(".mfs-presets .mfs-preset")).toHaveLength(11);
+    expect([...document.querySelectorAll(".mfs-pgrp .mfs-pg")].map((x) => x.textContent)).toEqual(["Equity", "Debt", "Index and themes", "Hybrid", "Mutual Fund Score"]);
     fireEvent.click(screen.getByRole("button", { name: /Defence and aerospace funds/ }));
     await waitFor(() => expect(screen.getByTestId("loc").textContent).toContain("tags=defence"));
     expect(screen.getByRole("button", { name: /Defence and aerospace funds/ }).className).toContain("is-on");
@@ -74,36 +74,55 @@ describe("task #131: the Mutual Fund Screener as the team's design", () => {
     expect(within(panel()).getByRole("status").textContent).toMatch(/No filter matches “zzzz”/);
     expect([findGroup("ELSS")?.id, findGroup("worst fall")?.id, findGroup("expense")?.id, findGroup("x")]).toEqual(["subcat", "risk", "cost", null]);
   });
-  it("C-3 17 groups, each showing how many choices are on ('4 on'), the first five open and the rest closed", async () => {
+  it("C-3 18 groups (task #358: under four headings, all folded until opened), each showing how many choices are on (task #369: none on arrival)", async () => {
     mount(); await screen.findAllByText("Alpha Mid Cap Fund");
     const heads = [...panel().querySelectorAll(".fgx-g .fgx-t")].map((x) => x.textContent);
     expect(heads).toEqual(GROUPS.map((g) => g.title)); expect(heads).toHaveLength(17);
+    expect([...panel().querySelectorAll(".mfs-sec")].map((x) => x.textContent)).toEqual(["Quick shortlist", "Start here · what and how", "Risk, returns and cost", "Narrow down"])   // task #372: the score first
+    const first = panel().querySelector("#mfs-groups .fgx-g")!; expect(first.getAttribute("data-fgx")).toBe("score");   // task #372: the topmost filter, with a crown
+    expect(first.querySelector(".fgx-gi")).not.toBeNull();
+    expect(heads.slice(0, 4)).toEqual(["FinLit Mutual Fund Score", "Type and category", "Sub-category", "Plan, option and status"]);   // task #372
+    expect(heads.slice(4, 7)).toEqual(["Risk", "Returns", "Cost"]);
     const open = [...panel().querySelectorAll(".fgx-g")].map((g) => g.classList.contains("is-open"));
-    expect(open.slice(0, 5)).toEqual([true, true, true, true, true]); expect(open.slice(5).every((o) => !o)).toBe(true);
-    expect(within(panel()).getByRole("button", { name: /^Plan, option and status/ }).textContent).toMatch(/4 on/);
-    expect(planOn(DEFAULTS)).toBe(4);
-    expect(within(panel()).getByRole("button", { name: /^Data quality and lists/ }).textContent).toMatch(/Needs a data source 10/);
+    expect(open.every((o) => !o)).toBe(true);
+    expect(within(panel()).getByRole("button", { name: /^Plan, option and status/ }).textContent).not.toMatch(/\d+ on/);
+    expect(planOn(DEFAULTS)).toBe(0);
+    expect(planOn({ ...DEFAULTS, plans: ["Direct"], status: "active" })).toBe(2);
+    expect(within(panel()).queryByRole("button", { name: /^Data quality and lists/ })).toBeNull();   // task #368: off the list
+    fireEvent.click(within(panel()).getByRole("button", { name: /^Debt maturity band/ }));
     expect(panel().textContent).toMatch(/The band SEBI sets for the category/);
   });
-  it("C-4 a Sort button with a short menu replaces the native select; same choices; FundPulse sort has no Gold tag", async () => {
+  it("C-4 a Sort button with a short menu replaces the native select; same choices; Mutual Fund Score sort has no Gold tag", async () => {
     mount(); await screen.findAllByText("Alpha Mid Cap Fund");
     expect(document.querySelector(".fgx-sort select")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: /^Sort: fund size, largest first/i }));
     const items = within(screen.getByRole("menu", { name: "Sort by" })).getAllByRole("menuitemradio").map((b) => b.textContent!.replace("✓", ""));
-    expect(items).toHaveLength(SORTS.length); expect(items).toContain("FundPulse, high to low"); expect(items).toContain("SIP return (3 years), high to low");
+    expect(items).toHaveLength(SORTS.length); expect(items).toContain("Mutual Fund Score, high to low"); expect(items).toContain("SIP return (3 years), high to low");
     expect(document.body.textContent).not.toMatch(/\(Gold\)/);
     fireEvent.click(screen.getByRole("menuitemradio", { name: /expense ratio, low to high/i }));
     await waitFor(() => expect(screen.getByTestId("loc").textContent).toContain("sort=ter"));
   });
-  it("C-5 the default view shows as removable chips, not a sentence", async () => {
+  it("task #369: nothing is preselected: no chip, every scheme asked for (every plan, option and status), a chosen filter shows as a chip", async () => {
     mount(); await screen.findAllByText("Alpha Mid Cap Fund");
     const bar = screen.getByLabelText("Active filters");
-    expect(within(bar).getByText("Default view")).toBeTruthy();
-    expect([...bar.querySelectorAll(".mfs-dchip")].map((c) => c.textContent!.replace(/\s*×$/, ""))).toEqual(["Direct plan", "Growth option", "Still publishing", "Mutual funds and ETFs"]);
-    expect(bar.textContent).not.toMatch(/Choose a filter on the left/);
-    fireEvent.click(within(bar).getByRole("button", { name: /Remove Direct plan/ }));
-    await waitFor(() => expect(screen.getByTestId("loc").textContent).toMatch(/plans=(&|$)|plans=$/));
-    expect(defaultChips({ ...DEFAULTS, status: "both", inst: ["fund"] }).map((c) => c.id)).toEqual(["plan", "option"]);
+    expect(bar.querySelectorAll("button")).toHaveLength(0);
+    expect(bar.textContent).not.toMatch(/Default view|Direct plan|Growth option|Still publishing/);
+    // the list request (the bug: it asked for plans=Direct, options=Growth, status=active, 1,719 funds on 24 Nov 2026)
+    const list = new URL(st.calls.find((c) => c.startsWith("/api/mf?"))!, "http://x").searchParams;
+    expect(list.getAll("plans")).toEqual([]); expect(list.getAll("options")).toEqual([]); expect(list.get("option")).toBe("All"); expect(list.get("status")).toBe("both");
+    expect(screen.getByTestId("loc").textContent).toBe("");
+    // in the panel only the neutral "All" choices are pressed in Plan, Option and Status
+    fireEvent.click(within(panel()).getByRole("button", { name: /^Plan, option and status/ }));
+    for (const g of ["Plan", "Option", "Status"]) {
+      const on = [...within(panel()).getByRole("group", { name: g }).querySelectorAll('[aria-pressed="true"]')].map((b) => b.textContent!.replace("✓", ""));
+      expect(on, g).toEqual(["All"]);
+    }
+    expect([...within(panel()).getByRole("group", { name: "Instrument" }).querySelectorAll('[aria-pressed="true"]')]).toHaveLength(0);
+    // choosing one turns it on as a removable chip
+    fireEvent.click(within(within(panel()).getByRole("group", { name: "Status" })).getByRole("button", { name: /Still publishing/ }));
+    await waitFor(() => expect(screen.getByTestId("loc").textContent).toContain("status=active"));
+    fireEvent.click(within(screen.getByLabelText("Active filters")).getByRole("button", { name: "Remove filter: Still publishing" }));
+    await waitFor(() => expect(screen.getByTestId("loc").textContent).toBe(""));
   });
   it("C-6 Result at a glance is open on arrival with both parts, and Hide hides it", async () => {
     try { localStorage.setItem("finlit.ui.mfscreen.glance", JSON.stringify({ v: 1, d: false })); } catch { /* none */ }
@@ -138,10 +157,10 @@ describe("task #131: the Mutual Fund Screener as the team's design", () => {
     const rows = flowRows([{ key: "a", label: "A", months: ["2026-10"], net: [100] }, { key: "b", label: "B", months: ["2026-09", "2026-10"], net: [50, null] }, { key: "c", label: "C", months: ["2026-10"], net: [null] }]);
     expect(rows.map((r) => [r.key, r.month, r.cut, r.width])).toEqual([["a", "2026-10", false, 1], ["b", "2026-09", false, 0.5]]);   // the latest month with a figure; none at all: dropped
   });
-  it("C-9 a FundPulse column after the fund name: the score with its band word for Gold; a lock below Gold, never a value", async () => {
+  it("C-9 a Mutual Fund Score column after the fund name: the score with its band word for Gold; a lock below Gold, never a value", async () => {
     mount(); await screen.findAllByText("Alpha Mid Cap Fund");
     const heads = [...document.querySelectorAll(".mfs-table thead th")].map((th) => th.textContent!.trim());
-    expect(heads[0]).toMatch(/Fund/); expect(heads[1]).toMatch(/^FundPulse/);
+    expect(heads[0]).toMatch(/Fund/); expect(heads[1]).toMatch(/^Mutual Fund Score/);
     await waitFor(() => expect(document.querySelector(".mfs-table tbody tr td.mfs-hs")!.textContent).toMatch(/72\.1.*Healthy/));
     cleanup(); st.gold = false; st.calls = [];
     mount(); await screen.findAllByText("Alpha Mid Cap Fund");

@@ -1,15 +1,17 @@
-// The FinLit FundPulse card of a fund's page: one plain line, ring, four pillars, status, rank and the data behind it, reasons, gaps and a link to
+// The Mutual Fund Score card of a fund's page: one plain line, ring, four pillars, status, rank and the data behind it, reasons, gaps and a link to
 // the method (task #132: the line first, rank and data in one list, the breakdown as a table; no weights and no look-back lengths). Locked below the plan that has it.
 import { Link } from "react-router";
 import { Gate } from "../components/Gate";
 import { Icon } from "../lib/icons";
 import {
-  FLAG_TEXT, MF_METHOD_URL, MF_SCORE_COMPLIANCE, MF_SCORE_NAME, PILLAR_HELP, SCORE_BANDS, bandOf, wordBand, builtOnText, etfMeasures, rankText, scoreSentence, scoreText, useFundScore,
+  FLAG_TEXT, MF_METHOD_URL, MF_SCORE_COMPLIANCE, scoreFootLine, MF_SCORE_NAME, PILLAR_HELP, SCORE_BANDS, bandOf, wordBand, builtOnText, etfMeasures, rankText, scoreSentence, scoreText, useFundScore,
   type FundScore, type ScoreLine,
 } from "../lib/mfScore";
 import { BAND_NAME, bandVar } from "../lib/scoreBands";
 import { dateIN } from "../lib/format";
+import { GROWTH_SCORE_LABEL, PLAN_SCORE_NOTE, scoreReason } from "../lib/mf";
 import { ScoreBreakdown } from "./ScoreBreakdown";
+import { ScoreHighLow } from "./ScoreHighLow";
 import { PEER_KIND_WORD, type CategoryMedian } from "../lib/mfScoreUp";
 import { ScoreAlertButton } from "./ScoreAlertButton";
 import { ScoreHistoryCard } from "./ScoreHistory";
@@ -30,19 +32,24 @@ export function ScoreRing({ score, label, size = 132 }: { score: number | null; 
 }
 
 function Pillars({ s }: { s: FundScore }) {
-  return (
-    <ul className="mfs-pillars" aria-label="The four parts of the score, in words">
+  return (<>
+    <ul className="mfs-pillars" aria-label="The four parts of the score, each out of 100 and in words">
       {s.pillars.map((p) => {
-        const word = p.reading || "Not scored", band = wordBand(word);
+        const word = p.reading || "Not scored", band = wordBand(word), pts = p.points ?? null;
+        // task #238: the part's own figure beside its word, and the bar drawn to that figure (a part with no figure keeps the word's width)
+        const width = pts != null ? `${Math.max(0, Math.min(100, pts))}%` : band === "hi" ? "100%" : band === "mid" ? "62%" : band === "lo" ? "28%" : "0%";
         return (
           <li key={p.key} title={PILLAR_HELP[p.key]}>
             <span className="mfs-pn">{p.name}</span>
-            <span className="mfs-bar" aria-hidden="true"><i style={{ width: band === "hi" ? "100%" : band === "mid" ? "62%" : band === "lo" ? "28%" : "0%", background: bandVar(band) }} /></span>
-            <b className={"mfs-pv b-" + band}>{word}{p.allNotApplicable && <sup title="None of this part's measures apply, so it counts as neutral.">F</sup>}</b>
+            <span className="mfs-bar" aria-hidden="true"><i style={{ width, background: bandVar(band) }} /></span>
+            <b className={"mfs-pv b-" + band} aria-label={pts != null ? `${p.name}: ${scoreText(pts)} out of 100, ${word}` : undefined}>
+              {pts != null && <span className="mfs-pnum">{scoreText(pts)}</span>}{word}{p.allNotApplicable && <sup title="None of this part's measures apply, so it counts as neutral.">F</sup>}
+            </b>
           </li>);
       })}
     </ul>
-  );
+    <ScoreHighLow />
+  </>);
 }
 
 const ETF_ONLY = new Set(["ETF_LIQUIDITY", "ETF_PREMIUM"]);
@@ -80,6 +87,7 @@ function Facts({ s }: { s: FundScore & { categoryMedian?: CategoryMedian } }) {
   if (s.rank?.percentile != null) rows.push(["Higher than", `${s.rank.percentile}% of the group`]);
   if (med?.final != null) rows.push(["Category median", `${scoreText(med.final)}${med.categoryLabel ? ` (${med.categoryLabel}, ${med.plan} plan)` : ""}`]);
   if (s.peers?.n) rows.push(["Compared with", `${s.peers.n} funds, ${PEER_KIND_WORD[s.peers.kind || ""] || s.peers.text || "similar funds"}`]);
+  if (s.fundPlan === "Direct" || s.fundPlan === "Regular" || s.plan === "Direct" || s.plan === "Regular") rows.push(["Plans", PLAN_SCORE_NOTE]);   // task #281
   if (s.months) rows.push(["NAV history used", `${s.months} months`]);
   const built = builtOnText(s.filled);
   if (built) rows.push(["Built on real data", built.replace("Built on real data: ", "")]);
@@ -95,7 +103,7 @@ export function ScoreBody({ s }: { s: FundScore }) {
   return (
     <>
       {line && <p className="mfs-one">{line}</p>}
-      {s.inherited && <p className="mf-note" role="note"><Icon name="info" /><span>Inherited score: {s.inherited.why}{s.inherited.code ? <> <Link to={`/funds/${s.inherited.code}`}>{s.inherited.name}</Link></> : s.inherited.symbol ? <> <Link to={`/etfs/${s.inherited.symbol}`}>{s.inherited.name}</Link></> : null}</span></p>}
+      {s.inherited && <p className="mf-note" role="note"><Icon name="info" /><span>{s.inherited.code ? GROWTH_SCORE_LABEL : "Inherited score"}: {s.inherited.why}{s.inherited.code ? <> <Link to={`/funds/${s.inherited.code}`}>{s.inherited.name}</Link></> : s.inherited.symbol ? <> <Link to={`/etfs/${s.inherited.symbol}`}>{s.inherited.name}</Link></> : null}</span></p>}
       <div className="mfs-top">
         <div className="mfs-ringbox">
           <ScoreRing score={s.final} label={s.label} />
@@ -105,7 +113,7 @@ export function ScoreBody({ s }: { s: FundScore }) {
           </div>
         </div>
         <div className="mfs-side">
-          {rated ? <Pillars s={s} /> : <p className="mfs-nr" role="status"><b>{s.status === "NOT SCORED" ? "Not scored" : "Not rated"}:</b> {s.reason}</p>}
+          {rated ? <Pillars s={s} /> : <p className="mfs-nr" role="status"><b>{s.status === "NOT SCORED" ? "Not scored" : "Not rated"}:</b> {scoreReason(s.reason)}</p>}
         </div>
         {rated && <Facts s={s} />}
       </div>
@@ -127,7 +135,7 @@ export function ScoreBody({ s }: { s: FundScore }) {
             </details>)}
         </div>)}
       {rated && s.kind === "etf" && <EtfMeasures s={s} />}
-      <p className="faint mf-fine">{MF_SCORE_COMPLIANCE} <Link to={s.method || MF_METHOD_URL}>How it works</Link>{s.runDate ? ` · worked out ${dateIN(s.runDate)}` : ""}{s.peers?.text ? ` · compared with ${s.peers.text}` : ""}.</p>
+      <p className="faint mf-fine">{scoreFootLine(s.runDate ? dateIN(s.runDate) : null, s.peers?.kind, s.peers?.text)} · <Link to={s.method || MF_METHOD_URL}>What the score means</Link></p>
     </>
   );
 }

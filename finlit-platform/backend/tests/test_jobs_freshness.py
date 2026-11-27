@@ -205,17 +205,17 @@ async def test_a_refused_provider_key_is_remembered_for_the_alert_and_cleared_wh
 
 
 # ------------------------------------------------------------------------------------------------ sector pulse (docs/SECTORS.md)
-def test_sector_pulse_is_judged_against_the_expected_session_only_when_the_job_is_on():
+def test_sector_pulse_is_judged_by_the_week_only_when_the_job_is_on():
+    # weekend nights (owner, 18 Nov 2026): the board holds the week up to Friday's close; fresh up to 9 days, late from 10 (one weekend missed), stale after 13
     f, now = facts()
     assert "sectors" not in {d["key"] for d in fr.evaluate_facts(f, now, [], disk=1.0)["datasets"]}                 # job switched off: nothing to be late
     f["sector_enabled"], f["sector_board_date"] = True, FRI
     sec = [d for d in fr.evaluate_facts(f, now, [], disk=1.0)["datasets"] if d["key"] == "sectors"][0]
-    assert sec["status"] == "fresh" and sec["jobs"] == ["sectors"] and sec["label"] == "Sector pulse" and "board date" in sec["detail"]
-    f["sector_board_date"] = FRI - timedelta(days=1)                                                                 # Thursday's board, Friday evening
-    late = ist(2026, 10, 30, 23, 0)
-    assert [d for d in fr.evaluate_facts(f, late, [], disk=1.0)["datasets"] if d["key"] == "sectors"][0]["status"] == "late"
-    stale = ist(2026, 10, 31, 13, 0)
-    rep = fr.evaluate_facts(f, stale, [], disk=1.0)
+    assert sec["status"] == "fresh" and sec["jobs"] == ["sectors"] and sec["label"] == "Sector pulse" and "board date" in sec["detail"] and "weekend" in sec["expected"]
+    status = lambda t: [d for d in fr.evaluate_facts(f, t, [], disk=1.0)["datasets"] if d["key"] == "sectors"][0]["status"]   # noqa: E731
+    assert status(ist(2026, 11, 7, 23, 0)) == "fresh"                       # the next Saturday night, before its run: 8 days old, still fresh
+    assert status(ist(2026, 11, 9, 12, 0)) == "late"                        # that weekend's run did not happen: Monday, 10 days old
+    rep = fr.evaluate_facts(f, ist(2026, 11, 13, 12, 0), [], disk=1.0)      # two weekends missed
     assert [d for d in rep["datasets"] if d["key"] == "sectors"][0]["status"] == "stale" and "sectors" in rep["stale"]
     f["sector_board_date"] = None
     assert [d for d in fr.evaluate_facts(f, now, [], disk=1.0)["datasets"] if d["key"] == "sectors"][0]["status"] == "unknown"      # enabled but no data yet: unknown, not stale
@@ -228,7 +228,9 @@ def test_sector_pulse_is_not_called_stale_while_the_founder_has_switched_the_sec
     off = _ev({"sector_enabled": True, "sector_job_off": "The sector job is switched off for now (founder, 7 Nov 2026)", "sector_board_date": _date(2026, 11, 6)}, now)
     assert "sectors" not in [d["key"] for d in off["datasets"]]                 # the console shows "switched off by configuration" instead
     on = _ev({"sector_enabled": True, "sector_job_off": None, "sector_board_date": _date(2026, 11, 6)}, now)
-    assert [d for d in on["datasets"] if d["key"] == "sectors"][0]["status"] in ("late", "stale")     # switched on and days old: judged as before
+    assert [d for d in on["datasets"] if d["key"] == "sectors"][0]["status"] == "fresh"           # switched on: a Friday board is fresh until the next weekend
+    on = _ev({"sector_enabled": True, "sector_job_off": None, "sector_board_date": _date(2026, 10, 28)}, now)
+    assert [d for d in on["datasets"] if d["key"] == "sectors"][0]["status"] == "stale"           # two weekends missed
 
 
 def test_technical_views_count_a_company_with_no_newer_trading_day_apart():

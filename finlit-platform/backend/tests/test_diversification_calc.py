@@ -44,7 +44,7 @@ def test_sample_list_reproduces_the_addendum(full):
     assert full["stress"]["benchmarkAvgPct"] == -3.41 and full["stress"]["equalAvgPct"] == -3.21
     assert full["market"]["betaEqual"] == 0.96
     assert full["spread"]["sectors"] == EXPECTED["spread"]["sectors"] and full["spread"]["groups"] == EXPECTED["spread"]["groups"]
-    assert full["spread"]["size"] == {"Large": 15, "Mid": 0, "Small": 0}
+    assert full["spread"]["size"] == {"Large": 15, "Mid": 0, "Small": 0, "Micro": 0}
     b = full["basket"]
     assert (b["equal"]["volPct"], b["equal"]["maxDrawdownPct"]) == (12.0, -15.1)
     assert (b["mcap"]["volPct"], b["mcap"]["maxDrawdownPct"]) == (12.1, -17.1)
@@ -204,8 +204,10 @@ def test_pair_flag_rule():
     assert calc.pair_flag(0.50, 0.20) is True                 # exactly 0.30 and 0.50 count
 
 
-def test_size_bands_by_rank():
-    assert [calc.size_band(r) for r in (1, 100, 101, 250, 251, 900, None)] == ["Large", "Large", "Mid", "Mid", "Small", "Small", None]
+def test_size_bands_by_rupee_market_value():
+    # task #262: the site's one rupee rule (Rs crore): Large above 75,000; Mid 25,000-75,000 (both lines Mid); Small 10,000-<25,000; Micro below 10,000
+    vals = (500_000, 75_000.01, 75_000, 25_000, 24_999.99, 10_000, 9_999.99, 50, 0, -5, None)
+    assert [calc.size_band(v) for v in vals] == ["Large", "Large", "Mid", "Mid", "Small", "Small", "Micro", "Micro", None, None, None]
 
 
 def test_unclassified_label_gets_its_own_named_bucket():

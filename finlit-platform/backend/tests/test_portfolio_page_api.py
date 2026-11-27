@@ -9,10 +9,18 @@ from finlit.portfolio_page import api as pf_api
 from test_auth import app, new_client, signed_in  # noqa: F401
 from test_integration import ingested, make_settings, store  # noqa: F401
 from test_diversification_calc import SAMPLE
-from test_diversification_api import seed, _clock  # noqa: F401  (seed data + fixed clock)
+from test_diversification_api import seed as _seed, _clock  # noqa: F401  (seed data + fixed clock)
 
 pytestmark = pytest.mark.integration
 URL = "/api/portfolio/page"
+
+
+async def seed(app, classes=None):  # noqa: F811
+    """The diversification seed (it clears the stored NSE classification of these symbols), plus `classes` (symbol -> macro sector) when given."""
+    await _seed(app)
+    async with app.state.store.pool.acquire() as conn:
+        for sym, macro in (classes or {}).items():
+            await conn.execute("INSERT INTO company_classification (symbol, macro_sector, sector, industry, source, rule_version) VALUES ($1, $2, $2, $2, 'test', 1)", sym, macro)
 
 
 async def test_only_share_names_are_accepted(app):  # noqa: F811
@@ -51,7 +59,7 @@ async def test_page_for_a_stored_list_and_the_card_agree(app):  # noqa: F811
     page = j["page"]
     assert j["unknown"] == ["ZZUNKNOWN"] and j["symbols"][-1] == "NEWCO" and "NEWCO" in page["short_history"] and "NEWCO" not in page["order"]
     assert page["to"] == "2026-10-30" and page["weeks"] == 104 and page["layout"] == "long" and page["together_open_by_default"] is False   # 16 shares
-    assert set(j["meta"]["TCS"]) == {"name", "sector", "size", "mcap_cr"} and j["meta"]["TCS"]["size"] == "L"
+    assert set(j["meta"]["TCS"]) == {"name", "sector", "size", "mcap_cr", "nse"} and j["meta"]["TCS"]["size"] == "L"   # nse: the three NSE levels (task #183)
     assert len(page["summary"]["eq"]) <= 5 and all(x["text"] for x in page["summary"]["eq"])
     card = (await silver.post("/api/diversification", json={"symbols": SAMPLE + ["NEWCO"]})).json()
     clean = (await silver.post(URL, json={"symbols": SAMPLE + ["NEWCO"]})).json()["page"]["score"]
@@ -115,10 +123,70 @@ async def test_score_is_gold_strict_and_never_returns_weights(app):  # noqa: F81
                 {"items": items, "benchmark": "SENSEX"}, {"items": items, "extra": 1}, {"items": []}):
         assert (await gold.post(SCORE, json=bad)).status_code == 422, bad
     none = (await gold.post(SCORE, json={"items": [{"symbol": s} for s in SAMPLE]})).json()
-    assert none["locked"] is False and none["needsQuantities"] is True and none["total"] is None
+    # developer file 28: with no quantities every share counts the same, and the total is still given (the panel asks for the buys)
+    assert none["locked"] is False and none["needsQuantities"] is True and none["basis"] == "equal" and isinstance(none["total"], int) and "byValue" not in none
+    one = (await gold.post(SCORE, json={"items": [{"symbol": SAMPLE[0], "qty": 10}] + [{"symbol": s} for s in SAMPLE[1:]]})).json()
+    assert one["basis"] == "equal" and one["valued"] == 1 and one["total"] == none["total"] and "byValue" not in one   # one quantity is not the list
     full = (await gold.post(SCORE, json={"items": items, "risk": "low", "goal": "protect"})).json()
-    assert full["needsQuantities"] is False and isinstance(full["total"], int)
+    assert full["needsQuantities"] is False and full["basis"] == "value" and isinstance(full["total"], int)
+    assert full["band"] in ("Strong", "Healthy", "Average", "Weak", "Poor")
+    bv = full["byValue"]                                                             # what the top cards show once every share has a value
+    page = (await gold.post("/api/portfolio/page", json={"symbols": SAMPLE})).json()["page"]
+    assert set(bv["spread"]) == set(page["score"]) and set(bv["market"]) == {"beta", "vol", "vol_nifty", "max_fall", "max_fall_nifty"}
+    assert bv["market"]["vol_nifty"] == page["market"]["eq"]["vol_nifty"]           # the same NIFTY 50 weeks as the page
+    import json as _json
+    import time as _time
+    from test_diversification_api import PRICES_MAX
+    rows = [{"quote_date": r["d"], "close_price": r["c"] * 1.1} for r in PRICES_MAX["__NIFTY"]["rows"]]
+    await app.state.store.redis.set("idx:px:NIF500", _json.dumps({"t": _time.time(), "v": {"rows": rows}}))
+    n500 = (await gold.post(SCORE, json={"items": items, "risk": "low", "goal": "protect", "benchmark": "NIF500"})).json()
+    assert n500["byValue"] == bv                                                     # the cards stay against the NIFTY 50 whatever the score compares with
     text = str(full).lower()
     assert "weight" not in text and "points" not in text and "blend" not in text
     # the names-only page endpoint is untouched
     assert (await gold.post("/api/portfolio/page", json={"symbols": SAMPLE, "qty": [1]})).status_code == 422
+
+
+async def test_task_183_risk_by_size_each_share_against_its_own_index(app):  # noqa: F811
+    """POST /api/portfolio/risk (W8): Silver and Gold, never Basic; each share against its size index (index closes), the three list betas, 3-year swing and fall."""
+    import json as _json
+    import time as _time
+    from test_diversification_api import PRICES_MAX
+    await seed(app)
+    rows = [{"quote_date": r["d"], "close_price": r["c"]} for r in PRICES_MAX["__NIFTY"]["rows"]]
+    for code, k in (("NIFMID150", 1.1), ("NIFSMA250", 1.25), ("NIFMIC250", 1.4)):   # task #262: Micro is read against the Nifty Microcap 250
+        await app.state.store.redis.set(f"idx:px:{code}", _json.dumps({"t": _time.time(), "v": {"rows": [{**r, "close_price": r["close_price"] * k} for r in rows]}}))
+    basic = await signed_in(app, "rb@example.com", plan="basic")
+    assert (await basic.post("/api/portfolio/risk", json={"symbols": SAMPLE})).status_code == 403
+    silver = await signed_in(app, "rs@example.com", plan="silver")
+    assert (await silver.post("/api/portfolio/risk", json={"symbols": SAMPLE, "qty": [1]})).status_code == 422
+    r = await silver.post("/api/portfolio/risk", json={"symbols": SAMPLE + ["NEWCO", "ZZUNKNOWN"]})
+    assert r.status_code == 200, r.text
+    j = r.json()
+    assert j["unknown"] == ["ZZUNKNOWN"] and j["missingIndex"] == []
+    by = {x["symbol"]: x for x in j["shares"]}
+    assert by["NEWCO"]["beta"] is None and by["NEWCO"]["why"] in ("Under a year of prices", "No size band yet")
+    counted = [x for x in j["shares"] if x["beta"] is not None]
+    assert counted and all(x["benchmark"] in ("Nifty 50", "Nifty Midcap 150", "Nifty Smallcap 250", "Nifty Microcap 250") and 0 <= x["explained"] <= 100 for x in counted)
+    assert sum(s["n"] for s in j["sizes"]) == j["counted"] == len(counted)
+    assert j["betas"]["weighted"] == round(sum((s["avgBeta"] or 0) * s["listShare"] / 100 for s in j["sizes"]), 2) or abs(j["betas"]["weighted"] - sum((s["avgBeta"] or 0) * s["listShare"] / 100 for s in j["sizes"])) < 0.02
+    assert j["glance"]["list"]["swing"] > 0 and j["glance"]["nifty"]["worstFall"] <= 0 and j["glance"]["worst10"]["nifty"] < 0
+    assert j["basis"] == "equal" and "byValue" not in j and j["glance"]["nifty"]["grain"] == "weekly"   # task #385 open item 1: the index read weekly, as the shares
+    # task #385 (open item 7): with a quantity for every share the answer adds the same figures by what is held now; one share without a quantity keeps equal amounts
+    syms = list(SAMPLE)
+    v = (await silver.post("/api/portfolio/risk", json={"symbols": syms, "qty": [10 * (i + 1) for i in range(len(syms))]})).json()
+    assert v["byValue"]["basis"] == "value" and v["noQuantity"] == [] and v["betas"] == j["betas"]
+    assert abs(sum(x["listShare"] or 0 for x in v["byValue"]["shares"]) - 100) < 0.5 and v["byValue"]["betas"]["weighted"] is not None
+    part = (await silver.post("/api/portfolio/risk", json={"symbols": syms, "qty": [None] + [5] * (len(syms) - 1)})).json()
+    assert "byValue" not in part and part["noQuantity"] == [syms[0]]
+    assert (await silver.post("/api/portfolio/risk", json={"symbols": syms, "qty": [-1] * len(syms)})).status_code == 422
+
+
+async def test_task_183_card_and_page_agree_when_nse_levels_are_stored(app):  # noqa: F811
+    """With NSE's stored macro sectors for part of the list, the Diversification card and the page read the same levels, so their scores still agree."""
+    await seed(app, {s: "Financial Services" for s in list(SAMPLE)[:4]})
+    silver = await signed_in(app, "s183c@example.com", plan="silver")
+    page = (await silver.post(URL, json={"symbols": SAMPLE})).json()
+    card = (await silver.post("/api/diversification", json={"symbols": SAMPLE})).json()
+    assert [page["meta"][s]["nse"]["macro_sector"] for s in list(SAMPLE)[:4]] == ["Financial Services"] * 4
+    assert card["score"]["value"] == page["page"]["score"]["score"] and card["score"]["sectorSpread"] == page["page"]["score"]["sector_spread"]

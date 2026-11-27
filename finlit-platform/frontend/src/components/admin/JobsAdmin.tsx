@@ -135,7 +135,7 @@ export function JobsAdmin() {
           {perDay.days.map((d) => {
             const v = perDay.total[d];
             return <div key={d} title={`${d}: ${mins(v)} of job time`} style={{ flex: 1, minWidth: 18, display: "flex", flexDirection: "column", justifyContent: "flex-end", height: "100%", cursor: "default" }}>
-              <div style={{ height: `${Math.max(2, (100 * v) / perDay.max)}%`, background: "var(--gold)", borderRadius: "4px 4px 0 0" }} />
+              <div style={{ height: `${Math.max(2, (100 * v) / perDay.max)}%`, background: "var(--gold)", borderTopLeftRadius: "var(--ui-r-mark)", borderTopRightRadius: "var(--ui-r-mark)" }} />
             </div>;
           })}
         </div>

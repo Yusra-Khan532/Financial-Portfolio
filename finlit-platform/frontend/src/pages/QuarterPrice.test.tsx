@@ -15,7 +15,7 @@ vi.mock("../lib/ui", () => ({ useUI: () => ({ plan: st.plan, upgrade: st.upgrade
 vi.mock("../lib/auth", () => ({ useAuth: () => ({ user: null }) }));
 vi.mock("../lib/title", () => ({ useDocTitle: () => undefined }));
 vi.mock("../components/ChartHelp", () => ({ ChartHelp: () => null }));
-import { QuarterResultsPage } from "./QuarterResults";
+import { CompaniesView } from "./QuarterResults";
 
 const summary = { companies: 10, declared: 10, due: 0, awaiting: 0, withNumbers: 8, flagged: 0, medianRevenueYoY: 1, medianProfitYoY: 1, profitUpShare: 50, marginUpShare: 50, nRevenue: 8, nProfit: 8, nMargin: 8 };
 const mk = (over: Partial<QRow> = {}): QRow => ({ date: "2026-10-14", symbol: "AAA", name: "Aaa Ltd", sector: "IT", marketCap: 1, cap: "Large", indices: [], confirmed: true, periodEnd: "2026-09-30", loadedPeriodEnd: null, status: "declared", awaiting: false,
@@ -27,9 +27,14 @@ const resp = (over: Partial<QResp> = {}): QResp => ({
   distribution: { total: 5, sectors: [], caps: [] }, ...over,
 });
 const Where = () => { const l = useLocation(); return <output data-testid="loc">{l.pathname + l.search}</output>; };
-const open = (qs = "") => render(<MemoryRouter initialEntries={["/results/quarter" + qs]}><Routes><Route path="/results/quarter" element={<QuarterResultsPage />} /></Routes><Where /></MemoryRouter>);
+// task #330: the growth and price filters open from the filter bar's "Growth and price filters" button (they were always in the side panel)
+const open = (qs = "") => { const r = render(<MemoryRouter initialEntries={["/results/quarter" + qs]}><Routes><Route path="/results/quarter" element={<CompaniesView />} /></Routes><Where /></MemoryRouter>);
+  fireEvent.click(screen.getByRole("button", { name: /Growth and price filters/ })); return r; };
 const loc = () => decodeURIComponent(screen.getByTestId("loc").textContent || "");
-const lastParams = () => st.params[st.params.length - 1] as QParams;
+// the page's own request (it carries the page offset); the six tiles ask for whole-quarter figures by size alongside it (task #194)
+const lastParams = () => st.params.filter((p) => "offset" in (p as object)).at(-1) as QParams;
+// the filter panel's quick fills (the glance card above the table has the same three, task #194)
+const panel = () => within(document.querySelector(".qg") as HTMLElement);
 const section = (n: string) => within(screen.getByRole("group", { name: new RegExp(n) }));
 
 beforeEach(() => { st.plan = "silver"; st.params = []; st.resp = resp(); st.upgrade.mockClear(); vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} }); });
@@ -112,14 +117,14 @@ describe("the combined card", () => {
   });
   it("one Reset filters clears both blocks and keeps the quarter; quick fills set both blocks in one go", () => {
     open("?quarter=2026-09");
-    fireEvent.click(screen.getByRole("button", { name: "Growth and near 52-week high" }));
+    fireEvent.click(panel().getByRole("button", { name: "Growth and near 52-week high" }));
     expect(lastParams()).toMatchObject({ p52: "0", revQoQValue: "0", npYoYValue: "0" });
-    expect(screen.getByRole("button", { name: "Growth and near 52-week high" }).getAttribute("aria-pressed")).toBe("true");
+    expect(panel().getByRole("button", { name: "Growth and near 52-week high" }).getAttribute("aria-pressed")).toBe("true");
     fireEvent.click(screen.getByRole("button", { name: "Deep below the all-time high" }));
     expect(lastParams().pAthMin).toBe("40"); expect(lastParams().p52).toBeUndefined(); expect(lastParams().revQoQValue).toBeUndefined();
-    fireEvent.click(screen.getByRole("button", { name: "Reset filters" }));
+    fireEvent.click(screen.getByRole("button", { name: "Clear growth and price filters" }));
     expect(loc()).toBe("/results/quarter?quarter=2026-09");
-    expect((screen.getByRole("button", { name: "Reset filters" }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole("button", { name: "Clear growth and price filters" }) as HTMLButtonElement).disabled).toBe(true);
     expect(PRICE_PRESETS.map((p) => p.label)).toEqual(["Near the 52-week high", "Deep below the all-time high", "Growth and near 52-week high"]);
   });
   it("an old growth-only link is unaffected: price off, the growth filter still applied", () => {
@@ -167,6 +172,9 @@ describe("the result lines", () => {
 });
 
 describe("the table columns", () => {
+  // task #330: the price-position columns are in the Price position and All columns sets
+  beforeEach(() => { localStorage.setItem("finlit-results-cols", "all"); });
+  afterEach(() => { localStorage.removeItem("finlit-results-cols"); });
   it("are always there: distance, band, a dash with the reason when a high is not held, At high, and a stale marker", () => {
     st.resp = resp({ total: 4, rows: [mk(), mk({ symbol: "BBB", below52: 0, belowAth: 0 }), mk({ symbol: "CCC", below52: 0, stale52: true, high52: 90, price: 95 }), mk({ symbol: "DDD", below52: null, belowAth: null, high52: null, ath: null })] });
     open();
@@ -179,26 +187,41 @@ describe("the table columns", () => {
     expect(cells(3)).toEqual(["—Not held", "—Loading history"]); expect(rows[3].querySelector("abbr")!.getAttribute("title")).toMatch(/No 52-week high is held/);
     expect(rows[0].querySelectorAll("td.qr-pp .qr-ppv")[1].getAttribute("title")).toMatch(/highest close, week of 12 Jan 2026/);
   });
+  it("says in words when no all-time high is on file for any company (the live page showed \"0 of 0\", 22 Nov 2026)", () => {
+    st.resp = resp({ total: 1, rows: [mk({ ath: null, athDate: null, belowAth: null })], priceStrip: { companies: 5313, have52: 5266, near52: 417, haveAth: 0, nearAth: 0 } });
+    open();
+    const held = within(screen.getByRole("list", { name: "Highs on file" })).getAllByRole("listitem").map((li) => li.textContent);
+    expect(held).toEqual(["417 of the 5,266 companies with a 52-week high are within 5% of it; 47 have no 52-week high on file.",
+      "No all-time high is on file for any of these 5,313 companies, so the Below all-time high column shows a dash and an all-time-high condition matches none."]);
+    expect(document.body.textContent).not.toMatch(/0 of 0/);
+  });
   it("highlights the cells that met the price filter, for sighted and screen reader users", () => {
     st.resp = resp({ total: 1, rows: [mk()] });
     open("?p52=2&pAth=0");
     const hits = Array.from(document.querySelectorAll("td.qr-hit")).map((td) => td.textContent);
     expect(hits).toHaveLength(1); expect(hits[0]).toContain("12.4%"); expect(hits[0]).toContain("meets your price-position filter");
   });
-  it("sorts both ways from the header and shows the line above the table", () => {
+  it("sorts both ways from the header, and counts the highs on file under the Price position filter, not above the table", () => {
     st.resp = resp({ total: 1, rows: [mk()], priceStrip: { companies: 157, have52: 150, near52: 34, haveAth: 140, nearAth: 12 } });
     open();
-    expect(screen.getByText(/companies are within 5% of their 52-week high/).textContent).toContain("34 of 150 companies are within 5% of their 52-week high; 12 of 140 are within 5% of their all-time high.");
+    // 22 Nov 2026: the count line left the table's head (it read as a headline about results); it now sits in the filter it describes
+    expect(document.querySelector(".qr-card")!.textContent).not.toMatch(/within 5%/);
+    const held = within(screen.getByRole("list", { name: "Highs on file" })).getAllByRole("listitem").map((li) => li.textContent);
+    expect(held).toEqual(["34 of the 150 companies with a 52-week high are within 5% of it; 7 have no 52-week high on file.", "12 of the 140 companies with an all-time high are within 5% of it; 17 have no all-time high on file."]);
+    expect(screen.getByRole("list", { name: "Highs on file" }).closest('[data-fgx="qg-price"]')).toBeTruthy();
+    // task #224 (A1): every heading's first click is high to low, the second low to high, the third the page's own order
+    fireEvent.click(screen.getByRole("button", { name: /Below 52-week high/ }));
+    expect(lastParams()).toMatchObject({ sort: "below52", dir: "desc" });
     fireEvent.click(screen.getByRole("button", { name: /Below 52-week high/ }));
     expect(lastParams()).toMatchObject({ sort: "below52", dir: "asc" });
     fireEvent.click(screen.getByRole("button", { name: /Below 52-week high/ }));
-    expect(lastParams()).toMatchObject({ sort: "below52", dir: "desc" });
+    expect(lastParams()).toMatchObject({ sort: "date", dir: "desc" });
   });
   it("Basic sees a dash and the Silver message, not a figure", () => {
     st.plan = "basic";
     st.resp = resp({ locked: true, total: 1, rows: [mk({ below52: null, belowAth: null, price: null, high52: null, ath: null, hasNumbers: true, locked: true })] });
     open();
-    expect(document.querySelector("td.qr-pp abbr")!.getAttribute("title")).toMatch(/Silver/);
+    expect(document.querySelector("td.qr-pp abbr")!.getAttribute("title")).toMatch(/every paid plan/);
   });
 });
 

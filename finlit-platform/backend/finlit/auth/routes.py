@@ -11,20 +11,23 @@ import base64
 import hashlib
 import hmac
 import json
+import logging
 import time
 import re
+import asyncpg
+import secrets
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
-from typing import Annotated, Any, Dict, List, Literal, Optional
+from typing import Annotated, Any, Dict, List, Literal, Optional, Tuple, Union
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
-from pydantic import BaseModel, Field, StringConstraints, field_validator, model_validator
+from pydantic import BaseModel, Field, StringConstraints, field_validator, model_validator, ConfigDict
 
 from .. import wake
 from ..config import Settings
 from ..security import client_ip
 from . import crypto, mailer as mail
-from .entitlements import LIMITS, PLANS, has
+from .entitlements import KEY_RANK, LIMITS, PAID_KEYS, PLANS, has, in_area, part_of, plan_key
 from .service import ANON, Ctx, audit, cookie_name, create_session, current, forget_cached, revoke_all
 
 SYMBOL = re.compile(r"^[A-Z0-9&_.\-]{1,24}$")
@@ -62,11 +65,20 @@ def pre_session_guard(request: Request) -> None:
         raise fail(403, "bad_origin", "This request did not come from the FinLit website.")
 
 
-async def limit(request: Request, name: str, key: str, count: int, seconds: int) -> None:
-    allowed, retry = await request.app.state.limiter.hit(name, key, count, seconds, fail_open=False)
+async def limit(request: Request, name: str, key: str, count: int, seconds: int, fail_open: bool = False) -> None:
+    allowed, retry = await request.app.state.limiter.hit(name, key, count, seconds, fail_open=fail_open)
     if not allowed:
         raise HTTPException(status_code=429, detail={"status": "rate_limited", "detail": "Too many attempts. Please wait and try again.",
                                                       "retryAfter": retry}, headers={"Retry-After": str(retry)})
+
+
+async def read_limit(request: Request, ctx: Ctx, name: str, visitor: int, member: int, seconds: int = 60) -> None:
+    """Budget for a costly read that anyone may call (screener, compare, charts, CSV downloads): a visitor counted by IP, a signed-in member by
+    account with the larger budget. Sized well above what a person using the page sends. Redis down: the read stays up (the site-wide limit still applies)."""
+    if ctx.authed and ctx.user_id:
+        await limit(request, name + ":member", ctx.user_id, member, seconds, fail_open=True)
+    else:
+        await limit(request, name + ":visitor", ip_of(request), visitor, seconds, fail_open=True)
 
 
 async def user_ctx(request: Request) -> Ctx:
@@ -96,16 +108,28 @@ async def admin_ctx(request: Request, ctx: Ctx = Depends(secure_ctx)) -> Ctx:
     return ctx
 
 
+
 def need_plan(ctx: Ctx, tier: str) -> None:
     if not has(ctx.plan, tier):
-        raise fail(403, "plan_required", f"This is part of the {tier.title()} plan.", plan=tier)
+        raise fail(403, "plan_required", f"This is part of {part_of(tier)}.", plan=tier)
+
+
+def need_area(ctx: Ctx, area: str) -> None:
+    """Task #410: the shares you own ("eq": equity portfolio, watchlists) open on Equity Portfolio, the combined plan, Gold and Platinum; the fund and
+    ETF tools ("mf") on Mutual Fund + ETF, the combined plan, Gold and Platinum (goliveData)."""
+    if not in_area(ctx, area):
+        name = "Equity Portfolio" if area == "eq" else "Mutual Fund + ETF"
+        raise fail(403, "plan_required", f"This is part of the {name}, combined, Gold and Platinum plans.", plan="equity" if area == "eq" else "mfetf")
 
 
 # ------------------------------------------------------------------ models
 class SignUp(BaseModel):
+    """Sign-up takes only these fields. Anything else (role, is_admin, plan, verified, ...) is refused with 422: the server alone sets those."""
+    model_config = ConfigDict(extra="forbid")
     email: str = Field(max_length=254)
     password: str = Field(min_length=1, max_length=200)
     name: Optional[str] = Field(default=None, max_length=80)
+    mobile: str = Field(min_length=1, max_length=20)
     accept_terms: bool = False
 
 
@@ -127,13 +151,22 @@ class ResetIn(TokenOnly):
     password: str = Field(min_length=1, max_length=200)
 
 
+class ResetCodeIn(BaseModel):
+    email: str = Field(max_length=254)
+    code: str = Field(min_length=1, max_length=12)
+    password: str = Field(min_length=1, max_length=200)
+
+
 class ChangePw(BaseModel):
     current: str = Field(max_length=200)
     new: str = Field(max_length=200)
 
 
 class ProfileIn(BaseModel):
+    """A member edits only their name and mobile; role, plan, email and status are never taken from the request (extra fields: 422)."""
+    model_config = ConfigDict(extra="forbid")
     name: Optional[str] = Field(default=None, max_length=80)
+    mobile: Optional[str] = Field(default=None, max_length=20)
 
 
 class CodeIn(BaseModel):
@@ -145,7 +178,8 @@ class PasswordIn(BaseModel):
 
 
 class PlanRequestIn(BaseModel):
-    plan: Literal["silver", "gold"]
+    # task #410: a plan of the new list; "silver" (a browser that has not reloaded since) is read as Gold, the smallest full plan that includes it
+    plan: Literal["mfetf", "equity", "combined", "gold", "platinum", "silver"]
     note: Optional[str] = Field(default=None, max_length=300)
 
 
@@ -182,6 +216,12 @@ class Holding(BaseModel):
     date: Optional[str] = Field(default=None, pattern=r"^\d{4}-\d{2}-\d{2}$")
     note: Optional[str] = Field(default=None, max_length=200)
     owned: Optional[bool] = None  # true once the member typed a real quantity (a name added without one is kept with qty 1 and no amount)
+    isin: Optional[str] = Field(default=None, pattern=r"^[A-Z]{2}[A-Z0-9]{9}[0-9]$")  # task #183: the share's ISIN, the key that survives a rename
+    pf: Optional[str] = Field(default=None, pattern=r"^[a-z0-9]{1,16}$")  # task #235: the portfolio (broker account) the row belongs to; none = the first one
+    side: Optional[Literal["buy", "sell"]] = None  # task #235: a sale (first in, first out on the page); none or "buy" = a buy
+    # task #323: a buy price taken from a statement's Rate column (that day's price, not what was paid), chosen by the member on import, and that day
+    priceFrom: Optional[Literal["rate"]] = None
+    priceOn: Optional[str] = Field(default=None, pattern=r"^\d{4}-\d{2}-\d{2}$")
 
     @field_validator("symbol")
     @classmethod
@@ -192,13 +232,27 @@ class Holding(BaseModel):
         return v
 
 
+class PortfolioMeta(BaseModel):
+    """Task #235 (pack B1): one portfolio, one per broker account; the rows carry its id in `pf`."""
+    id: str = Field(pattern=r"^[a-z0-9]{1,16}$")
+    name: str = Field(min_length=1, max_length=40)
+    broker: Optional[str] = Field(default=None, max_length=40)
+    created: Optional[str] = Field(default=None, pattern=r"^\d{4}-\d{2}-\d{2}$")
+
+
 class PortfolioIn(BaseModel):
     holdings: List[Holding] = Field(max_length=500)
+    portfolios: Optional[List[PortfolioMeta]] = Field(default=None, max_length=10)   # task #235: up to 10 portfolios
 
 
 class WatchlistIn(BaseModel):
     lists: List[WList] = Field(max_length=50)
     meta: Dict[str, WMeta] = Field(default_factory=dict, max_length=1000)
+
+
+class FundWishIn(BaseModel):
+    """Task #375: the Mutual Funds page's wishlist, scheme codes (mutual funds and ETFs alike are AMFI schemes), newest first."""
+    codes: List[Annotated[int, Field(gt=0, lt=10_000_000)]] = Field(max_length=100)
 
 
 class Range(BaseModel):
@@ -212,7 +266,7 @@ class ScreenState(BaseModel):
     bands: List[Literal["strong", "healthy", "mixed", "watch", "average", "weak", "poor"]] = Field(default_factory=list, max_length=5)   # FinLit IQ's words or, for Gold, FinLit Prism's (task #142)
     industries: List[str] = Field(default_factory=list, max_length=60)
     indices: List[str] = Field(default_factory=list, max_length=20)
-    caps: List[Literal["Large", "Mid", "Small"]] = Field(default_factory=list, max_length=3)
+    caps: List[Literal["Large", "Mid", "Small", "Micro"]] = Field(default_factory=list, max_length=4)   # task #262: four sizes
     sort: Optional[str] = Field(default=None, max_length=40)
     dir: Optional[Literal["asc", "desc"]] = None
     cols: List[str] = Field(default_factory=list, max_length=14)
@@ -221,8 +275,8 @@ class ScreenState(BaseModel):
     @field_validator("model")
     @classmethod
     def model_ok(cls, v: Optional[str]) -> Optional[str]:
-        from ..screener.ready import MODEL
-        if v is not None and v not in MODEL:
+        from ..screener.ready import MODEL, RETIRED_SCREENS
+        if v is not None and v not in MODEL and v not in RETIRED_SCREENS:      # task #283: a retired one is kept as saved, never run
             raise ValueError("unknown model screen")
         return v
 
@@ -242,10 +296,19 @@ class ScreenState(BaseModel):
         return v
 
 
+class Converted(BaseModel):
+    """Task #283 PR D: set by the server on a saved screen it converted from the retired FinLit IQ to FinLit Prism (finlit/iq_retire.py); kept as sent."""
+    on: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
+    was: List[Annotated[str, StringConstraints(max_length=300)]] = Field(default_factory=list, max_length=40)
+    text: str = Field(default="", max_length=6000)
+
+
 class Screen(BaseModel):
     name: str = Field(min_length=1, max_length=40)
     state: ScreenState
     notify: Optional[bool] = None   # "Tell me when a company joins" (file 04): True sends the messages, False keeps the screen quiet; a screen saved before has none and keeps its emails
+    sizesMoved: Optional[str] = Field(default=None, pattern=r"^\d{4}-\d{2}-\d{2}$")   # task #262: the day a saved Small was moved to Micro (migration 116); the page shows a one-time note
+    converted: Optional[Converted] = None   # task #283 PR D: what the server changed from the retired FinLit IQ (the page says it was converted)
 
 
 class ScreensIn(BaseModel):
@@ -255,7 +318,28 @@ class ScreensIn(BaseModel):
 class Widget(BaseModel):
     id: str = Field(pattern=r"^[a-z0-9_]{1,24}$")
     on: bool = True
-    size: Literal["third", "half", "full"] = "half"
+    size: Literal["quarter", "third", "half", "full"] = "half"   # quarter: the dashboard's tools row (task #195)
+
+
+# task #248: which portfolios the dashboard's Step 1 reads, per kind: "all", or up to ten portfolio ids (the Equity, MF and ETF pages' own ids)
+PfChoice = Union[Literal["all"], Annotated[List[Annotated[str, StringConstraints(pattern=r"^[A-Za-z0-9_-]{1,40}$")]], Field(min_length=1, max_length=10)]]
+
+
+class DashPortfolios(BaseModel):
+    equity: PfChoice = "all"
+    mf: PfChoice = "all"
+    etf: PfChoice = "all"
+
+
+# task #316: the dashboard's own choices, saved like the Showing bar: the section shown, the portfolio of "Your portfolios at a glance", the Global
+# markets region, how "Your investments today" is sorted, whose results and filings, and the cards hidden from the ⋯ menu
+class DashUi(BaseModel):
+    sec: Literal["all", "money", "watch", "market", "news", "tools"] = "all"
+    glance: Literal["eq", "mf", "etf"] = "eq"
+    region: Literal["us", "europe", "asia", "commod", "fx"] = "us"
+    invSort: Literal["move", "gain", "fall", "reading", "az"] = "move"
+    who: Literal["market", "mine"] = "market"
+    hidden: List[Annotated[str, StringConstraints(pattern=r"^[a-z0-9_]{1,24}$")]] = Field(default_factory=list, max_length=30)
 
 
 class PrefsIn(BaseModel):
@@ -269,18 +353,92 @@ class PrefsIn(BaseModel):
     rotationRank: bool = False
     digest: bool = False
     dashboard: List[Widget] = Field(default_factory=list, max_length=30)
+    dashV: int = Field(default=0, ge=0, le=99)   # the dashboard layout version the member's layout follows (task #195: 2); the site moves an older layout once
     # industries the member watches from an industry page ("Add to watch", final pages pack 07): their Sector Rotation alerts come too (finlit/rotation_alerts.py)
     sectorWatch: List[Annotated[str, StringConstraints(pattern=r"^[a-z0-9][a-z0-9-]{0,79}$")]] = Field(default_factory=list, max_length=60)
+    # task #333 (file 30): Sector Pulse "Alert me", one entry per alert: "<state|box|top5>:<sectors|industries>:<slug>" (finlit/sector_alerts.py)
+    sectorAlerts: List[Annotated[str, StringConstraints(pattern=r"^(state|box|top5):(sectors|industries):[a-z0-9][a-z0-9-]{0,79}$")]] = Field(default_factory=list, max_length=180)
+    dashPortfolios: Optional[DashPortfolios] = None   # task #248: the dashboard's Showing bar; none means All accounts everywhere
+    # task #251: themes the member follows on Discover (their slugs). Stored with the account; no alert reads them yet.
+    followThemes: List[Annotated[str, StringConstraints(pattern=r"^[a-z0-9][a-z0-9-]{0,79}$")]] = Field(default_factory=list, max_length=40)
+    # task #277: the views of a page the member has opened once ("mi:equity"), so a view not yet opened carries "Not opened yet" on every device
+    viewsSeen: List[Annotated[str, StringConstraints(pattern=r"^[a-z0-9]{1,12}:[a-z0-9-]{1,24}$")]] = Field(default_factory=list, max_length=60)
+    # task #315: Word of the Day bookmarks (glossary term ids, newest first; every id in glossary_data.json matches this pattern) and the India date
+    # (YYYY-MM-DD) the member last opened the word, which hides the header's "new today" dot on every device. An empty date means not opened yet.
+    wordBookmarks: List[Annotated[str, StringConstraints(pattern=r"^[a-z0-9][a-z0-9-]{0,79}$")]] = Field(default_factory=list, max_length=200)
+    wordSeen: Optional[Annotated[str, StringConstraints(pattern=r"^(?:\d{4}-\d{2}-\d{2})?$")]] = None
+    dashUi: Optional[DashUi] = None   # task #316: the dashboard's section, portfolio, region, sort, results-and-filings scope and hidden cards
+    aiMemory: bool = True   # task #349 PR 2: FinLit AI keeps the member's questions for 180 days (ask/memory.py); false writes nothing new
+    # task #388 (developer file 36, change 9): blocks of a page the member hid ("eq:grid", the Equity portfolio's Share by share grid), so it stays hidden on every device
+    hiddenBlocks: List[Annotated[str, StringConstraints(pattern=r"^[a-z0-9]{1,12}:[a-z0-9-]{1,24}$")]] = Field(default_factory=list, max_length=40)
 
 
 # ------------------------------------------------------------------ helpers
 def public_user(row: Any) -> Dict[str, Any]:
-    return {"id": str(row["id"]), "email": row["email"], "name": row["name"], "role": row["role"], "plan": row["plan"],
+    return {"id": str(row["id"]), "email": row["email"], "name": row["name"], "role": row["role"], "plan": plan_key(row["plan"]),
             "verified": row["email_verified_at"] is not None, "mfa": row["totp_enabled_at"] is not None}
 
 
 def email_hash(email: str) -> str:
     return crypto.token_hash("email:" + email)[:32]
+
+
+# ------------------------------------------------------------------ wrong passwords and the emailed reset code (owner, 17 November 2026)
+# Five wrong passwords for one account from one address pause sign-in there for 15 minutes, and the message points to "Forgot password".
+# Counted per account AND address: one address alone would let one person lock out an office or a mobile network, and nobody elsewhere can lock
+# the owner out. Counted the same way when the account does not exist, so the answer never reveals whether it does.
+WRONG_PW_MAX = 5
+WRONG_PW_SECONDS = 15 * 60
+# "Forgot password" also emails a 6-digit code (15 minutes; 5 wrong tries cancel it). Only a keyed hash of it is kept, in Redis, never the code.
+CODE_SECONDS = 15 * 60
+CODE_TRIES = 5
+
+
+def _wrong_key(email: str, ip: str) -> str:
+    from ..security import _bucket_ip
+    return f"auth:wrongpw:{email_hash(email)}|{_bucket_ip(ip)}"
+
+
+async def _wrong_state(redis, key: str) -> tuple[int, int]:
+    """(wrong passwords so far, seconds until the count clears). (0, 0) when Redis cannot answer: the other limits still apply."""
+    try:
+        count = int(await redis.get(key) or 0)
+        ttl = await redis.ttl(key) if count else 0
+        return count, max(int(ttl or 0), 0)
+    except Exception:
+        return 0, 0
+
+
+async def _wrong_add(redis, key: str) -> int:
+    try:
+        async with redis.pipeline(transaction=False) as pipe:
+            pipe.set(key, 0, ex=WRONG_PW_SECONDS, nx=True)     # the 15 minutes start at the first wrong password (INCR keeps the expiry)
+            pipe.incr(key)
+            _, count = await pipe.execute()
+        return int(count)
+    except Exception:
+        return 0
+
+
+async def clear_wrong_passwords(redis, email: str) -> None:
+    """After a password reset the owner signs in at once: every address's count for this account is cleared."""
+    try:
+        async for key in redis.scan_iter(match=f"auth:wrongpw:{email_hash(email)}|*", count=200):
+            await redis.delete(key)
+    except Exception:
+        pass
+
+
+def _too_many_wrong(retry: int) -> HTTPException:
+    minutes = max(1, -(-retry // 60))
+    return HTTPException(status_code=429, detail={
+        "status": "too_many_wrong", "retryAfter": retry,
+        "detail": f"Too many wrong passwords. Wait {minutes} minute{'s' if minutes != 1 else ''}, or reset your password with Forgot password."},
+        headers={"Retry-After": str(retry)})
+
+
+def _code_hash(secret: str, user_id: str, code: str) -> str:
+    return hmac.new(secret.encode(), f"reset-code:{user_id}:{code}".encode(), hashlib.sha256).hexdigest()
 
 
 async def issue_token(pool, user_id: str, kind: str, ttl: timedelta) -> str:
@@ -315,6 +473,11 @@ def clear_session_cookie(request: Request, response: Response) -> None:
 
 
 GENERIC_SIGNUP = {"status": "check_email", "detail": "If that address can be used, we have sent a message to confirm it."}
+MOBILE_INDEX = "users_mobile_uniq"   # migration 138: one account per mobile
+# Changing the mobile answers 409 when another account has the number (one account per mobile), so the changes are counted: per account per day,
+# and per address per hour (one person with several accounts). Only a request that would change the stored number counts; name-only saves never do.
+MOBILE_CHANGES_PER_DAY = 5
+MOBILE_CHANGES_PER_ADDRESS = 20
 
 
 # ------------------------------------------------------------------ sign up / verify / sign in
@@ -333,20 +496,33 @@ async def register(request: Request, body: SignUp):
     problem = crypto.password_problem(body.password, email)
     if problem:
         raise fail(422, "weak_password", problem)
+    mobile = crypto.normalise_mobile(body.mobile)
+    if not mobile:
+        raise fail(422, "invalid_mobile", "Enter a valid 10-digit Indian mobile number.")
     await limit(request, "regmail", email_hash(email), 3, 3600)
     name = (body.name or "").strip()[:80] or None
     async with pool.acquire() as conn:
         exists = await conn.fetchrow("SELECT id, name FROM users WHERE lower(email) = $1", email)
     if exists:
+        await crypto.verify_password(crypto.dummy_hash(), body.password)   # timing: spend the same Argon2 cost as the new-account branch, so the response time never reveals whether the email already has an account (as login does for an unknown account)
         subject, text = mail.already_mail(f"{st.public_site_url}/login")
         await request.app.state.mailer.send(email, subject, text)
         return Response(content=json.dumps(GENERIC_SIGNUP), status_code=202, media_type="application/json", headers=NO_STORE)
     pw = await crypto.hash_password(body.password)
     async with pool.acquire() as conn:
         try:
-            uid = await conn.fetchval("INSERT INTO users (email, name, password_hash, email_verified_at) VALUES ($1, $2, $3, CASE WHEN $4 THEN now() END) RETURNING id",
-                                      email, name, pw, st.auto_verify_email)
-        except Exception:  # a parallel sign-up won the unique index: behave like the existing-account branch
+            # the server sets every other column (role 'investor', plan, status) from the table's defaults; nothing else comes from the request
+            uid = await conn.fetchval("INSERT INTO users (email, name, password_hash, email_verified_at, mobile) VALUES ($1, $2, $3, CASE WHEN $4 THEN now() END, $5) RETURNING id",
+                                      email, name, pw, st.auto_verify_email, mobile)
+        except asyncpg.UniqueViolationError as exc:
+            # Only the unique indexes are an expected answer here; any other database error goes to the app's normal error handling. Every path
+            # ends in exactly one email and the same 202: a missing email would tell whoever signed up that the mobile has an account, and leave
+            # a real owner who typed their own number waiting for a confirmation that never comes.
+            if getattr(exc, "constraint_name", None) == MOBILE_INDEX:   # one account per mobile (owner, 24 Nov): say so to the address that signed up
+                subject, text = mail.mobile_taken_mail(f"{st.public_site_url}/login", f"{st.public_site_url}/contact", name)
+            else:   # a parallel sign-up with this email won the email index: the existing-account mail
+                subject, text = mail.already_mail(f"{st.public_site_url}/login")
+            await request.app.state.mailer.send(email, subject, text)
             return Response(content=json.dumps(GENERIC_SIGNUP), status_code=202, media_type="application/json", headers=NO_STORE)
     await audit(pool, str(uid), "register", email_hash(email), ip, terms=True)
     if st.auto_verify_email:  # staging only (refused in production): the account is already confirmed
@@ -406,6 +582,20 @@ async def login(request: Request, response: Response, body: SignIn):
     # attacker's attempts from elsewhere cannot lock the owner out: there is no account-wide lock, only these budgets.
     await limit(request, "loginpair", email_hash(email) + "|" + ip, 10, 900)
     await limit(request, "loginmail", email_hash(email), 200, 3600)
+    redis = request.app.state.store.redis
+    wrong_key = _wrong_key(email, ip)
+    wrong, retry = await _wrong_state(redis, wrong_key)
+    if wrong >= WRONG_PW_MAX:
+        raise _too_many_wrong(retry or WRONG_PW_SECONDS)
+
+    async def wrong_password() -> HTTPException:
+        count = await _wrong_add(redis, wrong_key)
+        if count >= WRONG_PW_MAX:
+            return _too_many_wrong(WRONG_PW_SECONDS)
+        left = WRONG_PW_MAX - count if count else None
+        detail = "Email or password is not correct." + (f" {left} tr{'ies' if left != 1 else 'y'} left before sign-in pauses for 15 minutes." if left is not None else "")
+        return HTTPException(status_code=401, detail={"status": "invalid_credentials", "detail": detail, **({"triesLeft": left} if left is not None else {})})
+
     try:
         async with pool.acquire() as conn:
             u = await conn.fetchrow("SELECT * FROM users WHERE lower(email) = $1", email)
@@ -413,7 +603,7 @@ async def login(request: Request, response: Response, body: SignIn):
         raise fail(503, "db_unavailable", wake.DB_DOWN_MESSAGE)
     if u is None:
         await crypto.verify_password(crypto.dummy_hash(), body.password)
-        raise invalid
+        raise await wrong_password()
     ok = await crypto.verify_password(u["password_hash"], body.password)
 
     async def count_failure() -> None:   # kept for the audit trail and the admin console; the budgets above do the slowing down
@@ -424,6 +614,7 @@ async def login(request: Request, response: Response, body: SignIn):
     if not ok or u["status"] != "active":
         if ok is False:
             await count_failure()
+            raise await wrong_password()
         raise invalid
     if u["email_verified_at"] is None:
         raise fail(403, "email_not_verified", "Confirm your email first. We sent you a link when you signed up.")
@@ -443,6 +634,10 @@ async def login(request: Request, response: Response, body: SignIn):
         mfa_ok = True   # the owner chose to run without the authenticator for now (ADMIN_REQUIRE_MFA=0)
     async with pool.acquire() as conn:
         await conn.execute("UPDATE users SET failed_logins = 0, locked_until = NULL, last_login_at = now() WHERE id = $1", u["id"])
+    try:
+        await redis.delete(wrong_key)
+    except Exception:
+        pass
     if crypto.needs_rehash(u["password_hash"]):
         async with pool.acquire() as conn:
             await conn.execute("UPDATE users SET password_hash = $2 WHERE id = $1", u["id"], await crypto.hash_password(body.password))
@@ -450,7 +645,7 @@ async def login(request: Request, response: Response, body: SignIn):
     set_session_cookie(request, response, raw, u["role"])
     response.headers.update(NO_STORE)
     await audit(pool, str(u["id"]), "login", None, ip, mfa=mfa_ok)
-    plan = u["plan"] if not (u["plan_until"] and u["plan_until"] < datetime.now(timezone.utc)) else "basic"
+    plan = plan_key(u["plan"]) if not (u["plan_until"] and u["plan_until"] < datetime.now(timezone.utc)) else "free"
     user = {**public_user(u), "plan": plan, "mfaOk": mfa_ok}
     return {"user": user, "csrf": csrf, "mfaSetupRequired": u["role"] == "admin" and not u["totp_enabled_at"] and request.app.state.settings.admin_require_mfa}
 
@@ -485,10 +680,17 @@ async def forgot(request: Request, body: EmailOnly):
             u = await conn.fetchrow("SELECT id FROM users WHERE lower(email) = $1 AND status = 'active'", email)
         if u:
             raw = await issue_token(pool, str(u["id"]), "reset", timedelta(hours=1))
-            subject, text = mail.reset_mail(f"{st.public_site_url}/reset-password?token={raw}")
+            code = f"{secrets.randbelow(10 ** 6):06d}"
+            redis = request.app.state.store.redis
+            try:
+                await redis.set(f"auth:resetcode:{u['id']}", _code_hash(st.secret_key, str(u["id"]), code), ex=CODE_SECONDS)
+                await redis.delete(f"auth:resetcode:tries:{u['id']}")
+            except Exception:
+                code = ""        # Redis cannot keep it: the email carries the link only
+            subject, text = mail.reset_mail(f"{st.public_site_url}/reset-password?token={raw}", code)
             await request.app.state.mailer.send(email, subject, text)
             await audit(pool, str(u["id"]), "password_reset_requested", None, ip_of(request))
-    return Response(content=json.dumps({"status": "check_email", "detail": "If an account exists for that address, we have sent a reset link."}),
+    return Response(content=json.dumps({"status": "check_email", "detail": "If an account exists for that address, we have sent a 6-digit code and a reset link."}),
                     status_code=202, media_type="application/json", headers=NO_STORE)
 
 
@@ -513,11 +715,77 @@ async def reset(request: Request, body: ResetIn):
         await conn.execute("UPDATE users SET password_hash = $2, password_changed_at = now(), failed_logins = 0, locked_until = NULL, "
                            "email_verified_at = COALESCE(email_verified_at, now()) WHERE id = $1", uid, pw)
     await revoke_all(request.app, uid)
+    try:
+        await request.app.state.store.redis.delete(f"auth:resetcode:{uid}")
+    except Exception:
+        pass
+    await clear_wrong_passwords(request.app.state.store.redis, peek["email"])
     await audit(pool, uid, "password_reset", None, ip_of(request))
     return Response(content=json.dumps({"status": "password_changed"}), media_type="application/json", headers=NO_STORE)
 
 
+@router.post("/auth/reset-code")
+async def reset_with_code(request: Request, body: ResetCodeIn):
+    """The second page of "Forgot password": the 6-digit code from the email and the new password. Five wrong codes cancel the code. The answer is
+    the same whether or not the account exists."""
+    pre_session_guard(request)
+    st: Settings = request.app.state.settings
+    pool, redis = request.app.state.store.pool, request.app.state.store.redis
+    ip = ip_of(request)
+    await limit(request, "resetcode", ip, 15, 3600)
+    email = crypto.normalise_email(body.email)
+    wrong = fail(400, "invalid_code", "That code is not correct or has expired. Check the latest email, or request a new code.")
+    if not email:
+        raise wrong
+    await limit(request, "resetcodemail", email_hash(email), 10, 3600)
+    code = re.sub(r"\s+", "", body.code)
+    async with pool.acquire() as conn:
+        u = await conn.fetchrow("SELECT id, email FROM users WHERE lower(email) = $1 AND status = 'active'", email)
+    if u is None or not re.fullmatch(r"\d{6}", code):
+        raise wrong
+    uid = str(u["id"])
+    key, tries_key = f"auth:resetcode:{uid}", f"auth:resetcode:tries:{uid}"
+    stored = await redis.get(key)
+    stored = stored.decode() if isinstance(stored, bytes) else stored
+    if not stored:
+        raise wrong
+    if not hmac.compare_digest(stored, _code_hash(st.secret_key, uid, code)):
+        async with redis.pipeline(transaction=False) as pipe:
+            pipe.set(tries_key, 0, ex=CODE_SECONDS, nx=True)
+            pipe.incr(tries_key)
+            _, tries = await pipe.execute()
+        if int(tries) >= CODE_TRIES:
+            await redis.delete(key, tries_key)
+            await audit(pool, uid, "password_reset_code_cancelled", None, ip)
+            raise fail(400, "code_cancelled", "Too many wrong codes, so this code no longer works. Request a new code.")
+        raise wrong
+    problem = crypto.password_problem(body.password, u["email"])
+    if problem:
+        raise fail(422, "weak_password", problem)          # the code stays valid: the member only picks a stronger password
+    if not await redis.delete(key):                        # used once: a second request with the same code finds nothing
+        raise wrong
+    await redis.delete(tries_key)
+    pw = await crypto.hash_password(body.password)
+    async with pool.acquire() as conn:
+        await conn.execute("UPDATE users SET password_hash = $2, password_changed_at = now(), failed_logins = 0, locked_until = NULL, "
+                           "email_verified_at = COALESCE(email_verified_at, now()) WHERE id = $1", uid, pw)
+        await conn.execute("UPDATE email_tokens SET used_at = now() WHERE user_id = $1 AND kind = 'reset' AND used_at IS NULL", uid)   # the link in the same email stops working
+    await revoke_all(request.app, uid)
+    await clear_wrong_passwords(redis, u["email"])
+    await audit(pool, uid, "password_reset", None, ip, how="code")
+    return Response(content=json.dumps({"status": "password_changed"}), media_type="application/json", headers=NO_STORE)
+
+
 # ------------------------------------------------------------------ who am I
+def prism_reports_per_day(ctx) -> Optional[int]:
+    """Task #311: the FinLit Prism reports this member may open in a day, the number the Prism page shows ("You can open N a day"). The same table
+    the report feed enforces (prism.PLAN_REPORTS); None for an administrator (not limited) and for a plan without Prism reports."""
+    from ..prism import PLAN_REPORTS          # imported here: prism imports this package
+    if getattr(ctx, "role", None) == "admin" and not (getattr(ctx, "extra", None) or {}).get("view_as"):
+        return None
+    return PLAN_REPORTS.get((ctx.plan or "").lower())
+
+
 def limits_for(plan: str) -> Dict[str, int]:
     return LIMITS.get(plan, LIMITS["basic"])
 
@@ -525,18 +793,48 @@ def limits_for(plan: str) -> Dict[str, int]:
 @router.get("/auth/me")
 async def me(request: Request):
     ctx = await current(request)
-    body = {"user": ctx.public() if ctx.authed else None, "plan": ctx.plan, "limits": limits_for(ctx.plan), "csrf": ctx.csrf if ctx.authed else None,
-            "showcase": sorted(request.app.state.settings.showcase_symbols)}  # the free example companies: their reports are sent in full to everyone
+    from ..lab.access import features_of   # here, not at the top: lab.access imports this module
+    body = {"user": ctx.public() if ctx.authed else None, "plan": ctx.plan_key, "tier": ctx.plan, "limits": limits_for(ctx.plan), "csrf": ctx.csrf if ctx.authed else None,
+            "showcase": sorted(request.app.state.settings.showcase_symbols),  # the free example companies: their reports are sent in full to everyone
+            "prismReportsPerDay": prism_reports_per_day(ctx),
+            "features": await features_of(request.app.state.store.pool, ctx)}   # admin-granted features (Trading Lab), whatever the plan
     return Response(content=json.dumps(body), media_type="application/json", headers={**NO_STORE, "Vary": "Cookie"})
+
+
+@router.get("/me/profile")
+async def my_profile(request: Request, ctx: Ctx = Depends(secure_ctx)):
+    """The member's own name, email and mobile (the mobile is shown only to its owner)."""
+    async with request.app.state.store.pool.acquire() as conn:
+        r = await conn.fetchrow("SELECT name, email, mobile FROM users WHERE id = $1", ctx.user_id)
+    return Response(content=json.dumps({"name": r["name"], "email": r["email"], "mobile": r["mobile"]} if r else {}), media_type="application/json", headers=NO_STORE)
 
 
 @router.patch("/me")
 async def update_profile(request: Request, body: ProfileIn, ctx: Ctx = Depends(secure_ctx)):
+    """Name and mobile. A mobile change is limited to MOBILE_CHANGES_PER_DAY per account and MOBILE_CHANGES_PER_ADDRESS an hour per address (429)."""
     name = (body.name or "").strip()[:80] or None
-    async with request.app.state.store.pool.acquire() as conn:
-        await conn.execute("UPDATE users SET name = $2 WHERE id = $1", ctx.user_id, name)
+    mobile = None
+    if body.mobile is not None:
+        mobile = crypto.normalise_mobile(body.mobile)
+        if not mobile:
+            raise fail(422, "invalid_mobile", "Enter a valid 10-digit Indian mobile number.")
+    pool = request.app.state.store.pool
+    if mobile:
+        async with pool.acquire() as conn:
+            stored = await conn.fetchval("SELECT mobile FROM users WHERE id = $1", ctx.user_id)
+        if mobile != stored:   # a real change: counted, so the 409 cannot be used to test many numbers for an account
+            await limit(request, "mobchg", ctx.user_id, MOBILE_CHANGES_PER_DAY, 86400)
+            await limit(request, "mobchgip", ip_of(request), MOBILE_CHANGES_PER_ADDRESS, 3600)
+    async with pool.acquire() as conn:
+        try:
+            if mobile:
+                await conn.execute("UPDATE users SET name = $2, mobile = $3 WHERE id = $1", ctx.user_id, name, mobile)
+            else:
+                await conn.execute("UPDATE users SET name = $2 WHERE id = $1", ctx.user_id, name)
+        except asyncpg.UniqueViolationError:
+            raise fail(409, "mobile_taken", "That mobile number cannot be used. Try another.") from None
     await forget_cached(request.app, ctx.user_id)
-    return {"status": "saved", "name": name}
+    return {"status": "saved", "name": name, **({"mobile": mobile} if mobile else {})}
 
 
 @router.post("/me/password")
@@ -553,6 +851,12 @@ async def change_password(request: Request, body: ChangePw, ctx: Ctx = Depends(s
     pw = await crypto.hash_password(body.new)
     async with pool.acquire() as conn:
         await conn.execute("UPDATE users SET password_hash = $2, password_changed_at = now() WHERE id = $1", ctx.user_id, pw)
+        # security checkup (24 Nov 2026): a reset email still in the inbox stops working too, as it does after a reset by code or link
+        await conn.execute("UPDATE email_tokens SET used_at = now() WHERE user_id = $1 AND kind = 'reset' AND used_at IS NULL", ctx.user_id)
+    try:
+        await request.app.state.store.redis.delete(f"auth:resetcode:{ctx.user_id}", f"auth:resetcode:tries:{ctx.user_id}")
+    except Exception:
+        pass
     await revoke_all(request.app, ctx.user_id, keep_session=ctx.session_id)
     await audit(pool, ctx.user_id, "password_changed", None, ip_of(request))
     return {"status": "password_changed"}
@@ -670,7 +974,7 @@ async def save_state(request: Request, ctx: Ctx, column: str, value: Any) -> Non
 
 @router.put("/me/watchlist")
 async def put_watchlist(request: Request, body: WatchlistIn, ctx: Ctx = Depends(secure_ctx)):
-    need_plan(ctx, "silver")
+    need_area(ctx, "eq")
     lim = limits_for(ctx.plan)
     if len(body.lists) > lim["watchlist_lists"]:
         raise fail(403, "plan_limit", f"Your plan includes {lim['watchlist_lists']} lists.", plan="gold")
@@ -681,30 +985,93 @@ async def put_watchlist(request: Request, body: WatchlistIn, ctx: Ctx = Depends(
     if len(set(ids)) != len(ids):
         raise fail(422, "duplicate_list")
     meta = {k: v.model_dump() for k, v in body.meta.items() if SYMBOL.match(k)}
-    await save_state(request, ctx, "watchlist", {"lists": [lst.model_dump(exclude_none=True) for lst in body.lists], "meta": meta})
+    # task #375: the stock lists are saved without touching the fund wishlist kept beside them (watchlist.funds, saved by PUT /me/fund-wishlist)
+    async with request.app.state.store.pool.acquire() as conn:
+        await conn.execute("INSERT INTO user_state (user_id, watchlist) VALUES ($1, $2::jsonb) ON CONFLICT (user_id) DO UPDATE SET "
+                           "watchlist = EXCLUDED.watchlist || jsonb_build_object('funds', COALESCE(user_state.watchlist -> 'funds', '[]'::jsonb)), updated_at = now()",
+                           ctx.user_id, json.dumps({"lists": [lst.model_dump(exclude_none=True) for lst in body.lists], "meta": meta}))
     if any(m.get("target") for m in meta.values()):
         await wake.set_alerts_flag(request.app.state.store.redis, True)   # a price target now exists: the market-hours check must run (the next DB window corrects a false alarm)
     return {"status": "saved"}
 
 
+@router.put("/me/fund-wishlist")
+async def put_fund_wishlist(request: Request, body: FundWishIn, ctx: Ctx = Depends(secure_ctx)):
+    """Task #375 ("add a wishlist button here and a person can add in their wishlist a MF or an ETF and they can see it from here"): the schemes a
+    member keeps on the Mutual Funds page. Any signed-in member (everything stays free), at most 100. Saved beside the stock lists, never over them."""
+    codes = list(dict.fromkeys(body.codes))
+    async with request.app.state.store.pool.acquire() as conn:
+        await conn.execute("INSERT INTO user_state (user_id, watchlist) VALUES ($1, jsonb_build_object('funds', $2::jsonb)) ON CONFLICT (user_id) DO UPDATE SET "
+                           "watchlist = COALESCE(user_state.watchlist, '{}'::jsonb) || jsonb_build_object('funds', $2::jsonb), updated_at = now()",
+                           ctx.user_id, json.dumps(codes))
+    return {"status": "saved", "count": len(codes)}
+
+
 @router.put("/me/portfolio")
 async def put_portfolio(request: Request, body: PortfolioIn, ctx: Ctx = Depends(secure_ctx)):
-    need_plan(ctx, "silver")
+    need_area(ctx, "eq")
     cap = limits_for(ctx.plan)["holdings"]
-    if len(body.holdings) > cap:
-        raise fail(403, "plan_limit", f"Your plan includes {cap} holdings.", plan="gold")
+    shares = len({h.symbol for h in body.holdings})          # task #217: the limit counts shares; each buy of a share is its own row (at most 500 rows)
+    if shares > cap:
+        raise fail(403, "plan_limit", f"Your plan includes {cap} shares.", plan="gold")
     ids = [h.id for h in body.holdings]
     if len(set(ids)) != len(ids):
         raise fail(422, "duplicate_holding")
-    await save_state(request, ctx, "portfolio", {"holdings": [h.model_dump() for h in body.holdings]})
+    pfs = body.portfolios or []
+    if len({p.id for p in pfs}) != len(pfs) or len({p.name.strip().lower() for p in pfs}) != len(pfs):
+        raise fail(422, "duplicate_portfolio", "Each portfolio needs its own name.")
+    state = {"holdings": [h.model_dump(exclude_none=True) for h in body.holdings]}
+    if body.portfolios is not None:
+        state["portfolios"] = [p.model_dump(exclude_none=True) for p in pfs]
+    await save_state(request, ctx, "portfolio", state)
     return {"status": "saved"}
+
+
+# ---- Task #183: Clear portfolio. The cleared list (rows by ISIN with their quantities) is held on the server for the Undo window, then the clear is final.
+CLEAR_UNDO_SECONDS = 10
+CLEAR_HOLD_SECONDS = CLEAR_UNDO_SECONDS + 5    # a little longer than the Undo button shows, so a click in its last second still lands
+
+
+def _clear_key(user_id: str) -> str:
+    return f"pfclear:{user_id}"
+
+
+@router.post("/me/portfolio/clear")
+async def clear_portfolio(request: Request, ctx: Ctx = Depends(secure_ctx)):
+    """Empty the member's equity portfolio, holding what was there for the Undo window. Watchlists, alerts and the other portfolios are not touched."""
+    need_area(ctx, "eq")
+    pool, redis = request.app.state.store.pool, request.app.state.store.redis
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow("SELECT portfolio FROM user_state WHERE user_id = $1", ctx.user_id)
+    before = row["portfolio"] if row and row["portfolio"] is not None else {"holdings": []}
+    before = json.loads(before) if isinstance(before, str) else before
+    await redis.set(_clear_key(ctx.user_id), json.dumps(before), ex=CLEAR_HOLD_SECONDS)
+    kept = {"portfolios": before["portfolios"]} if isinstance(before, dict) and before.get("portfolios") else {}   # task #235: the portfolios stay, empty
+    await save_state(request, ctx, "portfolio", {"holdings": [], **kept})
+    return {"status": "cleared", "removed": len((before or {}).get("holdings") or []), "undoSeconds": CLEAR_UNDO_SECONDS}
+
+
+@router.post("/me/portfolio/undo-clear")
+async def undo_clear_portfolio(request: Request, ctx: Ctx = Depends(secure_ctx)):
+    """Put back exactly what Clear portfolio removed, while the Undo window is open; after it the clear is final."""
+    need_area(ctx, "eq")
+    redis = request.app.state.store.redis
+    held = await redis.getdel(_clear_key(ctx.user_id))
+    if held is None:
+        raise fail(410, "undo_expired", "The clear is final: Undo is only possible for 10 seconds.")
+    before = json.loads(held)
+    await save_state(request, ctx, "portfolio", before)
+    return {"status": "restored", "holdings": before.get("holdings") or []}
 
 
 @router.put("/me/screens")
 async def put_screens(request: Request, body: ScreensIn, ctx: Ctx = Depends(secure_ctx)):
     if len(body.screens) > limits_for(ctx.plan)["screens"]:
         raise fail(403, "plan_limit", "Your plan has reached its saved-screen limit.", plan="silver")
-    await save_state(request, ctx, "screens", [s.model_dump() for s in body.screens])
+    from ..iq_retire import convert_screens
+    # task #283 PR D: a browser that still holds a screen on the retired FinLit IQ saves it on FinLit Prism (marked as converted), never as it was
+    saved, _ = convert_screens([s.model_dump() for s in body.screens], drop_retired_model=False)
+    await save_state(request, ctx, "screens", saved)
     return {"status": "saved"}
 
 
@@ -717,7 +1084,9 @@ async def put_prefs(request: Request, body: PrefsIn, ctx: Ctx = Depends(secure_c
 @router.post("/me/plan-request", status_code=201)
 async def plan_request(request: Request, body: PlanRequestIn, ctx: Ctx = Depends(secure_ctx)):
     pool = request.app.state.store.pool
-    if has(ctx.plan, body.plan):
+    if body.plan == "silver":
+        body.plan = "gold"
+    if ctx.plan_key == body.plan or KEY_RANK.get(ctx.plan_key, 0) > KEY_RANK[body.plan] or (ctx.plan_key == "combined" and body.plan in ("mfetf", "equity")):
         raise fail(409, "already_included", "Your plan already includes this.")
     await limit(request, "planreq", ctx.user_id, 5, 86400)
     async with pool.acquire() as conn:
@@ -730,7 +1099,7 @@ async def plan_request(request: Request, body: PlanRequestIn, ctx: Ctx = Depends
 
 # ------------------------------------------------------------------ administrators
 class AdminUserPatch(BaseModel):
-    plan: Optional[Literal["basic", "silver", "gold"]] = None
+    plan: Optional[Literal["free", "mfetf", "equity", "combined", "gold", "platinum"]] = None      # task #410: the new plans
     plan_days: Optional[int] = Field(default=None, ge=1, le=3650)
     role: Optional[Literal["investor", "admin"]] = None
     status: Optional[Literal["active", "disabled"]] = None
@@ -745,7 +1114,7 @@ async def admin_users(request: Request, q: str = Query("", max_length=80), page:
                                 "count(*) OVER () AS total FROM users WHERE $1 = '%%' OR lower(email) LIKE $1 OR lower(coalesce(name, '')) LIKE $1 "
                                 "ORDER BY created_at DESC LIMIT 25 OFFSET $2", like if q.strip() else "%%", (page - 1) * 25)
     return {"total": rows[0]["total"] if rows else 0, "page": page, "users": [{
-        "id": str(r["id"]), "email": r["email"], "name": r["name"], "role": r["role"], "plan": r["plan"],
+        "id": str(r["id"]), "email": r["email"], "name": r["name"], "role": r["role"], "plan": plan_key(r["plan"]),
         "planUntil": r["plan_until"].isoformat() if r["plan_until"] else None, "status": r["status"], "verified": r["email_verified_at"] is not None,
         "mfa": r["totp_enabled_at"] is not None, "createdAt": r["created_at"].isoformat(),
         "lastLoginAt": r["last_login_at"].isoformat() if r["last_login_at"] else None} for r in rows]}
@@ -762,7 +1131,7 @@ async def admin_patch(request: Request, uid: str, body: AdminUserPatch, ctx: Ctx
     if body.plan is not None:
         args.append(body.plan)
         sets.append(f"plan = ${len(args)}")
-        until = datetime.now(timezone.utc) + timedelta(days=body.plan_days) if body.plan_days and body.plan != "basic" else None
+        until = datetime.now(timezone.utc) + timedelta(days=body.plan_days) if body.plan_days and body.plan != "free" else None
         args.append(until)
         sets.append(f"plan_until = ${len(args)}")
     if body.role is not None:
@@ -777,7 +1146,7 @@ async def admin_patch(request: Request, uid: str, body: AdminUserPatch, ctx: Ctx
         raise fail(422, "nothing_to_change")
     async with pool.acquire() as conn:
         done = await conn.fetchval(f"UPDATE users SET {', '.join(sets)} WHERE id = $1 RETURNING id", *args)  # nosec B608 - fragments are fixed strings
-        if body.plan in ("silver", "gold"):
+        if body.plan in PAID_KEYS:
             await conn.execute("UPDATE plan_requests SET status = 'granted', resolved_at = now() WHERE user_id = $1 AND status = 'open' AND plan = $2", uid, body.plan)
     if done is None:
         raise fail(404, "not_found")
@@ -810,6 +1179,8 @@ async def admin_decline(request: Request, rid: int, ctx: Ctx = Depends(admin_ctx
 async def admin_data_health(request: Request, ctx: Ctx = Depends(admin_ctx)):
     body = await request.app.state.store.health()
     body["funds"] = await _funds_health(request.app.state.store.pool)
+    from .. import dataaudit
+    body["fundGaps"] = await dataaudit.fund_gaps(request.app.state.store.pool)   # task #281: every fund data gap, counted each time the panel opens
     from .. import integrity
     body["integrity"] = await integrity.last_result(request.app.state.store.pool)
     try:
@@ -874,52 +1245,161 @@ FEED_COLS = "kind, title, symbol, company, source, link, item_date, category, pe
 
 
 def feed_json(r: Any) -> Dict[str, Any]:
+    from ..feed import topic_of
     return {"id": r["id"], "kind": r["kind"], "title": r["title"], "symbol": r["symbol"], "company": r["company"], "source": r["source"], "link": r["link"],
-            "date": r["item_date"].isoformat(), "category": r["category"], "period": r["period"], "summary": r["summary"], "auto": r["auto"]}
+            "date": r["item_date"].isoformat(), "category": r["category"], "period": r["period"], "summary": r["summary"], "auto": r["auto"],
+            "topic": r["topic"] or topic_of(r["kind"], r["category"], r["title"]), "sentiment": _sentiment_json(r)}
 
 
-@router.get("/feed")
-async def feed(request: Request, kind: Literal["news", "result", "document"] = "news", symbol: str = Query("", max_length=1200), q: str = Query("", max_length=80),
-               upcoming: bool = False, manual: bool = False, limit: int = Query(60, ge=1, le=3000), before: Optional[_date] = None,
-               from_date: Optional[_date] = None, to_date: Optional[_date] = None):
-    """Public. `symbol` may be one symbol or several separated by commas (a watchlist). `upcoming=true` returns dates from today on, soonest first."""
+def _sentiment_json(r: Any) -> Optional[Dict[str, Any]]:
+    """Task #365: the item's sentiment score (-1 .. +1) and band, or None while it is not scored yet."""
+    from ..sentiment import band
+    keys = r.keys() if hasattr(r, "keys") else ()
+    if "s_score" not in keys or r["s_score"] is None:
+        return None
+    return {"score": round(float(r["s_score"]), 2), "band": band(float(r["s_score"]))}
+
+
+FEED_KINDS = r"^(news|result|document)(,(news|result|document)){0,2}$"
+
+
+def _feed_topics(topic: str) -> List[str]:
+    from ..feed import TOPIC_KEYS
+    topics = [x.strip() for x in topic.split(",") if x.strip()]
+    if any(x not in TOPIC_KEYS for x in topics):
+        raise fail(400, "bad_request", "Unknown topic.")
+    return topics
+
+
+def _feed_filters(kind: str, symbol: str, q: str, filed: bool, topic: str, category: str) -> Tuple[List[str], List[Any]]:
+    """The WHERE parts shared by the feed list and its counts: kinds, filings only, companies, search, topic, exchange category."""
+    from ..feed import FILING_SOURCE
     syms = [x.strip().upper() for x in symbol.split(",") if x.strip()][:60]
     if any(not SYMBOL.match(x) for x in syms):
         raise fail(400, "invalid_symbol")
-    windowed = from_date is not None and to_date is not None and 0 <= (to_date - from_date).days <= 62
-    if limit > 200 and not windowed:
-        raise fail(400, "bad_request", "A long list needs a date window of two months or less.")
-    where, args = ["kind = $1"], [kind]
-    if windowed:
-        args += [from_date, to_date]
-        where.append(f"item_date BETWEEN ${len(args) - 1} AND ${len(args)}")
+    topics = _feed_topics(topic)
+    kinds = list(dict.fromkeys(kind.split(",")))
+    where, args = ["kind = ANY($1::text[])"], [kinds]
+    if filed and "result" in kinds:
+        args.append(FILING_SOURCE)
+        where.append(f"(kind <> 'result' OR (auto AND source = ${len(args)}))")   # results filings, not the calendar's dates
     if syms:
         args.append(syms)
         where.append(f"symbol = ANY(${len(args)}::text[])")
     if q.strip():
         args.append(f"%{q.strip().lower()}%")
         where.append(f"(lower(title) LIKE ${len(args)} OR lower(coalesce(company, '')) LIKE ${len(args)})")
+    if topics:
+        args.append(topics)
+        where.append(f"topic = ANY(${len(args)}::text[])")
+    if category.strip():
+        args.append(category.strip())
+        where.append(f"category = ${len(args)}")
+    return where, args
+
+
+@router.get("/feed")
+async def feed(request: Request, kind: str = Query("news", pattern=FEED_KINDS), symbol: str = Query("", max_length=1200), q: str = Query("", max_length=80),
+               upcoming: bool = False, manual: bool = False, limit: int = Query(60, ge=1, le=3000), before: Optional[_date] = None,
+               before_id: Optional[int] = Query(None, ge=1), filed: bool = False, topic: str = Query("", max_length=200),
+               category: str = Query("", max_length=80), from_date: Optional[_date] = None, to_date: Optional[_date] = None):
+    """Public. `symbol` may be one symbol or several separated by commas (a watchlist). `upcoming=true` returns dates from today on, soonest first.
+
+    `kind` may name several kinds (`news,result`: the News & filings page). `filed=true` leaves out the results calendar's dates, so only
+    filings are returned. `topic` keeps one or more FinLit topics (`orders,deals`); `category` one exchange category. `before` with
+    `before_id` continues a list from its last item (date and id), so a busy day cut by `limit` is not skipped."""
+    where, args = _feed_filters(kind, symbol, q, filed, topic, category)
+    windowed = from_date is not None and to_date is not None and 0 <= (to_date - from_date).days <= 62
+    if limit > 200 and not windowed:
+        raise fail(400, "bad_request", "A long list needs a date window of two months or less.")
+    if windowed:
+        args += [from_date, to_date]
+        where.append(f"item_date BETWEEN ${len(args) - 1} AND ${len(args)}")
     if manual:
         where.append("NOT auto")   # only what an administrator added (the console list; automatic exchange items would crowd it out)
     if upcoming:
         args.append(datetime.now(IST).date())
         where.append(f"item_date >= ${len(args)}")
+    elif before and before_id:
+        args += [before, before_id]
+        where.append(f"(item_date, id) < (${len(args) - 1}, ${len(args)})")
     elif before:
         args.append(before)
         where.append(f"item_date < ${len(args)}")
     args.append(limit)
     order = "item_date ASC, id" if upcoming else "item_date DESC, id DESC"
-    sql = "SELECT * FROM feed_items WHERE " + " AND ".join(where) + f" ORDER BY {order} LIMIT ${len(args)}"  # nosec B608 - fragments are fixed; values are bound
+    sql = ("SELECT feed_items.*, fs.score AS s_score FROM feed_items LEFT JOIN feed_sentiment fs ON fs.feed_id = feed_items.id WHERE "   # nosec B608 - fragments are fixed; values are bound
+           + " AND ".join(where) + f" ORDER BY {order} LIMIT ${len(args)}")
     async with request.app.state.store.pool.acquire() as conn:
         rows = await conn.fetch(sql, *args)
     return Response(content=json.dumps({"items": [feed_json(r) for r in rows]}), media_type="application/json",
                     headers={"Cache-Control": "public, max-age=60, stale-while-revalidate=300"})
 
 
+@router.get("/feed/sentiment")
+async def feed_sentiment(request: Request, symbol: str = Query(..., max_length=20)):
+    """Public. Task #365: the sentiment of one company's scored filings and news of the last two years (date, link, title, score, band), so the
+    company report's News and filings section can show each item's score next to its own announcements (matched by link, else date and title)."""
+    sym = symbol.strip().upper()
+    if not SYMBOL.match(sym):
+        raise fail(400, "invalid_symbol")
+    async with request.app.state.store.pool.acquire() as conn:
+        rows = await conn.fetch("SELECT f.item_date, f.link, f.title, s.score AS s_score FROM feed_items f JOIN feed_sentiment s ON s.feed_id = f.id "
+                                "WHERE f.symbol = $1 AND f.item_date >= current_date - 730 ORDER BY f.item_date DESC, f.id DESC LIMIT 1500", sym)
+    items = [{"date": r["item_date"].isoformat(), "link": r["link"], "title": r["title"], **(_sentiment_json(r) or {})} for r in rows]
+    return Response(content=json.dumps({"items": items}), media_type="application/json",
+                    headers={"Cache-Control": "public, max-age=300, stale-while-revalidate=900"})
+
+
+@router.get("/feed/counts")
+async def feed_counts(request: Request, kind: str = Query("news", pattern=FEED_KINDS), symbol: str = Query("", max_length=1200),
+                      q: str = Query("", max_length=80), filed: bool = False, topic: str = Query("", max_length=200),
+                      category: str = Query("", max_length=80), from_date: Optional[_date] = None, to_date: Optional[_date] = None):
+    """Public. How many items each FinLit topic, exchange category and day holds in a date window (default: the last 7 days), for the
+    News & filings page's chips and dropdowns. Topics are counted with every filter but the topic, categories with every filter but the
+    category, and days and the total with all of them, so each option says how many items it would show."""
+    from ..feed import TOPICS, topic_of
+    to_date = to_date or datetime.now(IST).date()
+    from_date = from_date or to_date - timedelta(days=7)
+    if not 0 <= (to_date - from_date).days <= 62:
+        raise fail(400, "bad_request", "The window must be two months or less.")
+    topics = _feed_topics(topic)
+    where, args = _feed_filters(kind, symbol, q, filed, "", "")   # topic and category are applied below, one facet at a time
+    args += [from_date, to_date]
+    where.append(f"item_date BETWEEN ${len(args) - 1} AND ${len(args)}")
+    sql = ("SELECT topic, category, item_date, count(*) AS n FROM feed_items WHERE " + " AND ".join(where) +  # nosec B608 - fragments are fixed; values are bound
+           " AND topic IS NOT NULL GROUP BY topic, category, item_date")
+    late = "SELECT kind, category, title, item_date FROM feed_items WHERE " + " AND ".join(where) + " AND topic IS NULL LIMIT 20000"  # nosec B608
+    async with request.app.state.store.pool.acquire() as conn:
+        groups = [(r["topic"], r["category"], r["item_date"], r["n"]) for r in await conn.fetch(sql, *args)]
+        groups += [(topic_of(r["kind"], r["category"], r["title"]), r["category"], r["item_date"], 1) for r in await conn.fetch(late, *args)]   # rows not re-sorted yet
+    want_t, want_c = set(topics), category.strip()
+    t_n: Dict[str, int] = {}
+    c_n: Dict[str, int] = {}
+    d_n: Dict[str, int] = {}
+    total = 0
+    for t, c, d, n in groups:
+        t_ok, c_ok = (not want_t or t in want_t), (not want_c or c == want_c)
+        if c_ok:
+            t_n[t] = t_n.get(t, 0) + n
+        if t_ok and c:
+            c_n[c] = c_n.get(c, 0) + n
+        if t_ok and c_ok:
+            d_n[d.isoformat()] = d_n.get(d.isoformat(), 0) + n
+            total += n
+    body = {"from": from_date.isoformat(), "to": to_date.isoformat(), "total": total,
+            "topics": [[k, label, t_n[k]] for k, label in TOPICS if t_n.get(k)],
+            "categories": sorted(([c, n] for c, n in c_n.items()), key=lambda x: (-x[1], x[0])),
+            "days": sorted(([d, n] for d, n in d_n.items()), reverse=True)}
+    return Response(content=json.dumps(body), media_type="application/json", headers={"Cache-Control": "public, max-age=60, stale-while-revalidate=300"})
+
+
 @router.post("/admin/feed", status_code=201)
 async def feed_create(request: Request, body: FeedIn, ctx: Ctx = Depends(admin_ctx)):
     async with request.app.state.store.pool.acquire() as conn:
-        new_id = await conn.fetchval(f"INSERT INTO feed_items ({FEED_COLS}) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id", *[getattr(body, c) for c in FEED_COLS.split(", ")])  # nosec B608
+        from ..feed import topic_of
+        new_id = await conn.fetchval(f"INSERT INTO feed_items ({FEED_COLS}, topic) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id",  # nosec B608
+                                     *[getattr(body, c) for c in FEED_COLS.split(", ")], topic_of(body.kind, body.category, body.title))
     await audit(request.app.state.store.pool, ctx.user_id, "feed_added", str(new_id), ip_of(request), kind=body.kind)
     return {"id": new_id}
 
@@ -1007,8 +1487,16 @@ async def list_ipos(request: Request):
     async with request.app.state.store.pool.acquire() as conn:
         rows = await conn.fetch("SELECT id, name, symbol, kind, sector, open_date, close_date, listing_date, price_low, price_high, lot_size, issue_size_cr, listing_price, note, link, details, updated_at, source "
                                 "FROM ipos ORDER BY open_date DESC LIMIT 300")   # not `raw`: it is for later features, not for the page
-    today = datetime.now(IST).date()   # India's date: an IPO opening today must read "Open" from midnight IST, not 05:30
-    return Response(content=json.dumps({"ipos": [ipo_json(r, today) for r in rows]}), media_type="application/json",
+        today = datetime.now(IST).date()   # India's date: an IPO opening today must read "Open" from midnight IST, not 05:30
+        items = [ipo_json(r, today) for r in rows]
+        try:                               # the provider's rows, completed from the IPO record (lot size, sector, listing, subscription, documents ...)
+            from ..ipoapi import complete_calendar
+            items = await complete_calendar(conn, items, today)
+        except Exception:
+            logging.getLogger("finlit.ipos").warning("IPO calendar not completed from the IPO record", exc_info=True)
+        from ..ipoapi import settle                # task #329: closed 15 days or more with no listing date -> not listed
+        items = settle(items, today)
+    return Response(content=json.dumps({"ipos": items}, default=str), media_type="application/json",
                     headers={"Cache-Control": "public, max-age=120, stale-while-revalidate=600"})
 
 

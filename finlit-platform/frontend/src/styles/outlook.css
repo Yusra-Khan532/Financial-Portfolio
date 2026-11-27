@@ -1,38 +1,38 @@
 /* Profit and revenue outlook (pages/Outlook.tsx). Site tokens only, so light and dark follow. */
 .ol { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; padding-bottom: 40px; }
 .ol .gate, .ol .gate > div { min-width: 0; }
-.ol h2 { font: 600 18px/1.3 var(--sans); margin: 0 0 12px; display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.ol h2 { font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif); margin: 0 0 12px; display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
 .ol .card { padding: 20px 22px; }
-.ol-search { display: flex; align-items: center; gap: 8px; border: 1px solid var(--border-strong); border-radius: 10px; padding: 0 12px; background: var(--s1); }
+.ol-search { display: flex; align-items: center; gap: 8px; border: 1px solid var(--border-strong); border-radius: var(--r-ctl); padding: 0 12px; background: var(--s1); }
 .ol-search input { border: 0; background: none; padding: 12px 0; width: 100%; font: inherit; color: var(--text); outline: none; }
 .ol-search:focus-within { outline: 2px solid var(--focus); outline-offset: 2px; }
-.ol-hits { list-style: none; margin: 8px 0 0; padding: 4px; border: 1px solid var(--border); border-radius: 10px; background: var(--s1); }
-.ol-hits a { display: flex; justify-content: space-between; gap: 12px; padding: 10px; border-radius: 8px; color: var(--text); text-decoration: none; }
+.ol-hits { list-style: none; margin: 8px 0 0; padding: 4px; border: 1px solid var(--border); border-radius: var(--r-ctl); background: var(--s1); }
+.ol-hits a { display: flex; justify-content: space-between; gap: 12px; padding: 10px; border-radius: var(--r-ctl); color: var(--text); text-decoration: none; }
 .ol-hits a:hover, .ol-hits a:focus-visible { background: var(--s2); }
 .ol-tabs { display: flex; gap: 6px; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
-.ol-tabs button { font: 600 16px var(--sans); padding: 11px 16px; border: 0; background: none; color: var(--muted); cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -1px; }
+.ol-tabs button { font: 600 var(--fs-16) var(--sans); padding: 11px 16px; border: 0; background: none; color: var(--muted); cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -1px; }
 .ol-tabs button.on { color: var(--text); border-bottom-color: var(--gold); }
 .ol-tabs button:focus-visible, .ol-mode button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .ol-panel { display: grid; gap: 16px; }
-.ol-mode { display: inline-flex; padding: 3px; border: 1px solid var(--border-strong); border-radius: 999px; background: var(--s1); justify-self: start; }
-.ol-mode button { font: 600 14px var(--sans); padding: 8px 16px; border: 0; border-radius: 999px; background: none; color: var(--muted); cursor: pointer; }
+.ol-mode { display: inline-flex; padding: 3px; border: 1px solid var(--border-strong); border-radius: var(--ui-r-pill); background: var(--s1); justify-self: start; }
+.ol-mode button { font: 600 var(--fs-14) var(--sans); padding: 8px 16px; border: 0; border-radius: var(--ui-r-pill); background: none; color: var(--muted); cursor: pointer; }
 .ol-mode button.on { background: var(--gold); color: var(--on-gold); }
-.ol-sliders { border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; margin: 0; display: grid; gap: 10px; background: var(--s1); }
+.ol-sliders { border: 1px solid var(--border); border-radius: var(--r-ctl); padding: 14px 16px; margin: 0; display: grid; gap: 10px; background: var(--s1); }
 .ol-sl { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.4fr) 64px; gap: 12px; align-items: center; }
-.ol-sl label { font-size: 14px; }
-.ol-sl .ol-sl-ref { display: block; font-size: 12px; margin-top: 2px; }   /* task #146: the company's own figure and the input's weight, under its name */
+.ol-sl label { font-size: var(--fs-14); }
+.ol-sl .ol-sl-ref { display: block; font-size: var(--fs-12); margin-top: 2px; }   /* task #146: the company's own figure and the input's weight, under its name */
 .ol-sl output.is-mine { color: var(--gold); font-weight: 600; }        /* a rate the user moved away from the company's figure */
 .ol-sl input[type=range] { width: 100%; accent-color: var(--gold); min-height: 28px; }
-.ol-sl output { text-align: right; font-size: 14px; }
+.ol-sl output { text-align: right; font-size: var(--fs-14); }
 .ol-total { display: flex; justify-content: space-between; align-items: center; gap: 12px; border-top: 1px solid var(--border); padding-top: 10px; flex-wrap: wrap; }
 .ol-out { display: grid; gap: 18px; transition: opacity .15s; }
 .ol-out.is-busy { opacity: .6; }
-.ol-note { display: flex; gap: 8px; align-items: flex-start; margin: 14px 0 0; padding: 10px 12px; border-radius: 10px; background: var(--gold-soft); font-size: var(--fs-14); }
-.ol-empty { padding: 12px 14px; border-radius: 10px; background: var(--s2); margin: 0; }
-.ol-disc { font-size: 13px; color: var(--muted); margin: 0; }
-.ol-skel { display: flex; gap: 22px; align-items: center; padding: 20px; border: 1px solid var(--border); border-radius: 14px; }
+.ol-note { display: flex; gap: 8px; align-items: flex-start; margin: 14px 0 0; padding: 10px 12px; border-radius: var(--r-ctl); background: var(--gold-soft); font-size: var(--fs-14); }
+.ol-empty { padding: 12px 14px; border-radius: var(--r-ctl); background: var(--s2); margin: 0; }
+.ol-disc { font-size: var(--fs-13); color: var(--muted); margin: 0; }
+.ol-skel { display: flex; gap: 22px; align-items: center; padding: 20px; border: 1px solid var(--border); border-radius: var(--r-ctl); }
 .ol-skel .sk-lines { flex: 1; display: grid; gap: 12px; }
-.ol-skel .sk-lines i { display: block; height: 14px; border-radius: 7px; background: var(--s3); animation: ol-pulse 1.2s ease-in-out infinite; }
+.ol-skel .sk-lines i { display: block; height: 14px; border-radius: var(--ui-r-pill); background: var(--s3); animation: ol-pulse 1.2s ease-in-out infinite; }
 @keyframes ol-pulse { 50% { opacity: .5; } }
 @media (prefers-reduced-motion: reduce) { .ol-skel *, .ol-out { animation: none !important; transition: none; } }
 @media (max-width: 640px) {
@@ -50,29 +50,29 @@
 /* ---- estimates: controls, charts, tables */
 .ol-ctl { display: grid; gap: 14px; }
 .ol-ctl-row { display: flex; gap: 12px 16px; align-items: center; flex-wrap: wrap; }
-.ol-ctl-l { font: 600 13px var(--sans); color: var(--muted); text-transform: uppercase; letter-spacing: .06em; min-width: 92px; }
-.ol-mode button small { display: block; font: 400 12px var(--sans); opacity: .8; }
-.ol-mode:has(small) button { padding: 7px 16px; border-radius: 14px; }
+.ol-ctl-l { font: 600 var(--fs-13) var(--sans); color: var(--muted); text-transform: uppercase; letter-spacing: .06em; min-width: 92px; }
+.ol-mode button small { display: block; font: 400 var(--fs-12) var(--sans); }
+.ol-mode:has(small) button { padding: 7px 16px; border-radius: var(--r-ctl); }
 .ol-how summary { cursor: pointer; font-weight: 600; color: var(--gold); }
-.ol-how summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 4px; }
-.ol-how p { margin: 8px 0 0; font-size: 14px; color: var(--muted); }
+.ol-how summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--ui-r-mark); }
+.ol-how p { margin: 8px 0 0; font-size: var(--fs-14); color: var(--muted); }
 .ol-charts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; align-items: start; }
 .ol-chartcard { min-width: 0; transition: opacity .15s; } .ol-chartcard.is-busy { opacity: .65; }
 .ol-chart { position: relative; min-width: 0; }
 .ol-chart-top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 4px; }
-.ol-chart-top h3 { font: 700 16px var(--sans); margin: 0; }
+.ol-chart-top h3 { font: var(--ui-fw-semibold) var(--ui-fs-h3)/var(--lh-16) var(--font-sans); margin: 0; }
 .ol-chart-acts { display: flex; gap: 14px; }
-.ol-link { all: unset; cursor: pointer; font-size: 13px; color: var(--gold); text-decoration: underline; text-underline-offset: 3px; }
-.ol-link:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 3px; }
-.ol-plot { position: relative; outline: none; border-radius: 10px; touch-action: pan-y; }
+.ol-link { all: unset; cursor: pointer; font-size: var(--fs-13); color: var(--gold); text-decoration: underline; text-underline-offset: 3px; }
+.ol-link:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--ui-r-mark); }
+.ol-plot { position: relative; outline: none; border-radius: var(--r-ctl); touch-action: pan-y; }
 .ol-plot:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .ol-plot svg { display: block; max-width: 100%; }
-.ol-ax { font-size: 11px; font-family: var(--sans); } .ol-ax.mono { font-family: var(--mono); }
-.ol-tip { position: absolute; transform: translateX(-50%); min-width: 190px; max-width: 240px; display: grid; gap: 3px; padding: 10px 12px; border-radius: 10px; background: var(--s1); border: 1px solid var(--border-strong); box-shadow: 0 8px 24px rgba(0,0,0,.28); pointer-events: none; font-size: var(--fs-13); z-index: 2; }
-.ol-tip b { font-size: var(--fs-14); } .ol-tip em { font: 700 16px var(--mono); font-style: normal; } .ol-tip small { color: var(--muted); font-size: 12px; }
+.ol-ax { font-size: var(--fs-12); font-family: var(--sans); } .ol-ax.mono { font-family: var(--mono); }
+.ol-tip { position: absolute; transform: translateX(-50%); min-width: 190px; max-width: 240px; display: grid; gap: 3px; padding: 10px 12px; border-radius: var(--r-ctl); background: var(--s1); border: 1px solid var(--border-strong); box-shadow: 0 8px 24px rgba(0,0,0,.28); pointer-events: none; font-size: var(--fs-13); z-index: 2; }
+.ol-tip b { font-size: var(--fs-14); } .ol-tip em { font: 700 var(--fs-16) var(--mono); font-style: normal; } .ol-tip small { color: var(--muted); font-size: var(--fs-12); }
 .ol-tip-kind { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; color: var(--muted); }
 .ol-tip-kind i { width: 14px; height: 0; border-top: 3px solid currentColor; } .ol-tip-kind.estimate i { border-top-style: dashed; }
-.ol-legend { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 13px; color: var(--muted); }
+.ol-legend { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: var(--fs-13); color: var(--muted); }
 .ol-legend li { display: inline-flex; align-items: center; gap: 8px; }
 .ol-chart-note { margin: 8px 0 0; font-size: var(--fs-13); }
 .ol-ctable { overflow-x: auto; margin-top: 10px; -webkit-overflow-scrolling: touch; }
@@ -81,45 +81,45 @@
 .ol-ctable th, .ol-ctable td { padding: 8px 10px; border-bottom: 1px solid var(--border); text-align: left; font-weight: 500; font-variant-numeric: tabular-nums; vertical-align: top; }
 .ol-ctable thead th { color: var(--faint); font-size: var(--fs-12); text-transform: uppercase; letter-spacing: .06em; white-space: nowrap; }
 .ol-ctable .num { text-align: right; white-space: nowrap; }
-.ol-ctable tbody th { font-weight: 600; } .ol-ctable th small, .ol-ctable td small { display: block; font-weight: 400; font-size: 12px; white-space: normal; max-width: 36ch; }
+.ol-ctable tbody th { font-weight: 600; } .ol-ctable th small, .ol-ctable td small { display: block; font-weight: 400; font-size: var(--fs-12); white-space: normal; max-width: 36ch; }
 .ol-ctable td small { margin-left: auto; text-align: right; }
 .ol-ctable tr.is-na th, .ol-ctable tr.is-na td { color: var(--muted); }
 .ol-ctable tfoot th, .ol-ctable tfoot td { border-top: 2px solid var(--border-strong); border-bottom: 0; font-weight: 700; }
 .ol-build { margin-top: 6px; }
 @media (max-width: 960px) { .ol-charts { grid-template-columns: minmax(0, 1fr); } }
-@media (max-width: 640px) { .ol-ctl-l { min-width: 0; width: 100%; } .ol-mode button { padding: 7px 10px; font-size: var(--fs-14); } .ol-ctable th, .ol-ctable td { padding: 7px 6px; font-size: 13px; } .ol-tip { min-width: 170px; } }
+@media (max-width: 640px) { .ol-ctl-l { min-width: 0; width: 100%; } .ol-mode button { padding: 7px 10px; font-size: var(--fs-14); } .ol-ctable th, .ol-ctable td { padding: 7px 6px; font-size: var(--fs-13); } .ol-tip { min-width: 170px; } }
 @media (prefers-reduced-motion: reduce) { .ol-chartcard { transition: none; } }
 .ol-ctable th { background: none; }
-@media (max-width: 640px) { .ol-build th[scope=row] { min-width: 0; width: 42%; } .ol-ctable tbody th small { max-width: 20ch; } .ol-ctable .num { padding-left: 4px; padding-right: 4px; } .ol-ctable thead th { font-size: var(--fs-11); letter-spacing: .02em; white-space: normal; } }
+@media (max-width: 640px) { .ol-build th[scope=row] { min-width: 0; width: 42%; } .ol-ctable tbody th small { max-width: 20ch; } .ol-ctable .num { padding-left: 4px; padding-right: 4px; } .ol-ctable thead th { font-size: var(--fs-12); letter-spacing: .02em; white-space: normal; } }
 
 /* ---- landing / company picker (components/OutlookPicker.tsx) */
 .olp { display: grid; gap: 14px; }
 .olp h2 { margin: 0; }
 .olp-intro { margin: 0; color: var(--muted); font-size: var(--fs-14); line-height: 1.6; max-width: 80ch; }
 .olp-snap { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; margin: 0; }
-.olp-snap > div { padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--s1); min-width: 0; }
-.olp-snap dt { font: 600 11px var(--sans); text-transform: uppercase; letter-spacing: .06em; color: var(--faint); }
-.olp-snap dd { margin: 2px 0 0; font-size: 16px; font-weight: 600; overflow-wrap: anywhere; }
+.olp-snap > div { padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--r-ctl); background: var(--s1); min-width: 0; }
+.olp-snap dt { font: 600 var(--fs-12) var(--sans); text-transform: uppercase; letter-spacing: .06em; color: var(--faint); }
+.olp-snap dd { margin: 2px 0 0; font-size: var(--fs-16); font-weight: 600; overflow-wrap: anywhere; }
 .olp .up { color: var(--gain); } .olp .dn { color: var(--loss); }
 .olp-row { display: grid; gap: 8px; align-items: start; }   /* the heading above its chips, for Quick picks and Last searched alike (task #109) */
 .olp-row + .olp-row { margin-top: 10px; }
-.olp-l { font: 700 13px var(--sans); text-transform: uppercase; letter-spacing: .08em; color: var(--text); }
+.olp-l { font: 700 var(--fs-13) var(--sans); text-transform: uppercase; letter-spacing: .08em; color: var(--text); }
 .olp-chips { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
-.olp-chip { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 6px 14px; border: 1px solid var(--border-strong); border-radius: 999px; background: var(--s1); color: var(--text); text-decoration: none; font-size: var(--fs-14); }
-.olp-chip small { font-size: 12px; } .olp-chip:hover { border-color: var(--gold); } .olp-chip:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.olp-chip { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 6px 14px; border: 1px solid var(--border-strong); border-radius: var(--ui-r-pill); background: var(--s1); color: var(--text); text-decoration: none; font-size: var(--fs-14); }
+.olp-chip small { font-size: var(--fs-12); } .olp-chip:hover { border-color: var(--gold); } .olp-chip:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .olp-chip.on { background: var(--gold-soft); border-color: var(--gold); }
 @media (max-width: 760px) { .olp-snap { grid-template-columns: repeat(2, minmax(0, 1fr)); }  }
 
 /* ---- the two model cards */
 .ol-models { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; flex: 1; min-width: 0; }
 .ol-models-row { align-items: stretch; }
-.ol-mcard { display: flex; gap: 12px; align-items: flex-start; text-align: left; padding: 14px 16px; border: 1.5px solid var(--border-strong); border-radius: 14px; background: var(--s1); color: var(--text); cursor: pointer; font: inherit; min-width: 0; }
+.ol-mcard { display: flex; gap: 12px; align-items: flex-start; text-align: left; padding: 14px 16px; border: 1.5px solid var(--border-strong); border-radius: var(--r-ctl); background: var(--s1); color: var(--text); cursor: pointer; font: inherit; min-width: 0; }
 .ol-mcard:hover { border-color: var(--gold); } .ol-mcard:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .ol-mcard.on { border-color: var(--gold); background: var(--gold-soft); box-shadow: 0 0 0 1px var(--gold) inset; }
 .ol-mdot { flex: none; width: 18px; height: 18px; margin-top: 2px; border: 2px solid var(--border-strong); border-radius: 50%; } .ol-mcard.on .ol-mdot { border-color: var(--gold); background: radial-gradient(circle, var(--gold) 0 45%, transparent 50%); }
-.ol-mt { display: grid; gap: 4px; min-width: 0; } .ol-mt b { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 16px; }
+.ol-mt { display: grid; gap: 4px; min-width: 0; } .ol-mt b { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: var(--fs-16); }
 .ol-mt small { font-size: var(--fs-13); color: var(--muted); line-height: 1.45; }
-.ol-usp { font: 700 11px var(--sans); font-style: normal; letter-spacing: .06em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; background: var(--gold); color: var(--on-gold); }
+.ol-usp { font: 700 var(--fs-12) var(--sans); font-style: normal; letter-spacing: .06em; text-transform: uppercase; padding: 2px 8px; border-radius: var(--ui-r-pill); background: var(--gold); color: var(--on-gold); }
 @media (max-width: 760px) { .ol-models { grid-template-columns: minmax(0, 1fr); } }
 
 /* ---- key takeaways */
@@ -139,19 +139,19 @@
 /* Profit and revenue outlook, new layout (task #55): charts beside the assumptions, the year table beside the key takeaways, three folded notes at the bottom */
 .ol-top { display: grid; gap: 16px; }
 .ol-top.ol-split { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(300px, 1fr); align-items: start; }   /* its own class on purpose: the site's sidebar class (.side) is sticky, height-limited and clipped, and made the charts slide under the tables when scrolling (task #99) */
-.ol-top.ol-split > .ol-assume { grid-column: 2; grid-row: 1; position: sticky; top: 90px; } .ol-top.ol-split > .ol-charts { grid-column: 1; grid-row: 1; }
+.ol-top.ol-split > .ol-assume { grid-column: 2; grid-row: 1; position: sticky; top: 90px; max-height: calc(100vh - 106px); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }   /* task #184 rework: never taller than the screen, so no input is out of reach while it sticks */ .ol-top.ol-split > .ol-charts { grid-column: 1; grid-row: 1; }
 .ol-pair { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 16px; align-items: start; } .ol-pair > * { min-width: 0; }
 .ol-fold3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; align-items: start; }
-.ol-fold3 details { padding: 12px 16px; border: 1px solid var(--border-strong); border-radius: 14px; background: var(--s1); } .ol-fold3 summary { cursor: pointer; font-weight: 600; font-size: var(--fs-14); display: flex; align-items: center; gap: 10px; flex-wrap: wrap; } .ol-fold3 summary em { font-style: normal; padding: 1px 10px; border-radius: 999px; border: 1px solid var(--border-strong); font-size: var(--fs-12); color: var(--muted); }
+.ol-fold3 details { padding: 12px 16px; border: 1px solid var(--border-strong); border-radius: var(--r-ctl); background: var(--s1); } .ol-fold3 summary { cursor: pointer; font-weight: 600; font-size: var(--fs-14); display: flex; align-items: center; gap: 10px; flex-wrap: wrap; } .ol-fold3 summary em { font-style: normal; padding: 1px 10px; border-radius: var(--ui-r-pill); border: 1px solid var(--border-strong); font-size: var(--fs-12); color: var(--muted); }
 .ol-fold3 details[open] { grid-column: 1 / -1; }
-@media (max-width: 1100px) { .ol-top.ol-split { grid-template-columns: minmax(0, 1fr); } .ol-top.ol-split > .ol-assume { grid-column: 1; grid-row: 1; position: static; } .ol-top.ol-split > .ol-charts { grid-column: 1; grid-row: 2; } .ol-pair, .ol-fold3 { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 1100px) { .ol-top.ol-split { grid-template-columns: minmax(0, 1fr); } .ol-top.ol-split > .ol-assume { grid-column: 1; grid-row: 1; position: static; max-height: none; overflow: visible; } .ol-top.ol-split > .ol-charts { grid-column: 1; grid-row: 2; } .ol-pair, .ol-fold3 { grid-template-columns: minmax(0, 1fr); } }
 .sl-nc { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 0; }
 
 /* Task #55 (again): with "Build your own growth model" the Revenue chart sits above the Profit chart, both on the left, and the sliders stand on the right beside the two,
    so a slider is moved with the charts in view. The chart the sliders drive is marked, and the other can be picked with one click. */
 .ol-top.ol-split > .ol-charts { grid-template-columns: minmax(0, 1fr); }
 .ol-chartcard.is-adjusting { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold) inset; }
-.ol .ol-adj { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--border-strong); background: none; color: var(--muted); font: 600 var(--fs-12)/1.3 var(--sans); }
+.ol .ol-adj { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; padding: 3px 10px; border-radius: var(--ui-r-pill); border: 1px solid var(--border-strong); background: none; color: var(--muted); font: 600 var(--fs-12)/1.3 var(--sans); }
 .ol .ol-adj svg { width: 14px; height: 14px; flex: none; }
 .ol .ol-adj:not(.pick) { border-color: var(--gold); background: var(--gold-soft); color: var(--text); }
 .ol .ol-adj.pick { cursor: pointer; } .ol .ol-adj.pick:hover { border-color: var(--gold); color: var(--text); } .ol .ol-adj.pick:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
@@ -161,7 +161,7 @@
 /* Task #166: a typed rate box (any rate from -99% to +999% a year) in place of the slider that stopped at 50%. */
 .ol-rates .ol-sl { grid-template-columns: minmax(0, 1fr) 150px; }
 .ol-rate { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 4px 6px; justify-self: end; }
-.ol-rate input { width: 96px; height: 40px; box-sizing: border-box; padding: 0 10px; border: 1px solid var(--border-strong); border-radius: 8px; background: var(--s2); color: var(--text);
+.ol-rate input { width: 96px; height: 40px; box-sizing: border-box; padding: 0 10px; border: 1px solid var(--ui-field-line); border-radius: var(--r-ctl); background: var(--s2); color: var(--text);
   font: 600 var(--fs-14)/1 var(--mono, var(--sans)); font-variant-numeric: tabular-nums; text-align: right; }
 .ol-rate input:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
 .ol-rate.is-mine input { border-color: var(--gold); color: var(--gold); }

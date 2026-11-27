@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import math
 import logging
 import time
 from dataclasses import replace
@@ -13,7 +14,7 @@ import orjson
 from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel, Field
 
-from ..auth.entitlements import has, sees_all
+from ..auth.entitlements import has, is_platinum, sees_all
 from ..auth.routes import SYMBOL, Ctx, admin_ctx, fail, secure_ctx, user_ctx
 from ..background import spawn
 from ..screener.data import get_table
@@ -29,15 +30,17 @@ RANGES = {"crude": (-90.0, 300.0), "usdinr": (1 / 1.4 * 100 - 100, 1 / 0.67 * 10
           "rate_bp": (-500.0, 1000.0), "demand": (-60.0, 30.0), "erp_bp": (-300.0, 600.0)}
 
 
+# Task #410: Stress Lab is a Platinum tool (goliveData: Platinum, or the Stress Lab add-on). Accounts that had it before keep it: migration 146 moved
+# every old Silver and Gold account to Platinum.
 async def silver_ctx(ctx: Ctx = Depends(user_ctx)) -> Ctx:
-    if not sees_all(ctx) and not has(ctx.plan, "silver"):
-        raise fail(403, "plan_required", "Stress Lab is part of the Silver and Gold plans.", plan="silver")
+    if not is_platinum(ctx):
+        raise fail(403, "plan_required", "Stress Lab is part of the Platinum plan.", plan="platinum")
     return ctx
 
 
 async def gold_ctx(ctx: Ctx = Depends(secure_ctx)) -> Ctx:
-    if not sees_all(ctx) and not has(ctx.plan, "gold"):
-        raise fail(403, "plan_required", "This part of Stress Lab is part of the Gold plan.", plan="gold")
+    if not is_platinum(ctx):
+        raise fail(403, "plan_required", "Stress Lab is part of the Platinum plan.", plan="platinum")
     return ctx
 
 
@@ -61,13 +64,25 @@ def strip_value(obj: Any) -> Any:
     return obj
 
 
+IMPOSSIBLE = {"crude": "Crude cannot fall by more than 100%.", "demand": "Demand cannot fall by more than 100%.",
+              "usdinr": "A dollar cannot cost zero rupees or fewer."}
+
+
 def scenario_from(body: "ScenarioIn", base: Optional[S.Scenario] = None) -> S.Scenario:
-    """A scenario from the reader's numbers, clipped to the sliders' ranges (spec 7.3)."""
+    """A scenario from the reader's numbers, as they are: task #196 (D1) "The model must accept any value; there is no clamp on the server". RANGES are
+    only the sliders' usual drag ranges. Refused: a value that is not a number (a rupee worth nothing is an infinite usdinr), and the impossible ones:
+    crude or demand down by more than 100%, and a dollar costing zero rupees or fewer (usdinr, the change in rupees per dollar, at or below -100%)."""
     sc = replace(base) if base else S.Scenario()
-    for k, (lo, hi) in RANGES.items():
+    for k in RANGES:
         v = getattr(body, k)
-        if v is not None:
-            setattr(sc, k, min(max(float(v), lo), hi))
+        if v is None:
+            continue
+        v = float(v)
+        if not math.isfinite(v):
+            raise fail(422, "not_a_number", f"{k} must be a number.")
+        if (k in ("crude", "demand") and v < -100) or (k == "usdinr" and v <= -100):
+            raise fail(422, "impossible_value", IMPOSSIBLE[k])
+        setattr(sc, k, v)
     if body.persistence in ("one_year", "permanent"):
         sc.persistence = body.persistence
     sc.name = "Custom"

@@ -1,0 +1,79 @@
+/* Task #310: the shared pieces (button, tabs, card, title and headings, input, chip, page width), built only on ui-tokens.css.
+   Class names start with ui- so they cannot clash with page classes (mf-, side-, hh-, xt-). The React components in
+   src/components/ui/ render these classes; pages move to them one page family at a time. */
+
+/* Button: 3 looks + the Prism look. Nothing else is a button. */
+.ui-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: var(--ui-ctl-h); padding: 0 18px; border: 1px solid transparent; border-radius: var(--r-ctl); font: var(--ui-fw-semibold) var(--fs-14)/1 var(--font-sans); cursor: pointer; text-decoration: none; white-space: nowrap; }
+.ui-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.ui-btn--primary { background: var(--btn-bg); color: var(--btn-fg); }
+.ui-btn--primary:hover { background: var(--btn-hover); }
+.ui-btn--secondary { background: var(--s1); color: var(--text); border-color: var(--border-strong); }
+.ui-btn--secondary:hover { background: var(--s2); }
+.ui-btn--quiet { background: transparent; color: var(--text); padding: 0 10px; }
+.ui-btn--quiet:hover { background: var(--s2); }
+.ui-btn--prism { background: linear-gradient(180deg, var(--gold-2), var(--gold-deep)); color: var(--ui-on-prism); }   /* Prism actions only */
+.ui-btn[aria-pressed="true"] { background: var(--ui-on-bg); color: var(--ui-on-fg); border-color: var(--ui-on-bg); }   /* a button that is switched on, e.g. Watching */
+.ui-btn--sm { min-height: var(--ui-ctl-h-sm); padding: 0 14px; font-size: var(--fs-13); }
+.ui-btn[disabled], .ui-btn[aria-disabled="true"] { opacity: .5; cursor: not-allowed; }
+/* A link drawn as a button or a tab keeps the button's text colour: page sheets colour their links (".dsh a" is gold) and load after this file. */
+:root a.ui-btn.ui-btn--primary { color: var(--btn-fg); text-decoration: none; }
+:root a.ui-btn:is(.ui-btn--secondary, .ui-btn--quiet) { color: var(--text); text-decoration: none; }
+:root a.ui-btn.ui-btn--prism { color: var(--ui-on-prism); text-decoration: none; }
+:root a.ui-tab.ui-tab { color: var(--text); text-decoration: none; }
+:root a.ui-tab.ui-tab[aria-current="page"], :root a.ui-btn.ui-btn[aria-pressed="true"] { color: var(--ui-on-fg); }
+
+/* Tabs and pills: one selected colour (black on cream in light, cream on green in dark). The selected one is marked with
+   aria-selected, aria-pressed or aria-current, never a class, so screen readers hear it too. */
+.ui-tabs { display: flex; flex-wrap: wrap; gap: 8px; }
+.ui-tab { display: inline-flex; align-items: center; gap: 6px; min-height: var(--ui-ctl-h-sm); padding: 0 16px; border: 1px solid var(--border-strong); border-radius: var(--ui-r-pill); background: var(--s1); color: var(--text); font: var(--ui-fw-medium) var(--fs-14)/1 var(--font-sans); cursor: pointer; text-decoration: none; }
+.ui-tab:hover { background: var(--s2); }
+.ui-tab[aria-selected="true"], .ui-tab[aria-pressed="true"], .ui-tab[aria-current="page"] { background: var(--ui-on-bg); color: var(--ui-on-fg); border-color: var(--ui-on-bg); }
+.ui-tab:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+/* Task #310 part D: sibling pages as page tabs (components/PageTabs.tsx), left-aligned directly under the title block. */
+.page-tabs { justify-content: flex-start; margin: 0; }
+.page-tabs.pf-sibs { margin: 12px 0 4px; }
+/* Task #310 part D: section bars (dashboard and all my investments: StepsBar; Sector Pulse and Rotation: SectionsBar; the three portfolios: eqt-chip;
+   long calculators and funds: SectionNav, in section-nav.css with the same tokens). The section in view takes the same selected colour as ui-tab, on a pill, marked by aria-current. */
+:root :is(.stb-chip[aria-current="step"], .sp-secbar-c[aria-current="location"], .eqt-chip[aria-current="true"]) {
+  background: var(--ui-on-bg); color: var(--ui-on-fg); border-radius: var(--ui-r-pill); box-shadow: none; text-decoration: none; font-weight: var(--ui-fw-semibold); }
+:root :is(.stb-chip[aria-current="step"], .sp-secbar-c[aria-current="location"], .eqt-chip[aria-current="true"]) :is(.stb-n, .sp-secbar-n, .eqt-n) { background: var(--ui-on-fg); color: var(--ui-on-bg); }
+
+/* Card: one surface, two sizes */
+.ui-card { background: var(--s1); border: 1px solid var(--border); border-radius: var(--r-card); padding: 24px; }
+.ui-card--sm { border-radius: var(--r-ctl); padding: 16px; }
+
+/* Titles and headings */
+.ui-eyebrow { margin: 0 0 6px; font: var(--ui-fw-semibold) var(--fs-12)/var(--lh-12) var(--font-sans); letter-spacing: .08em; text-transform: uppercase; color: var(--faint); }
+.ui-title { margin: 0; font: var(--ui-fw-medium) var(--fs-page-title)/var(--lh-32) var(--font-serif); color: var(--text); }
+.ui-title--read { font-size: var(--ui-fs-title-read); line-height: var(--lh-40); }
+.ui-title--marketing { font-size: var(--ui-fs-title-marketing); line-height: var(--ui-lh-64); }
+.ui-h2 { margin: 0; font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif); color: var(--text); }
+.ui-h2--marketing, h2.ui-h2--marketing { font-size: var(--ui-fs-h2-marketing); line-height: var(--lh-40); }   /* h2.: wins over a section rule such as .sec-h h2 */
+.ui-h3 { margin: 0; font: var(--ui-fw-semibold) var(--ui-fs-h3)/var(--lh-16) var(--font-sans); color: var(--text); }
+.ui-label { font: var(--ui-fw-semibold) var(--fs-12)/var(--lh-12) var(--font-sans); letter-spacing: .06em; text-transform: uppercase; color: var(--faint); }
+.ui-lede { margin: 8px 0 0; font: var(--ui-fw-regular) var(--fs-16)/var(--lh-16) var(--font-sans); color: var(--muted); max-width: 68ch; }
+
+/* Input and select */
+.ui-input { min-height: var(--ui-ctl-h); padding: 0 14px; border: 1px solid var(--border-strong); border-radius: var(--r-ctl); background: var(--s1); color: var(--text); font: var(--ui-fw-regular) var(--fs-14)/1 var(--font-sans); }
+.ui-input:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+
+/* Chip: a read-only mark, never clickable */
+.ui-chip { display: inline-flex; align-items: center; gap: 6px; min-height: 24px; padding: 0 10px; border-radius: var(--ui-r-pill); background: var(--s2); color: var(--muted); font: var(--ui-fw-semibold) var(--fs-12)/1 var(--font-sans); }
+.ui-chip--gain { background: var(--gain-soft); color: var(--gain); }
+.ui-chip--loss { background: var(--loss-soft); color: var(--loss); }
+.ui-chip--gold { background: var(--gold-soft); color: var(--gold); }
+
+/* Page widths */
+.ui-page { max-width: var(--ui-w-app); margin-inline: auto; }
+.ui-page--wide { max-width: var(--ui-w-wide); }
+.ui-page--read { max-width: var(--ui-w-read); }
+
+/* Phone */
+@media (max-width: 860px) {
+  .ui-btn, .ui-btn--sm, .ui-tab, .ui-input { min-height: var(--ui-ctl-h); }
+  .ui-title { font-size: var(--fs-28); line-height: var(--lh-28); }
+  .ui-title--read { font-size: var(--fs-32); line-height: var(--lh-32); }
+  .ui-title--marketing { font-size: var(--fs-40); line-height: var(--lh-40); }
+  .ui-h2--marketing, h2.ui-h2--marketing { font-size: var(--fs-28); line-height: var(--lh-28); }
+  .ui-card { padding: 16px; }
+}

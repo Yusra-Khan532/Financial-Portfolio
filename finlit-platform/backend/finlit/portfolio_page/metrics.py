@@ -1,7 +1,8 @@
 """FinLit "Equity portfolio" page: calculations and reading rules (ported unchanged from the design handover pack, reference/portfolio_metrics.py).
 
-Every formula, threshold and reading is the pack's. The one addition is a size code "U" for a company whose market-value rank is not known (it is counted in the
-list, in no size column). Information only, not investment advice.
+Every formula, threshold and reading is the pack's. Two additions: a size code "U" for a company whose market-value rank is not known (it is counted in the
+list, in no size column), and the same spread score with each share counted by its value now (`spread_by_value`, developer file 28: Your portfolio
+score and the top cards once every share has a quantity). Information only, not investment advice.
 
 This module turns a list of shares into everything the page shows:
   * where the list sits (sector and size mix, both amount modes)
@@ -12,7 +13,7 @@ This module turns a list of shares into everything the page shows:
 Inputs are plain pandas objects so it can sit behind any API:
   weekly_close : DataFrame, index = week-ending dates (Friday), columns = NSE symbols, adjusted closes
   nifty_close  : Series, same index, NIFTY 50 closes
-  meta         : {symbol: {"name", "sector", "size" ("L"|"M"|"S"; "U" = not known), "mcap_cr", "prism": {...} (kept for the caller, not used here)}}
+  meta         : {symbol: {"name", "sector", "size" ("L"|"M"|"S"|"X" for Micro; "U" = not known), "mcap_cr", "prism": {...} (kept for the caller, not used here)}}
 
 Requires numpy, pandas and scipy. Python 3.9+.
 """
@@ -76,6 +77,33 @@ def effective_sectors(sectors: List[str]) -> float:
     """1 / sum of squared sector shares, counting each share once (independent of the amount mode)."""
     s = pd.Series(sectors).value_counts(normalize=True)
     return float(1 / (s ** 2).sum())
+
+
+def effective_stocks_by_value(corr: np.ndarray, w: np.ndarray) -> float:
+    """Developer file 28: the participation ratio of the correlation matrix seen through the amounts, the eigenvalues of D C D with D = diag(sqrt(w)).
+    Equal amounts give effective_stocks(corr) exactly; n unrelated shares give 1 / sum(w^2), the number of equal holdings the amounts are worth; shares
+    that move as one give 1, whatever the amounts."""
+    d = np.sqrt(np.asarray(w, dtype=float) / float(np.sum(w)))
+    lam = np.linalg.eigvalsh(corr * np.outer(d, d))
+    return float(lam.sum() ** 2 / (lam ** 2).sum())
+
+
+def effective_sectors_by_value(sectors: List[str], w: np.ndarray) -> float:
+    """1 / sum of squared sector shares of the value. Equal amounts give effective_sectors(sectors) exactly."""
+    s = pd.Series(np.asarray(w, dtype=float), index=sectors).groupby(level=0).sum()
+    s = s / s.sum()
+    return float(1 / (s ** 2).sum())
+
+
+def spread_by_value(r: pd.DataFrame, sector: Dict[str, str], w: Dict[str, float]) -> dict:
+    """The diversification score with each share counted by its value (w: symbol -> value share, every listed share). Co-movement over the shares with a year
+    of prices (their amounts taken among themselves), sector spread over every share; the same score, parts and bands as diversification_score."""
+    cs = list(r.columns)
+    wc = np.array([w[s] for s in cs], dtype=float)
+    eff = effective_stocks_by_value(r.corr().values, wc) if len(cs) >= 3 and wc.sum() > 0 else float(len(cs))
+    syms = list(w)
+    effsec = effective_sectors_by_value([sector[s] for s in syms], np.array([w[s] for s in syms], dtype=float))
+    return diversification_score(eff, effsec)
 
 
 def diversification_score(eff_stocks: float, eff_sectors: float) -> dict:
@@ -228,7 +256,7 @@ def rules(f: dict) -> List[dict]:
     if f["sector_count"] <= 2:
         say("C3", "where", 85, f"All {n} shares are in {f['sector_count']} sector{'s' if f['sector_count'] > 1 else ''}.")
     if n >= 8:
-        missing = [nm for k, nm in (("M", "mid caps"), ("S", "small caps"), ("L", "large caps")) if f["size_count"].get(k, 0) == 0]
+        missing = [nm for k, nm in (("M", "mid caps"), ("S", "small caps"), ("X", "micro caps"), ("L", "large caps")) if f["size_count"].get(k, 0) == 0]   # task #262
         if missing:
             say("C4", "where", 30, f"There are no {join_names(missing)} in the list.", "eq")
     # --- What moves together --------------------------------------------------------------------------------
@@ -246,11 +274,11 @@ def rules(f: dict) -> List[dict]:
         if v["n"] >= 3 and v["avg"] >= 0.6:
             say("M3", "together", 76, f"The {v['n']} {sec} shares move almost as one ({two(v['avg'])} on average).")
         elif v["n"] >= 3 and v["avg"] < 0.35:
-            say("M4", "together", 40, f"The {v['n']} {sec} shares share a sector but move fairly independently ({two(v['avg'])}).")
+            say("M4", "together", 40, f"The {v['n']} {sec} shares are in one sector and move fairly independently of each other ({two(v['avg'])}).")
     for g in f["groups"]:
         secs = sorted(set(f["sector"][s] for s in g["members"]))
         if len(secs) > 1:
-            say("M5", "together", 72, f"Group {g['letter']}: {join_names(g['members'])} are in different sectors but move together ({two(g['avg_corr'])}).")
+            say("M5", "together", 72, f"Group {g['letter']}: {join_names(g['members'])} move together ({two(g['avg_corr'])}) across different sectors.")
     if not f["groups"]:
         say("M8", "together", 50, "No set of shares moves closely together.")
     twins = f["near_duplicates"]
@@ -266,13 +294,13 @@ def rules(f: dict) -> List[dict]:
         rs, am = f["share_risk"][mode], f["share_weight"][mode]
         heavy = [(s, rs[s], am[s]) for s in sorted(rs, key=lambda s: -rs[s]) if rs[s] >= 3 and rs[s] >= 1.5 * am[s]]
         for s, r_, a_ in heavy[:2]:
-            say("K1", "risk", 72, f"{s} is {pct(a_)} of the amount but {pct(r_)} of the risk.", mode)
+            say("K1", "risk", 72, f"{s} is {pct(a_)} of the list and carries {pct(r_)} of the risk.", mode)
         sr, sa = f["sector_risk"][mode], f["sector_weight"][mode]
         members = pd.Series(list(f["sector"].values())).value_counts()
         gap = sorted(((k, sr[k] - sa[k]) for k in sr if members.get(k, 0) >= 2), key=lambda t: -t[1])  # one-share sectors repeat K1
         if gap and gap[0][1] >= 4:
             k = gap[0][0]
-            say("K2", "risk", 68, f"{k} is {pct(sa[k])} of the amount but {pct(sr[k])} of the risk.", mode)
+            say("K2", "risk", 68, f"{k} is {pct(sa[k])} of the list and carries {pct(sr[k])} of the risk.", mode)
         top3 = sorted(rs.items(), key=lambda t: -t[1])[:3]
         t3 = sum(v for _, v in top3)
         if n >= 6 and t3 >= 40:

@@ -9,9 +9,11 @@ import { FundamentalSection, TechnicalSection } from "../../../stock/PrismCardVi
 import { partsOf } from "../../../stock/PrismCompare";
 import { STATUS, prismSummary, type PrismLatest } from "../../../stock/PrismCard";
 import { LabelChip, StatusChip, istTime, type ReportActions } from "./Hero";
+import { TopDisclaimer } from "./Shell";
 import "../../../styles/prism-compare.css";
 import "../../../styles/prism-card.css";
 import "../../../styles/prism-report.css";
+import { coLabel } from "../../../lib/companyLabel";
 
 const STATUS_NOTE: Record<PrismReport["rating"]["status"], string> = {
   RATED: "Enough of the data was available for a full rating.",
@@ -43,22 +45,23 @@ export function CardTop({ report, actions, example = false }: { report: PrismRep
   const { parts } = partsOf(r as unknown as PrismLatest["rating"]);
   const inp = inputsLine(r);
   return (
-    <section className="pzr-cardtop" aria-label={`${PRISM_NAME} rating of ${report.company.name}`}>
+    <section className="pzr-cardtop" id="prism" aria-label={`${PRISM_NAME} rating of ${report.company.name}`}>
       <header className="pzr-ct-h">
         <div>
           <h2>{report.company.name}</h2>
-          <p className="pzr-ct-sub"><b>{report.company.symbol}</b> · {statementWord(report.statementType)} statements · Calculated {istTime(report.completedAt || report.createdAt)}</p>
+          <p className="pzr-ct-sub"><b>{coLabel(report.company).code ?? report.company.symbol}</b> · {statementWord(report.statementType)} statements · Calculated {istTime(report.completedAt || report.createdAt)}</p>
           {!example && <Viewer report={report} />}
         </div>
         <div className="pzr-ct-chips"><StatusChip status={r.status} />{r.status !== "NOT RATED" && <LabelChip label={r.label} />}
           {actions.onRecalculate && <button type="button" className="btn" onClick={actions.onRecalculate} disabled={actions.recalculating}><Icon name="refresh" />{actions.recalculating ? "Recalculating…" : "Recalculate"}</button>}</div>
       </header>
+      {!example && <TopDisclaimer />}
       <div className="pcx-body" role="group" aria-label={prismSummary(r as unknown as PrismLatest["rating"])}>
         <FundamentalSection r={r as unknown as PrismLatest["rating"]} parts={parts}>
           <div className="dk-words">
             <div className="dk-chips"><span className={"pz-status " + r.status.toLowerCase().replace(" ", "-")}>{STATUS[r.status as PrismLatest["rating"]["status"]]}</span></div>
             {r.status !== "RATED" && <p className={"dk-note" + (r.status === "NOT RATED" ? " why" : "")}>{r.status === "NOT RATED" ? notRatedLede(r) : STATUS_NOTE[r.status]}</p>}
-            <p className={"dk-cov" + (inp.ok ? "" : " held")}><Icon name={inp.ok ? "check" : "info"} />{inp.text}{inp.note ? <span className="dk-cov-n"> · {inp.note}</span> : null} · <Link to="/glossary#coverage-prism">what this means</Link></p>
+            {inp && <p className={"dk-cov" + (inp.ok ? "" : " held")}><Icon name={inp.ok ? "check" : "info"} />{inp.text}{inp.note ? <span className="dk-cov-n"> · {inp.note}</span> : null} · <Link to="/glossary#coverage-prism">what this means</Link></p>}
           </div>
         </FundamentalSection>
         <TechnicalSection a={parseTechnical(report.technicalAssessment)} report={rep} onRecalculate={actions.onRecalculate} busy={actions.recalculating} />

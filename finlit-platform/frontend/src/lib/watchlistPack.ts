@@ -1,33 +1,33 @@
 // Words of the Watchlists page as the "FinLit final pages" pack draws it (board 16, 13 Nov 2026): the five tiles, the insight cards, the groups and the
 // "Price and business disagree" cards, all from the real figures (the screener's universe row and the weekly Leader / In line / Laggard label of
 // /api/leadership/list). Pure functions, tested in watchlistPack.test.ts against the pack's own sentences. Describes, never advises.
-import { capBucket } from "./capBuckets";
+import { capBucket, SIZE_RULE_TEXT, SIZE_SHORTS, type SizeShort } from "./capBuckets";
 import type { Card } from "./pulsePack";
 
 export type LeadLabel = "leader" | "in_line" | "laggard";
 /** One stock's answer from /api/leadership/list. */
 export type ListLead =
   | { available: true; label: LeadLabel; rank: number; ranked: number; group: string; groupName?: string | null; sector: string | null; sectorKind?: string | null; rel52: number | null;
-      fundamentalRank: number | null; fundamentalOf: number | null; fundamentalNote: "below_peers" | "stronger_than_price" | null; stale?: boolean }
+      fundamentalRank: number | null; fundamentalOf: number | null; fundamentalNote: "below_peers" | "stronger_than_price" | null; stale?: boolean;
+      /** task #235 (E4): the week's own reading and its direction, for the Equity portfolio's table */ rawLabel?: LeadLabel | null; direction?: "gaining" | "weakening" | null }
   | { available: false; reason: string; text: string };
 export type ListLeadFeed = { available: true; asOf: string; rows: Record<string, ListLead> } | { available: false; reason: string };
 
 /** What the page needs of a stock: the universe row's figures, the plan's score and its word, and the peer label. */
-export type Item = { symbol: string; name: string; sector: string | null; marketCap: number | null; change: number | null; score: number | null; word: string | null; lead: ListLead | null };
+/** `industry`: the company's NSE industry (task #192; before, the screener's mixed `sector` column, lower-cased on the card). */
+export type Item = { symbol: string; name: string; industry: string | null; marketCap: number | null; change: number | null; score: number | null; word: string | null; lead: ListLead | null };
 
 export const PEER_HELP = "Leader, In line, Laggard. Each share's price over the last 12 months is compared with similar companies and with its sector index. Leader: among the strongest of its group and ahead of the index. Laggard: among the weakest and behind it. It describes the past, not the future.";
 export const HELP = {
   pe: "P/E. The share price divided by a year's profit per share: how many years of today's profit you pay for.",
   roe: "ROE. Profit as a share of the money owners have put in. Higher means the company makes more from each rupee.",
-  size: "Company size. FinLit uses three sizes everywhere, by market value: Large above ₹50,000 Cr, Mid ₹10,000 to 50,000 Cr, Small below ₹10,000 Cr.",
-  // the pack's own words name the old score; the owner's rule calls it FinLit IQ everywhere (noFinlitScoreWord.test.ts), so the line says what it is without the old name
-  iq: "FinLit IQ. The company's overall score on FinLit, from 0 to 100.",
+  size: `Company size. FinLit uses four sizes everywhere, by market value: ${SIZE_RULE_TEXT}.`,
   prism: "FinLit Prism. FinLit's advanced rating of the company's financial health, from 0 to 100.",
   target: "Target. A price you set as a reminder for yourself. It is not a prediction.",
 };
-export const DISAGREE_SUB = "The peer tag is about the share price. The business score ranks the company's results and balance sheet within the same group.";
+export const DISAGREE_SUB = "The peer label is about the share price. The business score ranks the company's results and balance sheet within the same group.";
 export const DISAGREE_WHY = "When the price is far ahead of the business, the market may be expecting a lot. It is a prompt to read the report, not a call to act.";
-export const PAGE_DESC = "The companies you are keeping an eye on: how they are doing, how they compare with their peers, and what to look at next.";
+export const PAGE_DESC = "The companies you follow: how they are doing, against their peers, and what to look at next.";
 export const PLAIN = "lists, notes and targets are saved in this browser. Targets are your own reminders, not predictions; FinLit does not tell you when to buy or sell.";
 export const ALERT_SUB = "An alert when a stock on this list becomes a Leader, In line or a Laggard, sent after the weekly check.";
 
@@ -41,15 +41,15 @@ export const andList = (xs: string[]) => (xs.length <= 1 ? xs.join("") : `${xs.s
 const pct1 = (x: number) => (x > 0 ? "+" : x < 0 ? "−" : "") + Math.abs(x).toFixed(1) + "%";
 /** A fraction as points with one decimal and a real minus: 1.524679 -> "+152.5". */
 export const pts = (x: number) => { const v = Math.round(x * 1000) / 10; return (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(v).toFixed(1); };
-/** FinLit's three sizes as one word (lib/capBuckets.ts): Large above ₹50,000 Cr, Mid ₹10,000-50,000 Cr, Small below. */
-export const sizeWord = (crore: number | null | undefined): "Large" | "Mid" | "Small" | null => { const b = capBucket(crore); return b ? (b.id === "large" ? "Large" : b.id === "mid" ? "Mid" : "Small") : null; };
+/** FinLit's four sizes as one word (lib/capBuckets.ts): Large, Mid, Small, Micro. */
+export const sizeWord = (crore: number | null | undefined): SizeShort | null => capBucket(crore)?.short ?? null;
 const lead = (i: Item) => (i.lead && i.lead.available ? i.lead : null);
 
 /** Tile 1: how many stocks, and how many of each size ("2 small · 1 mid company"). */
 export function stocksTile(items: Item[]): { value: string; sub: string } {
   const n: Record<string, number> = {};
   for (const i of items) { const s = sizeWord(i.marketCap); if (s) n[s] = (n[s] || 0) + 1; }
-  const keys = ["Large", "Mid", "Small"].filter((s) => n[s]).sort((a, b) => n[b] - n[a]);
+  const keys = [...SIZE_SHORTS].filter((s) => n[s]).sort((a, b) => n[b] - n[a]);
   const parts = keys.map((s) => `${n[s]} ${s.toLowerCase()}`);
   return { value: String(items.length), sub: parts.length ? `${parts.join(" · ")} ${n[keys[keys.length - 1]] === 1 ? "company" : "companies"}` : "Size not known yet" };
 }
@@ -96,14 +96,14 @@ export function peersTile(items: Item[]): { value: string; sub: string } {
 /** Tile 5: the largest share of the list in one industry. */
 export function concentrationTile(items: Item[]): { value: string; sub: string; top: string | null; n: number } {
   const m = new Map<string, number>();
-  for (const i of items) if (i.sector) m.set(i.sector, (m.get(i.sector) || 0) + 1);
+  for (const i of items) if (i.industry) m.set(i.industry, (m.get(i.industry) || 0) + 1);
   const top = [...m.entries()].sort((a, b) => b[1] - a[1])[0];
   if (!top || !items.length) return { value: "—", sub: "No industry yet", top: null, n: 0 };
-  return { value: `${Math.round((top[1] / items.length) * 100)}%`, sub: `in one industry: ${top[0].toLowerCase()}`, top: top[0], n: top[1] };
+  return { value: `${Math.round((top[1] / items.length) * 100)}%`, sub: `in one industry: ${top[0]}`, top: top[0], n: top[1] };   // NSE's spelling, never lower-cased
 }
 
 /** The insight cards over the table: price ahead of the business (Watch out), the business ahead of the price (Insight), most of the list in one industry
- *  (Warning), and stocks with no peer tag because they have under a year of prices (Insight). */
+ *  (Warning), and stocks with no peer label because they have under a year of prices (Insight). */
 export function listCards(items: Item[]): Card[] {
   const out: Card[] = [];
   const ahead = items.filter((i) => { const l = lead(i); return l && l.fundamentalNote === "below_peers" && l.fundamentalRank != null; });
@@ -111,9 +111,9 @@ export function listCards(items: Item[]): Card[] {
   const behind = items.filter((i) => { const l = lead(i); return l && l.fundamentalNote === "stronger_than_price" && l.fundamentalRank != null; });
   if (behind.length) out.push({ kind: "insight", title: "The business leads, the price lags", text: rankSentence(behind, "business score", "price", true) + ` Worth reading ${behind.length === 1 ? "its report" : "their reports"} to see why.` });
   const c = concentrationTile(items);
-  if (c.top && items.length >= 2 && c.n / items.length >= 0.5) out.push({ kind: "warning", title: `${cap1(c.n === items.length ? (items.length === 2 ? "both" : "all " + inWords(c.n)) : inWords(c.n) + " of " + inWords(items.length))} stocks in one industry`, text: `A downturn in ${c.top.toLowerCase()} would hit ${c.n === items.length ? "all" : "most"} of this list at once.` });
+  if (c.top && items.length >= 2 && c.n / items.length >= 0.5) out.push({ kind: "warning", title: `${cap1(c.n === items.length ? (items.length === 2 ? "both" : "all " + inWords(c.n)) : inWords(c.n) + " of " + inWords(items.length))} stocks in one industry`, text: `A downturn in the ${c.top} industry would hit ${c.n === items.length ? "all" : "most"} of this list at once.` });
   const young = items.filter((i) => i.lead && !i.lead.available && i.lead.reason === "history");
-  if (young.length) out.push({ kind: "insight", title: `${andList(young.slice(0, 3).map((i) => i.symbol))}${young.length > 3 ? ` and ${young.length - 3} more` : ""} ${young.length === 1 ? "has" : "have"} under a year of prices`, text: `With less than a year of share prices, ${young.length === 1 ? "it has" : "they have"} no peer tag yet. ${young.length === 1 ? "It gets one" : "Each gets one"} once ${young.length === 1 ? "it has" : "it has"} a full year of prices.` });
+  if (young.length) out.push({ kind: "insight", title: `${andList(young.slice(0, 3).map((i) => i.symbol))}${young.length > 3 ? ` and ${young.length - 3} more` : ""} ${young.length === 1 ? "has" : "have"} under a year of prices`, text: `With less than a year of share prices, ${young.length === 1 ? "it has" : "they have"} no peer label yet. ${young.length === 1 ? "It gets one" : "Each gets one"} once ${young.length === 1 ? "it has" : "it has"} a full year of prices.` });
   return out;
 }
 
@@ -150,21 +150,21 @@ export function peerCell(l: ListLead | null): { chip: string; tone: "good" | "ba
 
 export type GroupBy = "peers" | "industry" | "size";
 export const GROUP_SUB: Record<GroupBy, string> = {
-  peers: "Grouped by how each stock did against its peers over 12 months.", industry: "Grouped by industry.", size: "Grouped by company size: Large, Mid and Small.",
+  peers: "Grouped by how each stock did against its peers over 12 months.", industry: "Grouped by industry.", size: "Grouped by company size: Large, Mid, Small and Micro.",
 };
 const PEER_ORDER = ["Leaders", "In line", "Laggards", "Not compared"];
 /** The group a stock falls in for each Group by button. */
 export function groupOf(g: GroupBy, i: Item): string {
-  if (g === "industry") return i.sector || "Industry not known";
+  if (g === "industry") return i.industry || "Not classified";
   if (g === "size") return sizeWord(i.marketCap) ?? "Size not known";
   const l = lead(i);
   return !l ? "Not compared" : l.label === "leader" ? "Leaders" : l.label === "laggard" ? "Laggards" : "In line";
 }
-/** Groups in the pack's order: by peers Leaders, In line, Laggards, Not compared; by size Large, Mid, Small; by industry the largest first. */
+/** Groups in the pack's order: by peers Leaders, In line, Laggards, Not compared; by size Large, Mid, Small, Micro; by industry the largest first. */
 export function groups<T extends Item>(g: GroupBy, items: T[]): [string, T[]][] {
   const m = new Map<string, T[]>();
   for (const i of items) { const k = groupOf(g, i); m.set(k, [...(m.get(k) || []), i]); }
-  const order = g === "peers" ? PEER_ORDER : g === "size" ? ["Large", "Mid", "Small", "Size not known"] : null;
+  const order = g === "peers" ? PEER_ORDER : g === "size" ? [...SIZE_SHORTS, "Size not known"] : null;
   return [...m.entries()].sort((a, b) => (order ? order.indexOf(a[0]) - order.indexOf(b[0]) : b[1].length - a[1].length || a[0].localeCompare(b[0])));
 }
 export const groupTone = (k: string): "good" | "bad" | "mid" | "none" => (k === "Leaders" ? "good" : k === "Laggards" ? "bad" : k === "In line" ? "mid" : "none");

@@ -27,7 +27,17 @@ export type FundRow = {
   // the category table's figures (an older cached answer may not carry them yet: treated as missing)
   sip3y?: number | null; sip5y?: number | null; fall3y?: number | null; aum?: number | null; aumAsOf?: string | null; aumKind?: "q" | "m" | null;
   ter?: number | null; terDate?: string | null; checklist?: Checklist | null;
+  // task #281: an IDCW / payout option's own returns stay empty (payouts); the Growth option of the same fund and plan is shown instead, always labelled
+  growthReturns?: GrowthReturns | null; growthReturnsWhy?: string | null;
 };
+export type GrowthReturns = { code: number; name: string; r1y: number | null; r3y: number | null; r5y: number | null; retDate: string | null; label: string };
+export const GROWTH_RETURNS_LABEL = "Growth option's returns (before payouts)";
+export const GROWTH_SCORE_LABEL = "Growth option's score";
+export const PLAN_SCORE_NOTE = "Scores compare Direct plans with Direct plans and Regular with Regular.";
+/** The Growth option's figure an IDCW row shows in place of its own empty one, or null (task #281). */
+export function growthFigure(r: { optionClass: string; growthReturns?: GrowthReturns | null }, k: "r1y" | "r3y" | "r5y"): number | null {
+  return r.optionClass !== "Growth" && r.growthReturns ? r.growthReturns[k] ?? null : null;
+}
 export type FundList = Facts & { total: number; page: number; size: number; pages: number; items: FundRow[]; peers?: Record<string, PeerStats>; checklist?: { checks: { key: string; rule: string }[]; minPeers: number } };
 export type HotList = Facts & { basis: string | null; items: FundRow[] };
 export type FilterCategory = {
@@ -46,17 +56,21 @@ export type Risk = {
 export type RangeKey = "1M" | "6M" | "1Y" | "3Y" | "5Y" | "10Y" | "MAX";
 export type Points = { t: string[]; v: number[] };
 export type Change = { abs: number; pct: number; since: string | null };
-export type HistoryInfo = { source: "amfi" | "mirror" | null; from: string | null; to?: string | null; points?: number; complete?: boolean; note: string | null };
+/** `earlier`: the scheme's AMFI code changed in a takeover and its history includes the earlier code's NAVs (task #281). */
+export type HistoryInfo = { source: "amfi" | "mirror" | null; from: string | null; to?: string | null; points?: number; complete?: boolean; note: string | null;
+  earlier?: { oldCode: number; oldName: string; joinedOn: string; note: string } | null };
 export type FundDetail = Facts & {
   code: number; name: string; isin: string | null; isinReinvest: string | null; amc: string; category: string; categoryGroup: string; schemeType: string; plan: string;
   optionClass: FundRow["optionClass"]; option: string; active: boolean; nav: number | null; navDate: string | null; prevNav: number | null; prevDate: string | null; change: Change | null;
   returns: Record<"1m" | "6m" | "1y" | "3y" | "5y", Ret>; retDate?: string | null; risk: Risk; returnsNote: string | null; series: Partial<Record<RangeKey, Points>>; history: HistoryInfo;
   family: { code: number; name: string; plan: string; optionClass: string; option: string; nav: number | null; navDate: string | null; active: boolean }[];
-  notAvailable?: { items: string[]; why: string };
+  notAvailable?: { items: string[]; reasons?: Record<string, string>; why: string } | null;   // task #281: only what is missing for this scheme; null when nothing is
+  growthReturns?: GrowthReturns | null; growthReturnsWhy?: string | null;   // task #281: an IDCW option's same-plan Growth option, labelled
 };
 export type CompareFund = {
   code: number; name: string; amc: string; category: string; plan: string; option: string; optionClass: string; nav: number | null; navDate: string | null; change: Change | null;
   active: boolean; returns: FundDetail["returns"]; retDate?: string | null; risk: Risk; history: HistoryInfo;
+  growthReturns?: GrowthReturns | null; growthReturnsWhy?: string | null;
 };
 /** One fund fact: a value with its date and source, or the reason there is none. */
 export type FactVal = { value: string | number | string[] | null; asOf?: string | null; source?: string; unit?: string; note?: string } | { unavailable: string };
@@ -84,12 +98,15 @@ export function pctText(v: number | null | undefined, d = 2, plus = true): strin
 export const tone = (v: number | null | undefined) => (v == null || v === 0 ? "" : v > 0 ? "pos" : "neg");
 export const dayText = (iso: string | null | undefined) => (iso ? dateIN(iso) : "—");
 
+/** A score reason without a leading "Not scored:" / "Not scored yet:" / "Not rated:" (the page prints that label itself, so it never reads twice). */
+export const scoreReason = (reason: string | null | undefined): string => (reason || "").replace(/^\s*not\s+(?:scored(?:\s+yet)?|rated)\s*:\s*/i, "").trim();
+
 /** The reason a scheme has no return figures at all, in words (the server sends a short code). */
 export function noReturnsText(code: FundRow["noReturns"]): string {
   switch (code) {
     case "stopped": return "This scheme has stopped publishing NAVs.";
     case "idcw": return "Returns are not worked out for IDCW (payout) options: each payout lowers the NAV. See the Growth option of the same fund.";
-    case "unstated": return "AMFI does not state a Growth option for this scheme, so NAV-to-NAV returns could miss payouts.";
+    case "unstated": return "Neither AMFI's NAV file nor its scheme master states a Growth option for this scheme, so NAV-to-NAV returns could miss payouts.";
     case "no_history": return "NAV history for this scheme is not loaded yet.";
     case "short": return "Not enough NAV history yet.";
     default: return "";
@@ -146,7 +163,7 @@ export const COL_GROUPS = { ret: "Returns", sip: "SIP returns (XIRR)" } as const
 export const COLUMNS: ColDef[] = [
   { id: "amc", label: "Fund house", hint: "The company that runs the scheme (also shown under the scheme's name)", sort: "amc", num: false },
   { id: "category", label: "Category", hint: "The group AMFI files the scheme in", sort: "category", num: false },
-  { id: "score", label: "FundPulse", hint: "FinLit FundPulse, 0 to 100 (Gold plan). Describes the fund's past health against similar funds; not a recommendation", sort: "score", num: true },
+  { id: "score", label: "Mutual Fund Score", hint: "Mutual Fund Score, 0 to 100 (Gold plan). Describes the fund's past health against similar funds; not a recommendation. Scores compare Direct plans with Direct plans and Regular with Regular", sort: "score", num: true },
   { id: "plan", label: "Plan", hint: "Direct or Regular", sort: null, num: false },
   { id: "option", label: "Option", hint: "Growth or IDCW (payout)", sort: null, num: false },
   { id: "nav", label: "NAV", hint: "Net asset value of one unit, latest", sort: "nav", num: true },
@@ -162,7 +179,7 @@ export const COLUMNS: ColDef[] = [
   { id: "checklist", label: "Checklist", hint: "How many of five plain checks the scheme passes against its category (see the legend below the table)", sort: "checklist", num: true },
 ];
 export const DEFAULT_COLS: ColId[] = ["category", "score", "nav", "r1y", "r3y", "r5y", "sip3y", "sip5y", "aum", "ter", "checklist"];
-const COLS_KEY = "mf-cols";   // v4: FundPulse column moved up next to the scheme; older saved choices are not carried over, so everyone sees it where the eye lands
+const COLS_KEY = "mf-cols";   // v4: Mutual Fund Score column moved up next to the scheme; older saved choices are not carried over, so everyone sees it where the eye lands
 const ALL_IDS = new Set<string>(COLUMNS.map((c) => c.id));
 
 /** Saved column choice, cleaned of anything unknown; the default when nothing valid is saved (storage can be blocked). */
@@ -175,15 +192,24 @@ export function writeCols(cols: ColId[]) { saveUi(COLS_KEY, 5, cols); }
 // ------------------------------------------------------------------------------------------------ list URL state
 
 /** The list's state, kept in the page address. `tab` and `cats` choose the categories: cats null = the whole tab, [] = none ticked, else sub-category
- *  keys (mfCategories.classify). `plan` "" = every plan. EMPTY_QUERY means "no filter at all" (other pages search with it); /funds starts from PAGE_DEFAULTS. */
+ *  keys (mfCategories.classify). `plan` "" = every plan. `status` "" = every scheme, still publishing a NAV or stopped. EMPTY_QUERY means "no filter
+ *  at all" (other pages search with it); /funds starts from PAGE_DEFAULTS. */
 export type ListQuery = {
-  q: string; amc: string; plan: string; option: string; stopped: boolean; sort: SortKey | ""; dir: "asc" | "desc"; page: number; size: number;
-  min1y: string; max1y: string; min5y: string; max5y: string; view: "" | "ready"; tab: TabKey | "all"; cats: string[] | null;
+  q: string; amc: string; plan: string; option: string; status: "" | "active" | "stopped"; sort: SortKey | ""; dir: "asc" | "desc"; page: number; size: number;
+  min1y: string; max1y: string; min5y: string; max5y: string; view: "" | "ready" | "wish"; tab: TabKey | "all"; cats: string[] | null;
 };
 export const SIZES = [25, 50, 100];
-export const EMPTY_QUERY: ListQuery = { q: "", amc: "", plan: "", option: "", stopped: false, sort: "", dir: "asc", page: 1, size: 50, min1y: "", max1y: "", min5y: "", max5y: "", view: "", tab: "all", cats: null };
-/** What /funds shows with nothing in its address: every Equity category, Direct plans, Growth options. */
-export const PAGE_DEFAULTS: ListQuery = { ...EMPTY_QUERY, tab: "equity", plan: "Direct" };
+export const EMPTY_QUERY: ListQuery = { q: "", amc: "", plan: "", option: "", status: "", sort: "", dir: "asc", page: 1, size: 50, min1y: "", max1y: "", min5y: "", max5y: "", view: "", tab: "all", cats: null };
+/** What /funds shows with nothing in its address. Task #369 (team, 24 Nov 2026: "show all 8500+ funds", "dont preselect any filter in any of the mutual
+ *  fund pages"): no filter at all: every category ("All funds"), every plan, every option, still publishing and stopped. */
+export const PAGE_DEFAULTS: ListQuery = { ...EMPTY_QUERY, option: "All" };
+/** The plan and option a tab opens on. Task #242 kept Direct plans and Growth options on the category tabs; task #369 dropped that: no tab preselects a
+ *  plan or an option (each is a filter the user chooses). Only a choice that differs from these goes into the address. */
+export function tabDefaults(_tab: ListQuery["tab"]): { plan: string; option: string } {
+  return { plan: "", option: "All" };
+}
+/** The `status` the API gets: "" (no choice) is every scheme; the API on its own would answer only schemes still publishing. */
+export const apiStatus = (s: ListQuery["status"]) => s || "both";
 const SORT_KEYS = new Set<string>(COLUMNS.flatMap((c) => (c.sort ? [c.sort] : [])).concat("name"));
 const RANGE_FIELDS = ["min1y", "max1y", "min5y", "max5y"] as const;
 const TAB_SET = new Set<string>([...TAB_KEYS, "all"]);
@@ -195,13 +221,19 @@ export const cleanCats = (s: string): string[] => [...new Set(s.split(",").map((
 
 export function parseQuery(sp: URLSearchParams): ListQuery {
   const get = (k: string) => sp.get(k) || "";
-  const size = Number(get("size")), page = Number(get("page")), plan = get("plan");
+  const size = Number(get("size")), page = Number(get("page")), plan = get("plan"), opt = get("option");
+  // a link from before task #369 left out tab=equity when it named equity categories (Equity was the page's first tab then): it still opens them
+  const tab = TAB_SET.has(get("tab")) ? (get("tab") as TabKey | "all") : sp.has("cats") ? "equity" : PAGE_DEFAULTS.tab, d = tabDefaults(tab);
+  const st = get("status");
   const q: ListQuery = {
-    ...PAGE_DEFAULTS, q: get("q").slice(0, 80), amc: get("amc"), plan: plan === "All" ? "" : ["Direct", "Regular", "Unspecified"].includes(plan) ? plan : PAGE_DEFAULTS.plan,
-    option: ["Growth", "IDCW", "Other", "All"].includes(get("option")) ? get("option") : "", stopped: get("stopped") === "1",
+    ...PAGE_DEFAULTS, q: get("q").slice(0, 80), amc: get("amc"), plan: plan === "All" ? "" : ["Direct", "Regular", "Unspecified"].includes(plan) ? plan : d.plan,
+    // an explicit Growth is the Growth button ("" in the controls)
+    option: opt === "Growth" ? "" : ["IDCW", "Other", "All"].includes(opt) ? opt : d.option,
+    // `stopped=1` (before task #369: "include stopped schemes") is now the default, so it reads as no status choice
+    status: st === "active" || st === "stopped" ? st : "",
     sort: SORT_KEYS.has(get("sort")) ? (get("sort") as SortKey) : "", dir: get("dir") === "desc" ? "desc" : "asc",
-    page: Number.isInteger(page) && page >= 1 && page <= 2000 ? page : 1, size: SIZES.includes(size) ? size : 50, view: get("view") === "ready" ? "ready" : "",
-    tab: TAB_SET.has(get("tab")) ? (get("tab") as TabKey | "all") : PAGE_DEFAULTS.tab, cats: sp.has("cats") ? cleanCats(get("cats")) : null,
+    page: Number.isInteger(page) && page >= 1 && page <= 2000 ? page : 1, size: SIZES.includes(size) ? size : 50, view: get("view") === "ready" ? "ready" : get("view") === "wish" ? "wish" : "",   // task #375: the Wishlist tab
+    tab, cats: sp.has("cats") ? cleanCats(get("cats")) : null,
   };
   if (q.tab === "all") q.cats = null;
   // an older link names one AMFI category exactly (/funds?category=Equity Scheme - Mid Cap Fund): its tab, with its sub-category ticked
@@ -215,9 +247,11 @@ export function queryToParams(q: ListQuery): URLSearchParams {
   const p = new URLSearchParams();
   if (q.tab !== PAGE_DEFAULTS.tab) p.set("tab", q.tab);
   if (q.tab !== "all" && q.cats) p.set("cats", [...q.cats].sort().join(","));
-  for (const k of ["q", "amc", "option", "sort", ...RANGE_FIELDS] as const) if (q[k]) p.set(k, q[k]);
-  if (q.plan !== PAGE_DEFAULTS.plan) p.set("plan", q.plan || "All");
-  if (q.stopped) p.set("stopped", "1");
+  const d = tabDefaults(q.tab);
+  for (const k of ["q", "amc", "sort", ...RANGE_FIELDS] as const) if (q[k]) p.set(k, q[k]);
+  if (q.option !== d.option) p.set("option", q.option || "Growth");
+  if (q.plan !== d.plan) p.set("plan", q.plan || "All");
+  if (q.status) p.set("status", q.status);
   if (q.view) p.set("view", q.view);
   if (q.sort && q.dir === "desc") p.set("dir", "desc");
   if (q.page > 1) p.set("page", String(q.page));
@@ -230,22 +264,25 @@ export function listPath(q: ListQuery, names?: string[] | null): string {
   const p = new URLSearchParams();
   if (q.tab !== "all") { if (q.cats === null) p.set("group", q.tab); else for (const n of [...(names || [])].sort()) p.append("categories", n); }
   for (const k of ["q", "amc", "plan", "option", ...RANGE_FIELDS] as const) if (q[k]) p.set(k, q[k]);
-  if (q.stopped) p.set("stopped", "true");
+  p.set("status", apiStatus(q.status));
   if (q.sort) { p.set("sort", q.sort); p.set("dir", q.dir); }
   p.set("page", String(q.page)); p.set("size", String(q.size));
   return `/api/mf?${p}`;
 }
 /** The page's order when none is chosen: largest funds first (a neutral order, not a ranking), or best match while searching. */
 export const effectiveQuery = (q: ListQuery): ListQuery => (q.sort || q.q.trim() ? q : { ...q, sort: "aum", dir: "desc" });
-/** Filters beyond the category choice and the page's defaults (Direct plan, Growth option). */
-export const activeFilterCount = (q: ListQuery) => ["amc", "option", ...RANGE_FIELDS].filter((k) => q[k as keyof ListQuery]).length + (q.stopped ? 1 : 0) + (q.plan !== PAGE_DEFAULTS.plan ? 1 : 0);
+/** Filters beyond the category choice (none on arrival since task #369). */
+export const activeFilterCount = (q: ListQuery) => { const d = tabDefaults(q.tab);
+  return ["amc", ...RANGE_FIELDS].filter((k) => q[k as keyof ListQuery]).length + (q.status ? 1 : 0) + (q.plan !== d.plan ? 1 : 0) + (q.option !== d.option ? 1 : 0); };
 
 // ------------------------------------------------------------------------------------------------ categories on the page
 
 export type SubCat = { key: string; label: string; names: string[]; count: number };
-/** How many schemes of a category the current plan and option choice shows (the server sends Growth counts per plan; an older answer only `active`). */
-export function catCount(c: FilterCategory, q: Pick<ListQuery, "plan" | "option" | "stopped">): number {
-  if (q.stopped) return c.total;
+/** How many schemes of a category the current choice shows. With no status chosen (task #369) every scheme counts (`total`); the server sends Growth
+ *  counts per plan for schemes still publishing only (an older answer only `active`). */
+export function catCount(c: FilterCategory, q: Pick<ListQuery, "plan" | "option" | "status">): number {
+  if (q.status === "") return c.total;
+  if (q.status === "stopped") return Math.max(0, c.total - c.active);
   if (q.option === "" || q.option === "Growth") {
     if (q.plan === "Direct" && c.direct != null) return c.direct;
     if (q.plan === "Regular" && c.regular != null) return c.regular;
@@ -254,7 +291,7 @@ export function catCount(c: FilterCategory, q: Pick<ListQuery, "plan" | "option"
   return c.active;
 }
 /** The sub-categories of a tab with the AMFI names each covers and its count for the current choice, A to Z. Empty ones are left out unless ticked. */
-export function subCats(cats: FilterCategory[] | undefined, tab: TabKey, q: Pick<ListQuery, "plan" | "option" | "stopped" | "cats">): SubCat[] {
+export function subCats(cats: FilterCategory[] | undefined, tab: TabKey, q: Pick<ListQuery, "plan" | "option" | "status" | "cats">): SubCat[] {
   const by = new Map<string, SubCat>();
   for (const c of cats || []) {
     const k = classify(c.name);

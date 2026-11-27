@@ -4,11 +4,12 @@
  *  The name column is found by looking at the VALUES (which column's cells match listed companies), then by its header, so the file does
  *  not need a particular layout; the ISIN column is the one whose cells hold valid ISINs. The spreadsheet library is loaded only when a spreadsheet is chosen. */
 import { isinIn } from "./isin";
+import { avgOf, combine, isoDay, isPriceLabel, normLabel, num, pickColumns, qtyRank, RATE_HEAD, TRADE_HEADS, type Part } from "./holdingsColumns";
+import { lineOf, setLines } from "./gridLines";
+import { dayOf, leftAfter, sideOf, tradeColumns, tradePrice, type Trade } from "./tradeColumns";
 
 export type Grid = string[][];
 export type NameMatcher = (name: string) => boolean;
-/** One line of a holdings file: its ISIN when the line has one, and the name the file gives ("" when it gives none). */
-export type Entry = { name: string; isin?: string };
 
 const NAME_HEAD = /^(symbol|trading ?symbol|ticker|scrip( ?name)?|stock( ?name)?|share( ?name)?|instrument( ?name)?|security( ?name)?|company( ?name)?|name( of (the )?(security|scrip|stock|company|instrument))?|name|nse|bse|isin)\b/i;
 const NOT_NAME = /^(total|grand total|sub ?total|net|portfolio|summary|invested|current|holdings|equity|equities|mutual funds?|cash|margin|p ?& ?l|unrealised|realised|as on|as of|date|client|name:|id|pan|account|ucc|dp|demat|sr\.? ?no|s\.? ?no)\b/i;
@@ -43,10 +44,14 @@ export function tidy(s: string): string {
     .replace(/\s*\((EQ|BE|NSE|BSE)\)$/i, "");
 }
 
-type Layout = { rows: Grid; headerRow: number; body: Grid; width: number; col: number; mode: "row" | "column" | "none"; names: string[] };
+/** A cell under a recognised name column: "BSE" there is BSE Ltd's symbol (a listed company), not the exchange's name as a heading.
+ *  (task #323, developer file 21 part 13: the member's Upstox holdings report dropped BSE Ltd, 51 of 52 lines.) */
+export const bodyName = (s: string): boolean => plausibleName(s) || s.trim() === "BSE";
+
+export type GridLayout = { rows: Grid; headerRow: number; body: Grid; width: number; col: number; mode: "row" | "column" | "none"; names: string[] };
 
 /** Where the names are in a grid: the header row, the body (up to a Total line), the name column and the names in it. */
-function layout(grid: Grid, matches?: NameMatcher): Layout {
+export function gridLayout(grid: Grid, matches?: NameMatcher): GridLayout {
   const rows = grid.slice(0, MAX_ROWS).map((r) => r.map((c) => (c == null ? "" : String(c))));
   if (!rows.length) return { rows, headerRow: -1, body: [], width: 0, col: -1, mode: "none", names: [] };
   const width = Math.max(...rows.map((r) => r.length));
@@ -64,13 +69,13 @@ function layout(grid: Grid, matches?: NameMatcher): Layout {
   const endAt = body.findIndex((r) => r.some((c) => /^(grand |sub ?)?total\s*[:\-]?\s*(value|holdings?|investment|invested|portfolio)?$/i.test(c.trim())));   // broker files end with a Total line and notes
   if (endAt > 0) body = body.slice(0, endAt);
 
-  const colValues = (c: number) => body.map((r) => tidy(r[c] || "")).filter(plausibleName);
+  const colValues = (c: number) => body.map((r) => tidy(r[c] || "")).filter(bodyName);
   const headed = headerRow >= 0 ? rows[headerRow].map((h, c) => ({ c, rank: rankHead(h) })).filter((x) => x.rank > 0).sort((a, b) => b.rank - a.rank) : [];
   const score = (c: number) => { const v = colValues(c); return { c, v, hit: matches ? v.filter(matches).length : 0 }; };
 
   let best = { c: -1, v: [] as string[], hit: 0 };
   if (matches) for (let c = 0; c < width; c++) { const s = score(c); if (s.hit > best.hit || (s.hit === best.hit && s.hit > 0 && headed.some((h) => h.c === s.c) && !headed.some((h) => h.c === best.c))) best = s; }
-  const out = (mode: Layout["mode"], col: number, names: string[]): Layout => ({ rows, headerRow, body: headerRow < 0 ? rows : body, width, col, mode, names: [...new Set(names)] });
+  const out = (mode: GridLayout["mode"], col: number, names: string[]): GridLayout => ({ rows, headerRow, body: headerRow < 0 ? rows : body, width, col, mode, names: [...new Set(names)] });
   if (headerRow < 0 && rows.length === 1 && width > 1) return out("row", -1, rows[0].map(tidy).filter(plausibleName));   // "TCS, INFY, ITC" on one line is a list, not a table
   if (best.hit > 0) return out("column", best.c, best.v);                                 // the column whose cells are listed companies
   if (headed.length) return out("column", headed[0].c, colValues(headed[0].c));          // else the column headed like a share name
@@ -80,30 +85,9 @@ function layout(grid: Grid, matches?: NameMatcher): Layout {
 
 /** The share names in a grid of cells (rows of columns): the best column wins. `matches` says whether a name is a listed company. */
 export function namesFromGrid(grid: Grid, matches?: NameMatcher): string[] {
-  return layout(grid, matches).names;
+  return gridLayout(grid, matches).names;
 }
 
-/** The lines of a holdings grid as ISIN + name (task #128). The ISIN column is the one whose cells hold the most valid ISINs (an ISIN written inside the name
- *  cell counts too); each line keeps its own ISIN and its own name, so the ISIN decides the company. Without any ISIN this is `namesFromGrid` as before. */
-export function entriesFromGrid(grid: Grid, matches?: NameMatcher): Entry[] {
-  const L = layout(grid, matches);
-  const seen = new Set<string>(), list: Entry[] = [];
-  const push = (e: Entry) => { const k = e.isin || "n:" + e.name.toUpperCase(); if (!seen.has(k) && (e.isin || e.name)) { seen.add(k); list.push(e); } };
-  const nameIn = (cell: string, isin?: string) => { const t = tidy(isin ? cell.toUpperCase().includes(isin) ? cell.replace(new RegExp(isin, "i"), " ").replace(/^[\s:,\-–|]+|[\s:,\-–|]+$/g, "") : cell : cell); return plausibleName(t) ? t : ""; };
-  if (L.mode === "row" || (L.headerRow < 0 && L.rows.length === 1)) {               // one line: each cell is a holding
-    (L.rows[0] || []).forEach((c) => { const i = isinIn(c); push({ isin: i, name: nameIn(c, i) }); });
-    return list.filter((e) => e.isin || plausibleName(e.name));
-  }
-  let ic = -1, icN = 0;
-  for (let c = 0; c < L.width; c++) { const n = L.body.filter((r) => isinIn(r[c] || "")).length; if (n > icN) { ic = c; icN = n; } }
-  if (ic < 0) return L.names.map((name) => ({ name }));
-  for (const r of L.body) {
-    const isin = isinIn(r[ic] || "");
-    const name = L.col >= 0 && L.col !== ic ? nameIn(r[L.col] || "") : nameIn(r[ic] || "", isin);
-    if (isin) push({ isin, name }); else if (name && L.mode === "column") push({ name });
-  }
-  return list;
-}
 
 /** Higher = a more likely share-name header. ISIN is the weakest (it identifies, but is not a name). */
 function rankHead(h: string): number {
@@ -128,18 +112,19 @@ export function gridFromText(text: string): Grid {
     const top = Math.max(0, ...freq.values());
     if (top > bestLines) { bestLines = top; d = dl; }
   }
-  const out: Grid = [];
-  let row: string[] = [], cell = "", q = false;
+  const out: Grid = [], at: number[] = [];
+  let row: string[] = [], cell = "", q = false, n = 0;                       // n: the record being read, from 1 (a quoted cell over two lines is one record)
+  const end = () => { n++; row.push(cell.trim()); cell = ""; if (row.some(Boolean)) { out.push(row); at.push(n); } row = []; };
   for (let i = 0; i < clean.length; i++) {
     const ch = clean[i];
     if (q) { if (ch === '"') { if (clean[i + 1] === '"') { cell += '"'; i++; } else q = false; } else cell += ch; }
     else if (ch === '"') q = true;
     else if (ch === d) { row.push(cell.trim()); cell = ""; }
-    else if (ch === "\n" || ch === "\r") { if (ch === "\r" && clean[i + 1] === "\n") i++; row.push(cell.trim()); cell = ""; if (row.some(Boolean)) out.push(row); row = []; }
+    else if (ch === "\n" || ch === "\r") { if (ch === "\r" && clean[i + 1] === "\n") i++; end(); }
     else cell += ch;
   }
-  row.push(cell.trim()); if (row.some(Boolean)) out.push(row);
-  return out;
+  end();
+  return setLines(out, at);                                              // each row's line in the file (developer file 30, lib/gridLines)
 }
 
 const SHEET_TYPES = /\.(xlsx|xlsm|xlsb|xls|ods|html?|xml)$/i;
@@ -169,20 +154,28 @@ export async function gridsFromFile(file: File): Promise<Grid[]> {
   if (looksText && !isMarkup && new Uint8Array(buf, 0, Math.min(buf.byteLength, 4096)).includes(0)) throw bad;   // binary with a spreadsheet name but no spreadsheet signature
   const XLSX = await import("xlsx");
   let wb: import("xlsx").WorkBook;
-  try { wb = XLSX.read(buf, { type: "array", cellDates: false, cellFormula: false, cellHTML: false, cellStyles: false, sheetRows: MAX_ROWS }); } catch { throw bad; }
-  return wb.SheetNames.map((n) => (XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, raw: false, defval: "", blankrows: false }) as unknown[][]).map((r) => r.map((c) => (c == null ? "" : String(c)))));
+  try { wb = XLSX.read(buf, { type: "array", cellDates: false, cellNF: true, cellFormula: false, cellHTML: false, cellStyles: false, sheetRows: MAX_ROWS }); } catch { throw bad; }
+  // developer file 31: a date cell reads as "2024-03-15", not as Excel shows it ("3/15/24" in a US format would be read day first as a wrong day)
+  for (const n of wb.SheetNames) {
+    const ws = wb.Sheets[n];
+    for (const k of Object.keys(ws)) {
+      if (k[0] === "!") continue;
+      const c = ws[k] as import("xlsx").CellObject;
+      if (c.t !== "n" || typeof c.v !== "number" || c.v < 1 || !c.z || !XLSX.SSF.is_date(c.z)) continue;   // below 1: a time of day only
+      const d = XLSX.SSF.parse_date_code(c.v);
+      if (d && d.y > 1900) c.w = `${d.y}-${String(d.m).padStart(2, "0")}-${String(d.d).padStart(2, "0")}`;
+    }
+  }
+  // each sheet's rows from its first used row (blank rows kept here only to number the others), then the blank rows left out as before (developer file 30)
+  return wb.SheetNames.map((n) => {
+    const ws = wb.Sheets[n], top = ws["!ref"] ? XLSX.utils.decode_range(ws["!ref"]).s.r : 0;
+    const all = (XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: "", blankrows: true }) as unknown[][]).map((r) => (r ?? []).map((c) => (c == null ? "" : String(c))));
+    const grid: Grid = [], at: number[] = [];
+    all.forEach((r, k) => { if (r.some((c) => c !== "")) { grid.push(r); at.push(top + k + 1); } });
+    return setLines(grid, at);
+  });
 }
 
-/** The lines of a file as ISIN + name (task #128); the sheet with the most ISINs and listed companies wins. */
-export async function entriesFromFile(file: File, matches?: NameMatcher): Promise<Entry[]> {
-  const grids = await gridsFromFile(file);
-  let best: Entry[] = [], bestHit = -1;
-  for (const g of grids) {
-    const es = entriesFromGrid(g, matches), hit = es.filter((e) => e.isin || (matches ? matches(e.name) : true)).length;
-    if (hit > bestHit) { best = es; bestHit = hit; }
-  }
-  return best;
-}
 
 /** The share names in a file; the sheet and column with the most listed companies win. */
 export async function namesFromFile(file: File, matches?: NameMatcher): Promise<string[]> {
@@ -194,3 +187,141 @@ export async function namesFromFile(file: File, matches?: NameMatcher): Promise<
   }
   return best;
 }
+
+/* ------------------------------------------------------------------ entries with quantity and average buy price (22 Nov 2026)
+ * Live today (holdingsFile chunk `E`, `entriesFromGrid`): each line gives { isin, name } only, and the page adds every share as qty 1,
+ * price 0 (Holdings `wn`). Here the same layout gives each line its quantity and average buy price, from the columns holdingsColumns.ts
+ * names, and a company on several lines (two accounts, two lots) is added up. A tradebook (Trade date / Trade type ...) gives names only. */
+
+export type Entry = { isin?: string; name: string; qty?: number; avg?: number; avgHow?: "column" | "worked"; lines?: number; rate?: number; rateOn?: string
+  /** developer file 31: each buy and sale of this company in the file (a tradebook), or each dated buy (a holdings file with a buy date) */
+  trades?: Trade[] };
+/** qty / price: the headings used (null when the file has none); trades: the file is a tradebook, so no quantities are taken; rateLike: a "Rate" or
+ *  "LTP" column that is today's price (named in the note so nobody thinks it was used); otherParts: companies whose pledged or locked shares sit in
+ *  other columns and are not in the quantity used ("Quantity Available"), to be checked. */
+export type GridAmounts = { qty: string | null; price: string | null; priceHow: "column" | "worked" | null; trades: boolean; rateLike: string | null; otherParts?: number; rate?: string | null; rateOn?: string | null
+  /** developer file 31: what the file says about each buy and sale. kind "trades": a tradebook (side, day, price columns); "dated": a holdings file with
+   *  a buy date on each line. undated / unpriced: the lines with no readable day / no price; over: sales larger than the buys before them in the file. */
+  book?: { kind: "trades" | "dated"; side: string | null; day: string | null; price: string | null; buys: number; sells: number; undated: number[]; unpriced: number[]; over: number[] } };
+export type GridEntries = { entries: Entry[]; amounts: GridAmounts };
+
+/** Port of live `E`, with each line's quantity and average buy price. */
+export function entriesWithAmounts(grid: Grid, matches?: NameMatcher): GridEntries {
+  const L = gridLayout(grid, matches);
+  const none: GridAmounts = { qty: null, price: null, priceHow: null, trades: false, rateLike: null };
+  const seen = new Map<string, Entry>(), parts = new Map<string, Part[]>(), order: string[] = [];
+  const rates = new Map<string, { rate: number; on?: string }>(), dates = new Map<string, number>(), tradesOf = new Map<string, Trade[]>();
+  const add = (e: Entry & { trade?: Trade }) => {
+    const key = e.isin || "n:" + e.name.toUpperCase();
+    if (!(e.isin || e.name)) return;
+    if (!seen.has(key)) { seen.set(key, { isin: e.isin, name: e.name }); order.push(key); }
+    if (e.trade) tradesOf.set(key, [...(tradesOf.get(key) || []), e.trade]);
+    if (e.trade && e.trade.side === "sell") return;                                      // a sale is not a holding line: only its trade is kept
+    if (e.rate != null && !rates.has(key)) { rates.set(key, { rate: e.rate, ...(e.rateOn ? { on: e.rateOn } : {}) }); if (e.rateOn) dates.set(e.rateOn, (dates.get(e.rateOn) ?? 0) + 1); }
+    if (e.qty != null) parts.set(key, [...(parts.get(key) || []), { qty: e.qty, ...(e.avg != null ? { avg: e.avg } : {}) }]);
+    else parts.set(key, [...(parts.get(key) || []), { qty: NaN }]);
+  };
+  const clean = (s: string, isin?: string) => {
+    const t = tidy(isin && s.toUpperCase().includes(isin) ? s.replace(new RegExp(isin, "i"), " ").replace(/^[\s:,\-–|]+|[\s:,\-–|]+$/g, "") : s);
+    return bodyName(t) ? t : "";
+  };
+  if (L.mode === "row" || (L.headerRow < 0 && L.rows.length === 1)) {
+    (L.rows[0] || []).forEach((c) => { const isin = isinIn(c); add({ isin, name: clean(c, isin) }); });
+    return { entries: order.map((k) => seen.get(k)!).filter((e) => e.isin || plausibleName(e.name)), amounts: none };
+  }
+  // quantity and price columns, from the heading row
+  const heads = L.headerRow >= 0 ? L.rows[L.headerRow] : [];
+  const pick = pickColumns(heads);
+  const trades = heads.some((h) => h.trim() && !isPriceLabel(h) && (TRADE_HEADS.test(normLabel(h)) || /^(buy|sell|purchase|redemption)( ?\/ ?(sell|buy))?$/i.test(normLabel(h))));
+  // developer file 31: a column of BUY / SELL with a quantity makes the file a tradebook that is read line by line (it gave names only until then);
+  // a holdings file with a buy date on each line gives each line as a dated buy
+  const tc = L.headerRow >= 0 ? tradeColumns(heads, L.body) : null;
+  const kind: "trades" | "dated" | null = tc && tc.side >= 0 && pick.qty >= 0 ? "trades" : tc && !trades && tc.day >= 0 && pick.qty >= 0 ? "dated" : null;
+  const qtyCol = trades && kind !== "trades" ? -1 : pick.qty;
+  const hows = new Set<"column" | "worked">();
+  const lineAt = (b: number) => lineOf(grid, (L.headerRow >= 0 ? L.headerRow + 1 : 0) + b);   // L.body starts under the heading row
+  const amountsOf = (r: string[], b: number): Partial<Entry> & { trade?: Trade } => {
+    if (qtyCol < 0) return {};
+    const raw = num(r[qtyCol]);
+    if (kind === "trades") {                                                            // each line is a buy or a sale; what is left is worked out below
+      const side = sideOf(r[tc!.side]), q = raw == null ? null : Math.abs(raw);
+      if (!side || !(q != null && q > 0)) return {};
+      const price = tradePrice(r, q, tc!);
+      if (price != null) hows.add(tc!.price >= 0 && num(r[tc!.price]) != null ? "column" : "worked");
+      return { trade: { side, qty: q, price, date: tc!.day >= 0 ? dayOf(r[tc!.day]) : null, line: lineAt(b) } };
+    }
+    const q = raw;
+    if (!(q != null && q > 0)) return {};
+    const p = avgOf(q, pick.avg >= 0 ? num(r[pick.avg]) : null, pick.cost >= 0 ? num(r[pick.cost]) : null);
+    if (p) hows.add(p.how);
+    const rt = pick.rate >= 0 ? num(r[pick.rate]) : null, on = pick.date >= 0 ? isoDay(r[pick.date]) : null;
+    return { qty: q, ...(p ? { avg: p.avg } : {}), ...(rt != null && rt > 0 ? { rate: rt, ...(on ? { rateOn: on } : {}) } : {}),
+      ...(kind === "dated" ? { trade: { side: "buy" as const, qty: q, price: p?.avg ?? null, date: dayOf(r[tc!.day]), line: lineAt(b) } } : {}) };
+  };
+  let isinCol = -1, isinHits = 0;
+  for (let c = 0; c < L.width; c++) { const n = L.body.filter((r) => isinIn(r[c] || "")).length; if (n > isinHits) { isinCol = c; isinHits = n; } }
+  if (isinCol < 0) {
+    if (L.col < 0) return { entries: L.names.map((name) => ({ name })), amounts: none };
+    L.body.forEach((r, b) => { const name = clean(r[L.col] || ""); if (name) add({ name, ...amountsOf(r, b) }); });
+  } else {
+    L.body.forEach((r, b) => {
+      const isin = isinIn(r[isinCol] || "");
+      const name = L.col >= 0 && L.col !== isinCol ? clean(r[L.col] || "") : clean(r[isinCol] || "", isin);
+      if (isin) add({ isin, name, ...amountsOf(r, b) }); else if (name && L.mode === "column") add({ name, ...amountsOf(r, b) });
+    });
+  }
+  const over: number[] = [];
+  const entries = order.map((k) => {
+    const e = seen.get(k)!, ps = parts.get(k) || [], ts = tradesOf.get(k);
+    if (kind === "trades") {                                                            // a tradebook: what is left after the trades, first in, first out
+      if (!ts?.length) return e;
+      const left = leftAfter(ts);
+      over.push(...left.over.map((t) => t.line));
+      return { ...e, qty: left.qty, ...(left.avg != null ? { avg: left.avg, avgHow: "column" as const } : {}), lines: ts.length, trades: ts };
+    }
+    if (!ps.length || ps.some((p) => !Number.isFinite(p.qty))) return e;     // a line with no quantity: no total for this company
+    const c = combine(ps), rt = rates.get(k);
+    return { ...e, qty: c.qty, lines: c.parts, ...(c.avg != null ? { avg: c.avg, avgHow: hows.has("worked") && pick.avg < 0 ? "worked" as const : "column" as const } : {}), ...(rt ? { rate: rt.rate, ...(rt.on ? { rateOn: rt.on } : {}) } : {}),
+      ...(kind === "dated" && ts?.length ? { trades: ts } : {}) };
+  });
+  const priceCol = pick.avg >= 0 ? pick.avg : pick.cost;
+  // the quantity used is only the free part ("Quantity Available", "Free Qty"): count the companies with pledged / locked shares in other columns
+  const partCols = qtyCol >= 0 && pick.qtyRank >= 3 ? heads.map((h, i) => (i !== qtyCol && /\b(qty|quantity|bal(ance)?|shares)\b/.test(normLabel(h)) && qtyRank(h) === 99 && /\b(pledged?|locked|lock ?in|freeze|frozen|lent|collateral|margin|loan|discrepant|t ?\+ ?\d)\b/.test(normLabel(h)) ? i : -1)).filter((i) => i >= 0) : [];
+  const otherParts = partCols.length ? new Set(L.body.filter((r) => partCols.some((c) => (num(r[c]) ?? 0) > 0)).map((r) => (isinCol >= 0 ? isinIn(r[isinCol] || "") : undefined) || (L.col >= 0 ? clean(r[L.col] || "") : ""))).size : 0;
+  const all = [...tradesOf.values()].flat();
+  const book = kind && all.length ? { kind, side: kind === "trades" ? tc!.sideLabel : null, day: tc!.day >= 0 ? tc!.dayLabel : null,
+    price: kind === "trades" ? tc!.priceLabel || tc!.valueLabel || null : null, buys: all.filter((t) => t.side === "buy").length, sells: all.filter((t) => t.side === "sell").length,
+    undated: all.filter((t) => !t.date).map((t) => t.line), unpriced: all.filter((t) => t.price == null).map((t) => t.line), over: over.sort((a, b) => a - b) } : undefined;
+  const tradePriceLabel = kind === "trades" ? tc!.priceLabel || tc!.valueLabel || null : null;
+  return {
+    entries,
+    amounts: {
+      qty: qtyCol >= 0 ? pick.qtyLabel : null,
+      price: kind === "trades" ? (hows.size ? tradePriceLabel : null) : qtyCol >= 0 && priceCol >= 0 && hows.size ? (pick.avg >= 0 ? pick.avgLabel : pick.costLabel) : null,
+      priceHow: kind === "trades" ? (hows.size ? (tc!.price >= 0 ? "column" : "worked") : null) : hows.size ? (pick.avg >= 0 ? "column" : "worked") : null,
+      trades,
+      rateLike: heads.map((h) => h.trim()).find((h) => RATE_HEAD.test(h)) ?? null,
+      rate: rates.size && qtyCol >= 0 ? pick.rateLabel : null,
+      rateOn: [...dates.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null,
+      ...(otherParts ? { otherParts } : {}),
+      ...(book ? { book } : {}),
+    },
+  };
+}
+
+/** Live `entriesFromGrid` keeps its shape ({ isin, name } and now qty / avg on each). */
+export const entriesFromGrid = (grid: Grid, matches?: NameMatcher): Entry[] => entriesWithAmounts(grid, matches).entries;
+
+/** Port of live `P` (`entriesFromFile`): the sheet with the most listed companies wins; its columns' headings come along for the page's note. */
+export async function entriesAndAmountsFromFile(file: File, matches?: NameMatcher): Promise<GridEntries> {
+  const grids = await gridsFromFile(file);
+  let best: GridEntries = { entries: [], amounts: { qty: null, price: null, priceHow: null, trades: false, rateLike: null } }, bestHit = -1;
+  for (const g of grids) {
+    const r = entriesWithAmounts(g, matches), hit = r.entries.filter((e) => e.isin || !matches || matches(e.name)).length;
+    if (hit > bestHit) { best = r; bestHit = hit; }
+  }
+  return best;
+}
+
+/** Same as live: the entries only (each now with qty / avg when the file has them). */
+export async function entriesFromFile(file: File, matches?: NameMatcher): Promise<Entry[]> { return (await entriesAndAmountsFromFile(file, matches)).entries; }

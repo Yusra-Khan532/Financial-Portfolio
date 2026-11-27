@@ -13,11 +13,11 @@
   --tone: color-mix(in srgb, var(--brand-accent) 58%, var(--text-primary));
   --tone-soft: color-mix(in srgb, var(--brand-accent) 14%, transparent);
   --sans: var(--font-sans); --serif: var(--font-serif); --mono: var(--font-sans);
-  --code: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --code: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;   /* task #310 F: no IBM Plex (01-design-rules: Source Serif 4 and Inter, code in the system mono) */
   --u-text: var(--text); --u-muted: var(--muted); --u-faint: var(--faint); --u-border: var(--border); --u-border-strong: var(--border-strong);
   --u-s1: var(--s1); --u-s2: var(--s2); --u-s3: var(--s3); --u-gold: var(--gold); --u-gold-2: var(--gold-2); --u-gold-deep: var(--gold-deep); --u-on-gold: var(--on-gold);
   --u-gain: var(--gain); --u-loss: var(--loss); --u-focus: var(--focus);
-  --r-card: 16px; --r-ctl: 12px;
+  /* --r-card and --r-ctl: ui-tokens.css (task #310: 18px cards, 12px controls) */
 }
 
 /* ---- numbers: the sans face with tabular figures, never monospace ---- */
@@ -47,7 +47,7 @@ code, pre, kbd, samp, .qb-box textarea, .qb-mirror { font-family: var(--code); }
 /* every bar whose input sits inside its own bordered box (tasks #111: on Reverse valuation, DCF and EPS the dark theme's input box and its light-green focus ring
    showed as a second box inside the bar; the command palette's input sits in the palette's own box) */
 .side-find input, .scr-find input, .mf-search input, .scr-search input, .etf-search input, .ol-search input, .cb-field input,
-.dcf-search input, .oc-search input, .gp-search input, .gl-s input, .ssw-size-q input, .aif-exs input, .wp-pill input, .pl-mm label input, .pl-mm input, .palette input { border: 0 !important; background: none !important; box-shadow: none !important; outline: 0 !important; }
+.dcf-search input, .oc-search input, .gp-search input, .ma-find input, .gl-s input, .ssw-size-q input, .aif-exs input, .wp-pill input, .pl-mm label input, .pl-mm input, .palette input { border: 0 !important; background: none !important; box-shadow: none !important; outline: 0 !important; }
 
 /* ---- the pillar / part cards: neutral surface, one icon tone; colour stays only in the ring, the status word and the score bar ---- */
 :root .dk-tile, :root .dk-tile.band-hi, :root .dk-tile.band-mid, :root .dk-tile.band-lo {
@@ -90,7 +90,7 @@ code, pre, kbd, samp, .qb-box textarea, .qb-mirror { font-family: var(--code); }
 }
 :root .dash-h::before { display: none; }
 :root .dash-h .eyebrow { color: var(--tone); }
-:root .dash-h h1 { font: 500 var(--fs-page-title)/1.12 var(--font-serif); letter-spacing: -.01em; color: var(--text); }
+:root .dash-h h1 { letter-spacing: -.01em; color: var(--text); }
 :root .dash-h .btn:not(.primary) { background: var(--s1); color: var(--text); border-color: var(--border-strong); }
 :root .dash-h .btn:not(.primary):hover { background: var(--s2); border-color: var(--gold); }
 

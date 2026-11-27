@@ -1,6 +1,7 @@
 // Query builder: type a rule in plain words, get the listed companies that match it, and keep it as a basket. The language, every error and the
 // matching happen on the server (backend/finlit/screener/ql.py, qeval.py); this page helps a person write the query without mistakes:
 // autocomplete, live checking with one-click fixes, an "Add a condition" helper, examples and a list of every ratio.
+// Founder, 25 Nov 2026: My baskets is part of this page (a drop-down between the rules and the examples); /baskets opens it here.
 import { viewAsHeader } from "../lib/adminView";
 import { titleOf, subOf, codeNote } from "../lib/companyLabel";
 import { PageHeader } from "../components/PageHeader";
@@ -20,11 +21,13 @@ import {
   type Basket, type Completion, type Problem, type Ratio, type Reading, type RunBad, type RunBody, type RunOk, type Validation,
 } from "../lib/query";
 import { QueryRules } from "../components/QueryRules";
+import { BasketsView } from "../components/BasketsView";
 import { FindStocksTabs } from "../components/screener/FindStocksTabs";
 import { onlyFix, ruleFor } from "../lib/queryRules";
 import { saveFile } from "../stock/derive";
 import { useDocTitle } from "../lib/title";
 import { TIER, useUI, type Plan } from "../lib/ui";
+import { PLAN_FOR_SCREENER } from "../lib/planGates";
 import "../styles/qbuilder.css";
 import { CoLogo } from "../components/CoLogo";
 
@@ -119,7 +122,7 @@ function RatioDrawer({ ratios, open, onClose, seed, onAdd, onInsert, ask }: { ra
 }
 
 export function QueryBuilder() {
-  useDocTitle("Query builder", "Type a rule such as Market cap > 500 AND P/E < 15 and get every listed Indian company that matches. Live checking, one-click fixes, examples and saved baskets.");
+  useDocTitle("Query builder", "Type a rule such as Market cap > 500 AND P/E < 15 and get every listed Indian company that matches. Live checking, one-click fixes, examples, and your saved baskets on the same page.");
   const { upgrade, toast } = useUI();
   const { user } = useAuth();
   const nav = useNavigate();
@@ -142,18 +145,37 @@ export function QueryBuilder() {
   const [res, setRes] = useState<RunOk | null>(null), [bad, setBad] = useState<RunBad | null>(null), [ranText, setRanText] = useState(""), [runErr, setRunErr] = useState("");
   const [caret, setCaret] = useState(0), [hi, setHi] = useState(0), [force, setForce] = useState(false), [closed, setClosed] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false), [hot, setHot] = useState("");
+  const [bksOpen, setBksOpen] = useState(() => params.get("view") === "baskets");   // My baskets: closed at first, open when the page is reached from /baskets
   const [drawer, setDrawer] = useState(false), [seed, setSeed] = useState(""), [helper, setHelper] = useState(false), [colMenu, setColMenu] = useState(false);
   const [saveName, setSaveName] = useState(""), [saveNote, setSaveNote] = useState(""), [saveErr, setSaveErr] = useState("");
   const taRef = useRef<HTMLTextAreaElement>(null), mirrorRef = useRef<HTMLDivElement>(null), seq = useRef(0), loadedFor = useRef<string | null>(null);
 
-  // ---- a basket opened from ?basket=
+  // ---- a basket opened from ?basket= (or with Open in My baskets)
   const basket: Basket | undefined = loaded.data?.basket;
+  const putBasket = (b: Basket) => {
+    loadedFor.current = b.id;
+    setText(b.query); setCols(b.columns); setRecent(b.recent); setSaveName(b.name); setSaveNote(b.note || ""); if (b.sort) setSort(b.sort);
+    setRes(null); setBad(null); setUndo(null);
+  };
   useEffect(() => {
     if (!basket || loadedFor.current === basket.id) return;
-    loadedFor.current = basket.id;
-    setText(basket.query); setCols(basket.columns); setRecent(basket.recent); setSaveName(basket.name); setSaveNote(basket.note || ""); if (basket.sort) setSort(basket.sort);
-    setRes(null); setBad(null);
-  }, [basket]);
+    putBasket(basket);
+  }, [basket]);   // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ---- My baskets, on this page: /baskets (and any link with ?view=baskets) opens the drop-down and brings it into view
+  const bksRef = useRef<HTMLDivElement>(null);
+  const showBaskets = useCallback(() => { setBksOpen(true); requestAnimationFrame(() => bksRef.current?.scrollIntoView?.({ block: "start", behavior: "smooth" })); }, []);
+  useEffect(() => {
+    if (params.get("view") !== "baskets") return;
+    showBaskets();
+    const n = new URLSearchParams(params); n.delete("view"); setParams(n, { replace: true });
+  }, [params, setParams, showBaskets]);
+  /** Open: the basket's query goes into the box (its saved version, even when it is open already), the drop-down closes and the box comes into view. */
+  const openBasket = (b: Basket) => {
+    if (b.id === basketId) putBasket(b); else setParams({ basket: b.id });
+    setBksOpen(false);
+    requestAnimationFrame(() => { const t = taRef.current; if (!t) return; t.scrollIntoView?.({ block: "center", behavior: "smooth" }); t.focus({ preventScroll: true }); });
+  };
   useEffect(() => { if (!basketId) { loadedFor.current = null; } }, [basketId]);
   useEffect(() => { if (!basketId) keepDraft(text); }, [text, basketId]);
 
@@ -209,7 +231,7 @@ export function QueryBuilder() {
   };
 
   // ---- fixes and jumping to a problem
-  const useFix = (f: { start: number; end: number; text: string }) => { const r = applyFix(text, f); edit(r.text, r.caret); };
+  const takeFix = (f: { start: number; end: number; text: string }) => { const r = applyFix(text, f); edit(r.text, r.caret); };
   const jump = (p: Problem) => { const t = taRef.current; if (!t) return; t.focus(); t.setSelectionRange(p.start, Math.max(p.end, p.start)); setCaret(p.start); };
   const toggleRules = () => setRulesOpen((o) => !o);
   const openAll = (q = "") => { setSeed(q); setDrawer(true); };
@@ -235,7 +257,7 @@ export function QueryBuilder() {
     setSort(next); if (res) run(0, next);
   };
   const exportCsv = async () => {
-    if (!rat.data?.limits.export) { ask("silver", "Downloading results comes with the Silver plan."); return; }
+    if (!rat.data?.limits.export) { ask(PLAN_FOR_SCREENER, "Downloading results comes with every paid plan."); return; }
     try {
       const r = await fetch(apiUrl("/api/screener/ql/export"), { method: "POST", credentials: API_BASE ? "include" : "same-origin", headers: { "Content-Type": "application/json", Accept: "text/csv", ...viewAsHeader() }, body: JSON.stringify(bodyFor(0)) });
       if (!r.ok) throw new Error(String(r.status));
@@ -280,12 +302,13 @@ export function QueryBuilder() {
 
   return (
     <>
-      <PageHeader wrap plan="free" title="Query builder" art="search" links={["/screener", "/baskets", "/score-screener"]}
-        description={<>Type a rule, get the companies: <code className="qb-inl">Market cap &gt; 500 AND P/E &lt; 15</code>. We check every word as you type, show how we read it, and list the listed companies that match all of it.</>} />
+      <PageHeader wrap plan="free" title="Query builder" art="search" links={["/screener", "/advanced-score-screener"]}
+        description={<>Type a rule like <code className="qb-inl">Market cap &gt; 500 AND P/E &lt; 15</code>; we check it as you type and list every match.</>} />
       <div className="wrap qb">
         <FindStocksTabs />
         {/* page flow: the rules, then the examples, then the box (an example fills the box below it) */}
         <QueryRules open={rulesOpen} onToggle={toggleRules} onInsert={(q) => { loadExample(q); requestAnimationFrame(() => taRef.current?.focus()); }} />
+        <div ref={bksRef} className="qb-bks-wrap"><BasketsView open={bksOpen} onToggle={() => setBksOpen((o) => !o)} onOpen={openBasket} current={basketId} /></div>
         <section className="qb-examples" aria-label="Examples">
           <div className="label">Start from an example</div>
           <div className="qb-chips">{(rat.data?.examples ?? []).map((x) => <button key={x.id} className="qb-ex" onClick={() => pickExample(x.query)} title={x.about}><b>{x.title}</b><small>{x.about}</small>{x.locked && <span className="qb-lk"><Icon name="lock" />{TIER[x.plan].n}</span>}</button>)}
@@ -329,7 +352,7 @@ export function QueryBuilder() {
                     <p>{p.message}</p>
                     {(() => { const r = ruleFor(p); return r && <p className="qb-rule"><b>Rule:</b> {r.rule} <b>Fix:</b> {r.fix}{r.bad && r.good && <> For example <code>{r.bad}</code> becomes <code>{r.good}</code>.</>}</p>; })()}
                     <div className="qb-fx">
-                      {p.fixes.map((f) => <button key={f.label} className={"qb-fix" + (onlyFix(p) === f ? " one" : "")} onClick={() => useFix(f)}>{onlyFix(p) === f ? "Fix it: " : ""}{f.label}</button>)}
+                      {p.fixes.map((f) => <button key={f.label} className={"qb-fix" + (onlyFix(p) === f ? " one" : "")} onClick={() => takeFix(f)}>{onlyFix(p) === f ? "Fix it: " : ""}{f.label}</button>)}
                       {p.seeAll && <button className="qb-fix ghost" onClick={() => openAll(p.name || "")}>See all ratios</button>}
                       {p.code === "plan_locked" && p.plan && <button className="qb-fix ghost" onClick={() => ask(p.plan!, p.message)}>See the {TIER[p.plan].n} plan</button>}
                     </div>
@@ -359,6 +382,7 @@ export function QueryBuilder() {
 
         <section className="card qb-save" aria-label="Save as a basket">
           <h3>Keep this query as a basket</h3>
+          {basket?.converted?.text && <p className="qb-sub qb-conv" role="note">{basket.converted.text}</p>}
           {!user ? <p>Baskets are saved to your account so you can come back to them. <Link className="alx-link" to="/login">Sign in</Link> or <Link className="alx-link" to="/login">create a free account</Link> to keep up to 3.</p> : <>
             <div className="qb-saveform">
               <label>Name<input value={saveName} maxLength={80} onChange={(e) => setSaveName(e.target.value)} placeholder="e.g. Cheap and profitable" aria-invalid={!!nameBad} /></label>
@@ -367,7 +391,7 @@ export function QueryBuilder() {
                 {basket ? <><button className="btn primary" onClick={update} disabled={!!saveBlock || act.update.isPending || !dirty}>{dirty ? `Update “${basket.name}”` : "Saved"}</button>
                   <button className="btn" onClick={() => { loadedFor.current = null; setParams({}, { replace: true }); setSaveName(saveName + " copy"); }} title="Start a new basket from this query">Save as new</button></>
                   : <button className="btn primary" onClick={saveNew} disabled={!!saveBlock || act.create.isPending}>Save as basket</button>}
-                <Link className="btn" to="/baskets">My baskets{baskets.data ? ` · ${baskets.data.baskets.length}/${baskets.data.max}` : ""}</Link>
+                <button type="button" className="btn" onClick={showBaskets}>My baskets{baskets.data ? ` · ${baskets.data.baskets.length}/${baskets.data.max}` : ""}</button>
               </div>
             </div>
             {(saveBlock && (saveName.trim() || text.trim())) ? <p className="qb-sub" aria-live="polite">{saveBlock}</p> : null}
@@ -398,7 +422,7 @@ export function QueryBuilder() {
               </tbody></table></HScroll>
             {res.capped ? (
               <div className="pl-cap"><Icon name="lock" /><span><b>Showing the first {res.limit} of {nf(total, 0)} matches.</b> Silver shows every match and lets you download them.</span>
-                <button className="btn primary" onClick={() => ask("silver", "See every match with Silver.")}>Unlock with Silver</button></div>
+                <button className="btn primary" onClick={() => ask(PLAN_FOR_SCREENER, "See every match on a paid plan.")}>Unlock with Silver</button></div>
             ) : total > PAGE && (
               <div className="pm-pager"><span>{page * PAGE + 1}–{Math.min(total, page * PAGE + PAGE)} of {nf(total, 0)}</span>
                 <button className="btn" disabled={page === 0 || running} onClick={() => run((page - 1) * PAGE)}>Previous</button><button className="btn" disabled={(page + 1) * PAGE >= total || running} onClick={() => run((page + 1) * PAGE)}>Next</button></div>)}
@@ -412,7 +436,7 @@ export function QueryBuilder() {
           <Plain>The table lists companies that meet your rules. It does not say what to buy or sell. Open a company's report to see why a number looks the way it does. Figures are as of the last data refresh. General information, not investment advice.</Plain>
         </section>}
 
-        <div className="qb-foot faint"><Icon name="info" /> {rat.data ? `${nf(rat.data.ratios.length, 0)} ratios, ${nf(rat.data.aliases, 0)} accepted names. ` : ""}Ratios we do not calculate give an error instead of being ignored. Your baskets live under <Link to="/baskets" className="alx-link">My baskets</Link>.</div>
+        <div className="qb-foot faint"><Icon name="info" /> {rat.data ? `${nf(rat.data.ratios.length, 0)} ratios, ${nf(rat.data.aliases, 0)} accepted names. ` : ""}Ratios we do not calculate give an error instead of being ignored. Your baskets are under <button type="button" className="alx-link" onClick={showBaskets}>My baskets</button>, above the examples.</div>
       </div>
 
       <RatioDrawer ratios={ratios} open={drawer} onClose={() => setDrawer(false)} seed={seed} ask={ask} onInsert={insertName} onAdd={(r) => addLine(r.example)} />

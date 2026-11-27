@@ -1,0 +1,16 @@
+/* Console > Storage (components/admin/StorageAdmin.tsx). Site tokens only, so light and dark follow. Prefix: stg-. */
+.stg h3 { font-size: var(--ui-fs-h3); margin: 18px 0 8px; }
+.stg-note { margin: 0 0 8px; font-size: var(--fs-13); }
+.stg-prog { position: relative; overflow: visible; }
+.stg-prog i { border-radius: inherit; }
+.stg-prog i.stg-hot { background: var(--loss); }
+.stg-prog s { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--text); opacity: .6; }
+.stg-bar { display: flex; height: 14px; border-radius: var(--ui-r-pill); overflow: hidden; background: var(--s3); margin: 4px 0 10px; }
+.stg-bar i { display: block; height: 100%; }
+.stg-sw { display: inline-block; width: 10px; height: 10px; border-radius: var(--ui-r-mark); margin-right: 8px; vertical-align: -1px; }
+.stg-sub { display: block; font-size: var(--fs-12); margin-top: 2px; }
+.stg-t td.n, .stg-t th.n { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.stg-t td.mono { font-size: var(--fs-13); }
+.stg-warn { color: var(--loss); font-weight: 600; }
+.stg-hist { max-width: 560px; }
+.stg-grow { margin-bottom: 10px; }

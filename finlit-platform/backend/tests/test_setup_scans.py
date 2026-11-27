@@ -69,10 +69,10 @@ def test_a_term_with_a_minus_ranks_the_lower_figure_higher():
     assert up[3] > up[0]
 
 
-def test_the_setups_cards_exist_on_both_tabs_and_describe_never_advise():
-    assert ("setups", "New highs") in GROUPS            # task #64, 14 Nov N-12: FinLit does not use "breakout", "setup" or "entry"
+def test_the_setups_cards_exist_and_describe_never_advise():
+    assert ("setups", "Setups") in GROUPS               # task #243 (screeners pack v4, L14): the tab holding the three setups reads "Setups" (was "New highs")
     ids = [p.id for p in PRESETS if p.group == "setups"]
-    assert ids == ["setup-pre-breakout", "setup-breakout-pullback", "setup-ema9-consolidation", "basic-setup-pre-breakout", "basic-setup-breakout-pullback", "basic-setup-ema9-consolidation"]
+    assert ids == ["setup-pre-breakout", "setup-breakout-pullback", "setup-ema9-consolidation"]          # task #283: the Basic copies, on the retired FinLit IQ, are gone
     for i in ids:
         p = BY_ID[i]
         text = " ".join([p.name, p.card_text, *p.how_it_works]).lower()
@@ -81,21 +81,24 @@ def test_the_setups_cards_exist_on_both_tabs_and_describe_never_advise():
         assert p.limit == 25 and p.rank_score, i
         for rule, _ in p.derived:
             expr.parse(rule)               # every rule reads
-    assert BY_ID["basic-setup-ema9-consolidation"].tab == "basic"
+    assert "basic-setup-ema9-consolidation" not in BY_ID and BY_ID["setup-ema9-consolidation"].tab == "advanced"
 
 
 def test_no_breakout_setup_or_entry_in_anything_a_reader_sees_on_the_screeners():
-    """Task #64, 14 Nov N-12: the group is New highs and the nine filters are renamed as in the mock-up; the keys (breakout_age and so on) can stay."""
+    """Task #64, 14 Nov N-12: the nine filters are renamed as in the mock-up; the keys (breakout_age and so on) can stay. Task #243 (pack L14) names the
+    group itself "Setups"; "breakout" and "entry" stay out of everything a reader sees, and no screen, card or rule says "setup"."""
     import re
     from finlit.screener.catalog import CATALOG as METRICS
     from finlit.presets.registry import _PLAIN
     plain_for = _PLAIN.get
     banned = re.compile(r"\b(breakout|breakouts|setup|setups|entry)\b", re.I)
     for _, label in GROUPS:
-        assert not banned.search(label), label
+        assert not banned.search(label) or label == "Setups", label
     for p in PRESETS:
         words = [p.name, p.card_text, *p.how_it_works, *(c.label for c in p.columns), *(t for _, t in p.derived)]
         words += [x for x in (plain_for(p.id) or {}).get("how", [])] + [(plain_for(p.id) or {}).get("text") or ""]
+        if p.group == "sectors":       # task #243 (pack v4) names "Setups with the sector behind them": "Setups" there is the group's own name (L14), capitalised
+            words = [(w or "").replace("Setups", "") for w in words]
         for w in words:
             assert not banned.search(w or ""), (p.id, w)
     names = {m.key: m.label for m in METRICS}
@@ -134,9 +137,9 @@ def _frame(rows, prism):
     return engine.Frame(Table(rows, {}, {}, None), prism, date(2026, 10, 30), None, None, None)
 
 
-PRE = dict(ret_1y=30, vs_ema50=4, vs_ema200=9, pct_from_high=5, days_since_high=20, range_10d=5, atr_ratio=0.7, rsi14=55, pillar_technical=70, market_cap=5000)
-PULL = dict(b2_vol_x=2.0, ret_1y=30, vs_ema50=3, vs_ema200=8, b2_age=8, b2_pullback=6, b2_vs_level=1, vs_ema20=-1, rsi14=50, pillar_technical=65, market_cap=5000)
-EMA9 = dict(turnover20_cr=5.0, ret_1y=30, vs_ema50=6, ema_stack=1, ema9_above4=1, vs_ema9=1.5, ema9_near4=1, ema9_touch4=1, range_4d=3, rsi14=60, pillar_technical=70, market_cap=5000)
+PRE = dict(ret_1y=30, vs_ema50=4, vs_ema200=9, pct_from_high=5, days_since_high=20, range_10d=5, atr_ratio=0.7, rsi14=55, market_cap=5000)
+PULL = dict(b2_vol_x=2.0, ret_1y=30, vs_ema50=3, vs_ema200=8, b2_age=8, b2_pullback=6, b2_vs_level=1, vs_ema20=-1, rsi14=50, market_cap=5000)
+EMA9 = dict(turnover20_cr=5.0, ret_1y=30, vs_ema50=6, ema_stack=1, ema9_above4=1, vs_ema9=1.5, ema9_near4=1, ema9_touch4=1, range_4d=3, rsi14=60, market_cap=5000)
 
 
 def _ids(body):
@@ -144,25 +147,25 @@ def _ids(body):
 
 
 @pytest.mark.parametrize("card,base,fails", [
-    ("basic-setup-pre-breakout", PRE, [dict(pct_from_high=9), dict(days_since_high=10), dict(range_10d=11), dict(atr_ratio=1.2), dict(rsi14=70), dict(pillar_technical=50),
-                                       dict(market_cap=1500), dict(vs_ema200=3), dict(ret_1y=None)]),
-    ("basic-setup-breakout-pullback", PULL, [dict(b2_age=2), dict(b2_age=26), dict(b2_vol_x=1.2), dict(b2_pullback=1), dict(b2_pullback=13), dict(b2_vs_level=7), dict(b2_vs_level=-4), dict(vs_ema20=-6),
-                                             dict(vs_ema50=-1), dict(rsi14=70), dict(pillar_technical=40), dict(market_cap=1500)]),
-    ("basic-setup-ema9-consolidation", EMA9, [dict(ema_stack=0), dict(turnover20_cr=0.5), dict(ema9_above4=0), dict(vs_ema9=3.5), dict(ema9_near4=0), dict(ema9_touch4=0), dict(range_4d=7), dict(vs_ema50=-1),
-                                              dict(pillar_technical=50), dict(market_cap=500)]),
+    ("setup-pre-breakout", PRE, [dict(pct_from_high=9), dict(days_since_high=10), dict(range_10d=11), dict(atr_ratio=1.2), dict(rsi14=70), dict(market_cap=500), dict(vs_ema200=3), dict(ret_1y=None)]),
+    ("setup-breakout-pullback", PULL, [dict(b2_age=2), dict(b2_age=26), dict(b2_vol_x=1.2), dict(b2_pullback=1), dict(b2_pullback=13), dict(b2_vs_level=7), dict(b2_vs_level=-4), dict(vs_ema20=-6),
+                                       dict(vs_ema50=-1), dict(rsi14=70), dict(market_cap=500)]),
+    ("setup-ema9-consolidation", EMA9, [dict(ema_stack=0), dict(turnover20_cr=0.5), dict(ema9_above4=0), dict(vs_ema9=3.5), dict(ema9_near4=0), dict(ema9_touch4=0), dict(range_4d=7), dict(vs_ema50=-1),
+                                        dict(market_cap=500)]),
 ])
-def test_basic_setup_cards_keep_a_company_that_meets_every_rule_and_drop_one_that_misses_any(card, base, fails):
+def test_setup_cards_keep_a_company_that_meets_every_rule_and_drop_one_that_misses_any(card, base, fails):
+    syms = ["OK", "BAD", "F0", "F1", "F2"]
     for i, bad in enumerate(fails):
         rows = [_row("OK", **base), _row("BAD", **{**base, **bad})] + [_row(f"F{j}", **{**base, "pct_from_high": 3 + j}) for j in range(3)]
-        body = engine.run(_frame(rows, {}), BY_ID[card])
+        body = engine.run(_frame(rows, {s: _pz() for s in syms}), BY_ID[card])
         assert "OK" in _ids(body), (card, bad)
         assert "BAD" not in _ids(body), (card, bad)
     assert body["count"] >= 1 and all("rank_score" not in r or r["rank_score"] is not None for r in body["rows"])
 
 
 def test_a_company_without_the_new_price_fields_is_left_out_not_guessed():
-    rows = [_row("NEW", **PRE), _row("OLD", vs_ema50=4, vs_ema200=9, pct_from_high=5, pillar_technical=70, rsi14=55, ret_1y=30)]
-    body = engine.run(_frame(rows, {}), BY_ID["basic-setup-pre-breakout"])
+    rows = [_row("NEW", **PRE), _row("OLD", vs_ema50=4, vs_ema200=9, pct_from_high=5, rsi14=55, ret_1y=30)]
+    body = engine.run(_frame(rows, {"NEW": _pz(), "OLD": _pz()}), BY_ID["setup-pre-breakout"])
     assert _ids(body) == ["NEW"]
 
 
@@ -178,7 +181,7 @@ def test_advanced_setup_cards_need_a_prism_rating_and_the_long_term_view():
 
 def test_the_closer_to_the_level_ranks_first():
     rows = [_row("NEAR", **{**PULL, "b2_vs_level": 0.2}), _row("FAR", **{**PULL, "b2_vs_level": 5.5}), _row("MID", **{**PULL, "b2_vs_level": 2})]
-    body = engine.run(_frame(rows, {}), BY_ID["basic-setup-breakout-pullback"])
+    body = engine.run(_frame(rows, {s: _pz() for s in ("NEAR", "FAR", "MID")}), BY_ID["setup-breakout-pullback"])
     assert _ids(body)[0] == "NEAR" and _ids(body)[-1] == "FAR"
 
 

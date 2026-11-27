@@ -125,13 +125,13 @@ async def _prism_universe(app) -> List[dict]:
 
 
 def _build(prices: dict, index_rows: List[dict], symbols: List[str], facts: Dict[str, dict], horizon: str, week: str, month: str,
-           spellings: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
+           spellings: Optional[Dict[str, str]] = None, classes: Optional[Dict[str, dict]] = None) -> Dict[str, Any]:
     """The CPU part (pandas, numpy, scipy, scikit-learn): runs in a worker thread."""
     from . import calc
     sectors = {s: sec.macro_sector((facts.get(s) or {}).get("sector"), s) for s in symbols}
     sectors = {s: v for s, v in sectors.items() if v != sec.UNMAPPED}                 # calc names the missing ones 'Not classified'
     groups = {s: g for s in symbols for g in [sec.business_group(s)] if g}
-    sizes = {s: calc.size_band((facts.get(s) or {}).get("rank")) for s in symbols}
+    sizes = {s: calc.size_band((facts.get(s) or {}).get("mcap")) for s in symbols}   # task #262: by ₹ market value, four sizes
     mcap = {s: (facts.get(s) or {}).get("mcap") for s in symbols}
     names = {s: (facts.get(s) or {}).get("name") or s for s in symbols}
     px = dict(prices)
@@ -144,7 +144,7 @@ def _build(prices: dict, index_rows: List[dict], symbols: List[str], facts: Dict
         else:
             next(e for e in core["excluded"] if e["symbol"] == s)["reason"] = "unknown"
     core["names"] = names
-    _one_score(core, prices, index_rows, symbols, facts, spellings or {}, week)
+    _one_score(core, prices, index_rows, symbols, facts, spellings or {}, week, classes)
     if "score" not in core:
         core["needsThree"] = True
     if horizon == "weekly":
@@ -161,11 +161,12 @@ def _build(prices: dict, index_rows: List[dict], symbols: List[str], facts: Dict
     return out
 
 
-def _one_score(core: Dict[str, Any], prices: dict, index_rows: List[dict], symbols: List[str], facts: Dict[str, dict], spellings: Dict[str, str], week: str) -> None:
+def _one_score(core: Dict[str, Any], prices: dict, index_rows: List[dict], symbols: List[str], facts: Dict[str, dict], spellings: Dict[str, str], week: str,
+               classes: Optional[Dict[str, dict]] = None) -> None:
     """One score for one list on the whole site: the score, its two parts and 'moves like N' are the ones the Equity portfolio page shows (the handover pack's
     engine, finlit/portfolio_page), so the card and the page never disagree. The card's own pair, group, risk and market figures keep their windows."""
     from ..portfolio_page import inputs
-    meta = inputs.build_meta([s for s in symbols if s in facts], facts, spellings)
+    meta = inputs.build_meta([s for s in symbols if s in facts], facts, spellings, classes)   # the stored NSE levels, as the page reads them (task #183)
     if len(meta) < 3:
         return
     page = inputs.run({k: v for k, v in prices.items() if k != "__NIFTY"}, index_rows, meta, week)
@@ -192,7 +193,7 @@ async def diversification(request: Request, body: DiversificationIn) -> Response
     symbols = body.symbols
     now = now_ist()
     week, month = unfinished_week(now), f"{now.year}-{now.month:02d}"
-    key = "div:v2:" + ":".join([week, body.horizon, hashlib.sha1(",".join(sorted(symbols)).encode()).hexdigest()[:24]])   # nosec B324 - cache key
+    key = "div:v4:" + ":".join([week, body.horizon, hashlib.sha1(",".join(sorted(symbols)).encode()).hexdigest()[:24]])   # nosec B324 - cache key
     redis = app.state.store.redis
     try:
         cached = await redis.get(key)
@@ -207,7 +208,9 @@ async def diversification(request: Request, body: DiversificationIn) -> Response
         if not index_rows:
             raise fail(502, "provider_unavailable", "NIFTY 50 prices are not available right now, so the comparison cannot be worked out. Please try again in a moment.")
         from ..portfolio_page.api import _sector_spellings
-        result = await asyncio.to_thread(_build, prices, index_rows, symbols, facts, body.horizon, week, month, await _sector_spellings(app))
+        known = [s for s in symbols if s in facts]
+        classes = await app.state.store.classifications(known) if known else {}
+        result = await asyncio.to_thread(_build, prices, index_rows, symbols, facts, body.horizon, week, month, await _sector_spellings(app), classes)
         try:
             await redis.set(key, orjson.dumps(result), ex=CACHE_SECONDS)
         except Exception:

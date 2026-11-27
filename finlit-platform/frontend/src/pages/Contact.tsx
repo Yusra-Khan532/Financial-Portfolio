@@ -21,7 +21,7 @@ export function Contact() {
   };
   return (
     <>
-      <section className="pagehead"><div className="aurora" style={{ opacity: 0.6 }} /><div className="wrap"><PageArt kind="contact" /><div className="eyebrow">Contact</div><h1>Write to us.</h1><p>Tell us what you need, in a line or in a paragraph. A person on the team reads every message and we usually reply within one working day.</p></div></section>
+      <section className="pagehead"><div className="aurora" style={{ opacity: 0.6 }} /><div className="wrap"><PageArt kind="contact" /><div className="eyebrow">Contact</div><h1 className="ui-title ui-title--marketing">Write to us.</h1><p>Tell us what you need. A person reads every message; we usually reply within one working day.</p></div></section>
       <section className="sec" style={{ paddingTop: 16 }}><div className="wrap two">
         <div className="card">
           {m.isSuccess ? <div className="done"><div className="done-ic"><Icon name="check" /></div><h3 style={{ font: "400 24px var(--serif)" }}>Message sent</h3><p className="muted">Thanks. We have it, and we usually reply within one working day.</p></div> : (
@@ -33,7 +33,7 @@ export function Contact() {
               <button className="btn primary lg" disabled={m.isPending}>{m.isPending ? "Sending…" : "Send message"}</button>
             </form>)}
         </div>
-        <div><div className="feat" style={{ "--ac": "var(--gold)" } as React.CSSProperties}><h3>Prefer email?</h3><p style={{ margin: "10px 0" }}><a href={`mailto:${COMPANY.email}`}>{COMPANY.email}</a></p><p><a href={COMPANY.linkedin} target="_blank" rel="noopener noreferrer">FinLit on LinkedIn</a></p><p className="faint" style={{ fontSize: 13, marginTop: 14 }}>We cannot give personal advice on what to buy or sell, so please do not send account numbers or passwords.</p><p className="faint" style={{ fontSize: 13, marginTop: 14 }}>{COMPANY.disclaimer}</p></div></div>
+        <div><div className="feat" style={{ "--ac": "var(--gold)" } as React.CSSProperties}><h3>Prefer email?</h3><p style={{ margin: "10px 0" }}><a href={`mailto:${COMPANY.email}`}>{COMPANY.email}</a></p><p><a href={COMPANY.linkedin} target="_blank" rel="noopener noreferrer">FinLit on LinkedIn</a></p><p className="faint" style={{ fontSize: "var(--fs-13)", marginTop: 14 }}>We cannot give personal advice on what to buy or sell, so please do not send account numbers or passwords.</p><p className="faint" style={{ fontSize: "var(--fs-13)", marginTop: 14 }}>{COMPANY.disclaimer}</p></div></div>
       </div></section>
     </>
   );

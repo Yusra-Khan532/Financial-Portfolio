@@ -3,8 +3,8 @@ import report from "./__fixtures__/prismReport.json";
 import variants from "./__fixtures__/prismVariants.json";
 import { ApiError } from "./api";
 import {
-  backoff, buildFundamentalGrowth, cleanSymbol, factorDetail, factorValue, growthPercent, labelTone, partsOf, partsSentence, pdfName, pdfOpen,
-  prismPdfUrl, prismProblem, prismReview, scoreTone, standing, transient, trendRows, type HistoryRow, type PrismReport,
+  backoff, buildFundamentalGrowth, cleanSymbol, factorDetail, factorValue, growthPercent, labelTone, partsOf, partsSentence,
+  prismProblem, prismReview, scoreTone, standing, transient, trendRows, type HistoryRow, type PrismReport,
 } from "./prism";
 
 const R = report as unknown as PrismReport;
@@ -91,20 +91,6 @@ describe("retry rules", () => {
   it.each([undefined, 408, 429, 502, 503])("retries %s", (s) => expect(transient({ status: s })).toBe(true));
   it.each([401, 403, 404, 422])("stops on %s", (s) => expect(transient({ status: s })).toBe(false));
   it("backs off 2.5 s, 5 s, 10 s, then 15 s", () => expect([0, 1, 2, 3, 4].map((n) => backoff(n))).toEqual([2500, 5000, 10000, 15000, 15000]));
-});
-
-/* intent of upstream lib/currentPremiumReport.test.js: only the current calculation; an expired one is not offered as a PDF */
-describe("the PDF window", () => {
-  const now = Date.parse("2026-10-25T09:30:00Z");
-  it("is open until pdfAvailableUntil, then closed", () => {
-    expect(pdfOpen({ pdfAvailableUntil: "2026-10-25T09:42:41+00:00" }, now)).toBe(true);
-    expect(pdfOpen({ pdfAvailableUntil: "2026-10-25T09:00:00+00:00" }, now)).toBe(false);
-    expect(pdfOpen({ pdfAvailableUntil: null }, now)).toBe(false);
-  });
-  it("downloads exactly this calculation from the API", () => {
-    expect(prismPdfUrl("abc123")).toBe("/api/prism/reports/abc123/pdf");
-    expect(pdfName(R)).toBe("FinLit-Prism-EXAMPLE-consolidated-2026-10-25.pdf");
-  });
 });
 
 describe("problems in words", () => {
@@ -206,21 +192,6 @@ describe("income wording and the PDF download", () => {
     expect(incomeNote("INSURANCE")).toMatch(/net premium earned/);
     expect(factorDetail({ ...R.rating.metrics.find((m) => m.metric === "SALES_CAGR")! }, "BANK")).toMatch(/sales from/);
   });
-  it("downloadPrismPdf cleans up the link and the object URL even when the click throws", async () => {
-    const { downloadPrismPdf } = await import("./prism");
-    const { vi } = await import("vitest");
-    vi.useFakeTimers();
-    const revoke = vi.fn(), removed = vi.fn();
-    const link = { click: () => { throw new Error("blocked"); }, remove: removed } as unknown as HTMLAnchorElement;
-    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, blob: async () => new Blob(["x"]) })));
-    vi.stubGlobal("URL", { createObjectURL: () => "blob:x", revokeObjectURL: revoke });
-    vi.stubGlobal("document", { createElement: () => link, body: { appendChild: () => undefined } });
-    await expect(downloadPrismPdf(R)).rejects.toThrow("blocked");
-    expect(removed).toHaveBeenCalled();
-    vi.advanceTimersByTime(31_000);
-    expect(revoke).toHaveBeenCalledWith("blob:x");
-    vi.useRealTimers(); vi.unstubAllGlobals();
-  });
 });
 
 describe("not-rated reasons", () => {
@@ -239,13 +210,41 @@ describe("not-rated reasons", () => {
     const r = { ...base, notRatedReasons: [{ code: "classification" as const, text: "Prism has no model group for this industry yet (\"Coal\")." }] };
     expect(notRatedLede(r)).toContain("Coal");
     expect(notRatedLede(r).toLowerCase()).not.toContain("too little");
-    const line = inputsLine(r);
-    expect(line.text).toBe("100% of inputs available");
+    // task #311: nothing at 100%; below it, "Some figures are missing" with the note when another check withheld the rating
+    expect(inputsLine(r)).toBeNull();
+    const line = inputsLine({ ...r, confidence: 0.9 })!;
+    expect(line.text).toBe("Some figures are missing");
     expect(line.ok).toBe(false);
-    expect(line.note).toContain("Inputs are not the cause");
+    expect(line.note).toContain("Missing figures are not the cause");
     expect(notRatedLede(base)).toContain("recalculate");
     expect(notRatedLede(base).toLowerCase()).not.toContain("too little");
     const thin = { status: "NOT RATED" as const, confidence: 0.3, notRatedReasons: [{ code: "low_confidence" as const, text: "Only 30% of the inputs" }] };
-    expect(inputsLine(thin)).toMatchObject({ ok: true, note: null });
+    expect(inputsLine(thin)).toMatchObject({ text: "Some figures are missing", ok: true, note: null });
+  });
+});
+
+// Task #220 (Prism report handover, README 4): the feed sends the streak sentence and the income note, never the counts or the group code.
+import { factorDetail as fd220, reportIncomeNote as rin220 } from "./prism";
+describe("task #220: the page reads the server's finished sentences", () => {
+  it("a streak factor shows the server's sentence; no growth-quarter counts are needed", () => {
+    const row = { part: "fundamental", metric: "SALES_STREAK", label: "Sales streak", value: 10, unit: "quarters", status: "A", statusLabel: "Actual", fallbackFor: null,
+      details: { streakText: "10 growth quarters across 10 of 10 comparable quarters." } } as unknown as Parameters<typeof fd220>[0];
+    expect(fd220(row, "")).toBe("10 growth quarters across 10 of 10 comparable quarters.");
+  });
+  it("the income note comes from the report; an older report's group code still gives it", () => {
+    expect(rin220({ incomeNote: "For insurers the model's sales line is net premium earned." })).toMatch(/insurers/);
+    expect(rin220({ incomeNote: null, group: "BANK" })).toBeNull();
+    expect(rin220({ group: "BANK" })).toMatch(/banks and NBFCs/);
+  });
+});
+describe("task #220: a refused report says which limit it met", () => {
+  it("today's reports, too many at once, Recalculate", async () => {
+    const { ApiError } = await import("./api");
+    const { prismProblem } = await import("./prism");
+    const mk = (code: string) => new ApiError(429, { status: "limit", code, detail: "Server words." } as never);
+    expect(prismProblem(mk("daily")).title).toBe("Today's reports are used");
+    expect(prismProblem(mk("burst")).title).toBe("Too many reports at once");
+    expect(prismProblem(mk("recalculate")).title).toBe("Recalculate limit reached");
+    expect(prismProblem(mk("daily")).text).toMatch(/^Server words\./);
   });
 });

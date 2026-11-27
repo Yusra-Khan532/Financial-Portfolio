@@ -25,10 +25,10 @@ export function FaqsPage() {
   const searching = hits.n >= 0;
   return (
     <div className="wrap pfq-hub">
-      <header className="pfq-hub-h">
+      <header className="pfq-hub-h card">
         <span className="pfq-k">FAQs</span>
-        <h1>Questions about every page</h1>
-        <p>{total} questions for {PAGE_FAQS.length} pages. Each page also shows its own questions at the bottom. Information only, not investment advice.</p>
+        <h1 className="ui-title ui-title--read">Questions about every page</h1>
+        <p>{total} questions across {PAGE_FAQS.length} pages; each page also lists its own at the bottom.</p>
         <div className="pfq-search" role="search">
           <label htmlFor="pfq-s" className="sr-only">Search the questions</label>
           <input id="pfq-s" type="search" value={qry} onChange={(e) => setQry(e.target.value)} placeholder="Search all questions" autoComplete="off" />

@@ -143,11 +143,11 @@ def test_name_analysis_agrees_across_styles():
     assert analyse("Alpha Bluechip Fund (Formerly known as Old Name Fund) - Regular - Dividend")[1:] == ("Regular", "IDCW")
 
 
-def test_amfi_code_wins_then_isin():
+def test_isin_decides_first_then_amfi_code():   # task #183 (COMMON-RULES 9): the ISIN first; the AMFI code when there is no ISIN, or AMFI's list lacks it
     r = m(amfi="100001", name="")
     assert (r.status, r.via, r.scheme.code) == ("matched", "amfi", 100001)
     r = m(amfi="100001.0", isin="INF000A01011")
-    assert (r.status, r.via, r.scheme.code) == ("matched", "amfi", 100001)
+    assert (r.status, r.via, r.scheme.code) == ("matched", "isin", 100001)
     r = m(isin="INF000B01012", name="whatever fund")
     assert r.status == "choose"                                     # the name does not look like the ISIN's scheme: the member checks
     r = m(isin="INF000B01012", name="Beta Flexi Cap Fund")
@@ -354,3 +354,30 @@ def test_128_a_row_with_an_isin_is_never_matched_by_its_name_alone():
     assert r.status == "not_found" and "Neither the ISIN" in r.reason
     r = m(isin="INF000A01011", name="ALPHA BLUECHIP FUND DIRECT GROWTH")                    # the known ISIN still matches as before
     assert (r.status, r.via, r.scheme.code) == ("matched", "isin", 100001)
+
+
+# ------------------------------------------------------------------------------------------------------------------ task #389: the day's NAV change on each row
+
+def _scheme_row(**kw):
+    """A mf_schemes row with every column the list reads (None unless given)."""
+    from finlit import mf
+    base = {c.strip(): None for c in (mf.LIST_COLS + ", family, isin").split(",")}
+    base.update({"code": 122639, "name": "Parag Parikh Flexi Cap Fund - Direct Plan - Growth", "amc": "PPFAS Mutual Fund", "category": "Equity Scheme - Flexi Cap Fund",
+                 "plan": "Direct", "option_class": "Growth", "active": True, "has_hist": True})
+    base.update(kw)
+    return base
+
+
+def test_each_fund_row_carries_the_days_nav_change_from_the_nav_feed():   # task #389 (developer file 32, fault 8)
+    from finlit.mfportfolio.api import _scheme_fields
+    f = _scheme_fields(_scheme_row(nav=94.93, nav_date=date(2026, 11, 23), prev_nav=95.463, prev_date=date(2026, 11, 20)))
+    assert f["change"] == {"abs": round(94.93 - 95.463, 6), "pct": round((94.93 / 95.463 - 1) * 100, 2), "since": "2026-11-20"} and f["changeWhy"] is None
+    assert f["change"]["pct"] == -0.56                                   # the public fund page's figure for the same NAVs
+
+
+def test_a_fund_without_a_previous_nav_says_why_the_change_is_blank():
+    from finlit.mfportfolio.api import _scheme_fields
+    f = _scheme_fields(_scheme_row(nav=94.93, nav_date=date(2026, 11, 23)))
+    assert f["change"] is None and "previous NAV" in f["changeWhy"]
+    g = _scheme_fields(None)
+    assert g["change"] is None and "no longer" in g["changeWhy"]

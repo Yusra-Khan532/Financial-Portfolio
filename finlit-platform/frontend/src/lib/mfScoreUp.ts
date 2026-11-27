@@ -1,4 +1,4 @@
-// Gold-only upgrades of the FinLit FundPulse: history, breakdown helpers, the Fund Score Screener, the category leaderboard, compare and alerts.
+// Gold-only upgrades of the Mutual Fund Score: history, breakdown helpers, the Fund Score Screener, the category leaderboard, compare and alerts.
 // Everything describes past NAVs, costs and holdings. No buy, sell or hold wording anywhere in this file.
 import { useQuery } from "@tanstack/react-query";
 import { apiGet, type ApiError } from "./api";
@@ -71,7 +71,7 @@ export type SQuery = {
   aum: [string, string]; age: [string, string]; terMax: string; full: boolean; q: string; sort: string; dir: "asc" | "desc"; page: number; view: string; tab: "table" | "board";
 };
 export const PAGE = 50;
-export const emptyQuery = (): SQuery => ({ plan: "Direct", subs: [], labels: [], status: "", min: "", max: "", perf: ["", ""], risk: ["", ""], cost: ["", ""], quality: ["", ""], aum: ["", ""], age: ["", ""],
+export const emptyQuery = (): SQuery => ({ plan: "all", subs: [], labels: [], status: "", min: "", max: "", perf: ["", ""], risk: ["", ""], cost: ["", ""], quality: ["", ""], aum: ["", ""], age: ["", ""],
   terMax: "", full: false, q: "", sort: "final", dir: "desc", page: 1, view: "", tab: "table" });
 /** Quick views, built from the four parts only and named neutrally. */
 export const VIEWS: { id: string; label: string; say: string; set: Partial<SQuery> }[] = [
@@ -100,7 +100,7 @@ export function queryToParams(q: SQuery): URLSearchParams {
 export function paramsToQuery(p: URLSearchParams): SQuery {
   const q = emptyQuery(), g = (k: string) => p.get(k) ?? "";
   const list = (k: string) => g(k).split(",").filter(Boolean);
-  q.plan = ["Direct", "Regular", "ETF", "all"].includes(g("plan")) ? g("plan") : "Direct";
+  q.plan = ["Direct", "Regular", "ETF", "all"].includes(g("plan")) ? g("plan") : "all";   // task #369: no plan is preselected (was Direct)
   q.subs = list("sub"); q.labels = list("labels").filter((l) => (LABELS as readonly string[]).includes(l));
   q.status = ["RATED", "PROVISIONAL"].includes(g("status")) ? g("status") : "";
   q.min = g("min"); q.max = g("max"); q.terMax = g("ter_max"); q.q = g("q"); q.full = g("full") === "1";
@@ -128,7 +128,7 @@ export const csvUrl = (q: SQuery) => `/api/mf/score-screener?${(() => { const p 
 export const CSV_HEADS = ["Fund", "Fund house", "Plan", "Category", "Score", "Label", "Status", "Performance", "Risk", "Cost", "Quality", "Rank in category", "Funds ranked", "AUM (Rs crore)", "Age (years)", "Expense ratio (%)", "1Y return (%)", "3Y return (% a year)", "5Y return (% a year)"];
 export function chips(q: SQuery): { id: string; text: string }[] {
   const out: { id: string; text: string }[] = [];
-  if (q.plan !== "Direct") out.push({ id: "plan", text: q.plan === "all" ? "All plans" : q.plan + " plan" });
+  if (q.plan !== "all") out.push({ id: "plan", text: q.plan === "ETF" ? "ETFs" : q.plan + " plan" });
   if (q.subs.length) out.push({ id: "subs", text: `${q.subs.length} categor${q.subs.length === 1 ? "y" : "ies"}` });
   if (q.labels.length) out.push({ id: "labels", text: q.labels.join(", ") });
   if (q.status) out.push({ id: "status", text: q.status === "RATED" ? "Rated" : "Provisional" });

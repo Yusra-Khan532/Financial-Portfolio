@@ -1,0 +1,12 @@
+{
+  "name": "finlit-web-lint",
+  "private": true,
+  "description": "ESLint for the website, kept apart from the app: typescript-eslint parses with TypeScript 5.9 (it cannot use the app's TypeScript 7). Run from frontend/: npm run lint",
+  "type": "module",
+  "devDependencies": {
+    "eslint": "10.15.0",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.74.0"
+  }
+}

@@ -97,7 +97,10 @@ describe("the score body in the ETF card states", () => {
   it("rated: number, label, pillars, the ETF measures and the tag in the lists", () => {
     const h = html(rated);
     expect(h).toContain("71.2"); expect(h).toContain("Healthy"); expect(h).toContain(">Rated<"); expect(h).toContain("How this ETF trades"); expect(h).toContain("ETF measure");
-    expect(h).toContain("Describes the fund&#x27;s health from its past NAVs, costs and holdings; not a recommendation. Information only, not investment advice.");
+    // task #311 (fund page row 3): the disclaimer, when it was scored and against which funds, then "What the score means"; no "How it works · worked out"
+    expect(h).toContain("Describes the fund&#x27;s health from its past NAVs, costs and holdings; not a recommendation.");
+    expect(h).toContain("What the score means");
+    expect(h).not.toMatch(/How it works|worked out/);
   });
   it("provisional: says so and holds the label", () => {
     const h = html(base({ ...rated, status: "PROVISIONAL", reason: "Short history", confidence: 0.5 }));
@@ -132,5 +135,14 @@ describe("wording of the new files", () => {
       const strings = (src.match(/"[^"\n]{12,}"|`[^`\n]{12,}`/g) || []).filter((s) => !/^["`](\.\.|@|\/|\w+[-:])/.test(s) && !/className/.test(s));
       for (const s of strings) expect(s.replace(/not a recommendation|not investment advice/gi, ""), f).not.toMatch(BANNED);
     }
+  });
+});
+
+describe("task #311: the fund score foot line", () => {
+  it("reads as the pack's text, with plain peer words and no comparison rule", async () => {
+    const { scoreFootLine } = await import("./mfScore");
+    expect(scoreFootLine("22 Nov 2026", "sub", "funds in the same category and plan")).toBe("Describes the fund's health from its past NAVs, costs and holdings; not a recommendation. Scored 22 Nov 2026 against funds of the same category and plan");
+    expect(scoreFootLine("22 Nov 2026", "grp", "funds in the wider group and the same plan (too few in the category)")).not.toContain("too few");
+    expect(scoreFootLine(null, null, null)).toBe("Describes the fund's health from its past NAVs, costs and holdings; not a recommendation.");
   });
 });

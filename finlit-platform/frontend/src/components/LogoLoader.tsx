@@ -10,7 +10,7 @@ import { LOGO_ARROW, LOGO_BAR1, LOGO_BAR2, LOGO_BAR3, LOGO_F, LOGO_HAIR, LOGO_HE
 export function LogoMark({ play = false, className = "" }: { play?: boolean; className?: string }) {
   return (
     <svg className={("ll " + (play ? "ll-play " : "") + className).trim()} viewBox={LOGO_VIEWBOX} aria-hidden="true" focusable="false">
-      <defs><linearGradient id="ll-grad" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#3F8D75" /><stop offset="1" stopColor="#276253" /></linearGradient></defs>
+      <defs><linearGradient id="ll-grad" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#1DBD9E" /><stop offset="1" stopColor="#0E7A62" /></linearGradient></defs>
       <g className="ll-all">
         <g className="ll-stairs"><path className="ll-gold" d={LOGO_STAIRSL_GOLD} /><path className="ll-ink" d={LOGO_STAIRL_WHITE} /></g>
         <path className="ll-ink ll-F" d={LOGO_F} />

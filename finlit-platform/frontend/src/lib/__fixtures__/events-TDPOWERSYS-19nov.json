@@ -1,0 +1,433 @@
+{
+ "meta": {
+  "symbol": "TDPOWERSYS",
+  "statement": "consolidated",
+  "generatedAt": "2026-11-18T14:50:44+00:00",
+  "version": 6,
+  "scoreModel": "v1"
+ },
+ "actions": [
+  {
+   "date": "2026-11-18",
+   "type": "interim_dividend",
+   "title": "Interim dividend · ₹0.65 per share",
+   "amount": 0.65,
+   "adjustedAmount": 0,
+   "ratio": null,
+   "paidInFY": "FY27",
+   "forFY": "FY27"
+  },
+  {
+   "date": "2026-08-24",
+   "type": "split",
+   "title": "Stock split",
+   "amount": null,
+   "adjustedAmount": null,
+   "ratio": null,
+   "paidInFY": "FY27",
+   "forFY": null
+  },
+  {
+   "date": "2026-08-05",
+   "type": "final_dividend",
+   "title": "Final dividend · ₹1.1 per share",
+   "amount": 1.1,
+   "adjustedAmount": 0.55,
+   "ratio": null,
+   "paidInFY": "FY27",
+   "forFY": "FY26"
+  },
+  {
+   "date": "2025-11-06",
+   "type": "interim_dividend",
+   "title": "Interim dividend · ₹1 per share",
+   "amount": 1,
+   "adjustedAmount": 0.5,
+   "ratio": null,
+   "paidInFY": "FY26",
+   "forFY": "FY26"
+  },
+  {
+   "date": "2025-07-30",
+   "type": "final_dividend",
+   "title": "Final dividend · ₹0.65 per share",
+   "amount": 0.65,
+   "adjustedAmount": 0.325,
+   "ratio": null,
+   "paidInFY": "FY26",
+   "forFY": "FY25"
+  },
+  {
+   "date": "2024-11-11",
+   "type": "interim_dividend",
+   "title": "Interim dividend · ₹0.6 per share",
+   "amount": 0.6,
+   "adjustedAmount": 0.3,
+   "ratio": null,
+   "paidInFY": "FY25",
+   "forFY": "FY25"
+  },
+  {
+   "date": "2024-08-06",
+   "type": "final_dividend",
+   "title": "Final dividend · ₹0.6 per share",
+   "amount": 0.6,
+   "adjustedAmount": 0.3,
+   "ratio": null,
+   "paidInFY": "FY25",
+   "forFY": "FY24"
+  },
+  {
+   "date": "2023-11-22",
+   "type": "interim_dividend",
+   "title": "Interim dividend · ₹0.5 per share",
+   "amount": 0.5,
+   "adjustedAmount": 0.25,
+   "ratio": null,
+   "paidInFY": "FY24",
+   "forFY": "FY24"
+  },
+  {
+   "date": "2023-08-02",
+   "type": "final_dividend",
+   "title": "Final dividend · ₹0.5 per share",
+   "amount": 0.5,
+   "adjustedAmount": 0.25,
+   "ratio": null,
+   "paidInFY": "FY24",
+   "forFY": "FY23"
+  },
+  {
+   "date": "2023-02-20",
+   "type": "interim_dividend",
+   "title": "Interim dividend · ₹0.5 per share",
+   "amount": 0.5,
+   "adjustedAmount": 0.25,
+   "ratio": null,
+   "paidInFY": "FY23",
+   "forFY": "FY23"
+  },
+  {
+   "date": "2022-10-31",
+   "type": "split",
+   "title": "Stock split",
+   "amount": null,
+   "adjustedAmount": null,
+   "ratio": null,
+   "paidInFY": "FY23",
+   "forFY": null
+  },
+  {
+   "date": "2022-09-19",
+   "type": "final_dividend",
+   "title": "Final dividend · ₹3.5 per share",
+   "amount": 3.5,
+   "adjustedAmount": 0.35,
+   "ratio": null,
+   "paidInFY": "FY23",
+   "forFY": "FY22"
+  },
+  {
+   "date": "2021-09-16",
+   "type": "final_dividend",
+   "title": "Final dividend · ₹2.5 per share",
+   "amount": 2.5,
+   "adjustedAmount": 0.25,
+   "ratio": null,
+   "paidInFY": "FY22",
+   "forFY": "FY21"
+  },
+  {
+   "date": "2020-09-17",
+   "type": "final_dividend",
+   "title": "Final dividend · ₹0.75 per share",
+   "amount": 0.75,
+   "adjustedAmount": 0.075,
+   "ratio": null,
+   "paidInFY": "FY21",
+   "forFY": "FY20"
+  },
+  {
+   "date": "2020-02-24",
+   "type": "interim_dividend",
+   "title": "Interim dividend · ₹1.5 per share",
+   "amount": 1.5,
+   "adjustedAmount": 0.15,
+   "ratio": null,
+   "paidInFY": "FY20",
+   "forFY": "FY20"
+  },
+  {
+   "date": "2019-08-01",
+   "type": "final_dividend",
+   "title": "Final dividend · ₹2 per share",
+   "amount": 2,
+   "adjustedAmount": 0.2,
+   "ratio": null,
+   "paidInFY": "FY20",
+   "forFY": "FY19"
+  },
+  {
+   "date": "2018-09-18",
+   "type": "final_dividend",
+   "title": "Final dividend · ₹1.8 per share",
+   "amount": 1.8,
+   "adjustedAmount": 0.18,
+   "ratio": null,
+   "paidInFY": "FY19",
+   "forFY": "FY18"
+  },
+  {
+   "date": "2017-09-19",
+   "type": "final_dividend",
+   "title": "Final dividend · ₹1.8 per share",
+   "amount": 1.8,
+   "adjustedAmount": 0.18,
+   "ratio": null,
+   "paidInFY": "FY18",
+   "forFY": "FY17"
+  },
+  {
+   "date": "2016-09-14",
+   "type": "final_dividend",
+   "title": "Final dividend · ₹3.05 per share",
+   "amount": 3.05,
+   "adjustedAmount": 0.305,
+   "ratio": null,
+   "paidInFY": "FY17",
+   "forFY": "FY16"
+  },
+  {
+   "date": "2015-09-15",
+   "type": "final_dividend",
+   "title": "Final dividend · ₹2.645 per share",
+   "amount": 2.645,
+   "adjustedAmount": 0.2645,
+   "ratio": null,
+   "paidInFY": "FY16",
+   "forFY": "FY15"
+  },
+  {
+   "date": "2014-08-01",
+   "type": "final_dividend",
+   "title": "Final dividend · ₹2.3 per share",
+   "amount": 2.3,
+   "adjustedAmount": 0.23,
+   "ratio": null,
+   "paidInFY": "FY15",
+   "forFY": "FY14"
+  }
+ ],
+ "dividendsByFY": {
+  "periods": [
+   "FY21",
+   "FY22",
+   "FY23",
+   "FY24",
+   "FY25",
+   "FY26",
+   "FY27"
+  ],
+  "dps": [
+   0.25,
+   0.35,
+   0.5,
+   0.55,
+   0.625,
+   1.05,
+   0
+  ],
+  "partial": [
+   "FY27"
+  ],
+  "endedFY": "FY26",
+  "dpsUnadjusted": [
+   2.5,
+   3.5,
+   1,
+   1.1,
+   1.25,
+   2.1,
+   0.65
+  ],
+  "basis": "Declared for each financial year, adjusted for later splits and bonuses"
+ },
+ "dividendYieldTtm": 0.09,
+ "announcements": [
+  {
+   "date": "2026-11-16",
+   "time": "17:24",
+   "category": "General Updates",
+   "description": "TD Power Systems Limited has informed the Exchange about Communication To Shareholders Regarding TDS",
+   "link": "https://nsearchives.nseindia.in/corporate/TDPOWERSYS_16112026172400_CL-TDS_Communication_-_sg.pdf"
+  },
+  {
+   "date": "2026-11-13",
+   "time": "13:46",
+   "category": "Analysts/Institutional Investor Meet/Con. Call Updates",
+   "description": "TD Power Systems Limited has informed the Exchange about Link of Recording",
+   "link": "https://nsearchives.nseindia.com/corporate/TDPOWERSYS_13112026134614_CL_letter-Audio_recording_-_SG.pdf"
+  },
+  {
+   "date": "2026-11-12",
+   "time": "18:05",
+   "category": "Investor Presentation",
+   "description": "TD Power Systems Limited has informed the Exchange about Investor Presentation",
+   "link": "https://nsearchives.nseindia.com/corporate/TDPOWERSYS_12112026180519_Investor_Presentation_-_sg.pdf"
+  },
+  {
+   "date": "2026-11-12",
+   "time": "17:54",
+   "category": "Record Date",
+   "description": "TD Power Systems Limited has informed the Exchange that Record date for the purpose of Interim Dividend  is 18-Nov-2026.",
+   "link": "https://nsearchives.nseindia.com/corporate/TDPOWERSYS_12112026175143_Record_Date_intimation_-_for_DSC.pdf"
+  },
+  {
+   "date": "2026-11-12",
+   "time": "17:15",
+   "category": "Dividend",
+   "description": "TD Power Systems Limited has informed the Exchange that Board of Directors at its meeting held on November 12, 2026, declared Interim Dividend of Rs. 0.65 per equity share.",
+   "link": "https://nsearchives.nseindia.com/corporate/TDPOWERSYS_12112026171437_1Results_-_for_DSC.pdf"
+  },
+  {
+   "date": "2026-11-12",
+   "time": "17:11",
+   "category": "Outcome of Board Meeting",
+   "description": "TD Power Systems Limited has submitted to the Exchange, the financial results for the period ended September 30, 2026.",
+   "link": "https://nsearchives.nseindia.com/corporate/TDPOWERSYS_12112026170734_1Results_-_for_DSC.pdf"
+  },
+  {
+   "date": "2026-11-04",
+   "time": "12:03",
+   "category": "Analysts/Institutional Investor Meet/Con. Call Updates",
+   "description": "TD Power Systems Limited has informed the Exchange about Schedule of meet",
+   "link": "https://nsearchives.nseindia.com/corporate/TDPOWERSYS_04112026120235_Intimation_Earning_call_-_sg.pdf"
+  },
+  {
+   "date": "2026-10-12",
+   "time": "22:09",
+   "category": "Allotment of Securities",
+   "description": "TD Power Systems Limited has informed the Exchange regarding allotment of 7741935  securities pursuant to Qualified Institution Placement at its meeting held on October 12, 2026",
+   "link": "https://nsearchives.nseindia.com/corporate/TDPOWERSYS_12102026220859_Draft_Outomce_letter_-_3nd_FRC_Meeting_Allotment_.pdf"
+  },
+  {
+   "date": "2026-10-12",
+   "time": "22:07",
+   "category": "Qualified Institutional Placement",
+   "description": "TD Power Systems Limited has informed the Exchange about qualified Institutional Placement",
+   "link": "https://nsearchives.nseindia.com/corporate/TDPOWERSYS_12102026220720_Draft_Outomce_letter_-_3nd_FRC_Meeting_Allotment_.pdf"
+  },
+  {
+   "date": "2026-10-12",
+   "time": "19:47",
+   "category": "General Updates",
+   "description": "TD Power Systems Limited has informed the Exchange about Qualified Institutional Placement",
+   "link": "https://nsearchives.nseindia.com/corporate/TDPOWERSYS_12102026194731_Covering_Letter-SG.pdf"
+  },
+  {
+   "date": "2026-10-08",
+   "time": "11:15",
+   "category": "Certificate under SEBI (Depositories and Participants) Regulations, 2018",
+   "description": "TD Power Systems Limited has informed the Exchange about Certificate under SEBI (Depositories and Participants) Regulations, 2018",
+   "link": "https://nsearchives.nseindia.com/corporate/TDPOWERSYS_08102026111436_Regulation.pdf"
+  },
+  {
+   "date": "2026-10-07",
+   "time": "18:59",
+   "category": "General Updates",
+   "description": "TD Power Systems Limited has informed the Exchange about Outcome of the meeting of the Fund Raising Committee of the Company",
+   "link": "https://nsearchives.nseindia.com/corporate/TDPOWERSYS_07102026185931_FRC_Outcome-SG.pdf"
+  },
+  {
+   "date": "2026-10-07",
+   "time": "11:41",
+   "category": "Updates",
+   "description": "TD Power Systems Limited has informed the Exchange regarding 'Receipt of Trading Approval For 12,50,000 Equity Shares Allotted On Preferential Basis'.",
+   "link": "https://nsearchives.nseindia.com/corporate/TDPOWERSYS_07102026114016_Trading_Approval-_sg.pdf"
+  },
+  {
+   "date": "2026-10-02",
+   "time": "14:50",
+   "category": "Updates",
+   "description": "TD Power Systems Limited has informed the Exchange regarding 'Receipt of listing approval for 12,50,000 equity shares allotted on preferential basis'.",
+   "link": "https://nsearchives.nseindia.com/corporate/TDPOWERSYS_02102026145009_Final_for_Upload.pdf"
+  },
+  {
+   "date": "2026-10-01",
+   "time": "11:40",
+   "category": "Bagging/Receiving of orders/contracts",
+   "description": "TD Power Systems Limited has informed the Exchange about Bagging/Receiving of orders/contracts",
+   "link": "https://nsearchives.nseindia.com/corporate/TDPOWERSYS_01102026113919_Covering-SG.pdf"
+  },
+  {
+   "date": "2026-09-24",
+   "time": "15:45",
+   "category": "Analysts/Institutional Investor Meet/Con. Call Updates",
+   "description": "TD Power Systems Limited has informed the Exchange about Schedule of meet",
+   "link": "https://nsearchives.nseindia.com/corporate/TDPOWERSYS_24092026154447_Intimation_letter_-_30092026.pdf"
+  },
+  {
+   "date": "2026-09-21",
+   "time": "10:52",
+   "category": "Allotment of Securities",
+   "description": "TD Power Systems Limited has informed the Exchange regarding allotment of 12,50,000 equity shares pursuant to Preferential Issue.",
+   "link": "https://nsearchives.nseindia.com/corporate/TDPOWERSYS_21092026105154_Intimation_Letter-Sg123456789.pdf"
+  },
+  {
+   "date": "2026-09-12",
+   "time": "15:30",
+   "category": "General Updates",
+   "description": "TD Power Systems Limited has informed the Exchange about receipt of In-principle approval for the issue of 12,50,000 equity shares to Promoters on a preferential basis",
+   "link": "https://nsearchives.nseindia.com/corporate/TDPOWERSYS_12092026153035_Inprincipal_Intimation_Reg_30.pdf"
+  },
+  {
+   "date": "2026-08-18",
+   "time": "13:14",
+   "category": "Analysts/Institutional Investor Meet/Con. Call Updates",
+   "description": "TD Power Systems Limited has informed the Exchange about Transcript for the quarter ended June 30, 2026.",
+   "link": "https://nsearchives.nseindia.com/corporate/TDPOWERSYS_18082026131351_Transcript_-_sg.pdf"
+  },
+  {
+   "date": "2026-08-14",
+   "time": "18:53",
+   "category": "Arrangements for strategic, technical, manufacturing, or marketing tie up",
+   "description": "TD Power Systems Limited has informed the Exchange about Build-to-Print Manufacturing Framework Agreement with Siemens Energy, Inc.",
+   "link": "https://nsearchives.nseindia.com/corporate/TDPOWERSYS_14082026185315_Reg_30_Siemens_Final_Siemens_Energy-sg.pdf"
+  },
+  {
+   "date": "2026-08-14",
+   "time": "18:44",
+   "category": "General Updates",
+   "description": "TD Power Systems Limited has informed the Exchange about - Fund Raising",
+   "link": "https://nsearchives.nseindia.com/corporate/TDPOWERSYS_14082026184428_Outcome_of_BM-SG.pdf"
+  },
+  {
+   "date": "2026-08-14",
+   "time": "18:39",
+   "category": "Outcome of Board Meeting",
+   "description": "TD Power Systems Limited has informed the Exchange regarding Outcome of Board Meeting held on August 14, 2026. -Fund Raising",
+   "link": "https://nsearchives.nseindia.com/corporate/TDPOWERSYS_14082026183908_Outcome_of_BM-SG.pdf"
+  },
+  {
+   "date": "2026-08-12",
+   "time": "20:24",
+   "category": "Record Date",
+   "description": "TD Power Systems Limited has informed the Exchange that Record date for the purpose of Split/Subdivision  is 24-Aug-2026.",
+   "link": "https://nsearchives.nseindia.com/corporate/TDPOWERSYS_12082026202314_COvering-sg.pdf"
+  },
+  {
+   "date": "2026-08-12",
+   "time": "16:03",
+   "category": "Analysts/Institutional Investor Meet/Con. Call Updates",
+   "description": "TD Power Systems Limited has informed the Exchange about Link of Recording",
+   "link": "https://nsearchives.nseindia.com/corporate/TDPOWERSYS_12082026160342_Covering-sg.pdf"
+  },
+  {
+   "date": "2026-08-11",
+   "time": "18:02",
+   "category": "Investor Presentation",
+   "description": "TD Power Systems Limited has informed the Exchange about Investor Presentation",
+   "link": "https://nsearchives.nseindia.com/corporate/TDPOWERSYS_11082026180234_Final_for_Upload-SG.pdf"
+  }
+ ]
+}

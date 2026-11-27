@@ -22,9 +22,9 @@ class Ready:
     group: str                      # everyday | silver | model: the tab it is listed under
     rules: Rules = field(default_factory=dict)
     caps: Tuple[str, ...] = ()
-    bands: Tuple[str, ...] = ()     # a FinLit rating word (strong, healthy, mixed, watch): shown, since the user filters by the word
+    bands: Tuple[str, ...] = ()     # a FinLit Prism rating word (strong, healthy, average, weak, poor): shown, since the user filters by the word
     model: bool = False             # True: the rules are the model's cut-offs and never leave the server
-    score: str = ""                 # "iq" (Silver's FinLit IQ) or "prism" (Gold's FinLit Prism) for a screen on a FinLit score; "" for a screen on public figures
+    score: str = ""                 # "prism" for a screen on FinLit Prism (Gold); "" for a screen on public figures
 
 
 def _r(**kw: Tuple[Optional[float], Optional[float]]) -> Rules:
@@ -54,7 +54,7 @@ READY: List[Ready] = [
     Ready("divgrow", "Reliable dividend growers", "Paid dividends in 6 of 6 years, growing, yield above 1%", "silver", "silver",
           _r(div_years=(6, None), dps_cagr=(5, None), dividend_yield=(1, None))),
     Ready("buying", "Promoters and funds buying", "Promoters and institutions both added to their stake this year", "silver", "silver",
-          _r(own_promoters_chg_1y=(0.25, None), own_inst_chg_1y=(0.5, None))),
+          _r(own_promoters_chg_1y=(0.25, 10), own_inst_chg_1y=(0.5, None))),     # task #243 D3: a promoter rise above 10 points is a merger or reclassification, not buying
     Ready("resultsseason", "Results-season standouts", "Latest quarter: sales up 20%+ and profit up 25%+ on the year-ago quarter, market cap ₹1,000 Cr or more", "silver", "silver",
           _r(q_sales_yoy=(20, None), q_profit_yoy=(25, None), market_cap=(1000, None))),
     Ready("steadydiv", "Steady dividend payers", "Yield 2.5%+, paid in all of the last 6 years, payout 75% or less, at most 1 red flag, market cap ₹1,000 Cr or more", "silver", "silver",
@@ -64,16 +64,8 @@ READY: List[Ready] = [
     Ready("newhigh", "Near a 52-week high with volume", "Within 3% of the high and trading 1.5× average volume", "silver", "silver", _r(near_high=(1, None), volume_vs_avg=(1.5, None))),
     Ready("oversold", "Oversold quality", "RSI under 35 but ROE above 12% and debt under 1×", "silver", "silver", _r(rsi14=(None, 35), roe=(12, None), debt_to_equity=(None, 1))),
     Ready("clean", "No red flags", "None of the eight warnings apply, large and mid companies", "silver", "silver", _r(flag_count=(None, 0)), caps=("Large", "Mid")),
-    # On the FinLit IQ (Silver): words only
-    Ready("strong", "FinLit IQ Strong", "Companies the FinLit IQ rates Strong", "silver", "model", bands=("strong",), score="iq"),
-    Ready("modelcompound", "Quality compounders (model)", "Companies the FinLit IQ rates high on both quality and growth", "silver", "model",
-          _r(pillar_quality=(70, None), pillar_growth=(60, None)), model=True, score="iq"),
-    Ready("safe", "Safe and profitable (model)", "Companies the FinLit IQ rates high on both balance sheet and profitability", "silver", "model",
-          _r(pillar_balance=(70, None), pillar_profitability=(60, None)), model=True, score="iq"),
-    Ready("improving", "Improving scores", "Companies whose FinLit IQ rose clearly since last quarter", "silver", "model", _r(score_change=(5, None), overall=(50, None)), model=True, score="iq"),
-    Ready("outfavour", "Sound but out of favour", "Companies the FinLit IQ rates sound on quality while the price trend is weak", "silver", "model",
-          _r(pillar_quality=(55, None), pillar_technical=(None, 35)), model=True, score="iq"),
-    # On FinLit Prism (Gold, who never sees the FinLit IQ): words only, the cut-offs stay here
+    # Task #283: the screens on the retired FinLit IQ (Silver) are gone; FinLit Prism is the only company score.
+    # On FinLit Prism (Gold): words only, the cut-offs stay here
     Ready("pz_strong", "Prism Strong", "Companies FinLit Prism rates Strong", "gold", "model", bands=("strong",), score="prism"),
     Ready("pz_compound", "Quality and growth (Prism)", "Companies Prism rates high on both Quality and Growth & Profitability", "gold", "model",
           _r(prism_quality=(70, None), prism_fundamental=(60, None)), model=True, score="prism"),
@@ -85,13 +77,16 @@ READY: List[Ready] = [
           _r(prism_quality=(55, None), prism_lt_score=(None, -20)), model=True, score="prism"),
 ]
 BY_ID: Dict[str, Ready] = {r.id: r for r in READY}
+# Task #283: the ids of the retired screens on the FinLit IQ. A member's saved screen may still name one until the saved items are converted (the data change):
+# it is still accepted when the member saves their list (so saving never fails), but it is never offered, never run and never sends an alert.
+RETIRED_SCREENS = ("strong", "modelcompound", "safe", "improving", "outfavour")
 MODEL: Dict[str, Ready] = {r.id: r for r in READY if r.model}
 
 
 def shown_to(r: Ready, plan: str) -> bool:
-    """A screen on a FinLit score is listed only for the plan that has that score: the FinLit IQ below Gold, FinLit Prism for Gold and up."""
+    """A screen on FinLit Prism is listed only for Gold and up (the plans with Prism); a screen on public figures for every plan."""
     gold = plan in ("gold", "admin", "platinum")
-    return not r.score or (r.score == "prism") == gold
+    return not r.score or (r.score == "prism" and gold)
 
 
 def public(r: Ready, count: Optional[int]) -> dict:

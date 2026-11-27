@@ -1,0 +1,33 @@
+/* Task #364 PR C (Chinmay, 24 Nov 2026): the Stock screener page around the panel and the table. Desktop uses more of a wide screen (up to 1600px, was the
+   site's 1260px), the date line reads clearly, the results head is set apart from the table, the 3D picture and its explanation stay one section with the
+   explanation never in a narrow column, and on a phone Score and Filters opens as a full-height drawer over the page (its own header and its "Show N
+   companies" button stay in view) with 44px touch targets. Rules start at .wrap.ssw so they win whatever the load order. */
+
+/* desktop width: more of a wide screen, never stretched past 1600px */
+@media (min-width: 1281px) { .wrap.ssw { max-width: 1600px; } }
+
+/* the price and score date line */
+.wrap.ssw .xsh-date { font-size: var(--fs-13); font-weight: 600; color: var(--text); }
+
+/* the results head: count, actions, search and Columns set apart from the table */
+.wrap.ssw .ssw-res .ssw-rhd { padding-bottom: 12px; margin-bottom: 12px; border-bottom: 1px solid var(--border); }
+.wrap.ssw .ssw-res .ssw-sub { margin-top: 2px; }
+
+/* the lower section: the 3D picture beside its explanation; the explanation keeps a readable width, under the picture when space is short */
+.wrap.ssw .scr-3d { grid-template-columns: minmax(0, 1fr) minmax(300px, 380px); gap: 16px; margin: 16px 0 0; }
+.wrap.ssw .scr-3d-m { padding: 16px; gap: 10px; font-size: var(--fs-13); }
+.wrap.ssw .scr-3d-m dt { color: var(--gain); }
+@media (max-width: 1100px) { .wrap.ssw .scr-3d { grid-template-columns: minmax(0, 1fr); } }
+.wrap.ssw .scr-foot { max-width: 960px; line-height: 1.5; }
+
+/* phone: Score and Filters as a full-height drawer */
+@media (max-width: 720px) {
+  .wrap.ssw .ssw-rules.open { position: fixed; inset: 0; z-index: 70; max-height: none; height: 100dvh; margin: 0; border: 0; border-radius: 0; overflow: auto; overscroll-behavior: contain;
+    padding: 0 16px calc(16px + env(safe-area-inset-bottom, 0px)) !important; animation: ssw-drawer .2s ease; }
+  .wrap.ssw .ssw-rules.open .ssw-rh { position: sticky; top: 0; z-index: 3; margin: 0 -16px 12px; padding: calc(12px + env(safe-area-inset-top, 0px)) 16px 12px; background: var(--s1); border-bottom: 1px solid var(--border); }
+  .wrap.ssw .ssw-rules.open .ssw-rmin { min-width: 44px; min-height: 44px; }
+  .wrap.ssw .ssw-rules.open .ssw-rdone { position: sticky; bottom: 0; z-index: 3; }
+  .wrap.ssw .ssw-rtoggle { width: 100%; }
+}
+@keyframes ssw-drawer { from { transform: translateY(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .wrap.ssw .ssw-rules.open { animation: none; } }

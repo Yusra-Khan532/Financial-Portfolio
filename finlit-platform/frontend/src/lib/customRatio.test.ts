@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { closeFilter, convert, countPass, defaultShow, presets, suggestName, unitCheck, unitTag, valueText, type Stats } from "./customRatio";
+import { chartStep, roundToStep, closeFilter, convert, countPass, defaultShow, presets, suggestName, unitCheck, unitTag, valueText, type Stats } from "./customRatio";
 import type { MetricInfo } from "./proscreen";
 
 const M = (key: string, label: string, unit: string, family: MetricInfo["family"] = null): MetricInfo =>
@@ -31,8 +31,12 @@ describe("Custom ratio rules", () => {
     expect(convert(5, "times")).toBe(0.05); expect(convert(0.05, "pct")).toBe(5);
   });
   it("CR-4: presets from the ratio's own spread, counts as typed, and the value in words", () => {
-    const st = { p25: 2.71, p50: 6.4, p75: 17.62 } as Stats;
-    expect(presets(st).map((p) => [p.label, p.op, p.a])).toEqual([["Top quarter", "gt", 17.6], ["Above the middle", "gt", 6.4], ["Below the middle", "lt", 6.4], ["Lowest quarter", "lt", 2.71]]);
+    const st = { p2: 0.5, p25: 2.71, p50: 6.4, p75: 17.62, p98: 40 } as Stats;                 // the chart's step is 1 here
+    expect(presets(st).map((p) => [p.label, p.op, p.a])).toEqual([["Top quarter", "gt", 18], ["Above the middle", "gt", 6], ["Below the middle", "lt", 6], ["Lowest quarter", "lt", 3]]);
+    // N-7: a ratio around 1% never fills the box with "0.0131": presets round to the chart's step, in the unit shown
+    expect(presets({ p2: 0.1, p25: 0.8, p50: 1.31, p75: 2.2, p98: 4 } as Stats)[1].a).toBe(1.3);
+    expect(chartStep({ p2: 0.001, p98: 0.04, p50: 0.0131 })).toBe(0.001);
+    expect(roundToStep(0.01312, 0.001)).toBe(0.013);
     const v = [1, 2, 3, 4, 5, 6];
     expect(countPass(v, "gt", 4)).toBe(3); expect(countPass(v, "lt", 2)).toBe(2); expect(countPass(v, "between", 5, 2)).toBe(4); expect(countPass(v, "none")).toBe(6);
     expect(valueText({ op: "gt", a: 14.2, show: "pct" })).toBe("≥ 14.2%"); expect(valueText({ op: "none", show: "times" })).toBe("Column");

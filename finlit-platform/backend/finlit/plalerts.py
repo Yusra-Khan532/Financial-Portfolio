@@ -13,7 +13,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from .alertengine import deliver, watchlist_symbols
 from .auth.mailer import Mailer
-from .plflags import pl_flags, period_views
+from .plflags import CASES, pl_flags, period_views, titled
 
 log = logging.getLogger("finlit.plalerts")
 
@@ -42,7 +42,14 @@ def message(symbol: str, flag: Dict[str, Any], views: Optional[Dict[str, Optiona
     """The title names the period kind ('latest quarter' or 'latest year') so a quarterly result is never taken for the annual one. When both
     views exist, the body also gives the other one's figures."""
     quarter = flag["scope"] == "quarterly"
-    title = f"{symbol} – {flag['title']}" + ("" if flag["case"] == 8 else " in the latest quarter" if quarter else " in the latest year") + f" ({flag['period']})"
+    # task #312: the flag's own title now names its period ("... in the Sep quarter", "... in FY26"); the alert adds the year of a quarter and "the latest"
+    named = titled(CASES[flag["case"]]["title"], flag["case"], flag["scope"], flag.get("period")) if flag.get("case") in CASES else flag["title"]
+    if flag["case"] == 8:
+        title = f"{symbol} – {named} ({flag['period']})"
+    elif quarter:
+        title = f"{symbol} – {named} ({flag['period']}, the latest quarter)"
+    else:
+        title = f"{symbol} – {named} (the latest year)"
     extra = []
     for sc in ("quarterly", "annual"):
         v = (views or {}).get(sc)
@@ -87,7 +94,7 @@ async def auto_pl_flags(pool, mailer: Mailer, site_url: str, today: Optional[dat
     async with pool.acquire() as conn:
         users = await conn.fetch(
             "SELECT u.id, u.email, s.watchlist, s.prefs FROM users u JOIN user_state s ON s.user_id = u.id "
-            "WHERE u.status = 'active' AND u.email_verified_at IS NOT NULL AND u.plan IN ('silver', 'gold') "
+            "WHERE u.status = 'active' AND u.email_verified_at IS NOT NULL AND u.plan IN ('silver', 'gold', 'mfetf', 'equity', 'combined', 'platinum') "
             "AND (u.plan_until IS NULL OR u.plan_until > now())")
         wl = {u["id"]: watchlist_symbols(u["watchlist"]) for u in users}
         symbols = sorted({x for v in wl.values() for x in v})

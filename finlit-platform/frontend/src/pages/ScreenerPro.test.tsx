@@ -2,6 +2,8 @@
 // The Stock screener (task #64, file 04, with tasks #73, #74 and #75): the short head and ready-made screens, Your rules (rule cards, the picker, quick
 // ranges, the funnel, Type rules, the one Sector filter), the nine standard columns with a "Your rules" band, the colour note, the side panel's figures,
 // and the address that holds the whole screen.
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router";
@@ -26,7 +28,8 @@ const STD = ["price", "market_cap", "pe", "roe", "roce", "sales_cagr_3y", "debt_
 const wide = (c: Catalog): Catalog => ({ ...c, standardColumns: STD });   // a catalogue whose table opens with many columns (the tests of cells, colours and the column menu)
 const catalog = (lockSilver = false, plan: "basic" | "silver" | "gold" = lockSilver ? "basic" : "silver"): Catalog => ({
   plan, total: 5813, withReport: 5000, updatedAt: "2026-10-30T00:00:00Z", sectors: [], industries: [], indices: [], caps: [{ name: "Large", n: 204 }, { name: "Mid", n: 386 }, { name: "Small", n: 5244 }],
-  bands: ["strong", "healthy", "mixed", "watch"].map((k) => ({ key: k, label: k[0].toUpperCase() + k.slice(1), locked: plan !== "gold", n: 10 })), limits: { rows: null, export: true },
+  // task #283: FinLit Prism's words only; below Gold they come locked (the server sends no count and no score group)
+  bands: ["strong", "healthy", "average", "weak", "poor"].map((k) => ({ key: k, label: k[0].toUpperCase() + k.slice(1), locked: plan !== "gold", n: 10 })), limits: { rows: null, export: true },
   defaultColumns: ["market_cap", "price"], standardColumns: ["market_cap"],   // task #145: the table opens with the company and its market cap only
   groups: [
     { id: "valuation", label: "Valuation", tier: "basic", metrics: [
@@ -37,18 +40,17 @@ const catalog = (lockSilver = false, plan: "basic" | "silver" | "gold" = lockSil
     { id: "health", label: "Financial health", tier: "basic", metrics: [M("debt_to_equity", "Debt to equity", { better: "lower" })] },
     { id: "returns", label: "Returns", tier: "basic", metrics: [M("ret_1d", "1-day change", { unit: "%", better: "higher" }), M("ret_1y", "1-year return", { unit: "%", better: "higher" })] },
     { id: "size", label: "Size & price", tier: "basic", metrics: [M("market_cap", "Market cap", { unit: "Cr", better: "none" }), M("price", "Share price", { unit: "Rs", better: "none" })] },
-    { id: "model", label: "FinLit model", tier: "gold", metrics: [M("overall", "FinLit IQ", { unit: "pts", better: "higher", tier: "gold", locked: plan !== "gold" })] },
   ],
 });
 const READY = { asOf: "2026-11-12T00:00:00Z", total: 5813, screens: [
   { id: "large", label: "Large, established companies", says: "Market cap above ₹1,00,000 Cr", tier: "basic", group: "everyday", count: 123, state: { ranges: { market_cap: { min: 100000 } } } },
   { id: "lowdebt", label: "Low debt", says: "Debt to equity below 0.5×", tier: "basic", group: "everyday", count: 3552, state: { ranges: { debt_to_equity: { max: 0.5 } } } },
   { id: "value", label: "Value picks", says: "P/E under 15× and P/B under 2×", tier: "silver", group: "silver", count: 1265, state: { ranges: { pe: { min: 0.1, max: 15 }, pb: { min: 0.1, max: 2 } } } },
-  { id: "strong", label: "FinLit IQ Strong", says: "Companies the FinLit IQ rates Strong", tier: "silver", group: "model", count: 211, state: { ranges: {}, bands: ["strong"] } },
-  { id: "modelcompound", label: "Quality compounders (model)", says: "Companies the FinLit IQ rates high on both quality and growth", tier: "silver", group: "model", count: 300 },
+  { id: "pz_strong", label: "Prism Strong", says: "Companies FinLit Prism rates Strong", tier: "gold", group: "model", count: 211, state: { ranges: {}, bands: ["strong"] } },
+  { id: "pz_compound", label: "Quality and growth (Prism)", says: "Companies Prism rates high on both Quality and Growth & Profitability", tier: "gold", group: "model", count: 300 },
 ] };
 type Body = { ratios?: { num: string; den: string; show: string }[]; columns: string[]; filters: Record<string, unknown>; sort: { key: string; dir: string }; cats?: Record<string, string[]>; model_screen?: string; model_screens?: string[]; q?: string; offset?: number };
-const st = vi.hoisted(() => ({ funnel: undefined as unknown, many: 0, total: 0, cat: null as unknown, bodies: [] as Body[] }));
+const st = vi.hoisted(() => ({ funnel: undefined as unknown, facets: undefined as unknown, many: 0, total: 0, cat: null as unknown, bodies: [] as Body[] }));
 
 const Where = () => { const l = useLocation(); return <output data-testid="loc">{l.pathname + l.search}</output>; };
 const mount = (qs = "") => {
@@ -62,7 +64,9 @@ const ruleHeads = () => Array.from(table().querySelectorAll("thead tr.ssw-hd th.
 const colBtn = () => screen.getByRole("button", { name: /^Columns/ }).textContent;
 const ready = () => waitFor(() => expect(table()).toBeTruthy());
 const last = () => st.bodies.filter((b) => !b.q || b.q === "").at(-1)!;
-const rulesPanel = () => screen.getByRole("complementary", { name: "Your rules" });
+const rulesPanel = () => screen.getByRole("complementary", { name: "Score and Filters" });
+/** Task #243 (pack S): the left panel's tabs; the ready-made screens and Custom ratio each sit in their own tab. */
+const openTab = (n: RegExp) => fireEvent.click(screen.getByRole("tab", { name: n }));
 const addRule = async (label: string) => {
   fireEvent.click(screen.getByRole("button", { name: "+ Add a rule" }));
   const dlg = await screen.findByRole("dialog", { name: "Add a rule" });
@@ -72,7 +76,7 @@ const addRule = async (label: string) => {
 
 beforeEach(() => {
   admin.user = null;
-  st.cat = catalog(); st.bodies = []; st.many = 0; st.total = 0; st.funnel = undefined; localStorage.clear(); ui.upgrade.mockClear(); ui.toast.mockClear();
+  st.cat = catalog(); st.bodies = []; st.many = 0; st.total = 0; st.funnel = undefined; st.facets = undefined; localStorage.clear(); ui.upgrade.mockClear(); ui.toast.mockClear();
   vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} });
   window.matchMedia = ((q: string) => ({ matches: false, media: q, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {}, onchange: null, dispatchEvent: () => false })) as never;
   vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
@@ -84,7 +88,7 @@ beforeEach(() => {
     if (st.many) return new Response(JSON.stringify({ total: st.total || st.many, offset: body.offset ?? 0, limit: 25, capped: false, columns: body.columns, took: 3, funnel: st.funnel, rows: Array.from({ length: st.many }, (_, i) => (
       { symbol: "S" + ((body.offset ?? 0) + i), name: "Company " + i, sector: null, cap: "Large", band: null, full: true, v: Object.fromEntries(body.columns.map((c: string) => [c, i + 1])) })) }), { status: 200 });
     const total = st.funnel && (st.funnel as { after: number }[]).some((s) => s.after === 0) ? 0 : 2;
-    return new Response(JSON.stringify({ total, offset: 0, limit: 25, capped: false, columns: body.columns, took: 3, funnel: st.funnel, rows: total === 0 ? [] : [
+    return new Response(JSON.stringify({ total, offset: 0, limit: 25, capped: false, columns: body.columns, took: 3, funnel: st.funnel, facets: st.facets, rows: total === 0 ? [] : [
       { symbol: "AAA", name: "Alpha", sector: null, cap: "Large", band: "strong", pband: "healthy", full: true, v: Object.fromEntries(body.columns.map((c: string) => [c, c === "ret_1d" ? 1.5 : 12])) },
       { symbol: "BBB", name: "Beta", sector: null, cap: "Mid", band: "watch", full: true, v: Object.fromEntries(body.columns.map((c: string) => [c, c === "pe" ? null : c === "ret_1d" ? -0.4 : 8])) }] }), { status: 200 });
   }));
@@ -92,32 +96,37 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("the head and the ready-made screens (file 04 §2, §8)", () => {
-  it("opens with a short head, the four Find stocks tabs and today's ready-made screens", async () => {
+  it("opens with the site's page header, the four screener boxes and the ready-made screens in their own tab (task #243, pack H and S)", async () => {
     mount(); await ready();
     expect(screen.getByRole("heading", { level: 1, name: "Stock screener" })).toBeTruthy();
-    const tabs = screen.getByRole("navigation", { name: "Find stocks" });
-    expect(within(tabs).getAllByRole("link").map((a) => a.textContent)).toEqual(["Stock screener", "Basic stock screenerSILVER", "Advanced stock screenerGOLD", "Query builder"]);      // free is the default: no FREE badge
+    const boxes = screen.getByRole("navigation", { name: "Screeners" });
+    expect(within(boxes).getAllByRole("link").map((a) => a.textContent)).toEqual(["Stock screener", "Advanced stock screener", "Query builder"]);   // task #283: no Basic stock screener   // page names only: no tier tags
+    expect(document.querySelector(".ssy, nav.fst, .ssw-head")).toBeNull();                      // the section above the results, the old tab strip and head card are gone
+    expect(screen.getByRole("tab", { name: "Your rules", selected: true })).toBeTruthy();        // Your rules is open on load
+    openTab(/^Ready-made/);
     const card = await screen.findByRole("button", { name: /^Large, established companies: Market cap above ₹1,00,000 Cr, 123 companies today/ });
-    expect(card.textContent).toMatch(/123 companies/);
+    expect(card.textContent).toMatch(/123/);
     expect(document.querySelector(".fgx-kpi, .kpi")).toBeNull();                 // the stat tiles and the tall hero are gone
   });
 
   it("Custom ratio (task #64 Part 3): + Build a ratio opens the drawer over the page; Add puts a rule card, a chip, a column and the address; the old panel is gone", async () => {
     st.cat = catalog(false, "gold");                                                                 // Gold and Platinum only (CR-0)
     mount(); await ready();
+    openTab(/Custom ratio/);
+    expect(screen.getByRole("tabpanel", { name: /Custom ratio/ }).textContent).toContain("Up to 3 at a time.");   // N-9 (the tab's intro, task #243 S5)
     const b = screen.getByRole("button", { name: /\+ Build a ratio/ });
     expect(b.tagName).toBe("BUTTON"); expect(b.className).toMatch(/btn primary/);
     expect(document.getElementById("scr-ratio")).toBeNull();
     fireEvent.click(b);
     const dlg = screen.getByRole("dialog", { name: "Build a custom ratio" });
     expect(document.getElementById("scr-ratio")).toBeNull();                                         // a drawer, not a section that pushes the table down
-    expect(within(dlg).queryByRole("button", { name: /^P\/E/ })).toBeNull();                         // P/E is behind the tick box (a ratio already)
-    fireEvent.click(within(dlg).getByRole("checkbox", { name: /Also show ratios, percentages and counts/ }));
+    expect(within(dlg).queryByRole("checkbox")).toBeNull();                                          // every figure is listed at once (14 Nov, N-1)
     fireEvent.click(within(dlg).getByRole("button", { name: /^P\/E/ }));
     fireEvent.click(within(dlg).getByRole("button", { name: /^Return on equity/ }));
     fireEvent.click(await within(dlg).findByRole("radio", { name: "No condition, just the column" }));
     fireEvent.click(within(dlg).getByRole("button", { name: "Add the column" }));
     expect(screen.queryByRole("dialog", { name: "Build a custom ratio" })).toBeNull();
+    openTab(/^Your rules/);
     expect(screen.getByRole("group", { name: "Custom ratio: P/E to return on equity" })).toBeTruthy();
     expect(screen.getByText("P/E to return on equity (column)")).toBeTruthy();
     await waitFor(() => expect(loc()).toContain("cr="));
@@ -126,31 +135,35 @@ describe("the head and the ready-made screens (file 04 §2, §8)", () => {
   });
   it("a metric screen adds its rules to Your rules as editable cards, shows as on, and turns off again (task #64 P-4)", async () => {
     mount(); await ready();
-    fireEvent.click(screen.getByRole("tab", { name: /More screens/ }));
+    openTab(/^Ready-made/); fireEvent.click(screen.getByRole("tab", { name: /More screens/ }));
     fireEvent.click(await screen.findByRole("button", { name: /^Value picks:/ }));
     await waitFor(() => expect(last().filters).toEqual({ pe: { min: 0.1, max: 15 }, pb: { min: 0.1, max: 2 } }));
+    expect(screen.getByRole("button", { name: /^Value picks:.*, on$/ }).getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByRole("tab", { name: /^Ready-made\s*1 on$/ })).toBeTruthy();                     // task #243 (S2): the tab reads "1 on"
+    openTab(/^Your rules/);
     const panel = rulesPanel();
+    expect(within(panel).getByRole("group", { name: "Ready-made screens on: 1" }).textContent).toContain("Value picks");   // S3: listed at the top of Your rules
     expect(within(panel).getByRole("group", { name: "P/E" })).toBeTruthy();
     expect((within(panel).getByLabelText("P/E to") as HTMLInputElement).value).toBe("15");
-    expect(screen.getByRole("button", { name: /^Value picks:.*, on$/ }).getAttribute("aria-pressed")).toBe("true");
     expect(screen.getByText("Screen: Value picks")).toBeTruthy();
     expect(screen.getByText(/match all 2 rules · of 5,813 listed · 1 ready-made screen on/)).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: /^Value picks:/ }));                   // its card again: only its own rules go
+    fireEvent.click(within(panel).getByRole("button", { name: "Turn off the Value picks screen" }));   // the × on its pill: only its own rules go
     await waitFor(() => expect(screen.queryByText("Screen: Value picks")).toBeNull());
     expect((within(rulesPanel()).getByLabelText("P/E to") as HTMLInputElement).value).toBe("");   // (an earlier answer for no rules is served from the cache)
   });
 
   it("screens stack: each adds its rules to the reader's, the stricter range wins, and turning one off takes away only its own (task #64 P-4)", async () => {
     mount(); await ready();
-    fireEvent.click(screen.getByRole("tab", { name: /More screens/ }));
+    openTab(/^Ready-made/); fireEvent.click(screen.getByRole("tab", { name: /More screens/ }));
     fireEvent.click(await screen.findByRole("button", { name: /^Value picks:/ }));              // P/E 0.1 to 15
     await waitFor(() => expect(last().filters).toEqual({ pe: { min: 0.1, max: 15 }, pb: { min: 0.1, max: 2 } }));
+    openTab(/^Your rules/);
     fireEvent.change(within(rulesPanel()).getByLabelText("P/E to"), { target: { value: "10" } });   // the reader tightens it: it becomes the reader's own
     await waitFor(() => expect(last().filters).toEqual({ pe: { min: 0.1, max: 10 }, pb: { min: 0.1, max: 2 } }));
-    fireEvent.click(screen.getByRole("tab", { name: /Everyday/ }));
+    openTab(/^Ready-made/); fireEvent.click(screen.getByRole("tab", { name: /Everyday/ }));
     fireEvent.click(await screen.findByRole("button", { name: /^Low debt:/ }));                  // a second screen on top: both apply
     await waitFor(() => expect(last().filters).toEqual({ pe: { min: 0.1, max: 10 }, pb: { min: 0.1, max: 2 }, debt_to_equity: { max: 0.5 } }));
-    expect(screen.getByText("2 on", { selector: ".ssy-on b" })).toBeTruthy();
+    expect(screen.getByText("2 on", { selector: ".xsp-allon b" })).toBeTruthy();
     expect(screen.getByText(/· 2 ready-made screens on/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Remove Screen: Value picks" }));         // off from its chip: P/B goes; the reader's own P/E and Low debt stay
     await waitFor(() => expect(last().filters).toEqual({ pe: { min: 0.1, max: 10 }, debt_to_equity: { max: 0.5 } }));
@@ -158,25 +171,28 @@ describe("the head and the ready-made screens (file 04 §2, §8)", () => {
     await waitFor(() => expect(last().filters).toEqual({ pe: { min: 0.1, max: 10 } }));
   });
 
-  it("a screen on the plan's score sends only its id: no cut-off is on the page or in the request, and two stack", async () => {
-    mount(); await ready();
-    fireEvent.click(screen.getByRole("tab", { name: /On the FinLit IQ/ }));
-    fireEvent.click(await screen.findByRole("button", { name: /^Quality compounders \(model\):/ }));
-    await waitFor(() => expect(last().model_screens).toEqual(["modelcompound"]));
+  it("a screen on FinLit Prism sends only its id: no cut-off is on the page or in the request, and two stack", async () => {
+    st.cat = { ...catalog(false, "gold"), bandModel: "prism" }; mount(); await ready();
+    openTab(/^Ready-made/); fireEvent.click(screen.getByRole("tab", { name: /On FinLit Prism/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /^Quality and growth \(Prism\):/ }));
+    await waitFor(() => expect(last().model_screens).toEqual(["pz_compound"]));
     expect(last().filters).toEqual({});
-    expect(within(rulesPanel()).getByRole("group", { name: /Screen on the FinLit IQ: Quality compounders/ }).textContent).toMatch(/cut-offs stay on the server/);
-    expect(document.body.textContent).not.toMatch(/70\+|Quality 70|78 or more/);
+    openTab(/^Your rules/);
+    expect(within(rulesPanel()).getByRole("group", { name: /Screen on FinLit Prism: Quality and growth/ }).textContent).toMatch(/cut-offs stay on the server/);
+    expect(document.body.textContent).not.toMatch(/70\+|Quality 70|FinLit IQ/);
     await waitFor(() => expect(new URLSearchParams((screen.getByTestId("loc").textContent || "").split("?")[1]).get("s")).toBeTruthy());
-    fireEvent.click(screen.getByRole("button", { name: "Turn off Quality compounders (model)" }));
-    await waitFor(() => expect(within(rulesPanel()).queryByRole("group", { name: /Screen on the FinLit IQ/ })).toBeNull());
+    fireEvent.click(screen.getByRole("button", { name: "Turn off Quality and growth (Prism)" }));
+    await waitFor(() => expect(within(rulesPanel()).queryByRole("group", { name: /Screen on FinLit Prism/ })).toBeNull());
     await waitFor(() => expect(new URLSearchParams((screen.getByTestId("loc").textContent || "").split("?")[1]).get("s")).toBeNull());   // nothing of it is left in the address
   });
 
-  it("the rating-word screen and a screen above the plan: Basic is asked to upgrade instead of running", async () => {
+  it("below Gold there is no group of screens on a score (task #283), and a screen above the plan asks to upgrade instead of running", async () => {
     st.cat = catalog(true); mount(); await ready();
-    fireEvent.click(screen.getByRole("tab", { name: /On the FinLit IQ/ }));
-    fireEvent.click(await screen.findByRole("button", { name: /^FinLit IQ Strong:.*part of Silver/ }));
-    expect(ui.upgrade).toHaveBeenCalledWith("silver", expect.stringMatching(/FinLit IQ Strong/));
+    openTab(/^Ready-made/);
+    expect(screen.queryByRole("tab", { name: /On FinLit Prism|FinLit IQ|FinLit model/ })).toBeNull();
+    fireEvent.click(screen.getByRole("tab", { name: /More screens/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /^Value picks:.*part of Silver/ }));
+    expect(ui.upgrade).toHaveBeenCalledWith("silver", expect.stringMatching(/Value picks/));
     expect(st.bodies.some((b) => b.cats?.band?.length)).toBe(false);
   });
 
@@ -186,43 +202,110 @@ describe("the head and the ready-made screens (file 04 §2, §8)", () => {
     fireEvent.click(screen.getByRole("button", { name: /Save screen/ }));
     fireEvent.change(screen.getByLabelText("Screen name"), { target: { value: "My ROE" } });
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
-    fireEvent.click(screen.getByRole("tab", { name: /My screens/ }));
+    openTab(/^Ready-made/); fireEvent.click(screen.getByRole("tab", { name: /My screens/ }));
     expect(screen.getByText("My ROE")).toBeTruthy();
+    openTab(/^Your rules/);
     fireEvent.click(within(rulesPanel()).getByRole("button", { name: "Clear all" }));
     await waitFor(() => expect(within(rulesPanel()).queryByRole("group", { name: "Return on equity" })).toBeNull());
+    openTab(/^Ready-made/);
     fireEvent.click(within(screen.getByText("My ROE").closest("li") as HTMLElement).getByRole("button", { name: "Open" }));   // the card is open again: no rules are left
     await waitFor(() => expect((within(rulesPanel()).getByLabelText("Return on equity from") as HTMLInputElement).value).toBe("40"));
     expect(screen.getByText(/started from My ROE/)).toBeTruthy();
+    openTab(/^Ready-made/);                                                                       // opening it moved to Your rules (task #243)
     fireEvent.click(screen.getByRole("button", { name: "Delete My ROE" }));                // still open: the visitor opened the card themselves
     expect(screen.queryByText("My ROE")).toBeNull();
   });
 });
 
 describe("task #64 Part 4: the panel and the header", () => {
-  it("S-1: without a click the panel shows how many filters there are and every group with its count; a group row opens the picker on that group", async () => {
+  it("S-1 (task #364): the panel shows how many filters there are and every group, under its topic, as a closed accordion with its count; opening one lists its filters", async () => {
     mount(); await ready();
-    const box = screen.getByRole("group", { name: "Every filter, by group" });
-    expect(box.querySelector(".ssw-size-n")?.textContent).toBe("12 filters in 7 groups");          // hidden period variants are not counted
-    expect(within(box).getAllByRole("button").map((b) => b.querySelector("span")?.firstChild?.textContent)).toEqual(["Valuation", "Profitability", "Growth", "Financial health", "Returns", "Size & price", "FinLit model"]);
-    expect(within(box).getByRole("link", { name: /Custom ratio: comes with Gold and Platinum/ }).getAttribute("href")).toBe("/plans#gold");   // Silver: locked (N-2)
-    fireEvent.click(within(box).getByRole("button", { name: /^Profitability: 2 filters/ }));
-    const dlg = await screen.findByRole("dialog");
-    expect(within(dlg).getByRole("button", { name: /Profitability/, pressed: true })).toBeTruthy();
+    expect(document.querySelector(".srt-total")?.textContent).toBe("11 filters in 6 groups");          // hidden period variants are not counted; task #283: no group of the retired score
+    expect([...document.querySelectorAll(".srt-h")].map((h) => h.textContent)).toEqual(["Valuation & financial performance", "Returns & business performance"]);
+    expect([...document.querySelectorAll(".srt-at")].map((h) => h.textContent)).toEqual(["Valuation", "Profitability", "Growth", "Financial health", "Size & price", "Returns"]);
+    expect(document.querySelectorAll(".srt-b").length).toBe(0);                                         // all closed until clicked
+    expect(screen.queryByRole("link", { name: /Custom ratio/ })).toBeNull();                              // task #243 (S3): Custom ratio left the groups for its own tab
+    fireEvent.click(screen.getByRole("button", { name: /^Profitability/ }));
+    const body = document.getElementById("srt-b-profitability")!;
+    expect(within(body).getByRole("checkbox", { name: "Return on equity" })).toBeTruthy();                    // task #402: a checkbox and a range arrow, no + Add
+    expect(within(body).getByRole("button", { name: "Set a range for Return on equity" })).toBeTruthy();
+    expect(within(body).queryByRole("button", { name: /^\+ Add$|^Add Return on equity$/ })).toBeNull();
   });
-  it("S-1: a group with rules set says how many are on", async () => {
+  it("S-1: a group with rules set says how many are on, and its filter is ticked", async () => {
     mount("?s=" + encodeState(norm({ ranges: { roe: { min: 15 } } }), "market_cap", "desc")); await ready();
-    expect(within(screen.getByRole("group", { name: "Every filter, by group" })).getByRole("button", { name: "Profitability: 2 filters, 1 on" })).toBeTruthy();
+    const h = screen.getByRole("button", { name: /^Profitability/ });
+    expect(h.textContent).toMatch(/1 on/);
+    fireEvent.click(h);
+    expect((within(document.getElementById("srt-b-profitability")!).getByRole("checkbox", { name: "Return on equity" }) as HTMLInputElement).checked).toBe(true);
   });
-  it("S-9: the header is one line with the data date in India time", async () => {
+  it("task #364: the search narrows every group at once and opens the ones that match", async () => {
+    mount(); await ready();
+    fireEvent.change(screen.getByPlaceholderText("Search filters, e.g. debt, ROE, promoter"), { target: { value: "roe" } });
+    expect([...document.querySelectorAll(".srt-at")].map((h) => h.textContent)).toEqual(["Profitability"]);
+    expect(within(document.getElementById("srt-b-profitability")!).getByRole("checkbox", { name: "Return on equity" })).toBeTruthy();
+  });
+  describe("task #402: each filter is a checkbox (its column, every figure) and a down arrow (its range)", () => {
+    it("ticking shows the column with no filter; unticking takes it off", async () => {
+      mount(); await ready();
+      fireEvent.click(screen.getByRole("button", { name: /^Profitability/ }));
+      const box = within(document.getElementById("srt-b-profitability")!).getByRole("checkbox", { name: "Return on equity" }) as HTMLInputElement;
+      expect(box.checked).toBe(false);
+      fireEvent.click(box);
+      await waitFor(() => expect(ruleHeads()).toEqual(["Return on equity"]));
+      expect(box.checked).toBe(true);
+      expect(last().filters ?? {}).toEqual({});                                                    // all values: nothing filtered
+      fireEvent.click(box);
+      await waitFor(() => expect(ruleHeads()).toEqual([]));
+      expect(box.checked).toBe(false);
+    });
+    it("the arrow opens the range under the row; setting a range ticks the box and filters", async () => {
+      mount(); await ready();
+      fireEvent.click(screen.getByRole("button", { name: /^Profitability/ }));
+      const body = document.getElementById("srt-b-profitability")!;
+      const arrow = within(body).getByRole("button", { name: "Set a range for Return on equity" });
+      expect(arrow.getAttribute("aria-expanded")).toBe("false");
+      fireEvent.click(arrow);
+      expect(arrow.getAttribute("aria-expanded")).toBe("true");
+      const rbox = document.getElementById(arrow.getAttribute("aria-controls")!)!;
+      fireEvent.change(within(rbox).getByLabelText("Return on equity from"), { target: { value: "20" } });
+      await waitFor(() => expect(last().filters).toEqual({ roe: { min: 20 } }));
+      expect((within(body).getByRole("checkbox", { name: "Return on equity" }) as HTMLInputElement).checked).toBe(true);
+    });
+  });
+  it("S-9: the header names the data date in India time, in its date chip", async () => {
     st.cat = { ...catalog(), pricesAt: "2026-11-12T10:05:00Z", scoresAt: "2026-11-12T23:00:00Z" };
     mount(); await ready();
-    expect(document.querySelector(".ssw-h1row")?.textContent).toBe("Stock screenerPrices: 12 Nov close · scores: 13 Nov");
-    expect(document.querySelector(".ssw-lead, .ssw-eyebrow")).toBeNull();
+    expect(document.querySelector(".xsh-date")?.textContent).toBe("Prices: 12 Nov close · scores: 13 Nov");   // task #243 (H): the date chip in the head bar
   });
   it("S-5: the results table has no First column / Last column slider", async () => {
     mount(); await ready();
     expect(screen.queryByText("First column")).toBeNull();
     expect(document.querySelector(".ssw-res .hs-range")).toBeNull();
+  });
+});
+
+describe("task #64, from task #192: each list is named by the level of its values (12 macro sectors, 59 industries)", () => {
+  const withLists = () => ({ ...catalog(), sectors: [{ name: "Financial Services", n: 708 }, { name: "Commodities", n: 573 }],
+    industries: [{ name: "Banks", sector: "Financial Services", n: 41 }, { name: "Ferrous Metals", sector: "Commodities", n: 77 }],
+    indices: [{ code: "NIFTY50", label: "NIFTY 50", n: 50 }] });
+  it("the box is Sector, industry and index (task #259), the filter Industry: All 2, and the results say Name · size, as each row shows", async () => {
+    st.cat = withLists();
+    mount(); await ready();
+    expect(screen.getByRole("heading", { name: "Sector, industry and index" })).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: "Industry and index" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Industry: All 2" })).toBeTruthy();
+    expect(screen.queryByText("All sectors")).toBeNull();
+    expect(table().querySelector("thead tr.ssw-hd th.stick small")?.textContent).toBe("Name · size");
+    expect(table().querySelector("tbody tr td.stick small")?.textContent).toBe("Alpha · Large");      // the row: the company's name and size
+  });
+  it("a picked industry is counted as an industry, and no box title is read twice by a screen reader", async () => {
+    st.cat = withLists();
+    mount(); await ready();
+    fireEvent.click(screen.getByRole("button", { name: "Industry: All 2" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: /Banks/ }));
+    expect(await screen.findByRole("button", { name: "Industry: 1 picked" })).toBeTruthy();       // not "Industry: Industry: 1 picked"
+    expect(screen.getByRole("button", { name: "Index: any (1 lists)" })).toBeTruthy();            // not "Index: Index: any"
+    await waitFor(() => expect(last().cats?.industry).toEqual(["Banks"]));
   });
 });
 
@@ -246,7 +329,7 @@ describe("Tell me when a company joins (file 04 §9)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     const kept = JSON.parse(localStorage.getItem("finlit-saved-screens") || "[]") as { name: string; notify?: boolean }[];
     expect(kept.find((x) => x.name === "Told")!.notify).toBe(true); expect(kept.find((x) => x.name === "Quiet")!.notify).toBe(false);
-    fireEvent.click(screen.getByRole("tab", { name: /My screens/ }));
+    openTab(/^Ready-made/); fireEvent.click(screen.getByRole("tab", { name: /My screens/ }));
     const on = screen.getByRole("button", { name: "Messages for Told: on" });
     fireEvent.click(on);
     expect(screen.getByRole("button", { name: "Messages for Told: off" }).getAttribute("aria-pressed")).toBe("false");
@@ -284,8 +367,9 @@ describe("the table (file 04 §5)", () => {
     expect(tech.length).toBe(2);
     for (const c of tech) { expect(c.querySelector(".ssw-sc")!.textContent).toBe("+12"); expect((c.querySelector("small")!.textContent ?? "").length).toBeGreaterThan(2); }
     expect(within(rulesPanel()).queryByRole("group", { name: "FinLit Prism rating" })).toBeNull();   // task #143: the rating box is gone from Your rules
-    for (const el of [table(), rulesPanel()]) expect(el.textContent).not.toMatch(/FinLit IQ|pillar|Mixed|Watch/);   // (the ready-made list here is a fixed sample)
-    expect(screen.getByRole("tab", { name: /On FinLit Prism/ })).toBeTruthy();
+    for (const el of [table(), rulesPanel()]) expect(el.textContent).not.toMatch(/FinLit IQ|Mixed|Watch/);   // (the ready-made list here is a fixed sample)
+    expect(table().querySelector("thead tr.ssw-band th.xst-b-tech")!.textContent).toBe("FinLit Prism · 2 technical pillars−100 to +100");   // task #243 (T1, owner's v3 request 8)
+    openTab(/^Ready-made/); expect(screen.getByRole("tab", { name: /On FinLit Prism/ })).toBeTruthy();
     expect(st.bodies[st.bodies.length - 1].columns).toContain("prism_final");
   });
 
@@ -307,7 +391,7 @@ describe("the table (file 04 §5)", () => {
       st.cat = prism ? { ...g, bandModel: "prism", bands: ["strong", "healthy", "average", "weak", "poor"].map((k) => ({ key: k, label: k[0].toUpperCase() + k.slice(1), locked: false, n: 5 })) } : g;
       const v = mount(); await ready();
       const panel = rulesPanel();
-      expect(within(panel).getByRole("heading", { name: "Size" })).toBeTruthy();
+      expect(within(panel).getByRole("heading", { name: "Market cap" })).toBeTruthy();   // task #243: Market cap, not Size
       expect(within(panel).getByRole("heading", { name: "Rules on numbers" })).toBeTruthy();
       for (const name of ["FinLit Prism rating", "FinLit IQ rating"]) expect(within(panel).queryByRole("group", { name })).toBeNull();
       expect([...panel.querySelectorAll(".ssw-sec h3")].map((h) => h.textContent)).not.toContainEqual(expect.stringMatching(/rating/i));
@@ -477,7 +561,7 @@ describe("Your rules (file 04 §3, §4; task #75)", () => {
     mount(); await ready();
     await addRule("Dividend yield");
     expect(within(rulesPanel()).getByRole("status").textContent).toMatch(/1 rule has no range yet/);
-    expect(screen.getByRole("button", { name: /^Your rules \(1\)/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /^Score and Filters \(1\)/ })).toBeTruthy();
     expect(within(rulesPanel()).getByRole("group", { name: "Dividend yield" })).toBeTruthy();
     await waitFor(() => expect(heads()).toContain("Dividend yield"));                                    // its column is there already
     fireEvent.click(within(rulesPanel()).getByRole("button", { name: "Clear all" }));
@@ -556,7 +640,7 @@ describe("Your rules (file 04 §3, §4; task #75)", () => {
     mount(); await ready();
     fireEvent.click(within(rulesPanel()).getByRole("button", { name: /^Large 204/ }));
     await waitFor(() => expect(last().cats!.cap).toEqual(["Large"]));
-    expect(within(rulesPanel()).getByText(/Large above ₹50,000 Cr · Mid ₹10,000–50,000 Cr · Small below ₹10,000 Cr/)).toBeTruthy();
+    expect(within(rulesPanel()).getByText(/Large above ₹75,000 Cr · Mid ₹25,000–75,000 Cr · Small ₹10,000–25,000 Cr · Micro below ₹10,000 Cr/)).toBeTruthy();
   });
 });
 
@@ -598,15 +682,15 @@ describe("The green and red colour note (task 73)", () => {
   });
 });
 
-describe("One Sector filter (task 74)", () => {
+describe("One Industry filter (task 74; named Industry in task #64, from #192: its values are NSE's industries)", () => {
   const withSectors = () => { st.cat = { ...catalog(), sectors: [{ name: "Auto Ancillaries", n: 1 }, { name: "Capital Goods", n: 5 }, { name: "Chemicals", n: 7 }],
     industries: [{ name: "Auto Components", sector: "X", n: 3 }, { name: "Chemicals", sector: "Y", n: 2 }, { name: "Software", sector: "Z", n: 9 }, { name: "Cement", sector: "W", n: 4 }] }; };
   const lastCats = () => st.bodies.filter((b) => b.cats).slice(-1)[0]?.cats;
-  const sectorBtn = () => within(rulesPanel()).getByRole("button", { name: /^Sector: / });
+  const sectorBtn = () => within(rulesPanel()).getByRole("button", { name: /^Industry: / });
 
-  it("there is one Sector filter and no Industry one, listing the industry options with their counts", async () => {
+  it("there is one Industry filter and no separate Sector one, listing the industry options with their counts", async () => {
     withSectors(); mount(); await ready();
-    expect(within(rulesPanel()).queryByText(/^Industry/)).toBeNull();
+    expect(within(rulesPanel()).queryAllByRole("button", { name: /^Sector/ })).toHaveLength(0);
     fireEvent.click(sectorBtn());
     const items = Array.from(rulesPanel().querySelectorAll(".fgx-list li")).map((li) => (li.textContent || "").trim());
     expect(items).toHaveLength(4); expect(items.join("|")).toMatch(/Software.*9/); expect(items.join("|")).not.toMatch(/Capital Goods/);
@@ -627,11 +711,11 @@ describe("One Sector filter (task 74)", () => {
     fireEvent.click(within(rulesPanel().querySelector(".fgx-list") as HTMLElement).getByRole("checkbox", { name: /^Auto Ancillaries/ }));
     await waitFor(() => expect(lastCats()?.sector).toEqual(["Capital Goods"]));
   });
-  it("the funnel says sector, not industry", async () => {
+  it("the funnel names the step by its values: industry, not sector", async () => {
     withSectors(); st.funnel = [{ key: "industry", before: 5813, after: 9, missing: 0 }];
     mount("?s=" + encodeState({ ...norm({}), industries: ["Software"] }, "market_cap", "desc")); await ready();
     const f = await within(rulesPanel()).findByRole("list", { name: "What is left after each rule" });
-    expect(f.textContent).toMatch(/after Sector/); expect(f.textContent).not.toMatch(/industry/i);
+    expect(f.textContent).toMatch(/after Industry/); expect(f.textContent).not.toMatch(/after Sector/);
   });
 });
 
@@ -707,15 +791,45 @@ describe("the address holds the whole screen", () => {
   });
 });
 
+describe("task #383: Show filters / Hide filters and the scroller, as on the Mutual Fund Screener", () => {
+  it("the panel has Hide filters; hidden filters leave a vertical Show filters with the number of rules on, which brings the panel back", async () => {
+    mount("?s=" + encodeState({ ...norm({ ranges: { roe: { min: 15 } } }), caps: ["Large"] }, "market_cap", "desc")); await ready();
+    const work = () => document.querySelector(".ssw-work") as HTMLElement;
+    const hide = within(rulesPanel()).getByRole("button", { name: "Hide filters" });
+    expect(hide.className).toContain("ssw-hidef");
+    expect(screen.queryByRole("button", { name: /^Show filters/ })).toBeNull();
+    fireEvent.click(hide);
+    await waitFor(() => expect(work().className).toContain("rules-min"));
+    const show = screen.getByRole("button", { name: /^Show filters/ });
+    expect(show.className).toContain("ssw-showf"); expect(show.getAttribute("aria-expanded")).toBe("false");
+    expect(show.querySelector("b")?.textContent).toBe("2");                         // two filters on: ROE from 15% and Large cap
+    expect(work().firstElementChild).toBe(show);                                   // the tab sits on the left of the results
+    expect(document.querySelectorAll(".ssw-a").length).toBe(2);                    // hiding never drops a rule
+    fireEvent.click(show);
+    await waitFor(() => expect(work().className).not.toContain("rules-min"));
+    expect(screen.queryByRole("button", { name: /^Show filters/ })).toBeNull();
+  });
+  it("the results table has the scroller (no controls={false}), and the wide-screen rules hide the full-width bar and the ×; the fund pages' files are not touched", () => {
+    const page = readFileSync(join(process.cwd(), "src/pages/ScreenerPro.tsx"), "utf8"), css = readFileSync(join(process.cwd(), "src/styles/task383.css"), "utf8");
+    expect(page).not.toMatch(/controls=\{false\}/);
+    expect(page).toContain('import "../styles/task383.css"');
+    expect(css).toMatch(/@media \(min-width: 1001px\) \{\s*\.wrap\.ssw \.ssw-rtoggle\.min \{ display: none; \}/);
+    expect(css).toMatch(/\.wrap\.ssw \.ssw-work\.rules-min \{ grid-template-columns: 44px minmax\(0, 1fr\); gap: 16px; \}/);
+    expect(css).toMatch(/\.wrap\.ssw \.ssw-rmin \{ display: none; \}/);
+    expect(css.replace(/\/\*[\s\S]*?\*\//g, "")).not.toMatch(/\.mfs-|\.mf-list|\.etf-/);   // the Mutual Fund and ETF pages' classes are not touched
+    for (const sel of css.replace(/\/\*[\s\S]*?\*\//g, "").match(/[^{}]+(?=\{)/g) ?? []) if (!sel.trim().startsWith("@media")) expect(sel.trim()).toMatch(/^\.wrap\.ssw /);
+  });
+});
+
 describe("task #140: Your rules can be minimized", () => {
   it("the × in the panel hides it, the results use the full width, the bar above brings it back, and the rules stay on", async () => {
     mount("?caps=Large"); await ready();
     const work = () => document.querySelector(".ssw-work") as HTMLElement;
     expect(rulesPanel().className).toContain("open");
     expect(work().className).not.toContain("rules-min");
-    fireEvent.click(within(rulesPanel()).getByRole("button", { name: "Minimize Your rules" }));
+    fireEvent.click(within(rulesPanel()).getByRole("button", { name: "Minimize Score and Filters" }));
     await waitFor(() => expect(work().className).toContain("rules-min"));
-    const bar = screen.getByRole("button", { name: /^Your rules/ });
+    const bar = screen.getByRole("button", { name: /^Score and Filters/ });
     expect(bar.getAttribute("aria-expanded")).toBe("false"); expect(bar.className).toContain("min");
     expect(localStorage.getItem("finlit-screener-rules-min")).toBe("1");          // remembered on a wide screen
     expect(loc()).toContain("caps=Large");                                         // minimizing never drops a rule
@@ -727,7 +841,7 @@ describe("task #140: Your rules can be minimized", () => {
     localStorage.setItem("finlit-screener-rules-min", "1");
     mount(); await ready();
     expect((document.querySelector(".ssw-work") as HTMLElement).className).toContain("rules-min");
-    fireEvent.click(screen.getByRole("button", { name: /^Your rules/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Score and Filters/ }));
     await waitFor(() => expect(rulesPanel().className).toContain("open"));
     fireEvent.click(within(rulesPanel()).getByRole("button", { name: /^Show / }));
     await waitFor(() => expect((document.querySelector(".ssw-work") as HTMLElement).className).toContain("rules-min"));
@@ -747,7 +861,7 @@ describe("task #140 (team note): the sliding bar beside Your rules, as on the ad
     fireEvent.keyDown(screen.getByRole("separator", { name: /Resize the filters panel/ }), { key: "Enter" });     // Enter or a double-click hides it, as on the advanced screeners
     await waitFor(() => expect(work().className).toContain("rules-min"));
     expect(screen.queryByRole("separator", { name: /Resize the filters panel/ })).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: /^Your rules/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Score and Filters/ }));
     await waitFor(() => expect(work().className).not.toContain("rules-min"));
     expect(work().style.getPropertyValue("--side-w")).toBe("240px");                 // reopens at the last width it had
   });
@@ -757,6 +871,7 @@ describe("plan rules inside the Stock screener (task #64, 14 Nov N-2 and N-10)",
   const tags = () => Array.from(document.querySelectorAll(".ssr-tier")).map((t) => t.textContent);
   it("N-2: Silver sees Custom ratio locked: one GOLD tag, the one line, See what Gold adds; no builder, no examples, no My ratios", async () => {
     mount(); await ready();
+    openTab(/Custom ratio/);
     const sec = screen.getByRole("group", { name: "Custom ratio, comes with Gold and Platinum" });
     expect(within(sec).getByText("GOLD")).toBeTruthy();
     expect(sec.textContent).toContain("Divide one figure by another, such as cash by market cap or borrowings by market cap, and screen on the result. Custom ratios come with Gold and Platinum.");
@@ -778,8 +893,8 @@ describe("plan rules inside the Stock screener (task #64, 14 Nov N-2 and N-10)",
     mount(); await ready();
     expect(tags()).toEqual(["GOLD"]);                                                             // only Custom ratio, locked
     expect(screen.queryByRole("tab", { name: /Silver screens/ })).toBeNull();
-    fireEvent.click(screen.getByRole("tab", { name: /More screens/ }));
-    fireEvent.click(screen.getByRole("button", { name: "+ Add a rule" }));
+    openTab(/^Ready-made/); fireEvent.click(screen.getByRole("tab", { name: /More screens/ }));
+    openTab(/^Your rules/); fireEvent.click(screen.getByRole("button", { name: "+ Add a rule" }));
     const dlg = await screen.findByRole("dialog", { name: "Add a rule" });
     expect(dlg.querySelector(".ssr-tier")).toBeNull();
     fireEvent.keyDown(dlg, { key: "Escape" });
@@ -792,5 +907,93 @@ describe("plan rules inside the Stock screener (task #64, 14 Nov N-2 and N-10)",
     expect(page.textContent).not.toMatch(/SILVER|Silver screens/);
     fireEvent.click(screen.getByRole("button", { name: "+ Add a rule" }));
     expect((await screen.findByRole("dialog", { name: "Add a rule" })).textContent).not.toMatch(/SILVER|GOLD/);
+  });
+});
+
+
+/** Task #259 (pack 03 §3, SHARED §1): Macro sector (12) · Sector (22) · Industry (59), linked, then Index. */
+describe("Sector, industry and index: three linked lists (task #259)", () => {
+  const withNse = () => ({ ...catalog(), sectors: [{ name: "Financial Services", n: 6 }, { name: "Industrials", n: 5 }],
+    macros: [{ name: "Financial Services", n: 6 }, { name: "Industrials", n: 5 }],
+    nseSectors: [{ name: "Financial Services", macro: "Financial Services", n: 6 }, { name: "Capital Goods", macro: "Industrials", n: 4 }, { name: "Construction", macro: "Industrials", n: 1 }],
+    industries: [{ name: "Banks", sector: "Financial Services", nseSector: "Financial Services", n: 4 }, { name: "Finance", sector: "Financial Services", nseSector: "Financial Services", n: 2 },
+      { name: "Electrical Equipment", sector: "Industrials", nseSector: "Capital Goods", n: 4 }, { name: "Construction", sector: "Industrials", nseSector: "Construction", n: 1 }],
+    indices: [{ code: "NIFTY50", label: "NIFTY 50", n: 50 }] });
+  const fold = (name: RegExp) => within(rulesPanel()).getByRole("button", { name });
+  const options = (title: string) => Array.from(within(rulesPanel()).getByRole("group", { name: title }).querySelectorAll("li")).map((li) => (li.textContent || "").trim());
+  it("the box lists Macro sector (All 2), Sector (All 3) and Industry (All 4), then Index", async () => {
+    st.cat = withNse(); mount(); await ready();
+    expect(screen.getByRole("heading", { name: "Sector, industry and index" })).toBeTruthy();
+    const titles = Array.from(rulesPanel().querySelectorAll(".ssw-fold")).map((d) => (d as HTMLElement).dataset.facet);
+    expect(titles.slice(0, 4)).toEqual(["macro", "nsector", "industry", "index"]);
+    expect(fold(/^Macro sector: All 2$/)).toBeTruthy(); expect(fold(/^Sector: All 3$/)).toBeTruthy(); expect(fold(/^Industry: All 4$/)).toBeTruthy();
+  });
+  it("a macro sector narrows Sector and Industry, joins Your rules and the request, and is kept in the address", async () => {
+    st.cat = withNse(); mount(); await ready();
+    fireEvent.click(fold(/^Macro sector/));
+    fireEvent.click(within(rulesPanel()).getByRole("checkbox", { name: /^Industrials/ }));
+    await waitFor(() => expect(last().cats?.macro).toEqual(["Industrials"]));
+    expect(screen.getByRole("button", { name: "Remove Macro sector: Industrials" })).toBeTruthy();
+    fireEvent.click(fold(/^Sector/));
+    expect(options("Sector").map((t) => t.replace(/\d+$/, ""))).toEqual(["Capital Goods", "Construction"]);       // only the sectors inside Industrials
+    fireEvent.click(fold(/^Industry/));
+    expect(options("Industry").map((t) => t.replace(/\d+$/, ""))).toEqual(["Electrical Equipment", "Construction"]);
+    await waitFor(() => expect(decodeState(new URLSearchParams(loc().split("?")[1]).get("s")).state.macros).toEqual(["Industrials"]));
+  });
+  it("a sector narrows Industry; a choice that no longer fits is taken off with a short message", async () => {
+    st.cat = withNse(); mount(); await ready();
+    fireEvent.click(fold(/^Industry/));
+    fireEvent.click(within(rulesPanel()).getByRole("checkbox", { name: /^Banks/ }));
+    await waitFor(() => expect(last().cats?.industry).toEqual(["Banks"]));
+    fireEvent.click(fold(/^Macro sector/));
+    fireEvent.click(within(rulesPanel()).getByRole("checkbox", { name: /^Industrials/ }));
+    expect(ui.toast).toHaveBeenCalledWith("Banks was taken off: not inside your other choice.");
+    await waitFor(() => expect(last().cats).toMatchObject({ macro: ["Industrials"], industry: [] }));
+    fireEvent.click(fold(/^Sector/));
+    fireEvent.click(within(rulesPanel()).getByRole("checkbox", { name: /^Capital Goods/ }));
+    await waitFor(() => expect(last().cats).toMatchObject({ macro: ["Industrials"], nsector: ["Capital Goods"] }));
+    expect(options("Industry").map((t) => t.replace(/\d+$/, ""))).toEqual(["Electrical Equipment"]);
+  });
+  it("each option's count follows the other filters set (the server's facets), and the funnel names each level", async () => {
+    st.cat = withNse(); st.facets = { macro: { "Financial Services": 2, Industrials: 1 }, nsector: { "Financial Services": 2, "Capital Goods": 1 }, industry: { Banks: 2, "Electrical Equipment": 1 } };
+    st.funnel = [{ key: "macro", before: 5813, after: 3, missing: 0 }, { key: "nsector", before: 3, after: 2, missing: 0 }];
+    mount("?s=" + encodeState({ ...norm({}), macros: ["Industrials"], nsectors: ["Capital Goods"] }, "market_cap", "desc")); await ready();
+    await waitFor(() => expect(options("Macro sector")).toEqual(["Financial Services2", "Industrials1"]));
+    fireEvent.click(fold(/^Industry/));
+    expect(options("Industry")).toEqual(["Electrical Equipment1"]);
+    expect(within(rulesPanel()).getByRole("list", { name: "What is left after each rule" }).textContent).toMatch(/after Macro sector.*after Sector/);
+  });
+  it("an older server without the lists keeps the one Industry list", async () => {
+    st.cat = { ...withNse(), macros: undefined, nseSectors: undefined }; mount(); await ready();
+    expect(within(rulesPanel()).queryByRole("button", { name: /^Macro sector/ })).toBeNull();
+    expect(within(rulesPanel()).queryByRole("button", { name: /^Sector: / })).toBeNull();
+    expect(fold(/^Industry: All 4$/)).toBeTruthy();
+  });
+});
+
+describe("task #384: the three red boxes (filter panel scrollbar, divider button, results header row), stock screener only", () => {
+  const css = readFileSync(join(__dirname, "../styles/task384.css"), "utf8");
+  const rules = css.replace(/\/\*[\s\S]*?\*\//g, "");
+  it("is loaded by the page, after task #383's styles, and touches no other page", () => {
+    const src = readFileSync(join(__dirname, "ScreenerPro.tsx"), "utf8");
+    expect(src.indexOf('import "../styles/task384.css"')).toBeGreaterThan(src.indexOf('import "../styles/task383.css"'));
+    const selectors = rules.replace(/@media[^{]+\{/g, "").split("}").map((b) => b.split("{")[0].trim()).filter(Boolean);
+    expect(selectors.length).toBeGreaterThan(3);
+    for (const s of selectors) for (const one of s.split(",")) expect(one.trim().startsWith(".wrap.ssw "), one).toBe(true);
+  });
+  it("box 1: the filter panel scrolls with the thin bar in the theme's colours, kept inside the card", () => {
+    expect(rules).toMatch(/\.wrap\.ssw \.ssw-rules \{[^}]*scrollbar-width: thin;[^}]*scrollbar-color: var\(--border-strong\) transparent;[^}]*scrollbar-gutter: stable;/);
+  });
+  it("box 2: the divider's own arrow button is gone on a wide screen; the divider still resizes and hides", () => {
+    expect(rules).toMatch(/@media \(min-width: 1001px\) \{ \.wrap\.ssw \.ssw-work > \.scr-split \.scr-split-btn \{ display: none; \} \}/);
+    expect(rules).not.toMatch(/\.scr-split \{[^}]*display: none/);
+  });
+  it("box 3: Save screen and Tell me are 8px apart, and the enlarge arrow is 40px on their line, 8px after them", async () => {
+    expect(rules).toMatch(/\.wrap\.ssw \.ssw-pop \{[^}]*display: inline-flex;[^}]*gap: 8px;/);
+    expect(rules).toMatch(/\.ssw-rhd \{ padding-right: 48px !important; \}/);
+    expect(rules).toMatch(/\.cz-btn\.cz-at-box \{ width: 40px; height: 40px; top: calc\(var\(--cz-dt, 0px\) \+ 17px\); right: calc\(var\(--cz-dr, 0px\) \+ 18px\); \}/);
+    mount(""); await ready();
+    const pop = document.querySelector(".ssw-res .ssw-rhd .ssw-acts .ssw-pop") as HTMLElement;
+    expect([...pop.querySelectorAll(":scope > button")].map((b) => b.textContent)).toEqual(["Save screen", "Tell me when a company joins"]);   // nothing else changed
   });
 });

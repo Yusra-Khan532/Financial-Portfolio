@@ -34,10 +34,10 @@ describe("Show more", () => {
 });
 
 describe("Your portfolio at a glance", () => {
-  it("sizes companies by FinLit's rule: Large above ₹50,000 Cr, Mid above ₹10,000 Cr, Small below (as every page of the final pages pack)", () => {
-    const rows = [row("L", { market_cap: 60000 }), row("M", { market_cap: 50000 }), row("N", { market_cap: 10001 }), row("S", { market_cap: 10000 }), row("Z", { market_cap: null })];
+  it("sizes companies by FinLit's rule (task #262): Large above ₹75,000 Cr, Mid ₹25,000–75,000 Cr, Small ₹10,000–25,000 Cr, Micro below", () => {
+    const rows = [row("L", { market_cap: 75001 }), row("M", { market_cap: 75000 }), row("N", { market_cap: 25000 }), row("S", { market_cap: 10000 }), row("X", { market_cap: 9999 }), row("Z", { market_cap: null })];
     const s = finlitSizes(rows);
-    expect([s.get("L"), s.get("M"), s.get("N"), s.get("S"), s.get("Z")]).toEqual(["Large", "Mid", "Mid", "Small", undefined]);
+    expect([s.get("L"), s.get("M"), s.get("N"), s.get("S"), s.get("X"), s.get("Z")]).toEqual(["Large", "Mid", "Mid", "Small", "Micro", undefined]);
   });
   it("averages the Prism score and parts of the shares held, counts colours, sectors and sizes", () => {
     const rows = [row("A", { prism_final: 80, prism_fundamental: 90, prism_valuation: 40, prism_quality: 70, prism_risk: 80, market_cap: 3 }),
@@ -48,7 +48,7 @@ describe("Your portfolio at a glance", () => {
     expect(g.colours).toEqual({ g: 1, o: 1, r: 0, n: 2 });                 // C has no score, X is not a listed company we hold
     expect(g.parts.map((p) => p.value)).toEqual([70, 50, 65, 75]);
     expect(g.sectors).toBe(2); expect(g.largest).toEqual({ name: "IT", count: 2 });
-    expect(g.sizes).toEqual([{ label: "Small", count: 3 }]);                 // market values of 1 to 3 crore
+    expect(g.sizes).toEqual([{ label: "Micro", count: 3 }]);                 // market values of 1 to 3 crore
   });
 });
 
@@ -69,9 +69,9 @@ describe("FII / DII bars and the one-line Stress Lab", () => {
     expect((html.match(/class="dii"/g) || []).length).toBe(30 + 1);
     expect(html).toMatch(/aria-label="FII and DII net flows, last 30 sessions from/);
   });
-  it("Stress Lab is one line while the nightly run covers none of the stocks", () => {
+  it("Stress Lab is a tool card (task #195) that says in one line that the nightly run covers none of the stocks", () => {
     const html = renderToStaticMarkup(<MemoryRouter><Stress followed={[{ symbol: "A", name: null }, { symbol: "B", name: null }]} loading={false} /></MemoryRouter>);
-    expect(html).toContain("dsh-strip"); expect(html).toContain("None of your 2 stocks are in the nightly run yet");
+    expect(html).toContain("dsh-tool"); expect(html).toContain("None of your 2 stocks is in the nightly run yet"); expect(html).toContain('href="/research/stress-lab"');
     expect(html).not.toContain("Not covered yet");
   });
 });

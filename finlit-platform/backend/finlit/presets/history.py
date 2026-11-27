@@ -24,7 +24,7 @@ SPLIT_DOWN, SPLIT_UP = -40.0, 60.0     # a one-session move beyond this is not t
 # the reason a company left a screen, in the screen's own words; never a number. The first rule (in the screen's order) the company no longer meets decides.
 REASONS: Tuple[Tuple[str, str], ...] = (
     ("market cap", "its market cap fell below the screen's size"), ("full year", "it no longer has a full year of prices"), ("1-year return", "its one-year run went past the screen's limit"),
-    ("finlit iq", "its FinLit IQ weakened"), ("prism score", "its Prism rating weakened"), ("technical", "its trend weakened"), ("trend", "its trend weakened"),
+    ("prism score", "its Prism rating weakened"), ("technical", "its trend weakened"), ("trend", "its trend weakened"),
     ("quality", "its Quality score weakened"), ("growth", "its Growth score weakened"), ("profitab", "its Profitability score weakened"), ("balance", "its Balance sheet score weakened"),
     ("risk", "its Risk score weakened"), ("valuation", "its Valuation score moved out of range"), ("52-week high", "it fell further below its 52-week high"),
     ("below the high", "it fell further below its 52-week high"), ("breakout", "its close above the range is no longer recent"), ("above its range", "its close above the range is no longer recent"), ("range top", "it moved away from the range top it closed above"), ("since then", "it moved away from its highest close since then"), ("9-day", "it moved away from its 9-day average"),
@@ -163,20 +163,72 @@ async def repair_closes(store) -> dict:
     return {"closesRepaired": fixed}
 
 
+def off_session_days(market: Any, saved: Sequence[date]) -> List[date]:
+    """Task #394 (QA of 26 Nov 2026): the saved-list days that were not market sessions. A list was saved for 24 Nov 2026 (an NSE holiday) by
+    the run before the lists were dated from the candles, and as the newest saved list it showed as "Latest · 24 Nov" beside a 23 Nov header.
+    A day counts as off-session when it is after the list day, or between the oldest session the candles show and the list day without
+    being one of those sessions. Nothing is judged when the candles did not give a list day."""
+    day = getattr(market, "day", None)
+    sessions = {date.fromisoformat(x) for x in (getattr(market, "sessions", None) or [])}
+    if day is None or not sessions:
+        return []
+    first = min(sessions)
+    return sorted(d for d in set(saved) if d > day or (first <= d <= day and d not in sessions))
+
+
+async def drop_off_session_lists(store, market: Any) -> dict:
+    """Remove the saved lists (and Top gainers) dated on a day that was not a market session (off_session_days), before tonight's lists are
+    saved. A company's spell that began or ended on such a day is moved to the session before it, so Added, Left and Since added keep reading
+    from real closes."""
+    async with store.pool.acquire() as conn:
+        saved = [r["session"] for r in await conn.fetch("SELECT DISTINCT session FROM screen_runs UNION SELECT DISTINCT session FROM gainers")]
+        bad = off_session_days(market, saved)
+        if not bad:
+            return {"offSessionListsDropped": []}
+        sessions = sorted(date.fromisoformat(x) for x in market.sessions)
+
+        def before(d: date) -> date:
+            earlier = [s for s in sessions if s < d]
+            return earlier[-1] if earlier else d
+
+        async with conn.transaction():
+            for d in bad:
+                to = before(d)
+                await conn.execute("DELETE FROM screen_snapshots WHERE session = $1", d)
+                await conn.execute("DELETE FROM screen_runs WHERE session = $1", d)
+                await conn.execute("DELETE FROM gainers WHERE session = $1", d)
+                await conn.execute("UPDATE screen_spells SET added_on = $2 WHERE added_on = $1", d, to)
+                await conn.execute("UPDATE screen_spells SET left_on = GREATEST($2, added_on) WHERE left_on = $1", d, to)
+    log.warning("ready-made lists: removed the lists saved for days that were not market sessions: %s", [d.isoformat() for d in bad])
+    return {"offSessionListsDropped": [d.isoformat() for d in bad]}
+
+
 async def record(store, fr, results: Sequence[Tuple[Any, List[str], dict]]) -> dict:
     """Write tonight's lists and spells for every screen (`results`: preset, active chips, the engine's answer). Returns counts for the job's summary."""
-    session = fr.as_of
     sessions_done = spells_opened = spells_closed = 0
-    price = {s: fr.get(i, "price") for i, s in enumerate(fr.symbols)}
+    table_price = {s: fr.get(i, "price") for i, s in enumerate(fr.symbols)}
     real = await day_closes(store, [r["symbol"] for _, _, b in results for r in (b.get("exportRows") or b.get("rows") or [])])
-    for sym, byday in real.items():
-        c = byday.get(session.isoformat())
-        if c:
-            price[sym] = c            # the real close of the session, not the quote of the moment
+    market = getattr(fr, "market", None)
+
+    def close_on(sym: str, day: date, row: Optional[dict] = None) -> Optional[float]:
+        """The close saved with a list (task #394, developer file 37, F3 and F9): the row's own close of the list day (price_on, from the exchange
+        candles the chart is drawn from) when the row carries one, even None (no trade that day: nothing is guessed); else the exchange candle of
+        that day; else the stored daily prices of that day; else, for a company with no daily prices at all, the table's price as before."""
+        if row is not None and "price_on" in row:
+            return row["price_on"]
+        dc = market.closes.get(sym) if market is not None else None
+        if dc is not None:
+            return dc.close if dc.day == day.isoformat() else None
+        c = (real.get(sym) or {}).get(day.isoformat())
+        return c if c else table_price.get(sym)
+
     for preset, active, body in results:
         rows = body.get("exportRows") or body.get("rows") or []
         if not rows and preset.kind in ("blocked", "quickview"):
             continue
+        # the list's own day (a chart-pattern list is dated by the close its scan ran on, which can be before the frame's when that scan was held)
+        session = _list_session(body, fr.as_of)
+        price = {r["symbol"]: close_on(r["symbol"], session, r) for r in rows}
         ckey = engine.chip_key(active)
         syms = [r["symbol"] for r in rows]
         async with store.pool.acquire() as conn:
@@ -202,15 +254,22 @@ async def record(store, fr, results: Sequence[Tuple[Any, List[str], dict]]) -> d
                     for g in gone:
                         n_on = await conn.fetchval("SELECT count(*) FROM screen_runs WHERE preset_id=$1 AND chips=$2 AND session >= $3 AND session < $4", preset.id, ckey, g["added_on"], session)
                         await conn.execute("UPDATE screen_spells SET left_on=$1, left_reason=$2, close_left=$3, sessions_on=$4, registry_left=$5 WHERE id=$6",
-                                           session, RULES_UPDATED if changed else why.get(g["symbol"], GENERIC), price.get(g["symbol"]), int(n_on or 0), body.get("version") or 0, g["id"])
+                                           session, RULES_UPDATED if changed else why.get(g["symbol"], GENERIC), close_on(g["symbol"], session), int(n_on or 0), body.get("version") or 0, g["id"])
                     spells_closed += len(gone)
         sessions_done += 1
     async with store.pool.acquire() as conn:
-        cut = session - timedelta(days=KEEP_DAYS)
+        cut = fr.as_of - timedelta(days=KEEP_DAYS)
         await conn.execute("DELETE FROM screen_snapshots WHERE session < $1", cut)
         await conn.execute("DELETE FROM screen_runs WHERE session < $1", cut)
         await conn.execute("DELETE FROM gainers WHERE session < $1", cut)
     return {"historyScreens": sessions_done, "spellsOpened": spells_opened, "spellsClosed": spells_closed}
+
+
+def _list_session(body: dict, default: date) -> date:
+    try:
+        return date.fromisoformat(str(body.get("asOf"))[:10]) if body.get("asOf") else default
+    except ValueError:
+        return default
 
 
 async def _reasons(fr, preset, active, symbols: Sequence[str]) -> Dict[str, str]:
@@ -237,15 +296,19 @@ async def _reasons(fr, preset, active, symbols: Sequence[str]) -> Dict[str, str]
 
 
 async def gainers(store, fr, bench: Dict[str, float]) -> dict:
-    """Top gainers for both pages and the three windows at tonight's session, stored in `gainers`."""
+    """Top gainers for the three windows at tonight's session, stored in `gainers` (one page since task #283: the Basic page, on the retired FinLit IQ, is gone)."""
     from .registry import ALL as PRESETS      # every screen, the Prism basics too
     session = fr.as_of
     price = {s: fr.get(i, "price") for i, s in enumerate(fr.symbols)}
+    closes = getattr(getattr(fr, "market", None), "closes", None) or {}
+    for sym, dc in closes.items():          # task #394 (F3): the close of the list day from the exchange candles, the price the lists show
+        if dc.day == session.isoformat():
+            price[sym] = dc.close
     order = {p.id: n for n, p in enumerate(PRESETS)}
     names = {p.id: p.name for p in PRESETS}
     stored = 0
     async with store.pool.acquire() as conn:
-        for page in ("basic", "advanced"):
+        for page in ("advanced",):
             ids = [p.id for p in PRESETS if p.tab == page and p.kind not in ("blocked", "quickview", "gainers")]
             days = [r["session"] for r in await conn.fetch("SELECT DISTINCT session FROM screen_runs WHERE preset_id = ANY($1::text[]) AND session < $2 ORDER BY session DESC LIMIT 21", ids, session)]
             base = await conn.fetchval("SELECT min(session) FROM screen_runs")

@@ -1,0 +1,16 @@
+/* The grid table of the 15 Nov page packs (START-HERE "Table headers and lines"; task #194): header rows on a light tint in capitals with a 2px rule; column-group
+   rows tinted with a 3px top border in the group's colour, not filled; light column lines and row lines. Add `kit-grid` to a table, a `kit-bands` row, and
+   `kit-band kit-b-green|blue|gold|dark` on each group cell. Every class is kit-; sizes from the type scale. */
+/* ---- the grid table: tinted header rows, column-group rows tinted with a coloured top border (not filled), column and row lines ---- */
+.kit-grid { width: 100%; border-collapse: collapse; }
+.kit-grid thead tr:not(.kit-bands) th { padding: 9px 8px; background: color-mix(in srgb, var(--s2) 60%, var(--s1)); border-bottom: 2px solid var(--border-strong);
+  font: 700 var(--fs-label)/var(--lh-12) var(--sans, inherit); letter-spacing: .06em; text-transform: uppercase; color: var(--text); vertical-align: bottom; white-space: normal; }
+.kit-grid th, .kit-grid td { border-right: 1px solid color-mix(in srgb, var(--border) 70%, transparent); }
+.kit-grid th:last-child, .kit-grid td:last-child { border-right: 0; }
+.kit-grid tbody td { border-bottom: 1px solid var(--border); }
+.kit-bands th { padding: 0; border-bottom: 0; background: transparent; }
+.kit-bands th.kit-band { padding: 7px 8px; border-top: 3px solid var(--kit-bc, var(--text)); border-left: 1px solid var(--border); background: color-mix(in srgb, var(--kit-bc, var(--text)) 8%, transparent);
+  font: 700 var(--fs-caption)/var(--lh-12) var(--sans, inherit); letter-spacing: .08em; text-transform: uppercase; color: var(--kit-bc, var(--text)); text-align: center; }
+.kit-band.kit-b-green { --kit-bc: #1F6B49; } .kit-band.kit-b-blue { --kit-bc: #2A5C9A; } .kit-band.kit-b-gold { --kit-bc: #8A6A25; } .kit-band.kit-b-dark { --kit-bc: #3B3F49; }
+:root[data-theme="dark"] .kit-band.kit-b-green { --kit-bc: #7FD8A6; } :root[data-theme="dark"] .kit-band.kit-b-blue { --kit-bc: #9DB8E6; }
+:root[data-theme="dark"] .kit-band.kit-b-gold { --kit-bc: #E9C46A; } :root[data-theme="dark"] .kit-band.kit-b-dark { --kit-bc: #C9CBD2; }

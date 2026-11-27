@@ -12,14 +12,15 @@ vi.mock("../lib/screener", async (orig) => ({ ...(await orig<typeof import("../l
 const admin = vi.hoisted(() => ({ on: true }));
 vi.mock("../lib/auth", async (orig) => ({ ...(await orig<typeof import("../lib/auth")>()), useAuth: () => ({ isAdmin: admin.on }) }));
 vi.mock("../lib/ui", () => ({
-  useUI: () => ({ has: (t: string) => ({ basic: 0, silver: 1, gold: 2 })[st.plan] >= ({ basic: 0, silver: 1, gold: 2 } as Record<string, number>)[t], upgrade: st.upgrade, toast: st.toast }),
+  useUI: () => ({ has: (t: string) => ({ basic: 0, silver: 1, gold: 2, mfetf: 1, equity: 1, combined: 1, platinum: 2 })[st.plan] >= ({ basic: 0, silver: 1, gold: 2, mfetf: 1, equity: 1, combined: 1, platinum: 2 } as Record<string, number>)[t], upgrade: st.upgrade, toast: st.toast }),
   TIER: { basic: { n: "Basic", ic: "sprout", tc: "--t-basic" }, gold: { n: "Gold", ic: "crown", tc: "--t-gold" }, silver: { n: "Silver", ic: "medal", tc: "--t-silver" } },
 }));
 import { AdvancedScoreScreener } from "./AdvancedScoreScreener";
 import { watch } from "../lib/watchlist";
 
+const NSE: Record<string, [string, string]> = { Banks: ["Financial Services", "Banks"], IT: ["Information Technology", "IT - Software"], Auto: ["Automobile and Auto Components", "Automobiles"] };
 const mk = (symbol: string, sector: string | null, cap: number | null, o: Partial<Row> = {}): Row => ({
-  symbol, name: symbol + " Limited", sector, overall: 80, band: null, pillar_quality: 80, pillar_growth: 80, pillar_profitability: 80, pillar_balance: 80, pillar_technical: 80,
+  symbol, name: symbol + " Limited", sector, nse_sector: sector ? NSE[sector]?.[0] ?? null : null, nse_industry: sector ? NSE[sector]?.[1] ?? null : null, overall: 80, band: null, pillar_quality: 80, pillar_growth: 80, pillar_profitability: 80, pillar_balance: 80, pillar_technical: 80,
   price: cap == null ? null : 100, market_cap: cap, pe: null, pb: null, roe: null, roce: null, dividend_yield: null, debt_to_equity: null, sales_cagr: null, profit_cagr: null,
   operating_margin: null, change_pct: null, return_1m: null, return_1y: null, scored: true, ...o,
 });
@@ -50,19 +51,75 @@ beforeEach(() => { st.plan = "gold"; st.rows = DATA; st.cover = { rated: 3, prov
 afterEach(cleanup);
 
 describe("Advanced stock screener (Gold)", () => {
-  it("ticking a filter updates the rows and every number above the table by itself, and Clear all restores them", async () => {
+  it("ticking a filter updates the rows and the count beside Columns and Sort by itself, and Clear all restores them", async () => {
     open();
     expect(screen.queryByLabelText("Summary")).toBeNull();                         // the five stat boxes are gone (task #64, V-2)
-    expect(screen.getByText("6 companies in this result")).toBeTruthy();
-    fireEvent.click(screen.getByRole("checkbox", { name: "Banks 2" }));
+    const count = () => document.querySelector(".hf-count")!.textContent;   // the shared header-row layout (#257): the count sits on the results card with Columns and Sort
+    expect(count()).toBe("6 companies");
+    fireEvent.click(screen.getByRole("button", { name: "Macro sector" }));
+    fireEvent.click(within(screen.getByRole("dialog", { name: /^Macro sector/ })).getByRole("checkbox", { name: /^Financial Services/ }));
     await waitFor(() => expect(symbols()).toEqual(["AAA", "BBB"]));
-    expect(document.querySelector(".fgx-top")!.textContent).toMatch(/1 active/);
-    expect(screen.getByText("2 companies in this result")).toBeTruthy();
-    expect(screen.getByText("0 of 2 companies in this result are not rated yet.")).toBeTruthy();
-    expect(screen.getByLabelText("Sector mix of the result").textContent).toMatch(/Banks/);
+    expect(screen.getByRole("button", { name: "Macro sector, 1 on" })).toBeTruthy();
+    expect(count()).toBe("2 companies match these filters");
+    expect(screen.queryByText(/not rated yet\./)).toBeNull(); expect(screen.queryByLabelText("Sector mix of the result")).toBeNull();     // N-33: no ring, no sector box
+    expect(loc()).toContain("macro=Financial+Services");
+    expect(screen.getByRole("button", { name: "Remove filter Macro sector: Financial Services" })).toBeTruthy();
     fireEvent.click(within(screen.getByLabelText("Active filters")).getByRole("button", { name: "Clear all" }));
-    await waitFor(() => expect(screen.getByText("6 companies in this result")).toBeTruthy());
-    expect(document.querySelector(".fgx-top")!.textContent).not.toMatch(/active/);
+    await waitFor(() => expect(count()).toBe("6 companies"));
+    expect(document.querySelector(".hf-empty")!.textContent).toBe("No filters yet: every company is listed.");
+  });
+
+  it("task #258 SPEC §1: no left panel; the filters sit in one header row in the pack's order, and the table takes the full width", () => {
+    open();
+    expect(document.querySelector("aside.scr-side, .sx-fbtn, .scr-split")).toBeNull();
+    expect(document.querySelector(".scr.hf-full")).toBeTruthy();
+    const row = screen.getByRole("toolbar", { name: "Filters" });
+    expect([...row.querySelectorAll(".fx-btn")].map((b) => b.querySelector(".fx-l")!.firstChild!.textContent)).toEqual(["Market cap", "Macro sector", "Sector", "Industry", "Prism score", "Technical view", "52-week high"]);
+    expect(screen.queryByRole("button", { name: /Macro sector & industr/ })).toBeNull();
+  });
+
+  it("task #258 SPEC §1: Market cap lists each size with its ₹ range and count; the address keeps ?size=", async () => {
+    open();
+    fireEvent.click(screen.getByRole("button", { name: "Market cap" }));
+    const d = within(screen.getByRole("dialog", { name: "Market cap" }));
+    expect(d.getByRole("checkbox", { name: /^Micro cap\s*Below ₹10,000 Cr\s*6$/ })).toBeTruthy();   // task #262: the fixture's companies are all below ₹10,000 Cr
+    fireEvent.click(d.getByRole("checkbox", { name: /^Micro cap/ }));
+    await waitFor(() => expect(loc()).toContain("size=micro"));
+    expect(symbols()).toHaveLength(6);
+  });
+
+  it("task #262: an old link's ?cap=Small reads Micro, with the one-time note under the filters", async () => {
+    open("?cap=Small");
+    expect(screen.getByText(/Company sizes changed on 20 Nov 2026: your Small filter now reads Micro\./)).toBeTruthy();
+    await waitFor(() => expect(symbols()).toHaveLength(6));
+    fireEvent.click(screen.getByRole("button", { name: /^Market cap/ }));
+    expect((within(screen.getByRole("dialog", { name: "Market cap" })).getByRole("checkbox", { name: /^Micro cap/ }) as HTMLInputElement).checked).toBe(true);
+  });
+
+  it("task #258 SPEC §1: the three lists are linked; a pick that no longer fits is taken off and the page says so", async () => {
+    open();
+    fireEvent.click(screen.getByRole("button", { name: "Industry" }));
+    let d = within(screen.getByRole("dialog", { name: /^Industry · all 59/ }));
+    expect(d.getAllByRole("checkbox")).toHaveLength(59);
+    fireEvent.change(d.getByRole("searchbox", { name: "Find an industry" }), { target: { value: "bank" } });
+    fireEvent.click(d.getByRole("checkbox", { name: /^Banks\s*2$/ }));
+    await waitFor(() => expect(symbols()).toEqual(["AAA", "BBB"]));
+    fireEvent.click(screen.getByRole("button", { name: "Macro sector" }));
+    d = within(screen.getByRole("dialog", { name: /^Macro sector · all 12/ }));
+    fireEvent.click(d.getByRole("checkbox", { name: /^Information Technology/ }));
+    await waitFor(() => expect(symbols()).toEqual(["CCC", "DDD"]));
+    expect(d.getByRole("status").textContent).toMatch("Banks was taken off: not inside your other choice.");
+    fireEvent.click(screen.getByRole("button", { name: "Sector" }));
+    expect(within(screen.getByRole("dialog", { name: /^Sector · 1 of 22/ })).getAllByRole("checkbox").map((c) => c.closest("label")!.textContent)).toEqual(["Information Technology2"]);
+  });
+
+  it("task #258 SPEC §4: the line under the name is the NSE industry and the size, with macro sector › sector › industry on hover", () => {
+    open();
+    const line = rowOf("AAA").querySelector(".sx-nse")!;
+    expect(line.firstChild!.textContent).toBe("Banks · Micro cap");   // task #262: below ₹10,000 Cr
+    expect(line.getAttribute("title")).toBe("Financial Services › Financial Services › Banks");
+    expect(rowOf("AAA").querySelector(".pzs-bw.pzs-bw-strong")!.textContent).toBe("Strong");      // the rating word under the Prism number, in its colour
+    expect(rowOf("BBB").querySelector(".pzs-bw.pzs-bw-healthy")!.textContent).toBe("Healthy");
   });
 
   it("the results table has the enlarge arrow (task #44), and the enlarged dialog holds the same table", async () => {
@@ -87,6 +144,11 @@ describe("Advanced stock screener (Gold)", () => {
     expect(rowOf("FFF").textContent).toMatch(/30\s*PoorProvisional/);
     expect(document.body.textContent?.toLowerCase()).not.toMatch(forbidden);   // the model's own "Buy" / "Hold" never reach the screen
     expect(screen.queryByRole("group", { name: "Growth & Profitability score" })).toBeNull();
+    // 14 Nov N-37: Short term and Long term sit under their own "Technical views" band, after the Prism parts (the bands no longer start one column late)
+    const cols = [...document.querySelectorAll("thead tr:not(.gh) th")];
+    const under = (label: string) => { let at = 0; for (const th of document.querySelectorAll(".gh.tg-row th")) { const n = Number(th.getAttribute("colspan") || 1); if (th.textContent?.startsWith(label)) return cols.slice(at, at + n).map((c) => c.textContent?.replace(/[▲▼▾]/g, "").trim()); at += n; } return []; };
+    expect(under("FinLit Prism")).toEqual(["Prism score", "Growth & Profitability", "Valuation", "Quality", "Risk"]);
+    expect(under("Technical views")).toEqual(["Short term", "Long term"]);
   });
 
   it("no coverage note or bar above the table (V-2): How FinLit Prism works says how many are rated; a company without a rating says why, with a Rate now link", () => {
@@ -102,103 +164,74 @@ describe("Advanced stock screener (Gold)", () => {
     expect(d.textContent).toMatch(/Not rated/); expect(d.textContent).not.toMatch(/Rate now/);
   });
 
-  it("filters by the rating chips and writes them to the address", () => {
+  const prismPanel = () => { fireEvent.click(screen.getByRole("button", { name: /^Prism score/ })); return within(screen.getByRole("dialog", { name: "Prism score" })); };
+
+  it("SPEC §3: the Prism score panel filters by the rating words (with counts, zero greyed) and writes them to the address", async () => {
     open();
-    const prism = screen.getByRole("group", { name: "Rating" });
-    fireEvent.click(within(prism).getByRole("button", { name: "Strong" })); fireEvent.click(within(prism).getByRole("button", { name: "Healthy" }));
-    fireEvent.submit(prism.closest("form")!);
-    expect(symbols()).toEqual(["AAA", "BBB"]); expect(loc()).toBe("/advanced-score-screener?pl=strong%2Chealthy");
+    const p = prismPanel(), rating = within(p.getByRole("group", { name: "Prism fundamental rating" }));
+    expect(rating.getAllByRole("checkbox").map((c) => c.closest("label")!.textContent)).toEqual(["Strong1", "Healthy1", "Average1", "Weak0", "Poor1", "Not rated2"]);
+    expect((rating.getByRole("checkbox", { name: /^Weak/ }) as HTMLInputElement).disabled).toBe(true);
+    fireEvent.click(rating.getByRole("checkbox", { name: /^Strong/ })); fireEvent.click(rating.getByRole("checkbox", { name: /^Healthy/ }));
+    await waitFor(() => expect(symbols()).toEqual(["AAA", "BBB"]));
+    expect(loc()).toBe("/advanced-score-screener?pl=strong%2Chealthy");
+    expect(screen.getByRole("button", { name: "Prism score, 2 on" })).toBeTruthy();
+    expect(p.getByText("2 on")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Remove filter Prism rating: Strong, Healthy" }));
-    expect(symbols()).toHaveLength(6);
+    await waitFor(() => expect(symbols()).toHaveLength(6));
   });
 
-  it("has a min and max for each of the four parts, and a missing value never passes", () => {
+  it("SPEC §3: a from-to range for Prism and each part; a missing value never passes; an empty box is no limit and a typed value is held to 0-100", async () => {
     open();
-    const box = (name: string, end: "Min" | "Max") => within(screen.getByRole("group", { name: `${name}, exact range` })).getByLabelText(end);
-    fireEvent.change(box("Valuation score", "Min"), { target: { value: "50" } });
-    fireEvent.change(box("Risk score", "Min"), { target: { value: "65" } });
-    fireEvent.submit(screen.getByRole("button", { name: "Apply filters" }).closest("form")!);
-    expect(symbols()).toEqual(["AAA"]);
+    const p = prismPanel();
+    expect(p.getAllByRole("group").map((g) => g.getAttribute("aria-label")).filter((n) => n?.endsWith("score range"))).toEqual(["Prism score range", "Growth & Profitability score range", "Valuation score range", "Quality score range", "Risk score range"]);
+    expect(p.getByRole("group", { name: "Risk score range" }).textContent).toMatch(/high = low risk/);
+    fireEvent.change(p.getByLabelText("Valuation from"), { target: { value: "50" } });
+    fireEvent.change(p.getByLabelText("Risk from"), { target: { value: "65" } });
+    await waitFor(() => expect(symbols()).toEqual(["AAA"]));
     expect(loc()).toBe("/advanced-score-screener?zvmin=50&zrmin=65");
     expect(screen.getByRole("button", { name: "Remove filter Prism Valuation: Average, Healthy, Strong" })).toBeTruthy();   // band names, never the cut-off (14 Nov N-31)
-    for (const p of ["Growth & Profitability", "Quality"]) expect(screen.getByRole("group", { name: `${p} score, exact range` })).toBeTruthy();
-  });
-
-  it("the FinLit Prism Score panel has the Fundamental and Technical parts, five pillar rows and the six rating chips", () => {
-    open();
-    expect(screen.getByRole("button", { name: /^Fundamental Score/ })).toBeTruthy();
-    expect(screen.getByRole("button", { name: /^Technical Score/ })).toBeTruthy();
-    expect(screen.queryByText("Financial health")).toBeNull();
-    const rating = screen.getByRole("group", { name: "Rating" });
-    expect(within(rating).getAllByRole("button").map((b) => b.textContent)).toEqual(["Strong", "Healthy", "Average", "Weak", "Poor", "Not rated"]);
-    for (const n of ["Growth & Profitability score", "Valuation score", "Quality score", "Risk score"]) expect(screen.getByRole("group", { name: `${n}, exact range` })).toBeTruthy();
-    expect(screen.getByRole("group", { name: "Total Fundamental Score, exact range" })).toBeTruthy();
-  });
-
-  it("every part row and the Total row has Prism's own Poor / Weak / Average / Healthy / Strong chips (never the IQ's Watch or Mixed, 14 Nov N-32) that set its Min and Max; typing a custom range clears the highlight", { timeout: 30000 }, async () => {
-    open();
-    for (const n of ["Growth & Profitability score", "Valuation score", "Quality score", "Risk score", "Total Fundamental Score"]) {
-      const g = within(screen.getByRole("group", { name: `${n}, exact range` }).closest(".fgx-rr") as HTMLElement);
-      expect(g.getAllByRole("button").map((b) => b.textContent)).toEqual(["Poor", "Weak", "Average", "Healthy", "Strong"]);
-    }
-    const q = () => within(screen.getByRole("group", { name: "Quality score, exact range" }));
-    fireEvent.click(q().getByRole("button", { name: "Quality Strong" }));
-    await waitFor(() => expect(loc()).toBe("/advanced-score-screener?zqmin=80"));                  // Prism's own edges: Strong 80, Healthy 65, Average 50, Weak 35
-    expect((q().getByLabelText("Min") as HTMLInputElement).value).toBe("80");
-    expect(q().getByRole("button", { name: "Quality Strong" }).getAttribute("aria-pressed")).toBe("true");
-    fireEvent.click(q().getByRole("button", { name: "Quality Healthy" }));
-    await waitFor(() => expect(loc()).toBe("/advanced-score-screener?zqmin=65"));
-    fireEvent.click(q().getByRole("button", { name: "Quality Average" }));
-    await waitFor(() => expect(loc()).toBe("/advanced-score-screener?zqmin=50"));
-    fireEvent.click(q().getByRole("button", { name: "Quality Weak" }));
-    await waitFor(() => expect(loc()).toBe("/advanced-score-screener?zqmin=35"));
-    fireEvent.click(q().getByRole("button", { name: "Quality Poor" }));   // joins the other four: all five = no limit
-    await waitFor(() => expect(loc()).toBe("/advanced-score-screener"));
-    fireEvent.click(q().getByRole("button", { name: "Quality Poor" }));
-    await waitFor(() => expect(loc()).toBe("/advanced-score-screener?zqlt=35"));
-    fireEvent.change(q().getByLabelText("Below (the score must be under this number)"), { target: { value: "60" } });
-    await waitFor(() => expect(loc()).toBe("/advanced-score-screener?zqmax=60"));
-    for (const b of q().getAllByRole("button")) expect(b.getAttribute("aria-pressed")).toBe("false");
-  });
-
-  it("Total Fundamental Score filters on the overall Prism figure (zmin / zmax) and never passes a missing value", () => {
-    open();
-    const g = within(screen.getByRole("group", { name: "Total Fundamental Score, exact range" }));
-    fireEvent.change(g.getByLabelText("Min"), { target: { value: "70" } });
-    fireEvent.submit(screen.getByRole("button", { name: "Apply filters" }).closest("form")!);
-    expect(loc()).toBe("/advanced-score-screener?zmin=70");
-    expect(screen.getByRole("button", { name: "Remove filter Total Fundamental Score: 70 or more" })).toBeTruthy();
+    fireEvent.change(p.getByLabelText("Quality to"), { target: { value: "150" } });
+    expect((p.getByLabelText("Quality to") as HTMLInputElement).value).toBe("100");
+    fireEvent.change(p.getByLabelText("Prism from"), { target: { value: "70" } });
+    await waitFor(() => expect(loc()).toContain("zmin=70"));
     expect(symbols()).not.toContain("EEE");   // EEE is not rated: a blank never counts as a pass
+    fireEvent.click(p.getByRole("button", { name: "Clear score filters" }));
+    await waitFor(() => expect(symbols()).toHaveLength(6));
+    expect(p.getByText("Counts are for this list")).toBeTruthy();
   });
 
-  it("filters each technical view by Positive, Neutral or Negative, using the Prism card's bands", () => {
+  it("SPEC §3: the technical views in five words, each with its count", async () => {
     open();
-    const st = screen.getByRole("group", { name: "Short-term technical view" }), lt = screen.getByRole("group", { name: "Long-term technical view" });
-    expect(within(st).getByRole("button", { name: "Uptrend" })).toBeTruthy();   // the band name only (14 Nov N-31)
-    fireEvent.click(within(st).getByRole("button", { name: /^Uptrend/ }));
-    fireEvent.submit(st.closest("form")!);
-    expect(symbols()).toEqual(["AAA", "CCC", "FFF"]);                         // +55, +22, +22 are Positive; BBB +5 is Neutral; unrated have no score
+    const p = prismPanel(), st = within(p.getByRole("group", { name: "Short term technical view" }));
+    expect(st.getAllByRole("checkbox").map((c) => c.closest("label")!.textContent)).toEqual(["Strong uptrend1", "Uptrend2", "Sideways1", "Downtrend0", "Strong downtrend0"]);
+    fireEvent.click(st.getByRole("checkbox", { name: /^Uptrend/ }));
+    await waitFor(() => expect(symbols()).toEqual(["CCC", "FFF"]));
+    expect(loc()).toBe("/advanced-score-screener?st5=u");
+    expect(screen.getByRole("button", { name: "Remove filter Short term: Uptrend" })).toBeTruthy();
+  });
+
+  it("the header row's Technical view keeps the old panel's bands (Uptrend, Sideways, Downtrend) for each view", async () => {
+    open();
+    fireEvent.click(screen.getByRole("button", { name: "Technical view" }));
+    const d = within(screen.getByRole("dialog", { name: "Technical view" }));
+    const st = within(d.getByRole("group", { name: "Short-term technical view" })), lt = within(d.getByRole("group", { name: "Long-term technical view" }));
+    expect(st.getAllByRole("button").map((b) => b.textContent)).toEqual(["Uptrend", "Sideways", "Downtrend"]);   // the band name only (14 Nov N-31)
+    fireEvent.click(st.getByRole("button", { name: "Uptrend" }));
+    await waitFor(() => expect(symbols()).toEqual(["AAA", "CCC", "FFF"]));    // +55, +22, +22 are Positive; BBB +5 is Neutral; unrated have no score
     expect(loc()).toBe("/advanced-score-screener?st=pos");
-    fireEvent.click(within(lt).getByRole("button", { name: /^Downtrend/ }));
-    fireEvent.submit(st.closest("form")!);
-    expect(symbols()).toEqual([]);                                            // Positive short term and Negative long term: nobody here
+    fireEvent.click(lt.getByRole("button", { name: "Downtrend" }));
+    await waitFor(() => expect(symbols()).toEqual([]));                       // Positive short term and Negative long term: nobody here
     expect(screen.getByRole("button", { name: "Remove filter Long-term technical: Downtrend" })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Remove filter Short-term technical: Uptrend" }));
-    expect(symbols()).toEqual(["BBB"]);
+    await waitFor(() => expect(symbols()).toEqual(["BBB"]));
   });
 
-  it("offers four quick views built from the Prism parts only, each applying at once and switching off again", () => {
+  it("the four Prism views are server screens in the strip (14 Nov N-35): no second list of them in the filter panel, and an old quick-view link still filters", () => {
     open();
-    const views = screen.getAllByRole("button", { name: /^(Prism strong and lower risk|Strong Growth & Profitability at a fair valuation|Uptrend on both technical views|Growth & Profitability strong but valuation weak)$/ });
-    expect(views).toHaveLength(4);
-    fireEvent.click(screen.getByRole("button", { name: "Prism strong and lower risk" }));
-    expect(symbols()).toEqual(["AAA"]); expect(loc()).toBe("/advanced-score-screener?zmin=80&zrmin=65&rated=1");
-    fireEvent.click(screen.getByRole("button", { name: "Prism strong and lower risk" }));
-    expect(symbols()).toHaveLength(6); expect(loc()).toBe("/advanced-score-screener");
-    fireEvent.click(screen.getByRole("button", { name: "Uptrend on both technical views" }));
-    expect(symbols()).toEqual(["AAA"]); expect(loc()).toBe("/advanced-score-screener?st=pos&lt=pos");
-    fireEvent.click(screen.getByRole("button", { name: "Growth & Profitability strong but valuation weak" }));
-    expect(symbols()).toEqual(["BBB"]);                                        // Growth & Profitability 66 or more and Valuation 40 (50 or less)
+    expect(screen.queryByRole("group", { name: "Quick views built from the Prism parts" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Prism strong and lower risk" })).toBeNull();
+    cleanup(); open("?zmin=80&zrmin=65&rated=1");                              // an address saved from the old quick view
+    expect(symbols()).toEqual(["AAA"]);
     expect(document.body.textContent?.toLowerCase()).not.toMatch(forbidden);
   });
 
@@ -217,7 +250,7 @@ describe("Advanced stock screener (Gold)", () => {
   it("ignores FinLit-score parameters in the address", () => {
     open("?f=high&omin=90&sort=overall");
     expect(symbols()).toHaveLength(6);
-    expect(document.querySelector(".fgx-top")!.textContent).not.toMatch(/active/);
+    expect(document.querySelector(".hf-empty")).toBeTruthy();   // no filter read from the FinLit-score parameters
   });
 
   it("selects, compares up to 4 and adds to the watchlist", () => {
@@ -270,7 +303,8 @@ describe("Advanced stock screener: every plan below Gold gets the upgrade page",
       fireEvent.click(screen.getAllByRole("button", { name: /Unlock with Gold/ })[0]);
       expect(st.upgrade).toHaveBeenCalledWith("gold", expect.any(String));
       expect(document.body.textContent?.toLowerCase()).not.toMatch(forbidden);
-      expect(screen.getByRole("link", { name: "Basic stock screener" }).getAttribute("href")).toBe("/score-screener");
+      expect(screen.queryByRole("link", { name: "Basic stock screener" })).toBeNull();   // task #283: retired, and no sentence compares the two
+      expect(document.body.textContent).not.toMatch(/Basic stock screener|FinLit IQ/);
     });
   }
   it("a Silver response (rows with no Prism values) still renders nothing of Prism", () => {
@@ -278,10 +312,11 @@ describe("Advanced stock screener: every plan below Gold gets the upgrade page",
     open(); nothing();
   });
 
-  it("V-3: the 52-week high is a filter in the panel, not an open card above the table", () => {
+  it("V-3: the 52-week high is a filter in the header row (task #258), not an open card above the table", () => {
     open();
     expect(document.querySelector(".sx-hibar")).toBeNull();
-    expect(within(document.querySelector("aside")!).getByRole("button", { name: /Down from 52-week high/ })).toBeTruthy();
+    fireEvent.click(within(screen.getByRole("toolbar", { name: "Filters" })).getByRole("button", { name: "52-week high" }));
+    expect(within(screen.getByRole("dialog", { name: "Down from 52-week high" })).getByRole("group", { name: "Quick picks" })).toBeTruthy();
   });
 
   it("V-5: Leader / In line / Laggard after the company name, only where the list carries one", () => {

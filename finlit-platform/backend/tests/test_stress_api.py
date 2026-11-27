@@ -52,9 +52,23 @@ def test_covered_quarters_come_from_the_table_without_building_any_pack():
 
 
 # ---------------------------------------------------------------------------------------------------------------- the reader's numbers
-def test_sliders_are_clipped_to_the_specs_ranges_and_the_scenario_becomes_custom():
+def test_the_readers_numbers_have_no_limit_and_the_scenario_becomes_custom():
+    """Task #196 (D1): "The model must accept any value; there is no clamp on the server"; the sliders' ranges are only their drag ranges."""
     sc = R.scenario_from(R.ScenarioIn(crude=900, rate_bp=-9000, demand=-99, cpi=3.0, persistence="permanent"))
-    assert (sc.crude, sc.rate_bp, sc.demand, sc.cpi, sc.persistence, sc.name) == (300.0, -500.0, -60.0, 3.0, "permanent", "Custom")
+    assert (sc.crude, sc.rate_bp, sc.demand, sc.cpi, sc.persistence, sc.name) == (900.0, -9000.0, -99.0, 3.0, "permanent", "Custom")
+    assert R.scenario_from(R.ScenarioIn(crude=-100, demand=-100)).crude == -100.0              # all the way down is possible; below it is not
+
+
+def test_only_impossible_values_are_refused():
+    import pytest
+    from fastapi import HTTPException
+    for body, why in ((R.ScenarioIn(crude=-100.5), "Crude cannot fall by more than 100%."), (R.ScenarioIn(demand=-150), "Demand cannot fall by more than 100%."),
+                      (R.ScenarioIn(usdinr=-100), "A dollar cannot cost zero rupees or fewer.")):
+        with pytest.raises(HTTPException) as e:
+            R.scenario_from(body)
+        assert e.value.status_code == 422 and why in str(e.value.detail)
+    with pytest.raises(HTTPException):
+        R.scenario_from(R.ScenarioIn(crude=float("inf")))
     assert R.scenario_from(R.ScenarioIn(persistence="forever")).persistence == "one_year"
     base = S.PRESETS["oil"]
     assert R.scenario_from(R.ScenarioIn(rate_bp=25), base).crude == base.crude          # untouched shocks keep the preset's value
@@ -119,20 +133,24 @@ async def test_free_visitors_and_other_plans_cannot_read_the_page(app, anon):  #
 
 
 async def test_silver_reads_the_page_but_cannot_run_compare_or_ask_for_a_peer(app, store):  # noqa: F811
+    # task #410 (owner, 27 Nov 2026): Stress Lab is part of the Platinum plan; the old Silver and Gold members were moved to Platinum (migration 146)
     await _clean(store)
-    silver = await signed_in(app, "ss@example.com", plan="silver")
     body = {"preset": "today"}
-    assert (await silver.post("/api/stress/ASIANPAINT/run", json=body)).status_code in (403,)
-    assert (await silver.post("/api/stress/compare", json={"a": "ASIANPAINT", "b": "BANKX"})).status_code == 403
-    assert (await silver.get("/api/stress/ASIANPAINT/peer")).status_code == 403
-    r = await silver.get("/api/stress/ASIANPAINT/page")
+    for plan in ("silver", "combined", "gold"):
+        m = await signed_in(app, f"ss-{plan}@example.com", plan=plan)
+        for r in (await m.post("/api/stress/ASIANPAINT/run", json=body), await m.post("/api/stress/compare", json={"a": "ASIANPAINT", "b": "BANKX"}),
+                  await m.get("/api/stress/ASIANPAINT/peer"), await m.get("/api/stress/ASIANPAINT/page")):
+            assert r.status_code == 403 and r.json()["detail"]["plan"] == "platinum", (plan, r.text)
+        await m.aclose()
+    plat = await signed_in(app, "ss-platinum@example.com", plan="platinum")
+    r = await plat.get("/api/stress/ASIANPAINT/page")
     assert r.status_code in (404, 503)                       # a report is not stored in the test database: "not ready", never a result built from nothing
-    await silver.aclose()
+    await plat.aclose()
 
 
 async def test_a_bank_and_a_small_company_say_why_they_are_not_covered(app):  # noqa: F811
-    silver = await signed_in(app, "sc@example.com", plan="silver")
-    for sym, words in (("BANKX", "financial companies"), ("SMALLCO", "large and mid caps")):
+    silver = await signed_in(app, "sc@example.com", plan="platinum")
+    for sym, words in (("BANKX", "financial companies"), ("SMALLCO", "large, mid and small caps for now (a market value of Rs 10,000 Cr or more), not micro caps")):   # task #262: SMALLCO (Rs 500 Cr) is a micro cap
         r = await silver.get(f"/api/stress/{sym}/page")
         d = r.json()
         assert r.status_code == 404 and words in json.dumps(d), (sym, d)
@@ -141,14 +159,14 @@ async def test_a_bank_and_a_small_company_say_why_they_are_not_covered(app):  # 
 
 
 async def test_a_symbol_that_is_not_a_company_says_so_and_the_covered_list_leaves_out_banks_and_small_companies(app, anon):  # noqa: F811
-    silver = await signed_in(app, "su@example.com", plan="silver")
+    silver = await signed_in(app, "su@example.com", plan="platinum")
     r = await silver.get("/api/stress/NOSUCHCOMPANY/page")
     d = r.json()["detail"]
     assert r.status_code == 404 and d["status"] == "unknown_symbol" and d["detail"] == service.UNKNOWN_SYMBOL
     assert "10,000" not in json.dumps(d)                        # not the size rule: it is not a company at all
     got = (await silver.get("/api/stress/covered")).json()["symbols"]
     assert "BANKX" not in got and "SMALLCO" not in got and got == sorted(got)
-    assert (await anon.get("/api/stress/covered")).status_code == 401      # the Silver and Gold plans only, like the rest
+    assert (await anon.get("/api/stress/covered")).status_code == 401      # members only, like the rest
     await silver.aclose()
 
 
@@ -258,7 +276,7 @@ async def test_sl4_a_page_that_cannot_be_built_says_plain_words_and_keeps_the_re
     async def boom(app_, sym, **kw):
         raise service.NotReady("Today's inputs are not complete yet: FinLit's USD/INR series has 0 of 12 months in the base window; pass usdinr= monthly averages from another source")
     monkeypatch.setattr(service, "build_payload_and_pack", boom)
-    silver = await signed_in(app, "s4@example.com", plan="silver")
+    silver = await signed_in(app, "s4@example.com", plan="platinum")
     with caplog.at_level("WARNING", logger="finlit.stress"):
         r = await silver.get("/api/stress/ASIANPAINT/page")
     body = json.dumps(r.json())
@@ -274,7 +292,7 @@ async def test_sl4_a_timeout_and_an_unexpected_fault_are_plain_too(app, store, m
         await __import__("asyncio").sleep(5)
     monkeypatch.setattr(service, "build_payload_and_pack", hang)
     monkeypatch.setattr(service, "LIVE_BUILD_S", 0.05)
-    silver = await signed_in(app, "s4b@example.com", plan="silver")
+    silver = await signed_in(app, "s4b@example.com", plan="platinum")
     r = await silver.get("/api/stress/ASIANPAINT/page")
     assert r.status_code == 503 and service.PLAIN_NOT_READY in json.dumps(r.json())
     async def bug(app_, sym, **kw):
@@ -295,12 +313,12 @@ async def test_sl2_a_stored_page_is_served_without_building_anything_and_gold_ru
     monkeypatch.setattr(service, "build_payload_and_pack", never)
     monkeypatch.setattr(service, "build_pack", never)
     monkeypatch.setattr(service, "macro_today", _macro_today(m))
-    silver = await signed_in(app, "s2@example.com", plan="silver")
+    silver = await signed_in(app, "s2@example.com", plan="platinum")
     r = await silver.get("/api/stress/ASIANPAINT/page")
     d = r.json()
-    assert r.status_code == 200 and [s["id"] for s in d["scenarios"]] == ["today", "today_eia", "2022", "2020"] and d["flags"]["showValue"] is True
+    assert r.status_code == 200 and len(d["scenarios"]) == 8 and not d.get("locked_scenarios") and d["flags"]["showValue"] is True
     await silver.aclose()
-    gold = await signed_in(app, "g2@example.com", plan="gold")
+    gold = await signed_in(app, "g2@example.com", plan="platinum")
     r = await gold.post("/api/stress/ASIANPAINT/run", json={"preset": "2022"})
     assert r.status_code == 200 and r.json()["label"] and r.json()["change_pct"]["eps"] is not None
     await gold.aclose()
@@ -312,7 +330,7 @@ async def test_sl5_quick_picks_are_only_covered_companies_with_a_stored_page(app
         raise service.NotReady("not stored yet")
     monkeypatch.setattr(service, "build_payload_and_pack", not_yet)                     # the warm-up the empty start page starts finds nothing to build here
     pack = json.loads((FIX / "ASIANPAINT.json").read_text(encoding="utf-8"))
-    silver = await signed_in(app, "s5@example.com", plan="silver")
+    silver = await signed_in(app, "s5@example.com", plan="platinum")
     assert (await silver.get("/api/stress/quick-picks")).json() == {"picks": []}            # nothing stored yet: nothing offered
     await service.save_page(store, "ASIANPAINT", _payload(), pack)
     await service.save_page(store, "BANKX", _payload(), pack)                                 # a bank with a page by mistake is still never offered
@@ -414,7 +432,7 @@ async def test_a_slow_build_is_not_cancelled_it_finishes_in_the_background_and_t
         return _payload(), pack
     monkeypatch.setattr(service, "build_payload_and_pack", slow)
     monkeypatch.setattr(service, "LIVE_BUILD_S", 0.05)
-    silver = await signed_in(app, "slow@example.com", plan="silver")
+    silver = await signed_in(app, "slow@example.com", plan="platinum")
     first, second = await asyncio.gather(silver.get("/api/stress/ASIANPAINT/page"), silver.get("/api/stress/ASIANPAINT/page"))
     assert first.status_code == 503 and second.status_code == 503 and service.PLAIN_NOT_READY in first.text
     assert calls == ["ASIANPAINT"]                   # two readers at once: one build
@@ -442,7 +460,7 @@ async def test_the_start_page_gets_the_largest_companies_ready_a_few_at_a_time_a
         await gate.wait()
         return _payload(), pack
     monkeypatch.setattr(service, "build_payload_and_pack", build)
-    silver = await signed_in(app, "warm@example.com", plan="silver")
+    silver = await signed_in(app, "warm@example.com", plan="platinum")
     assert (await silver.get("/api/stress/quick-picks")).json() == {"picks": []}
     await asyncio.sleep(0.05)
     assert built == ["AAA", "BBB", "CCC"]                                             # the largest first, three at a time, never the bank

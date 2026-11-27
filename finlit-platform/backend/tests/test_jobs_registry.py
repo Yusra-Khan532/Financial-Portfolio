@@ -58,7 +58,8 @@ def test_bulk_and_light_classes_match_the_incident_analysis():
         assert JOBS[n].cls == "bulk", n          # the three that ran at once on 2 GB are now strictly sequential
     for n in ("results", "results-light", "calendars", "quotes", "listing"):
         assert JOBS[n].cls == "light" and JOBS[n].honours_pause is False, n
-    assert JOBS["score-mf"].prerequisites == ("portfolios",) and "ingest" in JOBS["prism"].prerequisites
+    # task #281: the fund score follows the night's NAVs, fund facts and portfolios (it used to follow the portfolios only, and ran before all three)
+    assert JOBS["score-mf"].prerequisites == ("mf", "facts", "portfolios") and JOBS["score-mf"].nightly_inputs and "ingest" in JOBS["prism"].prerequisites
     assert JOBS["results"].sla.hours == 1.5 and JOBS["calendars"].sla.hours == 1.0 and JOBS["listing"].sla.hours == 6
     for n in ("ingest", "score", "prism", "mf", "portfolios"):
         assert JOBS[n].sla.hours == 26, n
@@ -139,27 +140,47 @@ def _sec_due(t, last_success_hours_ago, env=SEC_ENV, technicals_ok=True):
     return evaluate(j, st, Ctx(now=t, env=env, probes={}))
 
 
-def test_the_sector_job_is_a_bulk_job_after_technicals_and_off_until_switched_on():
+def test_the_sector_job_is_a_weekend_bulk_job_after_technicals_at_the_lowest_priority_and_off_until_switched_on():
+    # owner, 18 Nov 2026: market data changes only on weekdays and the build is heavy, so it runs once a week on the weekend nights, after every other job
     j = JOBS["sectors"]
     assert j.cls == "bulk" and j.command == "refresh-sectors" and j.prerequisites == ("technicals",) and j.owns == ("sectors",)
-    assert j.sla.kind == "session" and j.sla.hours == 14 and j.max_runtime_min == 90 and 364 <= j.weight_mb <= 600 and j.honours_pause
-    assert [(w.window, w.not_before) for w in j.windows] == [("AFTER_CLOSE", (19, 0)), ("NIGHT", None), ("MORNING", None)]
+    assert j.sla.kind == "hours" and j.sla.hours == 192 and j.max_runtime_min == 90 and 364 <= j.weight_mb <= 600 and j.honours_pause
+    assert [(w.window, w.min_age_h) for w in j.windows] == [("NIGHT", 120), ("MORNING", 120)] and j.time_rule is not None
     assert j.resumable                                                        # longer than one run on the server: it continues where it stopped
-    for env in ({}, {"SECTORS_ENABLED": "1"}, {"SECTORS_JOB": "off"}):        # switched off for now (founder, 7 Nov 2026): SECTORS_JOB=on brings it back
-        assert "switched off for now" in disabled_reason(j, env)
-    assert disabled_reason(j, SEC_ENV) is None
-    assert evaluate(j, JobState(job="sectors", first_seen_at=ist(2026, 10, 1)), Ctx(now=ist(2026, 10, 30, 19, 30), env={}, probes={})).state == "disabled"
-    assert evaluate(j, JobState(job="sectors", first_seen_at=ist(2026, 10, 1)), Ctx(now=ist(2026, 10, 30, 19, 30), env=SEC_ENV, probes={})).state != "disabled"
+    assert all(o.priority < j.priority for o in JOBS.values() if o.cls == "bulk" and o.name != "sectors")    # every other bulk job of the night goes first
+    assert disabled_reason(j, {}) is None and disabled_reason(j, SEC_ENV) is None    # on since the owner's decision of 18 Nov 2026, no server step needed
+    assert "SECTORS_JOB=off" in disabled_reason(j, {"SECTORS_JOB": "off"})         # the line still switches it off
+    assert evaluate(j, JobState(job="sectors", first_seen_at=ist(2026, 10, 1)), Ctx(now=ist(*SAT, 23, 30), env={"SECTORS_JOB": "off"}, probes={})).state == "disabled"
+    assert evaluate(j, JobState(job="sectors", first_seen_at=ist(2026, 10, 1)), Ctx(now=ist(*SAT, 23, 30), env=SEC_ENV, probes={})).state != "disabled"
 
 
-def test_the_sector_job_runs_on_weekday_evenings_from_seven_and_catches_up_in_the_morning_but_not_at_weekends():
-    assert not _sec_due(ist(*FRI, 18, 45), 24).due                           # the window is open from 18:30 but the job starts from 19:00
-    assert _sec_due(ist(*FRI, 19, 5), 24).due and "latest session" in _sec_due(ist(*FRI, 19, 5), 24).reason
-    assert not _sec_due(ist(*FRI, 19, 40), 0.3).due                          # done tonight: nothing more until tomorrow's session
-    assert _sec_due(ist(*SAT, 6, 0), 12).due                                 # Friday's run failed: the morning window catches up
-    assert not _sec_due(ist(*SAT, 19, 30), 23.8).due                         # Friday's run (19:40) is the latest session's: no evening run on a Saturday
-    assert not _sec_due(ist(*SUN, 19, 30), 47.8).due and not _sec_due(ist(2026, 11, 2, 6, 0), 58).due        # nor on Sunday, nor on Monday morning before Monday's session
-    assert _sec_due(ist(2026, 11, 2, 19, 5), 72).due                         # Monday evening: due again
+MON = (2026, 11, 2)
+
+
+def test_the_sector_job_runs_only_on_weekend_nights_and_never_on_a_weekday():
+    week = 168
+    assert not _sec_due(ist(*FRI, 19, 5), week).due and "weekend nights" in _sec_due(ist(*FRI, 19, 5), week).reason     # weekday evening: no
+    assert not _sec_due(ist(*SAT, 6, 0), week).due                            # Saturday morning (Friday's night shift): no
+    assert not _sec_due(ist(*SAT, 22, 59), week).due
+    assert _sec_due(ist(*SAT, 23, 5), week).due                               # Saturday 23:00: the weekly build
+    assert _sec_due(ist(*SUN, 6, 0), week).due                                # still running through the night shift to 08:00
+    assert not _sec_due(ist(*SUN, 6, 0), 3).due                               # once it has succeeded, nothing more that weekend
+    assert not _sec_due(ist(*SUN, 8, 30), week).due                           # Sunday daytime: no
+    assert _sec_due(ist(*SUN, 23, 30), week).due                              # Sunday night: catch-up when Saturday's did not finish
+    assert _sec_due(ist(*MON, 3, 0), week).due and not _sec_due(ist(*MON, 3, 31), week).due     # last start 03:30, so a 90-minute run ends by 05:00
+    assert not _sec_due(ist(2026, 11, 4, 2, 0), 300).due                      # a weekday night, even with the SLA long past: it waits for the weekend
+
+
+def test_a_retry_or_a_continuation_of_the_sector_job_waits_for_the_weekend_night():
+    j = by_name(SEC_ENV)["sectors"]
+    t = ist(*SUN, 8, 30)                                                      # a run stopped at 07:59 (time cap or failure) with its retry due at 08:01
+    st = JobState(job="sectors", first_seen_at=t - timedelta(days=30), last_success_at=t - timedelta(days=7), last_attempt_at=t - timedelta(minutes=31),
+                  last_status="failed", consecutive_failures=1, retry_at=t - timedelta(minutes=29))
+    v = evaluate(j, st, Ctx(now=t, env=SEC_ENV, probes={}))
+    assert not v.due and v.next_due_at == ist(*SUN, 23, 0) and "Sunday 23:00" in v.reason
+    st.forced_at = t                                                          # a freshness force waits too
+    assert not evaluate(j, st, Ctx(now=t, env=SEC_ENV, probes={})).due
+    assert evaluate(j, st, Ctx(now=ist(*SUN, 23, 1), env=SEC_ENV, probes={})).due
 
 
 def test_the_presets_job_always_has_time_to_finish_after_waiting_for_candles():

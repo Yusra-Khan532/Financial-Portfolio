@@ -51,7 +51,7 @@ export function PrismScoreRows({ s }: { s: Screener }) {
   return (<div className="pzf">
     <Sub title={FUND_TITLE} icon="bars" active={fundActive}>
       <p className="fgx-hint">Pick the ratings you want, then set the lowest and highest value (0 to 100) for any of the four parts or their total.</p>
-      <div className="fgx-chips pzf-chips" role="group" aria-label="Rating">
+      <div className="fgx-chips pzf-chips" role="group" aria-label="Fundamental rating">
         {PRISM_LABELS.map((l) => <button key={l} type="button" className={"fgx-chip" + (draft.labels.includes(l) ? " is-on" : "")} aria-pressed={draft.labels.includes(l)} onClick={() => s.setLabel(l)}>{draft.labels.includes(l) && <i aria-hidden="true">&#10003;</i>}{l === "NOT RATED" ? "Not rated" : LABEL_WORD[l]}</button>)}
       </div>
       {FUND_ROWS.map((x) => <div key={x.range} title={x.say}><RangeRow label={x.label} group={x.range === "z" ? `${x.label}, exact range` : `${x.label} score, exact range`} min={draft.ranges[x.range].min} max={draft.ranges[x.range].max} maxExcl={!!draft.ranges[x.range].maxExcl}

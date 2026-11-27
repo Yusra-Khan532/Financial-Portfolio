@@ -171,6 +171,11 @@ async def _post(app, payload: Dict[str, Any]) -> Optional[httpx.Response]:
         return r
 
 
+def _loggable(text: str) -> str:
+    """A value from a request or an upstream answer, safe for one log line: its line breaks are written as \\r and \\n, so it cannot forge log entries."""
+    return str(text).replace("\r", "\\r").replace("\n", "\\n")
+
+
 def _apply(report: Dict[str, Any], card: Optional[Dict[str, Any]], view: Dict[str, Any], at: str) -> Tuple[Dict[str, Any], Dict[str, Any]]:
     """The stored report and card with the new technical view; nothing else in them changes."""
     report = {**report, "technicalAssessment": view, "technicalCalculatedAt": at}
@@ -178,7 +183,7 @@ def _apply(report: Dict[str, Any], card: Optional[Dict[str, Any]], view: Dict[st
 
     def horizon(key: str) -> Dict[str, Any]:
         part = view.get(key) if isinstance(view.get(key), dict) else {}
-        if part.get("provisional") is True:      # shown on the company page only; the screeners treat a provisional score as not available
+        if not prism.card_counts(part):         # a partial provisional score: the company page only (a young listing's goes on the card, task #247)
             return {"score": None, "rating": None}
         return {"score": part.get("score"), "rating": part.get("rating")}
     card.update(st=horizon("shortTerm"), lt=horizon("longTerm"), technicalAt=at, technicalBarDate=view.get("asOf"))
@@ -216,7 +221,8 @@ async def refresh_symbol(app, symbol: str, now: datetime, target: Optional[date]
         if r is None or r.status_code != 200:
             code = r.status_code if r is not None else 0
             if r is not None:
-                log.warning("technical refresh %s: the site backend answered %s: %s", symbol, code, (prism._upstream_detail(r) or "")[:200])
+                detail = (prism._upstream_detail(r) or r.text or "")[:200]     # a plain-text 400 ("Invalid host header") said nothing before
+                log.warning("technical refresh %s: the site backend answered %s: %s", _loggable(symbol), code, _loggable(detail))
             return Outcome.FAILED, "unusable_candles" if code == 422 else f"site_backend_{code}"
         try:
             assessment = r.json()["technicalAssessment"]
@@ -319,7 +325,10 @@ async def refresh(store, settings, *, limit: int = 2500, max_minutes: float = 45
             # a transport failure (Dhan or the site backend not answering) counts towards the stop after five; "no candles" is Dhan answering that it holds nothing
             # for that one company, so it only stops the run after a long unbroken run of them (12 Nov 2026: the same five large companies with no candles came first
             # in every run, so each run stopped after 4 seconds and 679 companies stayed on 9 Nov)
-            streak = streak + 1 if outcome == Outcome.FAILED and reason in ("candles_error", "site_backend_0", "site_backend_502", "site_backend_503") else 0
+            # a refusal by the site backend (400/401/403: on 26 Nov "Invalid host header" for every company) is as systemic as an outage: five in a row stop
+            # the run instead of sending 2,500 requests that cannot succeed
+            streak = streak + 1 if outcome == Outcome.FAILED and reason in ("candles_error", "site_backend_0", "site_backend_400", "site_backend_401",
+                                                                             "site_backend_403", "site_backend_502", "site_backend_503") else 0
             blanks = blanks + 1 if outcome == Outcome.UNAVAILABLE else 0
             await asyncio.sleep(0.05)
         if out["unavailable"] and not out["updated"] and not out["failed"] and out["status"] == "ok" and "probes_ok" not in out:
@@ -328,7 +337,9 @@ async def refresh(store, settings, *, limit: int = 2500, max_minutes: float = 45
                 out["probes_ok"] = 1
             else:
                 out.update(status="failed", stopped="no candles for any company, and Dhan gave none for the large companies either (Dhan is not answering)")
-        if out["failed"] and not out["updated"] and out["status"] == "ok":
+        if out["failed"] and not out["updated"] and out["status"] in ("ok", "partial"):
+            # 26 Nov 2026: a run that stopped early after failing every company it tried was "partial", which reset the failure count, so the admin bell
+            # said "Resolved: FinLit job failing: technicals" while every refresh still failed. Nothing updated and something failed is a failed run.
             out["status"] = "failed"
         elif out["failed"] and out["status"] == "ok":
             out["status"] = "partial"

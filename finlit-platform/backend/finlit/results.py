@@ -62,10 +62,17 @@ PAGE = 50
 INDEX_FLAGS = ("NIFTY50", "NIFTY100", "NIFTY500")
 FILING_SOURCE = "Exchange filing"
 FILING_CATEGORIES = ("outcome of board meeting", "result", "results", "financial results", "financial result")
+INTEGRATED_FINANCIAL = re.compile(r"^integrated filing\W{0,3}financials?$")
 QUARTER_RE = re.compile(r"^\d{4}-(03|06|09|12)$")
 NUMERIC_SORTS = {"revenueYoY": "revenueYoY", "profitYoY": "profitYoY", "marginChange": "npmChange", "gap": "gap", "revenue": "revenue", "netProfit": "netProfit",
-                 "below52": "below52", "belowAth": "belowAth"}
-SORTS = {"date", "marketCap", *NUMERIC_SORTS}
+                 "below52": "below52", "belowAth": "belowAth",
+                 # task #224 (results pack of 18 Nov, A1): every column of the Companies table sorts by its heading
+                 "revenueQoQ": "revenueQoQ", "operatingProfit": "operatingProfit", "opYoY": "opYoY", "opQoQ": "opQoQ", "opm": "opm",
+                 "profitQoQ": "profitQoQ", "npm": "npm", "eps": "eps", "verdict": "verdictRank"}
+# Verdict words sort by rank, not alphabetically (A1): the higher the better reading against the industry.
+VERDICT_RANK = {"Strong": 5, "Good": 4, "Mixed": 3, "Weak": 2, "Poor": 1}
+TEXT_SORTS = {"company": "symbol"}   # words: ascending is A to Z
+SORTS = {"date", "marketCap", *NUMERIC_SORTS, *TEXT_SORTS}
 # every figure a row carries that Basic must not see
 FIGURES = ("verdict", "checks", "revenue", "revenueYoY", "revenueQoQ", "operatingProfit", "opYoY", "opQoQ", "opYoYWhy", "opQoQWhy", "opm", "netProfit", "profitYoY", "profitQoQ", "npm", "npmChange", "eps", "gap")
 # the price-position figures every row carries (Silver and Gold see them; Basic gets empty cells)
@@ -163,7 +170,10 @@ def is_declaration(source: Optional[str], category: Optional[str], title: Option
     if source != FILING_SOURCE:
         return False
     low = f"{title or ''}".lower()
-    return (category or "").strip().lower() in FILING_CATEGORIES and "result" in low and "clarification" not in low and "intimation" not in low
+    cat = " ".join((category or "").lower().split())
+    if INTEGRATED_FINANCIAL.match(cat):   # NSE's own results format since 2025: the filing is the results, whatever its title says
+        return "clarification" not in low and "intimation" not in low
+    return cat in FILING_CATEGORIES and "result" in low and "clarification" not in low and "intimation" not in low
 
 
 def assign(rows: List[dict]) -> Dict[str, Dict[str, Decl]]:
@@ -463,7 +473,11 @@ async def _build(store, e: date, decls: Dict[str, Decl], today: date) -> Entry:
         return op_growth(h["ends"], h["op"], e, m.get("q_operating_profit"))
     rows = [{**build_row(s, d, base.get(s, {"symbol": s}), metrics.get(s, {}), e, today, cap_of(s), sorted(members.get(s, [])), growth(s),
                          {"used": s in used_light, "basis": (used_light.get(s) or {}).get("basis"), "asked": s in asked, **asked.get(s, {})}), **quote_of(s)} for s, d in decls.items()]
-    add_verdicts(rows)   # each company against the typical company of its NSE industry this quarter (final pages pack, boards 10 and 11)
+    try:   # NSE's levels of these companies (task #192, finlit/taxonomy.py): a company missing from NSE's quote-page list is still placed by its stored classification
+        classes = await store.classifications([r["symbol"] for r in rows])
+    except Exception:   # nosec B110 - the rows' own field is placed by the same rules instead
+        classes = {}
+    add_verdicts(rows, classes)   # each company against the typical company of its NSE industry this quarter (final pages pack, boards 10 and 11)
     counts: Dict[str, int] = {}
     for r in rows:
         if r["sector"]:
@@ -615,7 +629,9 @@ def select(rows: List[dict], *, q: str = "", sector: str = "", industry: str = "
         out = [r for r in out if index in r["indices"]]
     if symbols is not None:
         out = [r for r in out if r["symbol"] in symbols]
-    if status:
+    if status == "upcoming":   # the announced date is still to come, figures in or not: what the calendar shows as due (task #193)
+        out = [r for r in out if r["date"] > today]
+    elif status:
         out = [r for r in out if r["status"] == status]
     if flagged:
         out = [r for r in out if r["flagged"]]
@@ -629,9 +645,14 @@ def select(rows: List[dict], *, q: str = "", sector: str = "", industry: str = "
         return done + coming
     if sort == "marketCap":
         return sorted(out, key=lambda r: (mcap(r), r["date"]), reverse=desc)
+    if sort in TEXT_SORTS:
+        f = TEXT_SORTS[sort]
+        return sorted(out, key=lambda r: (str(r.get(f) or "").upper(), r["date"]), reverse=desc)
     key = NUMERIC_SORTS[sort]
-    known = [r for r in out if r[key] is not None]
-    rest = [r for r in out if r[key] is None]   # no figure: always last
+    if key == "verdictRank":
+        out = [{**r, "verdictRank": VERDICT_RANK.get(r.get("verdict") or "")} for r in out]
+    known = [r for r in out if r.get(key) is not None]
+    rest = [r for r in out if r.get(key) is None]   # no figure: always last
     return sorted(known, key=lambda r: (r[key], r["date"]), reverse=desc) + sorted(rest, key=lambda r: (r["date"], mcap(r)), reverse=True)
 
 
@@ -844,7 +865,7 @@ def price_filter(rows: List[dict], spec: PriceSpec) -> Tuple[List[dict], Optiona
 
 
 TOP_SECTORS = 7
-CAP_ORDER = ("Large", "Mid", "Small")
+from .sizes import SIZES as CAP_ORDER   # task #262: Large, Mid, Small, Micro
 
 
 def distribution(rows: List[dict]) -> Dict[str, Any]:
@@ -905,6 +926,14 @@ def parse_range(on: str, frm: str, to: str, today: date, future: bool = False) -
     return start, end
 
 
+def majority_quarter(decls: Dict[str, Dict[str, Decl]], lo: date, hi: date) -> Optional[str]:
+    """The quarter most of the range's announcements belong to (a late-October day is mostly about the September quarter); ties go to the later quarter.
+    One rule for the list (`?date=`) and the calendar (`/calendar`), so a day's count on the calendar is the number of companies its list shows (task #193)."""
+    counts = {qk: sum(1 for d in by_sym.values() if lo <= d.date <= hi) for qk, by_sym in decls.items()}
+    best = max(counts.items(), key=lambda kv: (kv[1], kv[0]), default=(None, 0))
+    return best[0] if best[1] else None
+
+
 def date_facts(decls: Dict[str, Dict[str, Decl]], rng: Tuple[date, date], qkey: Optional[str]) -> Dict[str, Any]:
     """What the date filter found in the declarations (before any other filter): per quarter in range, and the nearest days with results around it."""
     lo, hi = rng
@@ -935,24 +964,19 @@ async def _answer(request: Request, quarter: str, q: str, sector: str, cap: str,
     plan = ctx.plan if ctx.authed else "basic"
     silver = has(plan, "silver")
     if (sort in NUMERIC_SORTS or flagged) and not silver:
-        raise fail(403, "plan_required", "Sorting and filtering by results figures is part of the Silver plan.", plan="silver")
+        raise fail(403, "plan_required", "Sorting and filtering by results figures is part of every paid plan.", plan="silver")
     if growth is not None and growth.active and not silver:
-        raise fail(403, "plan_required", "Filtering by growth is part of the Silver plan.", plan="silver")
+        raise fail(403, "plan_required", "Filtering by growth is part of every paid plan.", plan="silver")
     if price is not None and price.active and not silver:
-        raise fail(403, "plan_required", "Filtering by price position is part of the Silver plan.", plan="silver")
+        raise fail(403, "plan_required", "Filtering by price position is part of every paid plan.", plan="silver")
     store = request.app.state.store
     today = today_ist()
-    rng = parse_range(on, frm, to, today, future=status == "due")
+    rng = parse_range(on, frm, to, today, future=status in ("due", "upcoming"))
     decls = await get_declarations(store)
     quarters = list_quarters(decls, today)
     qkey = quarter or None
     if qkey is None and rng is not None:
-        # no quarter chosen: the quarter most of the range's announcements belong to (a late-October day is mostly about the September quarter)
-        counts: Dict[str, int] = {}
-        for qk, by_sym in decls.items():
-            counts[qk] = sum(1 for d in by_sym.values() if rng[0] <= d.date <= rng[1])
-        best = max(counts.items(), key=lambda kv: (kv[1], kv[0]), default=(None, 0))
-        qkey = best[0] if best[1] else None
+        qkey = majority_quarter(decls, rng[0], rng[1])
         if qkey is None:
             guess = quarter_key(quarter_end_before(rng[1]))
             qkey = guess if guess in {x["key"] for x in quarters} else None
@@ -977,18 +1001,28 @@ async def _answer(request: Request, quarter: str, q: str, sector: str, cap: str,
     return ctx, plan, quarters, entry, rows, entry.rows, today, (date_facts(decls, rng, qkey) if rng else None), (gsum, psum)
 
 
+def by_verdict(rows: List[dict], verdict: str, silver: bool):
+    """Task #330 (developer file 28): the Companies view's verdict chips (All · Strong · Good · In line · Weak · Poor · Loss). The counts are of the rows the
+    other filters leave, before the chip, so every chip says how many it would show; the chip then keeps one verdict. A verdict is a figure: Silver."""
+    if verdict and not silver:
+        raise fail(403, "plan_required", "Filtering by verdict is part of every paid plan.", plan="silver")
+    counts = verdict_counts(rows) if silver else None
+    return ([r for r in rows if r.get("verdict") == verdict] if verdict else rows), counts
+
+
 def _dump(body: dict) -> Response:
     return Response(content=json.dumps(body, separators=(",", ":")), media_type="application/json", headers={**NO_STORE, "Vary": "Cookie"})
 
 
 @router.get("/quarter")
 async def quarter_results(request: Request, quarter: str = Query("", max_length=7), q: str = Query("", max_length=60), sector: str = Query("", max_length=80), industry: str = Query("", max_length=80),
-                          cap: str = Query("", pattern="^(Large|Mid|Small)?$"), index: str = Query("", pattern="^(NIFTY50|NIFTY100|NIFTY500)?$"),
+                          cap: str = Query("", pattern="^(Large|Mid|Small|Micro)?$"), index: str = Query("", pattern="^(NIFTY50|NIFTY100|NIFTY500)?$"),
                           scope: str = Query("all", pattern="^(all|watchlist|portfolio)$"), flagged: bool = False,
-                          status: str = Query("", pattern="^(declared|awaiting|due|missing)?$"), sort: str = Query("date", max_length=20), dir: str = Query("desc", pattern="^(asc|desc)$"),
+                          status: str = Query("", pattern="^(declared|awaiting|due|missing|upcoming)?$"), sort: str = Query("date", max_length=20), dir: str = Query("desc", pattern="^(asc|desc)$"),
                           offset: int = Query(0, ge=0, le=20000), limit: int = Query(PAGE, ge=1, le=100),
                           on: str = Query("", alias="date", max_length=10), from_: str = Query("", alias="from", max_length=10), to: str = Query("", max_length=10),
-                          growth: GrowthSpec = Depends(growth_params), price: PriceSpec = Depends(price_params)):
+                          growth: GrowthSpec = Depends(growth_params), price: PriceSpec = Depends(price_params),
+                          verdict: str = Query("", pattern="^(Strong|Good|In line|Weak|Poor|Loss)?$")):
     """One quarter's results, newest declaration first. Without `quarter` the latest quarter with declarations is used."""
     if sort not in SORTS:
         raise fail(400, "bad_request", "Unknown sort.")
@@ -996,6 +1030,7 @@ async def quarter_results(request: Request, quarter: str = Query("", max_length=
     ctx, plan, quarters, entry, rows, all_rows, today, dates, sums = await _answer(request, quarter, q, sector, cap, index, scope, flagged, status, sort, dir, on, from_, to, growth, price, industry)
     gsum, psum = sums or (None, None)
     silver = has(plan, "silver")
+    rows, vcounts = by_verdict(rows, verdict, silver)
     if entry is None:
         return _dump({"plan": plan, "locked": not silver, "today": today.isoformat(), "quarter": None, "quarters": quarters, "rows": [], "total": 0, "offset": 0, "limit": limit,
                       "summary": summarize([], today), "totals": summarize([], today), "days": [], "facets": {"sectors": [], "indices": []}, "dates": dates,
@@ -1015,25 +1050,81 @@ async def quarter_results(request: Request, quarter: str = Query("", max_length=
                   "summary": summary, "totals": totals, "rows": out_rows, "days": [{"date": d, "n": n} for d, n in sorted(per_day.items(), reverse=True)], "updatedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(entry.loaded)),
                   "facets": {"sectors": [{"name": n, "n": c} for n, c in entry.sectors], "indices": [{"code": c, "n": n} for c, n in idx_counts.items()]},
                   "dates": dates, "dateMeaning": DATE_MEANING, "gapFlag": GAP_FLAG, "growth": gsum, "price": psum, "priceStrip": price_strip(rows) if silver else None, "distribution": distribution(rows),
+                  "verdictCounts": vcounts,
                   "industries": industries(entry.rows) if silver else [{k: v for k, v in x.items() if k in ("name", "companies", "declared")} for x in industries(entry.rows)],
                   "took": round((time.perf_counter() - started) * 1000, 1)})
 
 
 @router.get("/quarter/export")
 async def quarter_export(request: Request, quarter: str = Query("", max_length=7), q: str = Query("", max_length=60), sector: str = Query("", max_length=80), industry: str = Query("", max_length=80),
-                         cap: str = Query("", pattern="^(Large|Mid|Small)?$"), index: str = Query("", pattern="^(NIFTY50|NIFTY100|NIFTY500)?$"),
+                         cap: str = Query("", pattern="^(Large|Mid|Small|Micro)?$"), index: str = Query("", pattern="^(NIFTY50|NIFTY100|NIFTY500)?$"),
                          scope: str = Query("all", pattern="^(all|watchlist|portfolio)$"), flagged: bool = False,
                          status: str = Query("", pattern="^(declared|awaiting|due|missing)?$"), sort: str = Query("date", max_length=20), dir: str = Query("desc", pattern="^(asc|desc)$"),
                          on: str = Query("", alias="date", max_length=10), from_: str = Query("", alias="from", max_length=10), to: str = Query("", max_length=10),
-                         growth: GrowthSpec = Depends(growth_params), price: PriceSpec = Depends(price_params)):
+                         growth: GrowthSpec = Depends(growth_params), price: PriceSpec = Depends(price_params),
+                         verdict: str = Query("", pattern="^(Strong|Good|In line|Weak|Poor|Loss)?$")):
     """The same rows without paging, as JSON the website turns into a CSV (Silver and Gold)."""
     if sort not in SORTS:
         raise fail(400, "bad_request", "Unknown sort.")
     ctx = await current(request)
     if not has(ctx.plan if ctx.authed else "basic", "silver"):
-        raise fail(403, "plan_required", "Downloading the quarter's results is part of the Silver plan.", plan="silver")
+        raise fail(403, "plan_required", "Downloading the quarter's results is part of every paid plan.", plan="silver")
     _, _, _, entry, rows, _, today, _, _ = await _answer(request, quarter, q, sector, cap, index, scope, flagged, status, sort, dir, on, from_, to, growth, price, industry)
+    rows, _ = by_verdict(rows, verdict, True)
     return _dump({"quarter": entry.quarter if entry else None, "today": today.isoformat(), "rows": rows[:EXPORT_ROWS]})
+
+
+# ------------------------------------------------------------------ the month calendar (task #193)
+CAL_MAX_DAYS = 92   # one request covers at most a quarter
+
+
+def day_label(r: dict) -> str:
+    """How a company is named in a calendar cell: its NSE symbol, or its name when it has only a BSE code."""
+    return r["name"] if r["symbol"].isdigit() and r.get("name") else r["symbol"]
+
+
+def calendar_days(decls: Dict[str, Dict[str, Decl]], entries: Dict[str, "Entry"], lo: date, hi: date, today: date, symbols: Optional[set] = None) -> List[Dict[str, Any]]:
+    """Each day of [lo, hi] with companies on it: how many, the three biggest by market value, and whether the date has passed. A day's companies are the rows
+    its list (`/quarter?date=<day>`) shows, from the same quarter chosen by the same rule (majority_quarter), so the two counts agree by construction.
+    `entries`: quarter key -> its rows (get_entry); a quarter missing from it is skipped. `symbols`: only these companies (the watchlist switch)."""
+    days = sorted({d.date for by in decls.values() for d in by.values() if lo <= d.date <= hi})
+    out: List[Dict[str, Any]] = []
+    for day in days:
+        qk = majority_quarter(decls, day, day)
+        entry = entries.get(qk or "")
+        if entry is None:
+            continue
+        iso = day.isoformat()
+        rows = [r for r in entry.rows if r["date"] == iso and (symbols is None or r["symbol"] in symbols)]
+        if not rows:
+            continue
+        big = sorted(rows, key=lambda r: (-(r["marketCap"] if r["marketCap"] is not None else -1.0), r["symbol"]))[:3]
+        out.append({"date": iso, "n": len(rows), "names": [day_label(r) for r in big], "due": day > today, "quarter": qk})
+    return out
+
+
+@router.get("/calendar")
+async def results_calendar(request: Request, from_: str = Query(..., alias="from", max_length=10), to: str = Query(..., max_length=10),
+                           scope: str = Query("all", pattern="^(all|watchlist|portfolio)$"), symbols: str = Query("", max_length=4000)):
+    """The Results calendar's days (task #193): per day the number of companies, the three biggest and whether it is still to come. Counts and names are
+    open to every plan; figures are not part of this answer. The same rows as the day's list, so the calendar and the list never disagree."""
+    ctx = await current(request)
+    today = today_ist()
+    lo, hi = parse_range("", from_, to, today, future=True) or (today, today)
+    if (hi - lo).days >= CAL_MAX_DAYS:
+        raise fail(400, "bad_request", f"Ask for at most {CAL_MAX_DAYS} days at a time.")
+    store = request.app.state.store
+    decls = await get_declarations(store)
+    syms = await _symbols_of(request, ctx, scope)
+    if symbols.strip():   # "Only my watchlist": the page's own lists (they also work for a visitor who is not signed in)
+        own = {s.strip().upper() for s in symbols.split(",") if s.strip()}
+        if len(own) > 500 or not all(re.fullmatch(r"[A-Z0-9&_.-]{1,20}", s) for s in own):
+            raise fail(400, "bad_request", "symbols is a comma-separated list of up to 500 NSE symbols or BSE codes.")
+        syms = own if syms is None else syms & own
+    wanted = {majority_quarter(decls, d.date, d.date) for by in decls.values() for d in by.values() if lo <= d.date <= hi}
+    entries = {qk: await get_entry(store, qk) for qk in sorted(k for k in wanted if k and parse_quarter(k) is not None)}
+    return _dump({"today": today.isoformat(), "from": lo.isoformat(), "to": hi.isoformat(), "days": calendar_days(decls, entries, lo, hi, today, syms),
+                  "meaning": "Board-meeting dates for quarterly results as announced to the exchanges; a passed date counts as declared."})
 
 
 # ------------------------------------------------------------------ pipeline status (read-only, no secrets)

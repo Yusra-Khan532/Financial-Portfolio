@@ -39,7 +39,6 @@
 :root:not([data-theme="light"]) .wk,
 :root:not([data-theme="light"]) .rc,
 :root:not([data-theme="light"]) .hstat > div { border-width: 1px; border-color: var(--frame); background: linear-gradient(180deg, color-mix(in srgb, var(--s2) 60%, var(--s1)), var(--s1) 120px); box-shadow: var(--shadow); }
-:root:not([data-theme="light"]) .card.acc::before { opacity: .9; }
 :root:not([data-theme="light"]) .report, :root:not([data-theme="light"]) .plan, :root:not([data-theme="light"]) .cmp { box-shadow: var(--shadow); }
 :root:not([data-theme="light"]) .plan, :root:not([data-theme="light"]) .plan.feat { background: linear-gradient(180deg, color-mix(in srgb, var(--s2) 60%, var(--s1)), var(--s1) 180px) !important; }
 :root:not([data-theme="light"]) .band, :root:not([data-theme="light"]) footer.band { background: linear-gradient(180deg, var(--band-a), var(--band-b)); }
@@ -47,7 +46,10 @@
 :root:not([data-theme="light"]) .band .lock-card, :root:not([data-theme="light"]) .report .lock-card, :root:not([data-theme="light"]) .lock-card { background: var(--s2); }
 
 /* tables: header rule, readable zebra and hover, sticky first column keeps the row tint */
-:root:not([data-theme="light"]) th { color: var(--muted); border-bottom: 1px solid var(--border-strong); background: color-mix(in srgb, var(--s2) 70%, transparent); }
+/* Task #264 (20 Nov 2026, the team: "ui issue at the header of the tables", Discover's theme table): this header shade was mixed with transparent, so
+   it was 70% see-through, and the rule outranks the tables' own header rules (.dsc-stick thead th, .tw-tall thead th, .psx3-t thead th): every pinned
+   header in dark showed the rows scrolling under it. Mixed with the card colour it looks the same on a card and is solid wherever it is pinned. */
+:root:not([data-theme="light"]) th { color: var(--muted); border-bottom: 1px solid var(--border-strong); background: color-mix(in srgb, var(--s2) 70%, var(--s1)); }
 :root:not([data-theme="light"]) td { border-bottom-color: var(--border); }
 :root:not([data-theme="light"]) tbody tr:nth-child(even) td { background-image: linear-gradient(var(--zebra), var(--zebra)); }
 :root:not([data-theme="light"]) tbody tr:hover td { background-color: var(--s2); background-image: linear-gradient(var(--row-hover), var(--row-hover)); }
@@ -60,16 +62,16 @@
 /* inputs: raised well, clear border, gold focus ring (never on a slider: the ring drew a box round the whole bar while it was dragged, task #110; a slider glows on its thumb, site.css) */
 :root:not([data-theme="light"]) input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
 :root:not([data-theme="light"]) select,
-:root:not([data-theme="light"]) textarea { background-color: var(--s2); border-color: var(--border-strong); color: var(--text); }
+:root:not([data-theme="light"]) textarea { background-color: var(--s2); border-color: var(--ui-field-line); color: var(--text); }   /* task #310 G: a field edge 3:1 or better (ui-tokens.css) */
 :root:not([data-theme="light"]) input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):hover,
-:root:not([data-theme="light"]) select:hover, :root:not([data-theme="light"]) textarea:hover { border-color: color-mix(in srgb, var(--border-strong) 60%, var(--faint)); }
+:root:not([data-theme="light"]) select:hover, :root:not([data-theme="light"]) textarea:hover { border-color: color-mix(in srgb, var(--ui-field-line) 60%, var(--faint)); }
 :root:not([data-theme="light"]) input:not([type="range"]):focus, :root:not([data-theme="light"]) select:focus, :root:not([data-theme="light"]) textarea:focus { border-color: var(--gold); box-shadow: 0 0 0 3px var(--gold-soft); outline: none; }
 :root:not([data-theme="light"]) input:disabled, :root:not([data-theme="light"]) select:disabled { opacity: .55; }
 :root:not([data-theme="light"]) .search, :root:not([data-theme="light"]) .icon-btn, :root:not([data-theme="light"]) .seg { background: var(--s1); border-color: var(--border-strong); }
 :root:not([data-theme="light"]) .search:hover, :root:not([data-theme="light"]) .icon-btn:hover { border-color: var(--gold); }
 :root:not([data-theme="light"]) .btn:not(.primary) { background: var(--s2); border-color: var(--border-strong); color: var(--text); }
 :root:not([data-theme="light"]) .btn:not(.primary):hover { background: var(--s3); border-color: var(--gold); }
-:root:not([data-theme="light"]) .btn.on { background: var(--gold-soft); border-color: var(--gold); color: var(--gold); }
+:root:not([data-theme="light"]) .btn[aria-pressed="true"]:not(.primary), :root:not([data-theme="light"]) .btn[aria-current="page"]:not(.primary) { background: var(--ui-on-bg); border-color: var(--ui-on-bg); color: var(--ui-on-fg); box-shadow: none; }   /* task #310: cream with dark text (was a gold tint) */
 :root:not([data-theme="light"]) .tag, :root:not([data-theme="light"]) .kbd { background: var(--s2); border-color: var(--border-strong); }
 :root:not([data-theme="light"]) :focus-visible { outline-color: var(--gold-2); box-shadow: 0 0 0 4px rgba(11,12,15,.9); }
 
@@ -94,7 +96,7 @@
 :root:not([data-theme="light"]) svg text { fill: var(--muted); }
 
 /* ---------- Skeletons: static (no shimmer), one soft one-time fade in ---------- */
-.skeleton { animation: none !important; background: linear-gradient(180deg, var(--s2), var(--s1)); border: 1px solid var(--border); border-radius: 12px; }
+.skeleton { animation: none !important; background: linear-gradient(180deg, var(--s2), var(--s1)); border: 1px solid var(--border); border-radius: var(--r-ctl); }
 :root[data-theme="light"] .skeleton { background: var(--s2); }
 
 /* ---------- No looping or wobbling motion, in any theme ---------- */

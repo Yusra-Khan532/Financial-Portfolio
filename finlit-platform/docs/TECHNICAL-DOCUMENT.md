@@ -1,21 +1,22 @@
 # FinLit: Technical Document
 
-Status: October 2026, pre-launch (staging). Live at https://finlit-arug.onrender.com
+Status: November 2026, live at https://finlitventures.com (one AWS EC2 server in Sydney, ap-southeast-2). Until early November it ran on Render with a Neon database; that setup is retired.
 
 ## 1. What it is
 FinLit is an Indian retail-investor research platform: stock research reports with a FinLit IQ, screener (160+ filters), query builder, compare, charts, ETF and mutual-fund pages, watchlists, portfolio tracker, alerts, results and IPO calendars, FII/DII flows, market heatmap and sector view, commodities, option chain and DCF calculator, under three plans (Basic, Silver, Gold). Information only, not investment advice.
 
 ## 2. Architecture
-One Docker container on Render (free plan, Singapore) runs everything:
+One AWS EC2 server (`t3.small`: 2 vCPU, 2 GB RAM + 2 GB swap) runs everything with Docker Compose (`deploy/aws/docker-compose.aws.yml`). One application image runs as two containers, `app` (website, research API, site backend) and `jobs` (the job supervisor), beside PostgreSQL, Redis, Caddy (HTTPS) and a nightly database backup:
 
 | Part | Technology | Role |
 |---|---|---|
 | Research API | Python, FastAPI, uvicorn | Serves all `/api/*` endpoints and the built website |
 | Website | React, TypeScript, Vite, TanStack Query | Single-page app, served by the API |
 | Site backend | Python, FastAPI, MongoDB (Atlas M0) | Blog/CMS, forms, chat, portfolio uploads (`site-api/`) |
-| Background jobs | Python worker CLI (`python -m finlit.worker`), shell scheduler (`deploy/scheduler.sh`) | Data loading, refreshes, alerts |
-| Database | PostgreSQL on Neon (free) | Reports, scores, quotes, users, flows, funds |
-| Cache | Redis (Render Key Value, free, ~25 MB) | Section cache, quotes, rate limits, queues |
+| Background jobs | Job supervisor (`finlit/jobs/`, `deploy/jobs.sh`) in its own `jobs` container, running the worker CLI (`python -m finlit.worker`) | Data loading, refreshes, alerts (`docs/JOBS.md`; status at `/api/jobs/status`) |
+| Database | PostgreSQL 16 (TimescaleDB 2.17 image) in Docker on the server, 640 MB limit | Reports, scores, quotes, users, flows, funds |
+| Cache | Redis 7.4 in Docker on the server, 256 MB, cache only (rebuilt from Postgres when empty) | Section cache, quotes, rate limits, queues |
+| Front door | Caddy 2 | HTTPS certificates, `www` to the bare domain, security headers, a holding page during a deploy |
 
 Request flow: browser, API, Redis (hit) or Postgres (miss), JSON, gzip, ETag (304 on repeat visits).
 
@@ -39,10 +40,10 @@ Dhan has no fundamentals; those come only from FinEdge. Every source step is iso
 - `snapshot.py` + `normalize/` turn raw statements into the report sections and run data-quality checks (a report that fails critical checks is rejected and the last good one is kept).
 - `screener/` metrics, the in-memory screener table (cached, loaded incrementally), the query language (`ql.py`, `qeval.py`, `qapi.py`) and baskets.
 - `flows.py`, `etf.py`, `mf.py`, `indices.py`, `options.py`, `commodities.py`, `intraday.py`, `alertengine.py`, `dcf.py`, `premium.py`, `auth/` (sign-up, sign-in, MFA, plans).
-- Migrations: `migrations/NNN_*.sql` (58 so far), run at start by `Store.migrate()`.
+- Migrations: `migrations/NNN_*.sql` (89 in November 2026), run at start by `Store.migrate()`.
 
 ## 5. Frontend (`frontend/src`)
-React pages under `pages/` (about 49), the company report under `stock/`, shared hooks in `lib/` (`api.ts`, `basis.ts`, `markets.ts`). The company page has a Consolidated / Standalone switch; all sections follow it. Unit tests with Vitest.
+React pages under `pages/` (about 49), the company report under `stock/`, shared hooks in `lib/` (`api.ts`, `basis.ts`, `markets.ts`). The company report follows one basis (consolidated, or standalone when the consolidated statements are missing or out of date); section 06 (financial statements) has its own Consolidated / Standalone switch (task #190). Unit tests with Vitest.
 
 ## 6. Data pipeline
 1. First start: load calendars, company universe, price list for every listed company (about 5,800), index lists, the top companies in full (`INGEST_LIMIT`, 500), then scores for every other company (`score-all`, resumable, 1,500 a night).
@@ -51,19 +52,18 @@ React pages under `pages/` (about 49), the company report under `stock/`, shared
 4. Bulk jobs run at low CPU priority so visitors are served first.
 
 ## 7. Security
-HTTPS with security headers, Argon2-style password hashing, MFA required for administrators, rate limits per client IP, plan checks on the server, CI scans (gitleaks secrets, bandit, pip-audit, npm audit). No secrets in the repository; they live in the Render environment.
+HTTPS with security headers, Argon2-style password hashing, MFA required for administrators, rate limits per client IP, plan checks on the server, CI scans (gitleaks secrets, bandit, pip-audit, npm audit). No secrets in the repository; they live in `/opt/finlit/.env.aws` on the server (outside the git clone) and in the GitHub settings.
 
 ## 8. Testing and delivery
-Backend: pytest (about 1,100 tests, with Postgres and Redis). Frontend: type check and Vitest. GitHub Actions run all checks on every pull request; merging to `main` auto-deploys on Render.
+Backend: pytest (about 3,300 tests, with Postgres and Redis). Site backend: pytest (about 1,080). Frontend: type check and Vitest (about 3,000). GitHub Actions run all checks on every pull request. The server checks `main` every 5 minutes and deploys a new commit by itself (`deploy/aws/auto-deploy.sh`: backup, build, restart, health check, automatic rollback if unhealthy). A smoke test checks the live site every six hours (`.github/workflows/platform-smoke.yml`).
 
-## 9. Known limits (free tier)
-- Small shared CPU: response times vary while data jobs run (about 0.4 s from a distance; the app itself answers in milliseconds).
-- Neon free plan caps data transfer at 5 GB a month; the app caches heavily and reads only changed rows to stay inside it (`docs/NEON-EGRESS.md`).
-- Redis is small (25 MB); the app tolerates it being emptied.
+## 9. Known limits
+- One small server: 2 GB of memory shared by everything (limits: app 500 MB, jobs 800 MB, Postgres 640 MB, Redis 320 MB, Caddy 128 MB), with 2 GB of swap. Response times vary while heavy data jobs run; jobs run at low CPU priority and are killed first when memory runs out (`docs/ops/MEMORY-AND-503.md`).
+- Redis is a cache (256 MB, least-recently-used entries dropped); the app tolerates it being emptied.
 - Some companies have short statement history at the provider (for example LIC: 2 years).
 - Showing MCX prices publicly needs written permission from Dhan/MCX; redistribution terms for FinEdge and Dhan data are still to be settled.
 
 ## 10. Environment
-Key settings (set in Render, never in code): `DATABASE_URL`, `MONGO_URL`, `FINEDGE_API_KEY`, `DHAN_CLIENT_ID` with `DHAN_PIN` and `DHAN_TOTP_SECRET`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `INGEST_LIMIT`, `SCORE_ALL_PER_RUN`. Optional: `RESEND_API_KEY` (email), `GEMINI_API_KEY` (AI chat), `METALS_DEV_API_KEY`.
+Key settings (in `/opt/finlit/.env.aws` on the server, never in code; `deploy/aws/.env.aws.example` lists them all): `DATABASE_URL`, `MONGO_URL`, `FINEDGE_API_KEY`, `DHAN_CLIENT_ID` with `DHAN_PIN` and `DHAN_TOTP_SECRET`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `INGEST_LIMIT`, `SCORE_ALL_PER_RUN`. Optional: `RESEND_API_KEY` (email), `ANTHROPIC_API_KEY` (Ask FinLit AI's written answers, `docs/ASK-AI.md`), `GEMINI_API_KEY` (the nightly earnings-call and company-brief summaries), `METALS_DEV_API_KEY`.
 
-More detail: `docs/` (launch guide, runbook, Dhan setup, flows, Neon egress).
+More detail: `docs/AWS-DEPLOY.md` (server runbook), `docs/TEAM-DEPLOY.md` (team workflow), `docs/JOBS.md` (background jobs), `docs/DHAN-SETUP.md`, `docs/FLOWS.md`, `docs/KNOWN-ISSUES.md`.

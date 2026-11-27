@@ -1,0 +1,72 @@
+/* Concall Monitor (task #278): pages/ConcallMonitor.tsx. Every class here starts with ccm-; the site's own colour tokens, so light and dark both follow. */
+.ccm .ccm-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 14px 0 12px; }
+.ccm .ccm-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+.ccm .ccm-seg { display: inline-flex; border: 1px solid var(--border-strong); border-radius: var(--r-ctl); overflow: hidden; background: var(--s1); }
+.ccm .ccm-seg button { appearance: none; border: 0; background: transparent; color: var(--muted); font: 600 var(--fs-14)/1 var(--sans); padding: 10px 18px; min-height: 40px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+.ccm .ccm-seg button + button { border-left: 1px solid var(--border); }
+.ccm .ccm-seg button.is-on { background: var(--s2); color: var(--text); box-shadow: inset 0 0 0 1.5px var(--text); border-radius: var(--r-ctl); }
+.ccm .ccm-seg button em { font-style: normal; font-size: var(--fs-12); color: var(--faint); font-weight: 600; }
+.ccm .ccm-seg button:focus-visible, .ccm .ccm-btn:focus-visible, .ccm .ccm-icon:focus-visible { outline: 2px solid var(--focus, var(--gold)); outline-offset: 2px; }
+.ccm .ccm-icon { width: 40px; height: 40px; border: 1px solid var(--border-strong); border-radius: var(--r-ctl); background: var(--s1); color: var(--muted); display: inline-grid; place-items: center; cursor: pointer; }
+.ccm .ccm-icon svg { width: 18px; height: 18px; }
+.ccm .ccm-icon.is-on { color: var(--text); border-color: var(--text); }
+.ccm .ccm-search input { height: 40px; width: 220px; max-width: 60vw; border: 1px solid var(--ui-field-line); border-radius: var(--r-ctl); background: var(--s1); color: var(--text); padding: 0 12px; font: 400 var(--fs-14) var(--sans); }
+.ccm .ccm-list { display: flex; flex-direction: column; gap: 10px; }
+.ccm .ccm-card { border: 1px solid var(--border); border-radius: var(--r-ctl); background: var(--s1); padding: 14px 16px; }
+.ccm .ccm-row { display: grid; grid-template-columns: minmax(200px, 1.4fr) minmax(130px, .7fr) auto; align-items: center; gap: 14px; }
+.ccm .ccm-co { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.ccm .ccm-names { display: flex; flex-direction: column; min-width: 0; }
+.ccm .ccm-name { color: var(--text); font: 600 var(--fs-16)/1.3 var(--sans); text-decoration: none; overflow-wrap: anywhere; }
+.ccm .ccm-name:hover { text-decoration: underline; }
+.ccm .ccm-tick { color: var(--faint); font: 500 var(--fs-13)/1.4 var(--sans); letter-spacing: .02em; }
+.ccm .ccm-kind { letter-spacing: 0; }
+.ccm .ccm-when { display: flex; flex-direction: column; gap: 2px; font: 400 var(--fs-13)/1.35 var(--sans); color: var(--muted); }
+.ccm .ccm-when b { color: var(--text); font-weight: 600; font-size: var(--fs-16); }
+.ccm .ccm-when .ccm-notime, .ccm .ccm-when .ccm-nodate { color: var(--faint); }
+.ccm .ccm-when .ccm-nodate { font-size: var(--fs-14); }
+.ccm .ccm-up { align-self: flex-start; font-style: normal; font: 600 var(--fs-12)/1 var(--sans); color: var(--gold); background: var(--gold-soft); border-radius: var(--ui-r-pill); padding: 4px 8px; margin-top: 3px; }
+.ccm .ccm-acts { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.ccm .ccm-btn { appearance: none; display: inline-flex; align-items: center; gap: 7px; min-height: 40px; padding: 0 14px; border: 1px solid transparent; border-radius: var(--r-ctl);
+  background: var(--s2); color: var(--text); font: 600 var(--fs-14)/1 var(--sans); cursor: pointer; white-space: nowrap; }
+.ccm .ccm-btn svg { width: 16px; height: 16px; flex: none; }
+.ccm .ccm-btn:hover { border-color: var(--border-strong); }
+.ccm .ccm-btn.is-on { border-color: var(--text); }
+.ccm .ccm-btn.is-off { color: var(--faint); background: transparent; border-color: var(--border); }
+.ccm .ccm-btn.ccm-summary:not(.is-off) svg { color: var(--gold); }
+.ccm .ccm-note { margin: 8px 0 0 52px; font: 400 var(--fs-13)/1.4 var(--sans); color: var(--faint); }
+.ccm .ccm-panel { margin-top: 12px; border-top: 1px solid var(--border); padding-top: 12px; }
+.ccm .ccm-why { margin: 0; font: 400 var(--fs-14)/1.5 var(--sans); color: var(--muted); }
+.ccm .ccm-src { margin: 8px 0 0; font: 400 var(--fs-13)/1.5 var(--sans); color: var(--faint); }
+.ccm .ccm-ext { color: var(--gold); text-decoration: underline; text-underline-offset: 2px; }
+.ccm .ccm-audio { width: 100%; max-width: 560px; display: block; }
+.ccm .ccm-text { max-height: 440px; overflow: auto; border: 1px solid var(--border); border-radius: var(--r-ctl); padding: 4px 14px; margin-top: 8px; background: var(--bg); }
+.ccm .ccm-text h4 { margin: 12px 0 4px; font: 600 var(--fs-12)/1 var(--sans); color: var(--faint); text-transform: uppercase; letter-spacing: .06em; }
+.ccm .ccm-text p { margin: 0 0 8px; font: 400 var(--fs-14)/1.6 var(--sans); color: var(--text); white-space: pre-wrap; overflow-wrap: anywhere; }
+.ccm .ccm-frame { display: block; width: 100%; height: 560px; border: 1px solid var(--border); border-radius: var(--r-ctl); margin-top: 8px; background: var(--bg); }
+.ccm .ccm-sum h4 { margin: 10px 0 4px; font: 600 var(--fs-14)/1.35 var(--sans); color: var(--text); }
+.ccm .ccm-sum h4:first-child { margin-top: 0; }
+.ccm .ccm-li { margin: 0 0 4px; padding-left: 14px; position: relative; font: 400 var(--fs-14)/1.55 var(--sans); color: var(--text); }
+.ccm .ccm-li::before { content: ""; position: absolute; left: 2px; top: .7em; width: 5px; height: 5px; border-radius: 50%; background: var(--gold); }
+.ccm .ccm-disc { margin: 8px 0 0; font: 400 var(--fs-12)/1.45 var(--sans); color: var(--faint); }
+.ccm .ccm-empty { margin: 18px 0; font: 400 var(--fs-16)/1.55 var(--sans); color: var(--muted); }
+.ccm .ccm-more { display: block; margin: 14px auto 0; min-height: 40px; padding: 0 18px; border: 1px solid var(--border-strong); border-radius: var(--r-ctl); background: var(--s1); color: var(--text); font: 600 var(--fs-14) var(--sans); cursor: pointer; }
+.ccm .ccm-link { appearance: none; border: 0; background: none; color: var(--gold); text-decoration: underline; cursor: pointer; font: inherit; padding: 0; }
+.ccm .ccm-foot { margin: 18px 0 0; font: 400 var(--fs-12)/1.5 var(--sans); color: var(--faint); }
+
+@media (max-width: 900px) {
+  .ccm .ccm-row { grid-template-columns: 1fr auto; }
+  .ccm .ccm-acts { grid-column: 1 / -1; justify-content: flex-start; }
+}
+@media (max-width: 560px) {
+  .ccm .ccm-bar, .ccm .ccm-right { align-items: stretch; }
+  .ccm .ccm-right { width: 100%; justify-content: space-between; }
+  .ccm .ccm-seg button { padding: 10px 12px; }
+  .ccm .ccm-search { flex: 1 1 100%; order: -1; }
+  .ccm .ccm-search input { width: 100%; max-width: none; }
+  .ccm .ccm-card { padding: 12px; }
+  .ccm .ccm-row { grid-template-columns: 1fr; gap: 10px; }
+  .ccm .ccm-acts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+  .ccm .ccm-btn { flex-direction: column; gap: 4px; padding: 8px 4px; min-height: 52px; font-size: var(--fs-12); justify-content: center; }
+  .ccm .ccm-note { margin-left: 0; }
+  .ccm .ccm-text { max-height: 360px; }
+}

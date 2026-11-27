@@ -4,7 +4,7 @@
 import type { Card } from "./pulsePack";
 import type { IndustryPage, RankedStock, StockSector } from "./sectors";
 import type { RotationCard } from "./rotation";
-import type { LeadershipOn, LeadLabel } from "./leadership";
+import { pendingOf, type LeadershipOn, type LeadLabel } from "./leadership";
 
 const NUM = ["no", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve"];
 const num = (n: number) => (n < NUM.length ? NUM[n] : String(n));
@@ -40,12 +40,13 @@ export function headline(name: string, ind: string | null, stateWord: string | n
   const parts: string[] = [];
   if (ind && (stateWord || rot?.rank)) parts.push(`${ind} is ${[stateWord ? stateWord.toLowerCase() : null, rot?.rank && rot.ranked ? `the ${ordinal(rot.rank)} strongest of ${rot.ranked} industries` : null].filter(Boolean).join(" and is ")}`);
   const inside = s?.rank_6m != null && s.ranked_6m ? (s.rank_6m === s.ranked_6m ? `${name} is its weakest stock over 6 months` : s.rank_6m === 1 ? `${name} is its strongest stock over 6 months` : `${name} is ${ordinal(s.rank_6m)} of its ${s.ranked_6m} counted stocks over 6 months`) : null;
-  const peers = lead ? `${ordinal(lead.rank)} of ${lead.peerGroup.ranked} ${lead.peerGroup.short} peers` : null;
+  const peers = lead ? `${ordinal(lead.rank)} of ${lead.peerGroup.ranked} ${groupWord(lead.peerGroup.short)}peers` : null;
   const share = inside && peers ? `${inside} and ${peers}` : inside ?? (peers ? `${name} is ${peers}` : null);
   const contrast = (it === "strong" && st === "lagging") || (it === "weak" && st === "leading");
   const rest = parts.length && share ? `${parts[0]}, ${contrast ? "but" : "and"} ${share}.` : parts.length ? `${parts[0]}.` : share ? `${share}.` : "";
   let recent: string | null = null;
-  if (lead && lead.rawLabel && lead.rawLabel !== lead.label) recent = `The recent direction is ${RANK[lead.rawLabel] < RANK[lead.label] ? "better" : "weaker"}: this week's peer reading says ${LABEL[lead.rawLabel]}.`;
+  const next = lead ? pendingOf(lead) : null;
+  if (lead && next) recent = `The recent direction is ${RANK[next] < RANK[lead.label] ? "better" : "weaker"}: this week's peer reading says ${LABEL[next]}.`;
   return { lead: head, rest: rest ? " " + rest : "", recent };
 }
 
@@ -87,7 +88,8 @@ export function peerCards(name: string, lead: LeadershipOn, val: { pe: number | 
   const where = `${name} ranks ${ordinal(lead.rank)} of ${g.ranked} by price over 12 months${fig ? `: ${fig}` : ""}.`;
   out.push(lead.label === "laggard" ? { kind: "warning", title: `A laggard among ${g.short} companies`, text: where } : lead.label === "leader" ? { kind: "good", title: `A leader among ${g.short} companies`, text: where } : { kind: "insight", title: `In line with ${g.short} companies`, text: where });
   if (w13 != null) {
-    const turned = lead.rawLabel !== lead.label ? `, and this week's reading says ${LABEL[lead.rawLabel]}. If next week agrees, the label changes.` : ".";
+    const next = pendingOf(lead);
+    const turned = next ? `, and this week's reading says ${LABEL[next]}. The label changes if next week's reading agrees.` : ".";
     if (lead.label !== "leader" && w13 > 0) out.push({ kind: "good", title: "But the recent direction has turned", text: `Over the last 3 months it is ${p1(w13)} points ahead of ${sec}${turned}` });
     else if (lead.label !== "laggard" && w13 < 0) out.push({ kind: "watch", title: "The recent direction has slowed", text: `Over the last 3 months it is ${p1(w13)} points behind ${sec}${turned}` });
   }
@@ -139,3 +141,5 @@ export function riskCards(name: string, risk: number | null, m12: number | null,
   return out;
 }
 export { num };
+/** The group's short name before "peers" or "companies"; a group already called "peers" is not named twice (task #216, README 3.14). */
+export const groupWord = (short: string | null | undefined): string => (!short || /^peers?$/i.test(short.trim()) ? "" : short.trim() + " ");

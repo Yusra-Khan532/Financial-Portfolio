@@ -14,6 +14,14 @@ ORIGIN = {"Origin": "http://test"}
 PW = "a-long-unusual-phrase-42"
 
 
+_mobiles = iter(range(9000000001, 9099999999))
+
+
+def mob() -> str:
+    """A different valid mobile for each sign-up (the column is unique)."""
+    return str(next(_mobiles))
+
+
 @pytest.fixture
 async def app(ingested):  # noqa: F811
     from finlit.screener import data as screener_data
@@ -44,7 +52,7 @@ async def token_from_mail(app, to):
 
 
 async def signup(app, c, email, password=PW):
-    r = await c.post("/api/auth/register", json={"email": email, "password": password, "name": "Asha", "accept_terms": True}, headers=ORIGIN)
+    r = await c.post("/api/auth/register", json={"email": email, "password": password, "name": "Asha", "mobile": mob(), "accept_terms": True}, headers=ORIGIN)
     assert r.status_code == 202, r.text
     r = await c.post("/api/auth/verify-email", json={"token": await token_from_mail(app, email)}, headers=ORIGIN)
     assert r.status_code == 200, r.text
@@ -70,12 +78,12 @@ async def signed_in(app, email="asha@example.com", plan=None):
 async def test_visitor_identity_and_plan(anon):
     r = await anon.get("/api/auth/me")
     body = r.json()
-    assert body["user"] is None and body["plan"] == "basic" and body["csrf"] is None
+    assert body["user"] is None and body["plan"] == "free" and body["tier"] == "basic" and body["csrf"] is None
     assert r.headers["cache-control"] == "no-store"
 
 
 async def test_register_verify_login_logout(app, anon):
-    r = await anon.post("/api/auth/register", json={"email": "Asha@Example.com", "password": PW, "accept_terms": True}, headers=ORIGIN)
+    r = await anon.post("/api/auth/register", json={"email": "Asha@Example.com", "password": PW, "mobile": mob(), "accept_terms": True}, headers=ORIGIN)
     assert r.status_code == 202
     assert (await login(anon, "asha@example.com")).status_code == 403  # not verified yet
     mail = await last_mail(app, "asha@example.com")
@@ -84,7 +92,7 @@ async def test_register_verify_login_logout(app, anon):
     assert (await anon.post("/api/auth/verify-email", json={"token": token}, headers=ORIGIN)).status_code == 200
     assert (await anon.post("/api/auth/verify-email", json={"token": token}, headers=ORIGIN)).status_code == 400  # single use
     r = await login(anon, "asha@example.com")
-    assert r.status_code == 200 and r.json()["user"]["plan"] == "basic"
+    assert r.status_code == 200 and r.json()["user"]["plan"] == "free"
     cookie = r.headers["set-cookie"]
     assert "fl_session=" in cookie and "HttpOnly" in cookie and "SameSite=lax" in cookie
     me = (await anon.get("/api/auth/me")).json()
@@ -99,14 +107,30 @@ async def test_register_verify_login_logout(app, anon):
 
 async def test_signup_does_not_reveal_existing_accounts(app, anon):
     await signup(app, anon, "asha@example.com")
-    first = await anon.post("/api/auth/register", json={"email": "new@example.com", "password": PW, "accept_terms": True}, headers=ORIGIN)
-    again = await anon.post("/api/auth/register", json={"email": "asha@example.com", "password": PW, "accept_terms": True}, headers=ORIGIN)
+    first = await anon.post("/api/auth/register", json={"email": "new@example.com", "password": PW, "mobile": mob(), "accept_terms": True}, headers=ORIGIN)
+    again = await anon.post("/api/auth/register", json={"email": "asha@example.com", "password": PW, "mobile": mob(), "accept_terms": True}, headers=ORIGIN)
     assert first.status_code == again.status_code == 202 and first.json() == again.json()
     assert "already" in (await last_mail(app, "asha@example.com"))["subject"].lower()
 
 
+async def test_signup_existing_email_spends_the_same_hashing_as_a_new_account(app, anon, monkeypatch):
+    """Timing (SEC-B): registering an already-known email must run the same Argon2 cost as a new one, so the response time never reveals the account."""
+    from finlit.auth import crypto
+    await signup(app, anon, "asha@example.com")
+    n = [0]
+    real = crypto.verify_password
+
+    async def counting(stored, pw):
+        n[0] += 1
+        return await real(stored, pw)
+
+    monkeypatch.setattr(crypto, "verify_password", counting)
+    r = await anon.post("/api/auth/register", json={"email": "asha@example.com", "password": PW, "mobile": mob(), "accept_terms": True}, headers=ORIGIN)
+    assert r.status_code == 202 and n[0] == 1   # the existing-email branch ran exactly one hash (the equaliser), as the new-account branch hashes
+
+
 async def test_signup_rules(app, anon):
-    bad = {"email": "x@example.com", "password": PW, "accept_terms": True}
+    bad = {"email": "x@example.com", "password": PW, "mobile": mob(), "accept_terms": True}
     assert (await anon.post("/api/auth/register", json={**bad, "password": "short"}, headers=ORIGIN)).status_code == 422
     assert (await anon.post("/api/auth/register", json={**bad, "accept_terms": False}, headers=ORIGIN)).status_code == 422
     assert (await anon.post("/api/auth/register", json={**bad, "email": "nope"}, headers=ORIGIN)).status_code == 422
@@ -124,11 +148,15 @@ async def test_repeated_failures_are_slowed_the_same_way_for_real_and_unknown_ac
     """No account-wide lock (an attacker could keep the owner out, and a 'locked' answer revealed which emails have accounts): the same budget
     applies per email and address, and a real and an unknown email are refused identically."""
     await signup(app, anon, "asha@example.com")
-    real = [await login(anon, "asha@example.com", f"wrong-password-{i}") for i in range(11)]
-    assert [r.status_code for r in real] == [401] * 10 + [429]
-    unknown = [await login(anon, "nobody@example.com", f"wrong-password-{i}") for i in range(11)]
-    assert {r.status_code for r in unknown} <= {401, 429} and unknown[-1].status_code == 429   # the per-address budget is shared, so it may end sooner
-    assert real[-1].json()["detail"]["status"] == unknown[-1].json()["detail"]["status"] == "rate_limited"
+    # owner, 17 November 2026: five wrong passwords for one account from one address pause sign-in there for 15 minutes, pointing to Forgot password
+    real = [await login(anon, "asha@example.com", f"wrong-password-{i}") for i in range(6)]
+    assert [r.status_code for r in real] == [401] * 4 + [429, 429]
+    unknown = [await login(anon, "nobody@example.com", f"wrong-password-{i}") for i in range(6)]
+    assert [r.status_code for r in unknown] == [401] * 4 + [429, 429]
+    assert [r.json() for r in real[:4]] == [r.json() for r in unknown[:4]]                     # tries left, word for word: nothing tells them apart
+    assert [r.json()["detail"]["triesLeft"] for r in real[:4]] == [4, 3, 2, 1]
+    assert real[-1].json()["detail"]["status"] == unknown[-1].json()["detail"]["status"] == "too_many_wrong"
+    assert "Forgot password" in real[-1].json()["detail"]["detail"] and real[-1].headers["Retry-After"]
     async with app.state.store.pool.acquire() as conn:
         assert await conn.fetchval("SELECT locked_until IS NULL FROM users WHERE lower(email) = 'asha@example.com'")
 
@@ -149,6 +177,18 @@ async def test_csrf_and_origin_are_enforced(app):
     no_origin = await c.put("/api/me/prefs", json={"palette": "gold"}, headers={"Origin": ""})
     assert no_origin.status_code == 403
     assert (await c.put("/api/me/prefs", json={"palette": "gold"})).status_code == 200
+    # task #248: the dashboard's portfolio choice is kept with the account (the same on every device) and checked
+    pick = {"equity": ["dhan", "upstox"], "mf": "all", "etf": ["main"]}
+    assert (await c.put("/api/me/prefs", json={"palette": "gold", "dashPortfolios": pick})).status_code == 200
+    assert (await c.get("/api/me/state")).json()["prefs"]["dashPortfolios"] == pick
+    for bad in ({"equity": []}, {"equity": ["<x>"]}, {"mf": "some"}, {"etf": [f"a{i}" for i in range(11)]}):
+        assert (await c.put("/api/me/prefs", json={"palette": "gold", "dashPortfolios": bad})).status_code == 422, bad
+    # task #316: the dashboard's own choices (section, portfolio pane, region, sort, results "From", hidden cards) are kept with the account and checked
+    ui = {"sec": "market", "glance": "mf", "region": "asia", "invSort": "fall", "who": "mine", "hidden": ["flows", "watch"]}
+    assert (await c.put("/api/me/prefs", json={"palette": "gold", "dashUi": ui})).status_code == 200
+    assert (await c.get("/api/me/state")).json()["prefs"]["dashUi"] == ui
+    for bad in ({"sec": "nope"}, {"region": "mars"}, {"who": "all"}, {"hidden": ["<script>"]}, {"hidden": [f"c{i}" for i in range(31)]}):
+        assert (await c.put("/api/me/prefs", json={"palette": "gold", "dashUi": bad})).status_code == 422, bad
     assert body  # silence unused
     await c.aclose()
 
@@ -206,27 +246,27 @@ async def test_change_password_and_sessions_list(app):
 async def test_plan_redaction_on_the_server(app, anon):
     # visitor: showcase company open, everything else trimmed; same for Basic accounts
     rel = (await anon.get("/api/stocks/RELIANCE")).json()
-    assert rel["score"]["overall"] is not None and rel["thesis"]
+    assert rel["profile"]["name"] and rel["strengths"] is not None and "score" not in rel and "thesis" not in rel     # task #283 PR C: no retired IQ for any plan
     app.state.settings.showcase_symbols[:] = ["SOMETHINGELSE"]
     r = await anon.get("/api/stocks/RELIANCE")
     assert r.headers["cache-control"].startswith("private") and "Cookie" in r.headers["vary"]
     body = r.json()
-    assert body["score"]["overall"] is None and body["thesis"] is None and body["strengths"] == []
+    assert "score" not in body and body.get("thesis") is None and body["strengths"] == []
     ratios = (await anon.get("/api/stocks/RELIANCE/ratios")).json()
     assert 0 < len(ratios["history"]["rows"]) <= 5 and ratios["valuationHistory"]["rows"] == {}
     price = (await anon.get("/api/stocks/RELIANCE/price?range=1Y")).json()
     assert "ema200" not in price["series"] and set(price["technical"]) <= {"price", "ema50", "vsEma200Pct"}
     assert (await anon.get("/api/stocks/RELIANCE/segments")).json()["segments"] == {}
-    assert (await anon.get("/api/screener/top")).status_code == 403
+    assert (await anon.get("/api/screener/top")).status_code == 410        # task #283 PR C: the retired score's ranked list is gone for everyone
     rows = (await anon.get("/api/screener/universe")).json()["rows"]
-    assert rows[0]["overall"] is None and rows[0]["pe"] is not None  # plain ratios stay open
+    assert "overall" not in rows[0] and rows[0]["pe"] is not None  # plain ratios stay open
 
     silver = await signed_in(app, "b@example.com", plan="silver")
     s = (await silver.get("/api/stocks/RELIANCE")).json()
-    assert s["score"]["overall"] is not None and s["thesis"]
+    assert "score" not in s and "thesis" not in s and s["strengths"] is not None
     hist = (await silver.get("/api/stocks/RELIANCE/ratios")).json()["history"]["rows"]
     assert hist and set(hist) <= {"gross_margin", "operating_margin", "net_margin", "roe", "roce"}
-    assert (await silver.get("/api/screener/top")).status_code == 200
+    assert (await silver.get("/api/screener/top")).status_code == 410
     assert "ema200" not in (await silver.get("/api/stocks/RELIANCE/price?range=1Y")).json()["series"]
 
     gold = await signed_in(app, "g@example.com", plan="gold")
@@ -241,13 +281,13 @@ async def test_plan_redaction_on_the_server(app, anon):
 
 async def test_plan_change_applies_immediately(app):
     c = await signed_in(app, "asha@example.com")
-    assert (await c.get("/api/auth/me")).json()["plan"] == "basic"
+    assert (await c.get("/api/auth/me")).json()["plan"] == "free"
     async with app.state.store.pool.acquire() as conn:
         uid = await conn.fetchval("SELECT id FROM users")
         await conn.execute("UPDATE users SET plan = 'gold', plan_until = now() - interval '1 day' WHERE id = $1", uid)
     from finlit.auth.service import forget_cached
     await forget_cached(app, str(uid))
-    assert (await c.get("/api/auth/me")).json()["plan"] == "basic"  # an expired plan counts as Basic
+    assert (await c.get("/api/auth/me")).json()["plan"] == "free"  # an expired plan counts as Free (task #410)
     await c.aclose()
 
 
@@ -273,7 +313,28 @@ async def test_saved_state_and_plan_limits(app):
     assert (await silver.put("/api/me/screens", json=unknown)).status_code == 422
     assert (await basic.put("/api/me/prefs", json={"palette": "midnight", "density": "compact", "dashboard": [{"id": "movers", "on": True, "size": "full"}]})).status_code == 200
     assert (await basic.get("/api/me/state")).json()["prefs"]["palette"] == "midnight"
+    # task #195: the dashboard's quarter-width tools and the layout version are stored as sent
+    assert (await basic.put("/api/me/prefs", json={"dashV": 2, "dashboard": [{"id": "learn", "on": True, "size": "quarter"}]})).status_code == 200
+    stored = (await basic.get("/api/me/state")).json()["prefs"]
+    assert stored["dashV"] == 2 and stored["dashboard"] == [{"id": "learn", "on": True, "size": "quarter"}]
+    assert (await basic.put("/api/me/prefs", json={"dashboard": [{"id": "learn", "on": True, "size": "huge"}]})).status_code == 422
     assert (await basic.put("/api/me/prefs", json={"palette": "neon"})).status_code == 422
+    # task #315: Word of the Day bookmarks (glossary ids, newest first) and the India date the word was last opened are stored and returned as sent
+    words = {"wordBookmarks": ["dupont-analysis", "return-on-equity-roe", "ebitda"], "wordSeen": "2026-11-23"}
+    assert (await basic.put("/api/me/prefs", json=words)).status_code == 200
+    stored = (await basic.get("/api/me/state")).json()["prefs"]
+    assert stored["wordBookmarks"] == words["wordBookmarks"] and stored["wordSeen"] == "2026-11-23"
+    assert (await basic.put("/api/me/prefs", json={"wordBookmarks": [], "wordSeen": ""})).status_code == 200   # none yet, not opened yet
+    assert (await basic.put("/api/me/prefs", json={"palette": "gold"})).status_code == 200                       # older browsers send neither field
+    assert (await basic.get("/api/me/state")).json()["prefs"]["wordBookmarks"] == []
+    for bad in ({"wordBookmarks": ["DuPont"]}, {"wordBookmarks": ["-x"]}, {"wordBookmarks": ["a b"]}, {"wordBookmarks": ["x" * 81]}, {"wordBookmarks": "ebitda"},
+                {"wordBookmarks": [f"t{i}" for i in range(201)]}, {"wordSeen": "23-11-2026"}, {"wordSeen": "2026-11-23T00:00"}, {"wordSeen": 20261123}):
+        assert (await basic.put("/api/me/prefs", json=bad)).status_code == 422, bad
+    # task #388 (file 36, change 9): a block the member hid ("eq:grid", Share by share) is kept with the account, so it stays hidden on every device
+    assert (await basic.put("/api/me/prefs", json={"hiddenBlocks": ["eq:grid"]})).status_code == 200
+    assert (await basic.get("/api/me/state")).json()["prefs"]["hiddenBlocks"] == ["eq:grid"]
+    for bad in ({"hiddenBlocks": ["grid"]}, {"hiddenBlocks": ["EQ:grid"]}, {"hiddenBlocks": "eq:grid"}, {"hiddenBlocks": [f"eq:g{i}" for i in range(41)]}):
+        assert (await basic.put("/api/me/prefs", json=bad)).status_code == 422, bad
     # one user never sees another's state
     assert (await silver.get("/api/me/state")).json()["prefs"] == {}
     for c in (basic, silver):
@@ -362,11 +423,13 @@ async def test_oversized_bodies_rejected(anon):
     assert r.status_code == 413
 
 
-async def test_score_history_needs_silver_for_other_companies_and_data_health_is_admin_only(app, anon):
+async def test_the_retired_score_history_is_gone_and_data_health_is_admin_only(app, anon):
     app.state.settings.showcase_symbols[:] = ["SOMETHINGELSE"]
-    assert (await anon.get("/api/stocks/RELIANCE/score-history")).status_code == 403
+    assert (await anon.get("/api/stocks/RELIANCE/score-history")).status_code == 410        # task #283 PR C: FinLit IQ is retired
     silver = await signed_in(app, "b@example.com", plan="silver")
-    assert len((await silver.get("/api/stocks/RELIANCE/score-history")).json()["points"]) == 1
+    assert (await silver.get("/api/stocks/RELIANCE/score-history")).status_code == 410
+    async with app.state.store.pool.acquire() as conn:      # the IQ job still writes its history (hidden, for a rollback): only serving stopped
+        assert await conn.fetchval("SELECT count(*) FROM score_history WHERE symbol = 'RELIANCE'") == 1
     assert (await silver.get("/api/admin/data-health")).status_code == 403
     admin = await make_admin(app)
     secret = (await admin.post("/api/me/mfa/setup")).json()["secret"]
@@ -374,11 +437,14 @@ async def test_score_history_needs_silver_for_other_companies_and_data_health_is
     await admin.post("/api/me/mfa/enable", json={"code": crypto.totp_code(secret, int(time.time()) // 30)})
     h = await admin.get("/api/admin/data-health")
     assert h.status_code == 200 and h.json()["loaded"] == 1
+    fg = h.json()["fundGaps"]                     # task #281: the fund data gaps are counted on the real tables (the query runs on the migrated schema)
+    assert fg is not None and len(fg["gaps"]) == 10 and all(0 <= g["count"] <= g["of"] <= fg["active"] for g in fg["gaps"])
     for c in (silver, admin):
         await c.aclose()
 
 
-async def test_target_price_alert_fires_once_on_a_crossing(app):
+async def test_target_price_alert_fires_once_on_a_crossing(app, monkeypatch):
+    monkeypatch.setattr("finlit.mailpolicy.ALERT_EMAILS", True)   # the email path, kept for when alert emails are switched back on (mailpolicy.py)
     from finlit.alerts import check_alerts
     pool = app.state.store.pool
     c = await signed_in(app, "b@example.com", plan="silver")
@@ -459,15 +525,39 @@ async def test_portfolio_is_saved_per_plan_and_validated(app):
     assert (await silver.get("/api/me/state")).json()["portfolio"]["holdings"][0]["symbol"] == "RELIANCE"
     for bad in ({"id": "h2", "symbol": "TCS", "qty": 0, "price": 1}, {"id": "h2", "symbol": "A;B", "qty": 1, "price": 1}, {"id": "h2", "symbol": "TCS", "qty": 1, "price": 1, "date": "tomorrow"}):
         assert (await silver.put("/api/me/portfolio", json={"holdings": [bad]})).status_code == 422
-    many = {"holdings": [{"id": f"h{i}", "symbol": "TCS", "qty": 1, "price": 1} for i in range(31)]}
-    assert (await silver.put("/api/me/portfolio", json=many)).json()["detail"]["status"] == "plan_limit"
+    buys = {"holdings": [{"id": f"h{i}", "symbol": "TCS", "qty": 1, "price": 100 + i, "date": "2025-01-15", "owned": True} for i in range(31)]}
+    assert (await silver.put("/api/me/portfolio", json=buys)).status_code == 200            # task #217: 31 buys of one share are one share of the 30
+    many = {"holdings": [{"id": f"h{i}", "symbol": f"STK{chr(65 + i // 26)}{chr(65 + i % 26)}", "qty": 1, "price": 1} for i in range(31)]}
+    r = (await silver.put("/api/me/portfolio", json=many)).json()["detail"]
+    assert r["status"] == "plan_limit" and "30 shares" in r["detail"]
+    assert (await silver.put("/api/me/portfolio", json={"holdings": [{"id": f"h{i}", "symbol": "TCS", "qty": 1, "price": 1} for i in range(501)]})).status_code == 422   # rows stay capped
+    # task #235: rows carry their portfolio and whether they are a sale; the account keeps the portfolios (up to 10, each name its own)
+    two = {"portfolios": [{"id": "dhan", "name": "Dhan", "broker": "Dhan"}, {"id": "upstox", "name": "Upstox"}],
+           "holdings": [{"id": "b1", "symbol": "TIPSMUSIC", "qty": 16, "price": 498.4, "date": "2025-04-15", "owned": True, "pf": "dhan"},
+                        {"id": "s1", "symbol": "TIPSMUSIC", "qty": 10, "price": 640, "date": "2026-02-10", "owned": True, "pf": "dhan", "side": "sell"}]}
+    assert (await silver.put("/api/me/portfolio", json=two)).status_code == 200
+    got = (await silver.get("/api/me/state")).json()["portfolio"]
+    assert [p["name"] for p in got["portfolios"]] == ["Dhan", "Upstox"] and got["holdings"][1]["side"] == "sell" and got["holdings"][1]["pf"] == "dhan"
+    same = {**two, "portfolios": [{"id": "a", "name": "Dhan"}, {"id": "b", "name": "dhan "}]}
+    assert (await silver.put("/api/me/portfolio", json=same)).status_code == 422
+    eleven = {**two, "portfolios": [{"id": f"p{i}", "name": f"P{i}"} for i in range(11)]}
+    assert (await silver.put("/api/me/portfolio", json=eleven)).status_code == 422
+    assert (await silver.put("/api/me/portfolio", json={"holdings": [{**two["holdings"][1], "side": "short"}]})).status_code == 422
+    # task #323: a buy price from a statement's Rate keeps saying so (priceFrom) and the day it is from (priceOn)
+    rate = {"holdings": [{"id": "r1", "symbol": "TCS", "qty": 5, "price": 3550.25, "owned": True, "priceFrom": "rate", "priceOn": "2026-11-20"}]}
+    assert (await silver.put("/api/me/portfolio", json=rate)).status_code == 200
+    kept = (await silver.get("/api/me/state")).json()["portfolio"]["holdings"][0]
+    assert kept["priceFrom"] == "rate" and kept["priceOn"] == "2026-11-20"
+    for bad in ({"priceFrom": "ltp"}, {"priceOn": "20 Nov"}):
+        assert (await silver.put("/api/me/portfolio", json={"holdings": [{**rate["holdings"][0], **bad}]})).status_code == 422
     dup = {"holdings": [{"id": "x", "symbol": "TCS", "qty": 1, "price": 1}, {"id": "x", "symbol": "INFY", "qty": 1, "price": 1}]}
     assert (await silver.put("/api/me/portfolio", json=dup)).status_code == 422
     for c in (basic, silver):
         await c.aclose()
 
 
-async def test_screen_alert_emails_only_new_matches(app):
+async def test_screen_alert_emails_only_new_matches(app, monkeypatch):
+    monkeypatch.setattr("finlit.mailpolicy.ALERT_EMAILS", True)   # the email path, kept for when alert emails are switched back on (mailpolicy.py)
     from finlit.screens import check_screens, matches
     pool = app.state.store.pool
     assert matches({"pe": 15, "sector": "IT", "band": "strong", "overall": 80}, {"ranges": {"pe": {"max": 20}}, "sectors": ["IT"], "bands": ["strong"]})
@@ -491,22 +581,24 @@ async def test_screen_alert_emails_only_new_matches(app):
     await c.aclose()
 
 
-async def test_tell_me_when_a_company_joins_names_joins_and_leaves_in_the_inbox_and_by_email_and_a_quiet_screen_sends_nothing(app):
+async def test_tell_me_when_a_company_joins_names_joins_and_leaves_in_the_inbox_and_by_email_and_a_quiet_screen_sends_nothing(app, monkeypatch):
     """Task #64, file 04: a screen saved with "Tell me when a company joins" sends the companies that joined or left after each check; one saved with Save screen stays quiet."""
+    monkeypatch.setattr("finlit.mailpolicy.ALERT_EMAILS", True)   # the email path, kept for when alert emails are switched back on (mailpolicy.py)
     from finlit.screens import check_screens, matches, screen_mail
     pool = app.state.store.pool
-    assert matches({"market_cap": 60000}, {"caps": ["Large"]}) and not matches({"market_cap": 20000}, {"caps": ["Large"]}) and matches({"market_cap": 20000}, {"caps": ["Mid", "Large"]})
+    assert matches({"market_cap": 80000}, {"caps": ["Large"]}) and not matches({"market_cap": 30000}, {"caps": ["Large"]}) and matches({"market_cap": 30000}, {"caps": ["Mid", "Large"]})   # task #262: Large above ₹75,000 Cr, Mid ₹25,000-75,000
+    assert matches({"market_cap": 5000}, {"caps": ["Micro"]}) and matches({"market_cap": 15000}, {"caps": ["Small"]}) and not matches({"market_cap": 5000}, {"caps": ["Small"]})
     assert not matches({"market_cap": None}, {"caps": ["Small"]})                      # no market cap: no size, never guessed
-    assert matches({"pillar_quality": 80, "pillar_growth": 70}, {"model": "modelcompound"}) and not matches({"pillar_quality": 80, "pillar_growth": 10}, {"model": "modelcompound"})
+    assert matches({"prism_quality": 80, "prism_fundamental": 70}, {"model": "pz_compound"}) and not matches({"prism_quality": 80, "prism_fundamental": 10}, {"model": "pz_compound"})
     subj, body = screen_mail("Cheap", [{"symbol": "AAA", "name": "Alpha"}], 3, "http://x/screener", [{"symbol": "BBB", "name": "Beta"}])
     assert subj == "1 joined and 1 left: your screen “Cheap”" and "Joined since the last check" in body and "Left since the last check" in body and "BBB" in body
     c = await signed_in(app, "joins@example.com", plan="gold")
     screens = {"screens": [{"name": "Tell me", "state": {"ranges": {"pe": {"max": 30}}}, "notify": True},
                            {"name": "Quiet", "state": {"ranges": {"pe": {"max": 31}}}, "notify": False},
-                           {"name": "Model", "state": {"model": "modelcompound"}, "notify": True}]}
+                           {"name": "Model", "state": {"model": "modelcompound"}, "notify": True}]}      # task #283: a retired IQ screen, saved before
     assert (await c.put("/api/me/screens", json=screens)).status_code == 200
     back = (await c.get("/api/me/state")).json()["screens"]
-    assert back[2]["state"]["model"] == "modelcompound" and back[0]["notify"] is True and back[1]["notify"] is False   # the model screen and the choice are kept
+    assert back[2]["state"]["model"] == "modelcompound" and back[0]["notify"] is True and back[1]["notify"] is False   # the saved screen and the choice are kept (never run)
     assert (await c.put("/api/me/screens", json={"screens": [{"name": "x", "state": {"model": "nope"}}]})).status_code == 422
     async with pool.acquire() as conn:
         await conn.execute("UPDATE scores SET pe = 50, metrics = jsonb_set(coalesce(metrics, '{}'::jsonb), '{pe}', '50') WHERE symbol = 'RELIANCE'")
@@ -516,6 +608,9 @@ async def test_tell_me_when_a_company_joins_names_joins_and_leaves_in_the_inbox_
     assert await check_screens(pool, app.state.mailer, "http://test") == 1              # "Tell me" only: "Quiet" sends nothing
     mail = await last_mail(app, "joins@example.com")
     assert "RELIANCE" in mail["body"] and "Joined since the last check" in mail["body"] and "“Tell me”" in mail["subject"]
+    async with pool.acquire() as conn:
+        uid_g = await conn.fetchval("SELECT id FROM users WHERE email = 'joins@example.com'")
+        assert await conn.fetchval("SELECT count(*) FROM screen_state WHERE user_id = $1 AND screen_name = 'Model'", uid_g) == 0   # the retired IQ screen never ran
     async with pool.acquire() as conn:
         n = await conn.fetchval("SELECT count(*) FROM notifications n JOIN users u ON u.id = n.user_id WHERE u.email = 'joins@example.com' AND n.kind = 'screen' AND n.title LIKE '%Tell me%'")
         await conn.execute("UPDATE scores SET pe = 50, metrics = jsonb_set(coalesce(metrics, '{}'::jsonb), '{pe}', '50') WHERE symbol = 'RELIANCE'")
@@ -532,7 +627,8 @@ async def test_tell_me_when_a_company_joins_names_joins_and_leaves_in_the_inbox_
     await c.aclose(); await silver.aclose()
 
 
-async def test_weekly_digest_is_opt_in_and_sent_once_a_week(app):
+async def test_weekly_digest_is_opt_in_and_sent_once_a_week(app, monkeypatch):
+    monkeypatch.setattr("finlit.mailpolicy.ALERT_EMAILS", True)   # the email path, kept for when alert emails are switched back on (mailpolicy.py)
     from datetime import date, timedelta
     from finlit.digest import send_digests
     pool = app.state.store.pool
@@ -554,14 +650,14 @@ async def test_auto_verify_email_confirms_new_accounts_at_sign_up_for_staging(in
     app = create_app(make_settings(auto_verify_email=True), store=ingested)
     async with app.router.lifespan_context(app):
         async with new_client(app) as c:
-            r = await c.post("/api/auth/register", json={"email": "new@example.com", "password": PW, "name": "New", "accept_terms": True}, headers=ORIGIN)
+            r = await c.post("/api/auth/register", json={"email": "new@example.com", "password": PW, "name": "New", "mobile": mob(), "accept_terms": True}, headers=ORIGIN)
             assert r.status_code == 201 and r.json()["status"] == "created"
             assert await last_mail(app, "new@example.com") is None  # no confirmation mail is needed
             assert (await login(c, "new@example.com")).status_code == 200  # and the member can sign in at once
 
 
 async def test_without_auto_verify_a_new_member_cannot_sign_in_before_confirming(app, anon):
-    r = await anon.post("/api/auth/register", json={"email": "later@example.com", "password": PW, "accept_terms": True}, headers=ORIGIN)
+    r = await anon.post("/api/auth/register", json={"email": "later@example.com", "password": PW, "mobile": mob(), "accept_terms": True}, headers=ORIGIN)
     assert r.status_code == 202
     assert (await login(anon, "later@example.com")).status_code in (401, 403)
 
@@ -607,7 +703,7 @@ async def test_admin_gets_a_cms_token_the_site_backend_accepts(ingested):
 async def test_admin_can_confirm_a_members_email_by_hand(app):
     import time
     member = new_client(app)
-    r = await member.post("/api/auth/register", json={"email": "pending@example.com", "password": PW, "accept_terms": True}, headers=ORIGIN)  # not the signup helper: it confirms by mail
+    r = await member.post("/api/auth/register", json={"email": "pending@example.com", "password": PW, "mobile": mob(), "accept_terms": True}, headers=ORIGIN)  # not the signup helper: it confirms by mail
     assert r.status_code == 202
     assert (await login(member, "pending@example.com")).status_code in (401, 403)  # not confirmed, and no mail service to confirm with
     admin = await make_admin(app)
@@ -623,7 +719,7 @@ async def test_admin_can_confirm_a_members_email_by_hand(app):
 
 async def test_session_response_lists_the_free_example_companies(app, anon):
     me = (await anon.get("/api/auth/me")).json()
-    assert "RELIANCE" in me["showcase"] and me["plan"] == "basic" and me["user"] is None
+    assert "RELIANCE" in me["showcase"] and me["plan"] == "free" and me["user"] is None
 
 
 async def test_login_with_plan_expiry(app):
@@ -638,4 +734,255 @@ async def test_login_with_plan_expiry(app):
     async with app.state.store.pool.acquire() as conn:
         await conn.execute("UPDATE users SET plan_until = now() - interval '1 day' WHERE email = 'dated@example.com'")
     r = await login(new_client(app), "dated@example.com")
-    assert r.status_code == 200 and r.json()["user"]["plan"] == "basic"
+    assert r.status_code == 200 and r.json()["user"]["plan"] == "free"
+
+
+
+# ------------------------------------------------------------------ owner, 17 November 2026: 5 wrong passwords, then Forgot password with an emailed code
+async def code_from_mail(app, email):
+    import re as _re
+    row = await last_mail(app, email)
+    found = _re.search(r"Your code: (\d{6})", row["body"] if row else "")
+    return found.group(1) if found else None
+
+
+async def test_the_right_password_is_refused_during_the_pause_and_works_after_a_reset_by_code(app, anon):
+    await signup(app, anon, "asha@example.com")
+    for i in range(5):
+        await login(anon, "asha@example.com", f"wrong-password-{i}")
+    assert (await login(anon, "asha@example.com")).status_code == 429                 # paused: even the right password waits
+    assert (await anon.post("/api/auth/forgot", json={"email": "asha@example.com"}, headers=ORIGIN)).status_code == 202
+    code = await code_from_mail(app, "asha@example.com")
+    assert code and len(code) == 6
+    new = "another-strong-phrase-77"
+    r = await anon.post("/api/auth/reset-code", json={"email": "asha@example.com", "code": code, "password": new}, headers=ORIGIN)
+    assert r.status_code == 200 and r.json()["status"] == "password_changed"
+    assert (await login(anon, "asha@example.com", new)).status_code == 200              # the pause is cleared by the reset
+
+
+async def test_the_code_works_once_and_cancels_the_link_in_the_same_email(app, anon):
+    await signup(app, anon, "asha@example.com")
+    await anon.post("/api/auth/forgot", json={"email": "asha@example.com"}, headers=ORIGIN)
+    code, token = await code_from_mail(app, "asha@example.com"), await token_from_mail(app, "asha@example.com")
+    new = "another-strong-phrase-77"
+    body = {"email": "asha@example.com", "code": f" {code[:3]} {code[3:]} ", "password": new}         # spaces typed by the member are fine
+    assert (await anon.post("/api/auth/reset-code", json=body, headers=ORIGIN)).status_code == 200
+    again = await anon.post("/api/auth/reset-code", json=body, headers=ORIGIN)
+    assert again.status_code == 400 and again.json()["detail"]["status"] == "invalid_code"
+    assert (await anon.post("/api/auth/reset", json={"token": token, "password": "yet-another-phrase-88"}, headers=ORIGIN)).status_code == 400
+
+
+async def test_five_wrong_codes_cancel_the_code_and_a_weak_password_keeps_it(app, anon):
+    await signup(app, anon, "asha@example.com")
+    await anon.post("/api/auth/forgot", json={"email": "asha@example.com"}, headers=ORIGIN)
+    code = await code_from_mail(app, "asha@example.com")
+    weak = await anon.post("/api/auth/reset-code", json={"email": "asha@example.com", "code": code, "password": "short"}, headers=ORIGIN)
+    assert weak.status_code == 422                                                         # only a stronger password is needed; the code still works
+    wrong = f"{(int(code) + 1) % 10 ** 6:06d}"
+    answers = [await anon.post("/api/auth/reset-code", json={"email": "asha@example.com", "code": wrong, "password": "another-strong-phrase-77"},
+                               headers=ORIGIN) for _ in range(5)]
+    assert [a.json()["detail"]["status"] for a in answers] == ["invalid_code"] * 4 + ["code_cancelled"]
+    late = await anon.post("/api/auth/reset-code", json={"email": "asha@example.com", "code": code, "password": "another-strong-phrase-77"}, headers=ORIGIN)
+    assert late.status_code == 400                                                         # the right code no longer works either
+
+
+async def test_a_code_for_an_unknown_email_gets_the_same_answer(app, anon):
+    await signup(app, anon, "asha@example.com")
+    await anon.post("/api/auth/forgot", json={"email": "asha@example.com"}, headers=ORIGIN)
+    a = await anon.post("/api/auth/reset-code", json={"email": "asha@example.com", "code": "000000", "password": "another-strong-phrase-77"}, headers=ORIGIN)
+    b = await anon.post("/api/auth/reset-code", json={"email": "ghost@example.com", "code": "000000", "password": "another-strong-phrase-77"}, headers=ORIGIN)
+    assert a.status_code == b.status_code == 400 and a.json() == b.json()
+    assert await app.state.store.redis.get("auth:resetcode:x") is None
+
+
+async def test_the_reset_email_carries_the_code_and_the_link_and_stores_no_code(app, anon):
+    await signup(app, anon, "asha@example.com")
+    await anon.post("/api/auth/forgot", json={"email": "asha@example.com"}, headers=ORIGIN)
+    body = (await last_mail(app, "asha@example.com"))["body"]
+    code = await code_from_mail(app, "asha@example.com")
+    assert "expires in 15 minutes" in body and "/reset-password?token=" in body and "Never share this code" in body
+    keys = [k async for k in app.state.store.redis.scan_iter(match="auth:resetcode:*")]
+    stored = [await app.state.store.redis.get(k) for k in keys]
+    assert stored and all(code.encode() not in (v or b"") for v in stored)                # only a keyed hash is kept
+
+
+
+async def test_signup_takes_only_its_fields_and_the_server_sets_the_role(app, anon):
+    """Owner, 24 Nov: sign-up takes name, mobile, email and password only; role/admin/plan in the request are refused (422) and never stored."""
+    base = {"email": "hack@example.com", "password": PW, "name": "H", "mobile": "98765 43210", "accept_terms": True}
+    for extra in ({"role": "admin"}, {"is_admin": True}, {"plan": "gold"}, {"email_verified_at": "2026-01-01"}, {"status": "active"}):
+        r = await anon.post("/api/auth/register", json={**base, **extra}, headers=ORIGIN)
+        assert r.status_code == 422, extra
+    async with app.state.store.pool.acquire() as conn:
+        assert await conn.fetchval("SELECT count(*) FROM users WHERE email = 'hack@example.com'") == 0
+    r = await anon.post("/api/auth/register", json=base, headers=ORIGIN)
+    assert r.status_code in (201, 202)
+    async with app.state.store.pool.acquire() as conn:
+        row = await conn.fetchrow("SELECT role, plan, mobile FROM users WHERE email = 'hack@example.com'")
+    assert (row["role"], row["plan"], row["mobile"]) == ("investor", "free", "+919876543210")
+
+
+async def test_signup_needs_a_valid_mobile(app, anon):
+    base = {"email": "m@example.com", "password": PW, "accept_terms": True}
+    assert (await anon.post("/api/auth/register", json=base, headers=ORIGIN)).status_code == 422                       # missing
+    for bad in ("12345", "5123456789", "+44 7700 900123", "98765abcde"):
+        r = await anon.post("/api/auth/register", json={**base, "mobile": bad}, headers=ORIGIN)
+        assert r.status_code == 422, bad
+
+
+async def test_profile_edit_takes_only_name_and_mobile(app):
+    c = await signed_in(app, "prof@example.com")
+    h = {}
+    for extra in ({"role": "admin"}, {"plan": "gold"}, {"email": "x@example.com"}):
+        assert (await c.patch("/api/me", json={"name": "P", **extra}, headers=h)).status_code == 422, extra
+    r = await c.patch("/api/me", json={"name": "P", "mobile": "09123456780"}, headers=h)
+    assert r.status_code == 200 and r.json()["mobile"] == "+919123456780"
+    assert (await c.patch("/api/me", json={"mobile": "123"}, headers=h)).status_code == 422
+    me = (await c.get("/api/me/profile")).json()
+    assert me["mobile"] == "+919123456780" and me["email"] == "prof@example.com"
+    async with app.state.store.pool.acquire() as conn:
+        assert await conn.fetchval("SELECT role FROM users WHERE email = 'prof@example.com'") == "investor"
+
+
+# ------------------------------------------------------------------ one account per mobile, without an oracle (security review of PR #889, 24 Nov 2026)
+REG = "/api/auth/register"
+
+
+async def _mails(app, to):
+    async with app.state.store.pool.acquire() as conn:
+        return await conn.fetch("SELECT subject, body FROM outbox WHERE to_email = $1 ORDER BY id", to)
+
+
+async def test_mobile_changes_are_limited_per_account_and_name_only_saves_are_not(app):
+    """Five mobile changes a day per account; the sixth is refused with 429. A taken number still answers 409 and counts. Name-only saves, and a save
+    that sends the number already stored, change no mobile and are never limited."""
+    other = await signed_in(app, "holder@example.com")
+    taken = (await other.get("/api/me/profile")).json()["mobile"]
+    c = await signed_in(app, "lim@example.com")
+    codes = [(await c.patch("/api/me", json={"name": "L", "mobile": mob()})).status_code for _ in range(4)]
+    codes.append((await c.patch("/api/me", json={"name": "L", "mobile": taken})).status_code)          # the taken number: 409, and it counts
+    codes.append((await c.patch("/api/me", json={"name": "L", "mobile": mob()})).status_code)
+    assert codes == [200, 200, 200, 200, 409, 429], codes
+    r = await c.patch("/api/me", json={"name": "L", "mobile": mob()})
+    assert r.status_code == 429 and r.json()["detail"]["status"] == "rate_limited" and int(r.headers["retry-after"]) > 0
+    current = (await c.get("/api/me/profile")).json()["mobile"]
+    for i in range(8):                                                                                   # name-only saves: never limited
+        r = await c.patch("/api/me", json={"name": f"Name {i}"})
+        assert r.status_code == 200, r.text
+    r = await c.patch("/api/me", json={"name": "Same", "mobile": current})                             # the stored number sent again: not a change
+    assert r.status_code == 200 and r.json()["mobile"] == current
+    assert (await c.get("/api/me/profile")).json() == {"name": "Same", "email": "lim@example.com", "mobile": current}
+
+
+async def test_mobile_changes_are_limited_per_address(app, monkeypatch):
+    """The per-address budget catches one person spreading the tries over several accounts."""
+    from finlit.auth import routes
+    monkeypatch.setattr(routes, "MOBILE_CHANGES_PER_ADDRESS", 3)
+    a = await signed_in(app, "a1@example.com")
+    b = await signed_in(app, "b1@example.com")
+    assert [(await a.patch("/api/me", json={"mobile": mob()})).status_code for _ in range(2)] == [200, 200]
+    assert (await b.patch("/api/me", json={"mobile": mob()})).status_code == 200
+    assert (await b.patch("/api/me", json={"mobile": mob()})).status_code == 429                      # b's own count is 1: the address budget is spent
+    assert (await b.patch("/api/me", json={"name": "B"})).status_code == 200
+
+
+async def test_signup_with_a_taken_mobile_answers_the_same_and_sends_one_plain_email(app, anon):
+    """The same 202 and body as a new account, and exactly one email to the address that signed up, saying the number is already linked. No account
+    is made. Before: no email at all, which told the person (or a prober) that the number has an account and left a real owner waiting."""
+    taken = mob()
+    first = await anon.post(REG, json={"email": "owner@example.com", "password": PW, "mobile": taken, "accept_terms": True}, headers=ORIGIN)
+    again = await anon.post(REG, json={"email": "second@example.com", "password": PW, "name": "S", "mobile": f"+91 {taken[:5]} {taken[5:]}",
+                                       "accept_terms": True}, headers=ORIGIN)
+    assert first.status_code == again.status_code == 202
+    assert first.json() == again.json() and first.headers["cache-control"] == again.headers["cache-control"] == "no-store"
+    mails = await _mails(app, "second@example.com")
+    assert len(mails) == 1, mails
+    assert "already linked" in mails[0]["subject"].lower() and "already linked to a finlit account" in mails[0]["body"].lower()
+    assert "/login" in mails[0]["body"] and "/contact" in mails[0]["body"] and "owner@example.com" not in mails[0]["body"]
+    assert "token=" not in mails[0]["body"]
+    async with app.state.store.pool.acquire() as conn:
+        assert await conn.fetchval("SELECT count(*) FROM users WHERE email = 'second@example.com'") == 0
+    assert len(await _mails(app, "owner@example.com")) == 1                                            # the owner's own verify mail only
+
+
+async def test_signup_race_on_the_email_answers_the_same_and_sends_the_already_mail(app, anon, monkeypatch):
+    """A parallel sign-up with the same email wins the unique index between the check and the insert: the generic 202, and the existing 'already' mail."""
+    real = crypto.hash_password
+
+    async def racing(password):
+        async with app.state.store.pool.acquire() as conn:
+            await conn.execute("INSERT INTO users (email, password_hash, mobile) VALUES ('race@example.com', 'x', $1)", "+91" + mob())
+        return await real(password)
+
+    monkeypatch.setattr(crypto, "hash_password", racing)
+    r = await anon.post(REG, json={"email": "race@example.com", "password": PW, "mobile": mob(), "accept_terms": True}, headers=ORIGIN)
+    assert r.status_code == 202 and r.json()["status"] == "check_email"
+    mails = await _mails(app, "race@example.com")
+    assert len(mails) == 1 and "already" in mails[0]["subject"].lower()
+
+
+async def test_signup_does_not_hide_a_real_database_error_as_check_your_email(app, monkeypatch):
+    """Only the unique-index answer is the expected one; any other database error is the app's normal error (500), not a fake 'check your email'."""
+    async def broken(password):
+        return None                                                                                      # password_hash NOT NULL: a different DB error
+
+    monkeypatch.setattr(crypto, "hash_password", broken)
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app, raise_app_exceptions=False), base_url="http://test") as c:
+        r = await c.post(REG, json={"email": "dberr@example.com", "password": PW, "mobile": mob(), "accept_terms": True}, headers=ORIGIN)
+    assert r.status_code == 500 and r.json()["status"] == "error", r.text
+    assert len(await _mails(app, "dberr@example.com")) == 0
+
+
+async def test_never_verified_accounts_go_after_seven_days_and_free_their_mobile(app, anon):
+    """The nightly prune removes accounts that never confirmed their email, made more than 7 days ago, with nothing else on them; their mobile
+    can then be used. A confirmed account, a recent one, an administrator and one an administrator gave a plan to are kept."""
+    from finlit.auth.service import prune_unverified_accounts
+    squatted = mob()
+    for email, m in (("squat@example.com", squatted), ("recent@example.com", mob()), ("adm@example.com", mob()), ("granted@example.com", mob())):
+        r = await anon.post(REG, json={"email": email, "password": PW, "mobile": m, "accept_terms": True}, headers=ORIGIN)
+        assert r.status_code == 202
+    await signup(app, anon, "kept@example.com")
+    async with app.state.store.pool.acquire() as conn:
+        await conn.execute("UPDATE users SET created_at = now() - interval '8 days' WHERE email <> 'recent@example.com'")
+        await conn.execute("UPDATE users SET created_at = now() - interval '6 days' WHERE email = 'recent@example.com'")
+        await conn.execute("UPDATE users SET role = 'admin' WHERE email = 'adm@example.com'")
+        await conn.execute("UPDATE users SET plan = 'gold' WHERE email = 'granted@example.com'")
+        squat_id = await conn.fetchval("SELECT id FROM users WHERE email = 'squat@example.com'")
+        assert await conn.fetchval("SELECT count(*) FROM email_tokens WHERE user_id = $1", squat_id) == 1
+    out = await app.state.store.prune(keep_top=10 ** 6)
+    assert out["unverified_accounts"] == 1, out
+    async with app.state.store.pool.acquire() as conn:
+        left = {r["email"] for r in await conn.fetch("SELECT email FROM users")}
+        assert await conn.fetchval("SELECT count(*) FROM email_tokens WHERE user_id = $1", squat_id) == 0    # its tokens went with it
+        assert await prune_unverified_accounts(conn) == 0                                                     # a second run finds nothing
+    assert "squat@example.com" not in left
+    assert {"recent@example.com", "adm@example.com", "granted@example.com", "kept@example.com"} <= left
+    r = await anon.post(REG, json={"email": "realowner@example.com", "password": PW, "mobile": squatted, "accept_terms": True}, headers=ORIGIN)
+    assert r.status_code == 202
+    assert "confirm" in (await last_mail(app, "realowner@example.com"))["subject"].lower()
+    async with app.state.store.pool.acquire() as conn:
+        assert await conn.fetchval("SELECT mobile FROM users WHERE email = 'realowner@example.com'") == "+91" + squatted
+
+
+async def test_the_reset_email_keeps_the_code_out_of_the_subject(app, anon):
+    """Security checkup (24 Nov 2026): a subject shows in phone lock-screen previews, inbox lists and mail logs, so the code is only in the body."""
+    import re as _re
+    await signup(app, anon, "asha@example.com")
+    await anon.post("/api/auth/forgot", json={"email": "asha@example.com"}, headers=ORIGIN)
+    mail = await last_mail(app, "asha@example.com")
+    code = await code_from_mail(app, "asha@example.com")
+    assert code and code in mail["body"]
+    assert not _re.search(r"\d{6}", mail["subject"]) and "reset code" in mail["subject"].lower()
+
+
+async def test_changing_the_password_cancels_a_pending_reset_link_and_code(app):
+    """Security checkup (24 Nov 2026): after the member changes the password under Account, a reset email still in the inbox no longer works."""
+    c = await signed_in(app, "asha@example.com")
+    async with new_client(app) as anon:
+        await anon.post("/api/auth/forgot", json={"email": "asha@example.com"}, headers=ORIGIN)
+        token, code = await token_from_mail(app, "asha@example.com"), await code_from_mail(app, "asha@example.com")
+        assert (await c.post("/api/me/password", json={"current": PW, "new": "brand-new-phrase-12"})).status_code == 200
+        assert (await anon.post("/api/auth/reset", json={"token": token, "password": "third-strong-phrase-34"}, headers=ORIGIN)).status_code == 400
+        r = await anon.post("/api/auth/reset-code", json={"email": "asha@example.com", "code": code, "password": "third-strong-phrase-34"}, headers=ORIGIN)
+        assert r.status_code == 400
+    assert (await login(c, "asha@example.com", "brand-new-phrase-12")).status_code == 200

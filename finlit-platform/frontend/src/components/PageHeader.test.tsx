@@ -20,7 +20,7 @@ describe("PageHeader", () => {
     expect(region.querySelector(".ph-desc b")?.textContent).toBe("5,816");
   });
   it("names Silver and Gold; free is the default and has no badge (founder, 13 Nov 2026), nor has a page with no plan", () => {
-    const names: [Parameters<typeof PageHeader>[0]["plan"], string | undefined][] = [["free", undefined], ["basic", undefined], ["silver", "Silver"], ["gold", "Gold"]];
+    const names: [Parameters<typeof PageHeader>[0]["plan"], string | undefined][] = [["free", undefined], ["basic", undefined], ["silver", "Paid"], ["gold", "Gold"], ["platinum", "Platinum"]];
     for (const [plan, text] of names) { const { container, unmount } = wrap(<PageHeader plan={plan} title="T" />); expect(container.querySelector(".ph-plan")?.textContent).toBe(text); unmount(); }
     const { container } = wrap(<PageHeader title="T" />);
     expect(container.querySelector(".ph-plan")).toBeNull();
@@ -38,13 +38,14 @@ describe("PageHeader", () => {
     expect(container.querySelector(".ph-solo")).not.toBeNull();
   });
   it("takes quick-link names and addresses from the site map, and drops links the site does not have", () => {
-    wrap(<PageHeader title="T" links={["/score-screener", { to: "/advanced-score-screener", primary: true }, "/query-builder", "/no-such-page", "/dcf", "/news"]} />);
+    wrap(<PageHeader title="T" links={["/screener", { to: "/advanced-score-screener", primary: true }, "/query-builder", "/no-such-page", "/dcf", "/news"]} />);
     const nav = screen.getByRole("navigation", { name: "Related pages" });
     const links = within(nav).getAllByRole("link");
-    expect(links.map((a) => a.getAttribute("href"))).toEqual(["/score-screener", "/advanced-score-screener", "/query-builder", "/dcf"]);   // 4 at most, the unknown one gone
-    expect(links.map((a) => a.textContent)).toEqual(["Basic Screener→", "Advanced Screener→", "Query Builder→", "DCF Calculator→"]);
-    expect(links[1].className).toContain("primary");
-    expect(links[0].className).not.toContain("primary");
+    expect(links.map((a) => a.getAttribute("href"))).toEqual(["/screener", "/advanced-score-screener", "/query-builder", "/dcf"]);   // 4 at most, the unknown one gone
+    expect(links.map((a) => a.textContent)).toEqual(["Stock Screener→", "Advanced Screener→", "Query Builder→", "DCF Calculator→"]);
+    // task #310: every quick link is the shared second button; the one marked primary is no longer a gold pill
+    for (const a of links) expect(a.className).toContain("ui-btn ui-btn--secondary ui-btn--sm");
+    expect(links[1].className).not.toContain("primary");
   });
   it("renders the learn-more link in each of its forms", () => {
     const fn = vi.fn();

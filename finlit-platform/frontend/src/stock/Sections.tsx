@@ -19,20 +19,40 @@ import { PL_INFO, PL_LABEL, plCell } from "./plDefinitions";
 import { useUI, type Plan } from "../lib/ui";
 import { Plain } from "../components/Plain";
 import { ChartZoom } from "../components/ChartZoom";
+import { TabGroup } from "../components/TabGroup";
+import { ForecastCard } from "./ForecastCard";
 
 const css = (v: string) => `var(${v})`;
-/** Section header. A numbered section ("01 · Company overview") shows its number large, a thin rule, then the small label and the title; a section
- *  without a number (Chart lab, Leadership) keeps its icon tile. */
+/** Section header (task #216, compact): the number large (40 px; 32 on phones), a thin rule, the eyebrow with the plan badge, the title (24 px), and under it
+ *  one line: the counts as coloured chips (if any), a dot, then the description (13 px, muted). Controls (toggles, a link) go on the right in `aside`.
+ *  A section without a number (Chart lab) keeps its icon tile. */
 import "../styles/insights.css";
-export function SectionHead({ id, no, icon, tier, title, sub, color, aside }: { id: string; no: string; icon: string; tier?: "basic" | "silver" | "gold"; title: string; sub?: string; color: string; aside?: React.ReactNode }) {
+import { PLAN_FOR_REPORT_EXTRAS } from "../lib/planGates";
+export type HeadCount = { n: number; label: string; tone: "red" | "amb" | "pos" };
+/** Task #312 (developer file 20, the check): "above its 200-day average, which suggests the longer trend is healthy" sat beside FinLit's long-term view
+ *  of a downtrend (Reliance, 22 Nov: −32, "Bounce in a downtrend"). Above the 200-day average while the 50-day average is still below it is a rise after a
+ *  fall, not yet a healthy longer trend, and is said so. */
+export function longTrend(t: { vsEma200Pct: number | null; ema50: number | null; ema200: number | null }): string {
+  if (t.vsEma200Pct == null) return "";
+  if (t.vsEma200Pct < 0) return "which suggests the longer trend is weak";
+  if (t.ema50 != null && t.ema200 != null && t.ema50 < t.ema200) return "after a fall: its 50-day average is still below the 200-day, so the longer trend has not turned up yet";
+  return "which suggests the longer trend is healthy";
+}
+
+export function CountChips({ counts }: { counts: HeadCount[] }) {
+  return <span className="cchips">{counts.map((c) => <span key={c.label} className={"cchip " + (c.n === 0 ? "zero" : c.tone)}><b>{c.n}</b> {c.label}</span>)}</span>;
+}
+export function SectionHead({ id, no, icon, tier, title, sub, color, aside, counts }: { id: string; no: string; icon: string; tier?: "basic" | "silver" | "gold"; title: string; sub?: string; color: string; aside?: React.ReactNode; counts?: HeadCount[] }) {
   const m = /^(\d{1,2})\s*·\s*(.+)$/.exec(no);
   return (
     <div className="sh" id={id} style={{ "--sc": `var(${color})` } as React.CSSProperties}>
       <div className="sh-l">
         {m ? <><span className="sh-n" aria-hidden="true">{m[1]}</span><span className="sh-rule" aria-hidden="true" /></> : <div className="sh-ic"><Icon name={icon} /></div>}
-        <div><div className="no">{m ? m[2] : no} {tier && <TierChip tier={tier} />}</div><h2>{title}</h2></div>
+        <div><div className="no">{m ? m[2] : no} {tier && <TierChip tier={tier} />}</div><h2>{title}</h2>
+          {(counts?.length || sub) ? <p className="sh-desc">{counts?.length ? <CountChips counts={counts} /> : null}{counts?.length && sub ? <span className="sh-dot" aria-hidden="true">·</span> : null}{sub ? <span>{sub}</span> : null}</p> : null}
+        </div>
       </div>
-      {aside ? <div className="sh-r">{aside}{sub && <p className="hide-sm">{sub}</p>}</div> : sub && <p className="hide-sm">{sub}</p>}
+      {aside ? <div className="sh-r">{aside}</div> : null}
     </div>
   );
 }
@@ -40,8 +60,8 @@ export function SectionHead({ id, no, icon, tier, title, sub, color, aside }: { 
 /* ---------------- Price & technicals ---------------- */
 const RANGES = ["1M", "6M", "1Y", "3Y", "5Y", "MAX"];
 /** Intraday ranges (Dhan) and the plan each needs; every one needs a signed-in account, except on the free example company. */
-const INTRA: [IntradayRange, Plan][] = [["1D", "basic"], ["5D", "silver"], ["1M", "silver"]];
-const CAP: React.CSSProperties = { fontSize: 11, padding: "0 6px 0 8px", alignSelf: "center", whiteSpace: "nowrap" };
+const INTRA: [IntradayRange, Plan][] = [["1D", "basic"], ["5D", PLAN_FOR_REPORT_EXTRAS], ["1M", PLAN_FOR_REPORT_EXTRAS]];
+const CAP: React.CSSProperties = { fontSize: "var(--fs-12)", padding: "0 6px 0 8px", alignSelf: "center", whiteSpace: "nowrap" };
 export function PriceSection({ s, symbol, ratios }: { s: Summary; symbol: string; ratios?: Ratios }) {
   const [range, setRange] = useState("1Y"), [from, setFrom] = useState<number | undefined>();
   const [intra, setIntra] = useState<IntradayRange | null>(null);
@@ -65,7 +85,7 @@ export function PriceSection({ s, symbol, ratios }: { s: Summary; symbol: string
     <section className="block" style={{ "--sc": "var(--p-tech)" } as React.CSSProperties}>
       <SectionHead id="price" no="04 · Price & technicals" icon="line" tier="basic" title="How the stock has traded" sub="Intraday bars from Dhan for 1D, 5D and 1M; daily closes up to one year, weekly closes beyond. Hover the chart for detail." color="--p-tech" />
       {intra && idata?.series && chg != null && <Plain tone={chg >= 0 ? "good" : "warn"}>Since the open {idata.sessions.length > 1 ? "of " + istDay(idata.sessions[0]) : "on " + istDay(idata.session ?? "")}, the price {chg >= 0 ? "rose" : "fell"} {nf(Math.abs(chg), 2)}%.</Plain>}
-      {!intra && chg != null && <Plain tone={chg >= 0 ? "good" : "warn"}>Over this period the price {chg >= 0 ? "rose" : "fell"} {nf(Math.abs(chg), 1)}%.{t?.vsEma200Pct != null && <> It trades {nf(Math.abs(t.vsEma200Pct), 1)}% {t.vsEma200Pct < 0 ? "below" : "above"} its 200-day average, which {t.vsEma200Pct < 0 ? "suggests the longer trend is weak" : "suggests the longer trend is healthy"}.</>}</Plain>}
+      {!intra && chg != null && <Plain tone={chg >= 0 ? "good" : "warn"}>Over this period the price {chg >= 0 ? "rose" : "fell"} {nf(Math.abs(chg), 1)}%.{t?.vsEma200Pct != null && <> It trades {nf(Math.abs(t.vsEma200Pct), 1)}% {t.vsEma200Pct < 0 ? "below" : "above"} its 200-day average, {longTrend(t)}.</>}</Plain>}
       <div className="grid g3">
         <div className="card acc span2" style={{ "--ac": "var(--p-tech)" } as React.CSSProperties}>
           <div className="stats">
@@ -74,9 +94,9 @@ export function PriceSection({ s, symbol, ratios }: { s: Summary; symbol: string
           <ChartZoom label="Price chart" className="cz-r">
           <div className="tools">
             <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8, minWidth: 0, maxWidth: "100%" }}>
-              <div className="seg" role="group" aria-label="Intraday range"><span className="faint" style={CAP}>Intraday</span>{INTRA.map(([r, tier]) => { const ok = mayIntra(tier); return <button key={r} aria-pressed={intra === r} aria-label={ok ? `${r} intraday` : `${r} intraday (${tier === "basic" ? "sign in" : "Silver plan"})`} onClick={() => pickIntra(r, tier)}>{!ok && <Icon name="lock" />}{r}</button>; })}</div>
+              <div className="seg" role="group" aria-label="Intraday range"><span className="faint" style={CAP}>Intraday</span>{INTRA.map(([r, tier]) => { const ok = mayIntra(tier); return <button key={r} aria-pressed={intra === r} aria-label={ok ? `${r} intraday` : `${r} intraday (${tier === "basic" ? "sign in" : "Paid plans"})`} onClick={() => pickIntra(r, tier)}>{!ok && <Icon name="lock" />}{r}</button>; })}</div>
               <div className="seg" role="group" aria-label="Range"><span className="faint" style={CAP}>Daily</span>{RANGES.map((r) => <button key={r} aria-pressed={!intra && !from && range === r} onClick={() => { setRange(r); setFrom(undefined); setIntra(null); }}>{r}</button>)}</div>
-              <label className="faint" style={{ fontSize: 12 }}>From year <select aria-label="From year" value={intra ? "" : from ?? ""} onChange={(e) => { setFrom(e.target.value ? Number(e.target.value) : undefined); setIntra(null); }}><option value="">Any</option>{fromYears().map((y) => <option key={y} value={y}>{y}</option>)}</select></label><ChartHelp id="price-section" /></div>
+              <label className="faint" style={{ fontSize: "var(--fs-12)" }}>From year <select aria-label="From year" value={intra ? "" : from ?? ""} onChange={(e) => { setFrom(e.target.value ? Number(e.target.value) : undefined); setIntra(null); }}><option value="">Any</option>{fromYears().map((y) => <option key={y} value={y}>{y}</option>)}</select></label><ChartHelp id="price-section" /></div>
             {gold ? <div className="seg" role="group" aria-label="Indicators">
               {!intra && <><button aria-pressed={ind.e50} onClick={() => setInd((x) => ({ ...x, e50: !x.e50 }))}>EMA 50</button><button aria-pressed={ind.e200} onClick={() => setInd((x) => ({ ...x, e200: !x.e200 }))}>EMA 200</button></>}<button aria-pressed={ind.vol} onClick={() => setInd((x) => ({ ...x, vol: !x.vol }))}>Volume</button></div>
               : <span className="tier gold" style={{ cursor: "pointer" }} onClick={() => upgrade("gold", "More indicators come with Gold.")}>More indicators in Gold</span>}
@@ -85,7 +105,7 @@ export function PriceSection({ s, symbol, ratios }: { s: Summary; symbol: string
           {isLoading && <div className="skeleton" style={{ height: 340 }} />}
           {isError && <p className="muted">Price history is unavailable right now.</p>}
           {data && series && c.length > 1 && <PriceChart data={data} showEma50={e("e50", ind.e50)} showEma200={e("e200", ind.e200)} showVol={e("vol", ind.vol)} />}
-          {data && !data.complete && <p className="faint" style={{ fontSize: 12, margin: "10px 0 0" }}>History for this company starts {data.startsAt ? dateIN(data.startsAt, { month: "short", year: "numeric" }) : "later"}, so this range is shorter than {range}.</p>}
+          {data && !data.complete && <p className="faint" style={{ fontSize: "var(--fs-12)", margin: "10px 0 0" }}>History for this company starts {data.startsAt ? dateIN(data.startsAt, { month: "short", year: "numeric" }) : "later"}, so this range is shorter than {range}.</p>}
           {data && <div className="legend"><span className={"chip " + ((chg ?? 0) >= 0 ? "up" : "down")}>{signed(chg)} over the period</span><span><i className="ln" style={{ background: "var(--line)" }} />Close</span>{e("e50", ind.e50) && <span><i className="ln" style={{ background: "var(--c2)" }} />EMA 50</span>}{e("e200", ind.e200) && <span><i className="ln" style={{ background: "var(--c3)" }} />EMA 200</span>}{e("vol", ind.vol) && <span><i style={{ background: "var(--c4)", opacity: 0.6 }} />Volume</span>}{data.provisionalLastBar && <span className="faint">Latest bar is the live quote</span>}</div>}
           </>}
           </ChartZoom>
@@ -94,7 +114,7 @@ export function PriceSection({ s, symbol, ratios }: { s: Summary; symbol: string
           <div className="card acc" style={{ "--ac": "var(--p-tech)", height: "100%" } as React.CSSProperties}>
             <div className="card-h"><h3><span className="ci"><Icon name="activity" /></span>Momentum<ChartHelp id="momentum" /></h3><TierChip tier="gold" /></div>
             {t?.rsi14 != null && <RsiGauge value={t.rsi14} />}
-            <div className="mrow" style={{ marginTop: 6 }}><span className="k">What is RSI? <Info g={ratios?.glossary.rsi14} /></span><span className="v faint" style={{ fontWeight: 400, fontSize: 13 }}>0 to 100 scale</span></div>
+            <div className="mrow" style={{ marginTop: 6 }}><span className="k">What is RSI? <Info g={ratios?.glossary.rsi14} /></span><span className="v faint" style={{ fontWeight: 400, fontSize: "var(--fs-13)" }}>0 to 100 scale</span></div>
             <div className="mrow"><span className="k">vs 50-day average</span><span className={"v " + ((t?.vsEma50Pct ?? 0) < 0 ? "neg" : "pos")}>{signed(t?.vsEma50Pct)}</span></div>
             <div className="mrow"><span className="k">vs 200-day average</span><span className={"v " + ((t?.vsEma200Pct ?? 0) < 0 ? "neg" : "pos")}>{signed(t?.vsEma200Pct)}</span></div>
             <div className="label" style={{ margin: "16px 0 6px" }}>Total return (price + dividends)</div>
@@ -113,8 +133,8 @@ function IntradayBody({ q, data, showVol, chg }: { q: { isPending: boolean; isEr
   const st = intradayStatus(data), sr = data.series, n = sr?.t.length ?? 0;
   return (
     <>
-      <div className="faint" style={{ fontSize: 12, margin: "0 0 10px", display: "flex", flexWrap: "wrap", gap: "2px 12px" }}><b style={{ color: "var(--text)", fontWeight: 600 }}>{st.title}</b><span>{st.asOf}</span></div>
-      {st.note && <p className={data.stale ? "neg" : "faint"} style={{ fontSize: 12, margin: "0 0 10px" }}>{st.note}</p>}
+      <div className="faint" style={{ fontSize: "var(--fs-12)", margin: "0 0 10px", display: "flex", flexWrap: "wrap", gap: "2px 12px" }}><b style={{ color: "var(--text)", fontWeight: 600 }}>{st.title}</b><span>{st.asOf}</span></div>
+      {st.note && <p className={data.stale ? "neg" : "faint"} style={{ fontSize: "var(--fs-12)", margin: "0 0 10px" }}>{st.note}</p>}
       {!data.available && <p className="muted">{data.detail || "No recent trades."}</p>}
       {sr && n > 1 && <IntradayChart data={data} showVol={showVol} />}
       {sr && n === 1 && <p className="muted">One price bar so far in this session: ₹{nf(sr.c[0])}, {barSpan(sr.t[0], data.interval)} IST.</p>}
@@ -133,7 +153,7 @@ function ReturnBars({ rows }: { rows: Summary["returns"] }) {
           <div className="rtrack">{r.total != null && <b style={r.total >= 0 ? { left: "50%", width: `${(Math.abs(r.total) / max) * 50}%`, background: "linear-gradient(90deg,color-mix(in srgb,var(--gain) 45%,transparent),var(--gain))" } : { right: "50%", width: `${(Math.abs(r.total) / max) * 50}%`, background: "linear-gradient(270deg,color-mix(in srgb,var(--loss) 45%,transparent),var(--loss))" }} />}</div>
           <span className={r.total == null ? "faint" : r.total >= 0 ? "pos" : "neg"} style={{ textAlign: "right", fontWeight: 600, whiteSpace: "nowrap" }} title={r.withheld || undefined}>{r.total == null ? (r.withheld ? "held back" : "n/a") : signed(r.total)}</span></div>
       ))}
-      <p className="faint" style={{ fontSize: 12, margin: "10px 0 0" }}>“n/a” means this company's price history does not cover that period.{rows.some((r) => r.withheld) && " “Held back” means the dividend part of that figure did not pass our check against the company's own earnings, so we do not show it rather than show a number we cannot stand behind."}</p>
+      <p className="faint" style={{ fontSize: "var(--fs-12)", margin: "10px 0 0" }}>“n/a” means this company's price history does not cover that period.{rows.some((r) => r.withheld) && " “Held back” means the dividend part of that figure did not pass our check against the company's own earnings, so we do not show it rather than show a number we cannot stand behind."}</p>
     </div>
   );
 }
@@ -196,8 +216,8 @@ export function FinancialsSection({ f: page }: { f?: Financials }) {
       <section className="block" style={{ "--sc": "var(--p-growth)" } as React.CSSProperties}>
         <SectionHead id="financials" no="06 · Financials" icon="bars" tier="basic" title="Profit and loss, balance sheet and cash flow, quarterly and yearly" sub={`${name(chosen as Basis)}, ₹ crore. L Cr = lakh crore. FY = April–March.`} color="--p-growth" />
         <div className="card acc" style={{ "--ac": "var(--p-growth)" } as React.CSSProperties}>
-          <div className="tools"><span className="faint" style={{ fontSize: 13 }}>Accounts</span><div className="tools-r">{basisSeg}</div></div>
-          <p className={noneFor || other.isError ? "muted" : "faint"} role="status" style={{ fontSize: 14, margin: "6px 0 0" }}>{why}</p>
+          <div className="tools"><span className="faint" style={{ fontSize: "var(--fs-13)" }}>Accounts</span><div className="tools-r">{basisSeg}</div></div>
+          <p className={noneFor || other.isError ? "muted" : "faint"} role="status" style={{ fontSize: "var(--fs-14)", margin: "6px 0 0" }}>{why}</p>
           {!noneFor && !other.isError && <div className="skeleton" style={{ height: 320, marginTop: 14 }} />}
         </div>
       </section>);
@@ -212,7 +232,7 @@ export function FinancialsSection({ f: page }: { f?: Financials }) {
   const last = tbl.periods.length - 1;
   return (
     <section className="block" style={{ "--sc": "var(--p-growth)" } as React.CSSProperties}>
-      <SectionHead id="financials" no="06 · Financials" icon="bars" tier="basic" title="Profit and loss, balance sheet and cash flow, quarterly and yearly" sub={`${f.meta.statement === "consolidated" ? "Consolidated" : "Standalone"}, ₹ crore. L Cr = lakh crore. FY = April–March.`} color="--p-growth" />
+      <SectionHead id="financials" no="06 · Financials" icon="bars" tier="basic" title="Profit and loss, balance sheet and cash flow, quarterly and yearly" sub={`${f.meta.statement === "consolidated" ? "Consolidated" : "Standalone"}, ₹ crore. L Cr = lakh crore. FY = April–March.`} color="--p-growth" aside={<ForecastCard f={f} />} />
       {(() => { const [rv, np, , mg] = tiles; return rv.delta != null && np.delta != null ? <Plain tone={np.delta >= 0 ? "good" : "warn"}>Sales {rv.delta >= 0 ? "grew" : "fell"} {nf(Math.abs(rv.delta), 1)}% last year and profit {np.delta >= 0 ? "rose" : "fell"} {nf(Math.abs(np.delta), 1)}%.{typeof mg.value === "number" && <> Out of every ₹100 of sales, about ₹{nf(mg.value, 1)} is kept as profit.</>}</Plain> : null; })()}
       <div className="grid g4" style={{ marginBottom: 16 }}>
         {tiles.map((t) => (
@@ -223,15 +243,18 @@ export function FinancialsSection({ f: page }: { f?: Financials }) {
           </div>
         ))}
       </div>
-      {!chosen && wasAutomatic(sym) && basis === "standalone" && <p className="faint" style={{ fontSize: 13, margin: "0 0 10px" }}>Showing standalone accounts ({f.yearly.pl.periods.length} years) because this company's consolidated accounts cover far fewer. Press Consolidated to see the group's accounts.</p>}
-      {shownBasis && shownBasis !== basis && chosen && <p className="faint" style={{ fontSize: 13, margin: "0 0 10px" }}>This section now shows {shownBasis} accounts; the rest of this page uses {basis} accounts.</p>}
-      {f.yearly.pl.periods.length > 0 && f.yearly.pl.periods.length < 5 && (chosen || !wasAutomatic(sym)) && <p className="faint" style={{ fontSize: 13, margin: "0 0 10px" }}>Only {f.yearly.pl.periods.length} year{f.yearly.pl.periods.length === 1 ? "" : "s"} of {shownBasis} statements are available for this company (it may be newly listed, or have started publishing these accounts recently).</p>}
-      {kind !== "q" && yearGaps(tbl.periods).map((g) => <p key={g} className="faint" style={{ fontSize: 13, margin: "0 0 10px" }}>No {shownBasis} figures for {g} in our data sources: the columns on either side are not consecutive years.</p>)}
-      {(kind === "bs" || kind === "cf") && tbl.periods.length > 0 && tbl.periods.length < f.yearly.pl.periods.length && <p className="faint" style={{ fontSize: 13, margin: "0 0 10px" }}>Our data sources hold {tbl.periods.length} year{tbl.periods.length === 1 ? "" : "s"} of this statement for this company, against {f.yearly.pl.periods.length} years of profit and loss.</p>}
+      {!chosen && wasAutomatic(sym) && basis === "standalone" && <p className="faint" style={{ fontSize: "var(--fs-13)", margin: "0 0 10px" }}>Showing standalone accounts ({f.yearly.pl.periods.length} years) because this company's consolidated accounts cover far fewer. Press Consolidated to see the group's accounts.</p>}
+      {shownBasis && shownBasis !== basis && chosen && <p className="faint" style={{ fontSize: "var(--fs-13)", margin: "0 0 10px" }}>This section now shows {shownBasis} accounts; the rest of this page uses {basis} accounts.</p>}
+      {f.yearly.pl.periods.length > 0 && f.yearly.pl.periods.length < 5 && (chosen || !wasAutomatic(sym)) && <p className="faint" style={{ fontSize: "var(--fs-13)", margin: "0 0 10px" }}>Only {f.yearly.pl.periods.length} year{f.yearly.pl.periods.length === 1 ? "" : "s"} of {shownBasis} statements are available for this company (it may be newly listed, or have started publishing these accounts recently).</p>}
+      {kind !== "q" && yearGaps(tbl.periods).map((g) => <p key={g} className="faint" style={{ fontSize: "var(--fs-13)", margin: "0 0 10px" }}>No {shownBasis} figures for {g} in our data sources: the columns on either side are not consecutive years.</p>)}
+      {(kind === "bs" || kind === "cf") && tbl.periods.length > 0 && tbl.periods.length < f.yearly.pl.periods.length && <p className="faint" style={{ fontSize: "var(--fs-13)", margin: "0 0 10px" }}>Our data sources hold {tbl.periods.length} year{tbl.periods.length === 1 ? "" : "s"} of this statement for this company, against {f.yearly.pl.periods.length} years of profit and loss.</p>}
+      {/* task #216 (README 3.6): the statement switch is the report's tab group ("3 views · Profit & loss shown here"); it wraps the section's own switch, so no Next view */}
+      <TabGroup label="Statement" value={kind === "q" ? "pl" : kind} onChange={(k) => { if (!(k === "pl" && kind === "q")) setKind(k as FinKind); }} next={false}
+        hint={`${{ pl: "Profit & loss", bs: "Balance sheet", cf: "Cash flow" }[kind === "q" ? "pl" : kind]} shown here`}
+        views={[{ key: "pl", label: "Profit & loss" }, { key: "bs", label: "Balance sheet" }, { key: "cf", label: "Cash flow" }]} />
       <div className="card acc" style={{ "--ac": "var(--p-growth)" } as React.CSSProperties}>
         <ChartZoom label="Financial statements chart" className="cz-r">
         <div className="tools">
-          <div className="seg" role="group" aria-label="Statement">{([["pl", "Profit & loss"], ["bs", "Balance sheet"], ["cf", "Cash flow"]] as const).map(([k, l]) => <button key={k} aria-pressed={kind === k || (k === "pl" && kind === "q")} onClick={() => setKind(k)}>{l}</button>)}</div>
           <div className="tools-r">
             {basisSeg}
             <div className="seg seg-period" role="group" aria-label="Period: quarterly or yearly"><button aria-pressed={kind === "q"} onClick={() => setKind("q")} title="Profit and loss for each quarter">Quarterly</button><button aria-pressed={kind !== "q"} onClick={() => { if (kind === "q") setKind("pl"); }} title="Each financial year (April to March)">Yearly</button></div>

@@ -1,0 +1,22 @@
+/* Task #375: the wishlist on the Mutual Funds page: the star beside each scheme's name, the Wishlist tab's star, the empty and sign-in states, and
+   the "Add to wishlist" button on a scheme's own page. Site tokens only; gold marks a kept scheme in both themes. */
+.mf-table .mf-rowacts { display: grid; justify-items: center; gap: 4px; flex: none; }
+.mf-table .mf-wish { display: inline-grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 1px solid transparent; border-radius: var(--ui-r-mark); background: none; color: var(--muted); cursor: pointer; }
+.mf-table .mf-wish svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; }
+.mf-table .mf-wish:hover { color: var(--gold); border-color: var(--border); }
+.mf-table .mf-wish[aria-pressed="true"] { color: var(--gold); }
+.mf-table .mf-wish[aria-pressed="true"] svg { fill: currentColor; }
+.mf-table .mf-wish:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+@media (pointer: coarse) { .mf-table .mf-wish { width: 40px; height: 40px; } }
+.mf-bar .seg .mf-wish-ic { width: 14px; height: 14px; margin-right: 6px; vertical-align: -2px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linejoin: round; }
+.mf-bar .seg button[aria-pressed="true"] .mf-wish-ic { fill: currentColor; }
+.mf-wishempty .btn + .btn { margin-left: 8px; }
+.mf-acts .mf-wishbtn.on { border-color: var(--gold); color: var(--gold); }
+.mf-acts .mf-wishbtn.on svg { fill: currentColor; }
+.mf-acts .mf-wishlink { align-self: center; font-size: var(--fs-13); }
+/* With the third tab the three no longer fit a phone in one line (383px in 362px): there they share the width in three equal columns and a long
+   label takes two lines, whatever the wishlist's count. */
+@media (max-width: 560px) {
+  .mf-bar .seg { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); width: 100%; }
+  .mf-bar .seg button { min-width: 0; padding-left: 6px; padding-right: 6px; white-space: normal; line-height: 1.25; text-align: center; }
+}

@@ -7,7 +7,8 @@ import {
   axisCr, axisPct, cagrText, chartModel, chartSummary, mixStatus, niceTicks, pp, sortRows, stackTop, tableRows,
   type ChartModel, type SortKey, type TableRow,
 } from "../lib/segmentMix";
-import { ChartZoom } from "../components/ChartZoom";
+import { ChartZoom, useZoomHeight } from "../components/ChartZoom";
+import { TabGroup, type TabView } from "../components/TabGroup";
 
 type Mode = "revenue" | "share";
 const rs = (n: number | null | undefined) => (n == null ? "—" : "₹" + cr(n) + " Cr");
@@ -25,7 +26,8 @@ function MixChart({ model, mode }: { model: ChartModel; mode: Mode }) {
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
-  const n = model.years.length, H = w < 480 ? 250 : 290, pl = mode === "revenue" ? 44 : 40, pr = 8, pt = 10, pb = 26;
+  const [svgRef, H] = useZoomHeight<SVGSVGElement>(w < 480 ? 250 : 290);   // task #167: in full screen it fills the height too
+  const n = model.years.length, pl = mode === "revenue" ? 44 : 40, pr = 8, pt = 10, pb = 26;
   const top = Math.max(...model.years.map((_, i) => stackTop(model, i, mode)), 0);
   const ticks = mode === "share" ? niceTicks(Math.max(100, top), 4) : niceTicks(top, 4);
   const max = ticks[ticks.length - 1] || 1;
@@ -36,8 +38,8 @@ function MixChart({ model, mode }: { model: ChartModel; mode: Mode }) {
   const fmt = mode === "revenue" ? axisCr : axisPct;
   return (
     <div className="mx-chart" ref={box} onMouseLeave={() => setHv(null)}>
-      <svg width={w} height={H} viewBox={`0 0 ${w} ${H}`} role="img" aria-label={chartSummary(model)}>
-        {ticks.map((t) => <g key={t}><line x1={pl} x2={w - pr} y1={Y(t)} y2={Y(t)} stroke="var(--border)" strokeWidth={t === 0 ? 1.2 : 1} /><text x={pl - 6} y={Y(t) + 3.5} textAnchor="end" fontSize="11" fill="var(--faint)" fontFamily="IBM Plex Mono, monospace">{fmt(t)}</text></g>)}
+      <svg ref={svgRef} width={w} height={H} viewBox={`0 0 ${w} ${H}`} role="img" aria-label={chartSummary(model)}>
+        {ticks.map((t) => <g key={t}><line x1={pl} x2={w - pr} y1={Y(t)} y2={Y(t)} stroke="var(--border)" strokeWidth={t === 0 ? 1.2 : 1} /><text x={pl - 6} y={Y(t) + 3.5} textAnchor="end" fontSize="11" fill="var(--faint)" fontFamily="Inter Variable, Inter, monospace">{fmt(t)}</text></g>)}
         {model.years.map((y, i) => {
           let acc = 0;
           return (
@@ -133,8 +135,8 @@ export function SegmentHistory({ seg }: { seg?: Segments }) {
   const latest = seg.periods[seg.periods.length - 1] || "";
   const ins = seg.insights;
   const many = model.years.length >= 2;
-  return (
-    <div className="mx">
+  // Task #216 (README 3.16): the three parts are one highlighted tab group: How the mix has changed · Segment trends · Insights (only the parts there are).
+  const views: TabView[] = [{ key: "mix", label: "How the mix has changed", content: <>
       <ChartZoom label="How the segment mix has changed" className="cz-r">
       <div className="mx-h">
         <h4>How the mix has changed</h4>
@@ -153,21 +155,21 @@ export function SegmentHistory({ seg }: { seg?: Segments }) {
         </>
       ) : null}
       </ChartZoom>
-
-      {many && (
-        <>
+    </> }];
+  if (many) views.push({ key: "trends", label: "Segment trends", content: <>
           <div className="mx-h"><h4>Segment trends</h4></div>
           <TrendTable rows={rows} latest={latest} sort={sort} setSort={setSort} />
-        </>
-      )}
-
-      {ins && status === "ok" && (ins.sentences.length > 0 || ins.cautions.length > 0) && (
+    </> });
+  if (ins && status === "ok" && (ins.sentences.length > 0 || ins.cautions.length > 0)) views.push({ key: "insights", label: "Insights", content: <>
         <div className="mx-ins">
           <h4><Icon name="info" /> Insights</h4>
           {ins.sentences.length > 0 && <ul>{ins.sentences.map((s) => <li key={s}>{s}</li>)}</ul>}
           {ins.cautions.length > 0 && <div className="mx-caut"><b><Icon name="alert" /> Read with care</b><ul>{ins.cautions.map((c) => <li key={c}>{c}</li>)}</ul></div>}
         </div>
-      )}
+    </> });
+  return (
+    <div className="mx">
+      {views.length > 1 ? <TabGroup label="Segments" variant="highlighted" views={views} /> : views[0].content}
       {!ins && many && status === "ok" && <p className="mx-foot faint">Growth rates and trend tags appear here once this report is refreshed.</p>}
       <p className="mx-foot faint">{ins?.basis || "Shares are of the sum of the segment revenues, which can differ from reported revenue because inter-segment sales are removed."} Information only, not advice.</p>
     </div>

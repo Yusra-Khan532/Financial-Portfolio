@@ -1,0 +1,16 @@
+/* Task #354: this task's rules, kept in their own file so parallel tasks do not edit the same end-of-file lines. */
+
+/* ---- moved from mf341.css ---- */
+/* task #354 (team, 23 Nov 2026): "Hide filters" with a bolder outline: 2px in the text colour (was 1px in the soft border), semibold */
+.mf-list .mf-side .btn.mf-hidef:not(.primary) { border: 2px solid color-mix(in srgb, var(--text) 70%, transparent); font-weight: 600; }
+.mf-list .mf-side .btn.mf-hidef:not(.primary):hover, .mf-list .mf-side .btn.mf-hidef:not(.primary):focus-visible { border-color: var(--text); }
+
+/* ---- moved from mfscreen.css ---- */
+/* task #354: the screener's "Hide filters" with the same bolder outline as on the Mutual funds page */
+:root .mfs-page .btn.mfs-hidef:not(.primary) { border: 2px solid color-mix(in srgb, var(--text) 70%, transparent); font-weight: 600; }
+:root .mfs-page .btn.mfs-hidef:not(.primary):hover, :root .mfs-page .btn.mfs-hidef:not(.primary):focus-visible { border-color: var(--text); }
+
+/* ---- moved from etf351.css ---- */
+/* task #354: the ETF page's "Hide filters" (the toggle while the panel is open) with the same bolder outline */
+:root .etf-list .btn.etf-ftog.is-on:not(.primary) { border: 2px solid color-mix(in srgb, var(--text) 70%, transparent); font-weight: 600; }
+:root .etf-list .btn.etf-ftog.is-on:not(.primary):hover, :root .etf-list .btn.etf-ftog.is-on:not(.primary):focus-visible { border-color: var(--text); }

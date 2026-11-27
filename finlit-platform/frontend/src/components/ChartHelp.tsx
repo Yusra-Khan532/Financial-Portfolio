@@ -84,8 +84,9 @@ export function ChartHelp({ id, entry: given, label }: { id: string; entry?: Cha
           <p><span>What it shows</span>{entry.what}</p>
           {entry.x && <p><span>X axis (across)</span>{entry.x}</p>}
           {entry.y && <p><span>Y axis (up)</span>{entry.y}</p>}
+          {entry.use ? <p><span>How to use it</span>{entry.use}</p> : <>
           <p><span>How to read it</span>{entry.read}</p>
-          <p><span>Why it matters</span>{entry.why}</p>
+          <p><span>Why it matters</span>{entry.why}</p></>}
         </div>,
         document.body,
       )}

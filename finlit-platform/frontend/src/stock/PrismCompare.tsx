@@ -1,9 +1,7 @@
-// The right half of the stock page's first dashboard: FinLit Prism beside the FinLit IQ (left half, in Hero.tsx).
-// Compact by design: one row each for the header, the score (prism glyph + words), the parts (tiles), the top pros and cons, and a footer.
-// The left half uses the same row grid, so the two halves line up. The full lists live in PrismDetail, which the page shows under the pair
-// when the person presses "Show full breakdown".
+// The stock page's first dashboard: FinLit Prism, FinLit's only company score (task #283), full width (Hero.tsx).
+// Compact by design: one row each for the header, the score (prism glyph + words), the parts (tiles) and a footer. Task #216: the "What supports and weighs on the rating" drop-down and "Show full breakdown" are gone, for every plan.
 // Gold members (and everyone on a free example company) see the newest stored rating; others see a locked teaser.
-// A company with no stored rating is calculated automatically when the page opens; recalculating is a button. Anything unexpected hides the half and the score fills the row.
+// A company with no stored rating is calculated automatically when the page opens. Anything unexpected hides the half and the score fills the row.
 import { useContext, useEffect, useRef } from "react";
 import { Link } from "react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -17,7 +15,10 @@ import { PrismGlyph } from "../components/prism/shared/PrismGlyph";
 import { STATUS, generateFailure, generatePrism, prismSummary, usePrismLatest, type PrismCardState, type PrismLatest } from "./PrismCard";
 import { PRISM_NOTE, PRISM_PARTS, PRISM_POINTS } from "./prismWords";
 import { CardSkeleton, FundamentalSection, TechnicalSection } from "./PrismCardView";
+import { PrismAiSummary } from "./PrismAiSummary";   // task #228: the AI summary button under the two cards
 import { type CardPart } from "./prismCardLogic";
+import { PLAN_FOR_PRISM } from "../lib/planGates";
+import { buttonClass } from "../components/ui";
 import "../styles/prism-compare.css";
 import "../styles/prism-card.css";
 
@@ -27,26 +28,16 @@ const STATUS_NOTE: Record<PrismLatest["rating"]["status"], string> = {
   "NOT RATED": "The overall rating is withheld.",
 };
 /** The parts to draw, from the data: the four of the model, and a technical part the moment the model sends one. */
+/** QA of 23 Nov (task #328): the card's date says what it is, the day this company's report was calculated; the technical view names its own
+ *  price day, and the screener header shows the newest day across all companies, so the three can differ without any of them being wrong. */
+export const prismCalcLabel = (at: string | null | undefined): string => (at ? `Prism report calculated ${dateIN(at)}` : "Prism report");
+
 export function partsOf(r: PrismLatest["rating"]): { parts: CardPart[]; technicalSoon: boolean } {
   const rated = r.status !== "NOT RATED";   // the model withholds category scores for a company it did not rate; so do we
   const parts: CardPart[] = PRISM_PARTS.map(([k, name, color]) => ({ key: k, name, color, value: rated ? r.parts?.[k] ?? null : null }));
   const tech = rated ? r.parts?.technical : undefined;
   if (tech !== undefined) parts.push({ key: "technical", name: "Technical", color: "--p-tech", value: tech });
   return { parts, technicalSoon: !parts.some((p) => p.key === "technical") };
-}
-
-const items = (r: PrismLatest, kind: "pros" | "cons") => (r.review?.parts ?? []).flatMap((p) => p[kind] ?? []).slice(0, 2);
-
-/** The top two pros and cons, one line each. "More" opens the full report; the full lists are in the expanded breakdown. */
-function Notes({ r, symbol }: { r: PrismLatest; symbol: string }) {
-  const pros = items(r, "pros"), cons = items(r, "cons");
-  const col = (tone: "pro" | "con", list: typeof pros) => (
-    <div className={"dk-pc " + tone}>
-      <div className="dk-pc-h"><Icon name={tone === "pro" ? "check" : "alert"} /><span>{tone === "pro" ? <>Supports<span className="hide-sm"> the rating</span></> : "Weighs on it"}</span><Link to={`/prism/${encodeURIComponent(symbol)}`} aria-label={`More about what ${tone === "pro" ? "supports" : "weighs on"} the rating`}>More</Link></div>
-      {list.length ? <ul>{list.map((i) => <li key={i.metric} title={`${i.label}. ${i.summary}`}><b>{i.label}</b><span>{i.summary}</span></li>)}</ul> : <p>Nothing stands out.</p>}
-    </div>
-  );
-  return <div className="dk-notes">{col("pro", pros)}{col("con", cons)}</div>;
 }
 
 function Body({ state, symbol, statement, name }: { state: Exclude<PrismCardState, { kind: "locked" | "hidden" }>; symbol: string; statement: string; name: string }) {
@@ -71,7 +62,7 @@ function Body({ state, symbol, statement, name }: { state: Exclude<PrismCardStat
         <h3>No Prism rating for {name} yet</h3>
         <p>Prism rates a company's financial health in four parts: Growth & Profitability, Valuation, Quality and Risk. It reads the latest filings and prices, which usually takes under half a minute the first time. It is being calculated now and the result then stays stored here.</p>
         <div className="dk-empty-a">
-          <button className="btn primary dk-b" disabled={busy} onClick={() => run.mutate(false)}>{busy ? "Calculating…" : run.isError ? "Try again" : "Generate the Prism rating"} <Icon name="arrow" /></button>
+          <button className={buttonClass("prism", "sm", "dk-b")} disabled={busy} onClick={() => run.mutate(false)}>{busy ? "Calculating…" : run.isError ? "Try again" : "Generate the Prism rating"} <Icon name="arrow" /></button>
           <Link className="pzs-link" to={`/prism/${encodeURIComponent(symbol)}`}>Open the Prism page for {symbol}</Link>
         </div>
         {status}
@@ -82,25 +73,20 @@ function Body({ state, symbol, statement, name }: { state: Exclude<PrismCardStat
   const { parts } = partsOf(r);
   return (
     <>
+      {/* task #312 (developer file 20, change 3): the AI summary is the first thing in the card, not a row 996 px down after both panels */}
+      <PrismAiSummary symbol={symbol} name={name} r={r} parts={parts} a={parseTechnical(rep.technicalAssessment)} scoredAt={rep.completedAt || rep.createdAt} review={rep.review} />
       <div className="pcx-body" role="group" aria-label={prismSummary(r)}>
         <FundamentalSection r={r} parts={parts}>
           <div className="dk-words">
             <div className="dk-chips"><span className={"pz-status " + r.status.toLowerCase().replace(" ", "-")}>{STATUS[r.status]}</span></div>
             {r.status !== "RATED" && <p className={"dk-note" + (r.status === "NOT RATED" ? " why" : "")}>{r.status === "NOT RATED" ? notRatedLede(r) : STATUS_NOTE[r.status]}</p>}
-            <p className={"dk-cov" + (inp.ok ? "" : " held")}><Icon name={inp.ok ? "check" : "info"} />{inp.text}{inp.note ? <span className="dk-cov-n"> · {inp.note}</span> : null} · <Link to="/glossary#coverage-prism">what this means</Link>{r.status === "NOT RATED" && <> · <Link to={`/prism/${encodeURIComponent(symbol)}`}>Why is this not rated?</Link></>}</p>
+            {inp && <p className={"dk-cov" + (inp.ok ? "" : " held")}><Icon name={inp.ok ? "check" : "info"} />{inp.text}{inp.note ? <span className="dk-cov-n"> · {inp.note}</span> : null} · <Link to="/glossary#coverage-prism">what this means</Link>{r.status === "NOT RATED" && <> · <Link to={`/prism/${encodeURIComponent(symbol)}`}>Why is this not rated?</Link></>}</p>}
+            {!inp && r.status === "NOT RATED" && <p className="dk-cov held"><Icon name="info" /><Link to={`/prism/${encodeURIComponent(symbol)}`}>Why is this not rated?</Link></p>}
           </div>
         </FundamentalSection>
-        <TechnicalSection a={parseTechnical(rep.technicalAssessment)} report={rep} onRecalculate={() => run.mutate(true)} busy={busy} />
+        <TechnicalSection a={parseTechnical(rep.technicalAssessment)} report={rep} onRecalculate={() => run.mutate(true)} busy={busy}
+          foot={<div className="dk-cta"><span className="pcx-upd" title="The day this company's Prism report was calculated. The technical view above names the last trading day its prices run to; the screener's header shows the newest day of any company.">{prismCalcLabel(rep.completedAt || rep.createdAt)}</span><Link className={buttonClass("prism", "sm", "dk-b")} to={`/prism/${encodeURIComponent(symbol)}`}>Open the full Prism report <Icon name="arrow" /></Link></div>} />
       </div>
-      <details className="dk-more">
-        <summary><span>What supports and weighs on the rating, data date, recalculate</span><Icon name="arrow" className="dk-chev" /></summary>
-        <Notes r={rep} symbol={symbol} />
-        <div className="dk-foot">
-          <span className="dk-date"><Icon name="calendar" />Calculated {dateIN(rep.completedAt || rep.createdAt)}</span>
-          <button className="btn dk-b" disabled={busy} onClick={() => run.mutate(true)}>{busy ? "Calculating…" : "Recalculate"}</button>
-        </div>
-      </details>
-      <div className="dk-cta"><span className="pcx-upd">Updated {dateIN(rep.completedAt || rep.createdAt)}</span><Link className="btn primary dk-b" to={`/prism/${encodeURIComponent(symbol)}`}>Open the full Prism report <Icon name="arrow" /></Link></div>
       {status}
     </>
   );
@@ -116,13 +102,13 @@ export function PrismCompare({ symbol, name, statement }: { symbol: string; name
   const state: PrismCardState | undefined = !gold && !open ? { kind: "locked" } : q.isError ? { kind: "hidden" } : q.data;
   // The server and this page disagree about the plan: say nothing rather than show a lock to a member.
   if (state?.kind === "hidden" || (state?.kind === "locked" && gold)) return null;
-  const head = (note?: string) => <header className="dk-head"><div className="dk-ht"><span className="eyebrow">FinLit Prism</span><span className="tier gold">Gold</span>{note && <span className="dk-chip">{note}</span>}</div><div className="dk-hm"><span className="hide-sm">Advanced model ·</span> <Link to="/glossary#finlit-prism">how it works</Link></div></header>;
+  const head = (note?: string) => <header className="dk-head"><div className="dk-ht"><span className="eyebrow">FinLit Prism</span><span className="tier gold">Gold</span>{note && <span className="dk-chip">{note}</span>}</div><div className="dk-hm"><Link to="/glossary#finlit-prism">What the score means</Link></div></header>;
   const ex = partsOf(EXAMPLE).parts;
   return (
     <section className="report dk-card pz-right" id="prism" aria-label={`FinLit Prism rating for ${name}`}>
       {state?.kind === "locked" ? (
         <OpenAccess.Provider value={false}>
-          <Gate tier="gold" title="Unlock FinLit Prism" points={PRISM_POINTS}>
+          <Gate tier={PLAN_FOR_PRISM} title="Unlock FinLit Prism" points={PRISM_POINTS}>
             {head("Example")}
             <div className="dk-body"><div className="pcx-body"><FundamentalSection r={EXAMPLE} parts={ex} example><p className="dk-note">Example numbers, to show the layout.</p></FundamentalSection></div>
             </div>
@@ -141,34 +127,6 @@ export function PrismCompare({ symbol, name, statement }: { symbol: string; name
   );
 }
 
-/** The right half of "Show full breakdown": every pro and con by part, and what data was missing. Gold members, when a report is stored. */
-export function PrismDetail({ symbol, statement }: { symbol: string; statement: string }) {
-  const gold = useGold();
-  const open = useContext(OpenAccess);
-  const q = usePrismLatest(symbol, statement, gold || open);
-  const rep = q.data?.kind === "report" ? q.data.report : null;
-  if (!rep) return null;
-  const parts = rep.review?.parts ?? [], miss = rep.review?.completeness;
-  return (
-    <section className="report dk-card dk-detail" aria-label="FinLit Prism: full breakdown">
-      <h3 className="dk-dh"><span className="eyebrow">FinLit Prism</span>Pros and cons by part</h3>
-      {parts.length === 0 && <p className="faint">The stored report has no written review yet. <Link to={`/prism/${encodeURIComponent(symbol)}`}>Open the full Prism report</Link></p>}
-      <div className="dk-dgrid">
-        {parts.map((p) => (
-          <div key={p.key} className="dk-dpart">
-            <h4>{p.name}</h4>
-            {(p.pros?.length ?? 0) + (p.cons?.length ?? 0) === 0 && <p className="faint">Nothing stands out here.</p>}
-            {!!p.pros?.length && <ul className="pz-l pro">{p.pros.map((i) => <li key={i.metric}><Icon name="check" /><span><b>{i.label}</b> <small>{i.summary}</small></span></li>)}</ul>}
-            {!!p.cons?.length && <ul className="pz-l con">{p.cons.map((i) => <li key={i.metric}><Icon name="alert" /><span><b>{i.label}</b> <small>{i.summary}</small></span></li>)}</ul>}
-          </div>))}
-      </div>
-      {miss && !miss.complete && miss.items.length > 0 && (
-        <div className="pz-miss"><h4>Data completeness: what was missing</h4><ul>{miss.items.slice(0, 8).map((i) => <li key={i.label}><b>{i.label}</b> <small>{i.treatment || i.reason}</small></li>)}</ul></div>
-      )}
-      {miss?.complete && <p className="faint dk-ok"><Icon name="check" />All the inputs the model uses were available.</p>}
-    </section>
-  );
-}
 
 /** The Prism sub-section of "Pros and cons": what holds up and what weighs on each part, and what data was missing. Gold members, when a report is stored. */
 export function PrismMethod({ symbol, statement }: { symbol: string; statement: string }) {
@@ -194,7 +152,7 @@ export function PrismMethod({ symbol, statement }: { symbol: string; statement: 
       {miss && !miss.complete && miss.items.length > 0 && (
         <div className="pz-miss"><h4>Data that was missing</h4><ul>{miss.items.slice(0, 8).map((i) => <li key={i.label}><b>{i.label}</b> <small>{i.treatment || i.reason}</small></li>)}</ul></div>
       )}
-      <p className="faint" style={{ fontSize: 13, margin: "12px 0 0" }}>{PRISM_NOTE} <Link to={`/prism/${encodeURIComponent(symbol)}`}>Open the full Prism report</Link></p>
+      <p className="faint" style={{ fontSize: "var(--fs-13)", margin: "12px 0 0" }}>{PRISM_NOTE} <Link to={`/prism/${encodeURIComponent(symbol)}`}>Open the full Prism report</Link></p>
     </div>
   );
 }

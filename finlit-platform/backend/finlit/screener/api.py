@@ -8,14 +8,17 @@ from typing import Dict, List, Literal, Optional
 from fastapi import APIRouter, Query, Request, Response
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from ..auth.routes import NO_STORE, fail
+from ..auth.routes import NO_STORE, fail, read_limit
 from ..auth.service import current
 from .catalog import BY_KEY, CAPS, CATALOG, GROUP_LABEL, GROUPS, GROUP_TIER, HIDDEN, INDEX_LISTS, SCALE, VARIANTS, allowed, family, offered, ratioable
-from .data import get_table
+from .data import get_table, nse_levels
 from .ready import BY_ID as READY_BY_ID, READY, public as ready_public, shown_to
 
 router = APIRouter(prefix="/api/screener")
 BASIC_ROWS = 25
+# POST /query per minute (visitor by IP, member by account). The page sends one per filter change (150 ms debounce) or typed search (250 ms), and repeats
+# are cached in the browser for a minute, so a person using it stays far below; a script calling it nonstop is stopped.
+READ_VISITOR, READ_MEMBER = 90, 180
 # The table opens with company, market cap and price only; the website adds a column for each filter the visitor adds (and takes it away with the filter).
 DEFAULT_COLUMNS = ["market_cap", "price"]
 # The Stock screener opens with the company name and the market cap only (task #145, 14 Nov 2026: "only name of company and market cap should be visible";
@@ -23,9 +26,9 @@ DEFAULT_COLUMNS = ["market_cap", "price"]
 # Task #141: Gold also opens with the two Prism technical views, Short-term technical and Long-term technical, beside the market cap.
 STANDARD_COLUMNS = ["market_cap"]
 GOLD_TECHNICAL_COLUMNS = ["prism_st_score", "prism_lt_score"]
-IQ_BANDS = ("strong", "healthy", "mixed", "watch")
 PRISM_BANDS = ("strong", "healthy", "average", "weak", "poor")
-BandWord = Literal["strong", "healthy", "mixed", "watch", "average", "weak", "poor"]   # every word of either score (IQ_BANDS + PRISM_BANDS)
+# FinLit Prism's words; "mixed" and "watch" (the retired FinLit IQ's) are still read so an older saved screen is not refused as malformed, and match nothing on Prism
+BandWord = Literal["strong", "healthy", "mixed", "watch", "average", "weak", "poor"]
 
 
 RATIO_PLAN_LINE = "Custom ratios come with Gold and Platinum."
@@ -48,11 +51,13 @@ class Rng(BaseModel):
 
 class Cats(BaseModel):
     sector: List[str] = Field(default_factory=list, max_length=40)
+    macro: List[str] = Field(default_factory=list, max_length=12)      # task #259: NSE macro sector (12)
+    nsector: List[str] = Field(default_factory=list, max_length=22)    # task #259: NSE sector (22)
     industry: List[str] = Field(default_factory=list, max_length=60)
     index: List[str] = Field(default_factory=list, max_length=20)
-    cap: List[Literal["Large", "Mid", "Small"]] = Field(default_factory=list, max_length=3)
-    # the rating words of the plan's score: FinLit IQ's below Gold (strong, healthy, mixed, watch), FinLit Prism's for Gold (strong, healthy, average, weak, poor).
-    # Task #142: only the IQ words were accepted, so a Gold member who picked Average, Weak or Poor got a refused request ("The screener is unavailable").
+    cap: List[Literal["Large", "Mid", "Small", "Micro"]] = Field(default_factory=list, max_length=4)   # task #262: four sizes
+    # FinLit Prism's rating words (strong, healthy, average, weak, poor), Gold only (task #283: Prism is the only company score).
+    # Task #142: a Gold member who picked Average, Weak or Poor must never get a refused request ("The screener is unavailable").
     band: List[BandWord] = Field(default_factory=list, max_length=5)
 
 
@@ -144,7 +149,7 @@ async def catalog(request: Request):
     t = await _table(request)
     groups = []
     for gid, label in GROUPS:
-        if not offered(plan, gid):           # Gold sees FinLit Prism and never the FinLit IQ; below Gold, no Prism (tasks #64 P-1, #100)
+        if not offered(plan, gid):           # FinLit Prism for Gold; below Gold, no Prism; the retired FinLit IQ for no plan (tasks #64 P-1, #100, #283)
             continue
         ms = [m for m in CATALOG if m.group == gid]
         groups.append({"id": gid, "label": label, "tier": GROUP_TIER.get(gid, "basic"), "metrics": [
@@ -156,13 +161,16 @@ async def catalog(request: Request):
         "groups": groups,
         # NSE sectors only: the ones an NSE industry sits under (task #64, file 04, data fix 2); a stray label held by one or two companies is not a sector to filter by
         "sectors": [{"name": n, "n": c} for n, c in t.sectors if n in {s for _, s, _ in t.industries if s}],
-        "industries": [{"name": n, "sector": s, "n": c} for n, s, c in t.industries],
+        "industries": [{"name": n, "sector": s, "nseSector": nse_levels(n, s)[0], "n": c} for n, s, c in t.industries],
+        # task #259 (pack 03 §3): NSE's macro sectors (12) and sectors (22) for the linked lists; "sectors" above stays for older links
+        "macros": [{"name": n, "n": c} for n, c in t.macros],
+        "nseSectors": [{"name": n, "macro": m, "n": c} for n, m, c in t.nsectors],
         "indices": [{"code": c, "label": INDEX_LISTS[c][0], "n": len(t.members.get(c, ()))} for c in INDEX_LISTS if t.members.get(c)],
         "caps": [{"name": c, "n": sum(1 for x in t.cap if x == c)} for c in CAPS],
-        # the rating chips: FinLit Prism's words for Gold, the FinLit IQ's below (locked on Basic)
-        "bandModel": "prism" if is_gold(plan) else "iq",
+        # the rating chips: FinLit Prism's words (task #283: the only company score). Gold has them with counts; below Gold they come locked, with no count
+        "bandModel": "prism" if is_gold(plan) else None,
         "bands": ([{"key": b, "label": b.title(), "locked": False, "n": sum(1 for x in t.pband if x == b)} for b in PRISM_BANDS] if is_gold(plan)
-                  else [{"key": b, "label": b.title(), "locked": not allowed(plan, "silver"), "n": sum(1 for x in t.band if x == b)} for b in IQ_BANDS]),
+                  else [{"key": b, "label": b.title(), "locked": True} for b in PRISM_BANDS]),
         "limits": {"rows": BASIC_ROWS if plan == "basic" else None, "export": False},    # no downloads on any plan (task #64 P-3)
         "defaultColumns": DEFAULT_COLUMNS,
         "standardColumns": standard_columns(plan),
@@ -196,16 +204,16 @@ def ratio_stats(t, num: str, den: str, show: str) -> dict:
     lo, hi = out["p2"], out["p98"]
     scale, bars = "linear", [0] * 30
     if v and lo is not None and hi is not None and hi > lo:
+        # the chart runs from p2 to p98; companies outside it sit in the end bars, so one extreme company never squashes the rest (task #64, N-5)
         if lo > 0 and hi / lo >= 50:          # a wide, positive spread reads better on a log scale
             import math
             scale, a, b = "log", math.log(lo), math.log(hi)
             for x in v:
-                if lo <= x <= hi:
-                    bars[min(29, int((math.log(x) - a) / (b - a) * 30))] += 1
+                bars[0 if x <= lo else 29 if x >= hi else min(29, max(0, int((math.log(x) - a) / (b - a) * 30)))] += 1
         else:
             for x in v:
-                if lo <= x <= hi:
-                    bars[min(29, int((x - lo) / (hi - lo) * 30))] += 1
+                bars[0 if x <= lo else 29 if x >= hi else min(29, max(0, int((x - lo) / (hi - lo) * 30)))] += 1
+    out["outside"] = {"below": sum(1 for x in v if lo is not None and x < lo), "above": sum(1 for x in v if hi is not None and x > hi)}
     out.update(hist30=bars, scale=scale, values=[round(x, 6) for x in v])
     if len(_ratio_stats) > 200:
         _ratio_stats.clear()
@@ -244,7 +252,7 @@ def screens_of(body) -> List[str]:
 
 
 def cats_for(body, plan: str) -> dict:
-    """The category filters, with the rating words read against the plan's score: FinLit Prism's band for Gold, the FinLit IQ's below.
+    """The category filters, with the rating words read against FinLit Prism's band (Gold; below Gold a rating word is refused as part of Gold, task #283).
     A screen on a FinLit score that filters by its rating word (Strong) adds that word."""
     c = body.cats.model_dump()
     bands = list(c.get("band") or [])
@@ -252,10 +260,7 @@ def cats_for(body, plan: str) -> dict:
         want = set(READY_BY_ID[sid].bands)
         if want:
             bands = sorted((set(bands) & want) if bands else want)
-    if is_gold(plan):
-        c["pband"], c["band"] = bands, []
-    else:
-        c["band"] = bands
+    c["pband"], c["band"] = (bands if is_gold(plan) else []), []      # task #283: the retired FinLit IQ band is never a filter
     return c
 
 
@@ -295,7 +300,7 @@ async def ready(request: Request):
     t = await _table(request)
     counts = ready_counts(t)
     body = {"asOf": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(t.loaded)), "total": t.n,
-            "screens": [ready_public(r, counts.get(r.id)) for r in READY if shown_to(r, plan)]}     # FinLit IQ screens below Gold, Prism screens for Gold
+            "screens": [ready_public(r, counts.get(r.id)) for r in READY if shown_to(r, plan)]}     # the screens on FinLit Prism for Gold only
     return Response(content=__import__("json").dumps(body, separators=(",", ":"), ensure_ascii=False), media_type="application/json", headers={**NO_STORE, "Vary": "Cookie"})
 
 
@@ -314,9 +319,9 @@ def _run(t, body: Query_, plan: str):
     locked = _locked(plan, need)
     off_plan = [k for k in need if k in BY_KEY and not offered(plan, BY_KEY[k].group)]
     if off_plan or any(not shown_to(READY_BY_ID[sid], plan) for sid in screens_of(body)):
-        raise fail(400, "bad_request", "That filter is not part of this plan's score: Gold uses FinLit Prism, Silver the FinLit IQ.")
-    if (body.cats.band or screens_of(body)) and not allowed(plan, "silver"):
-        locked["overall"] = "silver"
+        raise fail(400, "bad_request", "That filter is not offered: the screener's score is FinLit Prism.")
+    if (body.cats.band or screens_of(body)) and not is_gold(plan):       # task #283: a rating word is FinLit Prism's, which is Gold
+        locked["prism_final"] = "gold"
     if locked:
         raise _refuse(locked, "Filtering or showing")
     model = _model_rules(screens_of(body))
@@ -344,10 +349,25 @@ def _run(t, body: Query_, plan: str):
     return idx, cols, vals
 
 
+def _facets(t, body, plan: str) -> Dict[str, Dict[str, int]]:
+    """Companies per macro sector, sector and industry under every other filter (a level's own picks left out, so its other options keep a count)."""
+    out: Dict[str, Dict[str, int]] = {}
+    for level, col in (("macro", t.macro), ("nsector", t.nsector), ("industry", t.industry)):
+        idx, _c, _v = _run(t, body.model_copy(update={"cats": body.cats.model_copy(update={level: []}), "sort": Sort()}), plan)
+        counts: Dict[str, int] = {}
+        for i in idx:
+            if col[i]:
+                counts[col[i]] = counts.get(col[i], 0) + 1
+        out[level] = counts
+    return out
+
+
 @router.post("/query")
 async def query(request: Request, body: Query_):
     started = time.perf_counter()
-    plan = _plan(await current(request))
+    ctx = await current(request)
+    await read_limit(request, ctx, "screener_query", READ_VISITOR, READ_MEMBER)
+    plan = _plan(ctx)
     t = await _table(request)
     idx, cols, rv = _run(t, body, plan)
     total = len(idx)
@@ -359,13 +379,12 @@ async def query(request: Request, body: Query_):
     for r, i in zip(rows, page):
         if rv:
             r["r"] = {k: (None if v[i] != v[i] else round(v[i], 4)) for k, v in rv.items()}
-    if not allowed(plan, "silver"):  # the score band is a model output: below Silver only the free showcase companies keep it, as on the universe list
-        showcase = set(request.app.state.settings.showcase_symbols)
-        for r in rows:
-            if r["symbol"] not in showcase:
-                r["band"] = None
+    for r in rows:      # task #283: the retired FinLit IQ's band word is never sent (FinLit Prism's, `pband`, is the rating)
+        r["band"] = None
     out = {"total": total, "offset": off, "limit": lim, "capped": capped, "columns": cols, "rows": rows,
            "took": round((time.perf_counter() - started) * 1000, 1)}
+    if body.funnel:        # task #259 (SHARED §1): each option's count follows the other filters already set (its own level left out)
+        out["facets"] = _facets(t, body, plan)
     if body.funnel:        # what is left after each rule in turn, and how many companies a rule left out for having no figure (the Stock screener's funnel)
         out["funnel"] = t.funnel({k: v.model_dump() for k, v in body.filters.items() if v.min is not None or v.max is not None}, cats_for(body, plan),
                                  model=_model_rules(screens_of(body)), ratios=[(rt.id, rv[rt.id], rt.min, rt.max) for rt in body.ratios])

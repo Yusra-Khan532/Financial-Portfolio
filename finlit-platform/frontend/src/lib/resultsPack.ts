@@ -39,7 +39,7 @@ export function kpiTiles(t: VSummary, locked = false): Tile[] {
     { k: "Beat their industry", v: t.beatShare == null ? "–" : `${Math.round(t.beatShare)}%`, sub: "Strong or Good result", help: "Revenue growth, profit growth and margin change on a year ago are each compared with the typical company in the same NSE industry. Above on most of them: Strong or Good. Below on most: Weak or Poor. Company size does not change the yardstick." },
   ];
   // On Basic the server leaves out the growth figures: those tiles say which plan opens them, never an empty dash.
-  return locked ? tiles.map((x, i) => (i === 0 ? x : { ...x, v: "Silver plan", sub: "Opens with Silver" })) : tiles;
+  return locked ? tiles.map((x, i) => (i === 0 ? x : { ...x, v: "Paid plans", sub: "Opens on a paid plan" })) : tiles;
 }
 
 // ------------------------------------------------------------------------------------------------ one day's declared results
@@ -54,8 +54,12 @@ export function dayCards(rows: VRow[], counts: Record<Verdict, number> | null | 
   if (nBad) out.push({ kind: "warning", title: `${nBad} ${nBad === 1 ? "was" : "were"} Poor or made a loss`, text: `${bad.slice(0, 5).map(nameOf).join(", ")}${nBad > 5 ? ` and ${nBad - 5} more` : ""}.` });
   const busy = [...week].filter((w) => w.n > total).sort((a, b) => b.n - a.n).slice(0, 2).sort((a, b) => a.date.localeCompare(b.date));
   if (total < 100 && busy.length) {
-    const small = rows.filter((r) => r.cap === "Small").length * 2 > rows.length;
-    out.push({ kind: "insight", title: `${wday(day)} is a light day`, text: `Only ${total} companies reported${small ? ", most of them small" : ""}. The big reporting days this week are ${list(busy.map((w) => wday(w.date)))}.` });
+    // task #262: "small" here covers Small and Micro (the old Small was below ₹10,000 Cr, now Micro), the smaller companies the sentence is about
+    const isSmall = (c: string | null) => c === "Small" || c === "Micro";
+    const small = rows.filter((r) => isSmall(r.cap)).length * 2 > rows.length;
+    // Task #193 bug 3: "Only 1 companies reported, most of them small". One company is "1 company", and "most of them" needs more than one.
+    const who = total === 1 ? `Only 1 company reported${isSmall(rows[0]?.cap ?? null) ? ", a small one" : ""}` : `Only ${total} companies reported${small ? ", most of them small" : ""}`;
+    out.push({ kind: "insight", title: `${wday(day)} is a light day`, text: `${who}. The big reporting days this week are ${list(busy.map((w) => wday(w.date)))}.` });
   } else if (total >= 100) {
     const large = rows.filter((r) => r.cap === "Large").length;
     out.push({ kind: "insight", title: `${wday(day)} is a busy day`, text: `${n0(total)} companies reported${large ? `, ${large} of them large` : ""}.` });

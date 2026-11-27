@@ -6,7 +6,7 @@ export type Headline = { effectiveStocks: number; effectiveStocksRounded: number
 export type Cluster = { symbols: string[]; avgCorrelation: number };
 export type SpreadStock = { symbol: string; name: string; sector: string; size: string | null; group: string | null };
 export type Spread = {
-  sectors: { name: string; count: number }[]; size: { Large: number; Mid: number; Small: number }; sizeUnknown: string[];
+  sectors: { name: string; count: number }[]; size: { Large: number; Mid: number; Small: number; Micro?: number }; sizeUnknown: string[];
   groups: { name: string; symbols: string[] }[]; unclassified: string[]; largestSector: { name: string; count: number; share: number } | null; stocks: SpreadStock[];
 };
 export type Pair = { pair: [string, string]; recent: number; longRun: number; change: number; flag: boolean; direction: "more" | "less" | null };

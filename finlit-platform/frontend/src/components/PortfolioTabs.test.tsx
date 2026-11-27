@@ -9,7 +9,7 @@ const silver = fx.silver as unknown as Overview, gold = fx.gold as unknown as Ov
 const lines = (o: Overview): Line[] => o.holdings.map((h) => ({ symbol: h.symbol, name: isReady(h) ? h.name : null, ov: h }));
 const noop = () => {};
 const table = (o: Overview, model: Model, tab: Tab, period: Period = "year", state: "loading" | "ready" | "error" = "ready", ls = lines(o)) =>
-  renderToStaticMarkup(<StaticRouter location="/portfolio"><PortfolioTable lines={ls} model={model} tab={tab} period={period} limit={o.plan === "gold" ? 500 : 30} state={state} onPeriod={noop} onExport={noop}
+  renderToStaticMarkup(<StaticRouter location="/portfolio"><PortfolioTable lines={ls} model={model} tab={tab} period={period} limit={o.plan === "gold" ? 500 : 30} state={state} onPeriod={noop}
     actions={(s) => <button>Remove {s}</button>} /></StaticRouter>);
 const text = (html: string) => html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
 
@@ -17,20 +17,20 @@ describe("tab strip", () => {
   it("is an accessible tablist with the selected tab tabbable", () => {
     const html = renderToStaticMarkup(<TabStrip tab="ratios" onTab={noop} />);
     expect(html).toContain('role="tablist"');
-    expect((html.match(/role="tab"/g) || []).length).toBe(3);
+    expect((html.match(/role="tab"/g) || []).length).toBe(5);
     expect(html).toMatch(/id="pf-tab-ratios"[^>]*aria-selected="true"[^>]*aria-controls="pf-panel"[^>]*tabindex="0"/);
     expect(html).toMatch(/id="pf-tab-overview"[^>]*aria-selected="false"[^>]*tabindex="-1"/);
-    expect(text(html)).toContain("Overview Ratios Financials");
+    expect(text(html)).toContain("Overview By sector By company size Ratios Financials");
   });
 });
 
 describe("Overview tab", () => {
-  it("Silver: FinLit IQ with its word and the five pillars; nothing of Prism", () => {
+  it("Silver (task #283): no company score, no parts and no retired score; the shares with their figures, and where FinLit Prism is", () => {
     const t = text(table(silver, "finlit", "overview"));
-    expect(t).toContain("FinLit IQ"); ["Quality", "Growth", "Profit.", "Balance", "Technical"].forEach((x) => expect(t).toContain(x));
-    expect(t).toContain("Reliance Industries Ltd"); expect(t).toContain("₹1,184.00"); expect(t).toContain("₹16,02,253 Cr"); expect(t).toContain("Large cap"); expect(t).toContain("Strong");
-    expect(t).not.toMatch(/Prism|Growth & Profitability|Valuation|Risk|Rate now/);
-    expect(t).toContain("Portfolio average"); expect(t).toContain("Preparing… Its report is being prepared"); expect(t).toContain("FinLit does not list a company");
+    expect(t).not.toMatch(/\bIQ\b|Mixed|Watch|Quality|Profitability|Balance sheet|Technical|Prism score|Rate now/);
+    expect(t).toContain("Reliance Industries Ltd"); expect(t).toContain("₹1,184.00"); expect(t).toContain("₹16,02,253 Cr"); expect(t).toContain("Large cap");
+    expect(t).toContain("FinLit Prism, FinLit&#x27;s only company score, comes with Gold.");
+    expect(t).toContain("Preparing… Its report is being prepared"); expect(t).toContain("FinLit does not list a company");
   });
   it("Gold: Prism score and word, the four parts, two technical views with words and signed scores; no FinLit pillars", () => {
     const html = table(gold, "prism", "overview"), t = text(html);
@@ -44,11 +44,11 @@ describe("Overview tab", () => {
   });
   it("lists every share with a link to its page, the size word and the remove button", () => {
     const html = table(silver, "finlit", "overview");
-    expect(html).toContain('href="/stocks/RELIANCE"'); expect(html).toContain("Remove SAMPLEIT"); expect(html).toContain("Large cap"); expect(html).toContain("Small cap");
+    expect(html).toContain('href="/stocks/RELIANCE"'); expect(html).toContain("Remove SAMPLEIT"); expect(html).toContain("Large cap"); expect(html).toContain("Micro cap"); expect(html).toContain("Mid cap");   // task #262: SAMPLETEXT (₹1,850 Cr) is Micro, SAMPLEPHARMA (₹54,800 Cr) Mid
   });
-  it("has the filter chips, search box and Export CSV", () => {
-    const t = text(table(silver, "finlit", "overview"));
-    expect(t).toContain("Green"); expect(t).toContain("Orange"); expect(t).toContain("Red"); expect(t).toContain("Not scored"); expect(t).toContain("Export CSV");
+  it("has the filter chips and search box, and no download (task #183: no downloads on the portfolio pages)", () => {
+    const t = text(table(gold, "prism", "overview"));
+    expect(t).toContain("Green"); expect(t).toContain("Orange"); expect(t).toContain("Not scored"); expect(t).not.toContain("Export CSV");
   });
 });
 
@@ -85,7 +85,7 @@ describe("states", () => {
   it("empty list, loading and error", () => {
     expect(text(table(silver, "finlit", "overview", "year", "ready", []))).toContain("No shares yet");
     const loading = table(silver, "finlit", "overview", "year", "loading", silver.holdings.map((h) => ({ symbol: h.symbol, name: null })));
-    expect(text(loading)).toContain("Loading the scores"); expect(text(loading)).toContain("Preparing…");
+    expect(text(loading)).toContain("Loading the scores"); expect(text(loading)).toContain("Loading…"); expect(text(loading)).not.toContain("Preparing…");   // QA 23 Nov (item 14): no answer yet = Loading; "Preparing…" only once the server says so
     expect(table(silver, "finlit", "ratios", "year", "error", [])).toContain('role="alert"');
   });
 });
@@ -93,7 +93,7 @@ describe("states", () => {
 describe("summary tiles", () => {
   it("shares, average score, colour mix and sectors", () => {
     const t = text(renderToStaticMarkup(<SummaryTiles lines={lines(silver)} model="finlit" limit={30} />));
-    expect(t).toContain("Shares"); expect(t).toContain("7"); expect(t).toContain("1 being prepared"); expect(t).toContain("Average FinLit IQ"); expect(t).toContain("59"); expect(t).toContain("average of 5 scored shares");
+    expect(t).toContain("Shares"); expect(t).toContain("7"); expect(t).toContain("1 being prepared"); expect(t).toContain("FinLit Prism"); expect(t).not.toMatch(/\bIQ\b/); expect(t).toContain("no share is scored yet");   // task #283
     expect(t).toContain("green 70+"); expect(t).toContain("Sectors");
     expect(text(renderToStaticMarkup(<SummaryTiles lines={lines(gold)} model="prism" limit={500} />))).toContain("Average Prism score");
   });

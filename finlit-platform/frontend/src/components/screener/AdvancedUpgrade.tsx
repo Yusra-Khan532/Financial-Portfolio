@@ -1,6 +1,5 @@
 // What a plan below Gold sees at /advanced-score-screener: an explanation, a static example (sample markup, no real figures) and the benefits.
 // Nothing here reads the universe, so no Prism value reaches the browser of a plan that does not include it.
-import { Link } from "react-router";
 import { Gate } from "../Gate";
 import { Icon } from "../../lib/icons";
 import { useUI } from "../../lib/ui";
@@ -8,7 +7,9 @@ import { LockedPresets } from "./presets/LockedPresets";
 import { MINUS } from "../../lib/format";
 import "../../styles/scorescreen.css";
 import { PageHeader } from "../PageHeader";
+import { ADVANCED_DESC } from "./ScreenerHead";
 import { FUND_PART_NAME } from "../../lib/prismNames";
+import { PLAN_FOR_PRISM } from "../../lib/planGates";
 
 const POINTS = [
   "The FinLit Prism score with its rating word for every listed company",
@@ -26,17 +27,15 @@ const SAMPLE: { n: string; sector: string; z: number; w: string; p: [number, num
 const tone = (v: number) => (v >= 70 ? "hi" : v >= 50 ? "mid" : "lo");
 
 export function AdvancedUpgrade() {
-  const { has, upgrade } = useUI();
-  const silver = has("silver");
+  const { upgrade } = useUI();
   return (
     <>
-      <PageHeader wrap plan="gold" title="Screen every company with FinLit Prism." art="rating" links={["/score-screener", "/screener", { to: "/plans", primary: true, label: "See the Gold plan" }]}
-        description={<>The advanced model for the whole market: the <b>Prism score</b>, its four financial-health parts and two technical views, side by side, with filters, quick views and compare. It is part of the Gold plan.{" "}
-          {silver ? <>Your plan includes the <Link to="/score-screener">Basic stock screener</Link>, which uses the FinLit IQ.</> : <>The <Link to="/score-screener">Basic stock screener</Link> uses the FinLit IQ and comes with Silver.</>}</>} />
+      <PageHeader wrap plan="gold" title="Screen every company with FinLit Prism." art="rating" links={["/screener", { to: "/plans", primary: true, label: "See the Gold plan" }]}
+        description={<>{ADVANCED_DESC} Part of the Gold plan.</>} />{/* task #327: the same one line as the Gold view (file 25, page headers) */}
       <div className="wrap scr-wrap">
         <div className="sx-up">
           <div className="sx-ex-h"><span className="tier gold">Example</span><span className="muted">Sample companies and figures, only to show the layout. Not real data.</span></div>
-          <Gate tier="gold" title="Advanced stock screener" points={POINTS}>
+          <Gate tier={PLAN_FOR_PRISM} title="Advanced stock screener" points={POINTS}>
             <section className="card sx-ex" aria-label="Example of the advanced stock screener">
               <div className="scr-tw"><table className="scr-t ss-t sx-t">
                 <caption className="sr">Example of the advanced stock screener with invented companies</caption>
@@ -56,7 +55,7 @@ export function AdvancedUpgrade() {
             <h2>What Gold adds</h2>
             <ul>{POINTS.map((p) => <li key={p}><Icon name="check" /><span>{p}</span></li>)}</ul>
             <p className="muted">It describes financial health and price trend from filings and prices. Information only, not advice.</p>
-            <button type="button" className="btn primary" onClick={() => upgrade("gold", "The Advanced stock screener is part of Gold.")}>Unlock with Gold <Icon name="arrow" /></button>
+            <button type="button" className="btn primary" onClick={() => upgrade(PLAN_FOR_PRISM, "The Advanced stock screener is part of Gold.")}>Unlock with Gold <Icon name="arrow" /></button>
           </section>
         </div>
       </div>

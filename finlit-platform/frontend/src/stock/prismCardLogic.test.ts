@@ -55,3 +55,10 @@ describe("words and captions", () => {
   });
   it("places the band edges on the -100..+100 scale", () => { expect(techEdgePos()).toEqual([25, 40, 60, 75]); });
 });
+
+describe("task #247: a young listing and a short history", () => {
+  it("the card's chip says a young listing's rows are counted when complete, and is unchanged otherwise", () => {
+    expect(signalsLine(H({ availableCount: 11, requiredCount: 14, youngListing: true }))).toBe("11 of 14 signals complete · young listing");
+    expect(signalsLine(H({ availableCount: 9, requiredCount: 14 }))).toBe("9 of 14 signals available");
+  });
+});

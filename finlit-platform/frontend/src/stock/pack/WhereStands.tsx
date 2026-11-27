@@ -1,36 +1,38 @@
 // "Where <company> stands" (final pages pack, board 17): its industry, its peers, its own price and its risk, one question per tab. It replaces the report's
 // "Where its industry stands" (Sector & peers) and "Where this stock stands among its peers" (Leadership) sections. Every figure is the server's: the stock's sector
 // reading, its industry page, Sector Rotation, the peer reading and its history, the price and Prism; the words come from lib/standsPack. Describes; never advice.
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Link } from "react-router";
 import { CoLogo } from "../../components/CoLogo";
 import { LockedBlock } from "../../components/sectors/Parts";
-import { BoxChip, Cards, Scroll, StateChip, Tip } from "../../components/sectors/pack/Common";
+import { BoxChip, Cards, StateChip, Tip } from "../../components/sectors/pack/Common";
 import { STATE_HELP, WORD, keyOf, short } from "../../lib/pulsePack";
 import { BOX_HELP } from "../../lib/rotationPack";
 import { failureText, useSectorPage, useStockSector, type IndustryPage, type RankedStock } from "../../lib/sectors";
 import { useRotationCard } from "../../lib/rotation";
-import { useLeadership, useLeadershipHistory, type LeadershipOn, type LeadLabel } from "../../lib/leadership";
+import { pendingOf, useLeadership, useLeadershipHistory, type LeadershipOn, type LeadLabel } from "../../lib/leadership";
 import { usePrice, type Peers, type Summary } from "../../lib/api";
 import { capBucket } from "../../lib/capBuckets";
 import { ratingWord, trendAlignment } from "../../lib/prismTechnical";
-import { usePlanModel, usePlanPrism } from "../../lib/planScore";
-import { LABEL, headline, industryCards, ordinal, peerCards, priceCards, riskCards, rotationLine } from "../../lib/standsPack";
+import { scoreView, usePlanModel, usePlanPrism } from "../../lib/planScore";
+import { LABEL, groupWord, headline, industryCards, ordinal, peerCards, priceCards, riskCards, rotationLine } from "../../lib/standsPack";
 import "../../styles/sectors-pack.css";
 import "../../styles/industry-pack.css";
+import { median, shortList } from "../../lib/standsList";
 import "./stands.css";
+import { SectionHead } from "../Sections";
+import { coTitle, shortLabel } from "../../lib/companyLabel";
 
 type Tab = "industry" | "peers" | "chart" | "risk";
 const sp = (x: number | null | undefined, dp = 1, unit = "%") => (x == null ? "–" : `${x >= 0 ? "+" : "−"}${Math.abs(x).toFixed(dp)}${unit}`);
 const inr = (x: number) => "₹" + x.toLocaleString("en-IN", { maximumFractionDigits: 2, minimumFractionDigits: 2 });
 const size = (cr: number | null | undefined) => capBucket(cr ?? null)?.label.replace(" cap", "") ?? "–";
-const PEER_HELP = "Leader, In line, Laggard. Each share's price over the last 12 months is compared with similar companies and with its sector index. Leader: among the strongest of its group and ahead of the index. Laggard: among the weakest and behind it. It describes the past, not the future.";
-const SIZE_HELP = "Company size. FinLit uses three sizes everywhere, by market value: Large above ₹50,000 Cr, Mid ₹10,000 to 50,000 Cr, Small below ₹10,000 Cr.";
 const PeerChip = ({ l }: { l: LeadLabel }) => <span className={"ws-peer " + l}>{LABEL[l]}</span>;
 
 export function WhereStands({ symbol, name, s, peers }: { symbol: string; name: string; s: Summary; peers?: Peers }) {
   const short1 = name.replace(/\s+(industries|limited|ltd\.?|corporation|corp\.?|company)\b.*$/i, "").trim() || name;
   const [tab, setTab] = useState<Tab>("industry");
+  const open = (t: Tab) => { setTab(t); requestAnimationFrame(() => { const el = document.getElementById("ws-panel"); if (el) window.scrollTo({ top: el.getBoundingClientRect().top + scrollY - 190, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" }); }); };
   const secQ = useStockSector(symbol), sec = secQ.data ?? null;
   const g = sec?.group ?? null, locked = !!sec?.locked?.stock;
   const page = useSectorPage(g?.slug ?? "").data ?? null;   // null while loading or without an industry
@@ -45,22 +47,24 @@ export function WhereStands({ symbol, name, s, peers }: { symbol: string; name: 
   const h = headline(short1, ind, key ? WORD[key] : null, sec, rot, lead);
   const sixRank = sec?.rank_6m != null && sec.ranked_6m ? `${ordinal(sec.rank_6m)} of ${sec.ranked_6m}` : null;
   const TABS: [Tab, string, string][] = [["industry", "Its industry", "Sector Pulse, Sector Rotation, and where " + short1 + " ranks inside"],
-    ["peers", "Against peers", lead ? `${lead.peerGroup.ranked} ${lead.peerGroup.short} companies, and what the leader did` : "Similar companies, and what the leader did"],
+    ["peers", "Against peers", lead ? `${lead.peerGroup.ranked} ${groupWord(lead.peerGroup.short)}companies, and what the leader did` : "Similar companies, and what the leader did"],
     ["chart", "Price chart", "12 months, trends and the 1-year high"], ["risk", "Risk", "How risky the share is, and why"]];
+  const riskV = model === "prism" ? prism?.parts?.risk ?? null : null;
   return (
-    <section className="block sp ws" id="sector" aria-labelledby="ws-h" data-testid="where-stands">
+    <section className="block sp ws" aria-label={`Where ${short1} stands`} data-testid="where-stands">
+      {/* task #216: numbered 14 with the report's own section heading (number, "Sector, peers and risk", Gold, title, one line) */}
+      <SectionHead id="sector" no="14 · Sector, peers and risk" icon="layers" tier="gold" title={`Where ${short1} stands`} sub="Its industry, its peers, its own price and its risk: one question per tab." color="--gold" />
       <div className="sp-sec ws-head">
-        <p className="ws-eye">Sector, peers and risk</p>
-        <h2 id="ws-h">Where {short1} stands</h2>
-        <p className="sp-sub">Its industry, its peers, its own price and its risk: one question per tab.</p>
         {h && <p className="ws-lead"><b>{h.lead}</b>{h.rest}</p>}
         {h?.recent && <p className="sp-note">{h.recent}</p>}
-        <div className="ws-strip">
-          {key && <span className="ws-pill">Industry now <StateChip k={key} /><Tip text={STATE_HELP[key]} label="About the industry's state" /></span>}
-          {rot?.corner && rot.corner !== "middle" && <span className="ws-pill">Against other industries <BoxChip corner={rot.corner} /><Tip text={BOX_HELP[rot.corner]} label={`About “${rot.corner_name}”`} /></span>}
-          {sixRank && !locked && <span className="ws-pill">Inside its industry <b className={"ws-q q" + (sec?.quarter ?? 0)}>{sixRank}</b></span>}
-          {lead && <span className="ws-pill">Against peers <PeerChip l={lead.label} />{lead.rawLabel !== lead.label && <span className="ws-next">→ {LABEL[lead.rawLabel]}?</span>}</span>}
-          {align && <span className="ws-pill">Its own chart <b className="ws-own">{align}</b></span>}
+        {/* task #216 (README 3.14): the readings, each a link that opens its tab and scrolls to it */}
+        <div className="ws-strip ws-reads">
+          {key && <div className="ws-pill">Industry now <StateChip k={key} /><Tip text={STATE_HELP[key]} label="About the industry's state" /><button type="button" className="ws-go" onClick={() => open("industry")}>Its industry →</button></div>}
+          {rot?.corner && rot.corner !== "middle" && <div className="ws-pill">Against other industries <BoxChip corner={rot.corner} /><Tip text={BOX_HELP[rot.corner]} label={`About “${rot.corner_name}”`} /><button type="button" className="ws-go" onClick={() => open("industry")}>Its industry →</button></div>}
+          {sixRank && !locked && <div className="ws-pill">Inside its industry <b className={"ws-q q" + (sec?.quarter ?? 0)}>{sixRank}</b><button type="button" className="ws-go" onClick={() => open("industry")}>Its industry →</button></div>}
+          {lead && <div className="ws-pill">Against peers <PeerChip l={lead.label} />{pendingOf(lead) && <span className="ws-next">→ {LABEL[pendingOf(lead)!]}?</span>}<button type="button" className="ws-go" onClick={() => open("peers")}>Against peers →</button></div>}
+          {align && <div className="ws-pill">Its own chart <b className="ws-own">{align}</b><button type="button" className="ws-go" onClick={() => open("chart")}>Price chart →</button></div>}
+          {riskV != null && <div className="ws-pill">Prism Risk <b className="ws-own">{Math.round(riskV)} · {riskV >= 70 ? "Lower risk" : riskV >= 50 ? "Moderate risk" : "Higher risk"}</b><button type="button" className="ws-go" onClick={() => open("risk")}>Risk →</button></div>}
         </div>
       </div>
       <div className="ws-tabs" role="tablist" aria-label={`Where ${short1} stands`}>
@@ -69,7 +73,7 @@ export function WhereStands({ symbol, name, s, peers }: { symbol: string; name: 
       <div id="ws-panel" role="tabpanel" aria-labelledby={`ws-tab-${tab}`}>
         {tab === "industry" && secQ.isError && <p className="sp-note" role="status" data-testid="sector-blank">{failureText(secQ.error)}</p>}
         {tab === "industry" && !secQ.isError && (!g ? <p className="sp-note">{sec?.note ?? "NSE has not given this stock an industry yet, so there is no industry reading to show."}</p> : <IndustryTab name={short1} symbol={symbol} sec={sec!} locked={locked} page={page} rot={rot} />)}
-        {tab === "peers" && (lead ? <PeersTab name={short1} fullName={name} symbol={symbol} lead={lead} peers={peers} pe={s.keyMetrics} score={s.score?.overall} cap={s.quote.marketCapCr} /> : <p className="sp-note">{ld && !ld.available ? ld.display?.line ?? "No peer reading for this stock yet." : "The peer reading is loading."}</p>)}
+        {tab === "peers" && (lead ? <PeersTab name={short1} fullName={name} symbol={symbol} lead={lead} peers={peers} pe={s.keyMetrics} score={null} cap={s.quote.marketCapCr} /> : <p className="sp-note">{ld && !ld.available ? ld.display?.line ?? "No peer reading for this stock yet." : "The peer reading is loading."}</p>)}
         {tab === "chart" && <ChartTab px={px} s={s} prism={prism} align={align} />}
         {tab === "risk" && <RiskTab name={short1} s={s} risk={prism?.parts?.risk ?? null} gold={model === "prism"} nifty12={lead?.benchmarks.market?.ret52 ?? null} />}
       </div>
@@ -119,57 +123,98 @@ function IndustryTab({ name, symbol, sec, locked, page, rot }: { name: string; s
     {locked ? <LockedBlock plan="gold" title="Where the stock ranks inside its industry is part of the Gold plan">Open to everyone: the industry's state and its place against other industries. Gold adds this stock's 6-month rank among its industry's counted stocks.</LockedBlock>
       : <div className="sp-sec">
         <h3 className="ws-h3">Inside its industry: 6-month return<Tip text={`Inside its industry. Where ${name}'s 6-month return falls among the actively traded stocks of its NSE industry.`} /></h3>
-        {stocks ? <><p className="sp-sub">The {stocks.length} counted {ind} stocks, best first. {name} in red.</p>
-          <ol className="ws-bars">{stocks.map((x) => { const v = x.return_6m_pct ?? 0, me = x.symbol === symbol; return (
-            <li key={x.symbol} className={me ? "me" : ""}><Link to={`/stocks/${x.symbol}`}>{x.symbol}</Link><span className="ws-axis"><i className={v >= 0 ? "pos" : "neg"} style={{ width: `${(Math.abs(v) / max) * 50}%` }} /></span><b className={v >= 0 ? "sp-good" : "sp-red"}>{sp(x.return_6m_pct)}</b></li>); })}</ol></>
-          : sec.in_group === false ? <p className="sp-note">{sec.note ?? `${name} is not counted in its industry's breadth, so it has no rank inside it.`}</p> : <p className="sp-note">The industry's stock list is loading.</p>}
+        {stocks ? <IndustryList stocks={stocks} symbol={symbol} name={name} ind={ind} max={max} /> : null}
+          {!stocks && (sec.in_group === false ? <p className="sp-note">{sec.note ?? `${name} is not counted in its industry's breadth, so it has no rank inside it.`}</p> : <p className="sp-note">The industry's stock list is loading.</p>)}
       </div>}
   </>);
 }
 
+/** "Inside its industry" (task #222, 19 Nov pack B2): the short list by default for more than 15 stocks (lib/standsList.ts), the rank line, rank numbers,
+ *  bars across the full width, and "Show all N" (two columns from 900 px); collapsing scrolls back to the box when its top has left the screen. */
+export function IndustryList({ stocks, symbol, name, ind, max }: { stocks: RankedStock[]; symbol: string; name: string; ind: string; max: number }) {
+  const [all, setAll] = useState(false);
+  const box = useRef<HTMLDivElement>(null);
+  const n = stocks.length, meI = stocks.findIndex((x) => x.symbol === symbol), me = meI >= 0 ? stocks[meI] : null, med = median(stocks.map((x) => x.return_6m_pct));
+  const items = shortList(n, meI, all);
+  const toggle = () => { const on = !all; setAll(on); if (!on && box.current && box.current.getBoundingClientRect().top < 0) box.current.scrollIntoView({ block: "start" }); };
+  return (<div ref={box}>
+    <p className="sp-sub">The {n} counted {ind} stocks, best first. {name} in red.</p>
+    <p className="ws-sum">{me ? <><b>{symbol} {ordinal(meI + 1)} of {n}</b> · {sp(me.return_6m_pct)} </> : null}{med != null && <span>{me ? "· " : ""}industry median {sp(med)}</span>}</p>
+    <ol className={"ws-bars" + (n > 15 ? " long" : "") + (all ? " all" : "")}>{items.map((it, j) => {
+      if (it.kind === "gap") return <li key={"gap" + j} className="rk-gap" aria-hidden="true">{it.n} more</li>;
+      const x = stocks[it.i], v = x.return_6m_pct ?? 0, mine = x.symbol === symbol;
+      return <li key={x.symbol} className={mine ? "me" : ""}><span className="ws-rk">{it.i + 1}</span><Link to={`/stocks/${x.symbol}`} title={coTitle(x)}>{shortLabel(x)}</Link><span className="ws-axis"><i className={v >= 0 ? "pos" : "neg"} style={{ width: `${(Math.abs(v) / max) * 50}%` }} /></span><b className={v >= 0 ? "sp-good" : "sp-red"}>{sp(x.return_6m_pct)}</b></li>;
+    })}</ol>
+    {n > 15 && <button type="button" className="ws-all" aria-expanded={all} onClick={toggle}>{all ? "Show fewer" : `Show all ${n}`}</button>}
+  </div>);
+}
+
 // ------------------------------------------------------------------------------------------------ Against peers
+/** Tab 2 (task #216, README 3.14): the company against the group leader, not a second copy of 13's ranking table. One line with the rank and the gaps; for each of
+ *  the three moves the leader's bar and the company's bar from a 0 line, with the gap; "Where all the peers sit" as dots on one strip, coloured by label, the
+ *  company outlined and 0 marked; a link up to 13 for the full table. Describes past prices; not a recommendation. */
+export function HeadToHead({ name, symbol, lead }: { name: string; symbol: string; lead: LeadershipOn }) {
+  const top = lead.peers.find((p) => p.rank === 1), me = lead.peers.find((p) => p.symbol === symbol);
+  const sec = sectorName(lead), mk = lead.benchmarks.market?.name ?? null, n = lead.peers.length;
+  if (!top || !me) return null;
+  const moves: [string, number | null, number | null][] = [[`12 months vs ${sec}`, me.rel52, top.rel52], [`3 months vs ${sec}`, me.rel13, top.rel13], ...(mk ? [[`12 months vs ${mk}`, me.rel52Market, top.rel52Market] as [string, number | null, number | null]] : [])];
+  const P = (v: number) => (v * 100);
+  const max = Math.max(1, ...moves.flatMap(([, a, b]) => [Math.abs(P(a ?? 0)), Math.abs(P(b ?? 0))]));
+  const bar = (v: number): React.CSSProperties => ({ left: `${50 + (Math.min(0, v) / max) * 50}%`, width: `${(Math.abs(v) / max) * 50}%` });
+  const leaderName = top.name || top.symbol, isLeader = top.symbol === symbol;
+  const gap = (a: number | null, b: number | null) => (a == null || b == null ? null : P(a) - P(b));
+  const g12 = gap(me.rel52, top.rel52);
+  const vals = lead.peers.filter((p) => p.rel52 != null).map((p) => P(p.rel52!)), lo = Math.min(0, ...vals), hi = Math.max(0, ...vals), at = (v: number) => ((v - lo) / (hi - lo || 1)) * 100;
+  const f1 = (v: number) => `${v < 0 ? "\u2212" : ""}${Math.abs(v).toFixed(1)}`;
+  return (
+    <div className="sp-sec ws-h2h" id="ws-h2h">
+      <h3 className="ws-h3">{name} against the group leader</h3>
+      <p className="sp-sub">{isLeader ? `${name} is the group leader: 1st of ${lead.peerGroup.ranked} by the 12-month move against ${sec}.`
+        : `${ordinal(me.rank)} of ${lead.peerGroup.ranked} by the 12-month move${g12 != null ? `: ${f1(Math.abs(g12))} pts behind ${leaderName}, the leader` : ""}.`}</p>
+      {!isLeader && <ul className="ws-mv">{moves.map(([label, a, b]) => { const d = gap(a, b); return (
+        <li key={label}><span className="ws-mv-l">{label}</span>
+          <span className="ws-mv-b"><i className="zero" />{b != null && <span className="ld" style={bar(P(b))} title={`${leaderName}: ${f1(P(b))} pts`} />}{a != null && <span className="me" style={bar(P(a))} title={`${name}: ${f1(P(a))} pts`} />}</span>
+          <span className="ws-mv-v"><b>{a == null ? "\u2013" : f1(P(a))}</b> vs <b>{b == null ? "\u2013" : f1(P(b))}</b> pts</span>
+          <span className={"ws-mv-g " + (d == null ? "" : d >= 0 ? "pos" : "neg")}>{d == null ? "" : d >= 0 ? `Ahead by ${f1(d)} pts` : `Gap ${f1(Math.abs(d))} pts`}</span></li>); })}</ul>}
+      {!isLeader && <p className="ws-mv-k"><i className="me" /> {name} <i className="ld" /> {leaderName}</p>}
+      <div className="ws-six"><p className="ws-six-h">Where all {n} sit · 12 months vs {sec}</p>
+        <div className="ws-six-s" role="img" aria-label={lead.peers.map((p) => `${p.name || p.symbol} ${p.rel52 == null ? "no figure" : f1(P(p.rel52)) + " pts"}, ${LABEL[p.label]}`).join("; ")}>
+          <i className="zero" style={{ left: `${at(0)}%` }}><small>0</small></i>
+          {lead.peers.filter((p) => p.rel52 != null).map((p) => <span key={p.symbol} className={"dot " + p.label + (p.symbol === symbol ? " me" : "")} style={{ left: `${at(P(p.rel52!))}%` }} title={`${p.name || p.symbol}: ${f1(P(p.rel52!))} pts, ${LABEL[p.label]}`} />)}
+        </div></div>
+      <p className="sp-note">The full ranking table, with each company's label, is in <a href="#peers">13 · Peers ↑</a>. Describes past prices; not a recommendation.</p>
+    </div>
+  );
+}
+const sectorName = (lead: LeadershipOn) => (lead.benchmarks.sector.kind === "peer_average" ? "the peer average" : lead.benchmarks.sector.name);
+
 function PeersTab({ name, fullName, symbol, lead, peers, pe, score, cap }: { name: string; fullName: string; symbol: string; lead: LeadershipOn; peers?: Peers; pe: Summary["keyMetrics"]; score: number | null | undefined; cap: number | null }) {
-  const g = lead.peerGroup, sec = lead.benchmarks.sector.name, mk = lead.benchmarks.market?.name ?? "Nifty 50";
   const km = (k: string) => pe.find((x) => x.key === k)?.value ?? null;
   // the peers list names the other companies; this company's own card comes first, from the report's own figures
   const others = (peers?.items ?? []).filter((x) => x.symbol !== symbol);
   const self = (peers?.items ?? []).find((x) => x.symbol === symbol) ?? { symbol, name: fullName, overall: score ?? null, pe: km("pe"), roe: km("roe"), market_cap: cap ?? km("market_cap") };
   const items = others.length ? [self, ...others] : [], me = self;
+  // task #283: FinLit Prism on these cards for plans that have it; no score otherwise
+  const model = usePlanModel();
+  const pm = usePlanPrism(useMemo(() => items.slice(0, 6).map((x) => x.symbol), [items]), model);
+  const scoreOf = (x: { symbol: string }) => (model === "prism" ? scoreView(pm[x.symbol]).score : null);
   const val = { pe: me?.pe ?? km("pe"), roe: me?.roe ?? km("roe"), peers: items.filter((x) => x.symbol !== symbol).map((x) => ({ pe: x.pe ?? null, roe: x.roe ?? null })) };
   const top = lead.peers.find((p) => p.rank === 1);
-  const pt = (v: number | null) => (v == null ? "–" : sp(v * 100, 1, " pts"));
   return (<>
     <Cards items={peerCards(name, lead, val)} />
-    <div className="sp-sec">
-      <h3 className="ws-h3">How it ranks among {g.ranked} {g.name} peers<Tip text={PEER_HELP} /></h3>
-      <p className="sp-sub">By price over the last 12 months against {sec}, refreshed every Friday.</p>
-      <Scroll label="peer ranking"><table className="sp-tb ws-pt">
-        <thead><tr><th scope="col">#</th><th scope="col">Company</th><th scope="col">Size<Tip text={SIZE_HELP} /></th><th scope="col">Status<Tip text={PEER_HELP} /></th>
-          <th scope="col" className="r">12M vs sector<Tip text={`12 months against its sector index. How many percentage points better (+) or worse (−) the share did than ${sec} over the last 12 months.`} /></th>
-          <th scope="col" className="r">3M vs sector<Tip text="3 months against its sector index. The same comparison over the last 3 months: it shows the recent direction." /></th>
-          <th scope="col" className="r">12M vs {mk}<Tip text={`12 months against the whole market. The same comparison with the ${mk}.`} /></th></tr></thead>
-        <tbody>{lead.peers.map((p) => (
-          <tr key={p.symbol} className={p.symbol === symbol ? "me" : ""} aria-current={p.symbol === symbol ? "true" : undefined}>
-            <td>{p.rank}</td>
-            <th scope="row">{p.symbol === symbol ? <span className="ip-sym"><CoLogo symbol={p.symbol} name={p.name ?? p.symbol} size={22} inline /><b>{p.name ?? p.symbol}</b></span> : <Link to={`/stocks/${p.symbol}`} className="ip-sym"><CoLogo symbol={p.symbol} name={p.name ?? p.symbol} size={22} inline /><b>{p.name ?? p.symbol}</b></Link>}</th>
-            <td>{size(p.marketCap)}</td><td><PeerChip l={p.label} /></td>
-            <td className={"r " + ((p.rel52 ?? 0) >= 0 ? "sp-good" : "sp-red")}>{pt(p.rel52)}</td><td className={"r " + ((p.rel13 ?? 0) >= 0 ? "sp-good" : "sp-red")}>{pt(p.rel13)}</td><td className={"r " + ((p.rel52Market ?? 0) >= 0 ? "sp-good" : "sp-red")}>{pt(p.rel52Market)}</td>
-          </tr>))}</tbody>
-      </table></Scroll>
-      <p className="sp-note">{lead.labelSince ? `Label since ${new Date(lead.labelSince + "T00:00:00Z").toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })}. ` : ""}Describes the past; not a recommendation. <Link to="/leadership-label">What the labels mean →</Link></p>
-    </div>
+    <HeadToHead name={name} symbol={symbol} lead={lead} />
     <div className="ws-two">
       {top && top.symbol !== symbol ? <LeaderWhatIf symbol={symbol} name={name} leader={top.symbol} leaderName={top.name ?? top.symbol} leaderCap={top.marketCap} myCap={lead.peers.find((p) => p.symbol === symbol)?.marketCap ?? null} />
-        : <div className="sp-sec"><h3 className="ws-h3">What if you had owned the group leader?</h3><p className="sp-note">{name} is the group leader: it ranks 1st of {g.ranked}.</p></div>}
+        : <div className="sp-sec"><h3 className="ws-h3">What if you had owned the group leader?</h3><p className="sp-note">{name} is the group leader: it ranks 1st of {lead.peerGroup.ranked}.</p></div>}
       <div className="sp-sec">
         <h3 className="ws-h3">Business against similar companies</h3>
         {items.length > 1 ? <><p className="sp-sub">{name} and the {items.length - 1} other companies in its industry. Select one to open its report.</p>
           <div className="ws-biz">{items.slice(0, 6).map((x) => (
             <Link key={x.symbol} to={`/stocks/${x.symbol}`} className={"ws-bc" + (x.symbol === symbol ? " me" : "")}>
               <span className="ip-sym"><CoLogo symbol={x.symbol} name={x.name ?? x.symbol} size={22} inline /><b>{x.name ?? x.symbol}</b></span>
-              <dl><div><dt>Score</dt><dd>{x.overall == null ? "–" : Math.round(x.overall)}</dd></div><div><dt>P/E</dt><dd>{x.pe == null || x.pe <= 0 ? "–" : `${x.pe.toFixed(1)}×`}</dd></div><div><dt>ROE</dt><dd>{x.roe == null ? "–" : `${x.roe.toFixed(1)}%`}</dd></div><div><dt>Size</dt><dd>{size(x.market_cap)}</dd></div></dl>
+              <dl>{model && <div><dt>Prism</dt><dd>{scoreOf(x) == null ? "–" : scoreOf(x)!.toFixed(1)}</dd></div>}<div><dt>P/E</dt><dd>{x.pe == null || x.pe <= 0 ? "–" : `${x.pe.toFixed(1)}×`}</dd></div><div><dt>ROE</dt><dd>{x.roe == null ? "–" : `${x.roe.toFixed(1)}%`}</dd></div><div><dt>Size</dt><dd>{size(x.market_cap)}</dd></div></dl>
             </Link>))}</div>
-          <p className="sp-note">Score is the FinLit IQ, 0 to 100.</p></>
+          {model && <p className="sp-note">Prism is the FinLit Prism score, 0 to 100.</p>}</>
           : <p className="sp-note">No similar companies are listed for this industry yet.</p>}
       </div>
     </div>

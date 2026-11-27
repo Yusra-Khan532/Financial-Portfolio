@@ -6,8 +6,8 @@ stored report sections (summary, ratios, financials: jsonb paths, so no whole re
 except the tax ratio (tax over profit before tax, from two rows of the same yearly statement, and only when both exist).
 
 Plan rules, applied here and never left to the page:
-  Silver  the basic FinLit IQ block (overall, band and the five pillars); no Prism field at all.
-  Gold    FinLit Prism only (rating, the four parts and the two technical readings); no FinLit IQ block at all.
+  Silver  no company score at all (`model: "finlit"`: names and figures only). Task #283 PR C: the FinLit IQ block it had is retired.
+  Gold    FinLit Prism (rating, the four parts and the two technical readings), FinLit's only company score.
   Basic   refused (403 plan_required), as the other member tools are.
 A company with no stored report is `status: "preparing"` (and is queued for building, within the same per-visitor and total limits as opening its
 page) or `status: "unknown"` (not a company FinLit lists), each with a reason. A blank figure carries the reason in `why`.
@@ -23,6 +23,7 @@ import orjson
 from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel, Field
 
+from . import livequote
 from .auth.entitlements import has, sees_all
 from .auth.routes import SYMBOL, Ctx, fail, ip_of, secure_ctx
 from .prism_screen import PARTS
@@ -32,13 +33,11 @@ router = APIRouter(prefix="/api/portfolio")
 MAX_SYMBOLS = 500
 CACHE_SECONDS = 60
 QUEUE_PER_CALL = 12            # the page used to start 12 at a time; the rest follow on its next poll
-VERSION = 1                    # bump when the shape changes (part of the cache key)
+VERSION = 2                    # bump when the shape changes (part of the cache key). 2: task #283 PR C, no retired FinLit IQ block
 DISCLAIMER = "Information only, not investment advice."
 
 RATIO_KEYS = ("pe", "pb", "roe", "dividend_yield", "debt_to_equity", "market_cap")
 PL_ROWS = ("revenue", "other_income", "operating_profit", "finance_costs", "profit_before_tax", "tax", "net_profit", "eps")
-PILLARS = ("quality", "growth", "profitability", "balance", "technical")
-BAND_WORD = {"strong": "Strong", "healthy": "Healthy", "mixed": "Mixed", "watch": "Watch"}
 
 
 class OverviewIn(BaseModel):
@@ -59,7 +58,7 @@ _SNAP_SQL = (
     "'profile', jsonb_build_object('name', j #> '{profile,name}', 'sector', j #> '{profile,sector}', 'industry', j #> '{profile,industry}', "
     "'subIndustry', j #> '{profile,subIndustry}', 'marketCapCr', j #> '{profile,marketCapCr}'), "
     "'isBank', j #> '{dataQuality,isBank}', 'chosen', j #> '{dataQuality,basis,chosen}', 'statement', j #> '{meta,statement}', "
-    "'generatedAt', j #> '{meta,generatedAt}', 'score', CASE WHEN $2::boolean THEN j #> '{score}' END) "
+    "'generatedAt', j #> '{meta,generatedAt}') "
     "WHEN 'ratios' THEN jsonb_build_object('latest', " + _obj(list(RATIO_KEYS), "latest") + ", 'blanks', j #> '{blanks}') "
     "WHEN 'financials' THEN jsonb_build_object('yearly', jsonb_build_object('periods', j #> '{yearly,pl,periods}', 'ends', j #> '{yearly,pl,periodEnds}', "
     "'rows', " + _obj(list(PL_ROWS), "yearly,pl,rows") + ", 'equity', j #> '{yearly,bs,rows,total_equity}'), "
@@ -151,15 +150,6 @@ def _statement(table: Dict[str, Any], lender: bool) -> Dict[str, Any]:
     return out
 
 
-def _finlit(score: Optional[Dict[str, Any]]) -> Dict[str, Any]:
-    score = score or {}
-    overall = _num(score.get("overall"))
-    band = (score.get("band") or {}).get("key") if isinstance(score.get("band"), dict) else None
-    pillars = {p.get("key"): _num(p.get("score")) for p in score.get("pillars") or [] if isinstance(p, dict)}
-    return {"overall": overall, "band": band if overall is not None else None, "word": BAND_WORD.get(band) if overall is not None else None,
-            "pillars": {k: pillars.get(k) for k in PILLARS}}
-
-
 def prism_block(row: Optional[Dict[str, Any]]) -> Dict[str, Any]:
     """The Prism part of a holding. state: 'rated' | 'provisional' | 'not_rated' (the model looked and declined: `reason` says why) | 'none' (no stored rating)."""
     if not row:
@@ -183,10 +173,12 @@ def prism_block(row: Optional[Dict[str, Any]]) -> Dict[str, Any]:
             "at": row["generated_at"].date().isoformat() if row.get("generated_at") else None, "reason": reason}
 
 
-def holding(sym: str, parts: Dict[str, Any], prism: Optional[Dict[str, Any]], gold: bool) -> Dict[str, Any]:
-    """One stored company as the page's row. `prism` is read only for Gold, and the FinLit IQ block only for Silver."""
+def holding(sym: str, parts: Dict[str, Any], prism: Optional[Dict[str, Any]], gold: bool, latest: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """One stored company as the page's row. `prism` is read only for Gold; a plan without FinLit Prism gets no score (task #283 PR C).
+    `latest` (task #338): the company's latest quote, laid over the report's when newer, so the portfolio shows the price every other page shows."""
     s, r, f = parts.get("summary") or {}, parts.get("ratios") or {}, parts.get("financials") or {}
     prof, quote = s.get("profile") or {}, s.get("quote") or {}
+    quote = livequote.overlay(quote, latest) or quote
     lender = bool(s.get("isBank"))
     yearly = f.get("yearly") or {}
     yrows = yearly.get("rows") or {}
@@ -206,8 +198,6 @@ def holding(sym: str, parts: Dict[str, Any], prism: Optional[Dict[str, Any]], go
     }
     if gold:
         out["prism"] = prism_block(prism)
-    else:
-        out["finlit"] = _finlit(s.get("score"))
     return out
 
 
@@ -215,7 +205,7 @@ def holding(sym: str, parts: Dict[str, Any], prism: Optional[Dict[str, Any]], go
 
 async def member_ctx(request: Request, ctx: Ctx = Depends(secure_ctx)) -> Ctx:
     if not sees_all(ctx) and not has(ctx.plan, "silver"):
-        raise fail(403, "plan_required", "Equity portfolio scores are part of the Silver plan.", plan="silver")
+        raise fail(403, "plan_required", "Equity portfolio scores are part of every paid plan.", plan="silver")
     return ctx
 
 
@@ -265,7 +255,7 @@ async def overview(request: Request, body: OverviewIn, ctx: Ctx = Depends(member
 
     parts: Dict[str, Dict[str, Any]] = {}
     if symbols:
-        for r in await store.pool.fetch(_SNAP_SQL, symbols, not gold):
+        for r in await store.pool.fetch(_SNAP_SQL, symbols):
             parts.setdefault(r["symbol"], {})[r["section"]] = _load(r["part"])
     prism_rows = {r["symbol"]: dict(r) for r in await store.pool.fetch(_PRISM_SQL, symbols)} if gold and symbols else {}
     ready = [s for s in symbols if (parts.get(s) or {}).get("summary")]
@@ -273,9 +263,10 @@ async def overview(request: Request, body: OverviewIn, ctx: Ctx = Depends(member
     why = await _queue(request, missing) if missing else {}
 
     rows: List[Dict[str, Any]] = []
+    latest = await livequote.read(store.redis, ready) if ready else {}
     for s in symbols:
         if s in ready:
-            rows.append(holding(s, parts[s], prism_rows.get(s), gold))
+            rows.append(holding(s, parts[s], prism_rows.get(s), gold, latest.get(s)))
         elif why.get(s):
             rows.append({"symbol": s, "status": "preparing", "reason": why[s]})
         else:

@@ -15,12 +15,22 @@ async function demoFetch(input: RequestInfo | URL, init?: RequestInit): Promise<
 
   if (method !== "GET") {
     if (path === "/api/contact" || path === "/api/service-enquiry") return json({ id: "demo" }, 201);
+    if (path === "/api/me/all-investments") return file("my-investments.json");   // All my investments (task #137): a sample answer built with the server's calc (sample lists, not real data)
     if (path === "/api/content/admin/login") return json({ detail: "Admin sign-in is disabled in the demo." }, 401);
     return json({ detail: "Not available in the demo." }, 405);
   }
+  if (path === "/api/discovery/changes") return file("discovery-changes.json");   // task #277: What changed at the companies you own: sample filings, marked (sample)
+  if (/^\/api\/stocks\/[^/]+\/filing-scores$/.test(path)) return file("filing-scores.json");   // task #266: Tech Mahindra's Q2 FY27 presentation and results, scored by the real scorer (the transcript is a sample)
   if (path === "/api/stress/quick-picks") return json({ picks: [{ symbol: "ASIANPAINT", name: "Asian Paints" }] });   // Stress Lab: the demo holds one stored page
   if (/^\/api\/stress\/[^/]+\/page$/.test(path)) return file("stress-page.json");   // Stress Lab: Asian Paints on its own figures, whichever company is asked for
   if (/^\/api\/stress\/[^/]+\/peer$/.test(path)) return json({ symbol: path.split("/")[3], peer: null, peers: [] });
+  if (path === "/api/superinvestors") return file("superinvestors/list.json");   // Superinvestor portfolios: fictional investors and sample (SMP-) companies, built by the real backend build()
+  if (path === "/api/superinvestors/tracked") return json({ tiles: { tracked: 0, companies: 0, moves: 0, heldBy2: 0 }, moveCounts: {}, sourceErrors: 0, medians: { Large: null, Mid: null, Small: null, Micro: null },   // task #289: the demo holds no real investors
+    investors: [], moves: [], agree: { held: [], added: [], cut: [] }, allCount: { names: 12, people: 12, firms: 0 }, since: "year", sinceText: "Since a year ago",
+    trackedSource: "Tracked investors. The demo holds fictional investors only, so no tracked investor is listed here.", namedStakesNote: "", asOf: null, fetchedFrom: null, fetchedTo: null,
+    source: "Sample data.", disclaimer: "Information only, not investment advice.", noteNames: "", rule: "" });
+  { const k = /^\/api\/superinvestors\/(?:name\/)?(example-investor-[a-l])$/.exec(path)?.[1]; if (k) return file(`superinvestors/${k}.json`); }
+  if (path.startsWith("/api/superinvestors/")) return json({ status: "not_found", detail: "No investor by that name in the stored filings." }, 404);
   if (path === "/api/sectors") return file("sectors-board.json");   // Sector Pulse board: the real nightly output of 29 Oct 2026
   if (path === "/api/sector-history") return file("sector-history.json");   // Sector Pulse state history: the 6 Nov close
   if (path === "/api/rotation") return file("rotation-map.json");   // Sector Rotation: the real nightly output of 29 Oct 2026, with the insight cards the server writes

@@ -8,8 +8,14 @@ import { apiGet } from "./api";
 import { capSize, cr, dateIN, MINUS, nf } from "./format";
 import suggestions from "../content/questionSuggestions.json";
 import { STARTERS, SECOND } from "./questionBank";
+import { RETIRED_SCORE_ANSWER, asksRetiredScore } from "./retiredScore";
 import { MARKET_QUESTIONS, writtenAnswer, type Q } from "./askFlow";
 import { EXPLORER_ANSWERS, TOPICS } from "./askExplorer";
+import { LEVELS, LEVEL_LABEL, fetchClassification, type Classification } from "./taxonomy";
+
+/** Every company question of the question bank: the company list and every group's questions, typed once (TypeScript 7 no longer widens the two JSON shapes to one). */
+export type BankQuestion = { id: string; text: string; needsSecondCompany?: boolean; lendersOnly?: boolean };
+export const COMPANY_QUESTIONS: readonly BankQuestion[] = [...suggestions.company, ...suggestions.groups.flatMap((g): readonly BankQuestion[] => g.items)];
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type J = any;
@@ -25,12 +31,18 @@ const get = (sym: string, path: string): Promise<J | null> => {
   if (!cache.has(key)) cache.set(key, apiGet<J>(`/api/stocks/${encodeURIComponent(sym)}${path}`).catch(() => { cache.delete(key); return null; }));
   return cache.get(key)!;
 };
-type Part = "summary" | "fin" | "ratios" | "own" | "events" | "peers" | "price" | "stats" | "scores" | "max";
-const PATH: Record<Part, string> = { summary: "", fin: "/financials", ratios: "/ratios", own: "/ownership", events: "/events", peers: "/peers", price: "/price?range=1Y",
+type Part = "summary" | "fin" | "ratios" | "own" | "events" | "peers" | "price" | "stats" | "scores" | "max" | "cls";
+const PATH: Record<Exclude<Part, "cls">, string> = { summary: "", fin: "/financials", ratios: "/ratios", own: "/ownership", events: "/events", peers: "/peers", price: "/price?range=1Y",
   stats: "/stats", scores: "/score-history", max: "/price?range=MAX" };
 type D = Partial<Record<Part, J | null>>;
+/** NSE's four levels of a company (task #192), cached like the report parts; null when it is not classified yet. */
+const classified = (sym: string): Promise<J | null> => {
+  const key = sym + "|cls";
+  if (!cache.has(key)) cache.set(key, fetchClassification(sym).then((c) => c as unknown as J).catch(() => { cache.delete(key); return null; }));
+  return cache.get(key)!;
+};
 async function load(sym: string, parts: Part[]): Promise<D> {
-  const got = await Promise.all(parts.map((p) => get(sym, PATH[p])));
+  const got = await Promise.all(parts.map((p) => (p === "cls" ? classified(sym) : get(sym, PATH[p]))));
   return Object.fromEntries(parts.map((p, i) => [p, got[i]]));
 }
 
@@ -280,25 +292,12 @@ const risk: Fn = (sym, d) => {
     `Its largest fall from a high was ${p1(isNum(s.drawdown?.max?.pct) ? Math.abs(s.drawdown.max.pct) : null)} (low on ${day(s.drawdown?.max?.date)}); today it is ${p1(isNum(s.drawdown?.current) ? Math.abs(s.drawdown.current) : null)} below its high.`,
     "FinLit does not have a beta for it.", `Source: FinLit prices, ${day(s.from)} to ${day(s.to)}.`]);
 };
-const scoreNow: Fn = (sym, d) => {
-  const sc = d.summary?.score;
-  if (!sc || !isNum(sc.overall)) return notHeld("a FinLit IQ score", sym, report(sym), "Open the company report");
-  return out([`${sym}'s FinLit IQ is ${sc.overall} out of 100 (${sc.band?.label ?? "–"}).`, `Its parts: ${(sc.pillars ?? []).map((p: J) => `${p.label} ${isNum(p.score) ? p.score : "not scored"}${p.band?.label ? ` (${p.band.label})` : ""}`).join(", ")}.`,
-    "The score describes the company's financial health and price trend from its filings and prices."], { to: report(sym), label: "See the score card" });
-};
-const scoreChange: Fn = (sym, d) => {
-  const pts: J[] = (d.scores?.points ?? []).filter((p: J) => isNum(p.overall));
-  if (pts.length < 2) return notHeld("a score history", sym, report(sym), "Open the company report");
-  const now = pts[pts.length - 1], t0 = new Date(now.day).getTime() - 90 * 86400000;
-  const then = [...pts].reverse().find((p) => new Date(p.day).getTime() <= t0) ?? pts[0];
-  const parts = [["pillar_quality", "Quality"], ["pillar_growth", "Growth"], ["pillar_profitability", "Profitability"], ["pillar_balance", "Balance sheet"], ["pillar_technical", "Technical"]]
-    .map(([k, l]) => (isNum(now[k]) && isNum(then[k]) ? { l, ch: now[k] - then[k] } : null)).filter(Boolean) as { l: string; ch: number }[];
-  const moved = parts.filter((x) => Math.abs(x.ch) >= 1).sort((a, b) => Math.abs(b.ch) - Math.abs(a.ch));
-  const shortHistory = new Date(then.day).getTime() > t0 + 10 * 86400000;
-  return out([`${sym}'s FinLit IQ was ${then.overall} on ${day(then.day)} and is ${now.overall} on ${day(now.day)} (${sgn(now.overall - then.overall, 0)} points).`,
-    shortHistory && `Its FinLit IQ history starts on ${day(pts[0].day)}, so this is the change since then, not over a full quarter.`,
-    moved.length ? `The parts that moved most: ${moved.slice(0, 3).map((x) => `${x.l} ${sgn(x.ch, 0)}`).join(", ")}.` : "None of its parts moved by a point or more.", "Source: FinLit IQ history."]);
-};
+// Task #283: FinLit Prism is FinLit's only company score. The score questions point to the company's Prism rating (Gold); no other score is quoted.
+const prismPage = (sym: string) => `/prism/${encodeURIComponent(sym)}`;
+const scoreNow: Fn = (sym) => out([`${sym}'s company score on FinLit is FinLit Prism: a score out of 100 for its financial health, built from four parts (Growth & Profitability, Valuation, Quality and Risk), with two technical views shown beside it.`,
+  "FinLit Prism comes with a plan that has it (Gold); its rating, parts and status are on the company's Prism page."], { to: prismPage(sym), label: "Open its FinLit Prism rating" });
+const scoreChange: Fn = (sym) => out([`How ${sym}'s FinLit Prism score has moved is on its company report, under "How the scores have moved", on a plan that has FinLit Prism (Gold).`,
+  "Each stored Prism rating carries its date, so the change is read from one stored rating to the next."], { to: report(sym, "#prism"), label: "See how the scores have moved" });
 const actions: Fn = (sym, d) => {
   const a: J[] = d.events?.actions ?? [];
   const pick = (re: RegExp) => a.filter((x) => re.test(x.type ?? ""));
@@ -306,8 +305,8 @@ const actions: Fn = (sym, d) => {
   const nextResult = (d.events?.announcements ?? []).find((x: J) => /board meeting|financial results|results/i.test(`${x.category} ${x.description}`) && new Date(x.date) >= new Date(new Date().toDateString()));
   return out([divs.length ? `${sym}'s latest dividends: ${divs.slice(0, 4).map((x) => `${x.title} (${day(x.date)})`).join("; ")}.` : `FinLit has no dividends for ${sym}.`,
     others.length ? `Splits, bonuses, rights and buybacks: ${others.slice(0, 5).map((x) => `${x.title} (${day(x.date)})`).join("; ")}.` : "No split, bonus, rights issue or buyback is on record.",
-    nextResult ? `Next board meeting on results: ${day(nextResult.date)}.` : "No upcoming results date is on record yet; the Results calendar lists dates as companies announce them.", "Source: FinLit corporate actions and announcements."],
-    { to: "/results", label: "Open the Results calendar" });
+    nextResult ? `Next board meeting on results: ${day(nextResult.date)}.` : "No upcoming results date is on record yet; the Results page lists dates as companies announce them.", "Source: FinLit corporate actions and announcements."],
+    { to: "/results", label: "Open Results" });
 };
 const compare: Fn = (sym, d, e) => {
   const b = e.second, d2 = e.d2;
@@ -335,8 +334,12 @@ const redFlags: Fn = (sym, d) => {
 const identity: Fn = (sym, d) => {
   const p = d.summary?.profile, mc = d.summary?.quote?.marketCapCr;
   if (!p) return notHeld("a company profile", sym, report(sym), "Open the company report");
-  return out([`${sym} (${p.name ?? sym}) is in the ${p.macroSector ? p.macroSector + " sector, " : ""}${p.industry ?? "–"} industry and the ${p.subIndustry ?? p.sector ?? "–"} sub-industry.`,
-    isNum(mc) ? `With a market cap of ${rs(mc)} it is a ${(capSize(mc) ?? "–").toLowerCase()} company (Large above ₹50,000 Cr, Mid ₹10,000–50,000 Cr, Small below ₹10,000 Cr).` : "Its market cap is not held.", "Source: FinLit company profile and prices."]);
+  const c = d.cls as unknown as Classification | null | undefined;
+  const named = c ? LEVELS.filter((l) => c[l]).map((l) => `${LEVEL_LABEL[l].toLowerCase()} ${c[l]}`) : [];
+  return out([named.length ? `${sym} (${p.name ?? sym}) is in NSE's ${named.slice(0, -1).join(", ")}${named.length > 1 ? " and " : ""}${named[named.length - 1]}.`
+    : `${sym} (${p.name ?? sym}): its NSE classification is not known.`,
+    c?.note && c.source ? c.note : c?.note ? c.note.replace(/^Not classified: /, "Not classified by NSE's lists: ") : null,
+    isNum(mc) ? `With a market cap of ${rs(mc)} it is a ${(capSize(mc) ?? "–").toLowerCase()} company (Large above ₹75,000 Cr, Mid ₹25,000–75,000 Cr, Small ₹10,000–25,000 Cr, Micro below ₹10,000 Cr).` : "Its market cap is not held.", "Source: FinLit company profile and prices."]);
 };
 const sectorRank: Fn = (sym, d) => {
   const items: J[] = (d.peers?.items ?? []).filter((x: J) => isNum(x.market_cap)), mc = d.summary?.quote?.marketCapCr;
@@ -349,7 +352,7 @@ const sectorGrowth: Fn = (sym, d) => { const r3 = latest(d.ratios, "revenue_cagr
 
 /** Every listed company question, by its id in the question bank (content/questionSuggestions.json). */
 export const COMPANY_RULES: Record<string, Rule> = {
-  "C.1.Q1": { parts: ["summary"], fn: identity }, "C.1.Q2": { parts: ["summary", "peers"], fn: sectorRank },
+  "C.1.Q1": { parts: ["summary", "cls"], fn: identity }, "C.1.Q2": { parts: ["summary", "peers"], fn: sectorRank },
   "C.2.Q3": { parts: ["fin"], fn: revenueYears }, "C.2.Q4": { parts: ["fin", "ratios"], fn: revenueCagr }, "C.2.1.3": { parts: ["fin", "ratios"], fn: revenueCagr },
   "C.2.Q5": { parts: ["ratios"], fn: sectorGrowth }, "C.2.Q6": { parts: ["fin", "ratios"], fn: ebitdaTrend }, "C.2.2.1": { parts: ["fin", "ratios"], fn: ebitdaTrend },
   "C.2.Q7": { parts: ["fin", "ratios"], fn: profitCagr }, "C.2.Q8": { parts: ["fin"], fn: latestQuarter }, "C.2.5.1": { parts: ["fin"], fn: latestQuarter }, "C.2.1.2": { parts: ["fin"], fn: latestQuarter },
@@ -382,6 +385,7 @@ export async function answerCompany(id: string, sym: string, extra: { second?: s
 /** The written answer of a general question (concepts, platform, market, the explorer topics), if it is one. */
 export function generalAnswer(text: string): string | undefined {
   const t = text.trim();
+  if (asksRetiredScore(t)) return RETIRED_SCORE_ANSWER;   // task #283: the retired score is answered from written text, never from data
   const ex = TOPICS.flatMap((x) => x.questions).find((x) => x.text === t);
   const a = writtenAnswer(t) ?? (ex ? EXPLORER_ANSWERS[ex.id] : undefined);
   return a && !/not investment advice/i.test(a) ? `${a} Information only, not investment advice.` : a;   // the disclaimer stays on every answer
@@ -390,7 +394,7 @@ export function generalAnswer(text: string): string | undefined {
 export type Match = { id: string; sym: string; quarter?: number; fy?: string; second?: string };
 const SYM = "([A-Za-z0-9&.\\-]{1,20})";
 const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-const TEMPLATES: { id: string; re: RegExp }[] = [...suggestions.company, ...suggestions.groups.flatMap((g) => g.items)].map((q) => ({
+const TEMPLATES: { id: string; re: RegExp }[] = COMPANY_QUESTIONS.map((q) => ({
   id: q.id,
   re: new RegExp("^" + esc(q.text).replace(/\\\{company_2\\\}/g, "(.+?)").replace(/\\\{company\\\}/g, SYM).replace(/\\\{n\\\}/g, "\\d+") + "$", "i"),
 }));
@@ -424,7 +428,7 @@ export function searchListed(term: string, company?: string | null, limit = 6, l
   const w = term.toLowerCase().replace(/[?.,!']/g, " ").split(/\s+/).filter((x) => x.length > 1 && !STOP.has(x));
   if (!w.length) return [];
   const fill = (s: string) => s.replace(/\{company_2\}/g, SECOND).replace(/\{company\}/g, company ?? "").replace(/\{n\}/g, "5");
-  const companyQs: Q[] = company ? [...suggestions.company, ...suggestions.groups.flatMap((g) => g.items)].map((q) => ({ id: q.id, text: fill(q.text), ...("needsSecondCompany" in q && q.needsSecondCompany ? { needsSecondCompany: true } : {}) }))
+  const companyQs: Q[] = company ? COMPANY_QUESTIONS.map((q) => ({ id: q.id, text: fill(q.text), ...(q.needsSecondCompany ? { needsSecondCompany: true } : {}) }))
     .filter((q, i, a) => a.findIndex((y) => y.text === q.text) === i) : [];
   const score = (q: Q) => w.filter((k) => q.text.toLowerCase().includes(k)).length;
   const need = loose ? Math.max(1, Math.ceil(w.length / 3)) : w.length > 2 ? w.length - 1 : w.length;

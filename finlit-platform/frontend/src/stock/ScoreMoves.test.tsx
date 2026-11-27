@@ -1,191 +1,115 @@
 // @vitest-environment jsdom
-// "How the scores have moved": every recorded day is a dot on its line and a tick under the chart; the arrow keys read each day; a day between two ratings shows the rating in force.
+// "How the scores have moved" (task #216, company report handover README 2.3; the chart rules of tasks #126 and #160 that stay): under the Prism card;
+// 1 week on load, 2 weeks and 1 month redraw both charts, the legend and the lead line; the lead line names the biggest move and what did not move; two
+// charts (business 0 to 100 with a dashed line at 50, technical −100 to +100 with a dashed line at 0); a legend row per line with the latest value and the
+// change over the window; hover / arrow keys show the date and every line's value; solid and hollow dots; a footnote with the recording start.
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+const hist = vi.hoisted(() => ({ points: [] as unknown[] }));
 vi.mock("../lib/premium", () => ({ useGold: () => true }));
 vi.mock("../components/ChartZoom", () => ({ ChartZoom: ({ children }: { children: React.ReactNode }) => <>{children}</> }));
-import { ScoreMoves } from "./ScoreMoves";
+vi.mock("../lib/prismHistory", async (orig) => ({ ...(await orig<typeof import("../lib/prismHistory")>()), usePrismHistory: () => ({ data: { points: hist.points }, isLoading: false, isError: false }) }));
+import { ScoreMoves, ScoreMovesCard } from "./ScoreMoves";
 import type { HistPoint } from "../lib/prismHistory";
+import { inRange, leadLine, windowMoves } from "../lib/scoreMoves";
 
 afterEach(cleanup);
 const day = (n: number) => new Date(Date.UTC(2026, 10, 1) + n * 86_400_000).toISOString().slice(0, 10);
 const none = { fundamental: null, valuation: null, quality: null, risk: null };
-// six days; the four business scores are recorded on the first, the fourth and the last day only (re-ratings), the technical views every day
+// six days (1 to 6 Nov); the business scores are re-rated on the first, the fourth and the last day; the technical views are read every day
 const pts: HistPoint[] = Array.from({ length: 6 }, (_, i) => ({ day: day(i), modelVersion: "1", final: 60, label: "HEALTHY", status: "RATED",
   parts: [0, 3, 5].includes(i) ? { fundamental: 76 - i * 2, valuation: 83, quality: 100, risk: 82 } : none, shortTerm: 10 + i * 6, longTerm: 18 + i }));
-const open = () => render(<ScoreMoves points={pts} />);
+// 20 days (1 to 20 Nov): one week holds 14 to 20 Nov, two weeks 7 to 20 Nov, one month all of it; the long-term view moves most over the month
+const long: HistPoint[] = Array.from({ length: 20 }, (_, i) => ({ day: day(i), modelVersion: "1", final: i < 10 ? 55 : 58.5, label: "AVERAGE", status: "RATED",
+  parts: [0, 10, 19].includes(i) ? { fundamental: 58.1, valuation: i < 19 ? 38.9 : 36.2, quality: 78.9, risk: 85.6 } : none, shortTerm: 30 - (i % 3), longTerm: -60 + i }));
+const open = (p = pts) => render(<ScoreMoves points={p} range="1m" />);
 
-describe("ScoreMoves chart", () => {
-  it("draws a dot on every recorded day of every line (a rating in force shows as a hollow dot), and a tick for every recorded day", () => {
+describe("the two charts (rules kept from tasks #126 and #160)", () => {
+  it("draws a dot on every recorded day of every line; a day with no new rating shows the rating in force as a hollow dot", () => {
     const { container } = open();
     const panels = container.querySelectorAll(".scm-panel");
     expect(panels).toHaveLength(2);
-    expect(panels[0].querySelectorAll(".scm-dot")).toHaveLength(6 * 5);          // the cumulative score and four business scores x all six days (task #126)
-    expect(panels[0].querySelectorAll(".scm-dot.carried")).toHaveLength(3 * 4);  // three of those days have no new pillar rating: hollow, the rating still in force
-    expect(panels[0].querySelectorAll(".scm-dot:not(.carried)")).toHaveLength(3 * 4 + 6);   // the cumulative score is recorded every day here
-    expect(panels[1].querySelectorAll(".scm-dot")).toHaveLength(6 * 2);          // two technical views x six days
-    expect(panels[0].querySelectorAll(".scm-rug")).toHaveLength(6); expect(panels[1].querySelectorAll(".scm-rug")).toHaveLength(6);
-    expect(panels[1].querySelector(".scm-dot title")?.textContent).toMatch(/view \+?\d+(\.\d)? on \d+ \w+ 2026/);
+    expect(panels[0].querySelectorAll(".scm-dot")).toHaveLength(6 * 5);
+    expect(panels[0].querySelectorAll(".scm-dot.carried")).toHaveLength(3 * 4);
+    expect(panels[1].querySelectorAll(".scm-dot")).toHaveLength(6 * 2);
+    expect([...panels[0].querySelectorAll(".scm-dot.carried title")][0].textContent).toMatch(/on 2 Nov 2026, the rating from 1 Nov 2026 still in force/);
   });
-  it("a hollow dot says which rating it shows, and a period that starts after a rating still shows it", () => {
+  it("business scores are steps and the technical views a curve; dashed lines at 50 and at 0", () => {
     const { container } = open();
-    const titles = [...container.querySelectorAll(".scm-panel")[0].querySelectorAll(".scm-dot.carried title")].map((t) => t.textContent ?? "");
-    expect(titles[0]).toMatch(/on 2 Nov 2026, the rating from 1 Nov 2026 still in force/);
-    expect(container.querySelector(".scm-lg")?.textContent).toMatch(/Solid dot: new rating that day.*Hollow dot: earlier rating still holds/);
+    const [biz, tech] = [...container.querySelectorAll(".scm-panel")];
+    expect([...biz.querySelectorAll(".scm-line path")].every((p) => !/C/.test(p.getAttribute("d") ?? ""))).toBe(true);
+    expect([...tech.querySelectorAll(".scm-line path")].some((p) => /C/.test(p.getAttribute("d") ?? ""))).toBe(true);
+    expect(biz.querySelector("line.scm-mid")!.getAttribute("stroke-dasharray")).toBe("4 4");
+    expect(tech.querySelector("line.scm-mid")!.getAttribute("stroke-dasharray")).toBe("4 4");
+    expect(container.querySelectorAll(".scm-mark")).toHaveLength(0);   // the pack's charts carry no re-rating marks: the solid and hollow dots say it
   });
-  it("labels every day under a short chart", () => {
-    const { container } = open();
-    expect(container.querySelectorAll(".scm-panel")[0].querySelectorAll("text.scm-ax:not([text-anchor='end'])").length).toBeGreaterThan(0);
-    const labels = [...container.querySelectorAll(".scm-panel")[1].querySelectorAll("svg > text.scm-ax")].map((t) => t.textContent).filter((t) => /^\d+ \w+$/.test(t ?? ""));
-    expect(labels).toHaveLength(6);
-  });
-  it("the chart can be read with the arrow keys: a day between two ratings shows the rating in force and when it was made", () => {
+  it("hover or the arrow keys show the date and every line's value that day; a business score between ratings says when it was rated", () => {
     const { container } = open();
     const svg = container.querySelectorAll(".scm-panel svg")[0] as SVGSVGElement;
-    expect(svg.getAttribute("tabindex")).toBe("0");
-    fireEvent.focus(svg);                                                         // lands on the newest day
+    fireEvent.focus(svg);
     expect(screen.getByRole("status").textContent).toContain("6 Nov 2026");
-    fireEvent.keyDown(svg, { key: "Home" });
-    fireEvent.keyDown(svg, { key: "ArrowRight" });                                // 2 Nov: no rating that day
+    fireEvent.keyDown(svg, { key: "Home" }); fireEvent.keyDown(svg, { key: "ArrowRight" });
     const tip = screen.getByRole("status").textContent ?? "";
     expect(tip).toContain("2 Nov 2026"); expect(tip).toContain("Valuation 83"); expect(tip).toContain("rated 1 Nov");
-    expect(tip).not.toContain("–");
+    for (const n of ["Growth & Profitability", "Quality", "Risk"]) expect(tip).toContain(n);
     fireEvent.blur(svg);
     expect(screen.queryByRole("status")).toBeNull();
   });
-  it("the technical tooltip never carries a figure forward: a day with no reading says so", () => {
-    const gap: HistPoint[] = pts.map((p, i) => (i === 2 ? { ...p, shortTerm: null } : p));
-    const { container } = render(<ScoreMoves points={gap} />);
-    const svg = container.querySelectorAll(".scm-panel svg")[1] as SVGSVGElement;
-    fireEvent.focus(svg); fireEvent.keyDown(svg, { key: "Home" }); fireEvent.keyDown(svg, { key: "ArrowRight" }); fireEvent.keyDown(svg, { key: "ArrowRight" });
-    expect(screen.getByRole("status").textContent).toContain("Short-term view no figure yet");
-  });
 });
 
-// task #126: the team's sample. One card per group with its tag, title and pattern line; the key shows the change in the period; business scores are steps,
-// technical views a curve; Growth & Profitability and the long-term view are dashed and drawn on top; the re-rating days are labelled; every date is written.
-const NOV = ["2026-11-05", "2026-11-06", "2026-11-07", "2026-11-09", "2026-11-10", "2026-11-12", "2026-11-13", "2026-11-14"];
-const ST = [-3.6, -4.5, -6, 5.5, 11.5, 29, 33, 19.8], LT = [-63, -63, -63, -57, -49, -49, -49, -49.5];
-const RATED: Record<string, HistPoint["parts"]> = { "2026-11-05": { fundamental: 97, valuation: 97.3, quality: 79, risk: 29 }, "2026-11-13": { fundamental: 97, valuation: 95, quality: 79, risk: 31.4 }, "2026-11-14": { fundamental: 76.2, valuation: 96.1, quality: 73, risk: 31.4 } };
-const team: HistPoint[] = NOV.map((d, i) => ({ day: d, modelVersion: "1", final: 70, label: "HEALTHY", status: "RATED", parts: RATED[d] ?? none, shortTerm: ST[i], longTerm: LT[i] }));
-
-describe("How the scores have moved, as in the team's sample (task #126)", () => {
-  const grp = (c: HTMLElement, k: "biz" | "tech") => c.querySelector(`.scm-grp.scm-g-${k}`) as HTMLElement;
-  it("1-3. two cards, Fundamental and Technical, each with its title and the line that says how it moves", () => {
-    const { container } = render(<ScoreMoves points={team} />);
-    const b = grp(container, "biz"), t = grp(container, "tech");
-    expect(b.querySelector(".scm-tag")?.textContent).toBe("Fundamental"); expect(b.querySelector("h4")?.textContent).toBe("Business scores · 0 to 100");
-    expect(b.querySelector(".scm-pat")?.textContent).toBe("Step pattern: flat lines that jump only when Prism re-rates the company.");
-    expect(t.querySelector(".scm-tag")?.textContent).toBe("Technical"); expect(t.querySelector("h4")?.textContent).toBe("Technical views · −100 to +100");
-    expect(t.querySelector(".scm-pat")?.textContent).toBe("Continuous pattern: moves every trading evening. Short term reads 5 to 20 sessions, long term 6 to 18 months.");
-    expect(b.querySelectorAll(".scm-panel")).toHaveLength(1); expect(t.querySelectorAll(".scm-panel")).toHaveLength(1);   // each card holds its own chart
+describe("README 2.3: range, lead line, legend", () => {
+  it("1 week is selected on load; each button redraws both charts, the legend and the lead line", () => {
+    hist.points = long;
+    const { container } = render(<ScoreMovesCard symbol="X" statement="consolidated" />);
+    const btn = (n: string) => screen.getByRole("button", { name: n });
+    expect(btn("1 week").getAttribute("aria-pressed")).toBe("true");
+    expect(container.querySelectorAll(".scm-panel")[1].querySelectorAll(".scm-rug")).toHaveLength(7);   // 14 to 20 Nov
+    const lead1 = container.querySelector(".scm-lead")!.textContent, legend1 = container.querySelector(".scm-lgd")!.textContent;
+    expect(container.querySelector(".scm-dl")!.textContent).toBe("14 Nov to 20 Nov 2026 · As of 20 Nov 2026");
+    fireEvent.click(btn("2 weeks"));
+    expect(container.querySelectorAll(".scm-panel")[1].querySelectorAll(".scm-rug")).toHaveLength(14);
+    fireEvent.click(btn("1 month"));
+    expect(btn("1 month").getAttribute("aria-pressed")).toBe("true");
+    expect(container.querySelectorAll(".scm-panel")[1].querySelectorAll(".scm-rug")).toHaveLength(20);
+    expect(container.querySelector(".scm-lead")!.textContent).not.toBe(lead1);
+    expect(container.querySelector(".scm-lgd")!.textContent).not.toBe(legend1);
+    expect(container.querySelector(".scm-dl")!.textContent).toBe("22 Oct to 20 Nov 2026 · As of 20 Nov 2026 · recording began 1 Nov 2026");
   });
-  it("4. every key shows the latest figure and the change since the start of the period", () => {
-    const { container } = render(<ScoreMoves points={team} />);
-    const keys = [...container.querySelectorAll(".scm-key")].map((k) => k.textContent);
-    expect(keys).toEqual(["Cumulative fundamental score 70 unchanged since 5 Nov", "Growth & Profitability 76.2 −20.8 since 5 Nov", "Valuation 96.1 −1.2 since 5 Nov", "Quality 73 −6 since 5 Nov", "Risk 31.4 +2.4 since 5 Nov",
-      "Short-term view +19.8 +23.4 since 5 Nov", "Long-term view −49.5 +13.5 since 5 Nov"]);
+  it("the lead line names the biggest move with its from and to, and lists what did not move", () => {
+    const m = windowMoves(long, inRange(long, "1m").points);
+    expect(leadLine(m)).toEqual({ biggest: "the Long-term view rose 19 pts, from −60 to −41.", unchanged: "Growth & Profitability, Quality, Risk." });
+    expect(leadLine([])).toEqual({ biggest: null, unchanged: null });
   });
-  it("4. a line with a single figure in the period says so instead of leaving the change blank", () => {
-    const one = team.map((p, i) => ({ ...p, longTerm: i === 7 ? -49.5 : null }));
-    const { container } = render(<ScoreMoves points={one} />);
-    expect([...container.querySelectorAll(".scm-key")].pop()?.textContent).toBe("Long-term view −49.5 only one figure in this period");
+  it("a legend row per line: name, latest value, change over the window (▲ green, ▼ red, 0 grey)", () => {
+    hist.points = long;
+    const { container } = render(<ScoreMovesCard symbol="X" statement="consolidated" />);
+    fireEvent.click(screen.getByRole("button", { name: "1 month" }));
+    const rows = [...container.querySelectorAll(".scm-lgd li")].map((li) => li.textContent);
+    expect(rows).toEqual(["Cumulative fundamental score58.5▲ 3.5", "Growth & Profitability58.10", "Valuation36.2▼ 2.7", "Quality78.90", "Risk85.60", "Short-term view+29▼ 1", "Long-term view−41▲ 19"]);
+    expect(container.querySelector(".scm-lgd em.up")).toBeTruthy(); expect(container.querySelector(".scm-lgd em.down")).toBeTruthy(); expect(container.querySelector(".scm-lgd em.zero")).toBeTruthy();
   });
-  it("5. business scores are steps (only flat and upright moves) and 11. technical views a smooth curve", () => {
-    const { container } = render(<ScoreMoves points={team} />);
-    for (const path of grp(container, "biz").querySelectorAll(".scm-line > path")) expect(path.getAttribute("d")).toMatch(/^M[\d.]+,[\d.]+([HV][\d.]+)+$/);
-    for (const path of grp(container, "tech").querySelectorAll(".scm-line > path")) expect(path.getAttribute("d")).toMatch(/^M[\d.]+,[\d.]+(C[\d., -]+)+$/);
+  it("the header, the eyebrow and the footnote with the dot key and the recording start; no Daily/Weekly, no 1M/3M/6M/1Y, no summary sentence", () => {
+    hist.points = long;
+    const { container } = render(<ScoreMovesCard symbol="X" statement="consolidated" />);
+    expect(container.querySelector(".scm-eb")!.textContent).toBe("FinLit Prism · score history");
+    expect(container.querySelector("h3")!.textContent).toBe("How the scores have moved");
+    expect(container.querySelector(".scm-foot")!.textContent).toMatch(/new rating that day.*earlier rating still holds · Valuation: higher means cheaper · Risk: higher means lower risk$/);   // task #311: no recording date or forecast sentence in the foot
+    for (const gone of ["Daily", "Weekly", "1M", "3M", "6M", "1Y", "Business only"]) expect(screen.queryByRole("button", { name: gone })).toBeNull();
+    expect(container.textContent).not.toMatch(/Over the last \d/);
   });
-  it("6-7. Growth & Profitability and the long-term view are dashed, drawn on top, and dashed in their keys", () => {
-    const { container } = render(<ScoreMoves points={team} />);
-    const order = [...grp(container, "biz").querySelectorAll(".scm-line")].map((g) => g.getAttribute("data-series"));
-    expect(order[order.length - 1]).toBe("fundamental");                                // last, so Valuation at the same figure cannot hide it
-    const dash = (s: string) => container.querySelector(`.scm-line[data-series=${s}] > path`)?.getAttribute("stroke-dasharray");
-    expect(dash("fundamental")).toBe("6 4"); expect(dash("longTerm")).toBe("6 4"); expect(dash("valuation")).toBeNull(); expect(dash("shortTerm")).toBeNull();
-    const sw = [...container.querySelectorAll(".scm-key i")].map((i) => (i as HTMLElement).style.background);
-    expect(sw[1]).toMatch(/repeating-linear-gradient/); expect(sw[6]).toMatch(/repeating-linear-gradient/); expect(sw[0]).not.toMatch(/gradient/); expect(sw[2]).not.toMatch(/gradient/);
-  });
-  it("8. every re-rating day has its dotted line, its triangle and the word Re-rated, including one that follows days with no rating", () => {
-    const { container } = render(<ScoreMoves points={team} />);
-    const marks = grp(container, "biz").querySelectorAll(".scm-mark");
-    expect([...marks].map((m) => m.querySelector("title")?.textContent)).toEqual(["Prism re-rated on 13 Nov 2026", "Prism re-rated on 14 Nov 2026"]);
-    expect([...marks].map((m) => m.querySelector(".scm-mk")?.textContent)).toEqual(["Re-rated", "Re-rated"]);
-    expect(grp(container, "tech").querySelectorAll(".scm-mark")).toHaveLength(0);      // the technical views are not re-rated: they move every evening
-  });
-  it("9. the business card says how to read the dots and the dotted line", () => {
-    const { container } = render(<ScoreMoves points={team} />);
-    expect([...grp(container, "biz").querySelectorAll(".scm-lg li")].map((l) => l.textContent)).toEqual(["Solid dot: new rating that day", "Hollow dot: earlier rating still holds", "Dotted line: re-rating event"]);
-  });
-  it("10. every recorded day has its date under both charts (8 days, 8 dates)", () => {
-    const { container } = render(<ScoreMoves points={team} />);
-    for (const k of ["biz", "tech"] as const) {
-      const dates = [...grp(container, k).querySelectorAll("svg > text.scm-ax")].map((t) => t.textContent).filter((t) => /^\d+ \w+$/.test(t ?? ""));
-      expect(dates).toEqual(["5 Nov", "6 Nov", "7 Nov", "9 Nov", "10 Nov", "12 Nov", "13 Nov", "14 Nov"]);
-    }
-  });
-  it("Business only and Technical only show one card; a hidden line keeps its key so it can be shown again", () => {
-    const { container, getByRole } = render(<ScoreMoves points={team} />);
-    fireEvent.click(getByRole("button", { name: "Technical only" }));
-    expect(container.querySelector(".scm-g-biz")).toBeNull(); expect(container.querySelector(".scm-g-tech")).toBeTruthy();
-    fireEvent.click(getByRole("button", { name: "Business only" }));
-    expect(container.querySelector(".scm-g-tech")).toBeNull();
-    for (const k of container.querySelectorAll(".scm-g-biz .scm-key")) fireEvent.click(k);
-    expect(container.querySelector(".scm-g-biz .scm-panel")).toBeNull();
-    expect(container.querySelector(".scm-g-biz .scm-empty")?.textContent).toBe("No line is selected here. Press a score above to draw it.");
-    expect(container.querySelectorAll(".scm-g-biz .scm-key")).toHaveLength(5);
+  it("the two charts sit side by side and stack under 900 px; the card sits under the Prism card", () => {
+    const css = readFileSync(join(__dirname, "../styles/scoremoves.css"), "utf8");
+    expect(css).toMatch(/\.scm216 \.scm-two \{ display: grid; grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/);
+    expect(css).toMatch(/@media \(max-width: 899px\) \{ \.scm216 \.scm-two \{ grid-template-columns: minmax\(0, 1fr\); \} \}/);
+    const hero = readFileSync(join(__dirname, "Hero.tsx"), "utf8");
+    expect(hero.indexOf("<PrismCompare")).toBeLessThan(hero.indexOf("<ScoreMovesCard"));
   });
   it("describes and never advises", () => {
-    const { container } = render(<ScoreMoves points={team} />);
-    expect(container.textContent).not.toMatch(/\b(buy|sell|hold|target|best)\b/i);
-  });
-});
-
-describe("Re-rated words never overlap (task #126)", () => {
-  it("on a long period with re-ratings on neighbouring days, the newest keeps its word and a close neighbour does not", () => {
-    const days = Array.from({ length: 200 }, (_, i) => new Date(Date.UTC(2026, 0, 1) + i * 86_400_000).toISOString().slice(0, 10));
-    const rated = new Set([0, 60, 198, 199]);                                        // the last two re-ratings are a day apart
-    const long: HistPoint[] = days.map((d, i) => ({ day: d, modelVersion: "1", final: 60, label: "HEALTHY", status: "RATED",
-      parts: rated.has(i) ? { fundamental: 50 + i / 10, valuation: 60, quality: 70, risk: 40 } : none, shortTerm: 0, longTerm: 0 }));
-    const { container, getByRole } = render(<ScoreMoves points={long} />);
-    fireEvent.click(getByRole("button", { name: "1Y" }));
-    const marks = [...container.querySelectorAll(".scm-g-biz .scm-mark")];
-    expect(marks).toHaveLength(3);                                                   // 60, 198 and 199: three days a rating changed
-    expect(marks.map((m) => !!m.querySelector(".scm-mk"))).toEqual([true, false, true]);
-    const xs = [...container.querySelectorAll(".scm-g-biz .scm-mk")].map((t) => Number(t.getAttribute("x")));
-    expect(xs[1] - xs[0]).toBeGreaterThanOrEqual(64);
-  });
-});
-
-// task #126 reopened (15 Nov): the cumulative fundamental score on the business chart; a business score's change is measured from the rating in force at the
-// start of the period, and a score recorded only from a later day says so ("recorded from 14 Nov") instead of "only one figure in this period".
-describe("Business scores: cumulative score and the rating in force (task #126, reopened)", () => {
-  it("draws the cumulative fundamental score as its own, thicker line in the business card, and keys it first", () => {
-    const { container } = render(<ScoreMoves points={team} />);
-    const biz = container.querySelector(".scm-g-biz") as HTMLElement;
-    expect(biz.querySelector(".scm-key")?.textContent).toMatch(/^Cumulative fundamental score 70/);
-    expect(biz.querySelector(".scm-line[data-series=final] > path")?.getAttribute("stroke-width")).toBe("2.8");
-  });
-  it("measures a business score's change from the rating in force at the start, and says from when it was recorded", () => {
-    // pillars rated on 1 Nov (outside a 1-week window) and again on 14 Nov; the technical views every day
-    const days = Array.from({ length: 14 }, (_, i) => day(i));
-    const pts2: HistPoint[] = days.map((d, i) => ({ day: d, modelVersion: "1", final: i === 0 ? 50 : i === 13 ? 40 : null, label: null, status: null,
-      parts: i === 0 ? { fundamental: 60, valuation: 70, quality: 80, risk: 50 } : i === 13 ? { fundamental: 30, valuation: 70, quality: 80, risk: 50 } : none, shortTerm: i, longTerm: i }));
-    const { container, getByRole } = render(<ScoreMoves points={pts2} />);
-    fireEvent.click(getByRole("button", { name: "1M" }));
-    const keys = [...container.querySelectorAll(".scm-g-biz .scm-key")].map((k) => k.textContent);
-    expect(keys[0]).toBe("Cumulative fundamental score 40 −10 since 1 Nov");
-    expect(keys[1]).toBe("Growth & Profitability 30 −30 since 1 Nov");
-    expect(keys[2]).toBe("Valuation 70 unchanged since 1 Nov");
-    const late = days.map((_d, i) => ({ ...pts2[i], final: i === 13 ? 40 : null, parts: i === 13 ? pts2[13].parts : none }));   // recording of the pillars began on the last day
-    cleanup();
-    const r2 = render(<ScoreMoves points={late} />);
-    expect([...r2.container.querySelectorAll(".scm-g-biz .scm-key")].map((k) => k.textContent)[1]).toBe("Growth & Profitability 30 recorded from 14 Nov");
-    expect(r2.container.querySelector(".scm-from")?.textContent).toMatch(/^The business scores are recorded from 14 Nov 2026\. Earlier days in this period have no business scores/);
-    expect(r2.container.querySelector(".scm-sum")?.textContent).toMatch(/^The business scores are recorded from 14 Nov, with one rating so far: no change to show yet\./);   // not "not enough recorded days"
-    cleanup();
-    const two = days.map((_d, i) => ({ ...pts2[i], final: i >= 12 ? 40 : null, parts: i >= 12 ? pts2[13].parts : none }));   // recorded from 13 Nov, the rating in force carried daily
-    const r3 = render(<ScoreMoves points={two} />);
-    expect(r3.container.querySelector(".scm-sum")?.textContent).toMatch(/^Since 13 Nov, when the business scores were first recorded, none of the 5 scores changed/);
+    hist.points = long;
+    const { container } = render(<ScoreMovesCard symbol="X" statement="consolidated" />);
+    expect((container.textContent ?? "").toLowerCase()).not.toMatch(/\b(buy|sell|hold|accumulate|target|avoid)\b/);
   });
 });

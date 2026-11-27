@@ -193,7 +193,7 @@ function RiskPanel({ d, names }: { d: HeadToHead; names: Names }) {
       <Table d={d} caption={`Risk over ${periodWords(d.period)}`} rows={rows} />
       <Key>Shaded: the smaller swing or fall (or the higher Sharpe ratio, best month) of the two funds. It describes the past, not what to choose.</Key>
       <Whys d={d} />
-      <p className="faint mf-fine">Volatility is how much the NAV swings day to day, as a yearly figure (standard deviation of daily NAV changes × √252). Downside deviation counts only the falls. The largest fall is the deepest drop from a NAV high to a later low inside the period. {d.risk.note} All of these describe the past, not what comes next.</p>
+      <p className="faint mf-fine">Volatility is how much the NAV swings day to day, as a yearly figure. Downside deviation counts only the falls. The largest fall is the deepest drop from a NAV high to a later low inside the period. {d.risk.note} All of these describe the past, not what comes next.</p>
     </>
   );
 }
@@ -328,7 +328,7 @@ export function FundHeadToHead() {
   return (
     <>
       <PageHeader wrap plan="free" title="Fund compare" art="compare" links={["/funds", "/fund-score-screener", "/etfs"]}
-        description={<>Two funds of the same category, head to head: <b>returns, risk, consistency and costs</b> over 1, 3, 5 or 10 years, each also against the category average. Information only, never advice.</>} />
+        description="Two funds of one category, head to head on returns, risk, consistency and cost over 1–10 years." />
       <div className="wrap mf h2h">
         <section className="card mf-card h2h-setup" aria-labelledby="h2h-h">
           <div className="h2h-setup-h">

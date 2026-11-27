@@ -1,0 +1,93 @@
+/* Task #351 (23 Nov 2026): the ETF list page (/etfs) as the team's "refined, mobile-ready" design. Scoped to .etf-list: etf.css is shared with the ETF
+   pages, the compare pages and the portfolio, which keep their look.
+   1. The filters (Type, Category, Ranges) sit in a panel on the LEFT of the table; "Hide filters" folds the panel away and the table takes the width.
+   2. The toolbar (filter toggle, search, Columns) stays at the top while the page scrolls, so "Show filters" is always reachable.
+   3. The table: numbers centred, a line between columns, a raised header pinned inside a scroller at most 680px tall, the name column pinned left,
+      rows of about 62px, at least 1080px wide (scrolls sideways, never squeezed), a 10px scrollbar and a 36px fade while more columns are to the right.
+   4. Under 900px the panel is a drawer from the left (200ms), opened from "Filters", with Reset and "Show N ETFs". */
+
+/* ---- 1. layout */
+.etf-list .etf-layout { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 16px; align-items: start; margin-top: 16px; }
+.etf-list .etf-layout.is-shut { grid-template-columns: minmax(0, 1fr); }
+.etf-list .etf-main { min-width: 0; }
+.etf-list .etf-side { position: sticky; top: 76px; max-height: calc(100vh - 92px); overflow: auto; overscroll-behavior: contain; margin: 0; padding: 14px 16px 8px; animation: etf-in .16s ease; }
+@keyframes etf-in { from { opacity: 0; } to { opacity: 1; } }
+.etf-list .etf-side-h { display: flex; align-items: center; gap: 8px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+.etf-list .etf-side-t { font: 600 var(--fs-16)/1.3 var(--sans); color: var(--text); }
+.etf-list .etf-reset { margin-left: auto; }
+
+/* ---- the filter groups: a heading that folds its group, the (i), how many are on */
+.etf-list .etf-fs { padding: 8px 0 10px; border-bottom: 1px solid var(--border); }
+.etf-list .etf-fs:last-of-type { border-bottom: 0; }
+.etf-list .etf-fs-h { display: flex; align-items: center; gap: 6px; }
+.etf-list .etf-fs-t { flex: 1; display: flex; align-items: center; gap: 8px; min-height: 36px; padding: 0; border: 0; background: none; color: var(--text); font: 600 var(--fs-14) var(--sans); text-align: left; cursor: pointer; }
+.etf-list .etf-fs-t:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; border-radius: var(--r-ctl); }
+.etf-list .etf-chev { display: inline-flex; margin-left: auto; color: var(--muted); transition: transform .16s ease; }
+.etf-list .etf-fs.is-open .etf-chev { transform: rotate(180deg); }
+.etf-list .etf-fs-n { padding: 1px 8px; border-radius: var(--ui-r-pill); background: var(--gold-soft); color: var(--text); font: 600 var(--fs-12)/1.5 var(--sans); white-space: nowrap; }
+.etf-list .etf-fs-b { padding-top: 4px; }
+.etf-list .etf-opts { margin: 0; padding: 0; list-style: none; max-height: none; overflow: visible; }   /* the panel scrolls, not each list */
+.etf-list .etf-opts label { overflow-wrap: anywhere; }
+.etf-list .etf-allcats { margin-top: 6px; }
+.etf-list .etf-ranges { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+.etf-list .etf-range input { width: 76px; }
+.etf-list .etf-rnote { margin-top: 8px; }
+
+/* ---- 2. the toolbar: pinned under the site header while the page scrolls */
+.etf-list .etf-tools { position: sticky; top: 64px; z-index: 6; margin: 0 0 10px; padding: 8px 0; gap: 10px; flex-wrap: nowrap; background: var(--bg); }
+.etf-list .etf-tools .btn { min-height: 34px; white-space: nowrap; }
+.etf-list .etf-search { height: 38px; flex: 1 1 auto; }
+.etf-list .etf-search input { font-size: var(--fs-14); }
+.etf-list .etf-ftog-n { min-width: 20px; height: 20px; padding: 0 6px; border-radius: var(--ui-r-pill); background: var(--gold); color: var(--on-gold); font: 600 var(--fs-12)/20px var(--sans); text-align: center; }
+.etf-list .etf-countrow { display: flex; align-items: baseline; justify-content: space-between; gap: 6px 12px; flex-wrap: wrap; }
+.etf-list .etf-countrow .etf-count { margin: 0 0 4px; }
+
+/* ---- 3. the table */
+.etf-list .etf-tw { max-height: 680px; overflow: auto; scrollbar-width: thin; scroll-behavior: smooth; }
+.etf-list .etf-tw::-webkit-scrollbar { width: 10px; height: 10px; }
+.etf-list .etf-tw::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: var(--ui-r-pill); }
+.etf-list .etf-tw.has-more { -webkit-mask-image: linear-gradient(to right, black calc(100% - 46px), transparent calc(100% - 10px), black calc(100% - 10px)); mask-image: linear-gradient(to right, black calc(100% - 46px), transparent calc(100% - 10px), black calc(100% - 10px)); }
+.etf-list .etf-table { min-width: 1080px; }
+.etf-list .etf-table thead th { height: 38px; padding: 0 14px; background: var(--s2); z-index: 3; border-bottom: 1px solid var(--border-strong); }
+.etf-list .etf-table thead th.etf-first { z-index: 4; }
+.etf-list .etf-table tbody th, .etf-list .etf-table tbody td { height: 62px; padding: 10px 14px; }
+.etf-list .etf-table .num, .etf-list .etf-table thead .num, .etf-list .etf-table .etf-c-category { text-align: center; }
+.etf-list .etf-table .etf-sort { text-align: inherit; }
+.etf-list .etf-table th:not(.etf-first), .etf-list .etf-table td { border-left: 1px solid var(--border); }
+.etf-list .etf-first { min-width: 260px; max-width: 300px; box-shadow: inset -1px 0 0 var(--border-strong); }
+.etf-list .etf-table .etf-name a { font-weight: 600; }
+.etf-list .etf-table tbody tr.is-picked > * { background: var(--gold-soft); }
+.etf-list .etf-table tbody tr.is-picked > th.etf-first { box-shadow: inset 3px 0 0 var(--gold), inset -1px 0 0 var(--border-strong); }
+.etf-list .etf-pager { margin: 12px 0; }
+.etf-list .etf-pager .btn { min-height: 34px; min-width: 32px; }
+
+/* ---- 4. phone and small tablet: the filters are a drawer */
+.etf-list .etf-dback, .etf-list .etf-side-f { display: none; }
+@media (max-width: 900px) {
+  .etf-list .etf-layout { grid-template-columns: minmax(0, 1fr); }
+  .etf-list .etf-drawer { position: fixed; top: 0; bottom: 0; left: 0; z-index: var(--z-drawer, 320); width: min(340px, 88vw); max-height: none; border-radius: 0 var(--r-card) var(--r-card) 0; padding: 14px 16px 0; animation: etf-slide .2s ease; display: flex; flex-direction: column; }
+  .etf-list .etf-drawer[hidden] { display: none; }
+  .etf-list .etf-side.etf-drawer { padding: 14px 16px 0; background: var(--s1); border-right: 1px solid var(--border); box-shadow: var(--ov-shadow); }
+  .etf-list .etf-drawer > * { flex: none; }   /* each group keeps its full height; the drawer itself scrolls */
+  .etf-list .etf-dback { display: block; position: fixed; inset: 0; }   /* colour and layer from overlay.css (.scrim) */
+  .etf-list .etf-side-f { display: flex; gap: 8px; position: sticky; bottom: 0; margin-top: auto; padding: 12px 0 14px; background: var(--s1); border-top: 1px solid var(--border); }
+  .etf-list .etf-side-f .btn { flex: 1; justify-content: center; min-height: 44px; }
+  .etf-list .etf-drawer .etf-opts label, .etf-list .etf-drawer .etf-fs-t { min-height: 44px; }
+  .etf-list .etf-tools .btn, .etf-list .etf-search { min-height: 44px; height: 44px; }
+  .etf-list .etf-first { min-width: 170px; max-width: 200px; }
+}
+@keyframes etf-slide { from { transform: translateX(-100%); } to { transform: none; } }
+@media (max-width: 640px) {
+  .etf-list .etf-table { min-width: 640px; }   /* the figures scroll sideways beside the pinned name rather than being squeezed */
+  .etf-list .etf-first { min-width: 150px; max-width: 170px; }
+  .etf-list .etf-tools { gap: 8px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .etf-list .etf-side, .etf-list .etf-drawer { animation: none; }
+  .etf-list .etf-chev { transition: none; }
+  .etf-list .etf-tw { scroll-behavior: auto; }
+}
+
+/* task #353: the table, the pages and the compare bar 16px apart, as the boxes above (was 12px); the caption lines above the table stay close to it */
+.etf-list .etf-tw + .etf-pager { margin: 16px 0; }
+.etf-list .etf-pager + .etf-cbar, .etf-list .etf-tw + .etf-cbar { margin-top: 16px; }

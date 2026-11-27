@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-// An administrator sees every plan's features (founder, 14 Nov 2026): the "view as" header only while one plan is previewed, both scores side by side,
-// and nothing taken away from Gold (the Basic stock screener stays).
+// An administrator sees every plan's features (founder, 14 Nov 2026): the "view as" header only while one plan is previewed, FinLit Prism (task #283: the
+// retired score is no longer shown beside it), and nothing taken away from Gold (the Basic stock screener stays).
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { getAdminView, setAdminView, setSeesAllNow, viewAsHeader, VIEW_AS_HEADER } from "./adminView";
@@ -11,22 +11,20 @@ afterEach(() => { setAdminView("all"); setSeesAllNow(false); });
 describe("the admin view", () => {
   it("sends the view-as header only while a plan is previewed, and remembers the choice", () => {
     expect(viewAsHeader()).toEqual({});
-    setAdminView("silver");
-    expect(viewAsHeader()).toEqual({ [VIEW_AS_HEADER]: "silver" }); expect(getAdminView()).toBe("silver");
-    expect(localStorage.getItem("finlit-admin-view")).toBe("silver");
+    setAdminView("equity");   // task #410: the new plans
+    expect(viewAsHeader()).toEqual({ [VIEW_AS_HEADER]: "equity" }); expect(getAdminView()).toBe("equity");
+    expect(localStorage.getItem("finlit-admin-view")).toBe("equity");
     setAdminView("all");
     expect(viewAsHeader()).toEqual({}); expect(localStorage.getItem("finlit-admin-view")).toBeNull();
   });
-  it("adds the FinLit IQ beside FinLit Prism only while an administrator sees everything", () => {
+  it("an administrator seeing everything gets FinLit Prism only, never the retired score beside it (task #283)", () => {
     const row = { overall: 66, band: "healthy", prism_final: 59.4, prism_label: "AVERAGE" };
-    expect(rowView("prism", row).also).toBeUndefined();
     setSeesAllNow(true);
-    const v = rowView("prism", row);
-    expect(v.score).toBe(59); expect(v.also?.model).toBe("iq"); expect(v.also?.score).toBe(66);
+    const v = rowView(row);
+    expect(v.score).toBe(59); expect(v.word).toBe("Average"); expect("also" in v).toBe(false);
     const h = renderToStaticMarkup(<ScoreChip v={v} />);
-    expect(h).toContain("Prism"); expect(h).toContain("FinLit IQ"); expect(h).toContain(">66<");
-    expect(scoreView("prism", { score: 66, word: "Healthy" }, null).also?.score).toBe(66);
-    expect(rowView("iq", row).also).toBeUndefined();        // a Silver view stays one model
+    expect(h).toContain("Prism"); expect(h).not.toMatch(/\bIQ\b/); expect(h).not.toContain(">66<");
+    expect(scoreView(null).why).toBe("FinLit Prism has not rated this company yet.");
   });
 });
 

@@ -1,17 +1,15 @@
 // "Filter companies by growth" on the Latest results page: a grid of thresholds (Revenue, Operating profit, Net profit by QoQ and YoY), the all / any choice,
-// quick presets, and the three donut charts. The controls only edit a GrowthState (kept in the page address); the SERVER filters and counts, so everything
+// and quick presets (the counts card is "The list at a glance", results/pack/Glance.tsx, task #194). The controls only edit a GrowthState (kept in the page address); the SERVER filters and counts, so everything
 // shown here is what it sends back.
-import { Hideable } from "./Hideable";
 import { useEffect, useId, useRef, useState } from "react";
 import { nf } from "../lib/format";
 import { FilterGroup } from "./screener/FilterGroup";
 import "../styles/fgx.css";
 import {
-  CELL_OF, GROWTH_METRICS, GROWTH_OPS, GROWTH_PERIODS, GROWTH_PRESETS, activePreset, applyPreset, cellKeyOf, cleanValue, growthIsDefault, metricLabel, onCells, opWords, pctOf, periodLabel, valueProblem,
-  BAND_EDGES, DEFAULT_PRICE, PRICE_KEYS, PRICE_PRESETS, PRICE_WORD, activePricePreset, bandLabel, priceIsDefault, rangeProblem, sideOn,
-  DEFAULT_GROWTH, type PriceKey, type PriceState, type PriceSide, type PriceSummary, type PriceCondSummary, type CellKey, type GrowthCond, type GrowthCondSummary, type GrowthOp, type GrowthState, type GrowthSummary, type QDistribution,
+  CELL_OF, GROWTH_METRICS, GROWTH_OPS, GROWTH_PERIODS, GROWTH_PRESETS, activePreset, applyPreset, cellKeyOf, cleanValue, growthIsDefault, metricLabel, onCells, opWords, periodLabel, valueProblem,
+  BAND_EDGES, DEFAULT_PRICE, PRICE_KEYS, PRICE_PRESETS, PRICE_WORD, activePricePreset, bandLabel, priceHeldLines, priceIsDefault, rangeProblem, sideOn, type QResp,
+  DEFAULT_GROWTH, type PriceKey, type PriceState, type PriceSide, type PriceSummary, type PriceCondSummary, type CellKey, type GrowthCond, type GrowthCondSummary, type GrowthOp, type GrowthState, type GrowthSummary,
 } from "../lib/qresults";
-import { ChartZoom } from "../components/ChartZoom";
 
 export const LENDER_NOTE = "Banks and lenders do not report operating profit growth, so they never match an operating-profit filter.";
 const DEBOUNCE = 600;
@@ -103,9 +101,11 @@ function PriceSection({ k, side, onSide }: { k: PriceKey; side: PriceSide; onSid
   );
 }
 
-export function GrowthPanel({ state, onChange, summary, loading, price = DEFAULT_PRICE, onPrice, priceSummary, onBoth, onReset }: {
+export function GrowthPanel({ state, onChange, summary, loading, price = DEFAULT_PRICE, onPrice, priceSummary, onBoth, onReset, held }: {
   state: GrowthState; onChange: (g: GrowthState) => void; summary?: GrowthSummary | null; loading?: boolean;
   price?: PriceState; onPrice?: (p: PriceState) => void; priceSummary?: PriceSummary | null; onBoth?: (g: GrowthState, p: PriceState) => void; onReset?: () => void;
+  /** The count of 52-week and all-time highs on file over the whole table (Silver; null for Basic): shown under the Price position filter. */
+  held?: QResp["priceStrip"];
 }) {
   const on = onCells(state), k = on.length;
   const opUsed = on.some((c) => CELL_OF[c][0] === "operatingProfit");
@@ -122,7 +122,7 @@ export function GrowthPanel({ state, onChange, summary, loading, price = DEFAULT
     <section className="qg qg-side" aria-labelledby="qg-h">
       <h2 className="sr-only" id="qg-h">Filter companies by growth and price position</h2>
       <p className="muted qg-lead">Growth filters and price-position filters apply together.</p>
-      <button type="button" className="btn qg-reset" disabled={growthIsDefault(state) && priceIsDefault(price)} onClick={reset}>Reset filters</button>
+      <button type="button" className="btn qg-reset" disabled={growthIsDefault(state) && priceIsDefault(price)} onClick={reset}>Clear growth and price filters</button>
       <FilterGroup id="qg-quick" title="Quick fills" defaultOpen>
       <div className="qg-presets" role="group" aria-label="Quick fills">
         <span className="qg-pl">Quick fills</span>
@@ -156,6 +156,7 @@ export function GrowthPanel({ state, onChange, summary, loading, price = DEFAULT
         <FilterGroup id="qg-price" title="Price position" defaultOpen active={pOn.length} meta={<span className="qg-new">New filter</span>}>
         <div className="qg-blk qg-price" role="group" aria-label="Price position">
           <p className="muted qg-lead">Identify companies based on how far their current market price is below their highest recorded price.</p>
+          {held && held.companies > 0 && <ul className="qg-held" aria-label="Highs on file">{priceHeldLines(held).map((l) => <li key={l}>{l}</li>)}</ul>}
           <div className="qg-psets">{PRICE_KEYS.map((x) => <PriceSection key={x} k={x} side={price[x]} onSide={(s) => setSide(x, s)} />)}</div>
           <div className="qg-modewrap">
             <span className="qg-fl">Filter logic</span>
@@ -182,71 +183,6 @@ export function GrowthPanel({ state, onChange, summary, loading, price = DEFAULT
         </> : <p>{loading && (k > 0 || pOn.length > 0) ? "Applying the filter…" : "No growth or price-position filter is on, so every company in the table is shown."}</p>}
       </div>
       <p className="qg-note">Growth is not defined when the earlier quarter was zero or a loss, or is not in our statements; such a company shows a dash, has no figure for that cell and cannot match it. Information only, not advice.</p>
-    </section>
-  );
-}
-
-// ---------------------------------------------------------------- donuts
-export type Part = { label: string; n: number; color: string };
-const R = 70, r = 46, C = 90;
-const pt = (rad: number, a: number) => `${(C + rad * Math.cos(a)).toFixed(2)},${(C + rad * Math.sin(a)).toFixed(2)}`;
-
-/** A plain SVG donut with a visible legend that carries every count and share (the text alternative), and one aria-label that says the same in a sentence. */
-export function QrDonut({ title, parts, centerLabel, empty }: { title: string; parts: Part[]; centerLabel: string; empty: string }) {
-  const total = parts.reduce((a, p) => a + p.n, 0);
-  const sentence = `${title}: ${total === 0 ? empty : parts.map((p) => `${p.label} ${nf(p.n, 0)} (${nf(pctOf(p.n, total), 1)}%)`).join(", ")}`;
-  let a0 = -Math.PI / 2;
-  const live = parts.filter((p) => p.n > 0);
-  const arcs = live.map((p) => {
-    const sweep = (p.n / total) * Math.PI * 2, a1 = a0 + sweep - (live.length > 1 ? 0.012 : 0), big = a1 - a0 > Math.PI ? 1 : 0;
-    const d = `M${pt(R, a0)}A${R},${R} 0 ${big} 1 ${pt(R, a1)}L${pt(r, a1)}A${r},${r} 0 ${big} 0 ${pt(r, a0)}Z`;
-    a0 += sweep;
-    return { p, d };
-  });
-  return (
-    <figure className="card qg-chart">
-      <ChartZoom label={title} className="cz-r">
-      <figcaption><h3>{title}</h3></figcaption>
-      <div className="qg-dn">
-        <svg viewBox="0 0 180 180" role="img" aria-label={sentence} className="qg-svg">
-          <circle cx={C} cy={C} r={(R + r) / 2} fill="none" stroke="var(--s3)" strokeWidth={R - r} />
-          {live.length === 1 ? <circle cx={C} cy={C} r={(R + r) / 2} fill="none" stroke={live[0].color} strokeWidth={R - r} /> : arcs.map(({ p, d }) => <path key={p.label} d={d} fill={p.color} />)}
-          <text x="90" y="89" textAnchor="middle" className="qg-c1">{nf(total, 0)}</text>
-          <text x="90" y="106" textAnchor="middle" className="qg-c2">{centerLabel}</text>
-        </svg>
-        {total === 0 ? <p className="muted qg-none">{empty}</p> : (
-          <ul className="qg-legend" aria-label={`${title}, counts and shares`}>
-            {parts.map((p) => <li key={p.label}><i style={{ background: p.color }} aria-hidden="true" /><span>{p.label}</span><b>{nf(p.n, 0)}</b><small>{nf(pctOf(p.n, total), 1)}%</small></li>)}
-          </ul>
-        )}
-      </div>
-      </ChartZoom>
-    </figure>
-  );
-}
-
-const SECTOR_COLORS = ["var(--qr-c1)", "var(--qr-c2)", "var(--qr-c3)", "var(--qr-c4)", "var(--qr-c5)", "var(--qr-c6)", "var(--qr-c7)", "var(--qr-c8)"];
-const CAP_COLORS: Record<string, string> = { Large: "var(--qr-c1)", Mid: "var(--qr-c2)", Small: "var(--qr-c3)", "Not classified": "var(--qr-c8)" };
-
-export function growthParts(g: GrowthSummary): Part[] {
-  if (g.k === 1) return [{ label: "Meets the condition", n: g.metAll, color: "var(--gold)" }, { label: "Does not meet it", n: g.metNone, color: "var(--qr-none)" }];
-  return [{ label: `Meet all ${g.k}`, n: g.metAll, color: "var(--gold)" }, { label: "Meet some, not all", n: g.metSome, color: "var(--qr-qoq)" }, { label: "Meet none", n: g.metNone, color: "var(--qr-none)" }];
-}
-
-export function GrowthCharts({ summary, dist, locked }: { summary?: GrowthSummary | null; dist?: QDistribution; locked: boolean }) {
-  return (
-    <section className="qg-charts" aria-label="Charts for the companies in the table">
-      {summary
-        ? <QrDonut title="Companies meeting the growth conditions" parts={growthParts(summary)} centerLabel="with figures" empty="No company has figures for this quarter." />
-        : <figure className="card qg-chart"><figcaption><h3>Companies meeting the growth conditions</h3></figcaption>
-          <p className="muted qg-none">{locked ? "Growth filters and their counts are part of the Silver plan." : "Fill one or more cells of the growth filter above to see how many companies meet them."}</p></figure>}
-      <Hideable id="results.sectors" title="Sector-wise distribution">
-  <QrDonut title="Sector-wise distribution" parts={(dist?.sectors || []).map((s, i) => ({ label: s.name, n: s.n, color: s.name === "Others" ? "var(--qr-c8)" : SECTOR_COLORS[i % 7] }))} centerLabel="companies" empty="No companies in this view." />
-      </Hideable>
-      <Hideable id="results.caps" title="Market cap distribution">
-  <QrDonut title="Market cap distribution" parts={(dist?.caps || []).map((c) => ({ label: c.name, n: c.n, color: CAP_COLORS[c.name] || "var(--qr-c8)" }))} centerLabel="companies" empty="No companies in this view." />
-      </Hideable>
-      <p className="muted qg-foot">Counts cover every matching company, not just the page shown. Market cap groups are the site's own Large, Mid and Small bands; companies without a band are shown as Not classified. Informational only, not a recommendation.</p>
     </section>
   );
 }

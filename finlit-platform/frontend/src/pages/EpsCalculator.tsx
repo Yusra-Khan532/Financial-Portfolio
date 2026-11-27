@@ -20,6 +20,8 @@ import {
 import "../styles/dcf.css";
 import "../styles/eps.css";
 import { ChartZoom } from "../components/ChartZoom";
+import { growthTells, type Tells } from "../lib/epsGrowthTells";
+import { codeText } from "../lib/companyLabel";
 
 // ------------------------------------------------------------------------------------------------------------- form state
 type Form = { np: string; pd: string; sh: string; ds: string; px: string; m: "b" | "d"; g: string; pe: string; n: string; bg: string; bp: string; ug: string; up: string; sym: string };
@@ -122,7 +124,7 @@ function CompanyLoader({ initial, loaded, onLoad, onClear }: { initial: string |
       {failed && !busy && <p className="formerr" role="alert">Could not load this company's figures. Enter them by hand.</p>}
       {loaded && !busy && (
         <div className="dcf-src">
-          <p><b>{loaded.name}</b> <span className="mono faint">{loaded.symbol}</span> · {loaded.statement} statements</p>
+          <p><b>{loaded.name}</b> <span className="mono faint">{codeText(loaded.symbol)}</span> · {loaded.statement} statements</p>
           <ul>
             <li>Net profit and shares: {loaded.period ? `annual report for ${loaded.period}${loaded.periodEnd ? ` (year ended ${dateIN(loaded.periodEnd.slice(0, 10))})` : ""}` : "not available"}. Source: FinLit stored financial statements; net profit is profit attributable to the owners of the company, as EPS is.</li>
             <li>Price: latest stored quote{loaded.priceAsOf ? ` (${dateIN(loaded.priceAsOf.slice(0, 10))})` : ""}.</li>
@@ -225,6 +227,35 @@ export function HowToUse() {
   </>);
 }
 
+/** "What your growth assumption tells you" (task #205): collapsed by default, directly under the results tiles. One row per result: whether growth moves it,
+ *  which way from the previous rate, the change, and why in one line. Updates as the inputs change. */
+const ARROW = { up: "▲ Increases", down: "▼ Decreases", same: "= Unchanged", na: "" } as const;
+export function GrowthTells({ t }: { t: Tells }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className={"eps-gt" + (open ? " on" : "")}>
+      <button type="button" className="eps-gtb" aria-expanded={open} aria-controls="eps-gt-p" onClick={() => setOpen((o) => !o)}>
+        <Icon name="info" /><span>What your growth assumption tells you</span><span className="eps-caret" aria-hidden="true">▾</span></button>
+      <div id="eps-gt-p" className="eps-gtp" hidden={!open} aria-live="polite">
+        <p className="eps-gth">{t.headline}</p>
+        <ul className="eps-gtl">
+          {t.rows.map((r) => (
+            <li key={r.key} className={"eps-gtr " + (r.affected ? "aff" : "fix")} data-dir={r.dir}>
+              <div className="eps-gtm"><b>{r.metric}</b><span className={"eps-gtt " + (r.affected ? "aff" : "fix")}>{r.affected ? "Moves with growth" : "Not affected by growth"}</span></div>
+              <div className="eps-gtv">
+                {r.dir !== "na" && <span className={"eps-gtd " + r.dir}>{ARROW[r.dir]}</span>}
+                <span className="eps-gtn">{r.before != null && <><span className="faint">{r.before}</span> → </>}<b>{r.now}</b></span>
+                <span className="eps-gtc">{r.change}</span>
+              </div>
+              <p className="eps-gtw">{r.why}</p>
+            </li>))}
+        </ul>
+        <p className="faint eps-gtf">The comparison keeps today's company inputs fixed, so it shows only what the growth rate itself changes. A scenario, not a forecast.</p>
+      </div>
+    </div>
+  );
+}
+
 // ------------------------------------------------------------------------------------------------------------- page
 export function EpsCalculatorPage() {
   useDocTitle("P/E, EPS & PEG calculator", "Earnings per share, P/E and a future-price scenario: basic or diluted EPS, PEG, 5-year growth and P/E scenarios, Bear/Base/Bull cases and a sensitivity grid.");
@@ -289,6 +320,11 @@ export function EpsCalculatorPage() {
   const selYear = Math.min(sel, Number.isInteger(n) ? n : 0);
   const peg = pegOf(a.pe.value, base.growth);
   const eps5 = a.e != null && a.e > 0 && !chk.growth ? futureEps(a.e, base.growth, 5) : null;
+  // task #205: the previous growth rate is the last one that stayed put for half a second, so typing "15" is not read as a change to "1" first
+  const gNow = Number.isFinite(base.growth) && !chk.growth ? base.growth : null;
+  const [gSet, setGSet] = useState<{ cur: number | null; prev: number | null }>(() => ({ cur: gNow, prev: null }));
+  useEffect(() => { if (gNow == null || gNow === gSet.cur) return; const h = window.setTimeout(() => setGSet((s) => ({ cur: gNow, prev: s.cur })), 500); return () => window.clearTimeout(h); }, [gNow, gSet.cur]);
+  const tells = growthTells(a.e, a.pe.value, gNow, gNow != null && gNow !== gSet.cur ? gSet.cur : gSet.prev);
   // scenario tables (task #155): growth rows are the quick picks plus the user's own rate; P/E rows are fixed multiples plus today's P/E
   const scenOk = a.e != null && a.e > 0 && a.px > 0 && !a.errs.px;
   const scenWhy = a.e == null || a.errs.px ? "Complete the company inputs to see the scenarios." : "Not meaningful: EPS is zero or negative, so growth rates and P/E multiples do not describe a price.";
@@ -322,7 +358,7 @@ export function EpsCalculatorPage() {
   return (
     <>
       <PageHeader wrap plan="free" title="P/E, EPS & PEG calculator" art="calculator" links={["/dcf", "/sip-calculator", "/research"]} titleAside={<HowToUse />}
-        description={<>Work out <b>earnings per share, the P/E ratio and the PEG ratio</b> from four numbers, then see what a future EPS and a target P/E would imply for the share price. Everything updates as you type, and the working is shown.</>} />
+        description="EPS, P/E and PEG from four numbers, and the price a future EPS and target P/E would imply." />
       <div className="wrap dcf eps">
         <div ref={top} className="eps-anchor" aria-hidden="true" />
         <div ref={bar} className={"eps-tabs" + (edge.l ? " fl" : "") + (edge.r ? " fr" : "")} role="tablist" aria-label="Calculator sections" onKeyDown={onTabKey} onScroll={edges}>
@@ -389,6 +425,7 @@ export function EpsCalculatorPage() {
               <div className="eps-tile alt"><span className="eps-ti" aria-hidden="true"><Icon name="spark" /></span><div><span>Implied 5Y EPS (₹)</span><b>{eps5 == null ? "—" : rs(eps5)}</b>
                 <small>{eps5 == null ? (a.e == null ? "Complete the inputs" : a.e <= 0 ? "Not meaningful: EPS is zero or negative" : chk.growth) : <>{fix2(a.e as number)} × (1 + {nf(base.growth, 1)}%)<sup>5</sup></>}</small></div></div>
             </div>
+            <GrowthTells t={tells} />
             {a.e != null && a.pd > 0 && a.np - a.pd < 0 && a.np >= 0 && <p className="dcf-note" role="note"><Icon name="info" />Preference dividends are larger than net profit, so nothing is left for ordinary shareholders and EPS is negative.</p>}
             <p className="faint eps-formula">EPS = (Net profit − Preference dividends) ÷ weighted average basic or diluted shares, as selected. PEG uses the growth rate you assume, not a history, and says nothing where growth is zero or negative or the P/E is not meaningful. FinLit's PEG on company pages uses 5-year profit growth instead.</p>
           </section>

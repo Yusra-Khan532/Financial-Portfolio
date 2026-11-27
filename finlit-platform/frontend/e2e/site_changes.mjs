@@ -18,14 +18,12 @@ async function page(who, w = 1366) {
   check("tagline under the hero", /Quantify the market\s*×\s*Research deeper\s*×\s*Track what matters/.test((await p.locator(".tagline").innerText()).replace(/\n/g, " ")));
   check("coming soon block with email box", (await p.locator("#coming-soon").count()) === 1 && (await p.locator("#coming-soon input[type=email]").count()) === 1);
   check("removed: results, process, founder", !/Results, reported openly/i.test(body) && !/From research to portfolio decisions/i.test(body) && !/Meet the founder/i.test(body));
-  check("pricing: comparison table with green ticks and red crosses", (await p.locator("#pricing .cmp .yes.ck").count()) > 10 && (await p.locator("#pricing .cmp .x-no").count()) > 10);
-  check("pricing: equity research report marked coming soon", (await p.locator("#pricing .soon-tag").count()) === 1);
+  check("home: no plans band on the landing page (task #295; plans are on /plans)", (await p.locator("#pricing").count()) === 0);
   // notify form
   await p.locator("#coming-soon input[type=email]").fill("not-an-email"); await p.locator("#coming-soon button.btn").click(); check("notify: bad address is refused kindly", (await p.locator("#coming-soon .nf-err").count()) === 1);
   const addr = `site-check-${Date.now()}@example.com`; await p.locator("#coming-soon input[type=email]").fill(addr); await p.locator("#coming-soon button.btn").click(); await p.waitForTimeout(800);
   check("notify: thank-you shown after saving", (await p.locator("#coming-soon .nf-done").count()) === 1);
   await p.screenshot({ path: `${OUT}/home-top.png` }); await p.locator(".plat").scrollIntoViewIfNeeded(); await p.screenshot({ path: `${OUT}/home-features.png` });
-  await p.locator("#pricing").scrollIntoViewIfNeeded(); await p.screenshot({ path: `${OUT}/home-pricing.png` });
   check("home: no page errors", p.errs.length === 0, p.errs.join(" | "));
   const nav = await p.locator("header").innerText(); check("menus: no Track record link", !/Track record/.test(nav));
   await ctx.close(); }

@@ -3,7 +3,7 @@
 // It draws what it is given: no statistic is computed here. Geometry helpers are in lib/advanced.ts (tested).
 import { useId, useMemo, useState, type KeyboardEvent, type PointerEvent } from "react";
 import { bandPath, edgeOf, linTicks, logTicks, nearest, shapePath, viewRange, type Scale, type Shape } from "../lib/advanced";
-import { ChartZoom, useZoomWidth } from "./ChartZoom";
+import { ChartZoom, useZoomWidth, useZoomHeight } from "./ChartZoom";
 
 export type ScPt = { key: string; label: string; x: number; y: number; note?: string };
 export type ScSeries = { key: string; name: string; color: string; shape: Shape; pts: ScPt[]; hollow?: boolean; join?: boolean };
@@ -27,7 +27,7 @@ type Props = {
 const M = { l: 68, r: 14, t: 14, b: 46 };
 
 function AdvScatterBody({ cloud, series, fits, sx, sy, xLabel, yLabel, fmtX, fmtY, tickX, tickY, all, w, summary, labels = true, view, marks = [] }: Props) {
-  const H = w < 600 ? 300 : 400;
+  const [svgRef, H] = useZoomHeight<SVGSVGElement>(w < 600 ? 300 : 400);   // task #167: in full screen it fills the height too
   const tid = useId();
   const tx = (v: number) => (sx === "log" ? Math.log10(v) : v), ty = (v: number) => (sy === "log" ? Math.log10(v) : v);
   const okPt = (p: ScPt) => Number.isFinite(p.x) && Number.isFinite(p.y) && (sx !== "log" || p.x > 0) && (sy !== "log" || p.y > 0);
@@ -94,7 +94,7 @@ function AdvScatterBody({ cloud, series, fits, sx, sy, xLabel, yLabel, fmtX, fmt
 
   return (
     <div className="adv-plot" onPointerLeave={() => setHi(null)}>
-      <svg width={w} height={H} viewBox={`0 0 ${w} ${H}`} role="img" tabIndex={0} aria-label={summary} aria-describedby={`${clip}-live`} onPointerMove={onMove} onKeyDown={onKey} onBlur={() => setHi(null)}>
+      <svg ref={svgRef} width={w} height={H} viewBox={`0 0 ${w} ${H}`} role="img" tabIndex={0} aria-label={summary} aria-describedby={`${clip}-live`} onPointerMove={onMove} onKeyDown={onKey} onBlur={() => setHi(null)}>
         <defs><clipPath id={clip}><rect x={M.l} y={M.t} width={pw} height={ph} /></clipPath></defs>
         <rect data-plot="" x={M.l} y={M.t} width={pw} height={ph} fill="none" pointerEvents="none" />{/* the plotting area: chart drawings stay inside it (task #124) */}
         {yt.map((t) => <g key={"y" + t}><line className="adv-gl" x1={M.l} x2={M.l + pw} y1={Y(t)} y2={Y(t)} /><text className="adv-tick" x={M.l - 6} y={Y(t) + 4} textAnchor="end">{tickY(yv(t))}</text></g>)}

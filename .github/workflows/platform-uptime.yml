@@ -1,0 +1,59 @@
+name: Outside uptime check
+# Every five minutes, from GitHub's machines (outside AWS): does https://finlitventures.com/api/health answer? (docs/MONITORING.md)
+# Two failures in a row (checked again after 60 s within the same run) send an email through Resend (secret RESEND_API_KEY), or, when it is not set,
+# open (or add to) a GitHub issue titled "Site down". Every result is also sent to the admin console when MONITOR_INGEST_KEY is set.
+# GitHub may start a scheduled run a few minutes late; the check on the server (Gatus) is the minute-by-minute one.
+on:
+  schedule: [{cron: "*/5 * * * *"}]
+  workflow_dispatch:
+permissions:
+  contents: read
+  issues: write
+concurrency: {group: outside-uptime, cancel-in-progress: false}
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      BASE_URL: ${{ vars.FINLIT_SITE_URL || 'https://finlitventures.com' }}
+      ALERT_EMAIL_TO: ${{ vars.ALERT_EMAIL_TO || 'finlit.start@gmail.com' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: finlit-platform/scripts
+      - name: Ask the site, twice if the first answer is bad
+        id: probe
+        run: |
+          probe() {
+            out=$(curl -s -o body.json -w '%{http_code} %{time_total}' --max-time 20 "$BASE_URL/api/health" || echo "000 0")
+            code=${out%% *}; secs=${out##* }
+            ms=$(python3 -c "print(int(float('$secs')*1000))")
+            ver=$(python3 -c "import json;print(json.load(open('body.json')).get('version',''))" 2>/dev/null | tr -cd 'A-Za-z0-9._-' | cut -c1-40 || true)
+            ok=0; [ "$code" = "200" ] && grep -q '"ok":true' body.json 2>/dev/null && ok=1
+          }
+          probe; fails=0
+          if [ "$ok" != "1" ]; then fails=1; sleep 60; probe; [ "$ok" != "1" ] && fails=2; fi
+          echo "ok=$ok code=$code ms=$ms version=$ver fails=$fails"
+          { echo "ok=$ok"; echo "code=$code"; echo "ms=$ms"; echo "version=$ver"; echo "fails=$fails"; } >> "$GITHUB_OUTPUT"
+      - name: Report to the admin console
+        env:
+          MONITOR_INGEST_KEY: ${{ secrets.MONITOR_INGEST_KEY }}   # secrets go only to the step that uses them
+          P_OK: ${{ steps.probe.outputs.ok }}
+          P_CODE: ${{ steps.probe.outputs.code }}
+          P_MS: ${{ steps.probe.outputs.ms }}
+          P_VER: ${{ steps.probe.outputs.version }}
+          P_FAILS: ${{ steps.probe.outputs.fails }}
+        run: python3 finlit-platform/scripts/monitor_report.py outside "$P_OK" "$P_CODE" "$P_MS" "$P_VER" "$P_FAILS"
+      - name: Alert (two failures in a row)
+        if: steps.probe.outputs.fails == '2'
+        env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}   # Resend's SMTP; without it the alert opens a GitHub issue instead
+          GH_TOKEN: ${{ github.token }}
+          RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          P_CODE: ${{ steps.probe.outputs.code }}
+        run: |
+          text="FinLit did not answer twice in a row from outside ($BASE_URL/api/health, HTTP $P_CODE). Run: $RUN. First steps: docs/MONITORING.md."
+          if python3 finlit-platform/scripts/monitor_report.py email "FinLit is DOWN (outside check)" "$text"; then exit 0; fi
+          n=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "Site down in:title" --json number --jq '.[0].number' || true)
+          if [ -n "$n" ]; then gh issue comment "$n" --repo "$GITHUB_REPOSITORY" --body "$text"; else gh issue create --repo "$GITHUB_REPOSITORY" --title "Site down (outside check)" --body "$text"; fi

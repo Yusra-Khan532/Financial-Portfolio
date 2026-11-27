@@ -9,8 +9,8 @@ Rules (the same as every other source in this repo):
 - one plain, identifying user agent; robots.txt is obeyed; a refusal, a rate limit or a bot check marks the site 'blocked' for 30 days.
   Nothing spoofs a header or goes around a challenge.
 - https (plain http only where a site offers nothing else), standard ports only; every address a host resolves to must be public (no
-  private, loopback or link-local targets), checked again on each of at most 3 redirects; every download is streamed with a byte cap and a
-  short timeout.
+  private, loopback or link-local targets), checked again on each of at most 3 redirects, and the connection is opened to the address that was
+  checked, never to a second lookup (netguard.PinnedTransport); every download is streamed with a byte cap and a short timeout.
 - an image is kept only if its bytes really are PNG, ICO, GIF, JPEG or WebP (magic bytes, not the Content-Type), 16 to 1024 px, not far
   from square and at most MAX_BYTES. SVG is never accepted (it can carry script).
 - logos are served from our own origin under the image's hash, cached for a year (immutable), so a browser never asks twice.
@@ -21,7 +21,6 @@ import asyncio
 import base64
 import binascii
 import hashlib
-import ipaddress
 import logging
 import re
 import socket
@@ -39,6 +38,7 @@ from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, Field
 
+from . import netguard
 from .auth.routes import NO_STORE, Ctx, admin_ctx, fail
 
 log = logging.getLogger("finlit.logos")
@@ -46,8 +46,10 @@ router = APIRouter(prefix="/api/logos")
 
 USER_AGENT = "FinLit-logo/1.0 (+https://finlitventures.com; one request per page, robots.txt obeyed)"
 MAX_HTML = 256 * 1024
-MAX_BYTES = 64 * 1024
-MIN_PX, MAX_PX = 16, 1024             # many company sites publish only a 16 px favicon; it is shown at its own size, never blown up
+MAX_BYTES = 128 * 1024              # 64 KB refused many current apple-touch-icons (Coal India's is 68 KB, 25 Nov 2026); 128 KB is still small to serve, cached for a year
+MIN_PX, MAX_PX = 16, 1024
+MAX_PX_HAND = 4096                    # a hand-set logo (Console): official media-kit files run to a few thousand pixels
+# (many company sites publish only a 16 px favicon; it is shown at its own size, never blown up)
 TIMEOUT = 6.0
 MAX_REDIRECTS = 3
 PARALLEL = 4
@@ -139,7 +141,7 @@ def _ico_best(b: bytes) -> Tuple[bytes, str, int, int]:
     return b, "image/x-icon", w, h
 
 
-def sniff(data: bytes) -> Tuple[bytes, str, int, int]:
+def sniff(data: bytes, wide: bool = False) -> Tuple[bytes, str, int, int]:
     """(bytes to keep, MIME type, width, height) for an accepted image; raises Rejected otherwise. Decided by the bytes, never the header."""
     head = data[:64].lstrip().lower()
     if head.startswith((b"<svg", b"<?xml", b"<!doctype", b"<html")):
@@ -156,10 +158,12 @@ def sniff(data: bytes) -> Tuple[bytes, str, int, int]:
         out, mime, (w, h) = data, "image/webp", _webp_size(data)
     else:
         raise Rejected("unknown image format")
-    if not (MIN_PX <= min(w, h) and max(w, h) <= MAX_PX):
-        raise Rejected(f"size {w}x{h} outside {MIN_PX}-{MAX_PX} px")
-    if not h or not 0.66 <= w / h <= 1.5:
-        raise Rejected(f"not square enough ({w}x{h})")
+    top = MAX_PX_HAND if wide else MAX_PX              # media-kit logos are often large (LTTS's is 3227x1202); the byte cap still keeps them light
+    if not (MIN_PX <= min(w, h) and max(w, h) <= top):
+        raise Rejected(f"size {w}x{h} outside {MIN_PX}-{top} px")
+    lo, hi = (0.25, 4.0) if wide else (0.66, 1.5)   # a hand-set official logo may be a wordmark up to 4:1 (the tile fits it, never crops; wider is unreadable)
+    if not h or not lo <= w / h <= hi:
+        raise Rejected(f"not square enough ({w}x{h})" if not wide else f"too wide or tall ({w}x{h}); at most 4:1, use the company's square mark instead")
     if len(out) > MAX_BYTES:
         raise Rejected(f"file too large ({len(out) // 1024} KB)")
     return out, mime, w, h
@@ -245,11 +249,13 @@ class Blocked(Exception):
 
 
 class Fetcher:
-    """GET with the safety rules above. `transport` and `resolver` are replaced in tests."""
+    """GET with the safety rules above. `transport` and `resolver` are replaced in tests. By default every connection goes through
+    netguard.PinnedTransport: the address the socket is opened to is the public address that was checked, not a second lookup (DNS rebinding)."""
 
     def __init__(self, transport: Optional[httpx.AsyncBaseTransport] = None, resolver: Optional[Resolver] = None):
-        self.http = httpx.AsyncClient(transport=transport, timeout=TIMEOUT, follow_redirects=False, headers={"User-Agent": USER_AGENT, "Accept": "*/*"})
         self.resolver = resolver or _resolve
+        self.http = httpx.AsyncClient(transport=transport or netguard.PinnedTransport(resolver=self.resolver), timeout=TIMEOUT, follow_redirects=False,
+                                      headers={"User-Agent": USER_AGENT, "Accept": "*/*"})
         self.robots: Dict[str, Optional[RobotFileParser]] = {}
 
     async def aclose(self):
@@ -260,7 +266,7 @@ class Fetcher:
             addrs = await self.resolver(host)
         except Exception as exc:
             raise Rejected(f"host does not resolve ({type(exc).__name__})") from exc
-        if not addrs or any(not ipaddress.ip_address(a.split("%")[0]).is_global for a in addrs):
+        if not addrs or any(netguard.unsafe_address(a) for a in addrs):
             raise Rejected("host resolves to a private or reserved address")
 
     async def _allowed(self, url: str) -> bool:
@@ -521,29 +527,89 @@ async def missing(request: Request, limit: int = Query(100, ge=1, le=500), offse
 
 class ManualLogoIn(BaseModel):
     symbol: str = Field(min_length=1, max_length=24, pattern=r"^[A-Za-z0-9&._-]+$")
-    image: str = Field(min_length=8, max_length=100_000, description="the image file, base64 (the file itself is at most 64 KB)")
+    image: str = Field(min_length=8, max_length=180_000, description="the image file, base64 (the file itself is at most 128 KB)")
+
+
+async def _set_manual(conn, sym: str, data: bytes, source_url: Optional[str]) -> str:
+    """Checks the image (wide allowed) and stores it as the company's hand-set logo; returns its path. Raises Rejected."""
+    out, mime, w, h = sniff(data, wide=True)
+    sha = hashlib.sha256(out).hexdigest()[:16]
+    await conn.execute(
+        """INSERT INTO logos (owner_kind, owner_key, domain, status, mime, width, height, sha8, bytes, source_url, note, fetched_at, next_try_at)
+           VALUES ('stock', $1, NULL, 'manual', $2, $3, $4, $5, $6, $7, 'Set by hand', now(), now() + interval '3650 days')
+           ON CONFLICT (owner_kind, owner_key) DO UPDATE SET status = 'manual', mime = EXCLUDED.mime, width = EXCLUDED.width, height = EXCLUDED.height, sha8 = EXCLUDED.sha8,
+               bytes = EXCLUDED.bytes, source_url = EXCLUDED.source_url, note = 'Set by hand', fetched_at = now(), next_try_at = EXCLUDED.next_try_at""",
+        sym, mime, w, h, sha, out, source_url)
+    return logo_path(sha)
+
+
+async def _drop_quotes_cache(store) -> None:
+    """A new hand-set logo shows at once: the cached quotes lists are rebuilt from the database on the next request."""
+    try:
+        await store.redis.delete("search-quotes:basic", "search-quotes:silver", "search-quotes:raw:v2")
+    except Exception:   # nosec B110 - Redis down: the lists rebuild within their 60 s lifetime anyway
+        pass
 
 
 @router.post("/admin/manual", status_code=201)
 async def manual(request: Request, body: ManualLogoIn, ctx: Ctx = Depends(admin_ctx)) -> JSONResponse:
-    """Administrators: set a company's logo by hand (an official brand image). The same checks as the automatic ones (real bitmap, square-ish, size); it is kept as
-    'manual', which the nightly job never overwrites."""
+    """Administrators: set a company's logo by hand (an official brand image). Real bitmap, at most 3:1, size checked; kept as 'manual', which
+    the nightly job never overwrites and which wins over every other source."""
     try:
         data = base64.b64decode(body.image, validate=True)
     except (binascii.Error, ValueError):
         raise fail(422, "bad_image", "The image could not be read. Send the file as base64.")
-    try:
-        out, mime, w, h = sniff(data)
-    except Rejected as exc:
-        raise fail(422, "rejected", f"This image is not accepted: {exc}.")
     sym = body.symbol.upper()
-    sha = hashlib.sha256(out).hexdigest()[:16]
     async with request.app.state.store.pool.acquire() as conn:
         if not await conn.fetchval("SELECT 1 FROM companies WHERE symbol = $1", sym):
             raise fail(404, "not_found", "No listed company has this symbol.")
-        await conn.execute(
-            """INSERT INTO logos (owner_kind, owner_key, domain, status, mime, width, height, sha8, bytes, source_url, note, fetched_at, next_try_at)
-               VALUES ('stock', $1, NULL, 'manual', $2, $3, $4, $5, $6, NULL, 'Set by hand', now(), now() + interval '3650 days')
-               ON CONFLICT (owner_kind, owner_key) DO UPDATE SET status = 'manual', mime = EXCLUDED.mime, width = EXCLUDED.width, height = EXCLUDED.height, sha8 = EXCLUDED.sha8,
-                   bytes = EXCLUDED.bytes, note = 'Set by hand', fetched_at = now(), next_try_at = EXCLUDED.next_try_at""", sym, mime, w, h, sha, out)
-    return JSONResponse({"symbol": sym, "status": "manual", "path": logo_path(sha)}, status_code=201, headers=NO_STORE)
+        try:
+            path = await _set_manual(conn, sym, data, None)
+        except Rejected as exc:
+            raise fail(422, "rejected", f"This image is not accepted: {exc}.")
+    await _drop_quotes_cache(request.app.state.store)
+    return JSONResponse({"symbol": sym, "status": "manual", "path": path}, status_code=201, headers=NO_STORE)
+
+
+class LinkItem(BaseModel):
+    symbol: str = Field(min_length=1, max_length=24, pattern=r"^[A-Za-z0-9&._-]+$")
+    url: str = Field(min_length=10, max_length=600)
+
+
+class LinksIn(BaseModel):
+    items: List[LinkItem] = Field(min_length=1, max_length=60)
+
+
+@router.post("/admin/from-links")
+async def from_links(request: Request, body: LinksIn, ctx: Ctx = Depends(admin_ctx)) -> JSONResponse:
+    """Administrators (owner, 25 Nov 2026: a browser assistant finds each company's official logo and pastes "SYMBOL link" lines in the
+    Console): each link is downloaded by the server with the nightly job's rules (public addresses only, robots.txt, byte cap, real bitmap,
+    SVG refused) and set as that company's hand-set logo. One result per line; one failure never stops the others."""
+    out = []
+    f = Fetcher()
+    try:
+        async with request.app.state.store.pool.acquire() as conn:
+            known = {r["symbol"] for r in await conn.fetch("SELECT symbol FROM companies WHERE symbol = ANY($1::text[])", [i.symbol.upper() for i in body.items])}
+            for it in body.items:
+                sym = it.symbol.upper()
+                if sym not in known:
+                    out.append({"symbol": sym, "ok": False, "why": "no listed company has this symbol"})
+                    continue
+                try:
+                    st, _, data, final = await f.get(it.url.strip(), MAX_BYTES * 2)
+                    if st != 200:
+                        raise Rejected(f"the link answered HTTP {st}")
+                    path = await _set_manual(conn, sym, data, final)
+                    out.append({"symbol": sym, "ok": True, "path": path})
+                except Blocked as exc:
+                    out.append({"symbol": sym, "ok": False, "why": f"the site refused the download ({exc}); save the file and upload it in the table instead"})
+                except Rejected as exc:
+                    out.append({"symbol": sym, "ok": False, "why": str(exc)})
+                except (httpx.HTTPError, OSError) as exc:
+                    out.append({"symbol": sym, "ok": False, "why": f"could not connect ({type(exc).__name__})"})
+                await asyncio.sleep(PAUSE)
+    finally:
+        await f.aclose()
+    if any(o["ok"] for o in out):
+        await _drop_quotes_cache(request.app.state.store)
+    return JSONResponse({"results": out, "set": sum(1 for o in out if o["ok"])}, headers=NO_STORE)

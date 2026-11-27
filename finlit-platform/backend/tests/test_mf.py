@@ -61,7 +61,8 @@ def test_closed_interval_blank_plan_zero_nav_and_old_rows_are_listed_honestly():
     assert (interval.scheme_type, interval.category) == ("Interval Fund", "Income") and interval.plan == "Unspecified" and interval.option_class == "Other"
     assert interval.nav == 10.0087785 and interval.isin is None and interval.isin_reinvest == "INF174KA1DD0"
     etf = by[151533]
-    assert etf.plan == "Unspecified" and etf.option_class == "Other" and etf.option_label == "Not stated"
+    # task #281: an ETF has no plan; this overnight ETF's NAV is held at 1,000 (its income is paid out daily), so it is a payout option, not "Not stated"
+    assert etf.plan == "Unspecified" and etf.option_class == "IDCW" and etf.option_label == "IDCW"
     zero = by[148304]   # a real segregated-portfolio row with NAV 0.0000: listed, but with no NAV and no NAV date
     assert zero.nav is None and zero.nav_date is None
     assert p.skipped == {"no usable NAV (N.A., dash, blank or zero)": 1}
@@ -515,6 +516,9 @@ async def test_list_search_is_fuzzy_and_validates_input(api):
     assert (await api.get("/api/mf?size=101")).status_code == 422 and (await api.get("/api/mf?page=0")).status_code == 422
     assert (await api.get("/api/mf?sort=drop table")).status_code == 400 and (await api.get("/api/mf?plan=Gold")).status_code == 400
     assert (await api.get("/api/mf?q=" + "x" * 81)).status_code == 422
+    got = (await api.get("/api/mf?q=inf846k01dp8&option=All")).json()           # task #183: a fund is found by its ISIN too
+    assert got["total"] == 1 and got["items"][0]["code"] == LARGE
+    assert (await api.get("/api/mf?q=INF000Z99999")).json()["total"] == 0         # an ISIN no scheme has finds nothing (never a near name)
 
 
 @needs_db
@@ -562,8 +566,18 @@ async def test_detail_of_an_idcw_option_has_no_returns_and_links_its_family(api)
 @needs_db
 async def test_unknown_and_bad_codes(api):
     assert (await api.get("/api/mf/999999")).status_code == 404
-    assert (await api.get("/api/mf/abc")).status_code == 422
+    assert (await api.get("/api/mf/abc")).status_code == 404          # neither a scheme code nor an ISIN (task #183: the path takes either)
     assert (await api.get("/api/mf/99999999")).status_code == 404
+    assert (await api.get("/api/mf/INE002A01018")).status_code == 404  # a company's share ISIN is not a fund
+
+
+@needs_db
+async def test_a_fund_is_read_by_its_isin(api):   # task #183 (COMMON-RULES 9): /api/mf/{ISIN} answers with the scheme's code URL
+    for path, suffix in (("INF846K01DP8", ""), ("inf846k01dp8", ""), ("INF846K01DP8/portfolio", "/portfolio"), ("INF846K01DP8/facts", "/facts")):
+        r = await api.get(f"/api/mf/{path}", follow_redirects=False)
+        assert r.status_code == 307 and r.headers["location"] == f"/api/mf/{LARGE}{suffix}", path
+    d = (await api.get("/api/mf/INF846K01DP8", follow_redirects=True)).json()
+    assert d["code"] == LARGE and d["isin"] == "INF846K01DP8" and all("isin" in k for k in d["family"])
 
 
 @needs_db

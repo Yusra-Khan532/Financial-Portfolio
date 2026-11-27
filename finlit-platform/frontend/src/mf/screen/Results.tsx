@@ -1,15 +1,15 @@
 // The Mutual Fund Screener's result table. Plain numbers in one ink colour (no red / green): the screener describes figures, it does not grade them.
 // Every dash has a reason in its tooltip. Columns follow the filters: a range set on a measure that has no column yet adds one, so you can see what you filtered by.
-// Task #131: a tick box before each fund to compare up to 4 (the tray of /funds), a FundPulse column after the fund (Gold, the founder kept the plan;
+// Task #131: a tick box before each fund to compare up to 4 (the tray of /funds), a Mutual Fund Score column after the fund (Gold, the founder kept the plan;
 // below Gold a lock, never a value), and the Fund column frozen while the table scrolls sideways.
 import { Link } from "react-router";
 import { HScroll } from "../../components/HScroll";
 import { dateIN, MINUS, nf } from "../../lib/format";
-import { aumText, categoryShort, navText, noReturnsText, pctText, terText } from "../../lib/mf";
+import { GROWTH_RETURNS_LABEL, PLAN_SCORE_NOTE, aumText, categoryShort, growthFigure, navText, noReturnsText, pctText, terText } from "../../lib/mf";
 import { figureOf, type ScreenRow, type SQ } from "../../lib/mfScreen";
 import { NUM_BY, unitText } from "../../lib/mfScreenDefs";
 import { PlanChip } from "../Bits";
-import { ScoreCell } from "../ScoreCell";
+import { isEtfCategory, ScoreCell } from "../ScoreCell";
 import type { ScoreItem } from "../../lib/mfScore";
 
 type Col = { id: string; label: string; sort?: string; field?: string; hint: string; cell: (r: ScreenRow) => string; why?: (r: ScreenRow) => string };
@@ -23,7 +23,7 @@ export const BASE_COLS: Col[] = [
   { id: "r5y", label: "5 yrs a year", sort: "r5y", field: "r5y", hint: "Yearly rate (CAGR) over five years", cell: (r) => pct(r.r5y), why: noRet },
   { id: "ter", label: "Expense", sort: "ter", field: "ter", hint: "Total expense ratio of this plan, percent a year", cell: (r) => (r.ter == null ? "" : terText(r.ter)), why: () => "This plan is not in AMFI's latest expense-ratio file." },
   { id: "aum", label: "Size", sort: "aum", field: "aum", hint: "Fund size (AUM), all plans together", cell: (r) => (r.aum == null ? "" : aumText(r.aum)), why: () => "No fund size from AMFI or the fund house's portfolio file." },
-  { id: "vol3", label: "Volatility 3 yrs", sort: "vol", field: "vol3", hint: "Annualised standard deviation of 36 month-end returns", cell: (r) => (r.x?.risk.vol3 == null ? "" : nf(r.x.risk.vol3, 1) + "%"), why: () => noRisk },
+  { id: "vol3", label: "Volatility 3 yrs", sort: "vol", field: "vol3", hint: "How much returns moved from month to month over 3 years, shown as a yearly figure", cell: (r) => (r.x?.risk.vol3 == null ? "" : nf(r.x.risk.vol3, 1) + "%"), why: () => noRisk },
   { id: "fall", label: "Biggest fall", sort: "fall", field: "fall", hint: "Largest drop between month-end NAVs in the last 36 months", cell: (r) => (r.fall3y == null ? "" : pctText(r.fall3y, 1, false)), why: () => noRisk },
   { id: "rank3", label: "Rank 3 yrs", sort: "rank3y", hint: "Rank of the 3-year return among funds of the same category and plan (1 = highest)", cell: (r) => (r.x?.rank["3y"] ? `${r.x.rank["3y"]!.rank} of ${r.x.rank["3y"]!.of}` : ""), why: () => "Needs at least three funds of the same category and plan with a 3-year return." },
 ];
@@ -42,20 +42,29 @@ export function columnsFor(q: SQ): Col[] {
 
 export type ScoreProps = { gold: boolean; items: Map<number, ScoreItem>; loading: boolean };
 export type PickProps = { picked: number[]; onPick: (code: number) => void };
-const NO_SCORE = "This plan has no FinLit FundPulse yet (IDCW options, funds younger than three years and some categories are not scored).";
+const NO_SCORE = "This plan has no Mutual Fund Score yet (funds younger than a year and some categories are not scored; an IDCW option shows its same-plan Growth option's score when there is one).";
+const RET_IDS = new Set(["r1y", "r3y", "r5y"]);
+
+/** Task #281: an IDCW row's empty return shows its same-plan Growth option's figure, labelled as that option's (before payouts), never as its own. */
+function GrowthRet({ r, id }: { r: ScreenRow; id: "r1y" | "r3y" | "r5y" }) {
+  const g = growthFigure(r, id);
+  if (g == null || !r.growthReturns) return null;
+  return <span className="mf-grf" title={`${GROWTH_RETURNS_LABEL}: ${r.growthReturns.name} (${r.plan}, Growth). This option's own NAV change is not shown because payouts would make it wrong.`}>
+    {pctText(g, 1, false).replace("-", MINUS)}<small className="mf-gr">{GROWTH_RETURNS_LABEL}</small></span>;
+}
 
 export function ResultTable({ rows, q, onSort, loading, score, pick }: { rows: ScreenRow[]; q: SQ; onSort: (key: string) => void; loading: boolean; score: ScoreProps; pick: PickProps }) {
   const cols = columnsFor(q);
   const sorted = (k?: string) => (k && q.sort === k ? (q.dir === "asc" ? "ascending" : "descending") : k ? "none" : undefined);
   return (
-    <HScroll className="mfs-tw" label="funds table">
+    <HScroll className="mfs-tw" label="funds table" tall>
       <table className={"mfs-table" + (loading ? " is-loading" : "")}>
         <caption className="sr-only">Mutual funds that match the filters. Use the column buttons to sort.</caption>
         <thead>
           <tr>
             <th scope="col" className="mfs-n" aria-sort={sorted("name")}><span className="mfs-nh"><span className="mfs-tick-h" title="Tick up to 4 funds to compare them">Compare</span><button type="button" className="mf-sort" onClick={() => onSort("name")}>Fund{q.sort === "name" && <i aria-hidden="true">{q.dir === "asc" ? "▲" : "▼"}</i>}</button></span></th>
-            <th scope="col" className="mfs-hs" title="The FinLit FundPulse of this plan, 0 to 100, with its band" aria-sort={score.gold ? sorted("score") : undefined}>
-              {score.gold ? <button type="button" className="mf-sort" onClick={() => onSort("score")}>FundPulse{q.sort === "score" && <i aria-hidden="true">{q.dir === "asc" ? "▲" : "▼"}</i>}</button> : "FundPulse"}</th>
+            <th scope="col" className="mfs-hs" title={`The Mutual Fund Score of this plan, 0 to 100, with its band. ${PLAN_SCORE_NOTE}`} aria-sort={score.gold ? sorted("score") : undefined}>
+              {score.gold ? <button type="button" className="mf-sort" onClick={() => onSort("score")}>Mutual Fund Score{q.sort === "score" && <i aria-hidden="true">{q.dir === "asc" ? "▲" : "▼"}</i>}</button> : "Mutual Fund Score"}</th>
             {cols.map((c) => (
               <th key={c.id} scope="col" className="num" title={c.hint} aria-sort={sorted(c.sort)}>
                 {c.sort ? <button type="button" className="mf-sort" onClick={() => onSort(c.sort!)}>{c.label}{q.sort === c.sort && <i aria-hidden="true">{q.dir === "asc" ? "▲" : "▼"}</i>}</button> : c.label}</th>))}
@@ -63,19 +72,21 @@ export function ResultTable({ rows, q, onSort, loading, score, pick }: { rows: S
         </thead>
         <tbody>
           {rows.map((r) => (
-            <tr key={r.code} className={r.active ? "" : "mf-stopped"}>
+            <tr key={r.code} className={[r.active ? "" : "mf-stopped", pick.picked.includes(r.code) ? "is-picked" : ""].filter(Boolean).join(" ") || undefined}>
               <th scope="row" className="mfs-n">
                 <span className="mfs-nrow"><input type="checkbox" className="mfs-tick" checked={pick.picked.includes(r.code)} onChange={() => pick.onPick(r.code)} aria-label={`Compare ${r.name}`} />
                 <span className="mfs-nm"><Link to={`/funds/${r.code}`}>{r.name}</Link>
-                <small><span className="mf-house">{r.amc}</span><PlanChip plan={r.plan} option={r.option} />
+                <small><span className="mf-house">{r.amc}</span><PlanChip plan={r.plan} option={r.option} category={r.category} />
                   {!r.active && <span className="chip ghost">Stopped publishing</span>}</small>
                 <small className="mfs-nav"><span className="mfs-cat" title={r.category}>{categoryShort(r.category)}</span>{r.nav != null && <> · NAV <span className="mono">{navText(r.nav)}</span>{r.navDate ? ` on ${dateIN(r.navDate, { day: "numeric", month: "short" })}` : ""}</>}</small></span></span>
               </th>
-              <td className="mfs-hs"><ScoreCell item={score.items.get(r.code)} locked={!score.gold} why={NO_SCORE} loading={score.loading} /></td>
-              {cols.map((c) => { const t = c.cell(r); return <td key={c.id} className="num">{t ? t.replace("-", MINUS) : <span className="mf-na" title={c.why?.(r)} aria-label={`No figure. ${c.why?.(r) ?? ""}`}>—</span>}</td>; })}
+              <td className="mfs-hs"><ScoreCell item={score.items.get(r.code)} locked={!score.gold} why={NO_SCORE} loading={score.loading} etf={isEtfCategory(r.category)} /></td>
+              {cols.map((c) => { const t = c.cell(r); const g = !t && RET_IDS.has(c.id) ? <GrowthRet r={r} id={c.id as "r1y" | "r3y" | "r5y"} /> : null;
+                return <td key={c.id} className="num">{t ? t.replace("-", MINUS) : growthFigure(r, c.id as "r1y") != null ? g : <span className="mf-na" title={c.why?.(r)} aria-label={`No figure. ${c.why?.(r) ?? ""}`}>—</span>}</td>; })}
             </tr>))}
         </tbody>
       </table>
+      <p className="mf-plannote" data-testid="plan-note">{PLAN_SCORE_NOTE}</p>
     </HScroll>
   );
 }

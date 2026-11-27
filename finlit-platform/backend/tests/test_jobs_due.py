@@ -289,9 +289,9 @@ def test_no_environment_value_switches_off_a_scheduled_job():
     for env in ({"FUND_LOADS_ENABLED": "0"}, {"PRISM_PRECOMPUTE_ENABLED": "0"}, {"SECTORS_ENABLED": "0"}, {}):
         for name in ("mf", "prism", "portfolios"):
             assert evaluate(JOBS[name], state(name, now, 300), Ctx(now=now, env=env)).state != "disabled", (name, env)
-    # the one exception, by the founder's own decision (7 Nov 2026): the sector job is off until SECTORS_JOB=on
-    assert evaluate(JOBS["sectors"], state("sectors", now, 300), Ctx(now=now, env={})).state == "disabled"
-    assert evaluate(JOBS["sectors"], state("sectors", now, 300), Ctx(now=now, env={"SECTORS_JOB": "on"})).state != "disabled"
+    # the one switch left, by the owner's decision: the sector job is on (weekend nights, 18 Nov 2026) and SECTORS_JOB=off switches it off
+    assert evaluate(JOBS["sectors"], state("sectors", now, 300), Ctx(now=now, env={"SECTORS_JOB": "off"})).state == "disabled"
+    assert evaluate(JOBS["sectors"], state("sectors", now, 300), Ctx(now=now, env={})).state != "disabled"
     assert evaluate(JOBS["dhan-check"], state("d", now, 500), Ctx(now=now, env={})).state == "disabled"   # no credentials: cannot run at all
 
 

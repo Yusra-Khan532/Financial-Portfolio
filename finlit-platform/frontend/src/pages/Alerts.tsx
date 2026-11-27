@@ -11,40 +11,47 @@ import { useDocTitle } from "../lib/title";
 import { DEMO } from "../lib/demo";
 import { useUniverse } from "../lib/screener";
 import { AlertComposer, type Preset } from "../components/AlertComposer";
-import { demoCheck, demoNudge, demoReset, timeAgo, useAlerts, useNotices, type AlertRow, type Channel } from "../lib/alerts";
-import { LIVE_NOTE, METRICS, closeness, describe, fixedTarget, fmtValue, isEvent } from "../lib/alertCatalog";
+import { demoCheck, demoNudge, demoReset, noticeLabels, timeAgo, useAlertLists, useAlerts, useNotices, type AlertRow, type Channel } from "../lib/alerts";
+import { LIVE_NOTE, METRICS, closeness, describe, fixedTarget, fmtValue, isEvent, tierLocked } from "../lib/alertCatalog";
+import { codeText } from "../lib/companyLabel";
 
-const QUICK: { t: string; d: string; icon: string; p: Preset }[] = [
+// Task #272: two new ones first, marked New, from Discover's What changed: one alert on the member's companies (equity portfolio and every watchlist).
+const QUICK: { t: string; d: string; icon: string; p: Preset; isNew?: boolean }[] = [
+  { t: "Order win at my companies", d: "Any company in my equity portfolio or watchlists files an order win", icon: "medal", p: { metric: "discover_filing", op: "event", list: "mine", kinds: ["order"] }, isNew: true },
+  { t: "New capacity at my companies", d: "A new plant, line or capacity is filed", icon: "factory", p: { metric: "discover_filing", op: "event", list: "mine", kinds: ["capacity"] }, isNew: true },
   { t: "Price target", d: "Tell me when the price reaches a level", icon: "rupee", p: { metric: "price", op: "above" } },
   { t: "Big move in a day", d: "5% or more, up or down", icon: "activity", p: { metric: "move_abs", op: "above", value: 5 } },
   { t: "Volume spike", d: "3× the 20-day average", icon: "bars", p: { metric: "volume_x", op: "above", value: 3 } },
   { t: "Oversold (RSI below 30)", d: "Often a sign of heavy selling", icon: "gauge", p: { metric: "rsi14", op: "below", value: 30 } },
   { t: "Overbought (RSI above 70)", d: "Often a sign of a stretched rally", icon: "gauge", p: { metric: "rsi14", op: "above", value: 70 } },
   { t: "Near the 52-week high", d: "Within 2% of the yearly peak", icon: "growth", p: { metric: "from_high52", op: "below", value: 2 } },
-  { t: "FinLit IQ upgrade", d: "Score reaches 70 or more", icon: "quality", p: { metric: "overall", op: "above", value: 70 } },
   { t: "Gets cheap", d: "P/E falls to 15 or lower", icon: "percent", p: { metric: "pe", op: "below", value: 15 } },
   { t: "Results announced", d: "A results date within 7 days", icon: "calendar", p: { metric: "result_soon", op: "event", value: 7 } },
   { t: "Dividend or buyback news", d: "A headline mentions “dividend”", icon: "notes", p: { metric: "news_keyword", op: "event", keyword: "dividend" } },
   { t: "Promoter holding falls", d: "Down 1 point or more in a quarter", icon: "users", p: { metric: "promoter_chg", op: "below", value: -1 } },
   { t: "Profit milestone", d: "Quarterly net profit above a level", icon: "coins", p: { metric: "q_net_profit", op: "above" } },
 ];
-const METRIC_ICON: Record<string, string> = { price: "rupee", move_abs: "activity", volume_x: "bars", rsi14: "gauge", from_high52: "growth", overall: "quality", pe: "percent", result_soon: "calendar", news_keyword: "notes", promoter_chg: "users", q_net_profit: "coins" };
+const QUICK_FIRST = 6;   // the two new ones and the first four of the twelve
+const METRIC_ICON: Record<string, string> = { discover_filing: "medal", price: "rupee", move_abs: "activity", volume_x: "bars", rsi14: "gauge", from_high52: "growth", overall: "quality", prism_final: "quality", pe: "percent", result_soon: "calendar", news_keyword: "notes", promoter_chg: "users", q_net_profit: "coins" };
+/** The channels an alert really uses: never email, which is off (the owner, 19 Nov 2026), even on an alert saved with it before. */
+const shown = (chs: Channel[]) => chs.filter((c) => c !== "email");
 const CH: Record<Channel, [string, string]> = { app: ["bell", "In-app"], email: ["mail", "Email"], browser: ["activity", "Browser"] };
 const STATE = { active: ["Active", "ok"], paused: ["Paused", "mute"], done: ["Triggered", "gold"] } as const;
 type Tab = "mine" | "fired";
 type Filter = "all" | "active" | "paused" | "done";
 
-function AlertCard({ a, onPatch, onRemove }: { a: AlertRow; onPatch: (p: { status?: "active" | "paused"; value?: number }) => void; onRemove: () => void }) {
+function AlertCard({ a, onPatch, onRemove, listLabel }: { a: AlertRow; onPatch: (p: { status?: "active" | "paused"; value?: number }) => void; onRemove: () => void; listLabel?: string }) {
   const [edit, setEdit] = useState(false), [v, setV] = useState(String(a.value ?? "")), [sure, setSure] = useState(false);
   const pct = closeness(a), [label, tone] = STATE[a.status];
   const ev = isEvent(a.metric), fixed = fixedTarget(a.metric, a.op) != null;
   return (
     <article className={"card alx-c is-" + a.status}>
       <div className="alx-ch">
-        <Link className="alx-sym" to={`/stocks/${a.symbol}`}><CoLogo symbol={a.symbol} size={20} inline />{a.symbol}</Link>
+        {a.list ? <span className="alx-listname" title="A list alert: 1 alert for the whole list">{listLabel ?? "A list"}</span>
+          : <Link className="alx-sym" to={`/stocks/${a.symbol}`}><CoLogo symbol={a.symbol} size={20} inline />{codeText(a.symbol)}</Link>}
         <span className={"alx-st " + tone}><i />{label}</span>
         <span className="alx-grow" />
-        <span className="alx-chs" aria-label={"Notifies via " + a.channels.map((c) => CH[c][1]).join(", ")}>{a.channels.map((c) => <span key={c} title={CH[c][1]}><Icon name={CH[c][0]} /></span>)}</span>
+        <span className="alx-chs" aria-label={"Notifies via " + shown(a.channels).map((c) => CH[c][1]).join(", ")}>{shown(a.channels).map((c) => <span key={c} title={CH[c][1]}><Icon name={CH[c][0]} /></span>)}</span>
       </div>
       <h3><span className="alx-ci"><Icon name={METRIC_ICON[a.metric] || "bell"} /></span>{describe(a)}</h3>
       {!ev && (
@@ -59,6 +66,9 @@ function AlertCard({ a, onPatch, onRemove }: { a: AlertRow; onPatch: (p: { statu
         {a.firedCount > 0 && a.lastFiredAt ? <span className="alx-fired">Fired {a.firedCount}× (last {timeAgo(a.lastFiredAt)})</span> : null}
       </p>
       {a.note && <p className="alx-note">“{a.note}”</p>}
+      {/* task #283 PR D: the server's own words for an alert it converted to FinLit Prism, or paused (the two scores' scales differ) */}
+      {a.pausedReason && a.status === "paused" && <p className="alx-conv" role="note">{a.pausedReason}</p>}
+      {a.converted?.text && !a.pausedReason && <p className="alx-conv" role="note">{a.converted.text}</p>}
       <div className="alx-act">
         {edit && !ev ? (
           <form onSubmit={(e) => { e.preventDefault(); const n = Number(v); if (isFinite(n) && v.trim() !== "") { onPatch({ value: n }); setEdit(false); } }} className="alx-edit">
@@ -68,10 +78,10 @@ function AlertCard({ a, onPatch, onRemove }: { a: AlertRow; onPatch: (p: { statu
         ) : (
           <>
             {a.status === "active" && <button className="btn" onClick={() => onPatch({ status: "paused" })}><Icon name="pause" /><span>Pause</span></button>}
-            {a.status === "paused" && <button className="btn" onClick={() => onPatch({ status: "active" })}><Icon name="play" /><span>Resume</span></button>}
-            {a.status === "done" && <button className="btn" onClick={() => onPatch({ status: "active" })}><Icon name="play" /><span>Set again</span></button>}
-            {!ev && !fixed && <button className="btn" onClick={() => { setV(String(a.value ?? "")); setEdit(true); }}><Icon name="notes" /><span>Edit</span></button>}
-            {sure ? <><button className="btn danger" onClick={onRemove}>Delete</button><button className="btn" onClick={() => setSure(false)}>Keep</button></> : <button className="btn alx-del" onClick={() => setSure(true)} aria-label={`Delete the ${a.symbol} alert`}><Icon name="trash" /><span aria-hidden="true">Delete</span></button>}
+            {a.status === "paused" && !a.retired && <button className="btn" onClick={() => onPatch({ status: "active" })}><Icon name="play" /><span>Resume</span></button>}
+            {a.status === "done" && !a.retired && <button className="btn" onClick={() => onPatch({ status: "active" })}><Icon name="play" /><span>Set again</span></button>}
+            {!ev && !fixed && !a.retired && <button className="btn" onClick={() => { setV(String(a.value ?? "")); setEdit(true); }}><Icon name="notes" /><span>Edit</span></button>}
+            {sure ? <><button className="btn danger" onClick={onRemove}>Delete</button><button className="btn" onClick={() => setSure(false)}>Keep</button></> : <button className="btn alx-del" onClick={() => setSure(true)} aria-label={`Delete the ${a.list ? listLabel ?? "list" : a.symbol} alert`}><Icon name="trash" /><span aria-hidden="true">Delete</span></button>}
           </>
         )}
       </div>
@@ -104,7 +114,7 @@ function AlertDrawer({ open, onClose, preset }: { open: boolean; onClose: () => 
 }
 
 export function AlertsPage() {
-  useDocTitle("Alerts", "Get told when a price, signal, score, ratio, result or filing crosses the line you set: in the app, by email or in your browser.");
+  useDocTitle("Alerts", "Get told when a price, signal, score, ratio, result or filing crosses the line you set: in the app or in your browser.");
   const { user } = useAuth();
   const { plan, upgrade, toast } = useUI();
   const [params] = useSearchParams();
@@ -112,6 +122,8 @@ export function AlertsPage() {
   const rows = data?.rows || [];
   const { alerts, limit, loading, error, patch, remove } = useAlerts(rows);
   const { items, unread, markRead, clear } = useNotices();
+  const { lists } = useAlertLists(alerts.some((a) => !!a.list));
+  const listLabel = (ref?: string | null) => lists.find((l) => l.ref === ref)?.label;
   const [preset, setPreset] = useState<Preset>(() => {
     const sym = params.get("symbol"), metric = params.get("metric"), value = Number(params.get("value"));   // e.g. from the quarter results page: /alerts?symbol=DLF&metric=rev_profit_gap&value=15
     if (!sym) return {};
@@ -131,14 +143,14 @@ export function AlertsPage() {
     return (
       <div className="wrap alx">
         <PageHeader plan="free" title="Alerts" art="calendar" links={["/watchlist", "/holdings", "/results"]} description={<>Get told when a <b>price, signal, score, ratio, result or filing</b> crosses the line you set.</>} />
-        <section className="card dw-empty"><span className="dw-ei"><Icon name="bell" /></span><b>Sign in to set alerts</b><p>Alerts are free to create. Basic includes 3 at a time; Silver and Gold add every metric and many more alerts.</p><Link className="btn primary" to="/login?next=/alerts">Sign in or create an account</Link></section>
+        <section className="card dw-empty"><span className="dw-ei"><Icon name="bell" /></span><b>Sign in to set alerts</b><p>Alerts are free to create. Free includes 3 at a time; the paid plans add every metric and many more alerts.</p><Link className="btn primary" to="/login?next=/alerts">Sign in or create an account</Link></section>
       </div>
     );
   }
   return (
     <div className="wrap alx">
       <PageHeader plan="free" title="Alerts" art="calendar" links={["/watchlist", "/holdings", "/results"]}
-        description={<>Get notified when a stock meets your conditions: price, technical, ratio, score or news. You are told in the app, and by email or in your browser if you choose. For information only, not investment advice.</>}
+        description="Be told in the app or browser when a stock meets your price, technical, ratio, score or news rule."
         actions={<div className="alx-ha">
           <span className="alx-used" title={`${plan[0].toUpperCase() + plan.slice(1)} plan`}><b>{used}</b> / {limit} alerts used{plan !== "gold" && used >= limit - 1 && <button className="alx-link" onClick={() => upgrade(plan === "basic" ? "silver" : "gold", "More alerts")}>Get more</button>}</span>
           <button className="btn primary alx-new-btn" onClick={() => setDrawer(true)}><span aria-hidden="true">+</span> Create alert</button>
@@ -170,7 +182,7 @@ export function AlertsPage() {
                 {loading && <div className="skeleton" style={{ height: 120 }} />}
                 {!loading && !error && alerts.length === 0 && <div className="dw-empty"><span className="dw-ei"><Icon name="bell" /></span><b>No alerts yet</b><p>Pick a quick alert below, or press <b>Create alert</b> to build your own. {LIVE_NOTE}</p></div>}
                 <div className="alx-cards">
-                  {shown.map((a) => <AlertCard key={a.id} a={a} onPatch={(p) => patch.mutate({ id: a.id, ...p }, { onError: fail })} onRemove={() => remove.mutate(a.id, { onError: fail })} />)}
+                  {shown.map((a) => <AlertCard key={a.id} a={a} listLabel={listLabel(a.list)} onPatch={(p) => patch.mutate({ id: a.id, ...p }, { onError: fail })} onRemove={() => remove.mutate(a.id, { onError: fail })} />)}
                 </div>
                 {alerts.length > 0 && !shown.length && <p className="muted" style={{ padding: 24, textAlign: "center" }}>No alerts match these filters.</p>}
               </>
@@ -184,7 +196,7 @@ export function AlertsPage() {
                     <li key={n.id} className={n.read ? "" : "is-new"}>
                       <span className="alx-hd" aria-hidden="true" />
                       <div><b>{n.title}</b><p>{n.body}</p><small>{timeAgo(n.createdAt)}</small></div>
-                      <div className="alx-hb">{n.link && <Link className="btn" to={n.link} onClick={() => markRead([n.id])}>View stock <Icon name="arrow" /></Link>}{!n.read && <button className="alx-link" onClick={() => markRead([n.id])}>Mark read</button>}</div>
+                      <div className="alx-hb">{n.link && <Link className="btn" to={n.link} onClick={() => markRead([n.id])}>{noticeLabels(n).action ?? "Open"} <Icon name="arrow" /></Link>}{!n.read && <button className="alx-link" onClick={() => markRead([n.id])}>Mark read</button>}</div>
                     </li>
                   ))}
                 </ul>
@@ -193,16 +205,17 @@ export function AlertsPage() {
           </section>
 
           <section className="card alx-quick" aria-label="Quick alerts">
-            <div className="alx-qh"><div><h2>Quick alerts</h2><span className="muted">Set up common alerts in a single click</span></div>
+            <div className="alx-qh"><div><h2>Quick alerts</h2><span className="muted">Set up common alerts in a single click. Two new ones work on whole lists, from Discover's What changed.</span></div>
               <button className="alx-link" aria-expanded={allQuick} onClick={() => setAllQuick((v) => !v)}>{allQuick ? "Show fewer" : `View all (${QUICK.length})`} <Icon name="arrow" /></button></div>
             <div className="alx-qg">
-              {(allQuick ? QUICK : QUICK.slice(0, 4)).map((x) => {
-                const lock = METRICS[x.p.metric!].tier === "silver" && plan === "basic";
-                return <button key={x.t} className="alx-q" onClick={() => { setPreset({ ...x.p, symbol: preset.symbol }); setDrawer(true); }}>
-                  <span className="alx-qi"><Icon name={x.icon} /></span><span><b>{x.t}</b><small>{x.d}</small></span>{lock && <em>Silver</em>}
+              {(allQuick ? QUICK : QUICK.slice(0, QUICK_FIRST)).map((x) => {
+                const lock = tierLocked(METRICS[x.p.metric!].tier, plan);
+                return <button key={x.t} className={"alx-q" + (x.isNew ? " is-new" : "")} onClick={() => { setPreset(x.p.list ? { ...x.p } : { ...x.p, symbol: preset.symbol }); setDrawer(true); }}>
+                  {x.isNew && <em className="alx-qn">New</em>}<span className="alx-qi"><Icon name={x.icon} /></span><span><b>{x.t}</b><small>{x.d}</small></span>{lock && <em>Silver</em>}
                 </button>;
               })}
             </div>
+            {!allQuick && <p className="alx-qnote">View all ({QUICK.length}): the {QUICK.length - 2} of today plus these two.</p>}
           </section>
 
           {DEMO && (

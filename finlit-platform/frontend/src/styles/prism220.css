@@ -1,0 +1,132 @@
+/* Task #220 (FinLit Prism report handover, 18 Nov 2026): the Prism report's shared parts. Every rule is scoped to the Prism report's own classes
+   (pzn, pzh, pz-prop, pz-tdisc, pzr-*) so nothing reaches another page. Values from the pack's reference/prism-styles.css, on the site's type scale
+   (the pack's 21 px phone title is 20 px here, as on the company report). */
+
+/* ===== 1.2 sticky sections bar ===== */
+.pzn { position: sticky; top: 0; z-index: 35; margin: 0 0 14px; background: color-mix(in srgb, var(--s1) 94%, transparent); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+  border: 1px solid var(--border); border-radius: var(--r-ctl); box-shadow: 0 10px 24px -20px rgba(20, 19, 15, .45); }
+.pzn-in { display: flex; align-items: center; gap: 8px; padding: 6px 8px; min-width: 0; }
+.pzn nav { position: relative; display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none; min-width: 0; flex: 1 1 auto; }
+.pzn nav::-webkit-scrollbar { display: none; }
+.pzn nav a { position: relative; flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: var(--r-ctl);
+  font: 600 var(--fs-14, 14px) var(--sans); color: var(--muted); text-decoration: none; white-space: nowrap; }
+.pzn nav a:hover { color: var(--text); background: color-mix(in srgb, #2a78d6 6%, transparent); }
+.pzn nav a.active { color: #2a78d6; box-shadow: inset 0 -3px 0 #2a78d6; }
+.pzn nav .sx-n { font: 600 var(--fs-12, 12px) var(--mono, ui-monospace, monospace); color: var(--faint, var(--muted)); }
+.pzn nav a.active .sx-n { color: inherit; }
+.pzn-co { display: none; align-items: center; gap: 7px; flex: 0 0 auto; padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--r-ctl); background: var(--s1);
+  font: 600 var(--fs-13, 13px)/1.2 var(--sans); color: var(--text); text-decoration: none; white-space: nowrap; }
+.pzn.xcmp .pzn-co { display: inline-flex; }
+.pzn-co b { font: 700 var(--fs-12, 12px) var(--sans); letter-spacing: .04em; }
+.pzn-k { color: var(--muted); font-weight: 600; font-size: var(--fs-12, 12px); }
+.pzn-v { font: 600 var(--fs-16, 16px) var(--serif); }
+.pzn-co .pzr-lab { font-size: var(--fs-12, 12px); }
+@media (max-width: 700px) { .pzn-co .pzr-lab, .pzn-k { display: none; } .pzn nav a { padding: 8px 10px; font-size: var(--fs-13, 13px); } }
+/* jumps land just under the bar: html's scroll padding is set by the bar (Shell.tsx); the sections add none of their own */
+.pzr-rep .pzr-sec, .pzr-rep #prism, .pzr-shell #faq { scroll-margin-top: 0; }
+
+/* ===== 1.1 numbered section headings: 40 / 24 / 13 px, 32 / 20 px on phones ===== */
+.pzr-rep .pzr-sec.pzs { padding-top: 34px; }
+.pzh { display: flex; align-items: stretch; gap: 14px; margin: 0 0 16px; }
+.pzh-n { flex: 0 0 auto; padding-top: 2px; font: 400 var(--fs-40, 40px)/1 var(--serif); color: var(--sc, var(--gold)); }
+.pzh-rule { flex: 0 0 1px; width: 1px; background: var(--border-strong); }
+.pzh-t { min-width: 0; }
+.pzh-t h3 { display: block; margin: 0 0 4px; font: var(--ui-fw-semibold) var(--ui-fs-h3)/var(--lh-16) var(--font-sans); }
+.pzh-t h3::before { display: none; content: none; }
+.pzh-t p { margin: 0; max-width: 120ch; font-size: var(--fs-13, 13px); line-height: 1.5; color: var(--muted); }
+@media (max-width: 700px) { .pzh-n { font-size: var(--fs-32, 32px); } }
+
+/* ===== 1.4 proprietary note ===== */
+.pz-prop { display: flex; align-items: flex-start; gap: 10px; max-width: none; margin: -4px 0 14px; padding: 10px 14px; border: 1px solid color-mix(in srgb, #2a78d6 30%, var(--border));
+  border-left: 4px solid #2a78d6; border-radius: var(--r-ctl); background: color-mix(in srgb, #2a78d6 5%, var(--s1)); font: 400 var(--fs-14, 14px)/1.5 var(--sans); color: var(--text); }
+.pz-prop b { font-weight: 600; }
+.pz-prop-ic { flex: 0 0 auto; display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: var(--r-ctl); background: color-mix(in srgb, #2a78d6 12%, var(--s1)); color: #2a78d6; }
+.pz-prop-ic svg { width: 15px; height: 15px; }
+
+/* ===== 2.1 the disclaimer at the top: a boxed drop-down, closed on load ===== */
+.pz-tdisc { margin: 4px 0 18px; border: 1px solid var(--border); border-left: 4px solid var(--gold); border-radius: var(--r-ctl); background: var(--card, var(--s1)); box-shadow: 0 1px 0 rgba(0, 0, 0, .02); }
+.pz-tdisc > summary.xdd-s { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; column-gap: 12px; min-height: 44px; padding: 12px 16px; }
+.pz-tdisc-ic { display: inline-grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: color-mix(in srgb, var(--gold) 14%, transparent); color: var(--gold); }
+.pz-tdisc-ic svg { width: 16px; height: 16px; }
+.pz-tdisc-t { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; font-size: var(--fs-14, 14px); line-height: 1.45; color: var(--muted); }
+.pz-tdisc-t b { font: 700 var(--fs-13, 13px)/1.4 var(--sans); letter-spacing: .06em; text-transform: uppercase; color: var(--text); }
+.pz-tdisc-b { max-width: 860px; padding: 0 16px 14px 60px; }
+.pz-tdisc-b p { margin: 0; font-size: var(--fs-14, 14px); line-height: 1.6; color: var(--text); }
+.pz-tdisc > summary:hover .xdd-chev { color: var(--text); }
+@media (max-width: 560px) { .pz-tdisc > summary.xdd-s { padding: 12px; column-gap: 10px; } .pz-tdisc-b { padding: 0 14px 14px; } }
+@media print { .pz-tdisc { display: none; } }
+
+/* ===== 2.2 score card: layout B from 1,000 px; the ring above the parts when the financial-health side is under 670 px ===== */
+@media (min-width: 1000px) {
+  .pzr-cardtop .pcx-body { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(300px, 1fr); align-items: start; gap: 20px; }
+  .pzr-cardtop .pcx-body > .pcx-sec.tech .pcx-tp { grid-template-columns: minmax(0, 1fr); }
+  .pzr-cardtop .pcx-body > .pcx-sec.tech .pcx-tp > * + * { border-left: 0; border-top: 1px solid var(--border); }
+  .pzr-cardtop .pcx-body > .pcx-sec > .pcx-sh { grid-template-columns: auto minmax(0, 1fr); }
+  .pzr-cardtop .pcx-body > .pcx-sec > .pcx-sh > .pcx-note { grid-column: 1 / -1; }
+  .pzr-cardtop .pcx-body .pcx-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pzr-cardtop .pcx-body .pcx-fb { grid-template-columns: 220px minmax(0, 1fr); gap: 20px 24px; }
+  .pzr-cardtop .pcx-sec.fund { container: pfund / inline-size; }
+}
+@container pfund (max-width: 670px) {
+  .pzr-cardtop .pcx-body .pcx-fb { grid-template-columns: minmax(0, 1fr); }
+  .pzr-cardtop .pcx-rc { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 22px; align-items: center; justify-content: start; text-align: left; }
+  .pzr-cardtop .pcx-rc > .pcx-ring { grid-row: 1 / span 2; }
+  .pzr-cardtop .pcx-rc > .pcx-cap { align-self: end; justify-content: flex-start; }
+  .pzr-cardtop .pcx-rc > .pcx-bo { align-self: start; margin-top: 4px; }
+  .pzr-cardtop .pcx-ring { width: 168px; height: 168px; }
+}
+
+/* ===== 2.2 the data check line: "review notes below" is a link to 05 Notes ===== */
+.pzr-rep .pzc-link { color: inherit; font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
+
+/* ===== 1.6 the sort menu: the filter chips' size on desktop; phones keep 16 px so iOS does not zoom ===== */
+@media (min-width: 701px) { .pzr-rep #factors .pzr-tools select { font-size: var(--fs-13, 13px) !important; } }   /* !important: the site sets every form control to 16 px with !important so iOS never zooms */
+
+/* ===== 1.3 tab bars frozen under the sections bar while their section is on screen ===== */
+.pzr-rep .ctabs.ct-sticky { position: sticky; top: var(--pzn-stick, 112px); z-index: 30; background: var(--s1); }
+.pzr-rep .ctabs.ct-sticky.stuck { padding-top: 7px; padding-bottom: 7px; box-shadow: 0 -12px 0 0 var(--bg), 0 14px 26px -18px rgba(20, 19, 15, .55); }
+.pzr-rep .ctabs.ct-sticky.stuck .ctabs-hint { display: none; }
+.pzr-rep .ctabs.has-tools .ct-tools .pzr-tools { margin: 0; padding: 0; border: 0; background: none; box-shadow: none; position: static; }
+.pzr-rep .ctabs.has-tools.stuck .ct-tools { padding-top: 6px; margin-top: 2px; }
+@media (max-width: 700px) {
+  .pzr-rep .ctabs.ct-sticky.stuck .ctabs-h { display: none; }
+  .pzr-rep .ctabs.ct-sticky.stuck .ct-list { flex-wrap: nowrap; overflow-x: auto; max-width: 100%; scrollbar-width: none; }
+  .pzr-rep .ctabs.ct-sticky.stuck .ct-tools { display: none; }
+}
+.pzr-rep .pzf-none { margin: 10px 2px; font-size: var(--fs-13, 13px); color: var(--muted); }
+.pzr-rep .ctab-panel > .pzr-fp { margin-top: 0; }
+
+/* ===== 3.2 02: the score card's own trend cards at the top (the same component; only its frame is changed here), one column under 760 px ===== */
+.pzr-rep .pzt-clone { margin: 4px 0 14px; }
+.pzr-rep .pzt-clone .pcx-sec.tech { display: block; padding: 0; border: 0; background: none; box-shadow: none; }
+.pzr-rep .pzt-clone .pcx-tp { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin: 0; padding: 0; border: 0; background: none; }
+.pzr-rep .pzt-clone .pcx-tp > * + * { border-left: 0; border-top: 0; }
+.pzr-rep .pzt-clone .pcx-al { margin: 14px 0 0; }
+.pzr-rep .pzt-vd2 { display: block; margin: 6px 0 0; font-size: var(--fs-13, 13px); line-height: 1.45; color: var(--muted); }
+@media (max-width: 759px) { .pzr-rep .pzt-clone .pcx-tp { grid-template-columns: minmax(0, 1fr); } }
+.pzr-rep .pzt-mapblk h4 { margin: 0 0 10px; }
+.pzr-rep .pzt-blk .pz-prop { margin: 8px 0 12px; }
+/* the trend map on phones: the row labels fit their column (74 px, 10 px label), cells 6 px padding and 12 px text */
+@media (max-width: 560px) {
+  .pzr-rep .pzt-map thead td { width: 74px; }
+  .pzr-rep .pzt-map th small { font-size: var(--fs-12, 12px); letter-spacing: .03em; overflow-wrap: anywhere; }
+  .pzr-rep .pzt-map tbody th { font-size: var(--fs-12, 12px); }
+  .pzr-rep .pzt-map td.pzt-mc { padding: 6px; font-size: var(--fs-12, 12px); }
+}
+
+/* ===== 3.3 03: each chart keeps its colour and its header spacing in the enlarge window (which sits outside the figure) ===== */
+.pzr-ch-in figcaption { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.pzr-ch-in figcaption b { font: 500 var(--fs-16, 16px) var(--serif); }
+.pzr-ch-in figcaption span { font: 600 var(--fs-13, 13px) var(--mono); color: var(--text); }
+.pzr-ch-in figcaption small { font: 500 var(--fs-12, 12px) var(--sans); color: var(--faint); }
+.cz-modal .pzr-ch-in { padding: 4px 2px; }
+.pzr-rep .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+.pzr-rep .pzt-prov { display: flex; gap: 6px; align-items: flex-start; } .pzr-rep .pzt-prov svg { flex: none; width: 14px; height: 14px; margin-top: 2px; }
+/* Task #293 (21 Nov 2026, the team's Prism report pack): the trend map inside the report (the rest of its rules are in prism-technical.css).
+   1. On phones the label column is 78px and the label wraps after the hyphen (SHORT- / TERM). */
+@media (max-width: 560px) {
+  .pzr-rep .pzt-map thead td { width: 78px; }
+  .pzr-rep .pzt-map th small { overflow-wrap: normal; letter-spacing: .02em; }
+}
+/* 7. Dark theme: the site-wide dark th shade and line out-rank .pzt-map th, so the labels got boxes and lines in dark only; plain, as in light */
+:root .pzr-rep .pzt-map th, :root .pzr-rep .pzt-map thead td { background: none; border: 0; }

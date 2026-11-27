@@ -1,0 +1,100 @@
+/* Task #315: Word of the Day. The header button (picture 1), its panel (picture 2) and the dashboard's "Your bookmark" list.
+   Every class starts with wod- (not used anywhere else). Colours, corners and type come only from the tokens (ui-tokens.css, typescale.css). */
+
+/* The header button: the shared main button (ui-btn ui-btn--primary: green, mint in dark) with a book icon and a gold dot until today's word is opened */
+.top .wod-top { position: relative; flex: none; padding: 0 14px; }
+.top .wod-top svg { width: 16px; height: 16px; flex: none; }
+.wod-dot { position: absolute; top: -3px; right: -3px; width: 10px; height: 10px; border-radius: 50%; background: var(--gold-2); box-shadow: 0 0 0 2px var(--header, var(--bg)); }   /* the header's own colour as a ring, so it reads on green and on mint */
+/* Icon only: on a phone (as Ask FinLit AI, under 860px: task #310 part E, phone310.css), and on a desktop whose header row has no room for the words
+   (WordOfDay.tsx measures it) */
+.top .wod-top.is-compact { width: 44px; padding: 0; justify-content: center; }
+.top .wrap:has(> .wod-top.is-compact) > .grow { min-width: 0; }   /* the 8px spacer may close up rather than push the account button into the edge */
+.top .wod-top.is-compact .wod-top-t { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
+@media (max-width: 860px) {
+  .top .wod-top { width: 44px; height: 44px; padding: 0; justify-content: center; }
+  .top .wod-top .wod-top-t { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
+}
+
+/* A desktop row with no room even for the book: tightened as on a phone (level 2), or out of the row and into "More" (level 3; WordOfDay.tsx) */
+.top .wod-top.is-tight { width: 40px; height: 40px; }
+.top .wrap:has(> .wod-top.is-tight) { gap: 2px; }
+.top .wrap:has(> .wod-top.is-tight) > .grow { min-width: 0; }
+.top .wod-top.is-menu { display: none; }
+.wod-mi-new { white-space: nowrap; margin-left: 8px; padding: 0 6px; border-radius: var(--ui-r-pill); background: var(--gold-soft); color: var(--gold); font: var(--ui-fw-semibold) var(--fs-12)/var(--lh-12) var(--font-sans); font-style: normal; }
+
+/* Phones (task #310 part E, 05-phone.md): under 860px the header has no Dashboard button, theme switch or burger, so the book keeps the full 44px
+   and the row its 8px gaps; the 500px rules that shrank it to 40px and closed the gaps to 2px are gone. */
+
+/* The panel */
+.wod-scrim { position: fixed; inset: 0; z-index: 1250; }   /* clear on a desktop: the panel reads as a card under the button */
+.wod-panel { position: fixed; z-index: 1251; top: var(--wod-top, 72px); right: var(--wod-right, 16px); width: min(460px, calc(100vw - 32px)); max-height: calc(100vh - var(--wod-top, 72px) - 16px); overflow: auto;
+  background: var(--s1); color: var(--text); border: 1px solid var(--border); border-radius: var(--r-card); box-shadow: var(--ov-shadow); font: var(--ui-fw-regular) var(--fs-14)/var(--lh-14) var(--font-sans); }
+/* Task #335 (23 Nov 2026, "give a border to word of the day box"): the 1px --border edge disappeared on the dark page, so the panel had no edge of its
+   own. A 2px edge, gold mixed with the strong border, reads on the cream and the dark page alike. */
+.wod-panel { border: 2px solid color-mix(in srgb, var(--gold) 55%, var(--border-strong)); }
+.wod-panel:focus { outline: none; }
+.wod-head { display: flex; align-items: center; gap: 12px; padding: 16px 16px 14px 20px; background: var(--gain-soft); border-bottom: 1px solid var(--border); }
+.wod-cal { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 40px; height: 40px; border-radius: var(--r-ctl); background: var(--gain-soft); color: var(--gain); }
+.wod-cal svg { width: 22px; height: 22px; }
+.wod-kicker { flex: 1; min-width: 0; margin: 0; font: var(--ui-fw-bold) var(--fs-18)/var(--lh-18) var(--font-sans); color: var(--text); }
+.wod-kicker::after { content: ""; display: block; width: 56px; height: 4px; margin-top: 6px; border-radius: var(--ui-r-pill); background: var(--gain); }
+:root .wod-panel .wod-x { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 44px; height: 44px; margin: -6px -6px -6px 0; border: 0; border-radius: var(--r-ctl); background: transparent; color: var(--muted); cursor: pointer; }
+:root .wod-panel .wod-x:hover { background: var(--s2); color: var(--text); }
+.wod-x:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.wod-x svg { width: 20px; height: 20px; }
+.wod-body { display: flex; flex-direction: column; gap: 14px; padding: 18px 20px 18px; }
+.wod-title { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.wod-term { margin: 0; min-width: 0; font: var(--ui-fw-bold) var(--fs-page-title)/var(--lh-32) var(--font-serif); color: var(--text); overflow-wrap: anywhere; }
+.wod-topic { flex: none; max-width: 45%; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: inline-block; line-height: 24px; }
+.wod-meaning { margin: 0; font-size: var(--fs-16); line-height: var(--lh-16); color: var(--text); }
+
+/* The formula box: "ROE =" then the parts as pills, joined by the operators. Each pill is as wide as its words (up to the box); a division is a
+   written fraction: the top part over a line over the bottom part. (Task #315's equal-share rule squeezed a long part to a third of the line, so
+   "(CPI now − CPI a year ago)" wrapped over four lines beside a wide "100".) */
+.wod-fx { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; border-radius: var(--r-ctl); background: var(--gain-soft); border: 1px solid var(--border); }
+.wod-fx-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
+.wod-fx-lhs { font: var(--ui-fw-bold) var(--fs-16)/var(--lh-16) var(--font-sans); color: var(--text); white-space: nowrap; }
+.wod-fx-rhs { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; max-width: 100%; }   /* everything after "=": moves under the name as one piece when it does not fit beside it */
+.wod-fx-part { display: inline-flex; align-items: center; gap: 10px; max-width: 100%; }
+.wod-fx-op { font: var(--ui-fw-semibold) var(--fs-16)/1 var(--font-sans); color: var(--muted); }
+/* A pill keeps whole words: its text wraps only at spaces, and only a word wider than the whole box may break, rather than spill out of the panel. */
+.wod-fx-pill { display: inline-block; max-width: 100%; padding: 6px 12px; border-radius: var(--r-ctl); background: var(--s1); border: 1px solid var(--border); font: var(--ui-fw-semibold) var(--fs-14)/var(--lh-14) var(--font-sans); color: var(--text); text-align: center; word-break: normal; overflow-wrap: break-word; }
+.wod-fx-frac { display: inline-flex; flex-direction: column; align-items: center; gap: 4px; max-width: 100%; }
+.wod-fx-fn { max-width: 100%; padding: 0 6px; font: var(--ui-fw-semibold) var(--fs-16)/var(--lh-16) var(--font-sans); color: var(--text); text-align: center; word-break: normal; overflow-wrap: break-word; }
+.wod-fx-bar { align-self: stretch; height: 0; border-top: 2px solid var(--text); }
+.wod-fx-text { margin: 0; font: var(--ui-fw-medium) var(--fs-14)/var(--lh-14) var(--font-sans); color: var(--text); overflow-wrap: break-word; }
+
+.wod-why { display: flex; gap: 10px; margin: 0; color: var(--text); }
+.wod-why b { font-weight: var(--ui-fw-bold); }
+.wod-bulb { flex: none; width: 20px; height: 20px; margin-top: 0; color: var(--gold-2); }
+.wod-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+.wod-bm svg { width: 16px; height: 16px; flex: none; }
+:root .wod-gl { color: var(--gain); font-weight: var(--ui-fw-semibold); text-decoration: none; }
+:root .wod-gl:hover { text-decoration: underline; }
+.wod-note { margin: 0; padding-top: 12px; border-top: 1px solid var(--border); font-size: var(--fs-13); line-height: var(--lh-13); color: var(--muted); }
+:root .wod-note a { color: var(--gain); font-weight: var(--ui-fw-semibold); }
+
+/* Phones: a sheet along the bottom, the full width, above the bottom tab bar */
+@media (max-width: 759px) {
+  .wod-scrim { background: var(--ov-backdrop, var(--overlay)); }
+  .wod-panel { top: auto; right: 0; left: 0; bottom: 0; width: auto; max-height: 86vh; border-radius: var(--r-card) var(--r-card) 0 0; border-bottom: 0; padding-bottom: env(safe-area-inset-bottom, 0px); }
+  .wod-head { padding: 14px 12px 12px 16px; }
+  .wod-body { padding: 16px; }
+  .wod-fx-pill { padding: 6px 10px; }
+}
+
+/* The dashboard's Learn card: "Your bookmark" under today's term */
+.wod-bms { margin-top: 4px; padding-top: 12px; border-top: 1px solid var(--d-line3, var(--border)); }
+.wod-bms-h { margin: 0 0 4px; font: var(--ui-fw-semibold) var(--fs-14)/var(--lh-14) var(--font-sans); color: var(--d-ink, var(--text)); }   /* the team's name, as written */
+.wod-bms-l { list-style: none; margin: 0; padding: 0; }
+.wod-bms-i { display: flex; align-items: center; gap: 8px; min-height: 40px; border-bottom: 1px solid var(--d-line3, var(--border)); }
+.wod-bms-i:last-child { border-bottom: 0; }
+.wod-bms-t { flex: 1; min-width: 0; display: flex; flex-direction: column; padding: 4px 0; }
+:root .wod-bms-t a { color: var(--d-ink, var(--text)); font-weight: var(--ui-fw-semibold); font-size: var(--fs-14); line-height: var(--lh-14); text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+:root .wod-bms-t a:hover { text-decoration: underline; }
+.wod-bms-t small { font-size: var(--fs-12); line-height: var(--lh-12); color: var(--d-mut, var(--muted)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wod-bms-x { flex: none; min-height: 32px; padding: 0 8px; border: 0; border-radius: var(--r-ctl); background: transparent; color: var(--d-mut2, var(--muted)); font: var(--ui-fw-medium) var(--fs-12)/1 var(--font-sans); cursor: pointer; }
+.wod-bms-x:hover { background: var(--s2); color: var(--text); }
+.wod-bms-x:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.wod-bms-e { margin: 0; font-size: var(--fs-13); line-height: var(--lh-13); color: var(--d-mut2, var(--muted)); }
+@media (max-width: 860px) { .wod-bms-x { min-height: 44px; } .wod-bms-i { min-height: 44px; } }

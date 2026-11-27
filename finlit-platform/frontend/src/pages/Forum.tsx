@@ -7,19 +7,21 @@ import { useDocTitle } from "../lib/title";
 import { useUI, TIER } from "../lib/ui";
 import { watch as wl, useWatchlist } from "../lib/watchlist";
 import { MINUS, nf } from "../lib/format";
-import { BOARD_NAME, DISCLAIMER, PLANS, forumMe, pickCompanies, send, type CompanyFilter, type ForumCompany, type QueueItem } from "../lib/forum";
+import { BOARD_NAME, DISCLAIMER, PLANS, useForumMe, pickCompanies, send, type CompanyFilter, type ForumCompany, type QueueItem } from "../lib/forum";
 import { BoardNote, CompanyLogo, Disclaimer, ThreadList, ThreadView, msg, useCompanyQuotes } from "../components/forum/ForumParts";
 import "../styles/forum.css";
+import { codeText, coTitle, subLine, titleOf } from "../lib/companyLabel";
+import { PLAN_FOR_FORUM } from "../lib/planGates";
 
 export { Body } from "../components/forum/ForumParts";
 
-const Shell = ({ title, children }: { title: string; children: React.ReactNode }) => <div className="wrap fo"><div className="eyebrow">Discussion</div><h1>{title}</h1><Disclaimer />{children}</div>;
+const Shell = ({ title, children }: { title: string; children: React.ReactNode }) => <div className="wrap fo"><div className="eyebrow">Discussion</div><h1 className="ui-title">{title}</h1><Disclaimer />{children}</div>;
 const FILTERS: [CompanyFilter, string][] = [["all", "All companies"], ["trending", "Trending"], ["discussed", "Most discussed"], ["following", "Following"]];
 const count = (n: number) => `${n.toLocaleString("en-IN")} ${n === 1 ? "discussion" : "discussions"}`;
 
 /** The front page's left column: every company with discussion on the viewer's board, listed once, with its logo and discussion count. */
 function Companies({ active, board }: { active?: string; board: string }) {
-  const { data: me } = forumMe(), wlState = useWatchlist(); void wlState;
+  const { data: me } = useForumMe(), wlState = useWatchlist(); void wlState;
   const [q, setQ] = useState(""), [filter, setFilter] = useState<CompanyFilter>("all");
   const list = useQuery<{ companies: ForumCompany[] }>({ queryKey: ["forum", "companies", "all", board], queryFn: () => apiGet(`/api/forum/companies?days=0&limit=500${board ? `&board=${board}` : ""}`), enabled: !!me?.signedIn, staleTime: 30_000 });
   const all = list.data?.companies ?? [];
@@ -31,7 +33,7 @@ function Companies({ active, board }: { active?: string; board: string }) {
       <div className="fo-co-search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
         <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search company (e.g. Reliance, TCS…)" aria-label="Search companies" maxLength={60} /></div>
       <div className="fo-filters" role="group" aria-label="Show">{FILTERS.map(([k, l]) => <button type="button" key={k} className={"chip" + (filter === k ? " on" : "")} aria-pressed={filter === k} onClick={() => setFilter(k)}>{l}</button>)}</div>
-      {me && !me.signedIn ? null : list.isPending ? <ul className="fo-co-list" aria-busy="true">{[0, 1, 2, 3].map((i) => <li key={i} className="skeleton" style={{ height: 62, borderRadius: 14 }} />)}</ul>
+      {me && !me.signedIn ? null : list.isPending ? <ul className="fo-co-list" aria-busy="true">{[0, 1, 2, 3].map((i) => <li key={i} className="skeleton" style={{ height: 62, borderRadius: "var(--r-ctl)" }} />)}</ul>
         : list.isError ? <div className="fo-err" role="alert">{msg(list.error)}</div>
         : !shown.length ? <div className="fo-empty"><b>{term ? "No company matches that search." : filter === "following" ? "None of the companies you follow has a discussion yet." : filter === "trending" ? "Nothing active in the last 7 days." : "No discussions on your board yet."}</b>
             <span>{term || filter !== "all" ? "Try All companies." : "Open any company's report and start the first discussion."}</span></div>
@@ -46,12 +48,12 @@ function Companies({ active, board }: { active?: string; board: string }) {
   );
 }
 
-/** Follow = the member's watchlist (Silver and up), the same as the report's Watchlist button. */
+/** Follow = the member's watchlist (Mutual Fund + ETF, combined, Gold and Platinum), the same as the report's Watchlist button. */
 function FollowButton({ symbol }: { symbol: string }) {
   const { has, toast, upgrade } = useUI(), wlState = useWatchlist(); void wlState;
   const on = wl.has(symbol);
   return <button type="button" className={"btn" + (on ? " on" : "")} aria-pressed={on} onClick={() => {
-    if (!has("silver")) { upgrade("silver", `Following companies comes with the ${TIER.silver.n} plan.`); return; }
+    if (!has(PLAN_FOR_FORUM)) { upgrade(PLAN_FOR_FORUM, `Following companies comes with the ${TIER[PLAN_FOR_FORUM].n} plan.`); return; }
     if (!on && !has("gold") && wl.total() >= 30) { upgrade("gold", "Silver follows up to 30 stocks; Gold follows up to 1,000."); return; }
     if (on) wl.remove(symbol); else wl.add(symbol);
     toast(on ? `${symbol} removed from your watchlist.` : `${symbol} added to your watchlist.`);
@@ -73,7 +75,7 @@ function CompanyPanel({ symbol, board }: { symbol: string; board: string }) {
       <header className="fo-cp-head card">
         <CompanyLogo symbol={symbol} name={name || symbol} logo={qt?.logo} size={64} />
         <div className="fo-cp-id">
-          <h1>{name || symbol}</h1>
+          <h1 className="ui-title">{name || symbol}</h1>
           <div className="fo-cp-sub"><span className="tag tk">{symbol}</span>
             {qt?.price != null ? <><b className="fo-px">₹{nf(qt.price)}</b>{qt.chg != null && <span className={up ? "up" : "down"}>{up ? "▲" : "▼"} {up ? "+" : MINUS}{nf(Math.abs(qt.chg))}%</span>}</> : <span className="muted">Price not available</span>}</div>
         </div>
@@ -93,14 +95,14 @@ function CompanyPanel({ symbol, board }: { symbol: string; board: string }) {
 }
 
 function Home({ symbol }: { symbol?: string }) {
-  const { data: me } = forumMe();
+  const { data: me } = useForumMe();
   const [pick, setPick] = useState("");      // moderators may look at another plan's board
   const board = me?.moderator && PLANS.includes(pick as never) && pick !== me.board ? pick : "";
   return (
     <div className="wrap fo fo2">
       <div className={"fo2-grid" + (symbol ? " has-company" : "")}>
         <div className="fo2-left">
-          <div className="fo-intro"><div className="eyebrow">Community</div><h1 className="fo-h1">Discussion forums</h1><p className="muted">Discuss, ask and share what you find in the filings of Indian companies.</p></div>
+          <div className="fo-intro card"><div className="eyebrow">Community</div><h1 className="fo-h1 ui-title">Discussion forums</h1><p className="muted">Discuss, ask and share what you find in Indian companies' filings.</p></div>
           {me?.moderator && <div className="seg fo-boards" role="group" aria-label="Board">{PLANS.map((b) => <button type="button" key={b} aria-pressed={(board || me.board) === b} onClick={() => setPick(b)}>{BOARD_NAME[b]}</button>)}</div>}
           {me?.signedIn && <Companies active={symbol} board={board} />}
         </div>
@@ -132,7 +134,7 @@ function Thread() {
       <nav className="fo-crumb" aria-label="Breadcrumb"><Link to="/forum">Discussion forums</Link>{t && <><span aria-hidden="true">›</span><Link to={`/forum/c/${t.symbol}`}>{t.company}</Link></>}<span aria-hidden="true" className="fo-crumb-last">›</span><span aria-current="page" className="fo-crumb-last">Discussion</span></nav>
       <div className="fo-notes"><BoardNote compact /><Disclaimer compact /></div>
       {tid > 0 ? <ThreadView id={tid} onBack={t ? () => nav(`/forum/c/${t.symbol}`) : undefined} backLabel={t ? `All ${t.company} discussions` : undefined}
-        header={(th) => <p className="fo-t-co"><Link to={`/forum/c/${th.symbol}`}><b>{th.symbol}</b> {th.company}</Link> · <Link to={`/stocks/${th.symbol}`}>Research report</Link></p>} />
+        header={(th) => <p className="fo-t-co"><Link to={`/forum/c/${th.symbol}`}><b title={coTitle({ symbol: th.symbol, name: th.company })}>{titleOf({ symbol: th.symbol, name: th.company })}</b> {subLine({ symbol: th.symbol, name: th.company }, th.company)}</Link> · <Link to={`/stocks/${th.symbol}`}>Research report</Link></p>} />
         : <div className="fo-empty"><b>This discussion is not available.</b></div>}
     </div>
   );
@@ -143,11 +145,11 @@ function Guidelines() {
   return (
     <Shell title="Community guidelines and terms">
       <p>FinLit Ventures is a research platform. We are not a SEBI-registered investment adviser or research analyst, and nothing posted here is a recommendation. Members post in their own name (a chosen handle) and are responsible for what they write.</p>
-      <h2 style={{ fontSize: 18 }}>What is welcome</h2>
+      <h2 style={{ fontSize: "var(--fs-18)" }}>What is welcome</h2>
       <ul><li>Questions and views about a company's business, results, balance sheet, valuation and risks, with the data or source behind them.</li><li>Links (up to {2} per post) to filings, annual reports or news articles.</li></ul>
-      <h2 style={{ fontSize: 18 }}>What is not allowed</h2>
+      <h2 style={{ fontSize: "var(--fs-18)" }}>What is not allowed</h2>
       <ul><li>Tips and calls: telling others to buy or sell, price targets, stop-losses, or promises of returns or "guaranteed" gains.</li><li>Promoting stocks, groups, channels, courses or paid services; pump-and-dump style hype.</li><li>Phone numbers, email addresses, WhatsApp/Telegram handles or invitations to move the conversation elsewhere.</li><li>Link shorteners, chat-group links, social profiles; abuse, harassment or personal attacks; repeating the same message.</li></ul>
-      <h2 style={{ fontSize: 18 }}>How moderation works</h2>
+      <h2 style={{ fontSize: "var(--fs-18)" }}>How moderation works</h2>
       <p>Posts that look like hype are held until a moderator reads them. Posts reported by 3 different members are hidden until a moderator decides. Moderators may remove posts and pause accounts. You can edit a post for 15 minutes and delete it at any time. The forum has one board for each plan: Basic, Silver and Gold members each read and write on the board of their own plan, and cannot see the other boards. Posting needs a free FinLit account. We never show your email or account name.</p>
       <p className="muted">{DISCLAIMER}</p>
     </Shell>
@@ -170,7 +172,7 @@ function Moderation() {
       {q.data && !q.data.items.length && <p className="muted">Nothing waiting.</p>}
       {q.data?.items.map((i) => (
         <div className="fo-q" key={i.id}>
-          <div className="fo-meta"><b>{i.status}</b><span>{BOARD_NAME[i.plan]} board</span><span>{i.symbol}</span><span>{i.author.handle} ({i.author.email}){i.author.banned && " · paused"}</span><Link to={`/forum/t/${i.threadId}`}>open</Link></div>
+          <div className="fo-meta"><b>{i.status}</b><span>{BOARD_NAME[i.plan]} board</span><span>{codeText(i.symbol)}</span><span>{i.author.handle} ({i.author.email}){i.author.banned && " · paused"}</span><Link to={`/forum/t/${i.threadId}`}>open</Link></div>
           {i.title && <h3>{i.title}</h3>}<pre>{i.body}</pre>
           {i.flagReasons.length > 0 && <div className="fo-note">Held: {i.flagReasons.join("; ")}</div>}
           {i.reports.map((r, n) => <div key={n} className="fo-meta">Report by {r.by}: {r.reason}{r.note ? ` – ${r.note}` : ""}</div>)}

@@ -152,3 +152,39 @@ export function monotonePath(pts: [number, number][]): string {
   }
   return out;
 }
+
+/* ---- Task #216 (company report handover, README 2.3): the redrawn "How the scores have moved" ---- */
+export type Range = "1w" | "2w" | "1m";
+/** The three range buttons; 1 week is selected on load. A window is that many calendar days ending on the newest recorded day. */
+export const RANGES: { id: Range; days: number; label: string }[] = [{ id: "1w", days: 7, label: "1 week" }, { id: "2w", days: 14, label: "2 weeks" }, { id: "1m", days: 30, label: "1 month" }];
+const isoMinus = (day: string, n: number) => new Date(Date.parse(day + "T00:00:00Z") - n * 86_400_000).toISOString().slice(0, 10);
+/** The recorded days inside the window, and the window's first calendar day. */
+export function inRange(points: HistPoint[], r: Range): { points: HistPoint[]; start: string | null; end: string | null } {
+  const end = points[points.length - 1]?.day ?? null;
+  if (!end) return { points: [], start: null, end: null };
+  const start = isoMinus(end, (RANGES.find((x) => x.id === r)?.days ?? 7) - 1);
+  return { points: points.filter((p) => p.day >= start), start, end };
+}
+/** The legend names of this card. The pack writes "Overall fundamental"; the site's rule (no "Fundamental" on any page, lib/noFundamentalWord.test.ts) keeps the
+ *  name the Prism card uses, "Cumulative fundamental score". */
+export const LEGEND_NAME: Record<Series, string> = NAME;
+export type WindowMove = { s: Series; from: number; to: number; delta: number };
+/** Each line's move over the window: the business scores from the rating in force on the window's first recorded day (task #126), the technical views from their
+ *  first reading in the window. A line with fewer than two figures has none. */
+export function windowMoves(history: HistPoint[], window: HistPoint[]): WindowMove[] {
+  const out: WindowMove[] = [];
+  for (const s of BUSINESS) { const m = bizMove(history, window, s).move; if (m) out.push({ s, from: m.from, to: m.to, delta: m.delta }); }
+  for (const m of movesOf(window, TECHNICAL)) out.push({ s: m.s, from: m.from, to: m.to, delta: m.delta });
+  return out;
+}
+const one = (v: number) => (v < 0 ? "−" : "") + String(Math.abs(Math.round(v * 10) / 10));
+/** The lead line: "Biggest move in this period: the Long-term view rose 8.2 pts, from −44.6 to −36.4." and "Unchanged: Growth & Profitability, Quality, Risk." */
+export function leadLine(moves: WindowMove[]): { biggest: string | null; unchanged: string | null } {
+  const moved = moves.filter((m) => m.delta !== 0).sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
+  const b = moved[0];
+  const same = moves.filter((m) => m.delta === 0).map((m) => LEGEND_NAME[m.s]);
+  return {
+    biggest: b ? `the ${LEGEND_NAME[b.s]} ${b.delta > 0 ? "rose" : "fell"} ${one(Math.abs(b.delta))} pts, from ${one(b.from)} to ${one(b.to)}.` : null,
+    unchanged: same.length ? `${same.join(", ")}.` : null,
+  };
+}

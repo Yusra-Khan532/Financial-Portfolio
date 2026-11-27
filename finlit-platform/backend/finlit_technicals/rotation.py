@@ -18,7 +18,7 @@ equally, so a few large companies cannot dominate):
     Behind and slipping    strength 0 or below and change 0 or below
     Behind but gaining     strength 0 or below and change above 0
 
-A group moves to a new corner only after two weekly closes in it, so one week's wiggle does not count as a move.
+A group leaves its corner only after two weekly closes outside it (it then takes the corner of the latest close), so one week's wiggle does not count as a move.
 
 The rotation rank orders the groups each week by a 0-100 score: the 3, 6 and 12-month returns against the average
 industry (weights 0.3, 0.4, 0.3, each ranked across groups) make up three quarters, and the share of the group's
@@ -63,7 +63,7 @@ METHOD = {
     "strength": "6-month return of the group minus the average industry's, in points.",
     "change": "Last month's return of the group minus the average industry's, in points.",
     "corner": ("Strength above 0 is ahead, otherwise behind. Change above 0 is gaining, otherwise slowing (when ahead) "
-               "or slipping (when behind). A group moves to a new corner only after two weekly closes in it."),
+               "or slipping (when behind). A group leaves its corner only after two weekly closes outside it, and then takes the latest close's corner."),
     "breadth": "Share of the group's counted stocks above their 50-day average: 50% or more is broad, under 40% narrow.",
     "rank": ("A 0-100 score: the 3, 6 and 12-month returns against the average industry, ranked across groups and "
              "weighted 0.3, 0.4 and 0.3, make up three quarters; the breadth reading, ranked the same way, makes up "
@@ -86,6 +86,7 @@ class RotationParams:
     move_places: int = 3               # rank moves of this many places or more are flagged
     tail_weeks: int = 8
     history_weeks: int = 26
+    next_weeks: int = 52               # "What happened next" (task #332): a year of weekly closes, as Sector Pulse's year
     year_sessions: int = 252
 
 
@@ -143,26 +144,29 @@ def raw_corners(strength: pd.DataFrame, change: pd.DataFrame, middle: float) -> 
 
 
 def confirm(raw: pd.DataFrame, k: int = 2) -> pd.DataFrame:
-    """A group takes a new corner only after k consecutive weekly readings in it."""
+    """A group leaves its corner only after k consecutive weekly readings outside it, and then takes the corner of the latest reading.
+
+    One week's wiggle still does not count. Task #243 (data finding D2, 19 Nov 2026): the earlier rule asked for k readings in the SAME new corner, so a
+    group that flipped between two other corners (Banks: Ahead and gaining, Behind but gaining, Ahead and gaining) kept a corner none of its recent weeks
+    had, for 12 weeks, beside figures that read otherwise."""
     if k <= 1:
         return raw.copy()
     out = {}
     for g in raw.columns:
-        cur, cand, n, col = "", "", 0, []
+        cur, n, col = "", 0, []
         for v in raw[g].values:
             if v == "":
-                cur, cand, n = "", "", 0
+                cur, n = "", 0
                 col.append("")
                 continue
             if cur == "":
                 cur = v
             elif v == cur:
-                cand, n = "", 0
+                n = 0
             else:
-                n = n + 1 if v == cand else 1
-                cand = v
+                n += 1
                 if n >= k:
-                    cur, cand, n = v, "", 0
+                    cur, n = v, 0
             col.append(cur)
         out[g] = col
     return pd.DataFrame(out, index=raw.index)
@@ -199,9 +203,13 @@ class Rotation:
     """Rotation readings for every group, computed once from a SectorEngine (or from GroupResults directly)."""
 
     def __init__(self, engine=None, params: RotationParams = RotationParams(),
-                 groups: Optional[Mapping[str, GroupResult]] = None, study_file: Optional[str] = None):
+                 groups: Optional[Mapping[str, GroupResult]] = None, study_file: Optional[str] = None,
+                 bench: Optional[pd.Series] = None):
+        # FinLit patch (task #192, 22 Nov 2026): `bench` measures these groups against another set's average industry (the Sectors view is read against
+        # the same average industry as the Industries view, so both views use one yardstick)
         self.eng = engine
         self.p = params
+        self._bench_in = bench
         if groups is None:
             if engine is None:
                 raise ValueError("give a SectorEngine or the groups")
@@ -215,7 +223,7 @@ class Rotation:
     # ------------------------------------------------------------------ computing
     def _compute(self):
         p, fr = self.p, self.fr
-        self.bench = benchmark(fr)
+        self.bench = benchmark(fr) if self._bench_in is None else self._bench_in.reindex(fr.ew.index).ffill()
         windows = sorted({p.strength_sessions, p.change_sessions, p.year_sessions, *[n for n, _ in p.rank_windows]})
         self.rel = {n: relative(fr, self.bench, n) for n in windows}
         self.weeks = week_ends(fr.ew.index)
@@ -353,7 +361,7 @@ class Rotation:
         t = self.weeks[-1]
         return {
             "date": _d(t),
-            "week_closed": bool(t.dayofweek >= 4),
+            "week_closed": bool(t.day_of_week >= 4),
             "groups": len(rows),
             "benchmark": METHOD["benchmark"],
             "average_industry": {"return_1m": _r((self.bench.iloc[-1] / self.bench.iloc[-1 - p.change_sessions] - 1) * 100),
@@ -366,11 +374,25 @@ class Rotation:
             "climbers_4w": [{"name": r["name"], "slug": r["slug"], "rank": r["rank"], "change": r["rank_change_4w"]} for r in climbers],
             "fallers_4w": [{"name": r["name"], "slug": r["slug"], "rank": r["rank"], "change": r["rank_change_4w"]} for r in fallers],
             "rank_weeks": [_d(d) for d in self.weeks[-p.history_weeks:]],
+            "what_next": self.what_next(names),
             "method": METHOD,
             "params": {k: (list(v) if isinstance(v, tuple) else v) for k, v in asdict(p).items()},
             "study": self.study(),
             "disclaimer": DISCLAIMER,
         }
+
+    def what_next(self, names: Optional[List[str]] = None) -> Optional[Dict[str, Any]]:
+        """FinLit patch (task #332, developer file 31): "What happened next", counted once a week by the sector job from each group's confirmed box at the
+        real weekly closes of the last year (`next_weeks`), for the groups with a reading now. The count itself is public.count_what_next (plain Python, so
+        the website can count the same way from the feed's 26 weeks for a data set written before this)."""
+        from .public import count_what_next
+        try:
+            W = self.weeks[-self.p.next_weeks:]
+            names = self.group_names() if names is None else names
+            series = {g: [self.corner.at[d, g] or None for d in W] for g in names}
+            return count_what_next(series, [_d(d) for d in W])
+        except Exception:  # noqa: BLE001 - an extra card: the page feed is still written without it
+            return None
 
     def group_view(self, name: str) -> Dict[str, Any]:
         """One group's rotation card. `name` is a group name or slug."""

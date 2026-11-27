@@ -17,7 +17,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from .. import indices as idx_mod
 from ..auth.entitlements import has
-from ..auth.routes import SYMBOL, fail
+from ..auth.routes import SYMBOL, fail, read_limit
 from ..auth.service import current
 from ..graphviews import limits_for
 from ..screener.catalog import INDEX_LISTS
@@ -26,6 +26,9 @@ from . import derive, index as index_mod, stats as S, table as T, tech as tech_m
 from .catalog import BY_ID, CAVEATS, METRICS, REASONS, catalog_json, history_tier
 
 router = APIRouter(prefix="/api/advanced")
+# Per visitor IP / per signed-in member. /cross is sent when a chart option changes (repeats cached in the browser for a minute); the CSV per 10 minutes.
+CROSS_VISITOR, CROSS_MEMBER = 60, 120
+EXPORT_VISITOR, EXPORT_MEMBER, EXPORT_WINDOW = 10, 30, 600
 log = logging.getLogger("finlit.advanced")
 PRIVATE = {"Cache-Control": "private, no-store", "Vary": "Cookie"}
 METRIC_ID = re.compile(r"^[a-z0-9_]{1,24}$")
@@ -87,7 +90,7 @@ class Universe(BaseModel):
     sector: List[str] = Field(default_factory=list, max_length=40)
     industry: List[str] = Field(default_factory=list, max_length=60)
     index: List[str] = Field(default_factory=list, max_length=20)
-    cap: List[Literal["Large", "Mid", "Small"]] = Field(default_factory=list, max_length=3)
+    cap: List[Literal["Large", "Mid", "Small", "Micro"]] = Field(default_factory=list, max_length=4)
     mcapMin: Optional[float] = Field(default=None, ge=0, le=1e9)
     mcapMax: Optional[float] = Field(default=None, ge=0, le=1e9)
     lenders: Literal["auto", "exclude", "include", "only"] = "auto"
@@ -152,7 +155,9 @@ def _index_points(t, core: dict, codes: List[str]) -> List[dict]:
 
 @router.post("/cross")
 async def cross(request: Request, body: CrossIn):
-    plan = _plan(await current(request))
+    ctx = await current(request)
+    await read_limit(request, ctx, "adv_cross", CROSS_VISITOR, CROSS_MEMBER)
+    plan = _plan(ctx)
     t = await get_table(request.app.state.store)
     core = _cross_core(t, body, plan)
     syms = _symbols(body.highlight)
@@ -413,7 +418,9 @@ def _stats_header(st: Optional[dict]) -> List[Tuple[str, Any]]:
 
 @router.post("/export")
 async def export(request: Request, body: ExportIn):
-    plan = _plan(await current(request))
+    ctx = await current(request)
+    await read_limit(request, ctx, "adv_export", EXPORT_VISITOR, EXPORT_MEMBER, EXPORT_WINDOW)
+    plan = _plan(ctx)
     _need(plan, "silver", "Downloading chart data")
     buf = io.StringIO()
     w = csv.writer(buf)

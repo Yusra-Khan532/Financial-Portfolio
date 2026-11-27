@@ -27,7 +27,7 @@ const WIDTHS = [1440, 1055, 390], THEMES = ["dark", "light"];
 const PAGES = [
   ["/screener", "Free", "api"], ["/screener", "Free", "demo"], ["/score-screener", "Silver", "api"], ["/advanced-score-screener", "Gold", "api"], ["/fund-score-screener", "Gold", "demo"],
   ["/query-builder", "Free", "demo"], ["/research", "Free", "demo"], ["/compare", "Free", "demo"], ["/prism", "Gold", "demo"], ["/outlook", "Gold", "demo"],
-  ["/premium", "Gold", "demo"], ["/premium/report", "Gold", "demo"], ["/premium/fundamentals", "Gold", "demo"], ["/premium/markets", "Gold", "demo"], ["/premium/options", "Gold", "demo"],
+  ["/premium", "Gold", "demo"], ["/premium/report", "Gold", "demo"], ["/premium/fundamentals", "Gold", "demo"], ["/premium/markets", "Gold", "demo"],
   ["/eps-calculator", "Free", "demo"], ["/dcf", "Gold", "demo"], ["/sip-calculator", "Free", "demo"], ["/graphs", "Free", "demo"], ["/graphs/advanced/valuation", "Free", "demo"],
   ["/fii-dii", "Free", "demo"], ["/macro", "Free", "demo"], ["/commodities", "Free", "demo"], ["/results", "Free", "demo"], ["/results/quarter", "Free", "demo"], ["/ipo", "Free", "demo"], ["/news", "Free", "demo"],
   ["/funds", "Free", "demo"], ["/funds/compare", "Free", "demo"], ["/funds/insights", "Free", "demo"], ["/etfs", "Free", "demo"], ["/etfs/compare", "Free", "demo"], ["/etfs/compare-index-funds", "Free", "demo"],

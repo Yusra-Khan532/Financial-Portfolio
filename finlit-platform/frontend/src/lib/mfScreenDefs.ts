@@ -15,7 +15,7 @@ const EXCESS = [P("Behind", undefined, 0), P("Ahead", 0), P("Ahead by 2+", 2), P
 
 export const NUM: NumDef[] = [
   { key: "aum", label: "Fund size (AUM)", unit: "₹ Cr", dec: 0, presets: [P("Under 100", undefined, 100), P("100 to 500", 100, 500), P("500 to 2,000", 500, 2000), P("2,000 to 10,000", 2000, 10000), P("10,000 to 50,000", 10000, 50000), P("Above 50,000", 50000)],
-    hint: "Average assets over the latest quarter (AMFI), all plans of the scheme together; the fund house's month-end net assets where AMFI lists none. Size says how big a fund is, not how good it is." },
+    hint: "Average assets over the latest quarter. Size says how big a fund is, not how good it is." },
   { key: "age", label: "Age", unit: "years", dec: 1, presets: [P("Under 1 year", undefined, 1), P("1 to 3", 1, 3), P("3 to 5", 3, 5), P("5 to 10", 5, 10), P("Over 10", 10)], hint: "Years from the launch date AMFI gives to the latest NAV." },
   { key: "aum_share", label: "Share of its category's size", unit: "%", dec: 2, presets: [], hint: "The fund's size as a share of its whole category's net assets in AMFI's monthly report." },
   { key: "na_chg", label: "Net assets, change over the stored months", unit: "%", dec: 1, sign: true, presets: [P("Growing", 5), P("Steady", -5, 5), P("Shrinking", undefined, -5)],
@@ -41,8 +41,8 @@ export const NUM: NumDef[] = [
   { key: "ter_gap", label: "Regular minus Direct TER", unit: "pp", dec: 2, presets: [P("Under 0.5", undefined, 0.5), P("0.5 to 1", 0.5, 1), P("Above 1", 1)], hint: "How much more the Regular plan of the same scheme charges a year." },
   { key: "fee_share", label: "Fee share of return", unit: "%", dec: 0, presets: [P("Under 10%", undefined, 10), P("10 to 25%", 10, 25), P("Above 25%", 25)], hint: "TER ÷ (3-year return + TER). Most useful for debt funds, where a fee can be a large part of what the fund earned." },
   { key: "exit_pct", label: "Exit load, highest percentage", unit: "%", dec: 2, presets: [], hint: "Read from the exit-load wording of the fund house (0 when it says nil)." },
-  { key: "vol1", label: "Volatility, 1 year", unit: "%", dec: 1, presets: [P("Under 5%", undefined, 5), P("5 to 12%", 5, 12), P("12 to 20%", 12, 20), P("Above 20%", 20)], hint: "Annualised: standard deviation of the last 12 month-end returns × √12." },
-  { key: "vol3", label: "Volatility, 3 years", unit: "%", dec: 1, presets: [P("Under 5%", undefined, 5), P("5 to 12%", 5, 12), P("12 to 20%", 12, 20), P("Above 20%", 20)], hint: "Annualised: standard deviation of the last 36 month-end returns × √12." },
+  { key: "vol1", label: "Volatility, 1 year", unit: "%", dec: 1, presets: [P("Under 5%", undefined, 5), P("5 to 12%", 5, 12), P("12 to 20%", 12, 20), P("Above 20%", 20)], hint: "How much returns moved from month to month over the past year, shown as a yearly figure." },
+  { key: "vol3", label: "Volatility, 3 years", unit: "%", dec: 1, presets: [P("Under 5%", undefined, 5), P("5 to 12%", 5, 12), P("12 to 20%", 12, 20), P("Above 20%", 20)], hint: "How much returns moved from month to month over 3 years, shown as a yearly figure." },
   { key: "vol_rel", label: "Volatility against category median", unit: "x", dec: 2, presets: [P("Below 0.9×", undefined, 0.9), P("0.9 to 1.1×", 0.9, 1.1), P("Above 1.1×", 1.1)], hint: "The fund's 3-year volatility divided by the median of the same category and plan. Below 1 means it moved less than most peers. Needs three funds with a figure." },
   { key: "down_dev", label: "Downside deviation, 3 years", unit: "%", dec: 1, presets: [P("Under 2%", undefined, 2), P("2 to 6%", 2, 6), P("6 to 10%", 6, 10), P("Above 10%", 10)], hint: "Like volatility, but only the months that fell count: root mean square of the falls in the last 36 months × √12. 0 when no month fell." },
   { key: "fall", label: "Biggest fall, 36 months", unit: "%", dec: 1, presets: [P("Under 5%", undefined, 5), P("5 to 15%", 5, 15), P("15 to 30%", 15, 30), P("Over 30%", 30)], hint: "The largest drop from a month-end NAV to a later month-end NAV in the last 36 months." },
@@ -128,7 +128,7 @@ export const SORTS: { v: string; dir: "asc" | "desc"; label: string; gold?: bool
   { v: "aum", dir: "desc", label: "Fund size, largest first" }, { v: "r1y", dir: "desc", label: "1 year return, high to low" }, { v: "r3y", dir: "desc", label: "3 year return, high to low" },
   { v: "r5y", dir: "desc", label: "5 year return, high to low" }, { v: "sip3y", dir: "desc", label: "SIP return (3 years), high to low" }, { v: "sip5y", dir: "desc", label: "SIP return (5 years), high to low" },
   { v: "ter", dir: "asc", label: "Expense ratio, low to high" }, { v: "fall", dir: "asc", label: "Biggest fall, smallest first" }, { v: "rank3y", dir: "asc", label: "Rank in category (3 years), top first" },
-  { v: "age", dir: "desc", label: "Age, oldest first" }, { v: "name", dir: "asc", label: "Name, A to Z" }, { v: "score", dir: "desc", label: "FundPulse, high to low", gold: true }   /* task #131: no Gold tag on the label; Gold only, as the server allows */,
+  { v: "age", dir: "desc", label: "Age, oldest first" }, { v: "name", dir: "asc", label: "Name, A to Z" }, { v: "score", dir: "desc", label: "Mutual Fund Score, high to low", gold: true }   /* task #131: no Gold tag on the label; Gold only, as the server allows */,
 ];
 
 /** Groups the spec lists that need data we do not hold. Shown, never hidden, never faked: each says why and which free route would fill it (spec section 15). */
@@ -141,6 +141,6 @@ export const COMING: { id: string; label: string; why: string; route: string }[]
   { id: "capmix", label: "Large, mid and small cap share of holdings", why: "Needs the half-yearly AMFI large / mid / small list joined to holdings by ISIN.", route: "AMFI half-yearly cap list (F-D), or Nifty 100 / Midcap 150 / Smallcap 250 constituents (F-E)." },
   { id: "pe", label: "Portfolio P/E, P/B, quality and health", why: "Needs holdings joined to the stock database's ratios by ISIN.", route: "Join disclosure holdings to company ratios (F-E where a stock has none)." },
   { id: "moves", label: "Recent moves in a stock", why: "Needs two stored month-ends of holdings; only the latest is kept per fund today.", route: "Keep every month's holdings from now on (F-G)." },
-  { id: "score", label: "Pillar scores and rank inside group", why: "The FinLit FundPulse has its own column in the table for Gold members; its pillar scores and its rank inside the group are on the Fund score screener.", route: "Use the Fund score screener." },
+  { id: "score", label: "Rank inside group", why: "The score and its four parts are filters under FinLit Mutual Fund Score for Gold members; the rank inside the group is on the Fund score screener.", route: "Use the Fund score screener." },
   { id: "etfpanel", label: "ETF panel: traded value, premium or discount, 52-week range", why: "ETF price data exists but the panel is not built yet.", route: "Already stored in the ETF tables; next build." },
 ];

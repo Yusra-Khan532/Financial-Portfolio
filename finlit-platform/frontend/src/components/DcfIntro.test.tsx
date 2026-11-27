@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it } from "vitest";
 import { DcfIntro } from "./DcfIntro";
@@ -8,9 +8,13 @@ afterEach(cleanup);
 const BANNED = /\b(buy|buying|sell|hold|reduce|avoid|accumulate|target|best)\b/i;
 
 describe("the DCF calculator introduction", () => {
-  it("explains what a DCF is, five steps and six results, and is open at the start", () => {
+  it("explains what a DCF is, five steps and six results, and is closed at the start (task #302), remembered per member", () => {
+    localStorage.clear();
     const { container } = render(<DcfIntro />);
+    expect(container.querySelector("details")?.hasAttribute("open")).toBe(false);
+    fireEvent.click(screen.getByRole("button", { name: "Show" }));
     expect(container.querySelector("details")?.hasAttribute("open")).toBe(true);
+    expect(localStorage.getItem("finlit.dcf.intro.guest")).toBe("open");
     expect(screen.getByText("What is a DCF?")).toBeTruthy();
     const steps = within(container.querySelector("ol")!).getAllByRole("listitem");
     expect(steps.length).toBe(5);

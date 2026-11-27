@@ -5,15 +5,16 @@ import type { Meta, Mode, PageObject, Reading, SizeCode } from "./types";
 
 export { ordinal };
 export const MINUS = "−";
-/** 0.78 -> ".78", -0.01 -> "−.01" (grid cells); full = "0.78". */
-export const short2 = (v: number) => (v < 0 ? MINUS : "") + Math.abs(v).toFixed(2).replace(/^0/, "");
+/** A correlation as the page prints it everywhere: 0.78 -> "0.78", -0.01 -> "−0.01". Task #388 (developer file 36, part B item 5): the leading 0 stays
+ *  (it was ".78" in the grid and Moves with rest, "0.78" elsewhere). Kept under its old name for its importers; the same as `two`. */
+export const short2 = (v: number) => (v < 0 ? MINUS : "") + Math.abs(v).toFixed(2);
 export const two = (v: number) => (v < 0 ? MINUS : "") + Math.abs(v).toFixed(2);
 export const pct = (v: number) => (v > 0 && v < 0.1 ? "under 0.1%" : `${v.toFixed(1)}%`);
 export const signedPct1 = (v: number) => (v < 0 ? MINUS : "") + Math.abs(v).toFixed(1) + "%";
 export const plural = (n: number, one: string, many = one + "s") => `${n} ${n === 1 ? one : many}`;
 
-export const SIZE_WORD: Record<SizeCode, string> = { L: "Large cap", M: "Mid cap", S: "Small cap", U: "Size not known" };
-export const SIZE_PLURAL: Record<SizeCode, string> = { L: "large caps", M: "mid caps", S: "small caps", U: "of unknown size" };
+export const SIZE_WORD: Record<SizeCode, string> = { L: "Large cap", M: "Mid cap", S: "Small cap", X: "Micro cap", U: "Size not known" };
+export const SIZE_PLURAL: Record<SizeCode, string> = { L: "large caps", M: "mid caps", S: "small caps", X: "micro caps", U: "of unknown size" };
 export const NOT_CLASSIFIED = /\(not classified\)$/;
 
 /** Eight chart colours of the site's palette, then a hue walk, one per sector in the order sectors are first listed. */
@@ -39,13 +40,13 @@ export function readingsFor(page: PageObject, mode: Mode, section: Reading["sect
 }
 export const readingRule = (page: PageObject, rule: string, mode: Mode) => page.readings.find((x) => x.rule === rule && (x.mode === "both" || x.mode === mode));
 
-/** "7 sectors · 9 large caps, 3 small caps, no mid caps" from the page's own counts (compact: "7 sectors · 9 large, 3 small"). */
+/** "7 sectors · 9 large caps, 3 small caps, no mid caps, no micro caps" from the page's own counts (compact: "7 sectors · 9 large, 3 small"). */
 export function sizeLine(page: PageObject, metas: Meta[], compact = false): string {
   const sectors = new Set(metas.map((m) => m.sector || "?")).size;
   const c = page.size_count;
-  const word = (k: "L" | "M" | "S", n: number) => (compact ? SIZE_PLURAL[k].replace(/ caps?$/, "") : n === 1 ? SIZE_PLURAL[k].replace(/s$/, "") : SIZE_PLURAL[k]);
-  const present = (["L", "M", "S"] as const).filter((k) => c[k]).map((k) => `${c[k]} ${word(k, c[k])}`);
-  const absent = compact ? [] : (["L", "M", "S"] as const).filter((k) => !c[k]).map((k) => `no ${SIZE_PLURAL[k]}`);
+  const word = (k: "L" | "M" | "S" | "X", n: number) => (compact ? SIZE_PLURAL[k].replace(/ caps?$/, "") : n === 1 ? SIZE_PLURAL[k].replace(/s$/, "") : SIZE_PLURAL[k]);
+  const present = (["L", "M", "S", "X"] as const).filter((k) => c[k]).map((k) => `${c[k]} ${word(k, c[k])}`);
+  const absent = compact ? [] : (["L", "M", "S", "X"] as const).filter((k) => !c[k]).map((k) => `no ${SIZE_PLURAL[k]}`);
   const bits = [...present, ...absent];
   if (c.U) bits.push(`${c.U} of unknown size`);
   return `${plural(sectors, "sector")} · ${bits.join(", ")}`;

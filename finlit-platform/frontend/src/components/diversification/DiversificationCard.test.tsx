@@ -40,7 +40,7 @@ describe("the card shows the sample list as the addendum's sample report does", 
     expect(screen.getByText("About 4.4 effective sectors out of 8 that score in full. 6 of the 15 stocks are in financial services.")).toBeTruthy();
     expect(screen.getAllByRole("radio").map((r) => r.textContent)).toEqual(expect.arrayContaining(["Weekly · 3 years", "Monthly · 5 years", "Yearly · indicative"]));
     expect(screen.getByText("Weekly prices, Nov 2023 – Oct 2026. Describes how these stocks have moved together in the past; it is information, not a recommendation, and these relationships can change.")).toBeTruthy();
-    expect(screen.getByText("Size: 15 large caps · 0 mid · 0 small")).toBeTruthy();
+    expect(screen.getByText("Size: 15 large caps · 0 mid · 0 small · 0 micro")).toBeTruthy();
     expect(screen.getByText("Business groups: Tata 2 (TCS, Tata Steel)")).toBeTruthy();
     expect(screen.getByText("Over the last year these stocks have moved like about 7 independent ones, the same as over 3 years. No pair's correlation has changed by 0.30 or more.")).toBeTruthy();
     expect(screen.getByText("If equal amounts were held, Information technology would be 20.0% of the amount but 23.7% of the risk.")).toBeTruthy();
@@ -137,4 +137,38 @@ describe("wording: the card describes and never advises", () => {
     expect(css).not.toMatch(/financial-(positive|negative)|\bgreen\b|\bred\b|#(?:16|4A|B9|FC)[0-9A-F]{4}\b|--band-(hi|lo|mid)/i);
   });
   it("an unrated stock is named in a note", () => { expect(W.notRatedNote(["XYZ"])).toBe("1 stock is not rated by Prism yet (XYZ), so it is left out of the style tilt only."); void within; });
+});
+
+describe("task #181: the card looks like the boxes above it, with its name highlighted", () => {
+  it("is a site .card, takes the site's surfaces, lines and text, and keeps the accent for the bar, the icon and the data", async () => {
+    const fs = await import("node:fs");
+    const css = fs.readFileSync("src/components/diversification/diversification.css", "utf8"), tsx = fs.readFileSync("src/components/diversification/DiversificationCard.tsx", "utf8");
+    expect(tsx).toContain('<section className="card dv"');
+    expect(css).toMatch(/\.dv \{ --bg-surface: var\(--s1\); --bg-subtle: var\(--s2\); --dv-line: var\(--border\); --text-primary: var\(--text\)/);
+    expect(css).not.toMatch(/#0C2419|#F1F8F3|95, 211, 155/);                       // the old private palette is gone
+    expect(css).toMatch(/\.dv-head > div:first-child \{ border-left: 4px solid var\(--gain\)/);   // the highlighted name
+    expect(css).toMatch(/\.dv-cur \{[^}]*border: 1px solid var\(--border-strong\)[^}]*background: var\(--bg-subtle\)/);   // a neutral box, not an accent one
+    const base = /\.dv \{ --dv-hue[^}]*\}/.exec(css)![0];
+    expect(base).not.toMatch(/background:|border:|border-radius:|padding:/);       // the .card styles are not overridden
+  });
+  it("rework (18 Nov): the names in the list are plain chips, nothing reads as selected, and green is left only on the title's bar", async () => {
+    const fs = await import("node:fs");
+    const css = fs.readFileSync("src/components/diversification/diversification.css", "utf8");
+    const last = (sel: string) => { const all = [...css.matchAll(new RegExp(sel.replace(/[.()]/g, "\\$&") + " \\{([^}]*)\\}", "g"))]; return all[all.length - 1]?.[1] ?? ""; };
+    expect(css).toContain("\n.dv-chips button { border-color: transparent; border-radius: var(--r-ctl); background: var(--s1); }");   // rework 2 (19 Nov): plain tags, no border
+    expect(last(".dv-chips button.off")).toMatch(/border-color: var\(--border-strong\); background: transparent/);
+    expect(last(".dv-try.on")).toBe(" border-color: var(--border-strong); ");                                    // an open "Try a different list" is not outlined green
+    expect(css).toMatch(/--dv-hue: var\(--gold\); --border-control: var\(--border-strong\); --focus-ring: var\(--gold\)/);   // data bars and icon: the site's gold accent
+    const greens = css.split("\n").filter((l) => l.includes("var(--gain)") && !l.trimStart().startsWith("/*") && !l.startsWith("   "));
+    expect(greens).toEqual([".dv-head > div:first-child { border-left: 4px solid var(--gain); padding-left: 16px; }"]);   // the base rule; rework 2 recolours it below
+  });
+  it("rework 2 (19 Nov: still too much of the site hue, the UI issue persists): the title bar is gold, and in dark mode every box, line and chip inside is neutral grey", async () => {
+    const fs = await import("node:fs");
+    const css = fs.readFileSync("src/components/diversification/diversification.css", "utf8");
+    const tail = css.slice(css.indexOf("Task #181 rework 2"));
+    expect(tail).toContain(".dv-head > div:first-child { border-left-color: var(--gold); }");
+    expect(tail).toContain(':root[data-theme="dark"] .dv { --bg-subtle: rgba(255, 255, 255, .035); --dv-line: rgba(255, 255, 255, .10); --border-strong: rgba(255, 255, 255, .18); --border-control: rgba(255, 255, 255, .18); }');
+    expect(tail).toContain(':root[data-theme="dark"] .dv-chips button { background: rgba(255, 255, 255, .06); }');
+    expect(tail).not.toMatch(/var\(--gain\)|var\(--border\)|var\(--s[123]\)[^;]*;[^}]*dark/);          // nothing in the rework draws in the site's hue
+  });
 });

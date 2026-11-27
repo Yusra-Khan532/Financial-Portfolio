@@ -1,0 +1,31 @@
+/* The FinLit AI theme "Mutual funds & ETFs" (components/AskFunds.tsx, task #203). Every class starts with afq-; the rows reuse the panel's own aif-q buttons. */
+.afq { display: grid; gap: 12px; min-width: 0; }
+.afq-search { max-width: none; }
+.afq-ctx { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: var(--fs-13); color: var(--muted); }
+.afq-ctx b { color: var(--text); }
+.afq-ctx button { margin-left: auto; padding: 2px 10px; border: 1px solid var(--border-strong); border-radius: var(--ui-r-pill); background: none; color: var(--text); font: 600 var(--fs-12) var(--sans); cursor: pointer; }
+.afq-segs { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.afq-segs > li { border: 1px solid var(--border); border-radius: var(--r-ctl); background: var(--s1); }
+.afq-segs > li.on { border-color: var(--gain); }
+.afq-seg { width: 100%; display: grid; grid-template-columns: 28px minmax(0, 1fr) auto 14px; align-items: center; gap: 10px; padding: 10px 12px; border: 0; border-radius: var(--r-ctl); background: none; color: var(--text); text-align: left; cursor: pointer; font: 600 var(--fs-14)/1.3 var(--sans); }
+.afq-seg:hover { background: var(--s2); }
+.afq-seg:focus-visible, .afq-back:focus-visible, .afq-ctx button:focus-visible { outline: 2px solid var(--gain); outline-offset: 2px; }
+.afq-seg small { font: 500 var(--fs-12) var(--sans); color: var(--muted); white-space: nowrap; }
+.afq-seg i { font-style: normal; color: var(--muted); transition: transform .15s; }
+.afq-segs > li.on .afq-seg i { transform: rotate(180deg); }
+.afq-n { display: grid; place-items: center; width: 26px; height: 26px; border-radius: var(--r-ctl); background: var(--gain-soft); color: var(--gain); font: 700 var(--fs-12) var(--mono); }
+.afq-subs { display: grid; gap: 10px; padding: 0 12px 12px; }
+.afq-subs h4 { margin: 4px 0 6px; font: 700 var(--fs-12)/1.3 var(--sans); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.afq-subs .aif-qs { margin: 0; }
+.afq-back { justify-self: start; display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border: 1px solid var(--border-strong); border-radius: var(--ui-r-pill); background: none; color: var(--text); font: 600 var(--fs-13) var(--sans); cursor: pointer; }
+.afq-back svg { width: 14px; height: 14px; transform: rotate(180deg); }
+.afq-want { margin: 0; display: flex; gap: 8px; align-items: flex-start; padding: 10px 12px; border-radius: var(--r-ctl); background: var(--s2); font: 600 var(--fs-14)/1.4 var(--sans); }
+.afq-want svg { flex: none; width: 16px; height: 16px; margin-top: 2px; color: var(--gain); }
+.afq-pick { display: grid; gap: 8px; }
+.afq-pick label { font: 600 var(--fs-13) var(--sans); }
+.afq-pick input { height: 44px; padding: 0 14px; border: 1px solid var(--ui-field-line); border-radius: var(--r-ctl); background: var(--s1); color: var(--text); font: var(--fs-16) var(--sans); }
+.afq-hits { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.afq-hits button { width: 100%; display: grid; gap: 2px; padding: 9px 12px; border: 1px solid var(--border); border-radius: var(--r-ctl); background: var(--s1); color: var(--text); text-align: left; cursor: pointer; font: var(--fs-14)/1.35 var(--sans); }
+.afq-hits button:hover { border-color: var(--gain); }
+.afq-hits small { color: var(--muted); font-size: var(--fs-12); }
+.afq .aif-q small { display: block; margin-top: 2px; color: var(--muted); font-size: var(--fs-12); }

@@ -15,7 +15,7 @@ import "../styles/scorescreen.css";
 import { CoLogo } from "./CoLogo";
 
 /** The imported holdings as three tabs over one table: Overview (share, price, size and the plan's score model), Ratios and Financials.
- *  Silver sees the basic FinLit IQ and its pillars; Gold only FinLit Prism (four parts and two technical views). Information only, not advice. */
+ *  Gold sees FinLit Prism (four parts and two technical views); a plan without Prism sees no company score (task #283). Information only, not advice. */
 
 const heat = (v: number | null | undefined) => (v == null ? undefined : ({ "--hc": `hsl(${Math.round(Math.max(0, Math.min(100, v)) * 1.25)} 62% 46%)` } as CSSProperties));
 const tone: Record<ScoreBand, string> = { hi: "hi", mid: "mid", lo: "lo", na: "na" };
@@ -36,7 +36,7 @@ function ScoreBadge({ l, model }: { l: Line; model: Model }) {
   if (model === "prism" && isReady(l.ov) && (!l.ov.prism || l.ov.prism.state === "none"))
     return <span className="pzs-no" title={why || undefined}>Not rated yet<span className="sr">: {why}</span><Link to={`/prism/${encodeURIComponent(l.symbol)}`} className="pzs-go" aria-label={`Rate ${l.symbol} with Prism now`}>Rate now</Link></span>;
   if (model === "prism" && isReady(l.ov)) return <span className="pzs-no" title={why || undefined}>Not rated<span className="sr">: {why}</span></span>;
-  return <span className="faint" title={why || undefined}>{isReady(l.ov) ? MINUS : "Preparing…"}</span>;
+  return <span className="faint" title={why || undefined}>{isReady(l.ov) ? MINUS : l.ov ? "Preparing…" : "Loading…"}</span>;   // QA 23 Nov (item 14): "Loading…" until the answer comes; "Preparing…" only once the server says so
 }
 
 function ShareCell({ l, flag }: { l: Line; flag?: string }) {
@@ -56,15 +56,13 @@ function Trend({ t, name }: { t: { score: number; word: string } | null | undefi
 }
 
 function OverviewCells({ l, h, model, cols, maxCap }: { l: Line; h: Ready; model: Model; cols: Col[]; maxCap: number }) {
-  const ch = h.changePct, size = sizeWord(h.marketCapCr), s = scoreOf(h, model);
+  const ch = h.changePct, size = sizeWord(h.marketCapCr);
   return <>{cols.slice(1).map((c) => {
     switch (c.id) {
       case "price": return <td key={c.id} className="hprice">{h.price == null ? <Dash why="No price in the stored report." /> : priceText(h.price)}</td>;
       case "change": return <td key={c.id}>{ch == null ? <Dash why="No change in the stored report." /> : <span className={"hchg " + (ch > 0 ? "up" : ch < 0 ? "down" : "")}>{changeText(ch)}</span>}</td>;
       case "cap": return <td key={c.id} className="hcap">{h.marketCapCr == null ? <Dash why="No market cap in the stored report." /> : <><span className="hcb" style={{ "--w": (h.marketCapCr / maxCap).toFixed(3) } as CSSProperties}><i /></span>{capText(h.marketCapCr)}{size && <small className="pf-size">{size}</small>}</>}</td>;
-      case "score": return <td key={c.id}>{model === "finlit" && s.value != null
-        ? <span className={"hscore " + (h.finlit?.band || "")} style={heat(s.value)}><span className="hsb"><i style={{ width: s.value + "%" }} /></span><b>{s.value}</b><em>{s.word}</em></span>
-        : <ScoreBadge l={l} model={model} />}</td>;
+      case "score": return <td key={c.id}><ScoreBadge l={l} model={model} /></td>;
       default: {
         if (c.id.startsWith("p_")) { const k = c.id.slice(2) as "fundamental"; return <td key={c.id}><Part v={h.prism?.parts?.[k]} name={c.label} /></td>; }
         if (c.id.startsWith("t_")) { const k = c.id.slice(2) as "shortTerm"; return <td key={c.id}><Trend t={h.prism?.[k]} name={c.label} /></td>; }
@@ -121,11 +119,11 @@ export function TabStrip({ tab, onTab }: { tab: Tab; onTab: (t: Tab) => void }) 
 
 export type PortfolioTableProps = {
   lines: Line[]; model: Model; tab: Tab; period: Period; limit: number; state: "loading" | "ready" | "error"; errorText?: string;
-  onPeriod: (p: Period) => void; onExport: () => void;
+  onPeriod: (p: Period) => void;
   flags?: Record<string, string>; actions?: (symbol: string) => ReactNode;
 };
 
-export function PortfolioTable({ lines, model, tab, period, limit, state, errorText, onPeriod, onExport, flags, actions }: PortfolioTableProps) {
+export function PortfolioTable({ lines, model, tab, period, limit, state, errorText, onPeriod, flags, actions }: PortfolioTableProps) {
   const cols = useMemo(() => columnsFor(tab, model, period), [tab, model, period]);
   const [sortId, setSortId] = useState("score"), [dir, setDir] = useState<1 | -1>(-1);
   const [band, setBand] = useState<BandFilter>(null), [q, setQ] = useState("");
@@ -142,8 +140,7 @@ export function PortfolioTable({ lines, model, tab, period, limit, state, errorT
 
   return (
     <section className="card hold-card pf-tabs-card"><div className="card-h"><h3><span className="ci"><Icon name="table" /></span>Your shares</h3>
-      <span className="s">{shown.length === lines.length ? lines.length : `${shown.length} of ${lines.length}`} · limit {limit}</span>
-      <button type="button" className="btn" onClick={onExport} disabled={!lines.length}>Export CSV</button></div>
+      <span className="s">{shown.length === lines.length ? lines.length : `${shown.length} of ${lines.length}`} · limit {limit}</span></div>
         <div className="hold-bar">
           <div className="hold-chips" role="group" aria-label={`Filter by ${unit} score colour`}>
             <button type="button" className={"hchip" + (band == null ? " on" : "")} aria-pressed={band == null} onClick={() => setBand(null)}>All <b>{lines.length}</b></button>
@@ -162,7 +159,7 @@ export function PortfolioTable({ lines, model, tab, period, limit, state, errorT
             <tr key={l.symbol}><td><ShareCell l={l} flag={flags?.[l.symbol]} /></td>
               {isReady(h)
                 ? tab === "overview" ? <OverviewCells l={l} h={h} model={model} cols={cols} maxCap={maxCap} /> : tab === "ratios" ? <RatioCells l={l} h={h} model={model} cols={cols} /> : <FinancialCells l={l} h={h} model={model} cols={cols} period={period} />
-                : <td colSpan={cols.length - 1} className="faint pf-wait">{h ? (h.status === "preparing" ? "Preparing… " : "") + h.reason : state === "error" ? "Not loaded." : "Preparing…"}</td>}
+                : <td colSpan={cols.length - 1} className="faint pf-wait">{h ? (h.status === "preparing" ? "Preparing… " : "") + h.reason : state === "error" ? "Not loaded." : "Loading…"}</td>}
               {tab === "overview" && actions && <td className="ra">{actions(l.symbol)}</td>}</tr>); })}
             {!shown.length && <tr><td colSpan={cols.length + (tab === "overview" && actions ? 1 : 0)} className="faint" style={{ textAlign: "center", padding: 24 }}>{lines.length ? "No share matches this filter." : "No shares yet."}</td></tr>}</tbody>
           {tab === "overview" && sum.scored > 0 && !band && !q.trim() && <tfoot><tr className="pf-avg"><th scope="row">Portfolio average<small className="muted">{sum.scored} scored {sum.scored === 1 ? "share" : "shares"}, counted equally</small></th>
@@ -171,7 +168,7 @@ export function PortfolioTable({ lines, model, tab, period, limit, state, errorT
         <p className="faint pf-fine">
           {tab === "overview" && (model === "prism"
             ? "Growth & Profitability, Valuation, Quality and Risk run 0 to 100 (green from 70, orange 50 to 69, red under 50; a high Risk score means lower risk). Short and long term are the price-trend readings from −100 to +100. They describe the trend only and are not part of the Prism score."
-            : "Each pillar runs 0 to 100 (green from 70, orange 50 to 69, red under 50).")}
+            : "FinLit Prism, FinLit's only company score, comes with Gold.")}
           {tab === "ratios" && "These are the figures on each company's own page (the data provider's, with the period on hover). A dash says why on hover. Industry P/E is not stored, so it is not shown."}
           {tab === "financials" && `The latest ${period === "year" ? "full year" : "quarter"} in each company's stored statements, in ₹ crore except EPS. Tax ratio is tax divided by profit before tax from the same statement.`}
           {" "}Shares count equally; the page takes share names only, so no quantity-weighted totals are shown. Information only, not investment advice.</p>
@@ -188,7 +185,7 @@ export function SummaryTiles({ lines, model, limit }: { lines: Line[]; model: Mo
   return (
     <div className="pf-k" aria-label="Portfolio summary">
       <div className="card ipo-t" style={tile("var(--k1)")}><span>Shares</span><b>{sum.shares}</b><small>{sum.preparing ? `${sum.preparing} being prepared` : `of ${limit} on your plan`}</small></div>
-      <div className="card ipo-t" style={tile("var(--k7)")}><span>{model === "prism" ? "Average Prism score" : "Average FinLit IQ"}</span><b className={"ssp-t " + scoreBand(avg)}>{avg == null ? MINUS : avg}</b>
+      <div className="card ipo-t" style={tile("var(--k7)")}><span>{model === "prism" ? "Average Prism score" : "FinLit Prism"}</span><b className={"ssp-t " + scoreBand(avg)}>{avg == null ? MINUS : avg}</b>
         <small>{sum.scored ? `average of ${sum.scored} scored ${sum.scored === 1 ? "share" : "shares"}` : "no share is scored yet"}</small></div>
       <div className="card ipo-t" style={tile("var(--band-hi)")}><span>Score colours</span>
         <b className="pf-mix" aria-label={`${sum.bands.hi} green, ${sum.bands.mid} orange, ${sum.bands.lo} red`}><i className="hi">{sum.bands.hi}</i><i className="mid">{sum.bands.mid}</i><i className="lo">{sum.bands.lo}</i></b>

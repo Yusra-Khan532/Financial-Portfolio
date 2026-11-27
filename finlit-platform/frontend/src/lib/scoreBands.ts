@@ -1,10 +1,11 @@
-// The one colour rule for every FinLit IQ on the site, as the founder set it: green from 70, orange from 50 to under 70, red under 50,
-// grey when there is no score. Colour only decorates; the model's own word (Strong / Healthy / Mixed / Weak) and the number carry the meaning,
+// The one colour rule for every company score on the site, as the founder set it: green from 70, orange from 50 to under 70, red under 50,
+// grey when there is no score. Colour only decorates; the model's own word (Strong / Healthy / Average / Weak) and the number carry the meaning,
 // and the model's thresholds and labels are not changed here. Also: the market-cap line, and which score badge a plan may see.
 import { capSize, nf } from "./format";
 import { scoreTone } from "./prism";
 import { fmtScore, ratingWord, type TrendTone } from "./prismTechnical";
 import { FUND_PART_NAME } from "./prismNames";
+import { PLAN_FOR_PRISM } from "./planGates";
 
 export type ScoreBand = "hi" | "mid" | "lo" | "na";
 export const BAND_GREEN = 70, BAND_ORANGE = 50;
@@ -25,9 +26,12 @@ export function dotLabel(name: string, v: number | null | undefined, word?: stri
 }
 
 export type Plan = "basic" | "silver" | "gold";
-export type BadgeKind = "none" | "basic" | "prism";
-/** Which score badge a plan sees at the top of a stock page: Silver the basic FinLit IQ only, Gold the advanced Prism rating only, Basic none. */
-export const badgeFor = (plan: Plan, admin = false): BadgeKind => (plan === "gold" || admin ? "prism" : plan === "silver" ? "basic" : "none");
+export type BadgeKind = "none" | "prism";
+const PLAN_RANK: Record<Plan, number> = { basic: 0, silver: 1, gold: 2 };
+/** Whether a plan has FinLit Prism (task #283: FinLit's only company score). */
+export const planHasPrism = (plan: Plan, admin = false): boolean => admin || PLAN_RANK[plan] >= PLAN_RANK[PLAN_FOR_PRISM];
+/** Which score badge a plan sees at the top of a stock page: FinLit Prism for a plan that has it, none otherwise (a locked Prism chip says where it is). */
+export const badgeFor = (plan: Plan, admin = false): BadgeKind => (planHasPrism(plan, admin) ? "prism" : "none");
 
 /** "₹1,23,456 Cr" in Indian grouping; null when the market value is not known. */
 export const marketCapText = (cr: number | null | undefined) => (cr == null || !Number.isFinite(cr) || cr <= 0 ? null : `₹${nf(cr, 0)} Cr`);
@@ -36,12 +40,6 @@ export function marketCapLine(cr: number | null | undefined): string | null {
   const t = marketCapText(cr), size = capSize(cr);
   return t ? `Market cap ${t}${size ? " · " + size : ""}` : null;
 }
-/** Industry for the header: the sub-industry when it adds to the industry, else the industry, else the sector. */
-export function industryText(p: { industry?: string | null; subIndustry?: string | null; sector?: string | null }): string | null {
-  const i = p.industry?.trim() || null, s = p.subIndustry?.trim() || null;
-  if (i && s && s.toLowerCase() !== i.toLowerCase()) return `${i} · ${s}`;
-  return i || s || p.sector?.trim() || null;
-}
 
 /** The technical scores of a stored Prism report, as the dots need them: the model's rating word (never shown) and the -100..+100 score of each horizon. */
 export type TechIn = { score: number | null; rating: string | null };
@@ -49,15 +47,13 @@ export type PrismInput = { kind: "loading" | "none" | "hidden" | "locked" }
   | { kind: "report"; final: number | null; word: string; status: string; parts?: Partial<Record<string, number | null>>; short?: TechIn | null; long?: TechIn | null; reason?: string | null; techAsOf?: string | null };
 export type BadgeView =
   | { kind: "none" }
-  | { kind: "basic"; score: number | null; word: string | null; band: ScoreBand }
+  | { kind: "locked" }
   | { kind: "prism"; score: number; word: string; band: ScoreBand; provisional: boolean }
   | { kind: "prism-none" };
-/** What the badge at the top of the stock page shows. Silver: the basic FinLit IQ and nothing of Prism. Gold: the Prism rating and nothing of the basic score.
- *  Basic: no badge (the header is as it was). Gold with no stored (or no usable) rating: "not rated yet" with a link. While the rating loads, or when the server hides it, nothing. */
-export function badgeView(plan: Plan, admin: boolean, basic: { overall: number | null; word: string | null }, prism: PrismInput): BadgeView {
-  const kind = badgeFor(plan, admin);
-  if (kind === "none") return { kind };
-  if (kind === "basic") return { kind, score: basic.overall, word: basic.overall == null ? null : basic.word, band: scoreBand(basic.overall) };
+/** What the badge at the top of the stock page shows: the Prism rating for a plan with Prism, "locked" for others (a locked Prism chip, "FinLit Prism · see plans").
+ *  No stored (or no usable) rating: "not rated yet" with a link. While the rating loads, or when the server hides it, nothing. */
+export function badgeView(plan: Plan, admin: boolean, prism: PrismInput): BadgeView {
+  if (badgeFor(plan, admin) === "none") return { kind: "locked" };
   if (prism.kind === "none") return { kind: "prism-none" };
   if (prism.kind !== "report") return { kind: "none" };
   if (prism.final == null || prism.status === "NOT RATED") return { kind: "prism-none" };
@@ -108,4 +104,14 @@ export function goldDots(prism: PrismInput): GoldDot[] | null {
     const w = ratingWord(t?.rating, v), band = trendBand(w.tone);
     return { ...base, value: v, band, label: `${d.name} ${fmtScore(v)}: ${BAND_NAME[band]}, ${w.word.toLowerCase()}${prism.techAsOf ? `, as of ${asOfText(prism.techAsOf)}` : ""}` };
   });
+}
+
+/** Task #235 (the 18 Nov pack, live bug E2): FinLit Prism's five words and their edges, the server's own (mfscore.engine.LABELS: 80 Strong, 65 Healthy,
+ *  50 Average, 35 Weak, else Poor). One helper for every page, so a score reads the same word everywhere; a stored label is used as it is. */
+export const PRISM_EDGES: [number, string][] = [[80, "Strong"], [65, "Healthy"], [50, "Average"], [35, "Weak"], [0, "Poor"]];
+export function prismBandWord(v: number | null | undefined, label?: string | null): string | null {
+  if (label && label.toUpperCase() !== "NOT RATED") return label.charAt(0).toUpperCase() + label.slice(1).toLowerCase();
+  if (v == null || !Number.isFinite(v)) return null;
+  const s = Math.round(v * 10) / 10;
+  return (PRISM_EDGES.find(([e]) => s >= e) ?? PRISM_EDGES[PRISM_EDGES.length - 1])[1];
 }

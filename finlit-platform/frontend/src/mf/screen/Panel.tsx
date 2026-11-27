@@ -2,42 +2,44 @@
 // and numeric filters (histogram + slider + typed boxes + quick ranges + "N of M funds have this figure"). It only edits the query; the page asks the server.
 // Groups the spec lists but whose data we do not hold are drawn at the bottom as "Needs a data source", disabled, with the reason: never hidden, never faked.
 // Task #131 (the team's 14 Nov design): a "Find a filter" box at the top jumps to the matching group and opens it; 17 groups, each showing how many
-// choices are on ("4 on"), the first five open; on a phone the groups fold behind one button, "Show the 17 filter groups".
+// choices are on (task #369: none on arrival), the first five open; on a phone the groups fold behind one button, "Show the 17 filter groups".
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Link } from "react-router";
 import { Icon } from "../../lib/icons";
 import { nf } from "../../lib/format";
 import { isBoolMap, loadUi, saveUi } from "../../lib/persist";
 import { CheckRow, FilterGroup, SearchBox } from "../../components/screener/FilterGroup";
 import {
-  AUMRANK_OPTS, BASIS_OPTS, CAP_OPTS, CFLOW_OPTS, CHK_EACH, COMING, CSIZE_OPTS, CSTREAK_OPTS, EXIT_OPTS, FRESH_OPTS, HOUSE_OPTS, INST_OPTS, MAT_OPTS, NUM_BY, OPTION_OPTS, PFDATE_OPTS,
-  PLAN_OPTS, RK_BANDS, STATUS_OPTS, STRUCT_OPTS, STYLE_OPTS, TAG_KIND_LABEL, TICK_DATA, TICK_FALL, TICK_LISTS, TYPE_OPTS, type Opt,
+  AUMRANK_OPTS, BASIS_OPTS, CAP_OPTS, CFLOW_OPTS, CHK_EACH, CSIZE_OPTS, CSTREAK_OPTS, EXIT_OPTS, FRESH_OPTS, HOUSE_OPTS, INST_OPTS, MAT_OPTS, NUM_BY, OPTION_OPTS, PFDATE_OPTS,
+  PLAN_OPTS, RK_BANDS, STATUS_OPTS, STRUCT_OPTS, STYLE_OPTS, TAG_KIND_LABEL, TICK_FALL, TYPE_OPTS, type Opt,
 } from "../../lib/mfScreenDefs";
-import { rangeOf, toggleIn, useStockSearch, withRange, type SQ, type ScreenFacets } from "../../lib/mfScreen";
-import { FlowBars } from "./Graphics";
+import { rangeOf, toggleIn, useStockSearch, withRange, withScore, type SQ, type ScreenFacets } from "../../lib/mfScreen";
 import { RangeFilter } from "./RangeFilter";
+import "../../styles/task358.css";   // task #358: the section headings and the score sliders
+import "../../styles/task372.css";   // task #372: section headings above the group titles, the score group's crown
+import { ScoreFilters, scoreOn } from "./ScoreFilter";
+
 
 export type PanelProps = { q: SQ; set: (fn: (q: SQ) => SQ) => void; fac?: ScreenFacets; waiting: boolean; canScore: boolean; /** a phone: the groups fold behind one button */ fold?: boolean };
 
 /** The 17 groups in their order, with the words "Find a filter" matches on: the group's title, its sub-headings and the measures inside it. */
 export const GROUPS: { id: string; title: string; words: string }[] = [
+  { id: "score", title: "FinLit Mutual Fund Score", words: "finlit mutual fund score total pillar pillars performance quality rating gold" },   // task #350
   { id: "type", title: "Type and category", words: "type equity debt hybrid solution oriented others" },
   { id: "subcat", title: "Sub-category", words: "sub-category subcategory category index funds sectoral thematic fof fund of funds liquid flexi cap elss tax saver gilt overnight arbitrage" },
-  { id: "cap", title: "Cap size", words: "cap size large mid small multi flexi" },
-  { id: "style", title: "Investment style", words: "investment style active passive index" },
-  { id: "struct", title: "Scheme structure", words: "scheme structure open ended close ended interval" },
-  { id: "mat", title: "Debt maturity band", words: "debt maturity band duration sebi short long medium" },
-  { id: "house", title: "Fund house", words: "fund house amc asset management company fund house size" },
   { id: "plan", title: "Plan, option and status", words: "plan direct regular option growth idcw dividend instrument etf mutual fund status still publishing stopped freshness family" },
-  { id: "size", title: "Size and age", words: "size aum fund size assets age launch date net assets rank by size share" },
+  { id: "risk", title: "Risk", words: "risk volatility downside deviation biggest fall worst fall worst month worst 12 months falling month time below high downside capture sharpe" },
   { id: "returns", title: "Returns", words: "returns return 1 year 3 years 5 years sip xirr category median rank short-term change calendar year monthly gain months ahead track record" },
   { id: "cost", title: "Cost", words: "cost expense expense ratio ter regular direct gap fee share exit load" },
-  { id: "risk", title: "Risk", words: "risk volatility downside deviation biggest fall worst fall worst month worst 12 months falling month time below high downside capture sharpe" },
-  { id: "portfolio", title: "Portfolio", words: "portfolio holdings asset split equity debt cash top-10 concentration largest holding sector exposure holds this stock portfolio date" },
+  { id: "size", title: "Size and age", words: "size aum fund size assets age launch date net assets rank by size share" },
+  { id: "house", title: "Fund house", words: "fund house amc asset management company fund house size" },
+  { id: "cap", title: "Cap size", words: "cap size large mid small multi flexi" },
+  { id: "style", title: "Investment style", words: "investment style active passive index" },
+  { id: "mat", title: "Debt maturity band", words: "debt maturity band duration sebi short long medium" },
+  { id: "struct", title: "Scheme structure", words: "scheme structure open ended close ended interval" },
+  { id: "portfolio", title: "Portfolio", words: "portfolio holdings asset split equity debt cash top-10 concentration largest holding industry exposure sector holds this stock portfolio date" },
   { id: "tags", title: "Theme, sector and strategy", words: "theme sector strategy defence aerospace ai technology global factor index tracked" },
   { id: "market", title: "Category market view", words: "category market view net flow inflow streak category size folios share of industry" },
   { id: "checklist", title: "FinLit checklist", words: "finlit checklist checks each check" },
-  { id: "quality", title: "Data quality and lists", words: "data quality lists needs a data source risk-o-meter health score" },
 ];
 /** The first group "Find a filter" matches: every word typed must be in the group's title or words (case does not matter). */
 export function findGroup(term: string): (typeof GROUPS)[number] | null {
@@ -159,12 +161,18 @@ export function Panel({ q, set, fac, waiting, canScore, fold = false }: PanelPro
       </div>
       {fold && <button type="button" className="btn mfs-fold" aria-expanded={showGroups} aria-controls="mfs-groups" onClick={() => setShowGroups(!showGroups)}>{showGroups ? "Hide the filter groups" : `Show the ${GROUPS.length} filter groups`}</button>}
       <div id="mfs-groups" hidden={groupsHidden}>
-      {/* ----- type and category (task #131: Type, Sub-category, Cap size, Investment style, Scheme structure and Debt maturity band are groups of their own) */}
-      <FilterGroup id="type" title="Type and category" defaultOpen active={q.group ? 1 : 0} {...og("type")}>
+      {/* Task #358 (team, 23 Nov 2026): the groups under four headings so a reader knows what each filter is for, in the team's order. */}
+      {/* Task #372 (team, 24 Nov 2026): the Mutual Fund Score is the topmost filter, marked with a gold crown (no green edge). */}
+      <p className="mfs-sec" id="mfs-sec-short">Quick shortlist</p>
+      <FilterGroup id="score" icon="crown" title="FinLit Mutual Fund Score" active={scoreOn(q.sc)} meta={canScore ? undefined : <span className="mfs-soon-n"><Icon name="lock" /> Gold</span>} {...og("score")}>
+        <ScoreFilters sc={q.sc} canScore={canScore} onSet={(f, lo, hi) => set((s) => withScore(s, f, lo, hi))} />
+      </FilterGroup>
+      <p className="mfs-sec" id="mfs-sec-start">Start here · what and how</p>
+      <FilterGroup id="type" title="Type and category" active={q.group ? 1 : 0} {...og("type")}>
         <Tabs label="Type" value={q.group} onPick={(v) => upd({ group: v === q.group ? "" : v, subs: v === q.group ? q.subs : [] })}
           items={[{ v: "", label: "All" }, ...TYPE_OPTS.map((t) => ({ v: t.v, label: `${t.label}${fac ? ` ${nf(typeCounts[t.v] ?? 0, 0)}` : ""}`, off: (typeCounts[t.v] ?? 1) === 0 && q.group !== t.v }))]} />
       </FilterGroup>
-      <FilterGroup id="subcat" title="Sub-category" defaultOpen active={q.subs.length} {...og("subcat")}>
+      <FilterGroup id="subcat" title="Sub-category" active={q.subs.length} {...og("subcat")}>
         <SearchBox value={subQ} onChange={setSubQ} placeholder="Search sub-category" label="Search sub-categories" />
         <ul className="fgx-list mfs-opts" aria-label="Sub-categories">
           {subRows.map((s) => <li key={s.key}><CheckRow label={s.label} count={s.n} checked={q.subs.includes(s.key)} onChange={() => upd({ subs: toggleIn(q.subs, s.key) })} disabled={s.n === 0 && !q.subs.includes(s.key)} /></li>)}
@@ -173,36 +181,6 @@ export function Panel({ q, set, fac, waiting, canScore, fold = false }: PanelPro
         </ul>
         {!subQ && subs.length > 12 && <button type="button" className="fgx-link mfs-all" onClick={() => setShowAllSubs(!showAllSubs)}>{showAllSubs ? "Show fewer" : `Show all ${subs.length}`}</button>}
       </FilterGroup>
-      <FilterGroup id="cap" title="Cap size" defaultOpen active={q.cap.length} {...og("cap")}>
-        <Chips opts={CAP_OPTS} sel={q.cap} counts={fac?.cap} onToggle={tog("cap")} label="Cap size" />
-      </FilterGroup>
-      <FilterGroup id="style" title="Investment style" defaultOpen active={q.style.length} {...og("style")}>
-        <Chips opts={STYLE_OPTS} sel={q.style} counts={fac?.style} onToggle={tog("style")} label="Investment style" />
-      </FilterGroup>
-      <FilterGroup id="struct" title="Scheme structure" defaultOpen active={q.struct.length} {...og("struct")}>
-        <Opts opts={STRUCT_OPTS} sel={q.struct} counts={fac?.struct} onToggle={tog("struct")} label="Scheme structure" />
-      </FilterGroup>
-      <FilterGroup id="mat" title="Debt maturity band" active={q.mat.length} hint="The band SEBI sets for the category, not the fund's measured duration (which is not in our data)." {...og("mat")}>
-        {q.group === "" || q.group === "debt"
-          ? <Chips opts={MAT_OPTS} sel={q.mat} counts={fac?.mat} onToggle={tog("mat")} label="Debt maturity band of the category" />
-          : <p className="fgx-note">Only debt funds have a maturity band. Choose All or Debt under Type and category to use it.</p>}
-      </FilterGroup>
-
-      {/* ----- fund house */}
-      <FilterGroup id="house" title="Fund house" active={q.amcs.length + q.house.length} {...og("house")}>
-        <SearchBox value={houseQ} onChange={setHouseQ} placeholder="Search fund house" label="Search fund houses" />
-        <ul className="fgx-list mfs-opts" aria-label="Fund houses">
-          {houseRows.map((a) => <li key={a.name}><CheckRow label={short(a.name)} count={a.n} checked={q.amcs.includes(a.name)} onChange={() => upd({ amcs: toggleIn(q.amcs, a.name) })} disabled={a.n === 0 && !q.amcs.includes(a.name)} /></li>)}
-          {q.amcs.filter((n) => !houses.some((a) => a.name === n)).map((n) => <li key={n}><CheckRow label={short(n)} count={0} checked onChange={() => upd({ amcs: toggleIn(q.amcs, n) })} /></li>)}
-          {!houses.length && <li className="fgx-none">{fac ? `No fund house matches “${houseQ}”.` : "Loading…"}</li>}
-        </ul>
-        {!houseQ && houses.length > 10 && <button type="button" className="fgx-link mfs-all" onClick={() => setShowAllHouses(!showAllHouses)}>{showAllHouses ? "Show fewer" : `Show all ${houses.length}`}</button>}
-        <Sub>Fund house size</Sub>
-        <p className="fgx-note">All the house's funds together (each scheme counted once); understated where a scheme has no size.</p>
-        <Chips opts={HOUSE_OPTS} sel={q.house} counts={fac?.house} onToggle={tog("house")} label="Fund house size" />
-      </FilterGroup>
-
-      {/* ----- plan, option, status */}
       <FilterGroup id="plan" title="Plan, option and status" autoOpen={false} active={planOn(q)} {...og("plan")}>
         <Sub>Plan</Sub>
         <Chips opts={PLAN_OPTS} sel={q.plans} counts={fac?.plans} onToggle={tog("plans")} label="Plan" any={() => upd({ plans: [] })} />
@@ -212,15 +190,39 @@ export function Panel({ q, set, fac, waiting, canScore, fold = false }: PanelPro
         <Sub>Instrument</Sub>
         <Chips opts={INST_OPTS} sel={q.inst} counts={fac?.inst} onToggle={tog("inst")} label="Instrument" />
         <Sub>Status</Sub>
-        <Chips opts={STATUS_OPTS} sel={q.status === "both" ? ["active", "stopped"] : [q.status]} counts={fac?.status} label="Status"
-          onToggle={(v) => { const cur = new Set(q.status === "both" ? ["active", "stopped"] : [q.status]); cur.has(v) ? cur.delete(v) : cur.add(v); upd({ status: cur.size === 2 || cur.size === 0 ? "both" : (cur.has("stopped") ? "stopped" : "active") }); }} />
+        {/* task #369: no status chosen ("All") lists both; one chosen narrows to it, the other one switches to it, and choosing it again goes back to All */}
+        <Chips opts={STATUS_OPTS} sel={q.status === "both" ? [] : [q.status]} counts={fac?.status} label="Status" any={() => upd({ status: "both" })}
+          onToggle={(v) => upd({ status: q.status === v ? "both" : (v as "active" | "stopped") })} />
         <Sub>Data freshness</Sub>
         <Chips opts={FRESH_OPTS} sel={q.fresh ? [q.fresh] : []} counts={fac?.fresh} onToggle={(v) => upd({ fresh: q.fresh === v ? "" : v })} label="Data freshness" />
         <Sub>Family view</Sub>
         <CheckRow label="One row per fund family (plans and options collapsed)" checked={q.family} onChange={() => upd({ family: !q.family })} />
       </FilterGroup>
-
-      {/* ----- size and age */}
+      <p className="mfs-sec" id="mfs-sec-rrc">Risk, returns and cost</p>
+      <FilterGroup id="risk" title="Risk" active={nr(fieldsOf(RISK_FIGS)) + q.tick.filter((t) => TICK_FALL.some((o) => o.v === t)).length} {...og("risk")}>
+        <p className="fgx-hint">Figures to the end of last month.</p>
+        {figured("risk", RISK_FIGS)}
+        <Sub>Quick ticks</Sub>
+        <Opts opts={TICK_FALL} sel={q.tick} counts={fac?.tick} onToggle={tog("tick")} label="Quick risk ticks" />
+      </FilterGroup>
+      <FilterGroup id="returns" title="Returns" active={nr(fieldsOf(RETURN_FIGS)) + q.rk.length + (q.tick.includes("has_hist3") ? 1 : 0) + (q.tick.includes("has_hist5") ? 1 : 0)} {...og("returns")}>
+        {figured("ret", RETURN_FIGS.map((f) => (f.label === "Calendar year" ? calendarFig(fac?.built.run) : f)))}
+        <Sub>Rank inside its category</Sub>
+        {(["1y", "3y", "5y"] as const).map((p) => (
+          <div key={p} className="mfs-rkrow"><span>{p.replace("y", " year")}</span>
+            <Chips opts={RK_BANDS} sel={q.rk.filter((r) => r.startsWith(p + ":")).map((r) => r.slice(3))} onToggle={(b) => upd({ rk: toggleIn(q.rk, `${p}:${b}`) })} label={`Rank inside the category, ${p}`} /></div>))}
+        <p className="fgx-note">Rank among funds of the same category and plan. Q1 is the top quarter.</p>
+        <Sub>Track record</Sub>
+        <CheckRow label="Has a 3-year return" count={fac?.tick.has_hist3 ?? null} checked={q.tick.includes("has_hist3")} onChange={() => upd({ tick: toggleIn(q.tick, "has_hist3") })} />
+        <CheckRow label="Has a 5-year return" count={fac?.tick.has_hist5 ?? null} checked={q.tick.includes("has_hist5")} onChange={() => upd({ tick: toggleIn(q.tick, "has_hist5") })} />
+      </FilterGroup>
+      <FilterGroup id="cost" title="Cost" active={nr(fieldsOf(COST_FIGS)) + q.exit.length} {...og("cost")}>
+        {figured("cost", COST_FIGS)}
+        <Sub>Exit load</Sub>
+        <p className="fgx-note">Read from the fund house's wording; about three in four funds have a readable text.</p>
+        <Chips opts={EXIT_OPTS} sel={q.exit} counts={fac?.exit} onToggle={tog("exit")} label="Exit load" />
+      </FilterGroup>
+      <p className="mfs-sec" id="mfs-sec-narrow">Narrow down</p>
       <FilterGroup id="size" title="Size and age" active={nr(["aum", "age", "aum_share", "na_chg"]) + q.aumbasis.length + q.aumrank.length + (q.launchFrom || q.launchTo ? 1 : 0)} {...og("size")}>
         {rf("aum")}
         <Sub>Size basis</Sub>
@@ -237,52 +239,47 @@ export function Panel({ q, set, fac, waiting, canScore, fold = false }: PanelPro
         </div>
         <p className="fgx-note">A few schemes have no launch date from AMFI; they are left out while a date is set.</p>
       </FilterGroup>
-
-      {/* ----- returns */}
-      <FilterGroup id="returns" title="Returns" active={nr(fieldsOf(RETURN_FIGS)) + q.rk.length + (q.tick.includes("has_hist3") ? 1 : 0) + (q.tick.includes("has_hist5") ? 1 : 0)} {...og("returns")}>
-        {figured("ret", RETURN_FIGS.map((f) => (f.label === "Calendar year" ? calendarFig(fac?.built.run) : f)))}
-        <Sub>Rank inside its category</Sub>
-        {(["1y", "3y", "5y"] as const).map((p) => (
-          <div key={p} className="mfs-rkrow"><span>{p.replace("y", " year")}</span>
-            <Chips opts={RK_BANDS} sel={q.rk.filter((r) => r.startsWith(p + ":")).map((r) => r.slice(3))} onToggle={(b) => upd({ rk: toggleIn(q.rk, `${p}:${b}`) })} label={`Rank inside the category, ${p}`} /></div>))}
-        <p className="fgx-note">Rank among funds of the same category and plan; needs at least three funds with a figure. Q1 is the top quarter.</p>
-        <Sub>Track record</Sub>
-        <CheckRow label="Has a 3-year return" count={fac?.tick.has_hist3 ?? null} checked={q.tick.includes("has_hist3")} onChange={() => upd({ tick: toggleIn(q.tick, "has_hist3") })} />
-        <CheckRow label="Has a 5-year return" count={fac?.tick.has_hist5 ?? null} checked={q.tick.includes("has_hist5")} onChange={() => upd({ tick: toggleIn(q.tick, "has_hist5") })} />
+      <FilterGroup id="house" title="Fund house" active={q.amcs.length + q.house.length} {...og("house")}>
+        <SearchBox value={houseQ} onChange={setHouseQ} placeholder="Search fund house" label="Search fund houses" />
+        <ul className="fgx-list mfs-opts" aria-label="Fund houses">
+          {houseRows.map((a) => <li key={a.name}><CheckRow label={short(a.name)} count={a.n} checked={q.amcs.includes(a.name)} onChange={() => upd({ amcs: toggleIn(q.amcs, a.name) })} disabled={a.n === 0 && !q.amcs.includes(a.name)} /></li>)}
+          {q.amcs.filter((n) => !houses.some((a) => a.name === n)).map((n) => <li key={n}><CheckRow label={short(n)} count={0} checked onChange={() => upd({ amcs: toggleIn(q.amcs, n) })} /></li>)}
+          {!houses.length && <li className="fgx-none">{fac ? `No fund house matches “${houseQ}”.` : "Loading…"}</li>}
+        </ul>
+        {!houseQ && houses.length > 10 && <button type="button" className="fgx-link mfs-all" onClick={() => setShowAllHouses(!showAllHouses)}>{showAllHouses ? "Show fewer" : `Show all ${houses.length}`}</button>}
+        <Sub>Fund house size</Sub>
+        <p className="fgx-note">All the house's funds together (each scheme counted once); understated where a scheme has no size.</p>
+        <Chips opts={HOUSE_OPTS} sel={q.house} counts={fac?.house} onToggle={tog("house")} label="Fund house size" />
       </FilterGroup>
-
-      {/* ----- cost */}
-      <FilterGroup id="cost" title="Cost" active={nr(fieldsOf(COST_FIGS)) + q.exit.length} {...og("cost")}>
-        {figured("cost", COST_FIGS)}
-        <Sub>Exit load</Sub>
-        <p className="fgx-note">Read from the fund house's wording; about three in four funds have a readable text.</p>
-        <Chips opts={EXIT_OPTS} sel={q.exit} counts={fac?.exit} onToggle={tog("exit")} label="Exit load" />
+      <FilterGroup id="cap" title="Cap size" active={q.cap.length} {...og("cap")}>
+        <Chips opts={CAP_OPTS} sel={q.cap} counts={fac?.cap} onToggle={tog("cap")} label="Cap size" />
       </FilterGroup>
-
-      {/* ----- risk */}
-      <FilterGroup id="risk" title="Risk" active={nr(fieldsOf(RISK_FIGS)) + q.tick.filter((t) => TICK_FALL.some((o) => o.v === t)).length} {...og("risk")}>
-        <p className="fgx-hint">All figures come from month-end NAVs up to the last full month, so every fund is on the same ruler.</p>
-        {figured("risk", RISK_FIGS)}
-        <Sub>Quick ticks</Sub>
-        <Opts opts={TICK_FALL} sel={q.tick} counts={fac?.tick} onToggle={tog("tick")} label="Quick risk ticks" />
+      <FilterGroup id="style" title="Investment style" active={q.style.length} {...og("style")}>
+        <Chips opts={STYLE_OPTS} sel={q.style} counts={fac?.style} onToggle={tog("style")} label="Investment style" />
       </FilterGroup>
-
-      {/* ----- portfolio */}
+      <FilterGroup id="mat" title="Debt maturity band" active={q.mat.length} hint="The band SEBI sets for the category, not the fund's measured duration (which is not in our data)." {...og("mat")}>
+        {q.group === "" || q.group === "debt"
+          ? <Chips opts={MAT_OPTS} sel={q.mat} counts={fac?.mat} onToggle={tog("mat")} label="Debt maturity band of the category" />
+          : <p className="fgx-note">Only debt funds have a maturity band. Choose All or Debt under Type and category to use it.</p>}
+      </FilterGroup>
+      <FilterGroup id="struct" title="Scheme structure" active={q.struct.length} {...og("struct")}>
+        <Opts opts={STRUCT_OPTS} sel={q.struct} counts={fac?.struct} onToggle={tog("struct")} label="Scheme structure" />
+      </FilterGroup>
       <FilterGroup id="portfolio" title="Portfolio" active={nr([...fieldsOf(PORT_FIGS), "n_hold", "top10", "max_hold"]) + (q.sector ? 1 : 0) + (q.holds ? 1 : 0) + q.pfdate.length} {...og("portfolio")}>
-        <p className="fgx-hint">From each fund house's monthly portfolio file (latest month-end). {fac ? <>Funds of houses with no parsed file ({nf(fac.portfolio.none ?? 0, 0)} in this result) have no value here and are shown in the “no data” count, never as zero.</> : null}</p>
+        <p className="fgx-hint">From each fund's latest monthly portfolio. {fac ? <>{nf(fac.portfolio.none ?? 0, 0)} {(fac.portfolio.none ?? 0) === 1 ? "fund" : "funds"} here {(fac.portfolio.none ?? 0) === 1 ? "has" : "have"} no figure and {(fac.portfolio.none ?? 0) === 1 ? "is" : "are"} counted as “no data”.</> : null}</p>
         <Sub>Asset split</Sub>
         {figured("port", PORT_FIGS)}
         <Sub>Number of holdings</Sub>{rf("n_hold", true)}
         <Sub>Top-10 concentration</Sub>{rf("top10", true)}
         <Sub>Largest single holding</Sub>{rf("max_hold", true)}
-        <Sub>Sector exposure</Sub>
-        <label className="mfs-sel"><span className="sr-only">Sector</span>
+        <Sub>Industry exposure</Sub>
+        <label className="mfs-sel"><span className="sr-only">Industry</span>
           <select value={q.sector} onChange={(e) => upd({ sector: e.target.value, sectorMin: e.target.value ? q.sectorMin || "10" : "" })}>
-            <option value="">Any sector</option>
+            <option value="">Any industry</option>
             {(fac?.sectors ?? []).map((s) => <option key={s.name} value={s.name}>{s.name} ({s.n})</option>)}
             {q.sector && !(fac?.sectors ?? []).some((s) => s.name === q.sector) && <option value={q.sector}>{q.sector}</option>}
           </select></label>
-        {q.sector && <div className="mfs-mm"><span>at least</span><input className="mfs-box" inputMode="decimal" aria-label="Minimum share of net assets in the sector" value={q.sectorMin} onChange={(e) => upd({ sectorMin: e.target.value.replace(/[^0-9.]/g, "").slice(0, 5) })} /><span>% of net assets</span></div>}
+        {q.sector && <div className="mfs-mm"><span>at least</span><input className="mfs-box" inputMode="decimal" aria-label="Minimum share of net assets in the industry" value={q.sectorMin} onChange={(e) => upd({ sectorMin: e.target.value.replace(/[^0-9.]/g, "").slice(0, 5) })} /><span>% of net assets</span></div>}
         <Sub>Holds this stock</Sub>
         <SearchBox value={stock} onChange={(v) => setStock(v.toUpperCase())} placeholder="NSE symbol, e.g. RELIANCE" label="Find a stock held by funds" />
         {stock.trim().length >= 2 && stocks.data && (
@@ -294,8 +291,6 @@ export function Panel({ q, set, fac, waiting, canScore, fold = false }: PanelPro
         <Sub>Portfolio date</Sub>
         <Chips opts={PFDATE_OPTS} sel={q.pfdate} counts={fac?.portfolio} onToggle={tog("pfdate")} label="Portfolio date" />
       </FilterGroup>
-
-      {/* ----- theme, sector, strategy, index */}
       <FilterGroup id="tags" title="Theme, sector and strategy" active={q.tags.length} {...og("tags")}>
         <p className="fgx-hint">Tags come from the scheme name (and, for sector themes, from where the portfolio is invested). They are our own editable table, reviewed {fac ? "from time to time" : ""}; a fund can carry more than one.{fac && fac.built.rows > 0 && <> {nf(fac.built.tagged, 0)} funds carry a tag; {nf(fac.built.indexTagged, 0)} passive funds have an index name read from their name.</>}</p>
         {Object.keys(TAG_KIND_LABEL).map((kind) => {
@@ -305,8 +300,6 @@ export function Panel({ q, set, fac, waiting, canScore, fold = false }: PanelPro
         })}
         {fac && !fac.tags.some((t) => t.n > 0) && <p className="fgx-note">No tagged fund in this result{fac.built.rows === 0 ? ": the nightly job that works tags out has not run yet" : ""}.</p>}
       </FilterGroup>
-
-      {/* ----- the category's market view */}
       <FilterGroup id="market" title="Category market view" active={nr(fieldsOf(MARKET_FIGS)) + q.cflow.length + q.cstreak.length + q.csize.length} {...og("market")}>
         <p className="fgx-hint">What the fund's whole category is doing, from AMFI's monthly category report{fac?.built.flowMonth ? ` (${fac.built.flowMonth.slice(0, 7)})` : ""}. It says nothing about the fund itself.</p>
         <Sub>Category net flow, last month</Sub>
@@ -316,37 +309,20 @@ export function Panel({ q, set, fac, waiting, canScore, fold = false }: PanelPro
         <Sub>Category size</Sub>
         <Chips opts={CSIZE_OPTS} sel={q.csize} counts={fac?.csize} onToggle={tog("csize")} label="Category size" />
         {figured("mkt", MARKET_FIGS)}
-        <Sub>Net flow of the categories in this result</Sub>
-        <FlowBars flows={fac?.flows} />
+        {/* task #367 (Chinmay, 24 Nov 2026): "Net flow of the categories in this result" left the filter list; the same bars stay in the result's own
+            category market view ("Where the money is moving", pages/MfScreener.tsx), where they belong */}
       </FilterGroup>
-
-      {/* ----- the checklist */}
       <FilterGroup id="checklist" title="FinLit checklist" active={(q.chk ? 1 : 0) + q.chkEach.length} {...og("checklist")}>
         <p className="fgx-hint">Five plain checks against funds of the same category and plan. It sums up past figures; it is not a rating.</p>
         <Chips opts={[{ v: "5", label: "5 of 5" }, { v: "4", label: "4 or more" }, { v: "3", label: "3 or more" }]} sel={q.chk ? [q.chk] : []} counts={fac?.chk} onToggle={(v) => upd({ chk: q.chk === v ? "" : v })} label="Checks passed" />
         <Sub>Each check</Sub>
         <Opts opts={CHK_EACH} sel={q.chkEach} counts={fac?.chk_each} onToggle={tog("chkEach")} label="Each check" />
       </FilterGroup>
-
-      {/* ----- data quality and lists */}
-      <FilterGroup id="quality" title="Data quality and lists" meta={<span className="mfs-soon-n">Needs a data source {COMING.length}</span>} active={q.tick.filter((t) => [...TICK_DATA, ...TICK_LISTS].some((o) => o.v === t && t !== "has_hist3" && t !== "has_hist5")).length} {...og("quality")}>
-        <Opts opts={TICK_DATA.filter((o) => o.v !== "has_hist3" && o.v !== "has_hist5")} sel={q.tick} counts={fac?.tick} onToggle={tog("tick")} label="Data quality" />
-        <Sub>Lists</Sub>
-        <Opts opts={TICK_LISTS} sel={q.tick} counts={fac?.tick} onToggle={tog("tick")} label="Lists" />
-        {/* ----- what is not built (task #131: inside this group, as the design draws it) */}
-        <Sub>Needs a data source</Sub>
-        <p className="fgx-hint">These filters are planned and are shown here so nothing is hidden. Each waits for data we do not hold yet; none is simulated.</p>
-        <ul className="mfs-soon" aria-label="Filters that need a data source">
-          {COMING.map((c) => (
-            <li key={c.id} aria-disabled="true"><span className="mfs-lock" aria-hidden="true"><Icon name="lock" /></span>
-              <div><b>{c.label}</b><small>{c.why}</small><small className="mfs-route">Free route: {c.route}</small>
-                {c.id === "score" && canScore && <Link className="fgx-link" to="/fund-score-screener">Open the Fund score screener</Link>}</div></li>))}
-        </ul>
-      </FilterGroup>
+      {/* task #368 (Chinmay, 24 Nov 2026): "Data quality and lists" (and its "Needs a data source" list) is off the filter list completely */}
       </div>
     </div>
   );
 }
 
-/** How many choices "Plan, option and status" has on, the default ones included (the design's "4 on": Direct, Growth, Still publishing, mutual funds and ETFs). */
-export const planOn = (q: SQ) => (q.plans.length || 1) + (q.options.length || 1) + (q.inst.length || 1) + (q.status === "both" ? 0 : 1) + (q.family ? 1 : 0) + (q.fresh ? 1 : 0);
+/** How many choices "Plan, option and status" has on. Task #369: nothing is chosen on arrival, so it starts at 0 (it read "4 on" with the old defaults). */
+export const planOn = (q: SQ) => q.plans.length + q.options.length + q.inst.length + (q.status === "both" ? 0 : 1) + (q.family ? 1 : 0) + (q.fresh ? 1 : 0);

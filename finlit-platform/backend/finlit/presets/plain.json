@@ -1,72 +1,4 @@
 {
- "basic-top-large": {
-  "text": "Large caps with a Healthy or Strong FinLit IQ and a firm price trend. The 10 highest FinLit IQs come first, then every other company that passes.",
-  "how": [
-   "Large caps (above ₹50,000 Cr) with a full year of prices.",
-   "Each company needs a Healthy or Strong FinLit IQ, no Quality or Balance sheet score in Watch, a Technical score that is not weak, and a price not far below its 52-week high. Companies after an extreme one-year run are left out.",
-   "Banks and finance companies are compared on Quality with other lenders, because Quality scores run lower across that whole industry.",
-   "The list is ordered by FinLit IQ. The 10 highest come first, at most three from one industry. Every other company that passes follows, in the same order."
-  ]
- },
- "basic-top-mid": {
-  "text": "Mid caps with a Healthy or Strong FinLit IQ and a firm price trend. The 10 highest FinLit IQs come first, then every other company that passes.",
-  "how": [
-   "Mid caps (₹10,000–50,000 Cr) with a full year of prices.",
-   "Each company needs a Healthy or Strong FinLit IQ, no Quality or Balance sheet score in Watch, a Technical score that is not weak, and a price not far below its 52-week high. Companies after an extreme one-year run are left out.",
-   "Banks and finance companies are compared on Quality with other lenders, because Quality scores run lower across that whole industry.",
-   "The list is ordered by FinLit IQ. The 10 highest come first, at most three from one industry. Every other company that passes follows, in the same order."
-  ]
- },
- "basic-top-small": {
-  "text": "Small caps with a Healthy or Strong FinLit IQ and a firm price trend. The 10 highest FinLit IQs come first, then every other company that passes.",
-  "how": [
-   "Small caps (below ₹10,000 Cr) with a full year of prices.",
-   "Each company needs a Healthy or Strong FinLit IQ, no Quality or Balance sheet score in Watch, a Healthy balance sheet, a Technical score that is not weak, and a price not far below its 52-week high. Companies after an extreme one-year run are left out.",
-   "Banks and finance companies are compared on Quality with other lenders, because Quality scores run lower across that whole industry.",
-   "The list is ordered by FinLit IQ. The 10 highest come first, at most three from one industry. Every other company that passes follows, in the same order."
-  ]
- },
- "basic-strong-both": {
-  "text": "A Strong FinLit IQ and a Strong Technical score.",
-  "how": [
-   "Companies of ₹1,000 Cr or more, with a full year of prices, whose FinLit IQ and Technical score are both Strong.",
-   "Ordered by FinLit IQ."
-  ]
- },
- "basic-strong-all-four": {
-  "text": "Strong on Quality, Growth, Profitability and Balance sheet. Banks and finance companies, which have no Balance sheet score, are judged on the other three.",
-  "how": [
-   "Companies of ₹1,000 Cr or more whose Quality, Growth, Profitability and Balance sheet scores are all Strong.",
-   "Banks and finance companies have no Balance sheet score, so they are judged on the other three, with Quality compared with other lenders.",
-   "Ordered by FinLit IQ."
-  ]
- },
- "basic-momentum-leaders": {
-  "text": "A Strong Technical score and a Healthy or Strong FinLit IQ, near the 52-week high, with prices rising over 3 and 6 months.",
-  "how": [
-   "Companies of ₹2,000 Cr or more, with a full year of prices, a Strong Technical score, a Healthy or Strong FinLit IQ, a price near its 52-week high and rising over three and six months.",
-   "Ordered by the momentum score, the strongest price rise against other companies first."
-  ]
- },
- "basic-near-high": {
-  "text": "Close to the 52-week high with a Healthy or Strong FinLit IQ.",
-  "how": [
-   "Companies of ₹2,000 Cr or more, with a full year of prices, trading close to their 52-week high, with a Healthy or Strong FinLit IQ.",
-   "Ordered by Technical score."
-  ]
- },
- "basic-setup-pre-breakout": {
-  "text": "In an uptrend and resting just under its 52-week high: the high is a few weeks old and the price has gone quiet in a narrow range.",
-  "how": []
- },
- "basic-setup-breakout-pullback": {
-  "text": "Closed above an older 52-week high on strong volume in the last few weeks, then eased back towards the level it cleared and its 20-day average.",
-  "how": []
- },
- "basic-setup-ema9-consolidation": {
-  "text": "In an uptrend, holding a narrow range just above its 9-day average for the last few sessions, with a low touching the average.",
-  "how": []
- },
  "daily_base": {
   "text": "A young base on the daily chart, a few weeks to a few months old. The price is back near the top of the base and has not closed above it.",
   "how": []
@@ -111,78 +43,10 @@
   "text": "In an uptrend, a quick drop below the 50-day average that was bought back within days. The trend is still in place.",
   "how": []
  },
- "basic-growth-leaders": {
-  "text": "Strong growth with healthy profits, a balance sheet that is not weak and a steady price.",
-  "how": [
-   "Companies of ₹1,000 Cr or more, with a full year of prices: Strong Growth, Healthy or Strong Profitability, a Balance sheet score out of Watch and a Technical score that is not weak.",
-   "Ordered by Growth, then FinLit IQ."
-  ]
- },
- "basic-quality-compounders": {
-  "text": "Strong Quality with healthy growth, profitability and balance sheet.",
-  "how": [
-   "Companies of ₹1,000 Cr or more with a Strong Quality score and Growth, Profitability and Balance sheet scores that are Healthy or Strong.",
-   "Banks and finance companies are compared on Quality with other lenders, because Quality scores run lower across that whole industry.",
-   "Ordered by FinLit IQ."
-  ]
- },
- "basic-emerging-tech": {
-  "text": "Companies in new-technology businesses (electronics, defence, software, digital platforms, fintech, EVs, clean energy) that are still growing.",
-  "how": [
-   "Companies in the themes shown, of ₹1,000 Cr or more, with Healthy or Strong Growth and a Balance sheet score out of Watch.",
-   "Ordered by FinLit IQ."
-  ]
- },
- "basic-sector-themes": {
-  "text": "Sectors where more stocks sit near their 52-week high than in the market as a whole, and the companies leading them.",
-  "how": [
-   "Industries (NSE’s own list) where more of the stocks sit near their 52-week high than in the market as a whole, and whose middle stock has risen more than the market over three months.",
-   "Leaders: up to five companies an industry, near their high and ahead of their industry over three months. Ordered by FinLit IQ."
-  ]
- },
- "basic-strong-business-lagging": {
-  "text": "Every business score Healthy or Strong while the Technical score is weak, with how far the price is below its high.",
-  "how": [
-   "Companies of ₹1,000 Cr or more, with a full year of prices, whose Quality, Growth, Profitability and Balance sheet scores are all Healthy or Strong, while the Technical score is weak.",
-   "Banks and finance companies are compared on Quality with other lenders, because Quality scores run lower across that whole industry. Lenders have no Balance sheet score.",
-   "Ordered by FinLit IQ."
-  ]
- },
- "basic-quality-off-highs": {
-  "text": "Strong Quality, the other business scores Healthy or Strong, and a price well below its 52-week high.",
-  "how": [
-   "The Quality compounders, with a full year of prices, whose price sits well below the 52-week high.",
-   "Banks and finance companies are compared on Quality with other lenders, because Quality scores run lower across that whole industry.",
-   "Ordered by FinLit IQ."
-  ]
- },
- "basic-strong-trend-weaker-business": {
-  "text": "A caution view: a Strong Technical score while two or more business scores are weak.",
-  "how": [
-   "Companies of ₹1,000 Cr or more, with a full year of prices, a Strong Technical score and at least two of Quality, Growth, Profitability and Balance sheet weak.",
-   "A caution view, not a signal. Ordered by Technical score."
-  ]
- },
- "basic-profitable-debt-light": {
-  "text": "Strong Profitability and Balance sheet. Not for banks and finance companies, which have no Balance sheet score.",
-  "how": [
-   "Companies of ₹1,000 Cr or more with Strong Profitability and Strong Balance sheet scores.",
-   "Banks and finance companies have no Balance sheet score, so this screen does not list them.",
-   "Ordered by FinLit IQ."
-  ]
- },
- "basic-caution-list": {
-  "text": "Companies with more warning signs than usual. Read the company page before acting.",
-  "how": [
-   "Companies of ₹1,000 Cr or more with a FinLit IQ in Watch, a very weak Balance sheet score, or a price far below its 52-week high with a weak Technical score.",
-   "Insurers and brokers are not flagged on the Balance sheet score alone, because it misreads their balance sheets; they can still appear on the other two signs.",
-   "A caution list, not a recommendation. Lowest FinLit IQ first."
-  ]
- },
  "highest-rated-large": {
-  "text": "Large caps with a strong Prism rating and a firm long-term trend. The 10 strongest come first, then every other company that passes.",
+  "text": "Large caps ({range}) with a strong Prism rating and a firm long-term trend. The 10 strongest come first, then every other company that passes.",
   "how": [
-   "Large caps (above ₹50,000 Cr) of ₹1,000 Cr or more, with a full Prism rating and a full year of prices. Include provisional adds companies rated on a shorter history, with their badge.",
+   "Large caps ({range}), with a full Prism rating and a full year of prices. Include provisional adds companies rated on a shorter history, with their badge.",
    "Each company needs a Prism rating of Healthy or Strong, sound Quality and Risk scores, a long-term view that is not a downtrend, and a price not far below its 52-week high. Companies after an extreme one-year run are left out.",
    "Banks and finance companies are compared on Quality with other lenders, because Quality scores run lower across that whole industry.",
    "The list is ordered by FinLit's screen score.",
@@ -190,9 +54,9 @@
   ]
  },
  "highest-rated-mid": {
-  "text": "Mid caps with a strong Prism rating and a firm long-term trend. The 10 strongest come first, then every other company that passes.",
+  "text": "Mid caps ({range}) with a strong Prism rating and a firm long-term trend. The 10 strongest come first, then every other company that passes.",
   "how": [
-   "Mid caps (₹10,000–50,000 Cr) of ₹1,000 Cr or more, with a full Prism rating and a full year of prices. Include provisional adds companies rated on a shorter history, with their badge.",
+   "Mid caps ({range}), with a full Prism rating and a full year of prices. Include provisional adds companies rated on a shorter history, with their badge.",
    "Each company needs a Prism rating of Healthy or Strong, sound Quality and Risk scores, a long-term view that is not a downtrend, and a price not far below its 52-week high. Companies after an extreme one-year run are left out.",
    "Banks and finance companies are compared on Quality with other lenders, because Quality scores run lower across that whole industry.",
    "The list is ordered by FinLit's screen score.",
@@ -200,9 +64,19 @@
   ]
  },
  "highest-rated-small": {
-  "text": "Small caps with a strong Prism rating and a firm long-term trend. The 10 strongest come first, then every other company that passes.",
+  "text": "Small caps ({range}) with a strong Prism rating and a firm long-term trend. The 10 strongest come first, then every other company that passes.",
   "how": [
-   "Small caps (below ₹10,000 Cr) of ₹1,000 Cr or more, with a full Prism rating and a full year of prices. Include provisional adds companies rated on a shorter history, with their badge.",
+   "Small caps ({range}), with a full Prism rating and a full year of prices. Include provisional adds companies rated on a shorter history, with their badge.",
+   "Each company needs a Prism rating of Healthy or Strong, sound Quality and Risk scores, a long-term view that is not a downtrend, and a price not far below its 52-week high. Companies after an extreme one-year run are left out.",
+   "Banks and finance companies are compared on Quality with other lenders, because Quality scores run lower across that whole industry.",
+   "The list is ordered by FinLit's screen score.",
+   "The 10 strongest come first, at most three from one industry. Every other company that passes follows, in the same order. If fewer than 10 pass, the next companies that miss only the trend check fill the top 10, badged Trend not confirmed."
+  ]
+ },
+ "highest-rated-micro": {
+  "text": "Micro caps ({range}) with a strong Prism rating and a firm long-term trend. The 10 strongest come first, then every other company that passes.",
+  "how": [
+   "Micro caps ({range}) of ₹1,000 Cr or more, with a full Prism rating and a full year of prices. Include provisional adds companies rated on a shorter history, with their badge.",
    "Each company needs a Prism rating of Healthy or Strong, sound Quality and Risk scores, a long-term view that is not a downtrend, and a price not far below its 52-week high. Companies after an extreme one-year run are left out.",
    "Banks and finance companies are compared on Quality with other lenders, because Quality scores run lower across that whole industry.",
    "The list is ordered by FinLit's screen score.",
@@ -211,31 +85,59 @@
  },
  "rating-upgrades": {
   "text": "Companies whose Prism rating moved up a band, or whose score rose sharply, in the last month.",
-  "how": []
+  "how": [
+   "Companies with a full Prism rating (Include provisional adds the provisional ones, with their badge), compared over the last month of FinLit's own daily ratings.",
+   "Listed when the rating moved up a band, from Poor to Weak, Weak to Average, Average to Healthy or Healthy to Strong, or the score rose sharply within its band.",
+   "Ordered by the size of the rise. A company with less than two days of ratings is left out."
+  ]
  },
  "momentum-leaders": {
   "text": "Rated stocks in an uptrend near their 52-week high, ranked by how they have done against the market.",
-  "how": []
+  "how": [
+   "Companies of ₹1,000 Cr or more with a Prism rating of Average or better.",
+   "In an uptrend on the long-term technical view, not stretched down on the short-term one, and not far below the 52-week high; 3-month and 6-month returns both positive.",
+   "Ordered by how the stock has done against the market over 3, 6 and 12 months."
+  ]
  },
  "at-52-week-high": {
   "text": "Close to the 52-week high, with a positive short-term view.",
-  "how": []
+  "how": [
+   "Companies with a Prism rating of Average or better.",
+   "The price is close to its 52-week high and the short-term technical view is positive.",
+   "Ordered by the short-term view. Being near a high is a price fact: the long-term view of a few of them can still read as a downtrend."
+  ]
  },
  "both-views-positive": {
   "text": "Large and mid-size companies whose short-term and long-term technical views are both positive.",
-  "how": []
+  "how": [
+   "Companies rated or provisional by Prism.",
+   "Both technical views, short term and long term, positive.",
+   "Large and mid caps by default; the All caps chip adds small caps. Ordered by Prism score."
+  ]
  },
  "setup-pre-breakout": {
   "text": "In an uptrend and resting just under its 52-week high: the high is a few weeks old and the price has gone quiet in a narrow range.",
-  "how": []
+  "how": [
+   "Companies of ₹1,000 Cr or more, rated or provisional by Prism, with a full year of prices.",
+   "In an uptrend, resting just under a 52-week high that is a few weeks old, in a narrow range with price swings not widening.",
+   "Both technical views positive. A screen narrows a list; it is not a recommendation."
+  ]
  },
  "setup-breakout-pullback": {
   "text": "Closed above an older 52-week high on strong volume in the last few weeks, then eased back towards the level it cleared and its 20-day average.",
-  "how": []
+  "how": [
+   "Companies of ₹1,000 Cr or more, rated or provisional by Prism, with a full year of prices, above the 50-day average.",
+   "The close rose above an older 52-week closing high in the last few weeks, and the price has since eased back towards the level it broke and its 20-day average.",
+   "A long-term view in an uptrend. A screen narrows a list; it is not a recommendation."
+  ]
  },
  "setup-ema9-consolidation": {
   "text": "In an uptrend, holding a narrow range just above its 9-day average for the last few sessions, with a low touching the average.",
-  "how": []
+  "how": [
+   "Companies of ₹1,000 Cr or more, rated or provisional by Prism, with a full year of prices.",
+   "In an uptrend, with the 9-day average above the 20-day above the 50-day.",
+   "Holding just above the 9-day average for the last few sessions, in a narrow range. A screen narrows a list; it is not a recommendation."
+  ]
  },
  "consistent-growers": {
   "text": "Strong Growth & Profitability, quality and risk scores together.",
@@ -276,9 +178,9 @@
   ]
  },
  "value-with-quality": {
-  "text": "Cheaper-valued companies that also score well on quality, risk and Growth & Profitability.",
+  "text": "Companies with a lower valuation that also score well on quality, risk and Growth & Profitability.",
   "how": [
-   "Companies of ₹1,000 Cr or more, rated or provisional by Prism, with a high Valuation score (which means cheaper) and sound Quality, Risk and Growth & Profitability.",
+   "Companies of ₹1,000 Cr or more, rated or provisional by Prism, with a high Valuation score (a lower valuation) and sound Quality, Risk and Growth & Profitability.",
    "Banks and finance companies are compared on Quality with other lenders, because Quality scores run lower across that whole industry.",
    "Ordered by Valuation, cheapest first."
   ]
@@ -293,19 +195,35 @@
  },
  "low-volatility": {
   "text": "A low-risk score and a narrow 52-week range.",
-  "how": []
+  "how": [
+   "Companies with a high Risk part (lower risk) and a Prism score of Average or better.",
+   "The 52-week high is not far above the 52-week low: a narrow yearly range.",
+   "Ordered by the Risk part."
+  ]
  },
  "higher-risk-list": {
   "text": "Companies with more warning signs than usual. Read the company page before acting.",
-  "how": []
+  "how": [
+   "Companies rated or provisional by Prism.",
+   "A low Risk part, a low Prism score, or a deep fall from the 52-week high with a long-term view in a downtrend.",
+   "Ordered by the Risk part, lowest first. This is a caution list, not a recommendation."
+  ]
  },
  "strongsafe": {
   "text": "A Strong Prism score with a high Risk score (a higher Risk score means lower risk).",
-  "how": []
+  "how": [
+   "Companies with a Strong Prism score.",
+   "The Risk part of the score is high, which means lower risk.",
+   "Ordered by Prism score."
+  ]
  },
  "fairvalue": {
   "text": "Strong Growth & Profitability with a reasonable valuation score.",
-  "how": []
+  "how": [
+   "Companies whose Growth & Profitability part is strong.",
+   "The Valuation part is reasonable: the price is not stretched against the company's own figures.",
+   "Ordered by Prism score."
+  ]
  },
  "uptrend-both": {
   "text": "Short-term and long-term technical views both in an uptrend, companies of any size.",
@@ -313,10 +231,316 @@
  },
  "weakvalue": {
   "text": "Strong Growth & Profitability, but a weak valuation score.",
-  "how": []
+  "how": [
+   "Companies whose Growth & Profitability part is strong.",
+   "The Valuation part is weak: the price is stretched against the company's own figures.",
+   "Ordered by Prism score. A stretched valuation describes the price today; it is not a view on what comes next."
+  ]
  },
  "psu-stocks": {
   "text": "Public-sector companies with a good Prism score, ranked by Prism score.",
   "how": []
+ },
+ "strong-results": {
+  "text": "Sales and profit in the latest quarter well ahead of the same quarter last year, with a Healthy or Strong Prism rating.",
+  "how": [
+   "Companies of ₹1,000 Cr or more with a Healthy or Strong Prism rating.",
+   "Sales and profit in the latest quarter must both be well ahead of the same quarter a year earlier; profit has the higher bar.",
+   "Ordered by profit growth, the largest first."
+  ],
+  "notes": [
+   "Very large profit growth often comes from a small, or loss-making, year-ago quarter."
+  ],
+  "about": {
+   "shows": "Companies whose latest quarter grew sales and profit well ahead of the same quarter last year, and whose Prism rating is Healthy or Strong. The rating shows the quarter comes from a business that already scores well.",
+   "use": [
+    "Read Profit vs a year ago next to Sales vs a year ago: profit far ahead of sales often comes from a small or loss-making base.",
+    "Open the company report to see whether margins or one-off items drove the quarter.",
+    "Compare the Prism parts across the list to see what else sets the companies apart."
+   ]
+  }
+ },
+ "dividend-payers": {
+  "text": "A dividend in most of the last six years and a good yield today, with a Healthy or Strong Prism rating.",
+  "how": [
+   "Companies of ₹1,000 Cr or more with a Healthy or Strong Prism rating.",
+   "A dividend in at least five of the last six years, and a dividend yield well above the market's usual level.",
+   "Ordered by dividend yield, the highest first."
+  ],
+  "notes": [
+   "Yield is the last year's dividends against today's price, so it also rises when the price falls."
+  ],
+  "about": {
+   "shows": "Companies that paid a dividend in most of the last six years, with a good yield today and a Healthy or Strong Prism rating.",
+   "use": [
+    "Read Years paid with the yield: a high yield with few years paid is a shorter record.",
+    "A yield also rises when the price falls; switch on Returns in Columns to see the 1-year move.",
+    "Open the report to see the dividend history year by year."
+   ]
+  }
+ },
+ "institutions-buying": {
+  "text": "Foreign and domestic institutions both added to their stake last quarter, with a Healthy or Strong Prism rating.",
+  "how": [
+   "Companies of ₹1,000 Cr or more with a Healthy or Strong Prism rating.",
+   "Foreign institutions and domestic institutions each raised their holding last quarter, and the promoters cut theirs by no more than a little over the year.",
+   "Ordered by the two increases together, the largest first."
+  ],
+  "notes": [
+   "Holdings come from the quarterly shareholding filings, so they can be up to three months old."
+  ],
+  "about": {
+   "shows": "Companies where foreign and domestic institutions both raised their stake last quarter, while the promoters kept theirs, with a Healthy or Strong Prism rating.",
+   "use": [
+    "Compare the two columns: both kinds of institution adding is a broader change than one alone.",
+    "Holdings come from quarterly filings, so they can be up to three months old.",
+    "Open the report's ownership section to see the trend over several quarters."
+   ]
+  }
+ },
+ "turnarounds": {
+  "text": "A Healthy or Strong Prism rating and a short-term uptrend, while the long-term trend has not turned up yet.",
+  "how": [
+   "Companies of ₹1,000 Cr or more with a Healthy or Strong Prism rating.",
+   "The short-term technical pillar reads Uptrend or Strong uptrend; the long-term technical pillar reads Sideways or lower.",
+   "Ordered by the short-term technical pillar, the strongest first."
+  ],
+  "notes": [
+   "Companies with no long-term view yet (mostly recent listings) are left out."
+  ],
+  "about": {
+   "shows": "Companies with a Healthy or Strong Prism rating whose short-term trend has turned up while the long-term trend is still flat or down.",
+   "use": [
+    "Compare the two technical pillars: the gap between them is what puts a company on this list.",
+    "Below 52-week high shows how far the price is from its high.",
+    "Look again after the next saved lists: a turn that lasts lifts the long-term pillar too, and the company moves on to other screens."
+   ]
+  }
+ },
+ "rating-downgrades": {
+  "text": "Companies whose Prism rating moved down a band, or whose Prism score fell sharply, over the scores on file.",
+  "how": [
+   "Compares each company's Prism score today with its earliest score on file in the last 30 days, from the same scoring model.",
+   "A company is listed when its Prism rating moved down a band (for example Healthy to Average), or its score fell sharply without changing band.",
+   "Ordered by the change in score, the largest first."
+  ],
+  "notes": [
+   "A change to the scoring model can move many scores at once, so a score is compared only with earlier scores from the same model."
+  ],
+  "about": {
+   "shows": "Companies whose Prism rating fell a band, or whose score fell sharply, since the earliest score on file.",
+   "use": [
+    "Prism before and Change show where the score was and how far it fell.",
+    "Open the report to see which Prism part moved: growth, valuation, quality or risk.",
+    "Useful for checking companies you already follow."
+   ]
+  }
+ },
+ "promoter-buying": {
+  "text": "Promoters raised their stake last quarter, with a Healthy or Strong Prism rating.",
+  "how": [
+   "Companies of ₹1,000 Cr or more with a Healthy or Strong Prism rating.",
+   "The promoters' holding rose last quarter. Very large jumps are left out: they come from mergers or reclassification, not buying.",
+   "Ordered by the rise in the promoters' holding, the largest first."
+  ],
+  "notes": [
+   "Holdings come from the quarterly shareholding filings, so they can be up to three months old."
+  ],
+  "about": {
+   "shows": "Companies where the promoters raised their stake last quarter, with a Healthy or Strong Prism rating. Very large jumps that come from mergers or reclassification are left out.",
+   "use": [
+    "Read Promoter stake change with Promoter stake: a rise from a low base reads differently from one near the top.",
+    "Holdings come from quarterly filings, so they can be up to three months old.",
+    "Open the report's ownership section to see the trend."
+   ]
+  }
+ },
+ "fresh-results": {
+  "text": "Declared in the last week with a Strong result, and a Healthy or Strong Prism rating.",
+  "how": [
+   "Results declared in the last week up to the list's date, for companies of ₹1,000 Cr or more with numbers loaded.",
+   "The Latest results page reads the quarter as Strong, and the company has a Healthy or Strong Prism rating.",
+   "Newest results first, then the largest profit growth."
+  ],
+  "notes": [
+   "From the Latest results page. Late in a results season few companies declare, so these lists can be short."
+  ],
+  "about": {
+   "shows": "Companies that declared their quarterly results in the last week, where the Latest results page reads the quarter as Strong, and whose Prism rating is Healthy or Strong.",
+   "use": [
+    "Sort by Declared to see the newest results first.",
+    "Read Sales and Profit vs a year ago together: a big gap often points to a small base a year ago.",
+    "Open the Latest results page for the full quarter, and the report for the business."
+   ]
+  }
+ },
+ "weak-results": {
+  "text": "Declared in the last week with a Poor result or a loss, while the Prism rating still reads Healthy or Strong.",
+  "how": [
+   "Results declared in the last week up to the list's date, for companies of ₹1,000 Cr or more with numbers loaded.",
+   "The Latest results page reads the quarter as Poor or Loss, while the Prism rating is Healthy or Strong.",
+   "The Prism rating is built on longer history, so one weak quarter may not have moved it yet.",
+   "Ordered by the largest fall in profit."
+  ],
+  "notes": [
+   "From the Latest results page. Late in a results season few companies declare, so these lists can be short."
+  ],
+  "about": {
+   "shows": "Companies that declared a Poor quarter or a loss in the last week while their Prism rating still reads Healthy or Strong.",
+   "use": [
+    "The Prism rating is built on several years of figures, so one weak quarter may not have moved it yet. Check it again after the next scoring.",
+    "Net margin change shows whether costs or sales were behind the quarter.",
+    "Useful for checking companies you already follow."
+   ]
+  }
+ },
+ "sector-leaders-leading": {
+  "text": "Peer leaders in industries that are ahead of the average industry and still gaining ground, with a firm long-term trend.",
+  "how": [
+   "The industry is Ahead and gaining on Sector Rotation: ahead of the average industry over 6 months and still gaining ground last month.",
+   "The company is a Leader against its industry peers, whose long-term technical pillar reads Uptrend or Strong uptrend.",
+   "Ordered by Tailwinds, then by the long-term technical pillar."
+  ],
+  "notes": [
+   "The sector reading comes from the weekly Sector Pulse and Sector Rotation run; the page says which date it is from."
+  ],
+  "about": {
+   "shows": "Companies that lead their industry peers, in industries that are ahead of the average industry and still gaining ground, with a firm long-term trend.",
+   "use": [
+    "Read Rotation and Pulse together: an industry ahead and gaining with a broad Pulse is a wider move than one carried by a few stocks.",
+    "Open the industry on Sector Pulse to see how many of its stocks share the move.",
+    "A sector reading describes prices; read the company's business scores beside it."
+   ]
+  }
+ },
+ "sector-rebound-leaders": {
+  "text": "The strongest stocks of industries that are bouncing back after a broad fall, with a short-term trend that has turned up.",
+  "how": [
+   "The industry is Bouncing back or Bouncing back after a crash on Sector Pulse: after a broad fall, most of its stocks turned up together in a short space of time.",
+   "The company is in the top quarter of its industry by 6-month return, whose short-term technical pillar reads Uptrend or Strong uptrend.",
+   "Ordered by the short-term technical pillar, then by Tailwinds."
+  ],
+  "notes": [
+   "The sector reading comes from the weekly Sector Pulse and Sector Rotation run; the page says which date it is from."
+  ],
+  "about": {
+   "shows": "The strongest stocks of industries that are bouncing back after a broad fall, whose own short-term trend has turned up.",
+   "use": [
+    "Pulse says how recent the bounce is: a broad bounce from a few sessions ago is a newer reading than one from weeks ago.",
+    "Check the long-term technical pillar: a bounce inside a long-term downtrend reads differently from one inside an uptrend.",
+    "Open the industry on Sector Pulse to see its breadth and its last broad bounce."
+   ]
+  }
+ },
+ "sector-early-leaders": {
+  "text": "Stocks at a 52-week closing high while their industry is still well below its own high: Sector Pulse's leader flags.",
+  "how": [
+   "A Sector Pulse leader flag: the stock closed at a 52-week high while its industry index is still well below its own high.",
+   "A Full flag means the industry is 15% or more below its high; an Early flag, 10 to 15%.",
+   "Ordered by Tailwinds, then by the short-term technical pillar."
+  ],
+  "notes": [
+   "The sector reading comes from the weekly Sector Pulse and Sector Rotation run; the page says which date it is from."
+  ],
+  "about": {
+   "shows": "Stocks that reached a 52-week closing high while their industry was still well below its own high: Sector Pulse's Full and Early leader flags.",
+   "use": [
+    "Read the Leader flag column with Rotation: a flag in an industry that is turning up reads differently from one in an industry still slipping.",
+    "A price flag says nothing about the business: read the Prism score and its pillars beside it.",
+    "Open the industry on Sector Pulse to see the other flagged stocks."
+   ]
+  }
+ },
+ "sector-setups-behind": {
+  "text": "Companies on tonight's Setups or Chart patterns lists whose industry is ahead and gaining, bouncing back or rising together.",
+  "how": [
+   "The company is on at least one of the 3 Setups or 11 Chart patterns lists tonight.",
+   "Its industry is Ahead and gaining on Sector Rotation, or Bouncing back, Bouncing back after a crash or Rising together on Sector Pulse.",
+   "Ordered by Tailwinds, the count of the four facts that line up."
+  ],
+  "notes": [
+   "The sector reading comes from the weekly Sector Pulse and Sector Rotation run; the page says which date it is from.",
+   "The Setups and Chart patterns lists are from the last close; the sector reading may be older."
+  ],
+  "about": {
+   "shows": "Companies on tonight's Setups or Chart patterns lists whose industry is ahead and gaining on Sector Rotation, or bouncing back or rising together on Sector Pulse.",
+   "use": [
+    "The List it is on column names the list: open that list to read what it looks for.",
+    "Tailwinds counts four facts; it is not a score and not a view.",
+    "The lists and the sector reading can be from different dates: the page says which."
+   ]
+  }
+ },
+ "sector-turning-up": {
+  "text": "Peer leaders in industries that are behind the average industry but gaining ground, with a short-term trend that has turned up.",
+  "how": [
+   "The industry is Behind but gaining on Sector Rotation: behind the average industry over 6 months, but gaining ground last month.",
+   "The company is a Leader against its industry peers, whose short-term technical pillar reads Uptrend or Strong uptrend.",
+   "Ordered by how many ranks the industry climbed in 4 weeks, then by the short-term technical pillar."
+  ],
+  "notes": [
+   "The sector reading comes from the weekly Sector Pulse and Sector Rotation run; the page says which date it is from."
+  ],
+  "about": {
+   "shows": "Companies that lead their peers in industries that are behind the average industry but gaining ground, with a short-term trend that has turned up.",
+   "use": [
+    "Industry ranks climbed in 4 weeks shows how fast the industry is moving up the rotation ranking.",
+    "Behind but gaining is often an early reading: check it again after the next weekly run.",
+    "Read the company's Prism score beside the price readings."
+   ]
+  }
+ },
+ "sector-results-leading": {
+  "text": "Peer leaders that declared a Strong or Good quarter in the last week, in industries that are ahead and gaining, bouncing back or rising together.",
+  "how": [
+   "Results declared in the last week, read as Strong or Good on the Latest results page.",
+   "The company is a Leader against its industry peers.",
+   "Its industry is Ahead and gaining on Sector Rotation, or Bouncing back, Bouncing back after a crash or Rising together on Sector Pulse.",
+   "Ordered by the result, then by profit growth against the same quarter last year."
+  ],
+  "notes": [
+   "The sector reading comes from the weekly Sector Pulse and Sector Rotation run; the page says which date it is from.",
+   "Results come from the Latest results page; outside a results season this list can be short or empty."
+  ],
+  "about": {
+   "shows": "Companies that lead their industry peers and declared a Strong or Good quarter in the last week, in industries that are ahead and gaining or bouncing back.",
+   "use": [
+    "Read Sales and Profit against a year ago together: profit growing much faster than sales can come from one-off items.",
+    "Open the Latest results page for the full quarter.",
+    "Outside a results season this list can be short or empty."
+   ]
+  }
+ },
+ "bothtech": {
+  "text": "",
+  "how": [
+   "Companies rated or provisional by Prism, of any size.",
+   "Both technical views, short term and long term, in an uptrend.",
+   "Ordered by Prism score."
+  ]
+ },
+ "gainers-day": {
+  "text": "",
+  "how": [
+   "Companies that joined any screen on this page at the latest close.",
+   "Ordered by how far the price has risen since the close at which it joined.",
+   "Lists are saved from 11 Nov 2026, the day FinLit began storing them."
+  ]
+ },
+ "gainers-week": {
+  "text": "",
+  "how": [
+   "Companies that joined any screen on this page at one of the last five closes.",
+   "Ordered by how far the price has risen since the close at which it joined.",
+   "Lists are saved from 11 Nov 2026, the day FinLit began storing them."
+  ]
+ },
+ "gainers-month": {
+  "text": "",
+  "how": [
+   "Companies that joined any screen on this page at one of the last 21 closes.",
+   "Ordered by how far the price has risen since the close at which it joined.",
+   "Until 21 closes are saved (lists start on 11 Nov 2026), this list covers the closes since 11 Nov."
+  ]
  }
 }

@@ -56,7 +56,7 @@ describe("categories", () => {
   it("finds a category by either of AMFI's wordings, and starts on Flexi Cap", () => {
     expect(pickCategory(cats, "Equity Schemes - Flexi Cap Fund")?.name).toBe("Equity Scheme - Flexi Cap Fund");
     expect(pickCategory(cats, "Equity Scheme - Large Cap Fund")?.short).toBe("Large Cap Fund");
-    expect(pickCategory(cats, "")?.short).toBe("Flexi Cap Fund");
+    expect(pickCategory(cats, "")).toBeUndefined();   // task #369: no category is preselected (it was Flexi Cap)
     expect(pickCategory(cats, "Nonsense")).toBeUndefined();
     expect(pickCategory(undefined, "")).toBeUndefined();
   });

@@ -1,11 +1,13 @@
 // Watchlists as the "FinLit final pages" pack draws it (board 16, 13 Nov 2026): the header panel with the lists and Add a stock, five tiles, My watchlist
 // (Group by Against peers / Industry / Size, Download, the insight cards and the table), Price and business disagree, Tell me when a label changes,
 // In simple words and the page's questions. Kept from the old page at the founder's request (13 Nov 2026): row actions (alert, move, remove), renaming
-// and deleting a list, ticking rows to compare, and sorting by a column. The score is the plan's (task #100): FinLit Prism for Gold, the FinLit IQ for
-// Silver. Words: lib/watchlistPack.ts. Styles: styles/watchlist-pack.css (wp-) on the pack's tokens (sectors-pack.css). Describes, never advises.
+// and deleting a list, ticking rows to compare, and sorting by a column. The score is FinLit Prism (task #283: FinLit's only company score), for plans that have it;
+// other plans see no score column. Words: lib/watchlistPack.ts. Styles: styles/watchlist-pack.css (wp-) on the pack's tokens (sectors-pack.css). Describes, never advises.
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { AlertButton } from "../components/AlertComposer";
+import { ListFilesCard } from "../components/changes/AlertMe";
+import { FilingChip, OrderWinNotice, WhatChanged, useWhatChanged } from "../components/changes/WhatChanged";
 import { Gate } from "../components/Gate";
 import { PageFaqs } from "../components/PageFaqs";
 import { Cards, Scroll, Tip } from "../components/sectors/pack/Common";
@@ -18,7 +20,8 @@ import { quoteMap } from "../lib/globalSearch";
 import { Icon } from "../lib/icons";
 import { useIndices } from "../lib/indices";
 import { useLeadershipList } from "../lib/leadership";
-import { rowScore, rowView, usePlanModel, type ScoreModel } from "../lib/planScore";
+import { PRISM_BAND_WORD, prismBandOf, rowScore, rowView, usePlanModel, type ScoreModel } from "../lib/planScore";
+import { PLAN_FOR_WATCHLIST } from "../lib/planGates";
 import { METRICS, fmt, useUniverse, type Row } from "../lib/screener";
 import { useDocTitle } from "../lib/title";
 import { useUI } from "../lib/ui";
@@ -30,6 +33,9 @@ import {
 import { saveFile } from "../stock/derive";
 import "../styles/sectors-pack.css";
 import "../styles/watchlist-pack.css";
+import { useClassifications } from "../lib/taxonomy";
+import { coTitle, isBseCode, shortLabel, subLine, titleOf } from "../lib/companyLabel";
+import { ListKeyFigures, ListSections, useListEquity } from "../portfolio/pack/ListSections";
 
 type SortKey = "peers" | "name" | "price" | "pe" | "roe" | "size" | "score";
 type Rich = Item & { row: Row };
@@ -47,7 +53,7 @@ function Add({ rows, taken, onAdd }: { rows: Row[]; taken: string[]; onAdd: (r: 
     <div className="wp-add" ref={box}>
       <input type="text" value={q} onChange={(e) => { setQ(e.target.value); setOpen(true); }} onFocus={() => setOpen(true)} onKeyDown={(e) => { if (e.key === "Enter" && list[0]) { onAdd(list[0]); setQ(""); setOpen(false); } if (e.key === "Escape") setOpen(false); }}
         placeholder="Add a stock to this list" aria-label="Add a stock" aria-expanded={open && list.length > 0} aria-controls="wp-add-list" role="combobox" aria-autocomplete="list" />
-      {open && list.length > 0 && <ul id="wp-add-list" role="listbox" aria-label="Matching stocks">{list.map((r) => <li key={r.symbol}><button type="button" role="option" aria-selected="false" onClick={() => { onAdd(r); setQ(""); setOpen(false); }}>{r.symbol}<small>{r.name} · {r.sector}</small></button></li>)}</ul>}
+      {open && list.length > 0 && <ul id="wp-add-list" role="listbox" aria-label="Matching stocks">{list.map((r) => <li key={r.symbol}><button type="button" role="option" aria-selected="false" onClick={() => { onAdd(r); setQ(""); setOpen(false); }}>{titleOf(r)}<small>{isBseCode(r.symbol) && r.name ? subLine(r, r.sector) : <>{r.name} · {r.sector}</>}</small></button></li>)}</ul>}
     </div>
   );
 }
@@ -62,13 +68,11 @@ function Th({ k, label, sort, dir, on, r, help }: { k?: SortKey; label: string; 
   );
 }
 
-/** The flags of a stock worth a second look (used by the dashboard's older watchlist block): a low score, a weak balance sheet, a big fall in a month, a high P/E
+/** The flags of a stock worth a second look (used by the dashboard's older watchlist block): a Weak FinLit Prism, a big fall in a month, a high P/E
  *  or a price near the member's own target. */
-export function signals(r: Row, target?: number, model: ScoreModel = "iq"): string[] {
+export function signals(r: Row, target?: number, model: ScoreModel | null = null): string[] {
   const out: string[] = [];
-  if (model === "prism") { const v = rowView("prism", r); if (v.band === "lo" && v.score != null) out.push(`FinLit Prism is ${v.score}, ${v.word ?? "below 50"}`); }
-  else if (r.band === "watch") out.push(`FinLit IQ is ${r.overall}, in the Watch band`);
-  if ((r.pillar_balance ?? 100) <= 35) out.push(`Weak balance sheet (${r.pillar_balance}/100)`);
+  if (model === "prism") { const v = rowView(r); if (prismBandOf(v.score) === "weak" && v.score != null) out.push(`FinLit Prism is ${v.score}, Weak`); }
   if ((r.return_1m ?? 0) <= -10) out.push(`Fell ${nf(Math.abs(r.return_1m!), 1)}% in a month`);
   if ((r.pe ?? 0) >= 60) out.push(`Expensive at ${nf(r.pe!, 0)}× earnings`);
   if (target && r.price) { const d = ((r.price - target) / target) * 100; if (Math.abs(d) <= 5) out.push(`Within ${nf(Math.abs(d), 1)}% of your target ₹${nf(target, 0)}`); }
@@ -76,11 +80,11 @@ export function signals(r: Row, target?: number, model: ScoreModel = "iq"): stri
 }
 
 const leadOf = (l: ListLead | null | undefined) => (l && l.available ? l : null);
-function sortValue(k: SortKey, i: Rich, model: ScoreModel): number | string | null {
+function sortValue(k: SortKey, i: Rich): number | string | null {
   if (k === "name") return i.symbol;
   if (k === "peers") { const l = leadOf(i.lead); return l ? (l.rank - 1) / Math.max(1, l.ranked) : null; }
   if (k === "size") return i.marketCap;
-  if (k === "score") return rowScore(model, i.row);
+  if (k === "score") return rowScore(i.row);
   return (i.row[k] as number | null) ?? null;
 }
 
@@ -93,8 +97,8 @@ export function WatchlistPage() {
   const bySym = useMemo(() => new Map(rows.map((r) => [r.symbol, r])), [rows]);
   const [lid, setLid] = useState(st.lists[0].id), [group, setGroup] = useState<GroupBy>("peers"), [sort, setSort] = useState<SortKey>("peers"), [dir, setDir] = useState<1 | -1>(1);
   const [sel, setSel] = useState<string[]>([]), [naming, setNaming] = useState(false), [name, setName] = useState(""), [edit, setEdit] = useState<string | null>(null);
-  const gold = has("gold"), silver = has("silver");
-  const model = usePlanModel() ?? "iq", scName = model === "prism" ? "FinLit Prism" : "FinLit IQ";
+  const gold = has("gold"), silver = has(PLAN_FOR_WATCHLIST);
+  const model = usePlanModel(), scName = "FinLit Prism";
   const list = st.lists.find((l) => l.id === lid) || st.lists[0];
   const [pick, setPick] = useState<LabelAlert>(list.labelAlert ?? "any");
   useEffect(() => { if (!st.lists.some((l) => l.id === lid)) setLid(st.lists[0].id); }, [st.lists, lid]);
@@ -104,16 +108,21 @@ export function WatchlistPage() {
   const leads = leadQ.data && leadQ.data.available ? leadQ.data.rows : null;
   const idx = useIndices();
   const logos = quoteMap(useQuotesFor(list.symbols).data);
+  const cls = useClassifications(list.symbols).data;   // NSE's industry of each stock (task #192): one request for the whole list
+  const wc = useWhatChanged(list.symbols, "watchlist");
+  // task #323 (developer file 22): the equity portfolio's sections for the open list (W1 Key figures, W2 Themes, W3 Trend, W4 Peers, W5 Group leader)
+  const eqOn = silver && !DEMO && list.symbols.length > 0;
+  const eq = useListEquity(list.symbols, rows, leadQ.data, eqOn, gold);   // task #272: Discover's filings of the list, and what is new since the last visit
 
   const items: Rich[] = useMemo(() => list.symbols.map((s) => bySym.get(s)).filter((r): r is Row => !!r).map((r) => {
-    const v = rowView(model, r);
-    return { symbol: r.symbol, name: r.name || r.symbol, sector: r.sector || null, marketCap: r.market_cap ?? null, change: r.change_pct ?? null, score: v.score, word: v.word, lead: leads?.[r.symbol] ?? null, row: r };
-  }), [list, bySym, model, leads]);
+    const v = model ? rowView(r) : null, b = prismBandOf(v?.score);
+    return { symbol: r.symbol, name: r.name || r.symbol, industry: cls?.[r.symbol]?.industry ?? null, marketCap: r.market_cap ?? null, change: r.change_pct ?? null, score: v?.score ?? null, word: b ? PRISM_BAND_WORD[b] : null, lead: leads?.[r.symbol] ?? null, row: r };
+  }), [list, bySym, model, leads, cls]);
   const sorted = useMemo(() => [...items].sort((a, b) => {
-    const A = sortValue(sort, a, model), B = sortValue(sort, b, model);
+    const A = sortValue(sort, a), B = sortValue(sort, b);
     if (A == null && B == null) return a.symbol.localeCompare(b.symbol); if (A == null) return 1; if (B == null) return -1;
     return (typeof A === "string" ? A.localeCompare(B as string) : (A as number) - (B as number)) * dir;
-  }), [items, sort, dir, model]);
+  }), [items, sort, dir]);
   const grouped = useMemo(() => groups(group, sorted), [group, sorted]);
   const cards = useMemo(() => listCards(items), [items]);
   const dis = useMemo(() => disagree(items), [items]);
@@ -123,10 +132,10 @@ export function WatchlistPage() {
   const addStock = (r: Row) => { if (wl.total() >= lim.watchlist_symbols && !wl.has(r.symbol)) { if (gold) toast(`Your watchlist is full (${lim.watchlist_symbols} stocks).`); else upgrade("gold", "Silver holds up to 30 stocks; Gold holds up to 1,000."); return; } wl.add(r.symbol, list.id); toast(`${r.symbol} added to ${list.name}.`); };
   const newList = () => { if (st.lists.length >= MAXL) { if (gold) toast(`You have reached ${MAXL} lists.`); else upgrade("gold", "Silver includes 3 lists; Gold has up to 50."); return; } const id = wl.create(name || `List ${st.lists.length + 1}`); setLid(id); setName(""); setNaming(false); };
   const exportCsv = () => {
-    if (!silver) { toast("Downloads come with the Silver plan."); nav("/plans"); return; }
+    if (!silver) { toast("Downloads come with every paid plan."); nav("/plans"); return; }
     const esc = (s: string) => `"${csvText(s).replace(/"/g, '""')}"`;
-    const head = ["Symbol", "Company", "Industry", "Price", "Change %", "P/E", "ROE %", "Size", "Market cap (Cr)", scName, "Against peers", "Peer rank", "Target", "Note"];
-    const body = sorted.map((i) => { const p = peerCell(i.lead), m = st.meta[i.symbol]; return [i.symbol, i.name, i.sector || "", i.row.price ?? "", i.change ?? "", i.row.pe ?? "", i.row.roe ?? "", sizeWord(i.marketCap) ?? "", i.marketCap ?? "", i.score ?? "", p.chip, p.line, m?.target ?? "", m?.note ?? ""].map((v) => (typeof v === "string" ? esc(v) : v)).join(","); });
+    const head = ["Symbol", "Company", "Industry", "Price", "Change %", "P/E", "ROE %", "Size", "Market cap (Cr)", ...(model ? [scName] : []), "Against peers", "Peer rank", "Target", "Note"];
+    const body = sorted.map((i) => { const p = peerCell(i.lead), m = st.meta[i.symbol]; return [i.symbol, i.name, i.industry || "Not classified", i.row.price ?? "", i.change ?? "", i.row.pe ?? "", i.row.roe ?? "", sizeWord(i.marketCap) ?? "", i.marketCap ?? "", ...(model ? [i.score ?? ""] : []), p.chip, p.line, m?.target ?? "", m?.note ?? ""].map((v) => (typeof v === "string" ? esc(v) : v)).join(","); });
     saveFile("FinLit-watchlist.csv", [head.map(esc).join(","), ...body].join("\n"), "text/csv;charset=utf-8"); toast("Saved FinLit-watchlist.csv.");
   };
   const toggleSel = (s: string) => setSel((x) => (x.includes(s) ? x.filter((y) => y !== s) : x.length >= (gold ? 4 : 2) ? (toast(gold ? "Compare up to 4 companies." : "Silver compares 2 companies. Gold compares up to 4."), x) : [...x, s]));
@@ -137,10 +146,10 @@ export function WatchlistPage() {
 
   return (
     <div className="wrap wp sp">
-      <header className="wp-head" aria-labelledby="wp-title">
+      <header className="wp-head card" aria-labelledby="wp-title">
         <div className="wp-head-t">
           <span className="wp-plan">SILVER</span>
-          <h1 id="wp-title">Watchlists</h1>
+          <h1 id="wp-title" className="ui-title">Watchlists</h1>
           <p>{PAGE_DESC}</p>
         </div>
         <div className="wp-lists" role="group" aria-label="Your lists">
@@ -157,12 +166,12 @@ export function WatchlistPage() {
         </div>
       </header>
 
-      <Gate tier="silver" title="Build your watchlist" points={["Named lists for your own themes", "Each stock against its peers, with notes and targets", "An alert when a stock's peer label changes"]}>
+      <Gate tier={PLAN_FOR_WATCHLIST} title="Build your watchlist" points={["Named lists for your own themes", "Each stock against its peers, with notes and targets", "An alert when a stock's peer label changes"]}>
         {uniQ.data?.sample && <p className="wp-note" role="note"><b>Sample data.</b> Lists are saved in this browser. Reliance is real; the other companies are fictional (SMP-).</p>}
         <div className="wp-tiles">
           <div className="wp-tile wp-t-info"><span>Stocks</span><b>{t1.value}</b><small>{t1.sub}</small></div>
           <div className="wp-tile wp-t-day"><span>{dayName(idx.data?.asOf ?? uniQ.data?.asOf, !!idx.data?.live && !!idx.data?.marketOpen)}</span><b>{t2.value}</b><small>{t2.sub}</small></div>
-          <div className="wp-tile wp-t-good"><span>Average {scName}</span><b>{t3.value}</b><small>{t3.sub}</small></div>
+          <div className="wp-tile wp-t-good"><span>Average {scName}</span>{model ? <><b>{t3.value}</b><small>{t3.sub}</small></> : <><b>—</b><small><Link to="/plans">FinLit Prism · see plans</Link></small></>}</div>
           <div className="wp-tile wp-t-good"><span>Against peers<Tip text={PEER_HELP} label="About Against peers" /></span><b>{leads ? t4.value : "—"}</b><small>{leads ? t4.sub : leadQ.isLoading ? "Loading the weekly check" : "The weekly peer check is not available yet"}</small></div>
           <div className="wp-tile wp-t-org"><span>Concentration</span><b>{t5.value}</b><small>{t5.sub}</small></div>
         </div>
@@ -182,6 +191,7 @@ export function WatchlistPage() {
               <div className="wp-empty">This list is empty. Type a stock in “Add a stock to this list”, or use Watchlist on any company report. Try one of these:
                 <div>{[...rows].sort((a, b) => (b.market_cap || 0) - (a.market_cap || 0)).slice(0, 6).map((r) => <button key={r.symbol} type="button" className="wp-pill" onClick={() => addStock(r)}>+ {r.symbol}</button>)}</div></div>
             ) : (<>
+              <OrderWinNotice row={wc.notice} page="watchlist" />
               <Cards items={cards} cols={Math.min(3, cards.length)} />
               <div className="wp-tw"><Scroll label={`${list.name}: your stocks, scrolls sideways`}>
                 <table className="wp-t" aria-label={`${list.name}: your stocks`}>
@@ -192,7 +202,7 @@ export function WatchlistPage() {
                     <Th k="pe" label="P/E" sort={sort} dir={dir} on={onSort} r help={HELP.pe} />
                     <Th k="roe" label="ROE" sort={sort} dir={dir} on={onSort} r help={HELP.roe} />
                     <Th k="size" label="Size" sort={sort} dir={dir} on={onSort} help={HELP.size} />
-                    <Th k="score" label={scName} sort={sort} dir={dir} on={onSort} r help={model === "prism" ? HELP.prism : HELP.iq} />
+                    {model && <Th k="score" label={scName} sort={sort} dir={dir} on={onSort} r help={HELP.prism} />}
                     <Th k="peers" label="Against peers" sort={sort} dir={dir} on={onSort} help={PEER_HELP} />
                     <Th label="Target" sort={sort} dir={dir} on={onSort} help={HELP.target} />
                     <Th label="Your note" sort={sort} dir={dir} on={onSort} />
@@ -201,23 +211,24 @@ export function WatchlistPage() {
                   <tbody>
                     {grouped.map(([k, rs]) => (
                       <Fragment key={k}>
-                        <tr className={"wp-grp " + groupTone(group === "peers" ? k : "")}><th colSpan={11} scope="colgroup"><div><b>{k}</b><span>{rs.length} stock{rs.length === 1 ? "" : "s"}</span></div></th></tr>
+                        <tr className={"wp-grp " + groupTone(group === "peers" ? k : "")}><th colSpan={model ? 11 : 10} scope="colgroup"><div><b>{k}</b><span>{rs.length} stock{rs.length === 1 ? "" : "s"}</span></div></th></tr>
                         {rs.map((i) => {
-                          const r = i.row, m = st.meta[i.symbol] || { added: 0 }, v = rowView(model, r), p = peerCell(i.lead), lg = logos.get(i.symbol);
+                          const r = i.row, m = st.meta[i.symbol] || { added: 0 }, v = rowView(r), p = peerCell(i.lead), lg = logos.get(i.symbol);
                           const d = m.target && r.price ? ((m.target - r.price) / r.price) * 100 : null;
                           return (
                             <tr key={i.symbol}>
                               <td><div className="wp-co">
                                 <input type="checkbox" checked={sel.includes(i.symbol)} onChange={() => toggleSel(i.symbol)} aria-label={`Select ${i.symbol} to compare`} />
                                 <Logo src={lg?.logo} name={i.name} kind="stock" size={30} />
-                                <Link to={`/stocks/${i.symbol}`} onClick={(e) => openSample(e, r)}><b>{i.symbol}</b><small>{i.name}</small></Link>
+                                <Link to={`/stocks/${i.symbol}`} onClick={(e) => openSample(e, r)}><b title={coTitle(i)}>{titleOf(i)}</b><small>{subLine(i, i.name)}</small></Link>
+                                <FilingChip row={wc.chip(i.symbol)} />
                               </div></td>
-                              <td className="wp-ind">{i.sector || "—"}</td>
+                              <td className="wp-ind">{i.industry || <span className="faint" title="This company is not in NSE's industry lists">Not classified</span>}</td>
                               <td className="r wp-px"><b>{fmt(METRICS.price, r.price)}</b>{i.change != null && <span className={i.change >= 0 ? "wp-up" : "wp-dn"}>{(i.change > 0 ? "+" : i.change < 0 ? "−" : "") + nf(Math.abs(i.change), 2)}%</span>}</td>
                               <td className="r">{r.pe != null ? nf(r.pe, 1) + "×" : "—"}</td>
                               <td className="r">{r.roe != null ? nf(r.roe, 1) + "%" : "—"}</td>
                               <td className="wp-size">{sizeWord(i.marketCap) ?? "—"}{i.marketCap != null && <small>₹{nf(i.marketCap, 0)} Cr</small>}</td>
-                              <td className={"r wp-sc " + v.band}>{v.score != null ? <><b>{v.score}</b>{v.word && <span>{v.word}</span>}</> : <span className="wp-na" title={v.why ?? undefined}>{model === "prism" ? (v.word === "Not rated" ? "Not rated" : "Not rated yet") : "Not scored yet"}</span>}{v.also && <small className="wp-iq" title="FinLit IQ (shown to administrators beside FinLit Prism)">IQ {v.also.score ?? "–"}</small>}</td>
+                              {model && <td className={"r wp-sc " + v.band}>{v.score != null ? <><b>{v.score}</b>{v.word && <span>{v.word}</span>}</> : <span className="wp-na" title={v.why ?? undefined}>{v.word === "Not rated" ? "Not rated" : "Not rated yet"}</span>}</td>}
                               <td className="wp-peer"><span className={"wp-chip " + p.tone}>{p.chip}</span><small>{p.line}</small></td>
                               <td>
                                 <input className="wp-tg" type="number" inputMode="decimal" min={0} value={m.target ?? ""} placeholder="–" onChange={(e) => wl.setMeta(i.symbol, { target: e.target.value === "" ? undefined : Math.max(0, Number(e.target.value)) })} aria-label={`${i.symbol} target price in rupees`} />
@@ -238,7 +249,12 @@ export function WatchlistPage() {
             </>)}
         </section>
 
-        <div className="wp-pair">
+        {eqOn && <ListKeyFigures eq={eq} listName={list.name} />}
+
+        <WhatChanged symbols={list.symbols} listName={list.name} listRef={`watch:${list.id}`} page="watchlist" nameOf={(s) => bySym.get(s)?.name ?? undefined}
+          lists={st.lists.map((l) => ({ id: l.id, label: l.name, count: l.symbols.length }))} activeList={list.id} onPickList={setLid} />
+
+        <div className="wp-pair wp-pair-1">
           <section className="wp-sec" aria-labelledby="wp-dis">
             <h2 id="wp-dis">Price and business disagree<Tip text={PEER_HELP} label="About Price and business disagree" /></h2>
             <p className="wp-sub">{DISAGREE_SUB}</p>
@@ -246,12 +262,15 @@ export function WatchlistPage() {
             {dis.length ? (
               <div className="wp-dis">{dis.map((x) => (
                 <div key={x.symbol} className="wp-dc">
-                  <div className="wp-dc-h"><Logo src={logos.get(x.symbol)?.logo} name={bySym.get(x.symbol)?.name || x.symbol} kind="stock" size={28} /><Link to={`/stocks/${x.symbol}`}>{x.symbol}</Link></div>
+                  <div className="wp-dc-h"><Logo src={logos.get(x.symbol)?.logo} name={bySym.get(x.symbol)?.name || x.symbol} kind="stock" size={28} /><Link to={`/stocks/${x.symbol}`} title={coTitle({ symbol: x.symbol, name: bySym.get(x.symbol)?.name })}>{shortLabel({ symbol: x.symbol, name: bySym.get(x.symbol)?.name })}</Link></div>
                   <div className="wp-rk"><div className={x.priceAhead ? "good" : "bad"}><span>Price rank</span><b>{x.price}</b></div><div className={x.priceAhead ? "bad" : "good"}><span>Business rank</span><b>{x.business}</b></div></div>
                   {x.line && <p>{x.line}</p>}
                 </div>))}</div>
             ) : <p className="wp-empty">{leads ? "On this list, the price rank and the business rank agree for every stock that is compared with its peers." : "This shows once the weekly peer check is available for the stocks on this list."}</p>}
           </section>
+        </div>
+        {eqOn && <ListSections eq={eq} onShow={() => document.getElementById("wp-list")?.scrollIntoView({ behavior: "smooth", block: "start" })} />}
+        <div className="wp-pair wp-pair-eq">
           <section className="wp-sec" aria-labelledby="wp-al">
             <h2 id="wp-al">Tell me when a label changes</h2>
             <p className="wp-sub">{ALERT_SUB}</p>
@@ -261,6 +280,7 @@ export function WatchlistPage() {
               {list.labelAlert && <p className="wp-on" role="status">On for this list: {ALERT_BTNS.find((b) => b.id === list.labelAlert)!.label.toLowerCase()}, sent after the weekly check.<button type="button" onClick={() => { wl.setLabelAlert(list.id, null); toast(`Alert switched off for “${list.name}”.`); }}>Switch off</button></p>}
             </div>
           </section>
+          <ListFilesCard listRef={`watch:${list.id}`} />
         </div>
 
         <p className="wp-plain"><b>In simple words:</b> {PLAIN}</p>

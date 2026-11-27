@@ -66,8 +66,6 @@ async def run(request: Request) -> Dict[str, Any]:
             leftout.append(f"{p.id}: {lo}")
         texts = [body.get("rankScoreNote") or ""] + list(body.get("howItWorks") or []) + [c.description for c in p.chips]
         hit = sorted({m.group(0) for t in texts for m in [LEAK.search(t or "")] if m})
-        if p.tab == "basic" and any("Growth & Profitability" in t for t in texts):
-            hit.append("Growth & Profitability")
         if hit:
             leaks.append(f"{p.id}: {hit}")
     checks = [
@@ -78,9 +76,27 @@ async def run(request: Request) -> Dict[str, Any]:
         _check("C5", "One build: every screen carries the same asOf", [] if len({a for a in asofs if a}) <= 1 else sorted(a for a in asofs if a)),
         _check("C6", "Pattern scans covered the whole market (left out under 2%)", leftout),
         _check("C7", "No model detail in screen texts", leaks),
+        _check("C8", "The lists are on the newest complete session in the exchange candles", await _behind(store, asofs)),
     ]
     return {"screens": len(served), "asOf": sorted(a for a in asofs if a), "checks": checks, "passed": sum(1 for c in checks if c["ok"]), "of": len(checks),
             "diagnostics": await diagnostics(store)}
+
+
+async def _behind(store, asofs) -> List[str]:
+    """C8 (26 Nov 2026): the lists' day against the newest complete candle session (the day a rebuild now would carry). Every screen said "after the
+    23 Nov close" on 26 Nov while C1 to C7 all passed; this is the check that would have failed."""
+    from datetime import datetime, timezone
+    from ..prism_candles import expected_session
+    from . import listday
+    try:
+        async with store.pool.acquire() as conn:
+            newest = await listday.newest_day(conn, expected_session(datetime.now(timezone.utc)))
+    except Exception as exc:
+        return [f"candles not read: {type(exc).__name__}"]
+    days = sorted(str(a)[:10] for a in asofs if a)
+    if newest is None or not days:
+        return []
+    return [f"lists on {d}, candles complete to {newest.isoformat()}" for d in days if d < newest.isoformat()]
 
 
 LAST_RUN_KEYS = ("asOf", "finishedAt", "results", "benchReady", "patternsHeld", "patternCoverage", "patternsChecked", "patternsLeftOut", "patternsSuspended", "patternsError",

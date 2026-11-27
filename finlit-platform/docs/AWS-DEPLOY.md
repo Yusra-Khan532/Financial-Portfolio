@@ -1,11 +1,13 @@
 # Run the whole FinLit site on one AWS server (beginner runbook)
 
-This replaces the free Render container. One small AWS server (EC2 `t3.small`, Mumbai) runs everything with Docker:
+This replaces the free Render container. One small AWS server (EC2 `t3.small`) runs everything with Docker:
 the website, the research API, the company site backend, the background jobs, its own PostgreSQL and Redis, and Caddy (the web server that gives you https).
 It does not sleep, and the database is on the same machine, so pages are fast.
 
 **Where the code comes from.** The server builds from the **company repository**: `https://github.com/Yusra-Khan532/Financial-Portfolio`, branch `main`, folder `finlit-platform/`
-(the repository also holds the company's older `backend/` and `frontend/` folders; the server never builds those).
+(the company's older root `backend/` and `frontend/` folders were removed; everything the server builds is in `finlit-platform/`).
+
+**The live server today:** finlitventures.com runs on EC2 in **Sydney (ap-southeast-2)**, address 54.253.190.17. The steps below were written for Mumbai (ap-south-1); either region works for a new or replacement server, but the prices in section 10 (Cost) are Mumbai's.
 **Future changes are made in the company repository. To put them on the server, run `deploy.sh` (it pulls `main` and rebuilds).**
 Your passwords and keys live only in `/opt/finlit/.env.aws` on the server: outside the git clone, so a pull never touches them, and never in any repository.
 
@@ -102,7 +104,7 @@ Rules: no spaces around `=`, and no `$ " ' #` or spaces inside a value. `ADMIN_R
 ```bash
 bash /opt/finlit/src/finlit-platform/deploy/aws/deploy.sh
 ```
-It checks the settings file (and stops with a clear message if a `CHANGE_ME` is left), pulls `main`, builds the image (6-12 minutes the first time), starts everything, waits for `/api/ping` and `/api/health`, and prints the address. Safe to rerun.
+It checks the settings file (and stops with a clear message if a `CHANGE_ME` is left), pulls `main`, downloads the image GitHub built for that commit (`.github/workflows/platform-image.yml`, public `ghcr.io/yusra-khan532/finlit-app`; it waits up to 20 minutes while GitHub is still building, and builds on the server only when no image comes, 6-12 minutes; `FINLIT_PULL_IMAGE=0` in the env file always builds on the server), starts everything, waits for `/api/ping` and `/api/health`, and prints the address. Safe to rerun.
 
 ## 6. Open the site
 Browse to `http://YOUR.ELASTIC.IP`. Sign in at `/login` with `ADMIN_EMAIL` / `ADMIN_PASSWORD`; the first sign-in asks you to set up an authenticator app. After that you may delete the `ADMIN_PASSWORD` line.
@@ -132,7 +134,7 @@ Private repository? `export GIT_TOKEN=<read-only deploy token>` before running `
 Different source? `REPO_URL`, `REPO_BRANCH`, `REPO_SUBDIR` can be set the same way.
 
 ## 9. Backups and restore
-- A backup container saves the database **every night at 02:00 IST** into the `backups` Docker volume, keeps the newest **7**, and checks each file can be read. List them: `finlit backups`.
+- A backup container saves the database **every night at 02:00 IST** into the `backups` Docker volume (and once more before every automatic deploy), keeps today's newest 3 and **one per earlier day for 7 days**, and checks each file can be read. The backups are for recovery only; nothing on the site reads them. Console > Storage shows how many there are and how much space they take. List them: `finlit backups`.
 - **Copy the newest to your own computer now and then** (a backup on the same disk does not survive losing the server). On the server:
   `docker cp finlit-backup-1:/backups/FILENAME.dump ~/` then, on your computer: `scp -i finlit.pem ubuntu@YOUR.ELASTIC.IP:FILENAME.dump .`
 - **Restore** (replaces the current database, after taking a safety backup first): `finlit restore FILENAME.dump`. It asks you to type `restore`.
@@ -167,7 +169,9 @@ The $100 credit therefore lasts roughly 4 months of continuous running; the free
 - [ ] SSH only from your address: the security group rule is "My IP" and `ADMIN_IP=... bootstrap.sh` was run (update both if your home address changes).
 - [ ] **MFA turned on for the AWS root user**, and a billing alarm exists. Use an IAM user for daily work, not root.
 - [ ] No secrets in git. The only place for them is `/opt/finlit/.env.aws` (permissions 600). `deploy.sh` re-applies `chmod 600` on every run.
-- [ ] `ADMIN_REQUIRE_MFA=1` and the administrator's authenticator app is set up. Delete `ADMIN_PASSWORD` from the file afterwards (redeploy once).
+- [ ] `ADMIN_REQUIRE_MFA=1` and the administrator's authenticator app is set up. Then change the administrator's password once under Account: the
+  live password is then no longer the value in the file. **Keep `ADMIN_PASSWORD` in the file**: `deploy.sh` refuses to run without it, and typing a
+  NEW value there is the way back in without a shell (applied at the next start, every session signed out).
 - [ ] The database and Redis have no published ports; only 22, 80, 443 are open. Do not add rules for 5432 or 6379.
 - [ ] Ubuntu security updates install themselves; once a month run `sudo reboot` at a quiet time if `/var/run/reboot-required` exists, then `finlit status`.
 - [ ] A copy of a recent backup is on your own computer.

@@ -1,0 +1,15 @@
+/* Task #357: this task's rules, kept in their own file so parallel tasks do not edit the same end-of-file lines. */
+
+/* ---- moved from mfscreen.css; every rule starts at .mfs-page so it outranks mfscreen.css whatever the load order ---- */
+/* task #357 (team, 23 Nov 2026): hidden filters give the table the width (as on the Mutual funds page) and leave a slim vertical "Show filters" button
+   on the left, the same as the Mutual funds one (#355): 44px wide, button corners, icon and words centred, the 2px outline of Hide filters, the count
+   of filters on under the words, in view while the page scrolls. Replaces #350's kept column. */
+@media (min-width: 1001px) {
+  .mfs-page .mfs-layout.is-shut { grid-template-columns: 44px minmax(0, 1fr); gap: 16px; }
+}
+.mfs-page .mfs-side.is-shut { padding: 0; border: 0; background: none; box-shadow: none; }
+.mfs-page .mfs-showf { flex-direction: column; justify-content: center; gap: 12px; width: 44px; min-height: 196px; padding: 14px 0; border: 2px solid color-mix(in srgb, var(--text) 70%, transparent); background: var(--s1); }
+.mfs-page .mfs-showf:hover, .mfs-page .mfs-showf:focus-visible { border-color: var(--text); background: var(--s2); }
+.mfs-page .mfs-showf span { writing-mode: vertical-rl; transform: rotate(180deg); line-height: 1; }
+.mfs-page .mfs-showf .ico { color: var(--text); }
+.mfs-page .mfs-showf b { margin-left: 0; }

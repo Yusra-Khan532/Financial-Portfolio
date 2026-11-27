@@ -2,7 +2,7 @@
 // server: the page shows each part's own score, never its weight (the "what moved the score" chart, which multiplied by the weights, is gone).
 import { nf } from "../../../lib/format";
 import {
-  factorValue, isRated, labelTone, partInfo, partsOf, partsSentence, pctWhole, score1, scoreTone,
+  MISSING_WORDS, allFiguresIn, factorValue, isRated, labelTone, partInfo, partsOf, partsSentence, score1, scoreTone,
   type PartKey, type PrismMetric, type PrismReport, type PrismReview, type ReviewPart,
 } from "../../../lib/prism";
 import { THRESHOLDS, bandLabel, partVar, topFactors } from "../../../lib/prismReport";
@@ -57,7 +57,7 @@ function PartCard({ k, index, report, review, rows }: { k: PartKey; index: numbe
       <ThresholdBar value={score} color={color} />
       <span className="pzr-part-ln">
         {lines.map((l, i) => <span key={i}>{l}</span>)}
-        <span>{pctWhole(rating.coverage[k])} of its inputs available{missing ? `; ${missing} estimated or missing` : ""}.</span>
+        {(missing > 0 || !allFiguresIn(rating.coverage?.[k])) && <span>{MISSING_WORDS}.</span>}
       </span>
       {rated && (strength || drag) && <span className="pzr-part-tf">
         {strength && <span className="pos"><em>Top strength</em>{strength.label} <small>{factorValue(strength)}</small></span>}

@@ -3,16 +3,19 @@ import { Link, NavLink, Navigate, useNavigate, useParams, useSearchParams } from
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError } from "../lib/api";
 import * as acct from "../lib/account";
-import { useAuth } from "../lib/auth";
-import { RANK, TIER, useUI, type Plan } from "../lib/ui";
+import { keyOf, tierOf, useAuth, type PlanKey } from "../lib/auth";
+import { planIncludes, planOffers, rupees } from "../lib/planOffer";
+import { planName } from "../lib/planNames";
+import { useUI } from "../lib/ui";
 import { PALETTES, PALETTE_IDS } from "../lib/palettes";
 import { prefs, usePrefs } from "../lib/prefs";
 import { Icon } from "../lib/icons";
 import { useDocTitle } from "../lib/title";
-import { PasswordField } from "./Login";
+import { PasswordField } from "./PasswordField";
 import { DEMO } from "../lib/demo";
+import { AccountAiHistory } from "../components/AccountAiHistory";   // task #349 PR 2: FinLit AI history
 
-const TABS = [["", "Profile", "users"], ["security", "Security", "lock"], ["appearance", "Appearance", "spark"], ["plan", "Plan", "crown"]] as const;
+const TABS = [["", "Profile", "users"], ["security", "Security", "lock"], ["appearance", "Appearance", "spark"], ["ai", "FinLit AI", "chat"], ["plan", "Plan", "crown"]] as const;
 const msg = (e: unknown) => e instanceof ApiError ? e.body.detail || "Something went wrong." : "We could not reach FinLit. Check your connection.";
 const when = (iso: string) => new Date(iso).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 
@@ -28,9 +31,9 @@ export function Account() {
   if (!user) return <Navigate to={`/login?next=${encodeURIComponent("/account" + (tab ? "/" + tab : ""))}`} replace />;
   return (
     <div className="wrap acct">
-      <header className="acct-h">
+      <header className="acct-h card">
         <div className="av lg" aria-hidden="true">{(user.name || user.email)[0].toUpperCase()}</div>
-        <div><h1>{user.name || "Your account"}</h1><p className="muted">{user.email} · <span className={"tier " + user.plan}>{TIER[user.plan].n}</span></p></div>
+        <div><h1 className="ui-title">{user.name || "Your account"}</h1><p className="muted">{user.email} · <span className={"tier " + tierOf(user.plan)}>{planName(keyOf(user.plan))}</span></p></div>
       </header>
       <nav className="acct-tabs" aria-label="Account sections">
         {TABS.filter(([to]) => !DEMO || to === "appearance").map(([to, label, ic]) => <NavLink key={to} to={to ? `/account/${to}` : "/account"} end className={({ isActive }) => (isActive ? "on" : "")}><Icon name={ic} />{label}</NavLink>)}
@@ -40,9 +43,10 @@ export function Account() {
       {tab === "" && !DEMO && <Profile />}
       {tab === "security" && !DEMO && <Security />}
       {tab === "appearance" && <Appearance />}
+      {tab === "ai" && !DEMO && <AccountAiHistory />}
       {tab === "plan" && !DEMO && <PlanTab />}
       {DEMO && tab !== "appearance" && <Navigate to="/account/appearance" replace />}
-      {!["", "security", "appearance", "plan"].includes(tab) && <Navigate to="/account" replace />}
+      {!["", "security", "appearance", "ai", "plan"].includes(tab) && <Navigate to="/account" replace />}
     </div>
   );
 }
@@ -51,13 +55,22 @@ function Profile() {
   const { user, refresh, signOut } = useAuth();
   const nav = useNavigate();
   const [name, setName] = useState(user?.name || "");
-  const save = useMutation({ mutationFn: () => acct.updateProfile(name.trim()), onSuccess: () => refresh() });
+  const [mobile, setMobile] = useState<string | null>(null);   // null until the member edits it; shows their stored number meanwhile
+  const prof = useQuery({ queryKey: ["me-profile"], queryFn: acct.myProfile, staleTime: 60_000 });
+  const shown = mobile ?? prof.data?.mobile ?? "";
+  const save = useMutation({
+    mutationFn: () => {
+      if (mobile != null && mobile.trim() && !acct.isMobile(mobile)) throw new Error("Enter a valid 10-digit Indian mobile number.");
+      return acct.updateProfile(name.trim(), mobile?.trim() || undefined);
+    },
+    onSuccess: () => { refresh(); void prof.refetch(); setMobile(null); } });
   return (
     <section className="card acct-c">
       <h2>Profile</h2>
       <form className="form" onSubmit={(e) => { e.preventDefault(); save.mutate(); }}>
         <label>Name<input value={name} onChange={(e) => setName(e.target.value)} maxLength={80} autoComplete="name" /></label>
         <label>Email<input value={user?.email} readOnly aria-readonly="true" /></label>
+        <label>Mobile number<input type="tel" inputMode="tel" autoComplete="tel" placeholder="98765 43210" value={shown} onChange={(e) => setMobile(e.target.value)} maxLength={16} /></label>
         <Status m={save} ok="Saved." />
         <div className="row"><button className="btn primary" disabled={save.isPending}>Save changes</button>
           <button type="button" className="btn" onClick={async () => { await signOut(); nav("/"); }}>Sign out</button></div>
@@ -166,17 +179,14 @@ export function Appearance() {
           {(["comfortable", "compact"] as const).map((d) => <button key={d} aria-pressed={p.density === d} onClick={() => prefs.set({ density: d })}>{d === "comfortable" ? "Comfortable" : "Compact"}</button>)}
         </div>
         <h2 style={{ marginTop: 22 }}>Price alerts</h2>
-        <label className="sw"><input type="checkbox" checked={p.alerts} onChange={(e) => prefs.set({ alerts: e.target.checked })} /><span aria-hidden="true" /><b>Email me when a watchlist stock crosses its target price</b></label>
-        <p className="muted" style={{ marginTop: 6 }}>Set a target on any stock in your <Link to="/watchlist">watchlist</Link> (Silver and Gold). You get one email when the price crosses it, at most once a day per stock.</p>
-        <label className="sw" style={{ marginTop: 14 }}><input type="checkbox" checked={p.screenAlerts} onChange={(e) => prefs.set({ screenAlerts: e.target.checked })} /><span aria-hidden="true" /><b>Email me when a company newly matches one of my saved screens</b></label>
+        <label className="sw"><input type="checkbox" checked={p.alerts} onChange={(e) => prefs.set({ alerts: e.target.checked })} /><span aria-hidden="true" /><b>Tell me when a watchlist stock crosses its target price</b></label>
+        <p className="muted" style={{ marginTop: 6 }}>Set a target on any stock in your <Link to="/watchlist">watchlist</Link> (Silver and Gold). You get one notification (the bell) when the price crosses it, at most once a day per stock.</p>
+        <label className="sw" style={{ marginTop: 14 }}><input type="checkbox" checked={p.screenAlerts} onChange={(e) => prefs.set({ screenAlerts: e.target.checked })} /><span aria-hidden="true" /><b>Tell me when a company newly matches one of my saved screens</b></label>
         <label className="sw" style={{ marginTop: 14 }}><input type="checkbox" checked={p.profitGap} onChange={(e) => prefs.set({ profitGap: e.target.checked })} /><span aria-hidden="true" /><b>Tell me when a watchlist company's revenue and profit move 15 or more points apart (Silver and Gold)</b></label>
         <p className="muted" style={{ marginTop: 6 }}>Checked after each day's data. One pop-up and bell notification per company and quarter, when its latest quarter's sales growth and profit growth, each against the same quarter last year, differ by 15 percentage points or more.</p>
         <label className="sw" style={{ marginTop: 14 }}><input type="checkbox" checked={p.rotationCorner} onChange={(e) => prefs.set({ rotationCorner: e.target.checked })} /><span aria-hidden="true" /><b>Tell me when the industry of a watchlist stock moves to another corner on Sector Rotation (Silver and Gold)</b></label>
         <label className="sw" style={{ marginTop: 14 }}><input type="checkbox" checked={p.rotationRank} onChange={(e) => prefs.set({ rotationRank: e.target.checked })} /><span aria-hidden="true" /><b>Tell me when the industry of a watchlist stock climbs or falls 5 or more places in 4 weeks (Silver and Gold)</b></label>
         <p className="muted" style={{ marginTop: 6 }}>Sent once, after a week's last session, so a corner change is the confirmed one. It describes how the industry's returns compare with the average industry; it is information, not advice.</p>
-        <h2 style={{ marginTop: 22 }}>Weekly email</h2>
-        <label className="sw"><input type="checkbox" checked={p.digest} onChange={(e) => prefs.set({ digest: e.target.checked })} /><span aria-hidden="true" /><b>Send me “your week ahead” every Sunday</b></label>
-        <p className="muted" style={{ marginTop: 6 }}>Result dates for your stocks, IPOs that are open, your biggest movers and score changes. Off until you switch it on; one email a week at most.</p>
         <p className="muted" style={{ marginTop: 16 }}>Choose which widgets your dashboard shows, and in what order, from the <Link to="/dashboard?edit=1">dashboard</Link>.</p>
         <button className="btn" onClick={() => prefs.reset()}>Reset to the FinLit default</button>
       </section>
@@ -185,31 +195,37 @@ export function Appearance() {
 }
 
 function PlanTab() {
-  const { plan, limits, refresh } = useAuth();
+  // Task #410: the plans on sale and their prices, from the landing page's plan data (lib/planOffer); what each includes is on /plans.
+  const { planKey, limits, refresh } = useAuth();
   const [params] = useSearchParams();
-  const want = params.get("want");
+  const want = wantedPlan(params.get("want"));
   const [note, setNote] = useState("");
-  const req = useMutation({ mutationFn: (p: "silver" | "gold") => acct.requestPlan(p, note.trim() || undefined), onSuccess: () => refresh() });
-  const rows: [Plan, string[]][] = [
-    ["basic", ["Screener, comparison of 2 companies, glossary, latest quarter, financials, ratios, peers, charts"]],
-    ["silver", ["FinLit IQ and five-pillar scorecard", "Parameter history", "Watchlist: 3 lists, 30 stocks", "Model-based comparison tabs", "Data export", "Portfolio tracker (30 holdings) with import", "Saved-screen alerts and the weekly email"]],
-    ["gold", ["Advanced scoring and full ratio history", "Technical analysis and segments", "Model-based screener filters", "Compare up to 4 companies", "Watchlist: up to 50 lists, 1,000 stocks", "FinLit Prism financial-health rating with PDF", "Equity research reports (Later)"]],
-  ];
+  const req = useMutation({ mutationFn: (p: PlanKey) => acct.requestPlan(p, note.trim() || undefined), onSuccess: () => refresh() });
+  const offers = planOffers();
   return (
     <section className="card acct-c">
-      <h2>Your plan: {TIER[plan].n}</h2>
-      <p className="muted">Pricing is announced at launch. Until then, ask for a plan and the FinLit team switches it on for your account and confirms by email.</p>
+      <h2>Your plan: {planName(planKey)}</h2>
+      <p className="muted">Payments are not live yet: ask for a plan below and the FinLit team switches it on for your account and confirms by email. Prices are yearly, before GST; <Link to="/plans">see what each plan includes</Link>.</p>
       <ul className="lim"><li>Watchlists <b>{limits.watchlist_lists}</b></li><li>Stocks in watchlists <b>{limits.watchlist_symbols}</b></li><li>Saved screens <b>{limits.screens}</b></li><li>Companies to compare <b>{limits.compare}</b></li></ul>
       <div className="pgrid2">
-        {rows.map(([k, f]) => (
-          <div key={k} className={"plan2" + (plan === k ? " cur" : "") + (want === k ? " want" : "")} style={{ "--tc": `var(${TIER[k].tc})` } as React.CSSProperties}>
-            <b><Icon name={TIER[k].ic} />{TIER[k].n}</b>
-            <ul>{f.map((x) => <li key={x}><Icon name="check" />{x}</li>)}</ul>
-            {plan === k ? <span className="chip gold">Your plan</span> : k !== "basic" && RANK[k] > RANK[plan] ? <button className="btn" disabled={req.isPending || (req.isSuccess && req.variables === k)} onClick={() => req.mutate(k as "silver" | "gold")}>{req.isSuccess && req.variables === k ? "Requested" : `Request ${TIER[k].n}`}</button> : null}
+        {offers.map((o) => (
+          <div key={o.key} className={"plan2" + (planKey === o.key ? " cur" : "") + (want === o.key ? " want" : "")}>
+            <b>{o.name}</b>
+            <p className="muted" style={{ margin: "4px 0 10px" }}>{o.yearly ? `${rupees(o.yearly)} a year · ${rupees(o.monthly)} a month` : "Free, no card needed"}</p>
+            {planKey === o.key ? <span className="chip gold">Your plan</span>
+              : o.key !== "free" && !planIncludes(planKey, o.key) ? <button className="btn" disabled={req.isPending || (req.isSuccess && req.variables === o.key)} onClick={() => req.mutate(o.key)}>{req.isSuccess && req.variables === o.key ? "Requested" : `Ask for ${o.name}`}</button>
+              : o.key !== "free" ? <span className="muted" style={{ fontSize: "var(--fs-13)" }}>Included in your plan</span> : null}
           </div>))}
       </div>
-      <label className="form" style={{ display: "block", marginTop: 14 }}><span className="muted" style={{ fontSize: 13 }}>Anything we should know? (optional)</span><textarea value={note} onChange={(e) => setNote(e.target.value)} maxLength={300} rows={2} style={{ width: "100%" }} /></label>
+      <label className="form" style={{ display: "block", marginTop: 14 }}><span className="muted" style={{ fontSize: "var(--fs-13)" }}>Anything we should know? (optional)</span><textarea value={note} onChange={(e) => setNote(e.target.value)} maxLength={300} rows={2} style={{ width: "100%" }} /></label>
       <Status m={req} ok="Request sent. We will confirm by email once your plan is switched on." />
     </section>
   );
+}
+
+/** Task #410: the plan a "?want=" link asks for. Old links name a tier or a gate ("silver", "gold", "platinum", "equity", "mfetf"): each reads as the
+ *  smallest plan that opens it. Exported for tests. */
+export function wantedPlan(want: string | null): PlanKey | null {
+  const w = String(want ?? "").toLowerCase();
+  return w === "silver" || w === "gold" ? "gold" : w === "platinum" ? "platinum" : w === "equity" ? "equity" : w === "mfetf" ? "mfetf" : w === "combined" ? "combined" : null;
 }

@@ -7,10 +7,10 @@ const q = (id: string, text: string): Q => ({ id, text });
 
 /** Task #138: FinLit AI answers its listed questions from written text (no language model); these are the explorer's own general questions. */
 export const EXPLORER_ANSWERS: Record<string, string> = {
-  "ex-c1": "A company's report on FinLit shows its FinLit IQ score with its five parts, the share price chart, the profit and loss, balance sheet and cash flow for each year and quarter, its ratios (valuation, returns, margins, debt), how it compares with its peers, its shareholding, dividends and corporate actions, its business segments and its latest results. Every figure carries its period and source. Information only, not investment advice.",
+  "ex-c1": "A company's report on FinLit shows its FinLit Prism score with its four parts (on a plan that has it), the share price chart, the profit and loss, balance sheet and cash flow for each year and quarter, its ratios (valuation, returns, margins, debt), how it compares with its peers, its shareholding, dividends and corporate actions, its business segments and its latest results. Every figure carries its period and source. Information only, not investment advice.",
   "ex-c2": "The income statement (profit and loss) shows what a company earned and spent over a year or quarter: revenue, costs, operating profit, interest, tax and net profit. The balance sheet is a snapshot on one date: what it owns (assets), what it owes (borrowings and other liabilities) and the shareholders' money (net worth). The cash flow statement shows the cash that actually came in and went out from operations, investments and financing. Reading them together shows whether profit turns into cash and how the company is funded. Information only, not investment advice.",
   "ex-c3": "Strengths and risks come from the figures: steady growth in revenue and profit, high returns on capital, low debt and profit backed by operating cash are usually described as strengths; shrinking margins, rising debt, profit not turning into cash or a falling share of promoter holding are usually described as risks. On FinLit, each company's report lists its strengths and watch-outs from its own figures. Information only, not investment advice.",
-  "ex-c4": "Comparing with peers means looking at the same figures side by side for companies in the same business: growth, margins, returns on capital, debt and valuation. A figure that looks high or low on its own often reads differently next to peers. FinLit's company report has a Peers section, and Compare Companies puts companies side by side (two at a time on Silver, four on Gold). Information only, not investment advice.",
+  "ex-c4": "Comparing with peers means looking at the same figures side by side for companies in the same business: growth, margins, returns on capital, debt and valuation. A figure that looks high or low on its own often reads differently next to peers. FinLit's company report has a Peers section, and Compare Companies puts companies side by side (two at a time on Free and the one-area plans, four on Gold). Information only, not investment advice.",
   "ex-c5": "Common red flags in a company's figures: debt rising while margins fall, receivable days rising year after year (customers taking longer to pay), operating cash flow below net profit for several years, returns on capital falling three years running, and a high share of promoter holding pledged. One flag alone is not a verdict; it is a reason to look closer at the figures. Information only, not investment advice.",
   "ex-m1": "ROE (return on equity) is net profit divided by shareholders' equity: what the company earns on the owners' money. ROCE (return on capital employed) is operating profit before interest and tax divided by all the capital used (equity plus debt): what it earns on all the money in the business. A company with a lot of debt can show a high ROE but a lower ROCE; ROCE shows how well the whole business uses its capital. Information only, not investment advice.",
   "ex-m2": "Debt to equity is total borrowings divided by shareholders' equity. A ratio of 0.5 means the company owes half as much as its owners have put in. A higher ratio means more of the business is funded by lenders, which raises interest costs and makes profit swing more with the business cycle; banks and lenders naturally run higher ratios. Information only, not investment advice.",
@@ -55,3 +55,23 @@ export const loadSaved = () => read(KEY.saved);
 export const pushRecent = (list: string[], text: string): string[] => { const n = [text, ...list.filter((x) => x !== text)].slice(0, 20); write(KEY.recent, n); return n; };
 export const toggleSaved = (list: string[], text: string): string[] => { const n = list.includes(text) ? list.filter((x) => x !== text) : [text, ...list].slice(0, 30); write(KEY.saved, n); return n; };
 export const clearRecent = () => { write(KEY.recent, []); return [] as string[]; };
+
+// The ⋯ menu on a History chat (owner, 25 Nov 2026): pin it to the top, rename it, take it out of History. Kept in this browser, like the list itself.
+const PIN = "finlit-ai-pinned", NAMES = "finlit-ai-names";
+export const loadPinned = () => read(PIN);
+export const togglePinned = (list: string[], text: string): string[] => { const n = list.includes(text) ? list.filter((x) => x !== text) : [text, ...list].slice(0, 30); write(PIN, n); return n; };
+export const loadNames = (): Record<string, string> => {
+  try { const v = JSON.parse(localStorage.getItem(NAMES) || "{}"); return v && typeof v === "object" && !Array.isArray(v) ? Object.fromEntries(Object.entries(v).filter(([k, x]) => typeof k === "string" && typeof x === "string").slice(0, 60)) as Record<string, string> : {}; } catch { return {}; }
+};
+const writeNames = (v: Record<string, string>) => { try { localStorage.setItem(NAMES, JSON.stringify(v)); } catch { /* a private window */ } };
+/** A name of its own for a chat (at most 80 characters); an empty name brings back the question itself. */
+export const renameChat = (names: Record<string, string>, text: string, name: string): Record<string, string> => {
+  const n = { ...names }; const t = name.trim().slice(0, 80);
+  if (!t || t === text) delete n[text]; else n[text] = t;
+  writeNames(n); return n;
+};
+/** Delete takes the chat out of History, the pins and the names (Saved Questions are kept: they have their own ×). */
+export const removeRecent = (list: string[], text: string): string[] => { const n = list.filter((x) => x !== text); write(KEY.recent, n); return n; };
+/** The side list: pinned chats first (kept even when newer questions push them out of the newest 20), then the newest others, `limit` of them. */
+export const sideList = (recent: string[], pinned: string[], limit = 5): { text: string; pinned: boolean }[] =>
+  [...pinned.map((text) => ({ text, pinned: true })), ...recent.filter((x) => !pinned.includes(x)).slice(0, limit).map((text) => ({ text, pinned: false }))];

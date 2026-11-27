@@ -12,7 +12,15 @@ import { CATEGORIES, QUARTERS, SEGMENTS, TABS, quarterQuestion, related, tabQues
 const ask = vi.fn(async (id: string, sym: string, _extra?: unknown): Promise<{ text: string; link?: { to: string; label: string } }> => ({ text: `answer to ${id} for ${sym}`, link: { to: `/stocks/${sym}#financials`, label: "See the Profit & Loss" } }));
 vi.mock("../lib/askAnswers", async (orig) => ({ ...(await orig<typeof import("../lib/askAnswers")>()), answerCompany: (id: string, sym: string, extra?: unknown) => ask(id, sym, extra) }));
 vi.mock("../lib/api", async (orig) => ({ ...(await orig<typeof import("../lib/api")>()), apiGet: async () => ({ fields: [], rows: [["RELIANCE", "Reliance Industries Ltd", null, 1], ["TCS", "Tata Consultancy Services Ltd", null, 1]] }) }));
+// Task #211: written answers from FinLit AI. Off by default here (the state of task #138: no key on the server), so every test above them is unchanged;
+// the tests at the end switch them on for a signed-in member or a visitor and script the streamed answer.
+const ai = vi.hoisted(() => ({ quota: undefined as undefined | Record<string, unknown>, user: null as null | { id: string }, events: [] as unknown[], sent: [] as unknown[][] }));
+vi.mock("../lib/auth", async (orig) => ({ ...(await orig<typeof import("../lib/auth")>()), useAuth: () => ({ user: ai.user }) }));
+vi.mock("../lib/askAi", async (orig) => ({ ...(await orig<typeof import("../lib/askAi")>()), useAskQuota: () => ({ data: ai.quota }),
+  askAi: async (q: string, history: unknown, symbol: unknown, on: (e: unknown) => void) => { ai.sent.push([q, history, symbol]); ai.events.forEach(on); } }));
+vi.mock("@tanstack/react-query", async (orig) => ({ ...(await orig<typeof import("@tanstack/react-query")>()), useQueryClient: () => ({ invalidateQueries: async () => {} }) }));
 beforeAll(() => { Element.prototype.scrollIntoView = () => {}; });
+afterEach(() => { ai.quota = undefined; ai.user = null; ai.events = []; ai.sent = []; });
 afterEach(() => { cleanup(); ask.mockClear(); });
 
 const open = (path = "/stocks/reliance", sector?: string) => {
@@ -23,7 +31,7 @@ const open = (path = "/stocks/reliance", sector?: string) => {
 
 describe("flow data", () => {
   it("has the four landing categories, the four segments and the five company tabs", () => {
-    expect(CATEGORIES.map((c) => c.title)).toEqual(["Explore a company", "Market & economy", "Investment concepts", "Platform & tools"]);
+    expect(CATEGORIES.map((c) => c.title)).toEqual(["Explore a Company", "Markets & Economy", "Financial Concepts", "Explore FinLit Tools"]);   // task #201: the team's names
     expect(SEGMENTS.map((s) => s.title)).toEqual(["Financial performance", "Valuation & returns", "Business & segment analysis", "Outlook & risks"]);
     expect(TABS.map((t) => t.label)).toEqual(["Suggested questions", "Financials", "Valuation", "Business", "Outlook & Risks"]);
   });
@@ -88,10 +96,35 @@ describe("Assistant on a company page", () => {
   it("the box searches the listed questions as you type, for this company too, and a pick is answered at once (task #138)", async () => {
     open();
     fireEvent.change(screen.getByLabelText("Search the listed questions"), { target: { value: "borrowings" } });
-    const hits = screen.getByRole("list", { name: "Listed questions that match" });
-    expect(within(hits).getAllByRole("button").map((b) => b.textContent)).toContain("How have RELIANCE's total borrowings and debt-to-equity ratio changed over the last 5 years?");
-    await act(async () => { fireEvent.click(within(hits).getByRole("button", { name: /RELIANCE's total borrowings/ })); });
+    const hits = screen.getByRole("listbox", { name: "Suggested questions" });     // task #268: a panel beside the box, grouped, with a note on each
+    expect(within(hits).getAllByRole("option").map((b) => b.querySelector(".aif-sgq")!.textContent)).toContain("How have RELIANCE's total borrowings and debt-to-equity ratio changed over the last 5 years?");
+    await act(async () => { fireEvent.click(within(hits).getByRole("option", { name: /RELIANCE's total borrowings/ })); });
     expect(ask).toHaveBeenCalledWith("C.3.Q10", "RELIANCE", expect.anything());
+  });
+  it("the suggestions sit beside the box, grouped under headings with a note, and end with the words as typed (task #268)", () => {
+    open();
+    const box = screen.getByLabelText("Search the listed questions");
+    fireEvent.change(box, { target: { value: "borrowings" } });
+    const list = screen.getByRole("listbox", { name: "Suggested questions" });
+    expect(box.closest(".aif-inw")!.contains(list)).toBe(true);                   // beside the box, never loose on the page (the bug of the team's picture)
+    expect(box.getAttribute("aria-expanded")).toBe("true");
+    expect(list.querySelector(".aif-sgh")!.textContent).toBe("RELIANCE · Financials");
+    expect(list.querySelector(".aif-sgn")!.textContent).toBe("Answers at once");
+    const opts = within(list).getAllByRole("option");
+    expect(opts[opts.length - 1].textContent).toContain("Search the listed questions for “borrowings”");   // written answers are off here: the closest listed ones
+    fireEvent.keyDown(box, { key: "Escape" });
+    expect(screen.queryByRole("listbox")).toBeNull();
+  });
+  it("arrow keys move through the suggestions and Enter asks the one picked (task #268)", async () => {
+    open();
+    const box = screen.getByLabelText("Search the listed questions");
+    fireEvent.change(box, { target: { value: "borrowings" } });
+    fireEvent.keyDown(box, { key: "ArrowDown" });
+    const first = within(screen.getByRole("listbox")).getAllByRole("option")[0];
+    expect(first.getAttribute("aria-selected")).toBe("true");
+    expect(box.getAttribute("aria-activedescendant")).toBe(first.id);
+    await act(async () => { fireEvent.keyDown(box, { key: "Enter" }); });
+    expect(ask).toHaveBeenCalledTimes(1);
   });
   it("a typed sentence that is not listed offers the closest listed ones, or says none matches; nothing is sent to any model (task #138)", async () => {
     open();
@@ -133,15 +166,20 @@ describe("Assistant on a company page", () => {
 });
 
 describe("Assistant away from a company page", () => {
-  it("starts with the greeting and the four categories", () => {
+  it("starts with the greeting, a search box above the five theme cards (Mutual funds & ETFs the fifth) and things to try (tasks #201, #203, #268)", () => {
     open("/about");
     expect(screen.getByText("Hi, I'm FinLit AI")).toBeTruthy();
-    expect(within(screen.getByRole("list", { name: "What would you like to explore?" })).getAllByRole("button")).toHaveLength(4);
+    const cats = within(screen.getByRole("list", { name: "What would you like to explore?" })).getAllByRole("button");
+    expect(cats.map((b) => b.querySelector("b")!.textContent)).toEqual(["Explore a Company", "Markets & Economy", "Financial Concepts", "Explore FinLit Tools", "Mutual funds & ETFs"]);   // task #268: the five themes, five cards
+    const box = screen.getByLabelText("Ask FinLit AI anything");
+    expect(box.compareDocumentPosition(cats[0]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();   // the search sits above the cards
+    expect(screen.getAllByRole("button", { name: /^(Reliance financials|P\/E ratio|Sector outlook|Red flags)$/ })).toHaveLength(4);
+    expect(screen.getByRole("button", { name: /Mutual funds & ETFs/ })).toBeTruthy();
     expect((screen.getByLabelText("Search the listed questions") as HTMLInputElement).placeholder).toBe("Search the questions (e.g. P/E, cash flow, debt)");
   });
   it("Explore a company -> segment -> search a company -> that company's tab", async () => {
     open("/about");
-    fireEvent.click(screen.getByRole("button", { name: /Explore a company/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Explore a Company/ }));
     expect(within(screen.getByRole("list", { name: "Choose a segment" })).getAllByRole("button")).toHaveLength(4);
     fireEvent.click(screen.getByRole("button", { name: /Valuation & returns/ }));
     fireEvent.change(screen.getByLabelText("Which company?"), { target: { value: "reli" } });
@@ -150,14 +188,14 @@ describe("Assistant away from a company page", () => {
   });
   it("Investment concepts and Platform & tools answer at once from the written answers, without the model", async () => {
     open("/about");
-    fireEvent.click(screen.getByRole("button", { name: /Investment concepts/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Financial Concepts/ }));
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: "What is the difference between a mutual fund and an ETF?" })); });
     expect(ask).not.toHaveBeenCalled();
     expect(screen.getByText(/ETF trades on the stock exchange/)).toBeTruthy();
   });
   it("Market & economy questions answer at once from written text, with no model call (task #138)", async () => {
     open("/about");
-    fireEvent.click(screen.getByRole("button", { name: /Market & economy/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Markets & Economy/ }));
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: /FII and DII flows/ })); });
     expect(ask).not.toHaveBeenCalled();
     expect(screen.getByText(/net amounts these groups put into or took out of Indian shares/)).toBeTruthy();
@@ -166,7 +204,7 @@ describe("Assistant away from a company page", () => {
   });
   it("the back arrow returns one step", () => {
     open("/about");
-    fireEvent.click(screen.getByRole("button", { name: /Explore a company/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Explore a Company/ }));
     fireEvent.click(screen.getByRole("button", { name: "Back" }));
     expect(screen.getByText("Hi, I'm FinLit AI")).toBeTruthy();
   });
@@ -193,3 +231,99 @@ describe("Assistant full window (task #52)", () => {
     localStorage.removeItem("finlit-ai-full");
   });
 });
+
+describe("task #284: the 'Choose a question to ask' tab is gone from FinLit AI", () => {
+  it("the full window has no question chooser or topic tabs; its themes and the page's own questions stay", () => {
+    localStorage.setItem("finlit-ai-full", "1");
+    open("/screener");
+    const dlg = screen.getByRole("dialog", { name: "FinLit AI assistant" });
+    expect(dlg.className).toMatch(/\bfull\b/);
+    expect(within(dlg).queryByText(/Choose a question to ask/)).toBeNull();
+    expect(within(dlg).queryByRole("tablist", { name: "Question topics" })).toBeNull();
+    expect(within(dlg).queryByPlaceholderText(/Search questions/)).toBeNull();
+    expect(within(dlg).getByRole("list", { name: "What would you like to explore?" })).toBeTruthy();
+    expect(within(dlg).getByText("Questions about this page")).toBeTruthy();
+    localStorage.removeItem("finlit-ai-full");
+  });
+});
+
+describe("written answers from FinLit AI (task #211)", () => {
+  const typeAndSend = async (label: string, text: string) => {
+    const box = screen.getByLabelText(label);
+    fireEvent.change(box, { target: { value: text } });
+    await act(async () => { fireEvent.submit(box.closest("form")!); });
+  };
+  it("a signed-in member's own question is sent as typed, with the page's company, and the answer streams in with the disclaimer", async () => {
+    ai.user = { id: "u1" }; ai.quota = { enabled: true, signedIn: true, limit: 50, used: 12, left: 38, resets: "2026-12-01" };
+    ai.events = [{ type: "meta", limit: 50, used: 13, left: 37, resets: "2026-12-01", cached: false }, { type: "status", text: "Reading the ratios (RELIANCE)" },
+      { type: "text", text: "Reliance's debt to equity was " }, { type: "text", text: "0.41 in FY2026." }, { type: "done", disclaimer: "Information only, not investment advice.", sources: ["get_ratios"] }];
+    open();
+    expect(screen.getByText(/FinLit AI: 38 of 50 written answers left this month/)).toBeTruthy();
+    await typeAndSend("Your question for FinLit AI", "Will the dividend rise much higher next year, do you think?");
+    expect(ai.sent[0][0]).toBe("Will the dividend rise much higher next year, do you think?");
+    expect(ai.sent[0][2]).toBe("RELIANCE");
+    expect(screen.getByText("Reliance's debt to equity was 0.41 in FY2026.")).toBeTruthy();
+    expect(screen.queryByRole("listbox")).toBeNull();                              // the suggestions close once a question is sent
+    expect(screen.getByText("Information only, not investment advice.")).toBeTruthy();
+    expect(ask).not.toHaveBeenCalled();
+  });
+  it("for a member with written answers, the last suggestion sends the words as typed to FinLit AI (task #268: listed first, then the model)", async () => {
+    ai.user = { id: "u1" }; ai.quota = { enabled: true, signedIn: true, limit: 50, used: 12, left: 38, resets: "2026-12-01" };
+    ai.events = [{ type: "text", text: "An answer." }, { type: "done", disclaimer: "Information only, not investment advice.", sources: [] }];
+    open();
+    const box = screen.getByLabelText("Your question for FinLit AI");
+    fireEvent.change(box, { target: { value: "how is the new energy business going" } });
+    const opts = within(screen.getByRole("listbox", { name: "Suggested questions" })).getAllByRole("option");
+    const last = opts[opts.length - 1];
+    expect(last.textContent).toContain("Ask FinLit AI: “how is the new energy business going”");
+    expect(last.textContent).toContain("A written answer · 38 left this month");
+    await act(async () => { fireEvent.click(last); });
+    expect(ai.sent[0][0]).toBe("how is the new energy business going");
+  });
+  it("a written answer ends with links to the FinLit pages it read, this site's pages only (task #218)", async () => {
+    ai.user = { id: "u1" }; ai.quota = { enabled: true, signedIn: true, limit: 50, used: 12, left: 38, resets: "2026-12-01" };
+    ai.events = [{ type: "text", text: "Reliance's investor presentation of 30 Oct 2026 gives Jio's ARPU as Rs 210 (page 3)." },
+      { type: "done", disclaimer: "Information only, not investment advice.", sources: ["get_company_card", "read_company_document"],
+        pages: [{ to: "/stocks/RELIANCE", label: "RELIANCE company report" }, { to: "/documents", label: "Documents" }, { to: "https://evil.example", label: "Elsewhere" }, { to: "//evil.example", label: "Elsewhere" }] }];
+    open();
+    await typeAndSend("Your question for FinLit AI", "What does the latest investor presentation say about Jio's ARPU?");
+    const row = document.querySelector(".aif-acts")!;
+    expect(within(row as HTMLElement).getByText("Read on FinLit")).toBeTruthy();
+    expect([...row.querySelectorAll("a")].map((a) => [a.getAttribute("href"), a.textContent?.trim()])).toEqual([["/stocks/RELIANCE", "RELIANCE company report"], ["/documents", "Documents"]]);
+  });
+  it("a listed question still answers at once from FinLit's figures, without using a written answer", async () => {
+    ai.user = { id: "u1" }; ai.quota = { enabled: true, signedIn: true, limit: 50, used: 0, left: 50, resets: "2026-12-01" };
+    open();
+    const first = screen.getAllByRole("button").find((b) => b.className === "aif-q")!;
+    await act(async () => { fireEvent.click(first); });
+    expect(ask).toHaveBeenCalled();
+    expect(ai.sent).toEqual([]);
+  });
+  it.each([["a visitor", null, { enabled: true, signedIn: false }], ["a Basic member", { id: "b1" }, { enabled: true, signedIn: true, limit: 0, used: 0, left: 0, resets: "2026-12-01" }]])(
+    "%s keeps the listed questions only: the closest ones are offered, with a note that written answers are Silver and Gold (founder, 17 Nov 2026)", async (_who, user, quota) => {
+      ai.user = user as { id: string } | null; ai.quota = quota;
+      open();
+      expect(screen.queryByText(/written answers left this month/)).toBeNull();          // no "0 of 0" line for Basic
+      await typeAndSend("Search the listed questions", "Will the dividend rise much higher next year, do you think?");
+      expect(ai.sent).toEqual([]);
+      expect(screen.getByText(/part of the combined plan \(60 a month\), Gold \(100 a month\) and Platinum \(300 a month\)/)).toBeTruthy();
+      expect(within(screen.getByRole("list", { name: "Closest listed questions" })).getAllByRole("button").length).toBeGreaterThan(0);
+      expect(screen.getByRole("link", { name: /See the plans/ }).getAttribute("href")).toBe("/plans");
+    });
+  it("with the month's questions used, the box goes back to the listed questions and says when they renew", async () => {
+    ai.user = { id: "u1" }; ai.quota = { enabled: true, signedIn: true, limit: 50, used: 50, left: 0, resets: "2026-12-01" };
+    open();
+    expect(screen.getByText(/0 of 50 written answers left this month; they renew on 1 Dec/)).toBeTruthy();
+    await typeAndSend("Search the listed questions", "xyzzy plugh");
+    expect(ai.sent).toEqual([]);
+    expect(screen.getByText(/none matches “xyzzy plugh”/)).toBeTruthy();
+  });
+  it("a refusal or a failure is said in the bubble, never left blank", async () => {
+    ai.user = { id: "u1" }; ai.quota = { enabled: true, signedIn: true, limit: 50, used: 1, left: 49, resets: "2026-12-01" };
+    ai.events = [{ type: "meta", limit: 50, used: 2, left: 48, resets: "2026-12-01", cached: false }, { type: "error", code: "busy", text: "FinLit AI is answering many questions right now. Please try again in a minute." }];
+    open();
+    await typeAndSend("Your question for FinLit AI", "How has the market done this week?");
+    expect(screen.getByText("FinLit AI is answering many questions right now. Please try again in a minute.")).toBeTruthy();
+  });
+});
+

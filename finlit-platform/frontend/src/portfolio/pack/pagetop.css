@@ -1,0 +1,119 @@
+/* Task #183: the Equity portfolio's top grid, Key figures and sections bar. Scoped to eqt-; colours from the site tokens and the pack tones (sectors-pack.css). */
+.eqt-grid { display: grid; grid-template-columns: minmax(0, 1.15fr) repeat(3, minmax(0, 1fr)); gap: 10px; margin: 0 0 14px; }
+.eqt-score { display: flex; flex-direction: column; gap: 6px; padding: 16px; border-radius: var(--r-ctl); background: #14211c; color: #f3eee2; }
+.eqt-score-k { margin: 0; font: 700 var(--fs-12) var(--sans); letter-spacing: .08em; text-transform: uppercase; color: #e9cf8f; }
+.eqt-score-v { margin: 0; font: 400 var(--fs-16) var(--serif); color: #9aa6b6; } .eqt-score-v b { font-size: var(--fs-32); color: #f3eee2; font-weight: 400; }
+.eqt-score-x { margin: 0; font-size: var(--fs-13); line-height: 1.5; color: #d8d2c4; } .eqt-score-x a { color: #e9cf8f; }
+.eqt-tile, .eqt-card { display: flex; flex-direction: column; gap: 4px; padding: 14px 16px; border: 1px solid var(--sp-line, var(--border)); border-radius: var(--r-ctl); }
+.eqt-tile { cursor: pointer; transition: box-shadow .15s; } .eqt-tile:hover, .eqt-tile:focus-visible { box-shadow: 0 0 0 2px color-mix(in srgb, var(--gold) 45%, transparent); outline: none; }
+.eqt-good { background: var(--sp-good-bg); border-color: var(--sp-good-bd); } .eqt-info { background: color-mix(in srgb, #2F5A9E 8%, var(--sp-panel, var(--s1))); border-color: color-mix(in srgb, #2F5A9E 22%, transparent); }
+.eqt-watch { background: var(--sp-watch-bg); border-color: var(--sp-watch-bd); } .eqt-warn { background: var(--sp-bad-bg); border-color: var(--sp-bad-bd); }
+.eqt-k { display: flex; align-items: center; gap: 4px; margin: 0; font: 700 var(--fs-12) var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--sp-mute, var(--muted)); }
+.eqt-v { margin: 0; font: 400 var(--fs-24)/1.2 var(--serif); color: var(--sp-ink, var(--text)); } .eqt-x { margin: 0; font-size: var(--fs-13); line-height: 1.45; color: var(--sp-ink, var(--text)); }
+.eqt-tag { display: inline-block; margin-left: 8px; padding: 1px 7px; border-radius: var(--ui-r-pill); font: 600 var(--fs-12)/1.5 var(--sans, inherit); letter-spacing: .04em; vertical-align: middle; background: var(--sp-warn-bg, #f6ead3); color: var(--sp-warn, #8a5a12); }
+.eqt-go { margin-top: auto; padding-top: 4px; font: 700 var(--fs-13) var(--sans); color: #0E6471; } :root[data-theme="dark"] .eqt-go { color: #7CC7D2; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .eqt-go { color: #7CC7D2; } }
+.eqt-jump { all: unset; cursor: pointer; margin-top: auto; padding-top: 4px; font: 700 var(--fs-13) var(--sans); color: #0E6471; min-height: 32px; display: inline-flex; align-items: center; }
+.eqt-jump:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.eqt-kf { margin: 0 0 14px; padding: 14px 16px; border: 1px solid var(--sp-line, var(--border)); border-radius: var(--r-ctl); background: var(--sp-panel, var(--s1)); }
+.eqt-kf-h { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; } .eqt-kf-h h2 { margin: 0; font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif); } .eqt-kf-h p { margin: 2px 0 0; font-size: var(--fs-13); color: var(--sp-mute, var(--muted)); }
+.eqt-fold { all: unset; cursor: pointer; font: 600 var(--fs-13) var(--sans); color: #0E6471; min-height: 32px; } .eqt-fold:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.eqt-kf-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 12px; }
+.eqt-bar { position: sticky; top: calc(var(--top-h, 63px) + 8px); z-index: 30; transition: box-shadow .2s; display: flex; gap: 4px; align-items: center; overflow-x: auto; scrollbar-width: none; margin: 0 0 14px; padding: 6px;
+  background: linear-gradient(var(--sp-panel, var(--s1)), var(--sp-panel, var(--s1))), var(--bg); border: 1px solid var(--sp-line, var(--border)); border-radius: var(--ui-r-pill); }
+.eqt-bar::-webkit-scrollbar { display: none; }   /* task #388 (file 38, F5): the bar is solid (it was 94% opaque, rows showed through it) */
+.eqt-bar button { flex: none; min-height: 38px; padding: 0 13px; border: 0; background: transparent; border-radius: var(--ui-r-pill); font: 500 var(--fs-13) var(--sans); color: var(--sp-ink, var(--text)); cursor: pointer; white-space: nowrap; }
+.eqt-bar button:hover { background: var(--s2); } .eqt-bar button:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
+.eqt-all { border: 1px solid var(--sp-line, var(--border)) !important; background: var(--s2) !important; font-weight: 600 !important; }
+/* task #310 part D: the chip in view takes the one selected colour (ui.css, "Section bars"), not an underline */
+.eqt-chipw { display: inline-flex; align-items: center; flex: none; } .eqt-arrow { color: var(--sp-mute, var(--muted)); font-size: var(--fs-12); padding: 0 2px; }
+.eqt-n { display: inline-grid; place-items: center; width: 18px; height: 18px; margin-right: 6px; border-radius: 50%; background: var(--s2); font: 700 var(--fs-12) var(--sans); }
+.eqt-allw { position: relative; flex: none; }
+.eqt-menu { position: fixed; z-index: 60; margin-top: 6px; width: min(320px, calc(100vw - 32px)); max-height: 60vh; overflow: auto; padding: 8px; border: 1px solid var(--sp-line, var(--border)); border-radius: var(--r-ctl); background: var(--s1); box-shadow: 0 14px 34px -14px rgba(0, 0, 0, .5); }
+.eqt-menu p { margin: 6px 6px 2px; font: 700 var(--fs-12) var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--sp-mute, var(--muted)); }
+.eqt-menu button { display: flex; align-items: center; width: 100%; border-radius: var(--r-ctl) !important; text-align: left; }
+.eqt-flash { animation: eqt-flash 1.5s ease-out; } @keyframes eqt-flash { 0% { box-shadow: 0 0 0 3px var(--gold); } 100% { box-shadow: 0 0 0 0 transparent; } }
+@media (max-width: 1100px) { .eqt-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 760px) { .eqt-kf-cards { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 640px) { .eqt-grid { grid-template-columns: minmax(0, 1fr); } .eqt-v { font-size: var(--fs-20); } }
+.eqt-addq { align-self: flex-start; margin-top: auto; min-height: 40px; padding: 0 16px; border: 0; border-radius: var(--r-ctl); background: #f3eee2; color: #14211c; font: 600 var(--fs-14) var(--sans); cursor: pointer; }
+.eqt-addq:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+/* task #235 (pack B6): the bar sticks under the site header (its height measured into --top-h) and gains a shadow while stuck */
+.eqt-bar.stuck { box-shadow: 0 10px 24px -14px rgba(0, 0, 0, .45); }
+
+/* task #235 (pack B15): Key figures cards with a drop-down listing the shares behind each figure. Equal heights while closed; an open card grows alone. */
+.eqt-kf-cards{align-items:stretch!important}
+.eqt-kf-cards:has(.x-kd-on){align-items:start!important}
+.eqt-kf-cards .eqt-card{display:flex!important;flex-direction:column}
+.x-kd-f{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;margin-top:auto;padding-top:8px}
+.x-kd-f .eqt-go{margin:0!important;padding:0!important}
+.x-kd-b{display:inline-flex;align-items:center;gap:6px;border:1px solid color-mix(in srgb,currentColor 25%,var(--border));background:color-mix(in srgb,var(--s1) 70%,transparent);border-radius:var(--ui-r-pill);min-height:30px;padding:0 12px;font:700 var(--fs-12) var(--sans);color:var(--text);cursor:pointer}
+.x-kd-b i{font-style:normal;transition:transform .15s}
+.x-kd-b[aria-expanded=true]{background:var(--text);color:var(--bg);border-color:var(--text)}
+.x-kd-b[aria-expanded=true] i{transform:rotate(180deg)}
+.x-kd-b:focus-visible,.x-kd-c:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.x-kd{margin-top:10px;padding-top:10px;border-top:1px dashed color-mix(in srgb,var(--text) 18%,transparent);display:grid;gap:10px}
+.x-kd[hidden]{display:none}
+.x-kd-k{margin:0 0 5px;font:700 var(--fs-12) var(--sans);letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.x-kd-k span{display:inline-grid;place-items:center;min-width:18px;height:18px;margin-left:4px;padding:0 5px;border-radius:var(--ui-r-pill);background:color-mix(in srgb,var(--text) 10%,transparent);color:var(--text);letter-spacing:0}
+.x-kd-n{margin:-2px 0 6px;font-size:var(--fs-12);color:var(--muted)}
+.x-kd-cs{display:flex;flex-wrap:wrap;gap:5px}
+.x-kd-c{display:inline-flex;align-items:baseline;gap:5px;border:1px solid var(--border);background:var(--s1);border-radius:var(--r-ctl);padding:4px 8px;font:inherit;color:var(--text);cursor:pointer;text-align:left}
+.x-kd-c b{font:700 var(--fs-12) var(--sans)}
+.x-kd-c small{font-size:var(--fs-12);color:var(--muted)}
+.x-kd-c.up{border-color:color-mix(in srgb,var(--gain) 40%,var(--border))}
+.x-kd-c.up b{color:var(--gain)}
+.x-kd-c.dn{border-color:color-mix(in srgb,var(--loss) 40%,var(--border))}
+.x-kd-c.dn b{color:var(--loss)}
+.x-kd-c:hover{background:color-mix(in srgb,var(--text) 6%,var(--s1))}
+.x-kd-t{width:100%;border-collapse:collapse;font-size:var(--fs-12)}
+.x-kd-t th{font:700 var(--fs-12) var(--sans);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);text-align:left;padding:2px 4px 4px}
+.x-kd-t .r{text-align:right}
+.x-kd-t td{padding:3px 4px;vertical-align:middle;border-top:1px solid color-mix(in srgb,var(--text) 7%,transparent)}
+.x-kd-t td b{font:700 var(--fs-12) var(--sans)}
+.x-kd-t td small{display:block;font-size:var(--fs-12);color:var(--muted)}
+.x-kd-t td small i{font-style:normal;font-weight:700;color:var(--loss)}
+.x-kd-t tr.x-kd-th th{padding-top:8px;color:var(--text)}
+.x-kd-t tr.x-kd-th th span{display:inline-grid;place-items:center;min-width:18px;height:18px;margin-left:4px;padding:0 5px;border-radius:var(--ui-r-pill);background:color-mix(in srgb,var(--text) 10%,transparent);letter-spacing:0}
+.x-kd-t th,.x-kd-t td{position:static!important;background:transparent!important;box-shadow:none!important;left:auto!important}
+
+/* Task #274 (Equity portfolio, change 11): the steps scroll inside the bar; ‹ › only when they do not fit; the edge with hidden steps fades; each arrow
+   greys out at its end. The stuck pill sits in a page-coloured band under the site header, so rows do not show through above it. */
+.eqt-bar.eqt-scr { overflow: visible; }
+.eqt-bar.eqt-scr.stuck { box-shadow: 0 -24px 0 10px var(--bg), 0 10px 22px -16px rgba(0, 0, 0, .4); }
+.eqt-steps { display: flex; align-items: center; gap: 4px; flex: 1 1 auto; min-width: 0; overflow-x: auto; scrollbar-width: none; scroll-behavior: smooth; }
+.eqt-steps::-webkit-scrollbar { display: none; }
+.eqt-steps.f-l { -webkit-mask-image: linear-gradient(90deg, transparent, #000 28px); mask-image: linear-gradient(90deg, transparent, #000 28px); }
+.eqt-steps.f-r { -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent); }
+.eqt-steps.f-l.f-r { -webkit-mask-image: linear-gradient(90deg, transparent, #000 28px, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(90deg, transparent, #000 28px, #000 calc(100% - 28px), transparent); }
+.eqt-sa { flex: 0 0 auto; display: grid; place-items: center; width: 34px; height: 34px; padding: 0; border: 1px solid var(--border-strong, var(--border)); border-radius: 50%; background: var(--s1); color: var(--text); font: 600 var(--fs-18)/1 var(--sans); cursor: pointer; }
+.eqt-sa:disabled { opacity: .35; cursor: default; }
+.eqt-sa:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+@media (max-width: 760px) {
+  .eqt-bar.eqt-scr .eqt-all, .eqt-bar.eqt-scr .eqt-sa { display: none; }
+  .eqt-bar.eqt-scr .x-sw-p b, .eqt-bar.eqt-scr .x-sw-p i { display: none; }   /* the portfolio shows only its avatar */
+}
+/* "Sections ▾" in the row inside the table */
+.eqt-secw { position: relative; display: inline-flex; }
+.eqt-secb { display: inline-flex; align-items: center; gap: 4px; min-height: 38px; padding: 0 12px; border: 1px solid var(--border-strong, var(--border)); border-radius: var(--ui-r-pill); background: var(--s1); color: var(--text); font: 600 var(--fs-14) var(--sans); white-space: nowrap; cursor: pointer; }
+.eqt-secb i { font-style: normal; font-size: var(--fs-12); opacity: .7; }
+.eqt-secm { position: absolute; z-index: 60; top: calc(100% + 6px); left: 0; display: grid; min-width: 280px; padding: 6px; border-radius: var(--r-ctl); border: 1px solid var(--border-strong, var(--border)); background: var(--ov-surface, var(--s1)); box-shadow: 0 18px 40px -20px rgba(0, 0, 0, .45); }
+.eqt-secm button { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; padding: 8px 10px; border: 0; border-radius: var(--r-ctl); background: none; color: var(--text); text-align: left; font: 500 var(--fs-14) var(--sans); cursor: pointer; }
+.eqt-secm button:hover, .eqt-secm button:focus-visible { background: var(--s2); outline: none; }
+.eqt-secm small { color: var(--muted); font-size: var(--fs-12); }
+.eqt-secm .eqt-secall { display: block; margin-top: 4px; border-top: 1px solid var(--border); border-radius: 0 0 var(--r-ctl) var(--r-ctl); font-weight: 700; }
+.eqt-secb:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.eqt-badge { display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: var(--ui-r-pill); background: #c2410c; color: #fff; font: 700 var(--fs-12) var(--sans); vertical-align: 1px; }
+
+/* Task #388 reopened (developer file 38, S3 and E1): the floating bar of the equity, MF and ETF pages sits 8px under the site header. While such a bar is
+   on the page (useHeaderHeight(true) puts x-hstrip on <html>), the header paints that strip in the page colour, and on a phone so do the section chips
+   under it, so no row scrolls through it. A pseudo-element under each, so the header's own shadows (light and dark) stay as they are. */
+/* task #388 (developer file 38, F5): a real cover (no pointer-events: none), so a row under it is neither seen nor clicked, and the table check sees it */
+:root.x-hstrip .top::before, :root.x-hstrip .ma-hub::before { content: ""; position: absolute; left: 0; right: 0; top: 100%; height: 8px; background: var(--bg); }
+:root.x-hstrip .ma-hub::before { top: calc(100% + 1px); }   /* below the chips' own bottom line */
+/* the rounded ends: a page-coloured rectangle behind the stuck bar fills the corners outside its curve; the bar's own background and border are drawn
+   again over it (::after inherits them), so the bar looks the same and nothing shows round its ends */
+.eq .eqt-bar.eqt-scr.stuck::before, .eq .eqt-bar.eqt-scr.stuck::after { content: ""; position: absolute; inset: -1px; z-index: -1; pointer-events: none; }
+.eq .eqt-bar.eqt-scr.stuck::before { background: var(--bg); }
+.eq .eqt-bar.eqt-scr.stuck::after { background: inherit; border: inherit; border-radius: inherit; }

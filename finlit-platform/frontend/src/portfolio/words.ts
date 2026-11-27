@@ -4,7 +4,7 @@ import type { Mode } from "./types";
 
 export const DISCLAIMER = "Information only, not investment advice.";
 export const HEAD_DESC = "Add the shares you own and see how strong they are, and how spread out they are. Only names are needed; nothing is sent to a broker.";
-export const ADD_NOTE = "Excel, CSV or PDF statements work. A line's ISIN decides which company it is (its name only when it has no ISIN); quantities, prices and dates are ignored.";
+export const ADD_NOTE = "Excel, CSV or PDF statements work. Each share is read by its ISIN, so a renamed company or a changed symbol stays the same share; a row without an ISIN is matched by name and shown for you to confirm. A CAS from NSDL or CDSL also brings the number of shares in every demat account; from other files, quantities, prices and dates are ignored.";   // the pack's words (task #183) with task #191's CAS quantities
 export const MODE_LABEL: Record<Mode, string> = { eq: "Equal amounts", mc: "Sized by company value" };
 export const MODE_SHORT: Record<Mode, string> = { eq: "Equal amounts", mc: "By company value" };
 export const MODE_NOTE: Record<Mode, string> = { eq: "If equal amounts were held", mc: "If amounts were sized by company value" };
@@ -18,7 +18,7 @@ export const SCALE_NOTE = "How spread the list is, not how safe it is";
 export const SCORE_PARTS = { comove: "How the shares move together", sector: "How the list is spread across sectors" };
 /** The word for a spread reading, and the fixed bar length that goes with each word (the bars show the word, not a figure). */
 export const SPREAD_WORD = (v: number): { word: string; bar: number } => (v >= 70 ? { word: "Widely spread", bar: 100 } : v >= 40 ? { word: "Spread", bar: 66 } : { word: "Concentrated", bar: 33 });
-export const SIZES_NOTE = "Sectors are NSE's. Sizes are AMFI's: large cap = the 100 biggest companies, mid cap = the next 150, small cap = the rest. The same sector and size are used everywhere on this page.";
+export const SIZES_NOTE = "Sectors are NSE's. Sizes are FinLit's, by market value: large cap above ₹75,000 Cr, mid cap ₹25,000–75,000 Cr, small cap ₹10,000–25,000 Cr, micro cap below ₹10,000 Cr. The same sector and size are used everywhere on this page.";
 export const GROUP_NOTE = "A group is shares that move closely together. Letters match the dark bars beside the grid.";
 export const GROUP_NOTE_LONG = "Found from each pair of shares, not from sector labels. A group is shares that move closely together; letters match the dark bars beside the grid.";
 export const NIFTY_NOTE = "Beta 1.00 means the list moved in line with the index. Bad weeks are the NIFTY 50's 10 worst weeks in the period shown.";

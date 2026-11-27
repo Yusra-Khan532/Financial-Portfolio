@@ -1,13 +1,38 @@
-// FinLit FundPulse: types, hooks and the words (the model is in backend/finlit/mfscore, the plain-language page is /methodology/mf-score).
+// Mutual Fund Score: types, hooks and the words (the model is in backend/finlit/mfscore, the plain-language page is /methodology/mf-score).
 // The score DESCRIBES a fund's health from its past NAVs, costs and holdings. It never advises: no buy, sell or hold wording anywhere in this file.
 import { useQuery } from "@tanstack/react-query";
 import { apiGet, type ApiError } from "./api";
 import { scoreBand, type ScoreBand } from "./scoreBands";
 import { nf } from "./format";
 
-export const MF_SCORE_NAME = "FinLit FundPulse";
-export const MF_SCORE_COMPLIANCE = "Describes the fund's health from its past NAVs, costs and holdings; not a recommendation. Information only, not investment advice.";
+export const MF_SCORE_NAME = "Mutual Fund Score";
+/** Task #311 (developer file 21, fund page row 3): the score's foot line: the disclaimer, then when it was scored and against which funds, in plain words
+    (no rule about how many funds a comparison needs). */
+const PEERS_PLAIN: Record<string, string> = { sub: "funds of the same category and plan", grp: "funds of the wider group and the same plan", fam: "funds tracking the same index" };
+export function scoreFootLine(day: string | null, kind?: string | null, text?: string | null): string {
+  const peers = (kind && PEERS_PLAIN[kind]) || (text ? text.replace(/\s*\([^)]*\)/g, "").replace(/^funds in /, "funds of ") : null);
+  const when = day || peers ? ` ${["Scored", day, peers ? `against ${peers}` : null].filter(Boolean).join(" ")}` : "";
+  return `Describes the fund's health from its past NAVs, costs and holdings; not a recommendation.${when}`;
+}
+/** The short note under a page header (founder, 22 Nov 2026); the full line, with "Information only", stays beside the scores. */
+export const MF_SCORE_NOTE = "Describes the fund's health from its past NAVs, costs and holdings; not a recommendation.";
+export const MF_SCORE_COMPLIANCE = `${MF_SCORE_NOTE} Information only, not investment advice.`;
 export const MF_METHOD_URL = "/methodology/mf-score";
+/** Task #403: what a high and a low part mean, shown under the part bars wherever the score card shows them (one wording everywhere).
+ *  Every part is read against funds of the same category, and higher is better on all four: on Risk and Cost a high figure means LOWER risk and LOWER costs. */
+export const PART_HIGH: Record<string, string> = {
+  performance: "did better than similar funds",
+  risk: "lower risk: a calmer ride, smaller falls",
+  cost: "lower costs",
+  quality: "proven, large enough and soundly built",
+};
+export const HIGH_LOW_LEAD = "High and low:";
+export const HIGH_LOW_TAIL = "every part is read against funds of the same category, and higher is better on all four; low means the opposite.";
+const HIGH_LOW_ORDER = [["performance", "Performance"], ["risk", "Risk"], ["cost", "Cost"], ["quality", "Quality"]] as const;
+/** The whole note as one line of text (for tests and plain-text places). */
+export const highLowText = (): string => `${HIGH_LOW_LEAD} ${HIGH_LOW_TAIL} ${HIGH_LOW_ORDER.map(([k, n]) => `High ${n} = ${PART_HIGH[k]}`).join(" · ")}.`;
+export { HIGH_LOW_ORDER };
+
 export const PILLAR_HELP: Record<string, string> = {
   performance: "Did the fund beat funds like it, over how long, and month after month?",
   risk: "How bumpy was the ride and how deep were the falls, against similar funds?",
@@ -18,9 +43,18 @@ export const PILLAR_HELP: Record<string, string> = {
 export type ScoreState = "A" | "Z" | "S" | "F" | "N";
 export type ScoreLine = { id: string; label: string; text: string; points: number; groupValue: number; effect: number; state: string };
 export type ScoreMetric = { id: string; label: string; pillar: string; state: ScoreState; value: number | null; own: number | null; peer: number | null; peerN: number | null; points: number | null; groupValue: number | null; why: string | null; whyText?: string | null };
-export type ScorePillar = { key: "performance" | "risk" | "cost" | "quality"; name: string; reading?: string | null; allNotApplicable?: boolean };
+/** `points`: the part's own figure, 0 to 100 (task #238); only on a rated score the plan may see. */
+export type ScorePillar = { key: "performance" | "risk" | "cost" | "quality"; name: string; reading?: string | null; points?: number | null; allNotApplicable?: boolean };
 /** A part in words (the site never shows the weights): 70 or more Strong, 50 to 69 Fair, under 50 Weak. */
 export const partWord = (v: number | null | undefined) => (v == null ? "Not scored" : v >= 70 ? "Strong" : v >= 50 ? "Fair" : "Weak");
+/** Task #378 (team, 25 Nov 2026: "still the scores are not seen"): what a P R C Q chip says on hover, focus or tap, and to a screen reader: the part's name,
+ *  its own figure out of 100 (as stored by the score job, one decimal as on the fund page) and its word, e.g. "Performance 42.0 / 100 · Weak". A part with
+ *  no figure says so and never shows a made-up number. */
+export function partTip(name: string, word: string | null | undefined, points: number | null | undefined): string {
+  const w = word || partWord(points);
+  if (points != null && Number.isFinite(points)) return `${name} ${scoreText(points)} / 100 · ${w}`;
+  return w === "Not scored" ? `${name} · Not scored` : `${name} · ${w} · figure not available`;
+}
 /** A part word as a colour band, and as a FIXED position for charts (the charts show the word, never a figure). */
 export const wordBand = (w: string | null | undefined): ScoreBand => (w === "Strong" ? "hi" : w === "Fair" ? "mid" : w === "Weak" ? "lo" : "na");
 export const WORD_POS: Record<string, number> = { Strong: 85, Fair: 60, Weak: 30 };
@@ -37,7 +71,8 @@ export type FundScore = {
   disclaimer: string; method: string; model: string;
 };
 export type ScoreItem = { code: number | null; symbol: string | null; plan: string; group: string | null; final: number | null; label: string | null; status: string | null; reason: string | null;
-  pillars: Record<string, string | null> | null; rank: number | null; rankOf: number | null; flags: string[]; confidence: number | null };
+  pillars: Record<string, string | null> | null; pillarScores?: Record<string, number | null> | null; rank: number | null; rankOf: number | null; flags: string[]; confidence: number | null;
+  inherited?: { code: number; name: string; label: string; why: string } | null };   // task #281: an IDCW row's score is its same-plan Growth option's
 export type ScoreList = { locked: boolean; items: ScoreItem[]; total: number | null };
 /** One sub-category of the Funds dashboard: median of the scored Direct-plan funds, how many, and the counts in the three colour bands. */
 export type CategoryScore = { median: number; n: number; green: number; orange: number; red: number };
@@ -85,7 +120,7 @@ export const builtOnText = (f?: { n: number; of: number }) => (!f || !f.of ? "" 
 export const ordinal = (n: number) => { const t = n % 100, u = n % 10; return `${n}${t >= 11 && t <= 13 ? "th" : u === 1 ? "st" : u === 2 ? "nd" : u === 3 ? "rd" : "th"}`; };
 const WORD_ORDER = ["Strong", "Fair", "Weak"];
 const andList = (xs: string[]) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`);
-/** FinLit FundPulse in one plain line, from the four part words and the rank (task #132):
+/** Mutual Fund Score in one plain line, from the four part words and the rank (task #132):
  *  "Strong on risk and cost, weak on performance and quality: 60.3, Average, 14th of 36 Flexi Cap funds (Direct plan)." */
 export function scoreSentence(s: Pick<FundScore, "final" | "label" | "pillars" | "rank" | "family">): string | null {
   if (s.final == null) return null;

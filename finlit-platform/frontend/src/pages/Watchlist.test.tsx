@@ -4,6 +4,7 @@
 // Tell me when a label changes and the page's questions. Kept at the founder's request: row actions, list management, compare and sorting.
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Row } from "../lib/screener";
 import type { ListLead } from "../lib/watchlistPack";
@@ -17,13 +18,21 @@ const st = vi.hoisted(() => ({ rows: [] as unknown[], toast: vi.fn(), gold: true
 vi.mock("../lib/screener", async (orig) => ({ ...(await orig<typeof import("../lib/screener")>()), useUniverse: () => ({ data: { rows: st.rows, sample: false, asOf: "2026-11-06" }, isLoading: false, isError: false, refetch: () => undefined }) }));
 vi.mock("../lib/ui", async (orig) => ({ ...(await orig<typeof import("../lib/ui")>()), useUI: () => ({ has: (t: string) => t !== "gold" || st.gold, toast: st.toast, upgrade: vi.fn(), plan: st.gold ? "gold" : "silver" }) }));
 vi.mock("../lib/auth", async (orig) => ({ ...(await orig<typeof import("../lib/auth")>()), useAuth: () => ({ user: { id: "u" } }) }));
-vi.mock("../lib/planScore", async (orig) => ({ ...(await orig<typeof import("../lib/planScore")>()), usePlanModel: () => (st.gold ? "prism" : "iq") }));
+vi.mock("../lib/planScore", async (orig) => ({ ...(await orig<typeof import("../lib/planScore")>()), usePlanModel: () => (st.gold ? "prism" : null) }));
 vi.mock("../lib/title", () => ({ useDocTitle: () => undefined }));
 vi.mock("../lib/api", async (orig) => ({ ...(await orig<typeof import("../lib/api")>()), useQuotesFor: () => ({ data: { rows: [] }, isLoading: false }) }));
 vi.mock("../lib/indices", async (orig) => ({ ...(await orig<typeof import("../lib/indices")>()), useIndices: () => ({ data: { asOf: "2026-11-06", live: false, marketOpen: false, items: [], key: [] } }) }));
 vi.mock("../lib/leadership", async (orig) => ({ ...(await orig<typeof import("../lib/leadership")>()), useLeadershipList: () => ({ data: st.leads, isLoading: false }) }));
+// NSE's industry of each stock (task #192); the screener rows below still carry the old mixed `sector` value, which must not be shown
+vi.mock("../lib/taxonomy", async (orig) => ({ ...(await orig<typeof import("../lib/taxonomy")>()), useClassifications: () => ({ data: {
+  WHEELS: { symbol: "WHEELS", industry: "Auto Components" }, SSWL: { symbol: "SSWL", industry: "Auto Components" }, LOTUSDEV: { symbol: "LOTUSDEV", industry: "Realty" } } }) }));
 vi.mock("../components/PageFaqs", () => ({ PageFaqs: () => <section aria-label="Questions about this page" /> }));
 vi.mock("../components/AlertComposer", () => ({ AlertButton: ({ symbol, className }: { symbol: string; className?: string }) => <button className={className} aria-label={`Create an alert for ${symbol}`} /> }));
+// Task #272: Discover's filings of the list (GET /api/discovery/changes) and the last visit (POST /api/visits/watchlist), as of the pack's 20 Nov data
+const wc = vi.hoisted(() => ({ data: undefined as unknown, visit: null as string | null }));
+vi.mock("../lib/whatChanged", async (orig) => ({ ...(await orig<typeof import("../lib/whatChanged")>()),
+  useChanges: () => ({ data: wc.data, isLoading: false, isError: false, refetch: () => undefined }), useLastVisit: () => wc.visit }));
+vi.mock("../lib/alerts", async (orig) => ({ ...(await orig<typeof import("../lib/alerts")>()), useAlerts: () => ({ alerts: [], limit: 300, create: { mutate: vi.fn(), isPending: false }, remove: { mutate: vi.fn() } }) }));
 import { WatchlistPage } from "./Watchlist";
 import { watch } from "../lib/watchlist";
 
@@ -41,7 +50,7 @@ beforeEach(() => {
   st.toast.mockClear();
 });
 afterEach(cleanup);
-const open = () => { for (const s of PACK) watch.add(s); return render(<MemoryRouter><WatchlistPage /></MemoryRouter>); };
+const open = () => { for (const s of PACK) watch.add(s); return render(<QueryClientProvider client={new QueryClient()}><MemoryRouter><WatchlistPage /></MemoryRouter></QueryClientProvider>); };
 const table = () => screen.getByRole("table", { name: /your stocks/i });
 const rowOf = (sym: string) => within(table()).getByRole("link", { name: new RegExp("^" + sym) }).closest("tr") as HTMLElement;
 
@@ -50,7 +59,7 @@ describe("Watchlists, as the pack draws it", () => {
     open();
     expect(screen.getByRole("heading", { level: 1, name: "Watchlists" })).toBeTruthy();
     expect(screen.getByText("SILVER")).toBeTruthy();
-    expect(screen.getByText("The companies you are keeping an eye on: how they are doing, how they compare with their peers, and what to look at next.")).toBeTruthy();
+    expect(screen.getByText("The companies you follow: how they are doing, against their peers, and what to look at next.")).toBeTruthy();   // one line (founder, 22 Nov 2026)
     expect(screen.getByRole("button", { name: "My watchlist · 3", pressed: true })).toBeTruthy();
     expect(screen.getByRole("button", { name: "+ New list" })).toBeTruthy();
     expect(screen.getByPlaceholderText("Add a stock to this list")).toBeTruthy();
@@ -58,13 +67,13 @@ describe("Watchlists, as the pack draws it", () => {
   it("shows the five tiles with the pack's words from the real figures", () => {
     open();
     const tile = (k: string) => screen.getByText(k, { selector: ".wp-tile > span" }).parentElement as HTMLElement;
-    expect(tile("Stocks").textContent).toBe("Stocks32 small · 1 mid company");
+    expect(tile("Stocks").textContent).toBe("Stocks32 micro · 1 small company");   // task #262: four sizes
     expect(tile("On Friday").textContent).toBe("On Friday1 up · 2 downWHEELS −3.5%, LOTUSDEV −0.1%, SSWL +1.5%");
-    expect(tile("Average FinLit IQ").textContent).toBe("Average FinLit IQ71All three Healthy");
+    expect(tile("Average FinLit Prism").textContent).toBe("Average FinLit Prism—FinLit Prism · see plans");   // task #283: no score without Prism
     expect(within(tile("Against peers")).getByText("2 lead")).toBeTruthy();
     expect(within(tile("Against peers")).getByText("1 not compared (under a year of prices)")).toBeTruthy();
     expect(within(tile("Against peers")).getByRole("button", { name: "About Against peers" })).toBeTruthy();
-    expect(tile("Concentration").textContent).toBe("Concentration67%in one industry: auto components & equipments");
+    expect(tile("Concentration").textContent).toBe("Concentration67%in one industry: Auto Components");
   });
   it("groups the table Against peers, with the cards over it and the pack's columns", () => {
     open();
@@ -76,22 +85,24 @@ describe("Watchlists, as the pack draws it", () => {
     expect(screen.getByText("Two of three stocks in one industry")).toBeTruthy();
     expect(screen.getByText("LOTUSDEV has under a year of prices")).toBeTruthy();
     const heads = within(table().querySelector("thead") as HTMLElement).getAllByRole("columnheader").map((h) => h.textContent?.replace(/i$/, "").trim());
-    expect(heads).toEqual(["Company", "Industry", "Price", "P/E", "ROE", "Size", "FinLit IQ", "Against peers", "Target", "Your note", "Actions"]);
-    for (const k of ["P/E", "ROE", "Size", "FinLit IQ", "Against peers", "Target"]) expect(within(table()).getByRole("button", { name: `About ${k}` })).toBeTruthy();
+    expect(heads).toEqual(["Company", "Industry", "Price", "P/E", "ROE", "Size", "Against peers", "Target", "Your note", "Actions"]);   // task #283: no score column without Prism
+    for (const k of ["P/E", "ROE", "Size", "Against peers", "Target"]) expect(within(table()).getByRole("button", { name: `About ${k}` })).toBeTruthy();
     const groupRows = within(table()).getAllByRole("columnheader").filter((h) => h.getAttribute("scope") === "colgroup").map((h) => h.textContent);
     expect(groupRows).toEqual(["Leaders2 stocks", "Not compared1 stock"]);
     const w = rowOf("WHEELS");
-    for (const t of ["Auto Components & Equipments", "₹2,321.00", "−3.49%", "30.0×", "12.9%", "Small", "73", "Healthy", "Leader", "2 of 20 Auto Parts: OEM"]) expect(within(w).getByText(t)).toBeTruthy();
+    for (const t of ["Auto Components", "₹2,321.00", "−3.49%", "30.0×", "12.9%", "Micro", "Leader", "2 of 20 Auto Parts: OEM"]) expect(within(w).getByText(t)).toBeTruthy();
+    expect(w.textContent).not.toMatch(/\bIQ\b|Mixed|Watch\b/);
     expect(within(rowOf("LOTUSDEV")).getByText("Not compared")).toBeTruthy();
     expect(within(rowOf("LOTUSDEV")).getByText("Under a year of prices")).toBeTruthy();
-    expect(within(rowOf("LOTUSDEV")).getByText("Mid")).toBeTruthy();
+    expect(within(rowOf("LOTUSDEV")).getByText("Small")).toBeTruthy();
     // within Leaders, the peer rank orders the rows (2nd, then 3rd)
     expect(within(table()).getAllByRole("link").map((a) => a.querySelector("b")?.textContent)).toEqual(["WHEELS", "SSWL", "LOTUSDEV"]);
   });
-  it("Gold sees FinLit Prism in the same places (task #100), never the FinLit IQ", () => {
+  it("Gold sees FinLit Prism in the same places, in Prism's words (task #283), never another score", () => {
     st.gold = true; open();
     expect(within(table()).getByRole("columnheader", { name: /FinLit Prism/ })).toBeTruthy();
-    expect(within(table()).queryByRole("columnheader", { name: /FinLit IQ/ })).toBeNull();
+    expect(table().textContent).not.toMatch(/\bIQ\b|Mixed|Watch\b/);
+    expect(screen.getByText("Average FinLit Prism").parentElement!.textContent).not.toMatch(/Mixed|Watch/);
     expect(within(rowOf("WHEELS")).getByText("77")).toBeTruthy();
     expect(screen.getByText("Average FinLit Prism")).toBeTruthy();
     expect(within(rowOf("LOTUSDEV")).getByText("Not rated yet")).toBeTruthy();
@@ -99,7 +110,7 @@ describe("Watchlists, as the pack draws it", () => {
   it("shows Price and business disagree with each stock's two ranks and the gap to its sector index", () => {
     open();
     const sec = screen.getByRole("heading", { name: /Price and business disagree/ }).closest("section") as HTMLElement;
-    expect(within(sec).getByText("The peer tag is about the share price. The business score ranks the company's results and balance sheet within the same group.")).toBeTruthy();
+    expect(within(sec).getByText("The peer label is about the share price. The business score ranks the company's results and balance sheet within the same group.")).toBeTruthy();
     expect(within(sec).getByText("When the price is far ahead of the business, the market may be expecting a lot. It is a prompt to read the report, not a call to act.")).toBeTruthy();
     expect(within(sec).getByText("2 of 20")).toBeTruthy(); expect(within(sec).getByText("16 of 20")).toBeTruthy();
     expect(within(sec).getByText("3 of 20")).toBeTruthy(); expect(within(sec).getByText("18 of 20")).toBeTruthy();
@@ -151,8 +162,8 @@ describe("what the founder asked to keep", () => {
     fireEvent.click(within(table()).getByRole("button", { name: "Price" }));
     expect(within(table()).getAllByRole("link").map((a) => a.querySelector("b")?.textContent)).toEqual(["SSWL", "WHEELS", "LOTUSDEV"]);
     fireEvent.click(within(screen.getByRole("group", { name: "Group by" })).getByRole("button", { name: "Size" }));
-    expect(screen.getByText("Grouped by company size: Large, Mid and Small.")).toBeTruthy();
-    expect(within(table()).getAllByRole("columnheader").filter((h) => h.getAttribute("scope") === "colgroup").map((h) => h.textContent)).toEqual(["Mid1 stock", "Small2 stocks"]);
+    expect(screen.getByText("Grouped by company size: Large, Mid, Small and Micro.")).toBeTruthy();
+    expect(within(table()).getAllByRole("columnheader").filter((h) => h.getAttribute("scope") === "colgroup").map((h) => h.textContent)).toEqual(["Small1 stock", "Micro2 stocks"]);
   });
   it("list management: a new list, rename and delete", () => {
     st.gold = true; open();
@@ -166,5 +177,74 @@ describe("what the founder asked to keep", () => {
     expect(screen.getByRole("button", { name: "Lenders · 0" })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Delete this list" }));
     expect(screen.queryByRole("button", { name: /Lenders/ })).toBeNull();
+  });
+});
+
+// Task #272 (Watchlists and Alerts, 20 Nov pack): "What changed at these companies", the filing chip, the new-order-win notice and
+// "Tell me when a company on this list files". The pack's 20 Nov data: Wheels India is not in Discover yet.
+const F = (n: number, d: string, t: string | null, dates?: string[]) => ({ n, d, t, l: t ? "https://nsearchives.nseindia.com/f.pdf" : null, dates: dates ?? Array(n).fill(d) });
+const CHANGES = () => ({ days: 90, events: ["order", "capacity", "partnership", "mna", "fundraise", "rating", "management", "legal"], notPlaced: [{ s: "WHEELS", n: "Wheels India Ltd" }], companies: [
+  { s: "SSWL", n: "Steel Strips Wheels", ev: { capacity: F(1, "2026-10-23", "Capacity addition"), management: F(2, "2026-10-23", "Outcome of the Board Meeting of 23 Oct 2026: appointment of directors") } as Record<string, ReturnType<typeof F>> },
+  { s: "LOTUSDEV", n: "Sri Lotus Developers & Realty", ev: { management: F(2, "2026-10-01", "Change in Management") } as Record<string, ReturnType<typeof F>> },
+] });
+describe("What changed at these companies (task #272)", () => {
+  beforeEach(() => { wc.data = CHANGES(); wc.visit = "2026-11-12T10:00:00Z"; });
+  it("sits under the list, before Price and business disagree, with the pack's words, tiles and rows", () => {
+    open();
+    const sec = screen.getByRole("heading", { name: "What changed at these companies" }).closest("section") as HTMLElement;
+    const order = [...document.querySelectorAll("section h2")].map((x) => x.textContent || "");
+    expect(order.indexOf("What changed at these companies")).toBeGreaterThan(order.findIndex((t) => t.startsWith("My watchlist")));
+    expect(order.indexOf("What changed at these companies")).toBeLessThan(order.findIndex((t) => t.startsWith("Price and business disagree")));
+    expect(within(sec).getByText("From Discover: 2 of the 3 companies on My watchlist filed one of these in the last 90 days.")).toBeTruthy();
+    expect(within(sec).getByText("My watchlist · 3 companies")).toBeTruthy();
+    expect(within(sec).getByText("Nothing new since your last visit on 12 Nov")).toBeTruthy();
+    expect(within(sec).getByRole("link", { name: "What changed in Discover ↗" }).getAttribute("href")).toBe("/discover/changes");
+    const tiles = within(sec).getByRole("group", { name: "Filter by kind of filing" });
+    expect(within(tiles).getAllByRole("button").map((b) => b.textContent)).toEqual(["Order wins0", "Capacity and commissioning1", "Partnerships and MoUs0", "Acquisitions and mergers0",
+      "Fund raising0", "Credit ratings0", "Management changes2", "Legal and regulatory0"]);
+    const rows = within(sec).getAllByRole("listitem");
+    expect(rows.map((r) => r.querySelector(".wc-co")?.textContent)).toEqual(["Steel Strips Wheels", "Steel Strips Wheels", "Sri Lotus Developers & Realty"]);
+    expect(rows[1].textContent).toContain("Management × 2");
+    expect(within(rows[2]).getByRole("link", { name: "Details in Discover ↗" }).getAttribute("href")).toBe("/discover/changes/management?q=Sri%20Lotus%20Developers%20%26%20Realty");
+    expect(within(rows[0]).getByRole("link", { name: "Filing ↗" }).getAttribute("href")).toMatch(/^https:\/\/nsearchives/);
+    expect(within(sec).getByText("Not in Discover yet: Wheels India Ltd (WHEELS). Filings as the companies reported them to NSE in the last 90 days; not a recommendation.")).toBeTruthy();
+    fireEvent.click(within(tiles).getByRole("button", { name: /Capacity and commissioning/ }));
+    expect(within(sec).getAllByRole("listitem")).toHaveLength(1);
+  });
+  it("marks what is new since the last visit: the count, a chip under the company and the green order-win notice with ×", () => {
+    const d = wc.data as ReturnType<typeof CHANGES>;
+    d.companies[0].ev.order = F(1, "2026-11-18", "Receipt of order worth Rs 120 crore");
+    open();
+    const sec = screen.getByRole("heading", { name: "What changed at these companies" }).closest("section") as HTMLElement;
+    expect(sec.querySelector(".wc-st")?.textContent).toBe("1 new since your last visit on 12 Nov");
+    expect(within(sec).getAllByRole("listitem")[0].textContent).toContain("Order win");          // order wins first
+    const chip = within(rowOf("SSWL")).getByRole("link", { name: "Order win · 18 Nov" });
+    expect(chip.getAttribute("href")).toBe("/discover/changes/order?q=Steel%20Strips%20Wheels");
+    expect(rowOf("LOTUSDEV").querySelector(".wc-chip")).toBeNull();                               // nothing new for Sri Lotus: no chip
+    const notice = document.querySelector(".wc-ow") as HTMLElement;
+    expect(notice.textContent).toContain("New order win · Steel Strips Wheels");
+    fireEvent.click(within(notice).getByRole("button", { name: "Close this notice" }));
+    expect(document.querySelector(".wc-ow")).toBeNull();
+  });
+  it("says nothing is new on a first visit, and Alert me opens the short form for the whole list", () => {
+    wc.visit = null; open();
+    const sec = screen.getByRole("heading", { name: "What changed at these companies" }).closest("section") as HTMLElement;
+    expect(within(sec).getByText("What is new shows from your next visit")).toBeTruthy();
+    fireEvent.click(within(sec).getByRole("button", { name: "Alert me" }));
+    const form = within(sec).getByRole("form", { name: "Tell me when a company in My watchlist files" });
+    expect(within(form).getByRole("checkbox", { name: "Order wins" })).toHaveProperty("checked", true);
+    expect(within(form).getByRole("checkbox", { name: "Capacity and commissioning" })).toHaveProperty("checked", true);
+    expect(within(form).getByRole("checkbox", { name: "Fund raising" })).toHaveProperty("checked", false);
+    expect(within(form).getByText("Checked on weekday evenings, once the day's filings are in. One alert for the whole list: 1 of your 300.")).toBeTruthy();
+    expect(within(form).getByRole("radio", { name: "Each filing" })).toHaveProperty("checked", true);
+  });
+  it("puts Tell me when a company on this list files beside Tell me when a label changes", () => {
+    open();
+    const card = screen.getByRole("heading", { name: /Tell me when a company on this list files/ }).closest("section") as HTMLElement;
+    expect(card.parentElement).toBe(screen.getByRole("heading", { name: "Tell me when a label changes" }).closest("section")!.parentElement);
+    expect(within(card).getByText("An order win, new capacity or any of Discover's eight kinds, from the exchange filings of each weekday.")).toBeTruthy();
+    expect(within(card).getAllByRole("button", { pressed: true }).map((b) => b.textContent)).toEqual(["Order win", "Capacity"]);
+    expect(within(card).getAllByRole("button", { pressed: false }).map((b) => b.textContent)).toEqual(["Partnership", "Acquisition / merger", "Fund raising", "Credit rating", "Management", "Legal / regulatory"]);
+    expect(within(card).getByRole("button", { name: "Set alert for this list" })).toBeTruthy();
   });
 });

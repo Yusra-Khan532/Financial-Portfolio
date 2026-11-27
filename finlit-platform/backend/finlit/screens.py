@@ -10,6 +10,7 @@ import json
 import logging
 from typing import Any, Dict, List
 
+from . import mailpolicy
 from .auth.mailer import Mailer
 
 log = logging.getLogger("finlit.screens")
@@ -33,7 +34,7 @@ def matches(row: Dict[str, Any], state: Dict[str, Any], members: Dict[str, set] 
     raw = row.get("metrics")
     metrics = json.loads(raw) if isinstance(raw, str) else (raw or {})
     caps = state.get("caps") or []
-    if caps:       # size on the rupee scale, as on the page (Large above 50,000 Cr, Mid 10,000 to 50,000, Small below)
+    if caps:       # size on the site's one ₹ rule (finlit/sizes.py, task #262: Large, Mid, Small, Micro); a screen saved before 20 Nov is migrated on load
         from .screener.data import size_of
         mc = metrics.get("market_cap", row.get("market_cap"))
         if size_of(float(mc) if mc is not None else None) not in caps:
@@ -130,6 +131,9 @@ async def check_screens(pool, mailer: Mailer, site_url: str) -> int:
                 # members only get alerts for filters their plan includes; never reveal locked data through an email
                 if not all(k in BY_KEY and allowed(u["plan"], BY_KEY[k].tier) for k in keys) or ((state.get("bands") or state.get("model")) and not gold):
                     continue
+                from .screener.ready import MODEL
+                if state.get("model") and state["model"] not in MODEL:       # task #283: a screen on the retired FinLit IQ never runs (it would match everyone)
+                    continue
                 hit = [r for r in universe if matches(r, state, members, prism=gold)]
                 seen = await conn.fetchval("SELECT seen FROM screen_state WHERE user_id = $1 AND screen_name = $2", u["id"], sc["name"])
                 now = [r["symbol"] for r in hit]
@@ -145,12 +149,13 @@ async def check_screens(pool, mailer: Mailer, site_url: str) -> int:
                                                u["id"], subject, body.split("\n\nOpen the screener")[0])
                         except Exception:
                             log.exception("screen notification not stored")
-                        try:
-                            await mailer.send(u["email"], subject, body)
-                            sent += 1
-                        except Exception:
-                            log.exception("screen mail failed")
-                            continue
+                        sent += 1
+                        if mailpolicy.ALERT_EMAILS:   # alert emails are off (mailpolicy.py): the bell above is the alert
+                            try:
+                                await mailer.send(u["email"], subject, body)
+                            except Exception:
+                                log.exception("screen mail failed")
+                                continue
                 await conn.execute("INSERT INTO screen_state (user_id, screen_name, seen) VALUES ($1, $2, $3) ON CONFLICT (user_id, screen_name) DO UPDATE SET seen = EXCLUDED.seen, updated_at = now()",
                                    u["id"], sc["name"], now)
     log.info("screen alerts: %d sent", sent)

@@ -150,8 +150,15 @@ def pack_from_site(ownership: dict, premium: Optional[dict] = None, symbol: Opti
                 h = k.get("history") or []
                 now = _f(h[0]["value"]) if h else None
                 ago = _f(h[4]["value"]) if len(h) > 4 else None
-                if (now or 0) >= 1 or (ago or 0) >= 1:
-                    holders.append([k.get("label"), grp, now, ago])
+                prev = _f(h[1].get("value")) if len(h) > 1 and isinstance(h[1], dict) else None
+                # task #289: the last 8 quarters, newest first, as [period, stake] (the superinvestors page's quarter-on-quarter moves and
+                # stake sparkline); only when the provider labels its quarters. A holder named last quarter is kept even when not now or a year ago.
+                # only when every entry kept carries its label: a history with unlabelled gaps would shift a year-ago figure into "last quarter"
+                head = h[:8]
+                quarters = ([[x.get("period"), _f(x.get("value"))] for x in head]
+                            if head and all(isinstance(x, dict) and x.get("period") for x in head) else [])
+                if (now or 0) >= 1 or (ago or 0) >= 1 or (prev or 0) >= 1:
+                    holders.append([k.get("label"), grp, now, ago] + ([quarters] if len(quarters) >= 2 else []))
         pack["holders"] = holders
     return pack
 
@@ -497,7 +504,7 @@ def analyse(pack: dict) -> Dict[str, Any]:
                   stat=f"share count −{abs(g):.1f}%")
 
     # ---- named holders
-    for name, grp, now, ago in pack.get("holders") or []:
+    for name, grp, now, ago in (h[:4] for h in pack.get("holders") or []):   # task #289: a holder may carry its quarters as a fifth item
         now, ago = _f(now), _f(ago)
         nm = _title(name)
         if now is not None and ago is not None and abs(now - ago) >= T["named_move"]:

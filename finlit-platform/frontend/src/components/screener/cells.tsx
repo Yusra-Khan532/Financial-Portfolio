@@ -1,23 +1,18 @@
-// Table cells shared by the two score screeners. A missing figure says why (a dash or a lock, with the reason in words), never zero.
+// Table cells of the Advanced stock screener. A missing figure says why (a dash or a lock, with the reason in words), never zero.
 import { Link } from "react-router";
 import { Icon } from "../../lib/icons";
 import { MINUS, nf } from "../../lib/format";
 import { asOfText } from "../../lib/scoreBands";
-import { level, missingReason, trendWord, type Item, type PILLARS } from "../../lib/scoreScreen";
+import { ratingOfScore, trendWord, type Item } from "../../lib/scoreScreen";
 import { scoreBand } from "../../lib/scoreBands";
-import { LABEL_WORD, PRISM_STATUS_WORD, hasPrism, prismCell, prismReason, type PrismLabel } from "../../lib/scorePrism";
+import { LABEL_WORD, PRISM_STATUS_WORD, hasPrism, prismCell, prismReason } from "../../lib/scorePrism";
 
-export const Score = ({ r, k, locked }: { r: Item; k: "f" | "t" | "overall" | (typeof PILLARS)[number]["col"]; locked: boolean }) => {
-  const v = k === "f" ? r.f : k === "t" ? r.t : r[k];
-  if (v != null) return <span className={"ssp " + level(v)}>{v}</span>;
-  const why = missingReason(r, k, locked);
-  return <span className="ssp na" title={why}>{locked ? <Icon name="lock" /> : <>{MINUS}<small className="ss-why">{r.scored === false ? "Not scored yet" : k === "f" ? "Too little data" : "No data"}</small></>}<span className="sr">Not available: {why}</span></span>;
-};
-/** The Prism rating: score and label in words; a company without one says why and (Gold) links to its Prism page, which starts the calculation. */
+/** The Prism rating: the score with its rating word under it, in the rating's colour (task #258, SPEC §4; the word follows the score: Strong 80+, Healthy 65-79,
+ *  Average 50-64, Weak 35-49, Poor below 35); a company without one says why and (Gold) links to its Prism page, which starts the calculation. */
 export const PrismScore = ({ r, gold }: { r: Item; gold: boolean }) => {
   if (hasPrism(r)) {
-    const tone = scoreBand(r.prism_final), word = LABEL_WORD[r.prism_label as PrismLabel] ?? r.prism_label;
-    return (<span className="pzs"><span className={"ssp pzs-n " + tone}>{Math.round(r.prism_final as number)}</span><span className="pzs-l"><b className={tone}>{word}</b>{r.prism_status && r.prism_status !== "RATED" && <small>{PRISM_STATUS_WORD[r.prism_status] ?? r.prism_status}</small>}</span></span>);
+    const shown = Math.round(r.prism_final as number), tone = scoreBand(shown), rating = ratingOfScore(shown), word = LABEL_WORD[rating];   // the number, its colour and its word from one value
+    return (<span className="pzs pzs-w"><span className={"ssp pzs-n " + tone}>{shown}</span><b className={"pzs-bw pzs-bw-" + rating.toLowerCase().replace(" ", "")}>{word}</b>{r.prism_status && r.prism_status !== "RATED" && <small className="pzs-st">{PRISM_STATUS_WORD[r.prism_status] ?? r.prism_status}</small>}</span>);
   }
   const why = prismReason(r, gold), cell = prismCell(r, gold);
   if (cell === "locked") return <span className="ssp na" title={why}><Icon name="lock" /><span className="sr">Not available: {why}</span></span>;

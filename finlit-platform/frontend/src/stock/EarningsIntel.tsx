@@ -2,6 +2,7 @@ import { Icon } from "../lib/icons";
 import type { ProfitReality } from "../lib/profitReality";
 import { earningsIntel, type Tone } from "../lib/earningsIntel";
 import "../styles/earningsintel.css";
+import { DropChev } from "../components/DropChev";
 
 const MARK: Record<Tone, string> = { ok: "✓", watch: "!", alert: "⚑", na: "–" };
 
@@ -51,8 +52,8 @@ export function EarningsIntel({ pr, sector, industry }: { pr: ProfitReality; sec
         </div>
       </div>
 
-      <details className="ei-l3">
-        <summary>Investor interpretation</summary>
+      <details className="ei-l3 xdd">
+        <summary>Investor interpretation<DropChev /></summary>
         <dl>
           <dt>Why it matters</dt><dd>{x.meaning.why}</dd>
           {x.meaning.risks.length > 0 && (<><dt>Possible risks</dt><dd><ul>{x.meaning.risks.map((t, i) => <li key={i}>{t}</li>)}</ul></dd></>)}

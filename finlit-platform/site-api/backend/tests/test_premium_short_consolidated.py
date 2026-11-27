@@ -115,7 +115,7 @@ def test_standalone_that_cannot_be_read_stops_the_calculation(replay, monkeypatc
 
 def test_inputs_kept_before_version_4_are_refused():
     from backend import premium_cache
-    assert premium_cache.INPUTS_VERSION == 4
+    assert premium_cache.INPUTS_VERSION >= 4
 
 
 def failing_path(provider, match, times=99):

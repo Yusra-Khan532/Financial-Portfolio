@@ -1,22 +1,30 @@
 import { JobsBanner } from "../components/JobsBanner";
 import { useState } from "react";
-import { Link, Navigate } from "react-router";
+import { Link, Navigate, useSearchParams } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError, apiGet, apiSend, apiUrl } from "../lib/api";
 import { useIpos } from "../lib/ipo";
 import { useFeed } from "../lib/feed";
 import * as acct from "../lib/account";
-import { useAuth } from "../lib/auth";
-import { TIER, useUI } from "../lib/ui";
+import { keyOf, PLAN_KEYS, tierOf, useAuth } from "../lib/auth";
+import { planName } from "../lib/planNames";
+import { useUI } from "../lib/ui";
 import { Icon } from "../lib/icons";
 import { useDocTitle } from "../lib/title";
 import { ScoreAdminPanel } from "../mf/ScoreAdminPanel";
 import { LogoCoverage } from "../components/admin/LogoCoverage";
 import { AmfiImport } from "../components/admin/AmfiImport";
+import { FundFiles } from "../components/admin/FundFiles";
 import { MacroAdmin } from "../components/admin/MacroAdmin";
 import { BriefAdmin } from "../components/admin/BriefAdmin";
+import { Monitoring } from "../components/admin/Monitoring";
+import { StorageAdmin } from "../components/admin/StorageAdmin";
+import { MailAdmin } from "../components/admin/MailAdmin";
+import { AnswerCheck } from "../components/admin/AnswerCheck";
+import { LabAccess } from "../components/admin/LabAccess";
 import { JobsAdmin } from "../components/admin/JobsAdmin";
 import { fundJobLine, fundPollMs } from "../lib/fundJobs";
+import { codeText } from "../lib/companyLabel";
 
 const day = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "2-digit" }) : "—");
 const stamp = (iso: string) => new Date(iso).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
@@ -48,7 +56,7 @@ function Features() {
     onSuccess: (_d, v) => { qc.invalidateQueries({ queryKey: ["admin-features"] }); qc.removeQueries({ queryKey: ["leadership"] }); toast(v.enabled ? "Switched on for everyone." : "Switched off: only administrators see it."); },
     onError: (e) => toast(msg(e)),
   });
-  const LABEL: Record<string, string> = { leadership: "Leader / In line / Laggard label", macro_sectors: "Macro backdrop per sector (tailwind / headwind)" };
+  const LABEL: Record<string, string> = { leadership: "Leader / In line / Laggard label", macro_sectors: "Macro backdrop per sector (tailwind / headwind)", ask_answer_v2: "FinLit AI: the new answer shape (v2; compare first in Console > FinLit AI)" };
   if (q.isError) return null;
   return (
     <section className="card acct-c">
@@ -67,24 +75,32 @@ function Features() {
 export function Console() {
   useDocTitle("Admin console", "FinLit administrators: manage members, plans and the audit log.");
   const { user, ready, isAdmin } = useAuth();
-  const [tab, setTab] = useState<"users" | "requests" | "content" | "data" | "jobs" | "macro" | "brief" | "audit">("requests");
+  type Tab = "users" | "requests" | "lab" | "content" | "data" | "jobs" | "storage" | "monitoring" | "macro" | "brief" | "mail" | "ai" | "audit";
+  const [sp] = useSearchParams();   // task #281 round 7: /console?tab=data opens Data health directly (a link, or a browser assistant following steps)
+  const asked = sp.get("tab");
+  const [tab, setTab] = useState<Tab>((["users", "requests", "lab", "content", "data", "jobs", "storage", "monitoring", "macro", "brief", "mail", "ai", "audit"] as Tab[]).includes(asked as Tab) ? (asked as Tab) : "requests");
   if (!ready) return <div className="wrap state" role="status"><div className="skeleton" style={{ height: 14, width: 200, margin: "40px auto" }} /></div>;
   if (!user) return <Navigate to="/login?next=%2Fconsole" replace />;
-  if (!isAdmin) return <div className="wrap state"><h1 style={{ font: "400 28px var(--serif)" }}>Administrators only</h1><p className="muted">This area is for the FinLit team.</p><Link className="btn" to="/dashboard">Back to your dashboard</Link></div>;
-  if (!user.mfaOk) return <div className="wrap state"><h1 style={{ font: "400 28px var(--serif)" }}>One more step</h1><p className="muted">Administrators sign in with an authenticator-app code. {user.mfa ? "Sign out and sign in again, entering the code when asked." : "Set up two-step sign-in to continue."}</p><Link className="btn primary" to="/account/security?setup=1">Open security settings</Link></div>;
+  if (!isAdmin) return <div className="wrap state"><h1 className="ui-title">Administrators only</h1><p className="muted">This area is for the FinLit team.</p><Link className="btn" to="/dashboard">Back to your dashboard</Link></div>;
+  if (!user.mfaOk) return <div className="wrap state"><h1 className="ui-title">One more step</h1><p className="muted">Administrators sign in with an authenticator-app code. {user.mfa ? "Sign out and sign in again, entering the code when asked." : "Set up two-step sign-in to continue."}</p><Link className="btn primary" to="/account/security?setup=1">Open security settings</Link></div>;
   return (
     <div className="wrap console">
-      <header className="dash-h"><div><div className="eyebrow">Admin</div><h1>Console</h1><p className="muted">Members, plan requests and the audit trail. Blog posts and website enquiries are in the <Link to="/admin">content tools</Link> (no second sign-in).</p></div></header>
+      <header className="dash-h"><div><div className="eyebrow">Admin</div><h1 className="ui-title">Console</h1><p className="muted">Members, plan requests and the audit trail. Blog posts and website enquiries are in the <Link to="/admin">content tools</Link> (no second sign-in).</p></div></header>
       <div className="seg" role="tablist" aria-label="Console sections" style={{ marginBottom: 18 }}>
-        {([["requests", "Plan requests"], ["users", "Members"], ["content", "Calendar & news"], ["data", "Data health"], ["jobs", "Jobs"], ["macro", "Macro outlook"], ["brief", "Company brief"], ["audit", "Audit log"]] as const).map(([k, l]) => <button key={k} role="tab" aria-selected={tab === k} aria-pressed={tab === k} onClick={() => setTab(k)}>{l}</button>)}
+        {([["requests", "Plan requests"], ["users", "Members"], ["lab", "Trading Lab access"], ["content", "Calendar & news"], ["data", "Data health"], ["jobs", "Jobs"], ["storage", "Storage"], ["monitoring", "Monitoring"], ["macro", "Macro outlook"], ["brief", "Company brief"], ["mail", "Email"], ["ai", "FinLit AI"], ["audit", "Audit log"]] as const).map(([k, l]) => <button key={k} role="tab" aria-selected={tab === k} aria-pressed={tab === k} onClick={() => setTab(k)}>{l}</button>)}
       </div>
       {tab === "requests" && <Requests />}
       {tab === "users" && <Users />}
+      {tab === "lab" && <LabAccess />}
       {tab === "content" && <ContentAdmin />}
-      {tab === "data" && <><Health /><ScoreAdminPanel /><FundLoads /><AmfiImport /><LogoCoverage /><Features /><NotifyList /></>}
+      {tab === "data" && <><Health /><ScoreAdminPanel /><FundLoads /><AmfiImport /><FundFiles /><LogoCoverage /><Features /><NotifyList /></>}
       {tab === "jobs" && <JobsAdmin />}
+      {tab === "storage" && <StorageAdmin />}
+      {tab === "monitoring" && <Monitoring />}
       {tab === "macro" && <MacroAdmin />}
       {tab === "brief" && <BriefAdmin />}
+      {tab === "mail" && <MailAdmin />}
+      {tab === "ai" && <AnswerCheck />}
       {tab === "audit" && <Audit />}
     </div>
   );
@@ -102,7 +118,7 @@ function Requests() {
       <h2>Open requests</h2>
       {!rows.length ? <p className="muted">No open requests.</p> : (
         <div className="tw"><table className="qtt"><thead><tr><th>Member</th><th>Has</th><th>Wants</th><th>Note</th><th>Asked</th><th /></tr></thead>
-          <tbody>{rows.map((r) => <tr key={r.id}><td>{r.email}</td><td><span className={"tier " + r.currentPlan}>{TIER[r.currentPlan].n}</span></td><td><span className={"tier " + r.plan}>{TIER[r.plan].n}</span></td><td>{r.note || "—"}</td><td>{day(r.createdAt)}</td>
+          <tbody>{rows.map((r) => <tr key={r.id}><td>{r.email}</td><td><span className={"tier " + tierOf(r.currentPlan)}>{planName(keyOf(r.currentPlan))}</span></td><td><span className={"tier " + tierOf(r.plan)}>{planName(r.plan === "silver" ? "gold" : keyOf(r.plan))}</span></td><td>{r.note || "—"}</td><td>{day(r.createdAt)}</td>
             <td className="ra"><button className="btn primary" disabled={grant.isPending} onClick={() => grant.mutate(r)}>Grant 1 year</button> <button className="btn" disabled={decline.isPending} onClick={() => decline.mutate(r.id)}>Decline</button></td></tr>)}</tbody></table></div>
       )}
       {(grant.isError || decline.isError) && <div className="formerr">{msg(grant.error || decline.error)}</div>}
@@ -125,7 +141,7 @@ function Users() {
       <div className="tw"><table className="qtt"><thead><tr><th>Member</th><th>Plan</th><th>Until</th><th>Status</th><th>2-step</th><th>Joined</th><th>Last sign-in</th></tr></thead>
         <tbody>{list.data?.users.map((u) => (
           <tr key={u.id}><td><b>{u.email}</b>{u.name ? <small className="muted"> · {u.name}</small> : null}{u.role === "admin" && <span className="chip gold" style={{ marginLeft: 6 }}>Admin</span>}{!u.verified && <><span className="chip" style={{ marginLeft: 6 }}>Unverified</span> <button className="btn" style={{ marginLeft: 6, padding: "2px 10px" }} onClick={() => patch.mutate({ id: u.id, b: { verify_email: true } })}>Confirm email</button></>}</td>
-            <td><select aria-label={`Plan for ${u.email}`} value={u.plan} onChange={(e) => patch.mutate({ id: u.id, b: { plan: e.target.value as acct.AdminUser["plan"], plan_days: e.target.value === "basic" ? undefined : 365 } })}>{(["basic", "silver", "gold"] as const).map((p) => <option key={p} value={p}>{TIER[p].n}</option>)}</select></td>
+            <td><select aria-label={`Plan for ${u.email}`} value={keyOf(u.plan)} onChange={(e) => patch.mutate({ id: u.id, b: { plan: e.target.value as acct.AdminUser["plan"], plan_days: e.target.value === "free" ? undefined : 365 } })}>{PLAN_KEYS.map((p) => <option key={p} value={p}>{planName(p)}</option>)}</select></td>
             <td>{day(u.planUntil)}</td>
             <td><button className="btn" onClick={() => patch.mutate({ id: u.id, b: { status: u.status === "active" ? "disabled" : "active" } })}>{u.status === "active" ? "Disable" : "Enable"}</button>{" "}<button className="btn" onClick={() => { const up = u.role !== "admin"; if (window.confirm(up ? `Make ${u.email} an administrator? They will set up their own authenticator app at their next sign-in.` : `Remove administrator access from ${u.email}?`)) patch.mutate({ id: u.id, b: { role: up ? "admin" : "investor" } }); }}>{u.role === "admin" ? "Remove admin" : "Make admin"}</button></td>
             <td>{u.mfa ? <Icon name="check" /> : "—"}</td><td>{day(u.createdAt)}</td><td>{day(u.lastLoginAt)}</td></tr>))}</tbody></table></div>
@@ -157,7 +173,7 @@ function Health() {
     <section className="card acct-c">
       <h2>Company data</h2>
       <p className="muted">How much of the market is loaded from FinEdge. Companies load in the background; any company a visitor opens is queued first.</p>
-      <div className="hstat"><div><b>{h.universe.toLocaleString("en-IN")}</b><span>companies in the universe</span></div><div><b>{h.loaded.toLocaleString("en-IN")}</b><span>loaded ({pct}%)</span></div><div><b>{h.scored.toLocaleString("en-IN")}</b><span>with a FinLit IQ</span></div><div><b>{h.queued}</b><span>waiting in the queue</span></div></div>
+      <div className="hstat"><div><b>{h.universe.toLocaleString("en-IN")}</b><span>companies in the universe</span></div><div><b>{h.loaded.toLocaleString("en-IN")}</b><span>loaded ({pct}%)</span></div><div><b>{h.queued}</b><span>waiting in the queue</span></div>{h.prismGap && <div data-testid="prism-gap"><b>{h.prismGap.retiredNoPrism.toLocaleString("en-IN")}</b><span>listed companies with the retired score but no FinLit Prism score ({h.prismGap.prismScored.toLocaleString("en-IN")} have a Prism score)</span></div>}</div>
       <div className="prog" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label="Share of companies loaded"><i style={{ width: `${pct}%` }} /></div>
       <p className="muted">IPO and results calendars refresh by themselves (in the morning and after the close). Results dates last refreshed: {h.calendars?.resultsAt ? stamp(h.calendars.resultsAt) : "not yet"}{h.calendars?.resultsThrough ? `, covering dates through ${h.calendars.resultsThrough}` : ""}. IPOs: {h.calendars?.ipoAt ? stamp(h.calendars.ipoAt) : "not yet"}.</p>
       {h.dbWake && (
@@ -178,6 +194,7 @@ function Health() {
           Mutual funds: {h.funds.mf ? `${h.funds.mf.active} active of ${h.funds.mf.n} schemes, ${h.funds.mf.with_history} with history, last refresh ${h.funds.mf.last ? stamp(h.funds.mf.last) : "never"}` : "not set up"}.
         </p>
       )}
+      {h.fundGaps !== undefined && <FundGapsTable g={h.fundGaps} />}
       {h.clientIp && (
         <p className="muted">
           How this server sees you (used for rate limits and sign-in lockouts): <span className="mono">{h.clientIp.resolved}</span>
@@ -203,9 +220,23 @@ function Health() {
           </>
         )}
       </div>
-      {h.recentProblems.length > 0 && <div className="tw"><table className="qtt"><thead><tr><th>Company</th><th>Result</th><th>When</th><th>Detail</th></tr></thead><tbody>{h.recentProblems.map((p, i) => <tr key={i}><td><b>{p.symbol}</b></td><td>{p.status}</td><td>{stamp(p.at)}</td><td className="mono">{p.detail}</td></tr>)}</tbody></table></div>}
+      {h.recentProblems.length > 0 && <div className="tw"><table className="qtt"><thead><tr><th>Company</th><th>Result</th><th>When</th><th>Detail</th></tr></thead><tbody>{h.recentProblems.map((p, i) => <tr key={i}><td><b>{codeText(p.symbol)}</b></td><td>{p.status}</td><td>{stamp(p.at)}</td><td className="mono">{p.detail}</td></tr>)}</tbody></table></div>}
     </section>
     </>
+  );
+}
+
+/** Task #281: what is missing for the active mutual fund schemes, gap by gap, with what to run. A gap shows here the morning after it appears. */
+export function FundGapsTable({ g }: { g: acct.FundGaps | null }) {
+  if (!g) return <p className="muted" data-testid="fund-gaps">Fund data gaps: could not be counted just now (the fund tables could not be read).</p>;
+  return (
+    <div data-testid="fund-gaps" style={{ marginTop: 14 }}>
+      <h3 style={{ margin: "0 0 6px", font: "600 16px var(--sans)" }}>Fund data gaps</h3>
+      <p className="muted">{g.active.toLocaleString("en-IN")} active schemes, counted {stamp(g.at)}. Each line counts the schemes missing that figure among the schemes it applies to.</p>
+      <div className="tw"><table className="qtt"><thead><tr><th>Gap</th><th>Schemes</th><th>Among</th><th>What to run or fix</th><th>Examples</th></tr></thead><tbody>
+        {g.gaps.map((r) => <tr key={r.key}><td><b>{r.label}</b></td><td className={r.count && r.key !== "new" ? "neg" : undefined}>{r.count.toLocaleString("en-IN")} of {r.of.toLocaleString("en-IN")}</td><td>{r.among}</td><td>{r.fix}</td><td className="muted mono">{r.examples.join(" | ")}</td></tr>)}
+      </tbody></table></div>
+    </div>
   );
 }
 

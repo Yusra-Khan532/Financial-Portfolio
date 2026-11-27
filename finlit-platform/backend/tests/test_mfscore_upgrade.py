@@ -1,4 +1,4 @@
-"""FinLit FundPulse upgrades: weekly history rows (idempotent, same transaction), 'what changed' wording, score alerts, the screener query (filters,
+"""Mutual Fund Score upgrades: weekly history rows (idempotent, same transaction), 'what changed' wording, score alerts, the screener query (filters,
 sorting, pagination, CSV), the leaderboard, the compare history, the admin health and calibration views, the prune and the migration. Every Gold-only route is
 checked for Basic, Silver and a visitor (locked, no value, no fund) and for Gold."""
 
@@ -103,7 +103,7 @@ def test_alert_rules_and_message():
     assert scorehist.alert_hit("move", 5, a, b) and not scorehist.alert_hit("move", 8, a, b)
     assert not scorehist.alert_hit("band", None, a, rowd(RUN, None))
     title, body = scorehist.alert_text("Test Fund", a, b)
-    assert body.startswith("The FinLit FundPulse of Test Fund moved from Healthy (68) to Average (61).") and "not investment advice" in body
+    assert body.startswith("The Mutual Fund Score of Test Fund moved from Healthy (68) to Average (61).") and "not investment advice" in body
 
 
 def test_quintiles_and_returns_are_descriptive():
@@ -150,6 +150,7 @@ async def test_history_is_one_row_per_scheme_per_week_and_idempotent(app):
 
 
 async def test_job_writes_history_in_the_same_transaction_and_fires_alerts(app, monkeypatch):
+    monkeypatch.setattr("finlit.mailpolicy.ALERT_EMAILS", True)   # the email path, kept for when alert emails are switched back on (mailpolicy.py)
     funds, _ = build()
     for f in funds:
         async def _l(conn, limit=None, _f=funds):
@@ -179,7 +180,7 @@ async def test_job_writes_history_in_the_same_transaction_and_fires_alerts(app, 
     async with app.state.store.pool.acquire() as conn:
         assert await conn.fetchval("SELECT count(*) FROM mf_score_history WHERE week = $1", date(2026, 10, 19)) == len(funds)
         note = await conn.fetchrow("SELECT * FROM notifications WHERE user_id = $1", uid)
-    assert note and note["body"].startswith("The FinLit FundPulse of Test Large Cap Fund 0 Direct moved from Weak (40) to ") and sent and "not investment advice" in sent[0][2]
+    assert note and note["body"].startswith("The Mutual Fund Score of Test Large Cap Fund 0 Direct moved from Weak (40) to ") and sent and "not investment advice" in sent[0][2]
     again = await job.run(app.state.store, None, run_date=RUN, mailer=M())      # the same run again: no second message, same rows
     assert again["alertsFired"] == 0
     async with app.state.store.pool.acquire() as conn:
@@ -261,7 +262,7 @@ async def test_screener_filters_sort_pages_and_csv(app):
     mid = sorted(i["final"] for i in asc)[10]
     f = (await g(f"min={mid}&limit=200")).json()
     assert f["total"] == sum(1 for i in asc if i["final"] >= mid) and all(i["final"] >= mid for i in f["items"])
-    assert all(set(i["pillars"].values()) <= {"Strong", "Fair", "Weak", "Not scored"} for i in d["items"])      # the parts are words; no figure leaves the server
+    assert all(set(i["pillars"].values()) <= {"Strong", "Fair", "Weak", "Not scored"} for i in d["items"])      # `pillars` stays the words (task #378 adds the figures beside them in `pillarScores`)
     f = (await g("perf_min=50&risk_max=69.9")).json()
     assert f["total"] >= 0
     for exact in ("perf_min=63", "risk_max=80", "cost_min=0", "quality_max=100", "perf_min=49.9"):
@@ -348,7 +349,8 @@ async def test_admin_views_are_admin_only(app):
     assert cal["internal"] is True and "not a forecast" in cal["label"] and cal["funds"] == 0 and cal["quintiles"] == [] and "too short" in cal["note"]
 
 
-async def test_gold_gets_part_words_never_part_figures(app):
+async def test_gold_gets_part_words_in_pillars_and_figures_only_in_pillar_scores(app):
+    """`pillars` (and every part key outside `pillarScores`) is a word; task #378 (team, 25 Nov 2026) adds each part's stored figure in `pillarScores` only."""
     funds, scores = await seed(app, n=12, weeks=4)
     gold = await signed_in(app, "gw@example.com", plan="gold")
     code = funds[0].code
@@ -361,6 +363,9 @@ async def test_gold_gets_part_words_never_part_figures(app):
             for k, v in x.items():
                 if k in parts and k != "reading":
                     assert v is None or isinstance(v, str), (k, v)       # a part is a word, never a number
+                if k == "pillarScores":
+                    assert v is None or all(w is None or (isinstance(w, (int, float)) and 0 <= w <= 100) for w in v.values()), v
+                    continue
                 if k == "pillars" and isinstance(v, dict):
                     assert all(w is None or isinstance(w, str) for w in v.values())
                 if k == "pillar" and v:

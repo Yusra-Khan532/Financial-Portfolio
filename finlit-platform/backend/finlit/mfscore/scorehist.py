@@ -39,12 +39,18 @@ def history_row(r: tuple, run_date: date) -> tuple:
 
 
 def part_word(score: Optional[float]) -> str:
-    """A part's reading in words (the site shows words, never a part's figure): 70 or more Strong, 50 to 69 Fair, under 50 Weak."""
+    """A part's reading in words: 70 or more Strong, 50 to 69 Fair, under 50 Weak. The fund page shows the part's figure beside it (task #238)."""
     return "Not scored" if score is None else "Strong" if score >= 70 else "Fair" if score >= 50 else "Weak"
 
 
 def part_words(performance: Any, risk: Any, cost: Any, quality: Any) -> Dict[str, str]:
     return {"performance": part_word(performance), "risk": part_word(risk), "cost": part_word(cost), "quality": part_word(quality)}
+
+
+def part_scores(performance: Any, risk: Any, cost: Any, quality: Any) -> Dict[str, Optional[float]]:
+    """Task #378: each part's own figure, 0 to 100 as the score job stored it (one decimal, as the fund page shows it), beside the words of part_words.
+    A part with no stored figure is None (the page says "Not scored"); never a made-up number. Sent only where the score itself may be seen (Gold)."""
+    return {"performance": _f(performance), "risk": _f(risk), "cost": _f(cost), "quality": _f(quality)}
 
 
 def _f(v: Any) -> Optional[float]:
@@ -115,7 +121,7 @@ def alert_hit(kind: str, points: Optional[float], prev: Dict[str, Any], cur: Dic
 
 def alert_text(name: str, prev: Dict[str, Any], cur: Dict[str, Any]) -> tuple:
     title = f"Score of {name}: {prev['label']} ({round(float(prev['final']))}) to {cur['label']} ({round(float(cur['final']))})"
-    body = f"The FinLit FundPulse of {name} moved from {prev['label']} ({round(float(prev['final']))}) to {cur['label']} ({round(float(cur['final']))}). " \
+    body = f"The Mutual Fund Score of {name} moved from {prev['label']} ({round(float(prev['final']))}) to {cur['label']} ({round(float(cur['final']))}). " \
            "It describes the fund's health from its past NAVs, costs and holdings; not a recommendation. Information only, not investment advice."
     return title, body
 
@@ -129,7 +135,7 @@ async def fire_alerts(conn, week: date, keys: Iterable[str]) -> List[Dict[str, A
     alerts = await conn.fetch("""SELECT a.id, a.user_id, a.key, a.name, a.kind, a.points, a.channels, u.email, s.prefs FROM mf_score_alerts a JOIN users u ON u.id = a.user_id
                                  LEFT JOIN user_state s ON s.user_id = u.id
                                  WHERE a.status = 'active' AND a.key = ANY($1::text[]) AND a.key NOT LIKE 'etf:%' AND (a.last_week IS NULL OR a.last_week < $2)
-                                   AND u.status = 'active' AND u.plan = 'gold' AND (u.plan_until IS NULL OR u.plan_until > now())""", keys, week)
+                                   AND u.status = 'active' AND u.plan IN ('gold', 'platinum') AND (u.plan_until IS NULL OR u.plan_until > now())""", keys, week)
     if not alerts:
         return []
     rows = await conn.fetch("""SELECT key, week, run_date, final, label FROM (SELECT *, row_number() OVER (PARTITION BY key ORDER BY week DESC) AS rn FROM mf_score_history
@@ -154,6 +160,9 @@ async def fire_alerts(conn, week: date, keys: Iterable[str]) -> List[Dict[str, A
 
 
 async def send_mails(mails: Sequence[Dict[str, Any]], mailer, site_url: str) -> int:
+    from .. import mailpolicy
+    if not mailpolicy.ALERT_EMAILS:   # alert emails are off (mailpolicy.py): the alert is in the bell only
+        return 0
     sent = 0
     for m in mails:
         subject = f"FinLit alert: {m['title']}"
@@ -166,7 +175,7 @@ async def send_mails(mails: Sequence[Dict[str, Any]], mailer, site_url: str) -> 
     return sent
 
 
-async def prune(conn, today: Optional[date] = None) -> int:
-    """Rows older than three years go. Returns how many."""
+async def prune(conn, today: Optional[date] = None, timeout: Optional[float] = None) -> int:
+    """Rows older than three years go. Returns how many. `timeout`: the statement's own limit (the nightly prune passes a longer one than the pool's)."""
     cut = (today or date.today()) - timedelta(days=RETENTION_DAYS)
-    return int((await conn.execute("DELETE FROM mf_score_history WHERE week < $1", cut)).split()[-1])
+    return int((await conn.execute("DELETE FROM mf_score_history WHERE week < $1", cut, timeout=timeout)).split()[-1])

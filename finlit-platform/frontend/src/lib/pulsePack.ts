@@ -2,6 +2,8 @@
 // works out from the server's figures. Pure functions only, so each one is tested against the pack's own numbers (pulsePack.test.ts). Describes, never advises.
 import type { Board, CornerCode, GroupRow, LeaderFlag, StateCode } from "./sectors";
 import type { SectorHistory, StateKey } from "./sectorHistory";
+import { nseName } from "./groupNames";
+import { tw } from "./groupWords";
 
 /** The order the pack lists the states in (state table, groups, legends). */
 export const ORDER: StateKey[] = ["crash", "bouncing", "rising", "losing", "sold_off", "no_signal"];
@@ -24,26 +26,48 @@ export const MEANING: Record<StateKey, string> = {
   sold_off: "Most of its stocks have fallen below their trend, and no broad bounce has followed yet.",
   no_signal: "No sell-off, bounce or broad rise: its stocks are not moving together.",
 };
-/** The (i) text of each state (pack "Words on this page"). */
-export const STATE_HELP: Record<StateKey, string> = {
-  sold_off: "Sold off. Most of this industry's stocks have fallen below their usual price level, and they have not turned up together yet. The industry is out of favour for now.",
-  bouncing: "Bouncing back. After a fall, most of the industry's stocks turned up together within a few days. It is the first sign of a recovery, and it can still fade.",
-  crash: "Bouncing back after a crash. The same broad bounce, but after a deep fall in which almost every stock in the industry hit a new low. Bounces after a crash can be sharp, and they can also fade.",
-  rising: "Rising together. Most of the industry's stocks are above their short, medium and longer-term price levels. The rise is broad, not carried by a few names.",
-  losing: "Losing steam. A bounce or a rise that is losing support: fewer of the industry's stocks are still going up.",
-  no_signal: "No clear signal. The industry is not sold off, not bouncing and not rising together: its stocks are not moving as one.",
-};
+/** The (i) text of each state: its name and the same definition as the state table and the page guide, word for word (task #192, SECTOR-PAGES.md section 8). */
+export const STATE_HELP: Record<StateKey, string> = Object.fromEntries((Object.keys(WORD) as StateKey[]).map((k) => [k, `${WORD[k]}. ${MEANING[k]}`])) as Record<StateKey, string>;
 
-/** The pack's short names for the eleven NSE industries whose full names do not fit a row; every other name is NSE's own. */
-export const SHORT: Record<string, string> = {
-  "Agricultural Commercial & Construction Vehicles": "Agri & Construction Vehicles", "Agricultural Food & other Products": "Agri Food Products", "Cement & Cement Products": "Cement",
-  "Chemicals & Petrochemicals": "Chemicals", "Commercial Services & Supplies": "Commercial Services", "Fast Moving Consumer Goods": "FMCG", "Fertilizers & Agrochemicals": "Fertilizers & Agrochem",
-  "Industrial Manufacturing": "Industrial Mfg", "Media Entertainment & Publication": "Media & Entertainment", "Oil Gas & Consumable Fuels": "Oil, Gas & Fuels",
-  "Pharmaceuticals & Biotechnology": "Pharma & Biotech",
-};
-export const short = (name: string) => SHORT[name] ?? name;
-/** The shortest name, for a card title: "IT - Software" is "IT" (the pack's card: "IT and Construction fell hardest"). */
-export const brief = (name: string) => short(name).split(" - ")[0];
+/** A group's name as every sector page shows it: NSE's own, with its commas (task #192, T12: no home-made short names; lib/groupNames.ts). */
+export const short = (name: string) => nseName(name);
+
+/** A count of Sector Pulse / Rotation groups, which mix NSE industries and sector groups, never called "industries" (task #192, T9: no count mixes levels). */
+export const groupsN = (n: number) => tw(`${n} ${n === 1 ? "group" : "groups"}`);   // "19 sectors" in the Sectors view (task #333)
+/** Where each of NSE's 59 industries is on Sector Pulse (task #192, T5: "accounts for all 59 industries"): its own group, inside a sector group, too small on its own, or
+ *  inside a too-small sector group (which the board names without its industries: "Services" holds Engineering Services and Transport Infrastructure). `nse`: NSE's
+ *  industries with their sector and listed companies (GET /api/taxonomy). */
+export function accountFor(b: Pick<Board, "rows" | "too_few_stocks">, nse: { industry: string; sector?: string; companies?: number }[]) {
+  const k = (n: string) => nseName(n).toLowerCase();
+  const own = new Set(b.rows.filter((r) => r.kind !== "sector").map((r) => k(r.name)));
+  const inSector = new Set(b.rows.filter((r) => r.kind === "sector").flatMap((r) => r.industries.map(k)));
+  const fewInd = new Set((b.too_few_stocks ?? []).filter((g) => g.kind !== "sector").map((g) => k(g.name)));
+  const smallSectors = (b.too_few_stocks ?? []).filter((g) => g.kind === "sector");
+  const inside: Record<string, { industry: string; companies: number | null }[]> = {};
+  for (const g of smallSectors) inside[g.slug] = nse.filter((i) => i.sector && k(i.sector) === k(g.name) && !own.has(k(i.industry)) && !inSector.has(k(i.industry)) && !fewInd.has(k(i.industry)))
+    .map((i) => ({ industry: i.industry, companies: i.companies ?? null }));
+  const placed = own.size + inSector.size + fewInd.size + Object.values(inside).reduce((s, v) => s + v.length, 0);
+  const sectorGroups = b.rows.filter((r) => r.kind === "sector").length;
+  if (b.rows.length && b.rows.every((r) => r.kind === "sector")) {   // the Sectors view (task #333, file 30): the 22 sectors, then the 59 industries they hold
+    const sectors = new Set(nse.map((i) => i.sector && k(i.sector)).filter(Boolean)).size, few = (b.too_few_stocks ?? []).length;
+    return { inside, placed, line: `All ${sectors} NSE sectors: ${b.rows.length} with a reading and ${few} too small for one. Between them they hold all ${nse.length} NSE industries.` };
+  }
+  const line = tw(`All ${nse.length} NSE industries: ${own.size} with a reading of their own, ${inSector.size} read together inside ${sectorGroups} sector ${sectorGroups === 1 ? "group" : "groups"}, `) +
+    `${fewInd.size} too small on their own and ${placed - own.size - inSector.size - fewInd.size} inside ${smallSectors.length} too-small sector ${smallSectors.length === 1 ? "group" : "groups"}.`;
+  return { inside, placed, line };
+}
+
+/** "38 groups (33 industries and 5 sectors)", for the middle of a sentence. */
+export const groupsParen = (rows: { kind?: string }[]) => { const x = groupsSplit(rows); return x.includes(": ") ? x.replace(": ", " (") + ")" : x; };
+/** "38 groups: 33 industries and 5 sectors" (P7): the count and its two levels. */
+export function groupsSplit(rows: { kind?: string }[]): string {
+  const sectors = rows.filter((r) => r.kind === "sector").length, industries = rows.length - sectors;
+  if (rows.length && !industries) return `${sectors} ${sectors === 1 ? "sector" : "sectors"}`;          // the Sectors view: every group is an NSE sector (task #192)
+  const parts = [industries ? `${industries} ${industries === 1 ? "industry" : "industries"}` : "", sectors ? `${sectors} ${sectors === 1 ? "sector" : "sectors"}` : ""].filter(Boolean);
+  return `${groupsN(rows.length)}${parts.length > 1 || sectors ? `: ${parts.join(" and ")}` : ""}`;
+}
+/** The name in a card title: the same NSE name (the pack's "IT" for "IT - Software" was a home-made short name). */
+export const brief = (name: string) => nseName(name);
 
 /** The Sector Rotation box, the pack's words and arrows. */
 export const BOX: Record<Exclude<CornerCode, "middle">, { word: string; arrow: string; tone: "good" | "watch" | "info" | "bad" }> = {
@@ -83,29 +107,33 @@ export function statesAt(h: SectorHistory | undefined, back: number): Record<Sta
 
 // ------------------------------------------------------------------------------------------------ "Today in one minute"
 /** A chip in an opened dashboard card (task #135): a company that opens its report, with an optional figure (its % move or profit change). */
-export type CardChip = { symbol: string; label: string; note?: string };
+/** `to`: where the chip opens (default: the company report of `symbol`); e.g. an industry chip opens that industry's results (task #194). */
+export type CardChip = { symbol: string; label: string; note?: string; to?: string };
 /** A labelled group of chips ("Lead · 16" in green, "Lag · 11" in red). */
 export type CardGroup = { label: string; tone?: "up" | "down"; chips: CardChip[] };
-export type Card = { kind: "good" | "watch" | "insight" | "warning"; title: string; text: string; groups?: CardGroup[]; note?: string };
+/** `more`: a list cut in the title or text, where the token {more} stands; the page shows "+N more ▾", which opens it in place (task #192, SECTOR-PAGES.md 6). */
+export type Card = { kind: "good" | "watch" | "insight" | "warning"; title: string; text: string; groups?: CardGroup[]; note?: string; more?: string[] };
 const bounceKeys: StateKey[] = ["crash", "bouncing"];
 const plural = (n: number, one: string, many = one + "s") => `${n} ${n === 1 ? one : many}`;
 const list = (xs: string[]) => (xs.length <= 1 ? xs.join("") : xs.slice(0, -1).join(", ") + " and " + xs[xs.length - 1]);
 
 /** The headline sentence and the line under it (pack: "The sell-off is easing. 15 of 38 industries are bouncing back; a week ago just 1 was. None has most of its stocks rising together yet."). */
-export function headline(rows: GroupRow[], _now: Record<StateKey, number> | null, week: Record<StateKey, number> | null): { lead: string; rest: string; sub: string | null } {
+export function headline(rows: GroupRow[], _now: Record<StateKey, number> | null, week: Record<StateKey, number> | null): { lead: string; rest: string; sub: string | null; tone: "bad" | "watch" | "good" } {
   const n = rows.length, cnt = (k: StateKey) => rows.filter((r) => keyOf(r) === k).length;
   const b = cnt("crash") + cnt("bouncing"), sold = cnt("sold_off"), rise = cnt("rising"), lose = cnt("losing");
   const bWeek = week ? week.crash + week.bouncing : null, sWeek = week ? week.sold_off : null;
   let lead: string;
   if (sWeek != null && sWeek > sold && b > (bWeek ?? 0)) lead = "The sell-off is easing.";
   else if (sWeek != null && sold > sWeek) lead = "The selling is spreading.";
-  else if (rise * 2 >= n) lead = "Most industries are rising together.";
+  else if (rise * 2 >= n) lead = tw("Most industries are rising together.");
   else if (b * 2 >= n) lead = "Bounces are broad.";
   else lead = "A mixed picture.";
-  const bounce = `${b} of ${n} industries ${b === 1 ? "is" : "are"} bouncing back` + (bWeek != null ? `; a week ago ${bWeek === 1 ? "just 1 was" : bWeek === 0 ? "none was" : `${bWeek} were`}` : "") + ".";
-  const together = rise === 0 ? " None has most of its stocks rising together yet." : ` ${plural(rise, "industry has", "industries have")} most of ${rise === 1 ? "its" : "their"} stocks rising together.`;
-  const sub = sWeek != null ? `Sold off: ${plural(sWeek, "industry", "industries")} a week ago, ${sold} today.` : lose ? `Losing steam: ${lose} today.` : null;
-  return { lead, rest: " " + bounce + together, sub };
+  const bounce = `${b} of ${n} groups ${b === 1 ? "is" : "are"} bouncing back` + (bWeek != null ? `; a week ago ${bWeek === 1 ? "just 1 was" : bWeek === 0 ? "none was" : `${bWeek} were`}` : "") + ".";
+  const together = rise === 0 ? " None has most of its stocks rising together yet." : ` ${plural(rise, "group has", "groups have")} most of ${rise === 1 ? "its" : "their"} stocks rising together.`;
+  const sub = sWeek != null ? `Sold off: ${plural(sWeek, "group", "groups")} a week ago, ${sold} today.` : lose ? `Losing steam: ${lose} today.` : null;
+  // task #333 (fix 2): the headline chip is red when selling is spreading, green when rises or bounces are spreading, amber when the picture is shifting
+  const tone = lead === "The selling is spreading." ? "bad" : lead === "A mixed picture." ? "watch" : "good";
+  return { lead, rest: " " + bounce + together, sub, tone };
 }
 
 /** The four cards beside the squares (pack 05: good sign, watch out, insight, warning). */
@@ -115,20 +143,33 @@ export function todayCards(rows: GroupRow[]): Card[] {
   const out: Card[] = [];
   if (bounce.length) {
     const crash = by("crash").length, names = bounce.slice(0, 3).map((r) => short(r.name));
-    out.push({ kind: "good", title: `${plural(bounce.length, "industry is", "industries are")} bouncing back`,
-      text: `${bounce.length > 3 ? `${names.join(", ")} and ${bounce.length - 3} more` : list(names)}: most of their stocks turned up together within days.${crash ? ` ${crash} of them bounced after a crash.` : ""}` });
+    out.push({ kind: "good", title: `${plural(bounce.length, "group is", "groups are")} bouncing back`,
+      more: bounce.length > 3 ? bounce.slice(3).map((r) => short(r.name)) : undefined,
+      text: `${bounce.length > 3 ? `${names.join(", ")} {more}` : list(names)}: most of their stocks turned up together within days.${crash ? ` ${crash} of them bounced after a crash.` : ""}` });
   }
   const rise = by("rising");
   out.push(rise.length
-    ? { kind: "good", title: `${plural(rise.length, "industry is", "industries are")} rising together`, text: `${list(rise.slice(0, 4).map((r) => short(r.name)))}: most of their stocks are above their short, medium and longer trend.` }
-    : { kind: "watch", title: "No industry is rising together yet", text: "A bounce becomes a recovery only when most stocks stay up. Watch the bouncing industries over the next few weeks." });
+    ? { kind: "good", title: `${plural(rise.length, "group is", "groups are")} rising together`, text: `${list(rise.slice(0, 4).map((r) => short(r.name)))}: most of their stocks are above their short, medium and longer trend.` }
+    : { kind: "watch", title: tw("No industry is rising together yet"), text: tw("A bounce becomes a recovery only when most stocks stay up. Watch the bouncing industries over the next few weeks.") });
   const early = rows.filter(isEarly).sort((a, b) => (b.breadth.above_9 ?? 0) - (a.breadth.above_9 ?? 0));
-  if (early.length) out.push({ kind: "insight", title: `A bounce may be forming in ${plural(early.length, "sold-off industry", "sold-off industries")}`,
+  if (early.length) out.push({ kind: "insight", title: `A bounce may be forming in ${plural(early.length, "sold-off group", "sold-off groups")}`,
     text: early.map((r) => `${short(r.name)} (${risingOf(r, "above_9")} of ${r.stocks_counted})`).join("; ") + ": most of their stocks are already above their short trend." });
   const lose = by("losing");
-  if (lose.length) out.push({ kind: "warning", title: `${plural(lose.length, "industry is", "industries are")} losing steam`, text: `${list(lose.map((r) => short(r.name)))}: fewer of ${lose.length === 1 ? "its" : "their"} stocks are still rising.` });
-  else if (by("sold_off").length * 2 >= rows.length) out.push({ kind: "warning", title: `${by("sold_off").length} of ${rows.length} industries are sold off`, text: "Most industries have most of their stocks below their trend, with no broad bounce yet." });
+  if (lose.length) out.push({ kind: "warning", title: `${plural(lose.length, "group is", "groups are")} losing steam`, text: `${list(lose.map((r) => short(r.name)))}: fewer of ${lose.length === 1 ? "its" : "their"} stocks are still rising.` });
+  else if (by("sold_off").length * 2 >= rows.length) out.push({ kind: "warning", title: `${by("sold_off").length} of ${groupsN(rows.length)} are sold off`, text: "Most groups have most of their stocks below their trend, with no broad bounce yet." });
   return out.slice(0, 4);
+}
+
+/** Task #333 (file 30): the three callouts kept under "Today in one minute": the Good sign, the Warning, and "N still marked Sold off" (moved up from the map), which says
+ *  why a group can read Sold off while many of its stocks are rising. A box that is not there today is left out. */
+export function todayThree(rows: GroupRow[]): Card[] {
+  const all = todayCards(rows), out: Card[] = [];
+  const good = all.find((c) => c.kind === "good"), warn = all.find((c) => c.kind === "warning");
+  if (good) out.push(good);
+  if (warn) out.push(warn);
+  const soldRising = rows.filter((r) => keyOf(r) === "sold_off" && (r.breadth?.above_20 ?? 0) >= 50).length;
+  out.push({ kind: "watch", title: `${soldRising} still marked Sold off`, text: "Half or more of their stocks are rising, but the state has not changed yet; it changes more slowly than the count." });
+  return out;
 }
 
 // ------------------------------------------------------------------------------------------------ "How your industries are doing"
@@ -137,19 +178,19 @@ export function meansForYou(r: GroupRow): { text: string; tone: "good" | "watch"
   const k = keyOf(r), box = r.rotation?.corner;
   const ahead = box === "ahead_gaining" || box === "ahead_slowing";
   if (k === "crash" || k === "bouncing") {
-    if (box === "ahead_gaining") return { text: "Recovering, and already ahead of most industries.", tone: "good" };
-    if (box === "ahead_slowing") return { text: "Recovering; its lead over other industries has slowed.", tone: "good" };
-    if (box === "behind_gaining") return { text: "Recovering, and catching up with other industries.", tone: "good" };
-    return { text: "Recovering, though still behind most industries.", tone: "good" };
+    if (box === "ahead_gaining") return { text: tw("Recovering, and already ahead of most industries."), tone: "good" };
+    if (box === "ahead_slowing") return { text: tw("Recovering; its lead over other industries has slowed."), tone: "good" };
+    if (box === "behind_gaining") return { text: tw("Recovering, and catching up with other industries."), tone: "good" };
+    return { text: tw("Recovering, though still behind most industries."), tone: "good" };
   }
-  if (k === "rising") return { text: ahead ? "Rising broadly, and ahead of most industries." : "Rising broadly, though behind most industries over recent months.", tone: "good" };
+  if (k === "rising") return { text: ahead ? tw("Rising broadly, and ahead of most industries.") : tw("Rising broadly, though behind most industries over recent months."), tone: "good" };
   if (k === "losing") return { text: "Its recent rise is losing support.", tone: "watch" };
   if (k === "sold_off") {
-    if (isEarly(r) && !ahead) return { text: "Sold off and behind most industries, but most of its stocks have started rising again. An early sign.", tone: "watch" };
-    if (box === "ahead_gaining") return { text: "Sold off lately, though still ahead of most industries over the last few months.", tone: "watch" };
-    if (box === "ahead_slowing") return { text: "Sold off, and its lead over other industries is fading.", tone: "watch" };
-    if (box === "behind_gaining") return { text: "Sold off, though it has been catching up with other industries.", tone: "watch" };
-    return { text: "Sold off, and falling further behind other industries.", tone: "watch" };
+    if (isEarly(r) && !ahead) return { text: tw("Sold off and behind most industries, but most of its stocks have started rising again. An early sign."), tone: "watch" };
+    if (box === "ahead_gaining") return { text: tw("Sold off lately, though still ahead of most industries over the last few months."), tone: "watch" };
+    if (box === "ahead_slowing") return { text: tw("Sold off, and its lead over other industries is fading."), tone: "watch" };
+    if (box === "behind_gaining") return { text: tw("Sold off, though it has been catching up with other industries."), tone: "watch" };
+    return { text: tw("Sold off, and falling further behind other industries."), tone: "watch" };
   }
   return { text: "No clear direction: its stocks are not moving together.", tone: "watch" };
 }
@@ -169,10 +210,10 @@ export function yourCards(rows: GroupRow[], held: Holding[]): Card[] {
   const out: Card[] = [];
   const good = mine.filter((r) => bounceKeys.includes(keyOf(r)) && (r.rotation?.corner === "ahead_gaining" || r.rotation?.corner === "ahead_slowing"))
     .sort((a, b) => ORDER.indexOf(keyOf(a)) - ORDER.indexOf(keyOf(b)) || BOX_RANK[a.rotation!.corner] - BOX_RANK[b.rotation!.corner] || (a.rotation?.rank ?? 99) - (b.rotation?.rank ?? 99));
-  if (good.length) out.push({ kind: "good", title: `${good.length} of your industries ${good.length === 1 ? "is" : "are"} recovering and ahead of most others`,
-    text: `${good.map((r) => short(r.name)).join(", ")}. ${good.length > 1 ? "This is the strongest mix on the page." : "Recovering, with a lead over most industries."}` });
+  if (good.length) out.push({ kind: "good", title: tw(`${good.length} of your industries ${good.length === 1 ? "is" : "are"} recovering and ahead of most others`),
+    text: `${good.map((r) => short(r.name)).join(", ")}. ${good.length > 1 ? "This is the strongest mix on the page." : tw("Recovering, with a lead over most industries.")}` });
   const soldSyms = held.filter((h) => { const r = rows.find((x) => x.slug === h.slug); return r && keyOf(r) === "sold_off"; }).map((h) => h.symbol);
-  if (soldSyms.length) out.push({ kind: "watch", title: `${soldSyms.length} of your ${held.length} shares sit in sold-off industries`, text: `${soldSyms.join(", ")}. Their industries have not turned up together yet.` });
+  if (soldSyms.length) out.push({ kind: "watch", title: tw(`${soldSyms.length} of your ${held.length} shares sit in sold-off industries`), text: tw(`${soldSyms.join(", ")}. Their industries have not turned up together yet.`) });
   return out;
 }
 
@@ -203,8 +244,8 @@ export function matrixCards(rows: GroupRow[]): Card[] {
   const strong = rows.filter((r) => bounceKeys.includes(keyOf(r)) && r.rotation?.corner === "ahead_gaining").map((r) => short(r.name));
   const weak = rows.filter((r) => keyOf(r) === "sold_off" && r.rotation?.corner === "behind_slipping").map((r) => short(r.name));
   const out: Card[] = [];
-  if (strong.length) out.push({ kind: "good", title: `Both views agree: ${strong.join(", ")}`, text: "Their stocks have just turned up together, and these industries were already beating most others. A recovery with support behind it." });
-  if (weak.length) out.push({ kind: "warning", title: `Both views are negative: ${weak.length > 4 ? weak.slice(0, 4).join(", ") + ` and ${weak.length - 4} more` : list(weak)}`, text: "Sold off and falling further behind other industries. No sign of a turn yet." });
+  if (strong.length) out.push({ kind: "good", title: `Both views agree: ${strong.join(", ")}`, text: tw("Their stocks have just turned up together, and these industries were already beating most others. A recovery with support behind it.") });
+  if (weak.length) out.push({ kind: "warning", title: `Both views are negative: ${weak.length > 4 ? weak.slice(0, 4).join(", ") + " {more}" : list(weak)}`, more: weak.length > 4 ? weak.slice(4) : undefined, text: tw("Sold off and falling further behind other industries. No sign of a turn yet.") });
   return out;
 }
 
@@ -217,9 +258,9 @@ export const newHigh = (f: Pick<LeaderFlag, "sessions_ago">) => (f.sessions_ago 
 /** The three cards above the full table (pack 06). */
 export function tableCards(rows: GroupRow[], week: Record<StateKey, number> | null): Card[] {
   const shortUp = rows.filter((r) => (r.breadth.above_9 ?? 0) > 50).length, longDown = rows.filter((r) => (r.breadth.above_50 ?? 100) <= 50).length;   // half or fewer (four industries sit at exactly 50%: the pack counts them)
-  const out: Card[] = [{ kind: "good", title: shortUp * 2 >= rows.length ? "Breadth is improving fast" : "Breadth is still narrow",
-    text: `${shortUp} industries now have more than half their stocks above the short trend.${week && week.sold_off * 2 >= rows.length ? " A week ago the market was in a broad sell-off." : ""}` }];
-  if (longDown) out.push({ kind: "watch", title: "The longer trend has not turned", text: `In ${longDown} of ${rows.length} industries half or fewer of the stocks are above their longer trend. Bounces need time to become uptrends.` });
+  const out: Card[] = [{ kind: shortUp * 2 >= rows.length ? "good" : "watch", title: shortUp * 2 >= rows.length ? "Breadth is improving fast" : "Breadth is still narrow",   // task #333: no "Good sign" on a box with no good news
+    text: `${groupsN(shortUp)} now have more than half their stocks above the short trend.${week && week.sold_off * 2 >= rows.length ? " A week ago the market was in a broad sell-off." : ""}` }];
+  if (longDown) out.push({ kind: "watch", title: "The longer trend has not turned", text: `In ${longDown} of ${groupsN(rows.length)} half or fewer of the stocks are above their longer trend. Bounces need time to become uptrends.` });
   const crash = rows.filter((r) => keyOf(r) === "crash" && r.held_up != null).sort((a, b) => (a.held_up ?? 100) - (b.held_up ?? 100)).slice(0, 2);
   if (crash.length === 2) out.push({ kind: "insight", title: `${brief(crash[0].name)} and ${brief(crash[1].name)} fell hardest`, text: "Both made their low with almost every stock falling, and both have now bounced." });
   return out;
@@ -233,13 +274,6 @@ export function inTableFilter(r: GroupRow, f: TableFilter, mine: Set<string>): b
   if (f === "standouts") return (r.leader_flags ?? 0) > 0;
   if (f === "yours") return mine.has(r.slug);
   return true;
-}
-/** The full table as a CSV, one line per industry, the figures as shown. */
-export function toCsv(rows: GroupRow[]): string {
-  const head = ["Industry", "State", "Stocks counted", "Above short trend %", "Above medium trend %", "Above longer trend %", "Below 1-year high %", "Held up %", "Last bounce", "Standout stocks", "Box", "Rank"];
-  const q = (v: unknown) => { const s = v == null ? "" : String(v); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
-  return [head, ...rows.map((r) => [r.name, WORD[keyOf(r)], r.stocks_counted, r.breadth.above_9, r.breadth.above_20, r.breadth.above_50, r.index_vs_52w_high == null ? "" : Math.abs(r.index_vs_52w_high), r.held_up ?? "",
-    bouncedShort(r) ?? "", r.leader_flags ?? "", r.rotation?.corner_name ?? "", r.rotation?.rank ?? ""])].map((l) => l.map(q).join(",")).join("\n");
 }
 export const boardDateLine = (b: Board) => b.date_label ?? b.date;
 
@@ -265,7 +299,7 @@ export function fridayCards(h: SectorHistory): Card[] {
   const turned = h.groups.filter((g) => bounceSet.has(g.states[z]) && !bounceSet.has(g.states[a])).length;
   const changed = h.groups.filter((g) => g.states[z] && g.states[a] && g.states[z] !== g.states[a]);
   const fromSold = changed.filter((g) => g.states[a] === "sold_off").length;
-  out.push({ kind: "good", title: `${turned} ${turned === 1 ? "industry" : "industries"} turned to a bounce this week`,
+  out.push({ kind: turned ? "good" : "watch", title: `${turned} ${turned === 1 ? "group" : "groups"} turned to a bounce this week`,
     text: `${changed.length} of ${total} changed state since ${dayMon(h.dates[a])}${fromSold * 2 > changed.length ? "; most of them came out of a long sell-off" : ""}.` });
   let best = { name: "", run: 0 };
   for (const g of h.groups) {
@@ -275,8 +309,8 @@ export function fridayCards(h: SectorHistory): Card[] {
   }
   if (best.run >= 2) out.push({ kind: "warning", title: `Longest sell-off: ${short(best.name)}`, text: `Sold off for ${best.run} Fridays in a row before this week.` });
   const lastRise = [...ends].reverse().find((i) => h.groups.some((g) => g.states[i] === "rising"));
-  if (h.groups.some((g) => g.states[z] === "rising")) out.push({ kind: "good", title: "Industries rising together", text: `${h.groups.filter((g) => g.states[z] === "rising").length} of ${total} have most of their stocks rising together at this Friday's close.` });
-  else out.push({ kind: "watch", title: "No industry rising together", text: lastRise != null ? `The last blue square on the chart is ${dayMon(h.dates[lastRise])}: at no Friday close since then has an industry had most of its stocks rising together.` : "No Friday close in the last six months had an industry with most of its stocks rising together." });
+  if (h.groups.some((g) => g.states[z] === "rising")) out.push({ kind: "good", title: tw("Industries rising together"), text: `${h.groups.filter((g) => g.states[z] === "rising").length} of ${total} have most of their stocks rising together at this Friday's close.` });
+  else out.push({ kind: "watch", title: tw("No industry rising together"), text: lastRise != null ? tw(`The last blue square on the chart is ${dayMon(h.dates[lastRise])}: at no Friday close since then has an industry had most of its stocks rising together.`) : tw("No Friday close in the last six months had an industry with most of its stocks rising together.") });
   return out;
 }
 /** Standout stocks, Full table (pack 06): how many are Strong and how many Early. */

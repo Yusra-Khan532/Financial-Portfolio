@@ -35,8 +35,9 @@ export type PillarSummary = { key: string; label: string; score: number | null; 
 export type Summary = {
   meta: Meta; profile: Profile; quote: Quote; range52: { high: number | null; low: number | null };
   sparkline: { t: string[]; c: number[] };
-  score: { overall: number | null; band: Band; model: string; pillars: PillarSummary[] };
-  thesis: string | null; strengths: Note[]; watchouts: Note[]; keyMetrics: KeyMetric[]; returns: Return[]; dataQuality: DataQuality;
+  /** Task #283 PR C: the retired overall score and its written read are no longer sent (absent); FinLit Prism is read from /api/prism. */
+  score?: { overall: number | null; band: Band; model: string; pillars: PillarSummary[] };
+  thesis?: string | null; strengths: Note[]; watchouts: Note[]; keyMetrics: KeyMetric[]; returns: Return[]; dataQuality: DataQuality;
 };
 export type Financials = { meta: Meta; unit: string; yearly: { pl: Table; bs: Table; cf: Table }; quarterly: { pl: Table } };
 export type RatioEntry = { value: number; period: string; label: string; unit: string | null; better: "higher" | "lower" | null; group: string | null };
@@ -47,7 +48,8 @@ export type Ratios = {
   groups: { id: string; label: string; pillar: string; keys: string[] }[];
   history: { periods: string[]; rows: Record<string, Series> };
   valuationHistory: { periods: string[]; rows: Record<"pe" | "pb" | "ps" | "average_price", Series> };
-  score: { model: string; overall: number | null; band: Band; pillars: (PillarSummary & { inputs: PillarInput[] })[] };
+  /** Task #283 PR C: no longer sent (the retired overall score's pillar drawer). */
+  score?: { model: string; overall: number | null; band: Band; pillars: (PillarSummary & { inputs: PillarInput[] })[] };
   glossary: Record<string, Glossary>;
   blanks?: Record<string, string>;   // why a valuation figure has no number (backend snapshot._valuation_blanks)
 };
@@ -59,7 +61,7 @@ export type Action = { date: string; type: string; title: string; amount: number
 export type Announcement = { date: string; time: string | null; category: string; description: string; link: string | null };
 export type Events = {
   meta: Meta; actions: Action[]; dividendYieldTtm: number | null; announcements: Announcement[];
-  dividendsByFY: { periods: string[]; dps: number[]; dpsUnadjusted: number[]; basis: string };
+  dividendsByFY: { periods: string[]; dps: number[]; dpsUnadjusted: number[]; basis: string; partial?: string[]; endedFY?: string };
 };
 export type Segment = { name: string; revenue: number | null; ebit: number | null; sharePct: number | null; growthPct: number | null; includes?: string[] };
 export type SegmentTrend = "growing" | "declining" | "steady" | "new" | "discontinued" | "short";
@@ -77,7 +79,7 @@ export type SegmentInsights = {
   thresholds?: Record<string, number>; rows: SegmentTrendRow[]; sentences: string[]; cautions: string[];
 };
 export type Segments = { meta: Meta; unit: string; periods: string[]; segments: Record<string, { revenue: Series; ebit: Series }>; latest: Segment[]; insights?: SegmentInsights };
-export type PeerItem = { symbol: string; name: string | null; sector?: string | null; overall?: number | null; band?: string | null; price?: number | null; market_cap?: number | null; pe?: number | null; roe?: number | null };
+export type PeerItem = { symbol: string; name: string | null; industry?: string | null; basic_industry?: string | null; overall?: number | null; band?: string | null; price?: number | null; market_cap?: number | null; pe?: number | null; roe?: number | null };
 export type Peers = { meta: Meta; symbols: string[]; items?: PeerItem[] };
 export type Technical = {
   price: number; ema20: number | null; ema50: number | null; ema200: number | null; vsEma20Pct: number | null; vsEma50Pct: number | null;
@@ -85,6 +87,8 @@ export type Technical = {
 };
 export type PriceRange = {
   meta: Meta; range: string; grain: "daily" | "weekly"; technical: Technical; complete: boolean; startsAt: string | null; provisionalLastBar: boolean;
+  /** task #394 (file 37, W1/W2): a weekly answer (3Y, 5Y) says the server can also send this range as daily candles (?grain=daily); an older server sends none */
+  dailyAvailable?: boolean;
   series: { t: string[]; o?: Series; h?: Series; l?: Series; c: number[]; v: Series; ema9?: Series; ema20?: Series; ema50: Series; ema200: Series };
 };
 /** Intraday candles from Dhan (1D 1-minute, 5D 5-minute, 1M hourly). Times are ISO with +05:30; `asOf` is when Dhan was asked. */
@@ -95,10 +99,21 @@ export type Intraday = {
   stale?: boolean; detail?: string;
   series?: { t: string[]; o: number[]; h: number[]; l: number[]; c: number[]; v: (number | null)[] };
 };
-export type SearchRow = [symbol: string, name: string, bse: string | null, ready: number, nse?: string];
+export type SearchRow = [symbol: string, name: string, bse: string | null, ready: number, nse?: string, bseId?: string];
 /** /api/stocks/search-index. `sectors` is a lookup table; `sec[i]` is the row's index into it (-1: sector not known) and `mc[i]` its market value in
- *  rupees crore, rounded up (0: not known); `isin[i]` is the row's ISIN ("": not known). The lists run parallel to `rows`; an older server sends neither. */
-export type SearchIndex = { fields: string[]; rows: SearchRow[]; sectors?: string[]; sec?: number[]; mc?: number[]; isin?: string[] };
+ *  rupees crore, rounded up (0: not known); `isin[i]` is the row's ISIN ("": not known); `bseId[i]` its BSE scrip ID when that is a name the row does not
+ *  already hold ("SPICY" for BSE code 540084; "": none). The lists run parallel to `rows`; an older server sends none of them. */
+export type SearchIndex = { fields: string[]; rows: SearchRow[]; sectors?: string[]; sec?: number[]; mc?: number[]; isin?: string[]; bseId?: string[];
+  /** task #336: NSE industry names (most companies first) and, per row, its index into them (-1: not known) */ industries?: string[]; ind?: number[] };
+
+/** The rows with each company's BSE scrip ID in place 6, for reading holdings files (a broker names a BSE-only company by it: "SPICY").
+ *  Rows without one are the same arrays; an older server's list comes back as it is. */
+export function rowsWithBseIds(idx: SearchIndex | undefined): SearchRow[] {
+  if (!idx) return [];
+  const ids = idx.bseId;
+  if (!ids?.length) return idx.rows;
+  return idx.rows.map((r, i) => (ids[i] ? [r[0], r[1], r[2], r[3], r[4], ids[i]] as SearchRow : r));
+}
 
 /** API origin. Empty in development (Vite proxies /api); in production set VITE_API_BASE=https://api.finlitventures.com. */
 export const API_BASE: string = (import.meta.env.VITE_API_BASE as string | undefined)?.replace(/\/$/, "") || "";
@@ -122,6 +137,8 @@ export function errorBody(raw: unknown): ApiError["body"] {
 /** The signed-in session's CSRF token; set by the auth provider and sent on every state-changing request. */
 let csrf: string | null = null;
 export const setCsrf = (t: string | null) => { csrf = t; };
+/** The current CSRF token, for the few requests that cannot go through apiSend (the streamed Ask FinLit AI answer). */
+export const csrfToken = () => csrf;
 
 /** POST/PUT/PATCH/DELETE with the session cookie and CSRF header. */
 export async function apiSend<T = { status?: string }>(method: "POST" | "PUT" | "PATCH" | "DELETE", path: string, body?: unknown): Promise<T> {
@@ -177,9 +194,13 @@ function sectionQuery<T>(symbol: string, path: string, extra?: Partial<UseQueryO
 
 export const useSummary = (s: string, enabled = true) => { const b = useBasis(s); return useQuery<Summary, ApiError>({ ...sectionQuery<Summary>(s, "", undefined, b), placeholderData: (prev) => (prev?.meta.symbol === s.toUpperCase() ? prev : undefined), enabled: enabled && !!s }); };
 export const useSection = <T,>(s: string, name: string, enabled = true, basis?: Basis) => { const own = useBasis(s), b = basis ?? own; return useQuery<T, ApiError>({ ...sectionQuery<T>(s, `/${name}`, undefined, b), placeholderData: (prev) => ((prev as { meta?: { symbol?: string } } | undefined)?.meta?.symbol === s.toUpperCase() ? prev : undefined), enabled }); };
-export const usePrice = (s: string, range: string, enabled = true) => {
+/** The price answer for a range. While a new range of the SAME company loads, the one before stays on screen; another company's never does (task #394, F7:
+ *  stepping with the arrows showed the previous company's candles under the new name while the next one loaded or was being prepared).
+ *  `grain` "daily" asks for daily candles over a range the server keeps as weekly (3Y, 5Y), when its answer says dailyAvailable (W2). */
+export const samePricePlaceholder = (symbol: string) => (prev: PriceRange | undefined): PriceRange | undefined => (prev?.meta?.symbol === symbol.toUpperCase() ? prev : undefined);
+export const usePrice = (s: string, range: string, enabled = true, grain?: "daily") => {
   const b = useBasis(s);
-  return useQuery<PriceRange, ApiError>({ ...sectionQuery<PriceRange>(s, `/price?range=${range}`, undefined, b), placeholderData: (prev) => prev, enabled });
+  return useQuery<PriceRange, ApiError>({ ...sectionQuery<PriceRange>(s, `/price?range=${range}${grain ? `&grain=${grain}` : ""}`, undefined, b), placeholderData: samePricePlaceholder(s), enabled });
 };
 
 /** While the market is open (or in pre-open) the server keeps a copy for a minute, so the chart asks again each minute. 401/403/404 are answers, not failures. */
@@ -232,3 +253,7 @@ export const useQuotesFor = (symbols: string[]) => {
     queryKey: ["search-quotes", "for", key], queryFn: () => apiGet(`/api/search/quotes?symbols=${encodeURIComponent(key)}`), enabled: !!key, staleTime: 30_000, refetchInterval: 60_000, retry: 1,
   });
 };
+
+/** Task #235 (the 18 Nov pack, live bug E4): retry an answer the server gave while busy (503, 429) up to 3 times, waiting longer each time (1, 2, 4 s);
+ *  any other error is shown at once. For pages that send several requests together. */
+export const busyRetry = { retry: (n: number, e: ApiError) => (e?.status === 503 || e?.status === 429) && n < 3, retryDelay: (n: number) => Math.min(8000, 1000 * 2 ** n) };

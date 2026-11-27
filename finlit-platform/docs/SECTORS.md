@@ -25,7 +25,7 @@ website (FastAPI, no pandas) reads /data/sectors/current/*.json  ->  /api/sector
 | registry and freshness | `backend/finlit/jobs/registry.py` (job `sectors`), `jobs/freshness.py` (dataset `sectors`) |
 | pages | `frontend/src/pages/SectorPulse.tsx`, `SectorIndustry.tsx`, `LearnSectorSignals.tsx`, `stock/SectorPeers.tsx`, `components/sectors/`, `lib/sectors.ts`, `lib/sectorStudy.ts`, `styles/sectors.css` |
 
-Routes: `/sectors`, `/sectors/:slug`, `/learn/sector-signals`; the stock page gets a "Sector & peers" section (`#sector`, after Peers). Sidebar: Markets > Sector Pulse; More > Learn > How sector signals work.
+Routes: `/sectors`, `/sectors/:slug`, `/learn/sector-signals`; the stock page gets a "Sector & peers" section (`#sector`, after Peers). Sidebar: Markets > Sector Pulse. The guide is off the Learn menu since 25 Nov 2026 (the founder); it opens from the "full guide" link on Sector Pulse.
 
 ## 2. Plans (enforced on the server, never only in the browser)
 
@@ -41,9 +41,9 @@ A locked value arrives as `null` and the answer carries `locked: {field: plan}`,
 
 ## 3. The nightly flow
 
-`refresh-sectors`, job `sectors` in the registry: bulk, weekdays after 19:00 IST (AFTER_CLOSE window, not before 19:00) and a MORNING catch-up, SLA "session" 14 h (the data for each trading day must be processed after 18:30; overdue 14 h later), after the `technicals` job, memory weight 450 MB (measured peak 364 MB, section 8), at most 90 minutes, stall watch 45 minutes. It never runs beside another bulk job. **Switched off for now (7 Nov 2026) until `SECTORS_JOB=on`**; meanwhile the status says "disabledByConfig" and it is never counted as overdue.
+`refresh-sectors`, job `sectors` in the registry: bulk, **weekend nights only** (owner, 18 Nov 2026: Saturday 23:00 to Sunday 08:00 IST, Sunday 23:00 to Monday 03:30 as a catch-up; docs/JOBS.md section 4b), first in those hours (owner, 21 Nov 2026: other bulk and audit jobs wait, one already running is paused and continues afterwards; docs/JOBS.md 4b), SLA 8 days (one build a week on the week up to Friday's close), after the `technicals` job, memory weight 450 MB (measured peak 364 MB, section 8), at most 90 minutes, stall watch 45 minutes. It never runs beside another bulk job. On by default (switched off 7 Nov 2026; brought back on weekend nights 18 Nov 2026); `SECTORS_JOB=off` switches it off, and while off the status says "disabledByConfig" and it is never counted as overdue.
 
-1. **fetch** (`SECTOR_FETCH`, default on): one quick request to NSE's archive first; if NSE refuses the server the run says so at once ("NSE's archive refused this server (HTTP 403) ... run the download from a PC in India") instead of waiting minutes. Otherwise `fetch-nse` runs in a child process with a time cap. The newest days are added to `/data/nse`. A failed download never crashes the supervisor; the run carries on with the files it has.
+1. **fetch** (`SECTOR_FETCH`, default on): one quick request to NSE's archive first; if NSE refuses the server, the same request is tried through FinLit's relay (`deploy/amfi-relay`, the Cloudflare Worker that already serves AMFI and the exchange files; `EXCHANGE_RELAY_URL`/`KEY`, else `AMFI_RELAY_URL`/`KEY`). When the relay reaches NSE the download goes ahead, and every NSE file that NSE refuses directly (401/403) is fetched through the relay for the rest of the run (since 22 Nov 2026; before, 4 days of files were refused on 22 Nov). Only when both fail does the run say so at once ("NSE's archive refused this server (HTTP 403) and FinLit's relay did not reach it either ... run the download from a PC in India") instead of waiting minutes. Otherwise `fetch-nse` runs in a child process with a time cap. The newest days are added to `/data/nse`. A failed download never crashes the supervisor; the run carries on with the files it has.
 2. **build** into a new folder; the files in use are not touched. The build runs in stages, each in its own process, so none holds the whole market in memory (section 8).
 3. **check**: board and every industry page written, stock files, fewer than 5% stocks with an error, not below 80% of the live stock count, not older than the live data. Otherwise nothing is published.
 4. **swap** atomically. Any failure or kill leaves the last good set serving.
@@ -77,7 +77,7 @@ ssh -i key.pem ubuntu@SERVER "sudo mv /tmp/nse-upload/* /opt/finlit/data/nse/ &&
 | Variable | Default | Meaning |
 |---|---|---|
 | `SECTORS_ENABLED` | `1` | the sector pages read the published data (the job itself does not look at it) |
-| `SECTORS_JOB` | `off` | **the sector job is switched off for now** (founder, 7 Nov 2026); `on` runs it again (restart after changing). The pages keep the last published data meanwhile |
+| `SECTORS_JOB` | `on` | the sector job runs on weekend nights (owner, 18 Nov 2026); `off` switches it off and keeps the last published data (read when the jobs container is next recreated) |
 | `SECTOR_NSE_DIR` | `/data/nse` | the NSE data folder inside the container |
 | `SECTOR_OUT_DIR` | `/data/sectors` | the swap-in folder the website reads |
 | `SECTOR_FETCH` | `1` | `0`: do not download; build from the files in the folder (use when NSE refuses the server and you copy files up by hand) |
@@ -101,7 +101,7 @@ A manual run does not wait for the supervisor's memory gate: check `free -m` fir
 
 ## 7. When NSE refuses the server
 
-NSE sometimes refuses data-centre addresses. The job then reports it (`/api/sectors/status` > `lastRun.fetch`) and the last good pages keep serving, with the date of their data visible. Remedies, best first:
+NSE sometimes refuses data-centre addresses. The job first goes through FinLit's relay (section 3, step 1); only when the relay cannot reach NSE either does it report it (`/api/sectors/status` > `lastRun.fetch`) and the last good pages keep serving, with the date of their data visible. Remedies, best first:
 1. On the founder's PC (India), run the package's own fetch and batch, then send the finished output: `python -m finlit_technicals fetch-nse --dir nse`, `python -m finlit_technicals batch --nse nse --out site_data`, zip `site_data`, copy it to `/opt/finlit/data/sectors/incoming/`, unzip, and run the `--import` command above. This needs no memory on the server at all (see the next section).
 2. Or copy the newest `bhav_2026.csv.gz` and `idx_2026.csv.gz` up, set `SECTOR_FETCH=0`, and run `refresh-sectors --no-fetch`.
 
@@ -155,7 +155,7 @@ A real NSE fetch (the sandbox cannot reach NSE; the refusal path, partial and ti
 |---|---|---|
 | Pages say "Sector data is not loaded yet: the nightly sector job is switched off" | `SECTORS_ENABLED` is not 1 | upload the folder, set it, restart |
 | "... the NSE data folder /data/nse does not exist" | upload not done or mount missing | section 4; check `ls /opt/finlit/data/nse` |
-| `behind`: "NSE's archive refused this server" | NSE blocks the address | section 7 |
+| `behind`: "NSE's archive refused this server" | NSE blocks the address and the relay is not set or cannot reach NSE | check `EXCHANGE_RELAY_URL`/`AMFI_RELAY_URL` in `.env.aws`, then section 7 |
 | `behind` with "NSE had not published a newer file" | normal before about 19:00 or on a holiday | none; retried automatically |
 | job state "waiting for memory" | the job needs about 550 MB free (450 + 100 for the site) and something else is using it | none: it starts by itself when memory is free (section 8) |
 | `error`: "The new set was not published (...)" | a check failed; the old set keeps serving | read the reason; run again with `--force` after fixing |
@@ -197,3 +197,52 @@ a kept folder older than 30 hours is deleted. `SECTOR_RESUME=0` turns this off. 
 
 Running it by hand (server window, `ubuntu@ip-`) still works and needs no time limit:
 `docker compose -p finlit -f deploy/aws/docker-compose.aws.yml --env-file /opt/finlit/.env.aws exec app python -m finlit.worker refresh-sectors --no-fetch`.
+
+## 14. The Sectors view: NSE's 22 sectors as groups (task #192, 22 Nov 2026)
+
+Sector Pulse and Sector Rotation get a "Show: Sectors | Industries" switch (task #192, SECTOR-PAGES.md S1). The Industries view is the board above: 33 NSE
+industries plus the sector groups that hold small industries. The Sectors view reads the same market with **one group per NSE sector** (the 22 of
+taxonomy/sectors.csv, under NSE's own names):
+
+- **Same market, same rules.** `SectorEngine.at_level("sector")` (finlit_technicals/sectors.py) shares the panel, the universe and the classification of the
+  industry engine; only the groups differ (`build_groups(..., level="sector")` in industries.py). A sector with too few counted stocks is listed as too small,
+  exactly as an industry is.
+- **Same yardstick.** Rotation by sector is measured against the same average industry as the industry groups (`Rotation(..., bench=industry_rotation.bench)`),
+  so a sector's "ahead of the average" means the same as an industry's (`average_industry` in both `_map.json` files is identical; tested).
+- **Files.** `<release>/by-sector/sectors/_board.json`, `by-sector/sectors/<slug>.json`, `by-sector/rotation/_map.json` and `<slug>.json`: the same shapes
+  as the industry files (`batch.write_level_files`, called by `batch.run` and by the staged merge). A failure there is logged and never stops the release.
+- **Routes.** Every board, page, year, history, map, small-group, membership and rotation route takes `?show=sectors`; any other value (or none) is the
+  Industries view. Plan gating is the same. Until a release has `by-sector/` the answer is 503 "The Sectors view is not loaded yet: ...", and
+  `/api/sectors/status` shows `sectorsViewLoaded`.
+- **A release built before it existed.** When the NSE files are unchanged, the sector job adds `by-sector/` to the live release in place
+  (`staged.add_levels`: the panel stage, then the `levels` stage; a few minutes, written beside the release and moved in whole; refused if the NSE files end on
+  another day than the release). The job's probe `sectors-view` makes it due for that, only inside its weekend-night hours (`min_gap_min` 60).
+  By hand (server window, `ubuntu@ip-`): the same `refresh-sectors --no-fetch` command as in section 13.
+- Tests: `finlit_technicals/tests/test_staged_equals_single_run.py` (`test_the_sectors_view_*`), `tests/test_sector_job.py` (the job adds it once; a failure
+  is reported and the live set keeps serving), `tests/test_sectors_api.py` (`?show=sectors`).
+- **The pages (round 4b-2).** `PackHead` has "Show: Sectors | Industries" between the page tabs and View, styled like the View pills (`useShow` in
+  `frontend/src/lib/groupWords.ts`). Sectors is the default once `/api/sectors/status` says `sectorsViewLoaded`; before that the pages show the industries
+  and say why. The choice is kept in the link (`?show=sectors|industries`) on both page tabs and on every group link; a sector's page is
+  `/sectors/<slug>?show=sectors` (no "Add to watch" there: the weekly alerts follow industry groups). Every visible sentence of the sector pages goes through
+  `tw()`, which swaps industry/industries for sector/sectors in the Sectors view and never touches "the average industry" (the yardstick is the same in both
+  views; Rotation's yardstick card says so and counts the industry groups). Tests: `pages/SectorShow192.test.tsx` (no "industry" left in any of the 4 views),
+  `pages/SectorIndustry.test.tsx` (a sector's page).
+
+## 15. Sector Rotation, developer file 31 (task #332, 23 Nov 2026)
+
+The Simple view is shorter: the section bar (`nav.sp-secbar.sx-nav`), Today in one minute, Your sectors, three boxes with a switch (the Results and IPOs views bar,
+`TabGroup`; box 1 takes `&tab=`, each box remembers its tab in the browser), Inside a sector and Words. The Full table is one box (Ranking, Six months of ranks,
+12-week change, May change next week) with Key figures / All columns and a bell column. Download CSV is gone (no plan offers downloads; it was built in the page, there
+was no server route). Code: `pages/SectorRotation.tsx`, `components/rotation/pack/Rotation332.tsx`, `lib/rotation332.ts`; styles `styles/rotation-332.css` and, until
+task #333 lands the shared sheet, `styles/vendor/sector-pages.pack.css` (the pack's sheet scoped under `.sx-new`).
+
+- **What happened next** is counted by the weekly sector job (`Rotation.what_next`, the rule in `finlit_technicals/public.py` `count_what_next`) from each group's
+  confirmed box at the real weekly closes of the last year (52), and sent with `GET /api/rotation` as `what_next`. A data set written before this is counted by the
+  website from the feed's 26 weeks of `rank_history` (same function). It costs the job a few milliseconds; no schedule changed. Tests: `tests/test_rotation_next.py`.
+- **Playback** reads `rows[].tail` (the 8 weekly closes of the 8-week paths). **Price against results** joins `/api/results/quarter?view=industries` in the page (plan
+  rules of the Results page apply). **Inside a sector** reads `/api/sectors/<slug>` and `/api/prism/scores`, which reads stored scores and never counts against the
+  daily Prism report limit (`tests/test_prism.py`).
+- **Alert me** on this page is the bell of task 333 (`components/sectors/pack/SectorAlert.tsx` AlertBell, `prefs.sectorAlerts`, sent by `finlit/sector_alerts.py`).
+- Fault 2 (the yardstick): both views measure against the Industries view's average group (`write_level_files` passes `rot.bench`), so the guide and the box both
+  say "all N industry groups counted equally". Fault 3 (37 ranked, 38 in boxes): a group with less than a year of readings has a box (its 6-month and 1-month
+  readings exist) but no rank, and the header now says so.

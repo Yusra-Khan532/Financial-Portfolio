@@ -1,32 +1,44 @@
 // The small pieces every Sector Pulse and Sector Rotation section of the "FinLit final pages" pack (13 Nov 2026) is built from: the (i) button, the insight cards, the state and
 // box chips, the 6-month sparkline and the section frame with Hide. Styles: styles/sectors-pack.css (sp- prefix). Describes, never advises.
-import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Hideable } from "../../Hideable";
 import { placeFloating } from "../../../lib/floating";
-import { BOX, COLOUR, STATE_HELP, WORD, type Card } from "../../../lib/pulsePack";
+import { BOX, COLOUR, STATE_HELP, WORD, accountFor, type Card } from "../../../lib/pulsePack";
+import { useTaxonomyIndex } from "../../../lib/taxonomy";
+import { BOX_HELP } from "../../../lib/rotationPack";
+import type { Board } from "../../../lib/sectors";
 import type { CornerCode } from "../../../lib/sectors";
 import type { StateKey } from "../../../lib/sectorHistory";
+import { tw } from "../../../lib/groupWords";
 
 /** The pack's (i): a small round button that opens a short explanation on hover, focus or tap; Escape or a click elsewhere closes it. */
-export function Tip({ text, label = "What does this mean?" }: { text: string; label?: string }) {
-  const [open, setOpen] = useState(false), [pos, setPos] = useState<{ left: number; top: number } | null>(null);
+/** An ⓘ popover. With `how` it reads as two lines, "What it shows" and "How to read it" (task #183, START-HERE 3); without, one line as before. */
+export function Tip({ text, how, label = "What does this mean?" }: { text: string; how?: string; label?: string }) {
+  const [open, setOpen] = useState(false), [pos, setPos] = useState<{ left: number; top: number; maxH: number } | null>(null);
+  const leave = useRef(0);
   const btn = useRef<HTMLButtonElement>(null), pop = useRef<HTMLDivElement>(null), id = "sp-tip-" + useId().replace(/[^a-zA-Z0-9_-]/g, "");
-  const place = useCallback(() => { if (btn.current && pop.current) { const p = placeFloating(btn.current, pop.current); setPos({ left: p.left, top: p.top }); } }, []);
+  const place = useCallback(() => { if (btn.current && pop.current) { const p = placeFloating(btn.current, pop.current); setPos({ left: p.left, top: p.top, maxH: p.maxH }); } }, []);
   useEffect(() => {
     if (!open) return;
     requestAnimationFrame(place);
     const key = (e: KeyboardEvent) => { if (e.key === "Escape") { setOpen(false); btn.current?.focus(); } };
     const away = (e: MouseEvent) => { const t = e.target as Node; if (!btn.current?.contains(t) && !pop.current?.contains(t)) setOpen(false); };
-    const off = () => setOpen(false);
-    addEventListener("keydown", key); addEventListener("mousedown", away); addEventListener("scroll", off, true); addEventListener("resize", off);
-    return () => { removeEventListener("keydown", key); removeEventListener("mousedown", away); removeEventListener("scroll", off, true); removeEventListener("resize", off); };
+    const off = (e: Event) => { if (!pop.current?.contains(e.target as Node)) setOpen(false); };   // scrolling the tip itself keeps it open (task #204)
+    const shut = () => setOpen(false);
+    addEventListener("keydown", key); addEventListener("mousedown", away); addEventListener("scroll", off, true); addEventListener("resize", shut);
+    return () => { removeEventListener("keydown", key); removeEventListener("mousedown", away); removeEventListener("scroll", off, true); removeEventListener("resize", shut); };
   }, [open, place]);
+  useEffect(() => () => window.clearTimeout(leave.current), []);
+  // task #204: a short wait before closing, cancelled while the pointer is on the tip, so it can be reached and scrolled
+  const hold = () => { window.clearTimeout(leave.current); setOpen(true); };
+  const release = () => { window.clearTimeout(leave.current); leave.current = window.setTimeout(() => setOpen(false), 160); };
   return (
     <>
       <button type="button" ref={btn} className="sp-i" aria-label={label} aria-expanded={open} aria-describedby={open ? id : undefined}
-        onClick={() => setOpen((v) => !v)} onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)} onFocus={() => setOpen(true)} onBlur={() => setOpen(false)}>i</button>
-      {open && createPortal(<div ref={pop} id={id} role="tooltip" className="sp-pop" style={pos ? { left: pos.left, top: pos.top } : { visibility: "hidden" }}>{text}</div>, document.body)}
+        onClick={() => setOpen((v) => !v)} onMouseEnter={hold} onMouseLeave={release} onFocus={hold} onBlur={release}>i</button>
+      {open && createPortal(<div ref={pop} id={id} role="tooltip" className="sp-pop" onMouseEnter={hold} onMouseLeave={release}
+        style={pos ? { left: pos.left, top: pos.top, maxHeight: pos.maxH } : { visibility: "hidden" }}>{how ? <><span className="sp-pop-l"><b>What it shows</b> {text}</span><span className="sp-pop-l"><b>How to read it</b> {how}</span></> : text}</div>, document.body)}
     </>
   );
 }
@@ -41,7 +53,7 @@ export function InsightCard({ c }: { c: Card }) {
   return (
     <div className={"sp-card sp-" + c.kind}>
       <span className="sp-card-ic" aria-hidden="true"><svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{KIND_ICON[c.kind]}</svg></span>
-      <div><p className="sp-kind">{KIND_WORD[c.kind]}</p><h3 className="sp-ct">{c.title}</h3><p className="sp-cx">{c.text}</p></div>
+      <div><p className="sp-kind">{KIND_WORD[c.kind]}</p><h3 className="sp-ct"><MoreText text={tw(c.title)} more={c.more} /></h3><p className="sp-cx"><MoreText text={tw(c.text)} more={c.more} /></p></div>
     </div>
   );
 }
@@ -70,7 +82,7 @@ export function BoxChip({ corner, help }: { corner: CornerCode | null | undefine
   return (
     <span className="sp-chipw">
       <span className={"sp-chip sp-box-" + b.tone}><b aria-hidden="true">{b.arrow}</b>{b.word}</span>
-      {help && <Tip text="Sector Rotation compares each industry with the average industry over the last few months and over recent weeks. The two answers put it in one of four boxes." label={`About “${b.word}”`} />}
+      {help && <Tip text={BOX_HELP[corner]} label={`About “${b.word}”`} />}
     </span>
   );
 }
@@ -96,16 +108,63 @@ export function Spark({ values, states, label, w = 170, h = 42, last, mark }: { 
   );
 }
 
+/** Task #333 (file 30, fix 3): on the new Sector Pulse each "Why it matters" line is a small button that opens it (details.sx-why), open on a member's first visit
+ *  to the page and closed after. The page provides true (first visit) or false; without a provider (Sector Rotation, the industry page) the line stays as it was. */
+export const WhyFold = createContext<boolean | null>(null);
+/** True on the first visit to `page` in this browser, false after (read once per page load, saved after the first render). */
+export function useFirstVisit(page: string): boolean {
+  const key = "finlit-seen-" + page;
+  const [first] = useState(() => { try { return localStorage.getItem(key) !== "1"; } catch { return false; } });
+  useEffect(() => { try { localStorage.setItem(key, "1"); } catch { /* private window: the line opens each time */ } }, [key]);
+  return first;
+}
+export function Why({ children }: { children: ReactNode }) {
+  const fold = useContext(WhyFold);
+  if (fold == null) return <p className="sp-why"><b>Why it matters</b> {children}</p>;
+  return <details className="sx-why" open={fold}><summary>Why it matters</summary><p>{children}</p></details>;
+}
+
 /** A pack section: the white rounded panel, the serif title with its (i), the line under it, and Hide / Show when `hide` names it. */
-export function Section({ id, title, help, sub, why, hide, right, children }: { id: string; title: string; help?: string; sub?: ReactNode; why?: ReactNode; hide?: boolean; right?: ReactNode; children: ReactNode }) {
+export function Section({ id, title, help, how, sub, why, hide, right, info, children }: { id: string; title: string; help?: string; how?: string; sub?: ReactNode; why?: ReactNode; hide?: boolean; right?: ReactNode;
+  /** task #391: the page's own i button in place of this plain i (All my investments) */ info?: ReactNode; children: ReactNode }) {
   const body = (
     <section className="sp-sec" aria-labelledby={id}>
-      <div className="sp-sec-h"><div><h2 id={id}>{title}{help && <Tip text={help} label={`About “${title}”`} />}</h2>{sub && <p className="sp-sub">{sub}</p>}</div>{right}</div>
-      {why && <p className="sp-why"><b>Why it matters</b> {why}</p>}
+      <div className="sp-sec-h"><div><h2 id={id}>{title}{info ?? (help && <Tip text={help} how={how} label={`About “${title}”`} />)}</h2>{sub && <p className="sp-sub">{sub}</p>}</div>{right}</div>
+      {why && <Why>{why}</Why>}
       {children}
     </section>
   );
-  return hide ? <Hideable id={"pack." + id} title={title}>{body}</Hideable> : body;
+  return hide ? <Hideable id={"pack." + id} title={title} sub={typeof sub === "string" ? sub : undefined}>{body}</Hideable> : body;
+}
+
+/** Task #192 (T5): the industries inside a too-small sector group, and the line that accounts for all of NSE's industries, from GET /api/taxonomy. */
+export function useAccount(b: Pick<Board, "rows" | "too_few_stocks">) {
+  const t = useTaxonomyIndex();
+  return t.data ? accountFor(b, t.data.industries) : null;
+}
+/** "Sector group: Engineering Services, Transport Infrastructure and Public Services (no listed company)". */
+export function InsideLine({ list }: { list: { industry: string; companies: number | null }[] | undefined }) {
+  if (!list?.length) return null;
+  const names = list.map((x) => x.industry + (x.companies === 0 ? " (no listed company)" : ""));
+  return <small className="sp-inside">Sector group of {names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}` : names[0]}</small>;
+}
+
+/** A card text with the token {more} where a cut list goes on: "+N more ▾" opens the rest in place, "show fewer ▴" closes it (task #192, SECTOR-PAGES.md 6). */
+export function MoreText({ text, more }: { text: string; more?: string[] }) {
+  const [open, setOpen] = useState(false);
+  if (!text.includes("{more}")) return <>{text}</>;
+  const [a, b] = text.split("{more}");
+  if (!more?.length) return <>{a.replace(/[, ]+$/, "")}{b}</>;
+  return <>{a}{open && <>{more.join(", ")} </>}<button type="button" className="sp-more-in" aria-expanded={open} onClick={() => setOpen(!open)}>{open ? "show fewer ▴" : `+${more.length} more ▾`}</button>{b}</>;
+}
+
+/** "Show all N ▾" under a list that starts short (task #192, SECTOR-PAGES.md 5): the first `first` rows, the rest one click away. */
+export function useShowAll<T>(rows: T[], first: number): { shown: T[]; button: ReactNode } {
+  const [all, setAll] = useState(false);
+  return {
+    shown: all ? rows : rows.slice(0, first),
+    button: rows.length > first ? <button type="button" className="sp-showall" aria-expanded={all} onClick={() => setAll(!all)}>{all ? "Show fewer ▴" : `Show all ${rows.length} ▾`}</button> : null,
+  };
 }
 
 /** A table that scrolls sideways on a narrow screen, with no extra buttons (the pack's tables have none); keyboard users can scroll it once it has the focus. */

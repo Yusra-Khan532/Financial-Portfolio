@@ -1,0 +1,24 @@
+/* Task #272 (Watchlists and Alerts, 20 Nov pack): the additions to the Alerts page and its Create alert form, marked New in the pack: "Applies to: One
+   stock / A list", the list picker, the Discover kinds of "A filing Discover sorts as…", "Each filing / One summary a day", the two new Quick alerts and a
+   list alert's card. On the tokens of account.css (alx-). Font sizes stay on the type scale (src/styles/typescale.test.ts). */
+.alx-lbl { font: 700 var(--fs-12) var(--sans); letter-spacing: .1em; text-transform: uppercase; color: var(--faint); display: inline-flex; align-items: center; gap: 8px; }
+.alx-new { display: inline-block; padding: 1px 8px; border-radius: var(--ui-r-pill); background: #B5410F; color: #fff; font: 700 var(--fs-12)/1.6 var(--sans); font-style: normal; letter-spacing: .04em; text-transform: uppercase; }
+:root[data-theme="dark"] .alx-new { background: #F5A274; color: #1E1208; }
+.alx-seg, .alx-kinds { display: flex; flex-wrap: wrap; gap: 8px; }
+.alx-seg button, .alx-kinds button { min-height: 38px; padding: 0 14px; border-radius: var(--ui-r-pill); border: 1px solid var(--border-strong); background: var(--s1); color: var(--text);
+  font: 600 var(--fs-14) var(--sans); cursor: pointer; }
+.alx-seg button[aria-pressed="true"], .alx-kinds button[aria-pressed="true"] { background: var(--text); border-color: var(--text); color: var(--bg); }
+.alx-seg button:focus-visible, .alx-kinds button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.alx-kinds small { flex-basis: 100%; }
+.alx-form select:disabled { opacity: 1; cursor: default; }
+
+/* the two new Quick alerts: outlined and marked New */
+.alx-q.is-new { border-color: #D9845A; padding-top: 38px; }
+.alx-q.is-new em.alx-qn { position: absolute; left: 14px; right: auto; top: 10px; padding: 1px 8px; border-radius: var(--ui-r-pill); background: #B5410F; color: #fff; letter-spacing: .04em; }
+:root[data-theme="dark"] .alx-q.is-new { border-color: #F5A274; }
+:root[data-theme="dark"] .alx-q.is-new em.alx-qn { background: #F5A274; color: #1E1208; }
+.alx-quick .alx-qg { grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); }   /* six tiles: three by two, as the pack */
+.alx-qnote { margin: 10px 0 0; font-size: var(--fs-13); color: var(--faint); }
+
+/* a list alert's card: the list's name where a stock's ticker would be */
+.alx-listname { font: 700 var(--fs-13) var(--sans); padding: 4px 10px; border-radius: var(--r-ctl); background: var(--s3); color: var(--text); }

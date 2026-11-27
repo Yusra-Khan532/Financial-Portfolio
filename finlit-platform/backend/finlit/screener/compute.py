@@ -360,11 +360,17 @@ def compute(sections: Dict[str, dict], today: Optional[date] = None) -> Dict[str
         logging.getLogger("finlit.screener").exception("bhavcopy volume not applied")
     tech = price_sec.get("technical") or {}
     out["volume"] = _n(quote.get("volume")) or _last(vols)
-    v20 = [x for x in vols[-21:-1] if x is not None]
+    # Task #243, data finding D4: NSE's file is brought up to date by the weekly sector run, so the last few candles can have no full-day volume yet. Measure
+    # at the latest session the file covers (at most 7 sessions back), and say which session that is, instead of leaving the ratio blank for most companies.
+    at = next((i for i in range(len(vols) - 1, max(len(vols) - 9, -1), -1) if vols[i] is not None), None)
+    v20 = [x for x in vols[max(0, at - 20):at] if x is not None] if at is not None else []
     out["avg_volume_20d"] = sorted(v20)[len(v20) // 2] if len(v20) >= 10 else None   # the median day: one huge block-deal day must not set the "usual" volume
-    # Both sides from the same daily candles: the latest session against the median of the 20 before it. The quote's volume comes from another
+    # Both sides from the same daily candles: that session against the median of the 20 before it. The quote's volume comes from another
     # source and counts differently, which put the median of this ratio near 9 instead of near 1 (seen 7 Nov 2026).
-    out["volume_vs_avg"] = _div(_last(vols), out["avg_volume_20d"])
+    out["volume_vs_avg"] = _div(vols[at], out["avg_volume_20d"]) if at is not None else None
+    ts = daily.get("t") or []
+    on = str(ts[at])[:10] if at is not None and at < len(ts) and out["volume_vs_avg"] is not None else ""
+    out["volume_vs_avg_on"] = float(on.replace("-", "")) if len(on) == 10 and on.replace("-", "").isdigit() else None   # yyyymmdd, like q_period_end
     out["turnover_cr"] = _div(_n(price) * out["volume"], 1e7) if price is not None and out["volume"] is not None else None
     hi, lo = _n(quote.get("high52")) or _n((summary.get("range52") or {}).get("high")), _n(quote.get("low52")) or _n((summary.get("range52") or {}).get("low"))
     out["high_52w"], out["low_52w"] = hi, lo

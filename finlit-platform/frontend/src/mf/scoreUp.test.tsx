@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// FinLit FundPulse upgrades in a DOM: history chart, breakdown + radar, screener (filters, URL state, CSV columns, locked page, no request below Gold),
+// Mutual Fund Score upgrades in a DOM: history chart, breakdown + radar, screener (filters, URL state, CSV columns, locked page, no request below Gold),
 // leaderboard, compare, chip, admin panel and the wording scan.
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -15,7 +15,7 @@ vi.mock("../lib/api", async (orig) => ({
   apiSend: vi.fn(async () => ({})),
 }));
 vi.mock("../lib/ui", () => ({
-  useUI: () => ({ has: (t: string) => ({ basic: 0, silver: 1, gold: 2 })[st.plan] >= ({ basic: 0, silver: 1, gold: 2 } as Record<string, number>)[t], upgrade: vi.fn(), toast: vi.fn() }),
+  useUI: () => ({ has: (t: string) => ({ basic: 0, silver: 1, gold: 2, mfetf: 1, equity: 1, combined: 1, platinum: 2 })[st.plan] >= ({ basic: 0, silver: 1, gold: 2, mfetf: 1, equity: 1, combined: 1, platinum: 2 } as Record<string, number>)[t], upgrade: vi.fn(), toast: vi.fn() }),
   TIER: { gold: { n: "Gold", tc: "--gold", ic: "star" }, silver: { n: "Silver", tc: "--silver", ic: "star" } },
 }));
 import { HistoryChart, ScoreHistoryCard } from "./ScoreHistory";
@@ -51,6 +51,10 @@ describe("pure helpers", () => {
     expect(back).toMatchObject({ plan: "all", subs: ["large-cap"], labels: ["Strong"], min: "60", full: true, sort: "ter", dir: "asc", page: 3 });
     expect(back.cost).toEqual(["70", ""]);
     expect(queryToParams(emptyQuery()).toString()).toBe("");
+    // task #369: no plan is preselected: every plan is asked for and no chip shows; a chosen plan is a chip that clears back to every plan
+    expect(paramsToQuery(new URLSearchParams("")).plan).toBe("all"); expect(serverParams(emptyQuery(), null).get("plan")).toBe("all"); expect(chips(emptyQuery())).toEqual([]);
+    expect(chips({ ...emptyQuery(), plan: "Direct" }).map((c) => c.text)).toEqual(["Direct plan"]); expect(clearChip({ ...emptyQuery(), plan: "Direct" }, "plan").plan).toBe("all");
+    expect(queryToParams({ ...emptyQuery(), plan: "Direct" }).toString()).toBe("plan=Direct");
     const sp = serverParams(q, { limit: 50, offset: 100 });
     expect(sp.get("cost_min")).toBe("70");
     expect(sp.get("offset")).toBe("100");
@@ -137,7 +141,7 @@ describe("screener", () => {
     expect(document.querySelector("[data-fgx=parts]")).toBeNull();
     const panel = document.querySelector("[data-fgx=score]") as HTMLElement;
     expect(panel.querySelector(".fgx-hb")!.textContent).toMatch(/Score & analytics filters.*1 active/);
-    for (const t of ["Overall FundPulse", "Score Breakdown Filters"]) expect(within(panel).getByText(t)).toBeTruthy();
+    for (const t of ["Overall Mutual Fund Score", "Score Breakdown Filters"]) expect(within(panel).getByText(t)).toBeTruthy();
     expect(within(panel).getByRole("group", { name: "Total Score, exact range" })).toBeTruthy();
     for (const g of ["Performance", "Risk", "Cost", "Quality"]) expect(within(panel).getByRole("group", { name: `${g}, band` })).toBeTruthy();
     expect((within(panel).getByRole("button", { name: "Apply filters" }) as HTMLButtonElement).disabled).toBe(true);
@@ -152,7 +156,7 @@ describe("screener", () => {
     setup(); wrap(<FundScoreScreenerPage />);
     expect(await screen.findByText("Fund 1")).toBeTruthy();
     expect(document.querySelector(".mf-count")!.textContent).toMatch(/120/);
-    expect(st.calls.some((c) => c.startsWith("/api/mf/score-screener?") && c.includes("plan=Direct") && c.includes("limit=50"))).toBe(true);
+    expect(st.calls.some((c) => c.startsWith("/api/mf/score-screener?") && c.includes("plan=all") && c.includes("limit=50"))).toBe(true);
     fireEvent.click(screen.getByRole("button", { name: "Strong" }));
     expect(screen.getByTestId("loc").textContent).toContain("labels=Strong");
     fireEvent.click(document.querySelector("[data-fgx=score] .fgx-hb")!);
@@ -272,9 +276,9 @@ describe("wording", () => {
 });
 
 
-describe("exchange-traded funds get no FundPulse", () => {
+describe("exchange-traded funds get no Mutual Fund Score", () => {
   it("the card disappears when the server says the score is not offered (an ETF-category scheme opened as a fund)", async () => {
-    st.routes = { "/api/mf/45678/score": { locked: false, notOffered: true, final: null, status: "NOT SCORED", reason: "FinLit FundPulse is not given for exchange-traded funds.", pillars: [], reasons: {}, metrics: [] } };
+    st.routes = { "/api/mf/45678/score": { locked: false, notOffered: true, final: null, status: "NOT SCORED", reason: "Mutual Fund Score is not given for exchange-traded funds.", pillars: [], reasons: {}, metrics: [] } };
     wrap(<FundScoreCard code={45678} />, "/funds/45678");
     await waitFor(() => expect(screen.queryByLabelText(MF_SCORE_NAME)).toBeNull());
     expect(st.calls.some((c) => c.startsWith("/api/mf/45678/score"))).toBe(true);
@@ -290,5 +294,21 @@ describe("part words", () => {
   it("compares the four parts as words", async () => {
     const { compareWords } = await import("../lib/mfScoreUp");
     expect([compareWords("Strong", "Fair"), compareWords("Fair", "Fair"), compareWords("Weak", "Fair"), compareWords(null, "Fair"), compareWords("Not scored", "Fair")]).toEqual(["ahead", "level", "behind", "na", "na"]);
+  });
+});
+
+describe("task #403: the score card says what high and low mean", () => {
+  it("a rated fund's card shows the High and low note under its four part bars, always visible (not only a tooltip)", async () => {
+    st.routes = { "/api/mf/45678/score": { locked: false, group: "EQ-FLEXI", groupName: "Flexi Cap", status: "RATED", final: 59, label: "Average", disclaimer: "", method: "", model: "", months: 74,
+      peers: { kind: "grp", n: 36, text: "" }, rank: 14, rankOf: 36,
+      pillars: [{ key: "performance", name: "Performance", reading: "Weak", points: 40.3 }, { key: "risk", name: "Risk", reading: "Strong", points: 86.5 },
+        { key: "cost", name: "Cost", reading: "Strong", points: 71.5 }, { key: "quality", name: "Quality", reading: "Weak", points: 41 }],
+      reasons: { strengths: [], watchouts: [], gaps: [], notApplicable: [], substitutions: [] }, metrics: [], flags: [] } };
+    wrap(<FundScoreCard code={45678} />, "/funds/45678");
+    const note = await screen.findByTestId("score-high-low");
+    expect(note.previousElementSibling!.className).toBe("mfs-pillars");
+    expect(note.textContent).toMatch(/^High and low: every part is read against funds of the same category, and higher is better on all four; low means the opposite\./);
+    expect(note.textContent).toMatch(/High Risk = lower risk: a calmer ride, smaller falls · High Cost = lower costs/);
+    expect(note.textContent).not.toMatch(BANNED);
   });
 });

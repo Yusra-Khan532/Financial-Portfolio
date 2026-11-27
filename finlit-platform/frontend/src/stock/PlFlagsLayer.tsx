@@ -231,10 +231,22 @@ function FlagCard({ items, onClose, floating, onAnimationEnd }: { items: Insight
   );
 }
 
-/** True when the reader is not on the alert's own section: the next section (trends) is past the middle of the screen, the results are far above, or the
- *  reader has gone back up so the results are still well below the fold. `nextTop` is null when the next section is not on the page. */
-export function isAway(barTop: number, barBottom: number, nextTop: number | null, vh: number): boolean {
-  return (nextTop != null && nextTop < vh * 0.45) || barBottom < -vh * 0.8 || barTop > vh * 0.85;
+/** Founder, 24 Nov 2026: the alert pops up when the reader reaches section 05 and goes once the whole of section 05 has been scrolled past (or by its x).
+ *  `top` is the top of the results bar (just above section 05), `bottom` the bottom of section 05; both from the top of the screen, `vh` its height.
+ *  The reader is on the section once its start has come up into the top 70% of the screen (REACH), and leaves it when its end has gone up into the
+ *  top 20% (END), under the page header: by then the next section fills the screen. Scrolling back above the section is "away" too. */
+export const REACH = 0.7, END = 0.2;
+export function isAway(top: number, bottom: number, vh: number): boolean {
+  return top > vh * REACH || bottom < vh * END;
+}
+
+/** Where the alert's own part of the page starts and ends on screen: from the results bar to the bottom of section 05 (or of the placeholder that
+ *  stands for it until it loads). A section folded shut on a phone measures 0 and 0, which reads as away. */
+export function zoneOf(bar: HTMLElement): [number, number] {
+  let next = bar.nextElementSibling;
+  while (next?.matches(".plf-note, .plf-edge")) next = next.nextElementSibling;   // the card and the edge tab sit between the bar and the section
+  const sec = document.getElementById("quarter")?.closest("section") ?? next ?? bar;
+  return [bar.getBoundingClientRect().top, sec.getBoundingClientRect().bottom];
 }
 
 export function PlFlagsLayer({ f, lender = false }: { f?: Financials; lender?: boolean }) {
@@ -249,28 +261,28 @@ export function PlFlagsLayer({ f, lender = false }: { f?: Financials; lender?: b
   // a different alert (another company, a new quarter) starts fresh: an earlier x does not carry over
   const sig = items.map((x) => x.key).join("|");
   useEffect(() => { dispatch({ type: "reset" }); }, [sig]);
-  // the notice drops in once, the first time the results area comes into view
+  // the alert belongs to section 05: it first pops up when the reader reaches the section (however they got there: scrolling, the sections bar,
+  // a reload part-way down), and every scroll then gives a fresh reading of where the reader is; the state machine does the rest
+  const seen = useRef(false);
   useEffect(() => {
-    if (!flags.length || !bar.current) return;
-    const io = new IntersectionObserver(([e]) => { if (e.isIntersecting) { setShown(true); io.disconnect(); } }, { rootMargin: "-80px 0px -30% 0px" });
-    io.observe(bar.current);
-    return () => io.disconnect();
-  }, [flags.length]);
-  useEffect(() => { if (shown && reduced()) setLanded(true); }, [shown]);
-  // the notice belongs to its section: every scroll gives a fresh reading of where the reader is, and the state machine does the rest
-  useEffect(() => {
-    if (!shown) return;
+    if (!flags.length) return;
     const check = () => {
-      const r = bar.current?.getBoundingClientRect(), next = document.getElementById("trends");
-      const a = isAway(r?.top ?? 0, r?.bottom ?? 0, next ? next.getBoundingClientRect().top : null, window.innerHeight);
+      const b = bar.current; if (!b) return;
+      const [top, bottom] = zoneOf(b), a = isAway(top, bottom, window.innerHeight);
+      if (!a && !seen.current) { seen.current = true; setShown(true); }
+      if (!seen.current) return;
       dispatch({ type: "scroll", away: a });
       if (a) setLanded(true);
     };
     check();
+    // a phone's folded section opening (no scroll happens) is seen here
+    const io = typeof IntersectionObserver !== "undefined" && bar.current ? new IntersectionObserver(check) : null;
+    if (io && bar.current) io.observe(bar.current);
     window.addEventListener("scroll", check, { passive: true });
     window.addEventListener("resize", check);
-    return () => { window.removeEventListener("scroll", check); window.removeEventListener("resize", check); };
-  }, [shown]);
+    return () => { io?.disconnect(); window.removeEventListener("scroll", check); window.removeEventListener("resize", check); };
+  }, [flags.length]);
+  useEffect(() => { if (shown && reduced()) setLanded(true); }, [shown]);
   // the floating card (opened from the edge tab) also closes by Esc or a click outside it
   useEffect(() => {
     if (mode !== "opened") return;
@@ -296,7 +308,7 @@ export function PlFlagsLayer({ f, lender = false }: { f?: Financials; lender?: b
         <span className="plf-chip" title="Revenue and profit comparisons worth a closer look">Flags · {items.length}</span>
         <span className="plf-legend"><i className="plf-sw" />highlighted rows and columns in the results tables</span>
         <button type="button" className="plf-btn" aria-pressed={on} onClick={toggle}>{on ? "Turn highlights off" : "Turn highlights on"}</button>
-        <button type="button" className="plf-btn" onClick={() => { dispatch({ type: "show" }); dispatch({ type: "open" }); setShown(true); }}>Show details</button>
+        <button type="button" className="plf-btn" onClick={() => { seen.current = true; dispatch({ type: "show" }); dispatch({ type: "open" }); setShown(true); }}>Show details</button>
       </div>
       {shown && card && <FlagCard items={items} floating={mode === "opened"} onClose={() => { dispatch({ type: mode === "opened" ? "close" : "dismiss" }); setLanded(true); }} onAnimationEnd={land} />}
       {shown && edge && (

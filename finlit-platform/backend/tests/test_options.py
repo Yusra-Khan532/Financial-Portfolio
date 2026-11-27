@@ -441,3 +441,102 @@ async def test_not_connected_and_busy(app, dhan, monkeypatch):  # noqa: F811
     assert r.status_code == 503 and r.json()["status"] == "busy" and int(r.headers["retry-after"]) >= 40 and fake.calls == []
     await app.state.store.redis.delete(oc.PACE_KEY)
     await gold.aclose()
+
+
+async def test_option_pulse_in_the_trading_lab_is_for_lab_members_whatever_their_plan(app, dhan):  # noqa: F811
+    """Trading Lab > Option Pulse (founder, 26 Nov 2026) reads the same chain, cache and Dhan pacing, behind Lab access instead of the Gold plan:
+    a Basic member with a Lab grant reads it, but still not the Gold option chain page's routes; a Gold member without a grant does not."""
+    from test_lab_access import admin_with_mfa
+    admin = await admin_with_mfa(app, "pulse-boss@example.com")
+    member = await signed_in(app, "pulse-member@example.com")                        # Basic plan
+    gold_no_lab = await signed_in(app, "pulse-gold@example.com", plan="gold")
+    for c in (member, gold_no_lab):
+        assert (await c.get("/api/options/lab/underlyings")).status_code == 403
+    assert (await admin.put("/api/admin/lab/grants", json={"email": "pulse-member@example.com"})).status_code == 200
+    assert [i["key"] for i in (await member.get("/api/options/lab/underlyings")).json()["indices"]][:2] == ["NIFTY", "BANKNIFTY"]
+    assert (await member.get("/api/options/lab/expiries?u=NIFTY")).json()["expiries"] == ["2098-10-27", "2098-11-03", "2099-12-31"]   # past dates dropped
+    body = (await member.get("/api/options/lab/chain?u=NIFTY&expiry=2098-10-27")).json()
+    assert body["underlying"]["key"] == "NIFTY" and body["rows"] and body["summary"]["pcrOi"] is not None
+    assert (await member.get("/api/options/chain?u=NIFTY&expiry=2098-10-27")).status_code == 403     # the Gold page's route is unchanged
+    calls = len(dhan.paths("/optionchain"))
+    assert (await admin.get("/api/options/lab/chain?u=NIFTY&expiry=2098-10-27")).status_code == 200
+    assert len(dhan.paths("/optionchain")) == calls                                 # served from the same cache
+    for c in (admin, member, gold_no_lab):
+        await c.aclose()
+
+
+# ------------------------------------------------------------------------------------------------------------------ cache races (scripted Redis)
+
+class _ScriptedRedis:
+    """A tiny in-memory Redis whose `hooks` run another request's step at an exact moment, to replay the two races in oc.cached()."""
+
+    def __init__(self):
+        self.d, self.hooks = {}, {}
+
+    async def _hook(self, name):
+        h = self.hooks.pop(name, None)
+        if h:
+            await h(self)
+
+    async def get(self, k):
+        v = self.d.get(k)
+        await self._hook("after_get:" + k)
+        return v
+
+    async def set(self, k, v, nx=False, ex=None):
+        await self._hook("before_set:" + k)
+        if nx and k in self.d:
+            return None
+        self.d[k] = v if isinstance(v, bytes) else str(v).encode()
+        return True
+
+    async def delete(self, k):
+        self.d.pop(k, None)
+
+    async def exists(self, k):
+        await self._hook("before_exists:" + k)
+        return 1 if k in self.d else 0
+
+
+class _App:
+    def __init__(self, redis):
+        self.state = type("S", (), {"store": type("St", (), {"redis": redis})()})()
+
+
+async def _other_request_finishes(r):
+    """Another request stores its answer and lets go of the lock (as oc.cached's refresh() does: set the key, then delete the lock)."""
+    r.d["k"] = json.dumps({"t": time.time(), "body": {"by": "other"}}).encode()
+    r.d.pop("k:lock", None)
+
+
+async def test_a_late_request_uses_the_answer_stored_just_before_it_took_the_lock():
+    """Race 1: our first read finds nothing; the other request finishes before we take the lock. We must not ask Dhan a second time."""
+    r = _ScriptedRedis()
+    r.d["k:lock"] = b"1"                                       # the other request holds the lock while we read
+    r.hooks["before_set:k:lock"] = _other_request_finishes    # ...and finishes just before we try to take it
+    calls = []
+
+    async def fetch():
+        calls.append(1)
+        return {"by": "us"}
+    entry, state = await oc.cached(_App(r), "k", lambda t: True, fetch, wait_if_stale=True)
+    assert calls == [] and state == "fresh" and entry["body"] == {"by": "other"}
+    assert "k:lock" not in r.d
+
+
+async def test_a_waiting_request_is_not_told_busy_when_the_answer_lands_between_its_reads(monkeypatch):
+    """Race 2: we wait on the other request; between our read of the key and our check of the lock, it stores the answer and lets go.
+    We must return that answer, not 'busy' (the 503 seen on 27 Nov 2026 in 8 of 30 runs of the end-to-end chain test)."""
+    real_sleep = asyncio.sleep
+
+    async def no_sleep(_s):
+        await real_sleep(0)
+    monkeypatch.setattr(oc.asyncio, "sleep", no_sleep)
+    r = _ScriptedRedis()
+    r.d["k:lock"] = b"1"
+    r.hooks["before_exists:k:lock"] = _other_request_finishes  # the answer lands after our read of "k", before our lock check
+
+    async def fetch():
+        raise AssertionError("must not ask Dhan: another request holds the lock")
+    entry, state = await oc.cached(_App(r), "k", lambda t: True, fetch, wait_if_stale=True)
+    assert state == "fresh" and entry["body"] == {"by": "other"}

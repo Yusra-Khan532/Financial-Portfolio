@@ -31,7 +31,7 @@
     "_comment": "Trend alignment = short-term band x long-term band (finlit_technicals v1.1, stlt.ALIGNMENT). Bands: +20 or more Positive, -20 or less Negative, otherwise Neutral. The labels only describe the two trends; the tone is decoration (a shape and a colour), never advice.",
     "bands": {"positive": 20, "negative": -20},
     "bandWords": {"positive": "Up", "neutral": "Sideways", "negative": "Down"},
-    "rule": "Each score falls in a band: +20 or more counts as up, -20 or less as down, anything in between as sideways. The two bands together describe how the short-term and the long-term trend line up.",
+    "rule": "Each score falls in a band: up, sideways or down.",
     "notAvailable": "Trend alignment: not available",
     "cells": [
       {"st": "positive", "lt": "positive", "code": "st_positive_lt_positive", "label": "Rising on both", "text": "Price has been rising in recent weeks and over the past year", "tone": "pos"},

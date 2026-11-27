@@ -131,11 +131,27 @@ async def test_portfolio_facts_merge_into_the_fund_page_facts(store):
     assert f["benchmark"]["value"] == "NIFTY AUTO TRI" and f["exitLoad"]["value"].startswith("1%")
     assert f["launchDate"]["value"] == "2024-05-17"                       # the second source fills in while the scheme master is not loaded
     assert f["aum"]["value"] == disclosure.aum_text(p.net_assets_lakh) and "month" in f["aum"]["note"]
-    assert "unavailable" in f["riskometer"] and "unavailable" in f["managers"] and "unavailable" in f["minInvestment"]
+    assert "unavailable" in f["riskometer"] and "unavailable" in f["managers"]
+    assert f["minInvestment"] == {"unavailable": disclosure.NO_MINIMUM}       # neither AMFI source has a minimum here: the reason, never a guess
+    await portfolios.put_facts(store.pool, [(FAM, "min_amount_amfi", TODAY, {"text": "Rs. 5,000 and in multiples of Re.1 thereafter", "rupees": 5000.0},
+                                             portfolios.SRC_DETAILS, "https://www.amfiindia.com/otherdata/scheme-details")])
+    mi = (await disclosure.get_facts(store.pool, 152657))["minInvestment"]  # task #281 round 7: AMFI's scheme details, shown with the day read
+    assert mi["value"] == "Rs. 5,000 and in multiples of Re.1 thereafter" and mi["asOf"] == TODAY.isoformat()
+    assert mi["source"] == portfolios.SRC_DETAILS and mi["note"] == disclosure.MIN_NOTE
     port = await disclosure.get_portfolio(store.pool, "INF200KA1Z00")     # ETF pages look schemes up by ISIN
     assert port["asOf"] == "2026-09-30" and len(port["holdings"]) == len(p.holdings)
-    assert port["summary"]["sectors"][0]["sector"] == "Auto Components" and port["summary"]["top10Pct"] == pytest.approx(49.3, abs=0.1)
+    assert port["summary"]["industries"][0]["industry"] == "Auto Components" and port["summary"]["macroSectors"][0]["macroSector"] == "Consumer Discretionary"
+    assert port["summary"]["top10Pct"] == pytest.approx(49.3, abs=0.1)
     assert await portfolios.extra_facts(store.pool, 999999) is None and await disclosure.get_facts(store.pool, 999999) is None
+
+
+async def test_281_a_cut_off_exit_load_is_never_shown_on_the_fund_page(store):
+    """Task #281: "of 1.00%" (what the old cleaner stored for 119648) gives the page a reason, never the fragment; a whole rule is shown as stored."""
+    await portfolios.put_facts(store.pool, [(FAM, "exitload", TODAY, {"text": "of 1.00%"}, portfolios.SRC_DETAILS, None)])
+    f = await disclosure.get_facts(store.pool, 152657)
+    assert f["exitLoad"] == {"unavailable": portfolios.EXIT_LOAD_NOT_STATED} and "not stated by AMFI" in f["exitLoad"]["unavailable"]
+    await portfolios.put_facts(store.pool, [(FAM, "exitload", TODAY, {"text": "1.00% if redeemed within 365 days; nil after", "v": 2}, portfolios.SRC_DETAILS, None)])
+    assert (await disclosure.get_facts(store.pool, 152657))["exitLoad"]["value"] == "1.00% if redeemed within 365 days; nil after"
 
 
 async def test_a_shorter_reread_never_replaces_a_good_portfolio(store):

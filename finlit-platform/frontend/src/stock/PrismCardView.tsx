@@ -3,22 +3,38 @@
 // Everything shown is read from the stored report (rating, technicalAssessment); the rules (words, bands, captions) are in prismCardLogic.ts and lib/.
 // Meaning is always in words and shapes (the status word, the number, the arrows); colour only decorates. The ring and the bars are hidden from screen
 // readers because every component and horizon carries its numbers and words in its own accessible name. Styles: styles/prism-card.css (classes pcx-*).
-import { useId, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { Icon } from "../lib/icons";
 import { BAND_RULE, bandInk, bandVar, partHint, scoreBand, trendBand as toneBand, type ScoreBand } from "../lib/scoreBands";
 import { TECH_NOTE, bandWidths, fmtScore, ratingWord, scalePos, trendAlignment, type TechAssessment, type TechHorizon, type TrendTone, type VerdictTone } from "../lib/prismTechnical";
 import { TICKS, zoneBg } from "../components/prism/shared/PartTile";
 import { LABEL, type PrismLatest } from "./PrismCard";
 import { PrismTechRow, TechAsOf } from "./PrismTechRow";
-import { PART_LINE, SCORE_NOTE_WITH_TECH, FUND_NOTE, TECH_SEPARATE_NOTE, TECH_SUBTITLE, alignSentence, arcPath, basedOn, fmtNum, fundSubtitle, horizonCaption, horizonLabel, partTip, partWord, polar, ringArcs, signalsLine, techEdgePos, type CardPart } from "./prismCardLogic";
+import { PART_LINE, SCORE_NOTE_WITH_TECH, TECH_SUBTITLE, alignSentence, arcPath, basedOn, fmtNum, fundSubtitle, horizonCaption, horizonLabel, partTip, partWord, polar, ringArcs, signalsLine, techEdgePos, type CardPart } from "./prismCardLogic";
 
 const SHAPE: Record<TrendTone, string> = { strongpos: "▲▲", pos: "▲", neutral: "◆", neg: "▼", strongneg: "▼▼", na: "–" };
 const VSHAPE: Record<VerdictTone, string> = { pos: "▲", mixed: "◆", neg: "▼", na: "–" };
 const vBand = (t: VerdictTone): ScoreBand => (t === "pos" ? "hi" : t === "mixed" ? "mid" : t === "neg" ? "lo" : "na");
 
-/** A small "i" that explains itself on hover and on keyboard focus. The text is also its accessible name. */
+/** A tip whose "i" sits within this many pixels of the window's right edge opens to the left (task #220, README 1.5), so it is never cut off. */
+export const TIP_ROOM = 340;
+export const nearRightEdge = (left: number, width = typeof innerWidth === "number" ? innerWidth : 0) => left - 8 + TIP_ROOM > width - 12;
+/** A small "i" that explains itself on hover and on keyboard focus. The text is also its accessible name. Near the right edge it opens to the left. */
+/** Task #230: the right edge the open tip must stay inside: the window, or the nearest box that clips its overflow (a card), whichever is nearer. */
+export function clipRight(el: Element): number {
+  let right = typeof innerWidth === "number" ? innerWidth : 0;
+  for (let p = el.parentElement; p && p !== document.body; p = p.parentElement) {
+    const o = getComputedStyle(p); if (/hidden|clip|auto|scroll/.test(`${o.overflowX} ${o.overflow}`)) { right = Math.min(right, p.getBoundingClientRect().right); break; }
+  }
+  return right;
+}
+
 export function InfoTip({ text, end = false }: { text: string; end?: boolean }) {
-  return <span className={"pcx-i" + (end ? " end" : "")} tabIndex={0} role="img" aria-label={text}>i<span className="pcx-tip" aria-hidden="true">{text}</span></span>;
+  const [near, setNear] = useState(false), ref = useRef<HTMLSpanElement>(null);
+  const check = () => { const el = ref.current; if (el && el.getBoundingClientRect().width) setNear(nearRightEdge(el.getBoundingClientRect().left, clipRight(el))); };
+  // on load and resize as well as on hover: a hidden tip that opens to the right must never widen the page (README 1.5)
+  useEffect(() => { check(); addEventListener("resize", check); return () => removeEventListener("resize", check); }, []);   // eslint-disable-line react-hooks/exhaustive-deps
+  return <span ref={ref} className={"pcx-i" + (end || near ? " end" : "")} tabIndex={0} role="img" aria-label={text} onMouseEnter={check} onFocus={check}>i<span className="pcx-tip" aria-hidden="true">{text}</span></span>;
 }
 
 /* ------------------------------------------------------------------ the segmented ring */
@@ -105,7 +121,7 @@ export function FundamentalSection({ r, parts, example = false, children }: { r:
       <header className="pcx-sh">
         <span className="pcx-ic" aria-hidden="true"><Icon name="coins" /></span>
         <div className="pcx-ht"><h3>{techIn ? "Prism score" : "Fundamental analysis"}</h3><p>{fundSubtitle(n)}</p></div>
-        <p className="pcx-note"><Icon name="info" /><span>{techIn ? SCORE_NOTE_WITH_TECH : FUND_NOTE}</span></p>
+        {techIn && <p className="pcx-note"><Icon name="info" /><span>{SCORE_NOTE_WITH_TECH}</span></p>}
       </header>
       <div className="pcx-fb">
         <div className="pcx-rc">
@@ -138,23 +154,28 @@ function HorizonPanel({ title, h, index }: { title: string; h: TechHorizon; inde
       <span className="pcx-sc" aria-hidden="true">
         <span className="pcx-zones">{widths.map((x, i) => <i key={i} className={"z" + (i + 1)} style={{ width: `${x}%` }} />)}</span>
         {edges.map((e) => <u key={e} style={{ left: `${e}%` }} />)}
+        {/* task #216 (README 2.2): the bar fills from 0 to the reading, green above 0 and red below, with a mark at 0 */}
+        {has && <b className={"pcx-tfill " + ((h.score ?? 0) >= 0 ? "up" : "down")} style={{ left: `${Math.min(scalePos(0), scalePos(h.score))}%`, width: `${Math.abs(scalePos(h.score) - scalePos(0))}%` }} />}
+        <s className="pcx-zero" style={{ left: `${scalePos(0)}%` }} />
         {has && <em style={{ left: `${scalePos(h.score)}%` }} />}
       </span>
-      <span className="pcx-sl" aria-hidden="true"><span>Strong downtrend</span><span>Sideways</span><span>Strong uptrend</span></span>
-      {sig && <p className={"pcx-sg" + (h.availableCount < h.requiredCount ? " warn" : "")}>{sig}</p>}
+      <span className="pcx-sl" aria-hidden="true"><span>Strong downtrend</span><span>Sideways · 0</span><span>Strong uptrend</span></span>
+      {sig && <p className={"pcx-sg" + (h.availableCount < h.requiredCount ? " warn" : " all")}><Icon name={h.availableCount < h.requiredCount ? "info" : "check"} />{sig}</p>}
     </div>
   );
 }
 
-export function TechnicalSection({ a, report, onRecalculate, busy }: { a: TechAssessment | null; report: PrismLatest; onRecalculate?: () => void; busy?: boolean }) {
+/** `bare` (task #220, README 3.2): only the two trend cards and the alignment card, with `after` under the alignment card; the Prism report's 02
+ *  renders this same component again instead of a copy. */
+/** `foot` (task #328, developer file 27 change 1): the card's "Updated …" date and the full-report button close the technical panel, not a row of their own. */
+export function TechnicalSection({ a, report, onRecalculate, busy, bare = false, after, foot }: { a: TechAssessment | null; report: PrismLatest; onRecalculate?: () => void; busy?: boolean; bare?: boolean; after?: ReactNode; foot?: ReactNode }) {
   const al = a ? trendAlignment(a.shortTerm.score, a.longTerm.score) : null;
   return (
     <section className="pcx-sec tech" aria-label="Technical analysis, separate from the Prism score">
-      <header className="pcx-sh">
+      {!bare && <header className="pcx-sh">
         <span className="pcx-ic" aria-hidden="true"><Icon name="line" /></span>
-        <div className="pcx-ht"><div className="pcx-hrow"><h3>Technical analysis</h3><InfoTip text={TECH_NOTE} /></div><p>{TECH_SUBTITLE}</p></div>
-        <p className="pcx-note"><Icon name="info" /><span>{TECH_SEPARATE_NOTE}</span></p>
-      </header>
+        <div className="pcx-ht"><h3 className="pcx-hrow">Technical <span className="pcx-nw">analysis<InfoTip text={TECH_NOTE} /></span></h3><p>{TECH_SUBTITLE}</p></div>
+      </header>}
       {a ? (
         <>
           <div className="pcx-tp" role="group" aria-label="Technical view, separate from the Prism score: short term and long term">
@@ -170,9 +191,11 @@ export function TechnicalSection({ a, report, onRecalculate, busy }: { a: TechAs
               <span className="pcx-at"><b>{al.label}</b><small>{alignSentence(al)}</small></span>
             </div>
           )}
-          <TechAsOf asOf={report.technical?.asOf ?? a.asOf} stale={report.technical?.stale} refreshing={report.technical?.refreshing} />
+          {after}
+          {!bare && <TechAsOf asOf={report.technical?.asOf ?? a.asOf} stale={report.technical?.stale} refreshing={report.technical?.refreshing} />}
         </>
       ) : <div className="pcx-tq"><PrismTechRow report={report} onRecalculate={onRecalculate} busy={busy} /></div>}
+      {foot}
     </section>
   );
 }

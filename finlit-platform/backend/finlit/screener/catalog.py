@@ -25,17 +25,20 @@ GROUPS = [
     ("size", "Size & price"), ("returns", "Returns"), ("valuation", "Valuation"), ("profitability", "Profitability"), ("growth", "Growth"),
     ("quarterly", "Quarterly results"), ("health", "Financial health"), ("liquidity", "Liquidity"), ("solvency", "Solvency"), ("efficiency", "Efficiency"),
     ("ownership", "Ownership"), ("events", "Company events"), ("flags", "Red flags"), ("banks", "Banks & lenders"), ("trading", "Volume, range & trend"),
-    ("model", "FinLit IQ"), ("prism", "FinLit Prism"),
+    ("model", "Retired score"), ("prism", "FinLit Prism"),
 ]
 GROUP_LABEL = dict(GROUPS)
-# One score per plan (founder, 13 Nov 2026, tasks #64 and #100): Silver filters by the FinLit IQ ("model"), Gold and up by FinLit Prism ("prism") and never see the IQ.
+# Task #283 (21 Nov 2026): FinLit Prism ("prism", Gold and up) is FinLit's only company score. The retired FinLit IQ's group ("model": overall, its five pillars,
+# its change and report counts) is offered to no plan: no filter list, column, sort, query or ratio list shows it. Its figures stay in the table (the universe and
+# the members' saved items still carry them until the data change), so they are kept below, unoffered.
 GROUP_TIER = {"model": "silver", "prism": "gold"}
+RETIRED_GROUPS = ("model",)
 
 
 def offered(plan: str, group: str) -> bool:
-    """Whether a plan is shown a group at all: Gold has the Prism group instead of the FinLit IQ group, every other plan the IQ group (locked below Silver) and no Prism."""
+    """Whether a plan is shown a group at all: the retired score's group never; FinLit Prism for Gold and up (below Gold, no Prism, as before)."""
     gold = plan in ("gold", "admin", "platinum")
-    return not (gold and group == "model") and not (not gold and group == "prism")
+    return group not in RETIRED_GROUPS and not (not gold and group == "prism")
 
 M = Metric
 _B = "basic"
@@ -263,16 +266,17 @@ CATALOG: List[Metric] = [
     M("turnover20_cr", "Average value traded (20 sessions)", "trading", "Cr", "none", "silver", "The average of price times volume over the last 20 sessions, in rupee crore.", 1),
     M("volatility", "Volatility (yearly)", "trading", "%", "lower", "silver", "How much the price swings in a year.", 0),
     M("max_drawdown", "Worst fall (since data starts)", "trading", "%", "higher", "silver", "Biggest drop from a peak to a low.", 0),
-    # ---- FinLit IQ (Silver; Gold sees FinLit Prism instead). No formula, cut-off or weight in any text (task #64, P-2).
-    M("overall", "FinLit IQ", "model", "pts", "higher", "silver", "FinLit's score for the company, 0 to 100, from its filed statements and prices.", 0),
-    M("pillar_quality", "Quality", "model", "pts", "higher", "silver", "The FinLit IQ's Quality part, 0 to 100: returns on money and cash behind profit.", 0),
-    M("pillar_growth", "Growth", "model", "pts", "higher", "silver", "The FinLit IQ's Growth part, 0 to 100: how sales and profit have grown.", 0),
-    M("pillar_profitability", "Profitability", "model", "pts", "higher", "silver", "The FinLit IQ's Profitability part, 0 to 100: margins and returns.", 0),
-    M("pillar_balance", "Balance sheet", "model", "pts", "higher", "silver", "The FinLit IQ's Balance sheet part, 0 to 100: debt, liquidity and interest cover.", 0),
-    M("pillar_technical", "Technical", "model", "pts", "higher", "silver", "The FinLit IQ's Technical part, 0 to 100: the price trend.", 0),
-    M("score_change", "FinLit IQ change since last quarter", "model", "pts", "higher", "silver", "Points the FinLit IQ moved since the last quarter.", 0),
-    M("strengths_count", "Strengths found", "model", "n", "higher", "silver", "How many strengths the FinLit IQ report lists for the company.", 0),
-    M("watchouts_count", "Watch-outs found", "model", "n", "lower", "silver", "How many watch-outs the FinLit IQ report lists for the company.", 0),
+    # ---- the retired overall score (task #283): offered to no plan (RETIRED_GROUPS); kept only so the table and older saved items still read. No formula,
+    # cut-off or weight in any text (task #64, P-2).
+    M("overall", "Overall score (retired)", "model", "pts", "higher", "silver", "The retired overall score, 0 to 100. FinLit Prism is FinLit's only company score.", 0),
+    M("pillar_quality", "Quality (retired)", "model", "pts", "higher", "silver", "A part of the retired overall score, 0 to 100: returns on money and cash behind profit.", 0),
+    M("pillar_growth", "Growth (retired)", "model", "pts", "higher", "silver", "A part of the retired overall score, 0 to 100: how sales and profit have grown.", 0),
+    M("pillar_profitability", "Profitability (retired)", "model", "pts", "higher", "silver", "A part of the retired overall score, 0 to 100: margins and returns.", 0),
+    M("pillar_balance", "Balance sheet (retired)", "model", "pts", "higher", "silver", "A part of the retired overall score, 0 to 100: debt, liquidity and interest cover.", 0),
+    M("pillar_technical", "Technical (retired)", "model", "pts", "higher", "silver", "A part of the retired overall score, 0 to 100: the price trend.", 0),
+    M("score_change", "Retired score change since last quarter", "model", "pts", "higher", "silver", "Points the retired overall score moved since the last quarter.", 0),
+    M("strengths_count", "Strengths found", "model", "n", "higher", "silver", "How many strengths the company report lists for the company.", 0),
+    M("watchouts_count", "Watch-outs found", "model", "n", "lower", "silver", "How many watch-outs the company report lists for the company.", 0),
     # ---- FinLit Prism (Gold): the stored rating of each company, 0 to 100 (the two views -100 to +100); a company not rated yet has no figure
     M("prism_final", "Fundamental Prism score", "prism", "pts", "higher", "gold", "FinLit Prism's rating of the company, 0 to 100. Higher is better.", 0),
     M("prism_fundamental", "Prism Growth & Profitability", "prism", "pts", "higher", "gold", "Prism's Growth & Profitability part, 0 to 100: how steadily sales and profit grow.", 0),
@@ -293,7 +297,7 @@ SCALE: Dict[str, Tuple[float, float]] = {
 # "Now / 3Y avg / 5Y avg / 7Y avg" tabs: base filter -> the filter behind each tab
 VARIANTS: Dict[str, Dict[str, str]] = {b: {"now": b, "3y": f"{b}_avg_3y", "5y": f"{b}_avg_5y", "7y": f"{b}_avg_7y"} for b in ("pe", "pb", "ps")}
 # Stored beside the filters in `scores.metrics` but not a filter: which quarter q_revenue and the other q_* figures are for (yyyymmdd).
-INTERNAL_KEYS = {"q_period_end", "m_ver"}
+INTERNAL_KEYS = {"q_period_end", "m_ver", "volume_vs_avg_on"}   # volume_vs_avg_on: the session the volume ratio is measured at (task #243, D4)
 HIDDEN = {v for tabs in VARIANTS.values() for k, v in tabs.items() if k != "now"}   # shown only through their tabs
 RANK = {"basic": 0, "silver": 1, "gold": 2}
 
@@ -304,17 +308,20 @@ INDEX_LISTS = {  # code -> (label, niftyindices file)
     "NIFTYMIDCAP100": ("NIFTY Midcap 100", "ind_niftymidcap100list"), "NIFTYSMALLCAP250": ("NIFTY Smallcap 250", "ind_niftysmallcap250list"),
     "NIFTYSMALLCAP100": ("NIFTY Smallcap 100", "ind_niftysmallcap100list"), "NIFTYMIDSMALL400": ("NIFTY MidSmallcap 400", "ind_niftymidsmallcap400list"),
     "NIFTYLARGEMID250": ("NIFTY LargeMidcap 250", "ind_niftylargemidcap250list"), "NIFTYBANK": ("NIFTY Bank", "ind_niftybanklist"),
+    # task #261 (the dashboard's Index heatmap): Midcap 50, Midcap Select, Smallcap 50 and Microcap 250, as NSE names its files
+    "NIFTYMIDCAP50": ("NIFTY Midcap 50", "ind_niftymidcap50list"), "NIFTYMIDCAPSELECT": ("NIFTY Midcap Select", "ind_niftymidcapselect_list"),
+    "NIFTYSMALLCAP50": ("NIFTY Smallcap 50", "ind_niftysmallcap50list"), "NIFTYMICROCAP250": ("NIFTY Microcap 250", "ind_niftymicrocap250_list"),
     "NIFTYIT": ("NIFTY IT", "ind_niftyitlist"), "NIFTYFMCG": ("NIFTY FMCG", "ind_niftyfmcglist"), "NIFTYPHARMA": ("NIFTY Pharma", "ind_niftypharmalist"),
     "NIFTYAUTO": ("NIFTY Auto", "ind_niftyautolist"),
     # sector indices for the dashboard's sectoral activity (a list the exchange does not publish under this name is skipped by the nightly job)
     "NIFTYFINSERVICE": ("NIFTY Financial Services", "ind_niftyfinancelist"), "NIFTYPVTBANK": ("NIFTY Private Bank", "ind_nifty_privatebanklist"),
     "NIFTYPSUBANK": ("NIFTY PSU Bank", "ind_niftypsubanklist"), "NIFTYENERGY": ("NIFTY Energy", "ind_niftyenergylist"), "NIFTYOILGAS": ("NIFTY Oil & Gas", "ind_niftyoilgaslist"),
     "NIFTYCONSUMERDURABLES": ("NIFTY Consumer Durables", "ind_niftyconsumerdurableslist"), "NIFTYHEALTHCARE": ("NIFTY Healthcare", "ind_niftyhealthcarelist"),
-    "NIFTYINFRA": ("NIFTY Infrastructure", "ind_niftyinfralist"), "NIFTYMANUFACTURING": ("NIFTY India Manufacturing", "ind_niftyindiamanufacturinglist"),
+    "NIFTYINFRA": ("NIFTY Infrastructure", "ind_niftyinfralist"), "NIFTYMANUFACTURING": ("NIFTY India Manufacturing", "ind_niftyindiamanufacturing_list"),
     "NIFTYREALTY": ("NIFTY Realty", "ind_niftyrealtylist"), "NIFTYMEDIA": ("NIFTY Media", "ind_niftymedialist"), "NIFTYMETAL": ("NIFTY Metal", "ind_niftymetallist"),
     "NIFTYCOMMODITIES": ("NIFTY Commodities", "ind_niftycommoditieslist"),
 }
-CAPS = ("Large", "Mid", "Small")
+from ..sizes import SIZES as CAPS   # task #262: Large, Mid, Small, Micro (finlit/sizes.py)
 
 
 def tier_of(key: str) -> str:

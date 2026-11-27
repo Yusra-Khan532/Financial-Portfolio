@@ -15,6 +15,9 @@ export type Recent = { date: string; title: string; text: string; cites: Cite[] 
 export type Brief = {
   symbol: string; name: string; as_of: string; status?: string; template?: string; docs: Record<string, Doc>; about: Line[]; key_figures?: Figure[];
   group?: { as_of?: string; rows: GroupRow[] }; segments: Segment[]; mix?: { period?: string; ebitda?: MixSide; revenue?: MixSide }; recent: Recent[]; gaps?: string[]; disclaimer?: string;
+  /** brief v3 (task #312, developer file 20): what management says it will do, and the catalysts on file */
+  plans?: { text: string; by_when?: string | null; status?: string | null; cites: Cite[] }[];
+  catalysts?: { type: string; date?: string | null; text: string; value_cr?: number | null; cites: Cite[] }[];
 };
 export type Checks = { date?: string | null; citations: number; passed: number; unchecked: number; fixed: string[]; method?: string | null };
 export type BriefReply =

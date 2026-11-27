@@ -15,7 +15,7 @@ vi.mock("../lib/ui", () => ({ useUI: () => ({ plan: st.plan, upgrade: st.upgrade
 vi.mock("../lib/auth", () => ({ useAuth: () => ({ user: null }) }));
 vi.mock("../lib/title", () => ({ useDocTitle: () => undefined }));
 vi.mock("../components/ChartHelp", () => ({ ChartHelp: () => null }));
-import { QuarterResultsPage } from "./QuarterResults";
+import { CompaniesView } from "./QuarterResults";
 
 const summary = { companies: 10, declared: 10, due: 0, awaiting: 0, withNumbers: 8, flagged: 0, medianRevenueYoY: 1, medianProfitYoY: 1, profitUpShare: 50, marginUpShare: 50, nRevenue: 8, nProfit: 8, nMargin: 8 };
 const resp = (over: Partial<QResp> = {}): QResp => ({
@@ -26,9 +26,13 @@ const resp = (over: Partial<QResp> = {}): QResp => ({
   distribution: { total: 5, sectors: [{ name: "IT", n: 3 }, { name: "Banks", n: 1 }, { name: "Others", n: 1 }], caps: [{ name: "Large", n: 4 }, { name: "Not classified", n: 1 }] }, ...over,
 });
 const Where = () => { const l = useLocation(); return <output data-testid="loc">{l.pathname + l.search}</output>; };
-const open = (qs = "") => render(<MemoryRouter initialEntries={["/results/quarter" + qs]}><Routes><Route path="/results/quarter" element={<QuarterResultsPage />} /></Routes><Where /></MemoryRouter>);
+// task #330: the growth and price filters open from the filter bar's "Growth and price filters" button (they were always in the side panel)
+const open = (qs = "") => { const r = render(<MemoryRouter initialEntries={["/results/quarter" + qs]}><Routes><Route path="/results/quarter" element={<CompaniesView />} /></Routes><Where /></MemoryRouter>);
+  fireEvent.click(screen.getByRole("button", { name: /Growth and price filters/ })); return r; };
 const loc = () => decodeURIComponent(screen.getByTestId("loc").textContent || "");
-const lastParams = () => st.params[st.params.length - 1] as QParams;
+// the page's own request (it carries the page offset); the six tiles ask for whole-quarter figures by size alongside it (task #194)
+const lastParams = () => st.params.filter((p) => "offset" in (p as object)).at(-1) as QParams;
+const panel = () => within(document.querySelector(".qg") as HTMLElement);
 const cellIn = (what: string) => ({ op: screen.getByLabelText(`${what} operator`) as HTMLSelectElement, val: screen.getByLabelText(`${what} value in per cent`) as HTMLInputElement });
 const type = (what: string, v: string) => { const { val } = cellIn(what); fireEvent.change(val, { target: { value: v } }); fireEvent.keyDown(val, { key: "Enter" }); };
 
@@ -121,16 +125,16 @@ describe("the panel", () => {
   });
   it("fills the grid from a preset and Reset clears only the growth filters", () => {
     open("?quarter=2026-09");
-    fireEvent.click(screen.getByRole("button", { name: "10% or more on all four" }));
+    fireEvent.click(panel().getByRole("button", { name: "10% or more on all four" }));
     expect(cellIn("Revenue QoQ").val.value).toBe("10"); expect(cellIn("Net profit YoY").val.value).toBe("10"); expect(cellIn("Operating profit QoQ").val.value).toBe("");
-    expect(screen.getByRole("button", { name: "10% or more on all four" }).getAttribute("aria-pressed")).toBe("true");
+    expect(panel().getByRole("button", { name: "10% or more on all four" }).getAttribute("aria-pressed")).toBe("true");
     expect(lastParams()).toMatchObject({ quarter: "2026-09", revQoQValue: "10", revYoYValue: "10", npQoQValue: "10", npYoYValue: "10" });
-    fireEvent.click(screen.getByRole("button", { name: "Revenue and net profit both growing" }));
+    fireEvent.click(panel().getByRole("button", { name: "Revenue and net profit both growing" }));
     expect(lastParams()).toMatchObject({ revQoQOp: ">", revQoQValue: "0" });
-    fireEvent.click(screen.getByRole("button", { name: "Reset filters" }));
+    fireEvent.click(screen.getByRole("button", { name: "Clear growth and price filters" }));
     expect(loc()).toBe("/results/quarter?quarter=2026-09");
     expect(lastParams().revQoQValue).toBeUndefined();
-    expect((screen.getByRole("button", { name: "Reset filters" }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole("button", { name: "Clear growth and price filters" }) as HTMLButtonElement).disabled).toBe(true);
   });
   it("starts from an old shared link and from a grid link", () => {
     open("?quarter=2026-09&qoqMetric=revenue&qoqValue=1&yoyValue=-3&yoyOp=%3C%3D&join=or");
@@ -159,7 +163,7 @@ describe("the panel", () => {
     expect(st.upgrade).toHaveBeenCalledWith("silver", expect.stringMatching(/growth/i));
     expect(loc()).toBe("/results/quarter");
     expect(st.params.every((p) => (p as QParams).revQoQValue === undefined)).toBe(true);
-    expect(screen.getByText(/part of the Silver plan/, { selector: ".qg-none" })).toBeTruthy();
+    expect(screen.getByText(/Growth filters and their counts are part of every paid plan/)).toBeTruthy();
   });
   it("uses only wording that is information, never advice", () => {
     open();
@@ -205,57 +209,43 @@ describe("the table", () => {
     st.resp = resp({ rows: [row], total: 1 });
     open("?revYoYValue=10&revQoQValue=0&npYoYOp=%3E&npYoYValue=29");
     const hits = Array.from(document.querySelectorAll("td.qr-hit")).map((td) => td.textContent);
-    expect(hits).toEqual(["+12.0% (meets your growth filter)", "+30.0% (meets your growth filter)"]);   // revenue QoQ -3 does not meet >= 0
+    expect(hits).toHaveLength(2);   // task #330: the growth cell carries QoQ under YoY; revenue QoQ -3 does not meet >= 0, so only the two YoY cells are marked
+    expect(hits[0]).toMatch(/^\+12\.0%.*\(meets your growth filter\)$/); expect(hits[1]).toMatch(/^\+30\.0%.*\(meets your growth filter\)$/);
   });
 });
 
-describe("the charts", () => {
-  it("shows the three-way split with counts and shares, and the same text in the aria-label", () => {
+describe("the list at a glance (task #194: one card replaces the three donut boxes)", () => {
+  const card = () => screen.getByRole("region", { name: "The list at a glance" });
+  it("counts the companies meeting the growth conditions, out of those with figures", () => {
     open("?revQoQValue=1&npYoYValue=10");
-    const svg = screen.getByRole("img", { name: /^Companies meeting the growth conditions/ });
-    expect(svg.getAttribute("aria-label")).toBe("Companies meeting the growth conditions: Meet all 2 2 (25.0%), Meet some, not all 4 (50.0%), Meet none 2 (25.0%)");
-    const legend = screen.getByRole("list", { name: /Companies meeting the growth conditions, counts and shares/ });
-    const counts = within(legend).getAllByRole("listitem").map((li) => Number(li.querySelector("b")!.textContent));
-    expect(counts).toEqual([2, 4, 2]); expect(counts.reduce((a, b) => a + b, 0)).toBe(8);
+    expect(within(card()).getByText("2", { selector: ".big" })).toBeTruthy();
+    expect(card().textContent).toMatch(/of the 8 companies with figures meet all 2 of your conditions/);
   });
-  it("shows the sector and market cap donuts from the server's counts", () => {
+  it("shows size and macro sector as full-width bars, with every count, share and full name", () => {
     open();
-    expect(screen.getByRole("img", { name: "Sector-wise distribution: IT 3 (60.0%), Banks 1 (20.0%), Others 1 (20.0%)" })).toBeTruthy();
-    expect(screen.getByRole("img", { name: "Market cap distribution: Large 4 (80.0%), Not classified 1 (20.0%)" })).toBeTruthy();
+    expect(within(card()).getByRole("img", { name: "Companies by size: Large 4, Not classified 1" })).toBeTruthy();
+    expect(within(card()).getByRole("img", { name: "Companies by macro sector: IT 3, Banks 1, Others 1" })).toBeTruthy();
+    expect(card().textContent).toMatch(/By macro sector/); expect(card().textContent).not.toMatch(/Sector-wise distribution/);
+    expect(card().textContent).toMatch(/Large above ₹75,000 Cr · Mid ₹25,000–75,000 Cr · Small ₹10,000–25,000 Cr · Micro below/);
+    const legend = Array.from(card().querySelectorAll(".rs-gleg li")).map((li) => li.textContent);
+    expect(legend).toEqual(["IT360.0%", "Banks120.0%", "Others120.0%"]);
+    expect(card().querySelectorAll(".rs-gsz li").length).toBe(2);
+    expect(screen.getAllByRole("button", { name: /^Hide/ }).filter((b) => card().contains(b)).length).toBe(1);   // one Hide button, no Expand
   });
-  it("uses a two-slice split for a single condition and a sentence when there is nothing to chart", () => {
-    st.resp = resp({ growth: { join: "and", k: 1, withFigures: 4, matching: 1, metAll: 1, metSome: 0, metNone: 3, conditions: [{ metric: "revenue", period: "qoq", op: ">=", value: 1, met: 1, missing: 0 }] }, distribution: { total: 0, sectors: [], caps: [] } });
-    open("?revQoQValue=1");
-    expect(screen.getByRole("img", { name: "Companies meeting the growth conditions: Meets the condition 1 (25.0%), Does not meet it 3 (75.0%)" })).toBeTruthy();
-    expect(screen.getByRole("img", { name: "Sector-wise distribution: No companies in this view." })).toBeTruthy();
+  it("offers three quick fills with no filter on, and a quick fill sets the growth filter", () => {
+    st.resp = resp({ growth: null });
+    open();
+    expect(within(card()).getByText("—", { selector: ".big" })).toBeTruthy();
+    const fills = within(within(card()).getByRole("group", { name: "Quick fills" })).getAllByRole("button").map((b) => b.textContent);
+    expect(fills).toEqual(["Revenue and net profit both growing", "10% or more on all four", "Growth and near 52-week high"]);
+    fireEvent.click(within(card()).getByRole("button", { name: "Revenue and net profit both growing" }));
+    expect(loc()).toMatch(/revQoQ/);
+  });
+  it("says there is nothing to count when the list is empty", () => {
+    st.resp = resp({ growth: null, distribution: { total: 0, sectors: [], caps: [] } });
+    open();
+    expect(card().textContent).toMatch(/No companies in this view/);
   });
 });
 
-describe("the filter box of Latest results", () => {
-  it("is headed Filters, and an arrow in it hides the box (the toolbar button brings it back)", () => {
-    open();
-    const box = screen.getByRole("complementary", { name: "Filters" });
-    expect(within(box).getByRole("heading", { name: "Filters" })).toBeTruthy();
-    const hide = within(box).getByRole("button", { name: "Hide filters" });
-    expect(hide.getAttribute("aria-expanded")).toBe("true");
-    fireEvent.click(hide);
-    expect(document.getElementById("qr-filters")?.hasAttribute("hidden")).toBe(true);
-    fireEvent.click(screen.getByRole("button", { name: /Show filters/ }));
-    expect(document.getElementById("qr-filters")?.hasAttribute("hidden")).toBe(false);
-  });
-  it("has a drag-and-pull bar between the filters and the results: arrow keys resize it, and Enter, a double-click or pulling it to the edge hides the filters", () => {
-    open();
-    const bar = screen.getByRole("separator", { name: /Resize the filters panel/ });
-    expect(bar.getAttribute("aria-valuenow")).toBe("330");
-    fireEvent.keyDown(bar, { key: "ArrowRight" });
-    expect(bar.getAttribute("aria-valuenow")).toBe("360");
-    for (let i = 0; i < 12; i++) fireEvent.keyDown(bar, { key: "ArrowLeft" });                 // the arrow keys stop at the narrowest useful width
-    expect(bar.getAttribute("aria-valuenow")).toBe("240");
-    fireEvent.keyDown(bar, { key: "Enter" });                                                   // Enter (or a double-click, or pulling it to the edge) hides the filters
-    expect(bar.getAttribute("aria-valuenow")).toBe("0");
-    expect(document.getElementById("qr-filters")?.hasAttribute("hidden")).toBe(true);
-    fireEvent.doubleClick(bar);                                                                 // and a double-click brings them back
-    expect(bar.getAttribute("aria-valuenow")).toBe("330");
-    expect(document.getElementById("qr-filters")?.hasAttribute("hidden")).toBe(false);
-  });
-});
+// task #330 (file 28): the filter side panel, its arrow and its drag bar are gone: the filters sit in a bar above a full-width table ("Hide filters, widen table: Gone")

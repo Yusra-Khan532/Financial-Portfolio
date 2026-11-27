@@ -62,9 +62,12 @@ def test_corrections_from_page_audit(reliance_sections):
     # 2. FinEdge's TTM ROCE duplicated TTM ROE; we show FY26 ROCE and say so
     assert metrics["roe"]["value"] != metrics["roce"]["value"] and metrics["roce"]["period"] == "FY26"
     assert s["summary"]["dataQuality"]["notes"]
-    # 3. One price series: the chart ends at the header price, and returns use the same series
+    # 3. One price series: the header price, returns and technicals read the daily series with the live quote as its provisional last bar; the
+    # stored chart is that same series without the part-day bar (task #394 F2, developer file 37): it ends on the last official close
     one_year = s["price-1Y"]["series"]
-    assert one_year["c"][-1] == s["summary"]["quote"]["price"]
+    daily = s["price"]["daily"]
+    assert s["summary"]["dataQuality"]["provisionalLastBar"] and daily["c"][-1] == s["summary"]["quote"]["price"]
+    assert one_year["t"][-1] == daily["t"][-2] and one_year["c"][-1] == daily["c"][-2] and s["price-1Y"]["provisionalLastBar"] is False
     # 4. Dividends belong to the year they were declared for, and payout uses the same figures
     dps = s["events"]["dividendsByFY"]
     assert dps["periods"][-1] == "FY26" and dps["dps"][-1] == 6.0

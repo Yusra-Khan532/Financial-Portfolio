@@ -1,14 +1,14 @@
 // The list's controls: search, filters, the column picker and the page buttons.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "../lib/icons";
-import { COLUMNS, DEFAULT_COLS, PAGE_DEFAULTS, SIZES, activeFilterCount, cleanNum, pageWindow, type ColId, type FundFilters, type ListQuery } from "../lib/mf";
+import { COLUMNS, DEFAULT_COLS, SIZES, tabDefaults, activeFilterCount, cleanNum, pageWindow, type ColId, type FundFilters, type ListQuery } from "../lib/mf";
 import { Pick, type PickItem } from "./Pick";
 
 const RANGES: { k: "1y" | "5y"; label: string }[] = [{ k: "1y", label: "1 year return (total)" }, { k: "5y", label: "5 year return, per year (CAGR)" }];
 
 function Seg({ label, value, options, onChange }: { label: string; value: string; options: [string, string][]; onChange: (v: string) => void }) {
   return (
-    <div className="mf-seg-w"><span className="sr-only" id={`seg-${label}`}>{label}</span>
+    <div className="mf-seg-w"><span className="label" id={`seg-${label}`}>{label}</span>
       <div className="seg" role="group" aria-labelledby={`seg-${label}`}>{options.map(([v, t]) => <button key={v} type="button" aria-pressed={value === v} onClick={() => onChange(v)}>{t}</button>)}</div></div>
   );
 }
@@ -29,26 +29,38 @@ function RangeBox({ label, lo, hi, onLo, onHi }: { label: string; lo: string; hi
   );
 }
 
-/** One filter bar (task #130 C-6): search, fund house, Plan (Direct · Regular · All) and Option (Growth · IDCW · Not stated · All) as segments,
- *  "Return range" opening in place, and the stopped-schemes tick, all in one row that wraps. The categories are chosen above it (mf/Dashboard). */
-export function Controls({ q, text, onText, set, filters, loading }: { q: ListQuery; text: string; onText: (t: string) => void; set: (p: Partial<ListQuery>) => void; filters?: FundFilters; loading: boolean }) {
-  const amcs: PickItem[] = useMemo(() => (filters?.amcs || []).filter((a) => q.stopped || a.active > 0).map((a) => ({ value: a.name, label: a.name, count: q.stopped ? a.total : a.active })), [filters, q.stopped]);
+/** The filters (task #130 C-6), in two rows since task #341 (the Mutual Funds refinement prompt, section 11): row 1 the main filters, search,
+ *  Fund house, Plan (Direct · Regular · All) and Option (Growth · IDCW · Not stated · All), each with its label above it; row 2 the extra ones,
+ *  "Return range" (opening in place) and Status (still publishing · stopped · All; task #369, was a tick box), with Clear. Nothing is chosen on arrival
+ *  (task #369): every plan, option and status shows.
+ *  The categories are chosen above it (mf/Dashboard). */
+export function Controls({ q, text, onText, set, filters, loading, part }: { q: ListQuery; text: string; onText: (t: string) => void; set: (p: Partial<ListQuery>) => void; filters?: FundFilters; loading: boolean;
+  /** task #347: in the filter panel the search sits at the top on its own ("search") and the other filters under the categories ("rest") */ part?: "search" | "rest" }) {
+  const amcs: PickItem[] = useMemo(() => (filters?.amcs || []).map((a) => ({ value: a.name, label: a.name, count: q.status === "active" ? a.active : q.status === "stopped" ? a.total - a.active : a.total }))
+    .filter((a) => a.count > 0), [filters, q.status]);
   const n = activeFilterCount(q);
   const ranged = RANGES.some((r) => q[`min${r.k}` as "min1y"] || q[`max${r.k}` as "max1y"]);
   const [more, setMore] = useState(ranged);
-  return (
-    <section className="card mf-ctl" aria-label="Search and filters">
-      <div className="mf-fbar">
+  const search = (
+        <div className="mf-search-w"><span className="label" aria-hidden="true">Search</span>
         <label className="mf-search"><Icon name="search" /><span className="sr-only">Search schemes by name or fund house</span>
           <input type="search" value={text} onChange={(e) => onText(e.target.value)} placeholder="Search a scheme or fund house…" autoComplete="off" spellCheck={false} />
           {loading && <span className="mf-busy" role="status">Loading…</span>}
-        </label>
+        </label></div>);
+  if (part === "search") return <div className="mf-ctl mf-ctl-search" role="search" aria-label="Search schemes">{search}</div>;
+  return (
+    <section className={"mf-ctl" + (part === "rest" ? " mf-ctl-rest" : " card")} aria-label={part === "rest" ? "More filters" : "Search and filters"}>
+      <div className="mf-fbar">
+        {part !== "rest" && search}
         <Pick label="Fund house" value={q.amc} items={amcs} any="All fund houses" onChange={(v) => set({ amc: v })} />
         <Seg label="Plan" value={q.plan} onChange={(v) => set({ plan: v })} options={[["Direct", "Direct"], ["Regular", "Regular"], ["", "All"]]} />
         <Seg label="Option" value={q.option} onChange={(v) => set({ option: v })} options={[["", "Growth"], ["IDCW", "IDCW"], ["Other", "Not stated"], ["All", "All"]]} />
+      </div>
+      <div className="mf-fbar mf-fbar2">
         <button type="button" className={"btn mf-rangebtn" + (ranged ? " on" : "")} aria-expanded={more} aria-controls="mf-ranges" onClick={() => setMore((m) => !m)}>Return range{ranged ? " · on" : ""} <span aria-hidden="true">{more ? "▴" : "▾"}</span></button>
-        <label className="mf-check mf-stopck"><input type="checkbox" checked={q.stopped} onChange={(e) => set({ stopped: e.target.checked })} /> Include schemes that stopped publishing NAVs</label>
-        {n > 0 && <button type="button" className="mf-linkbtn" onClick={() => set({ amc: "", plan: PAGE_DEFAULTS.plan, option: "", stopped: false, min1y: "", max1y: "", min5y: "", max5y: "" })}>Clear {n} filter{n > 1 ? "s" : ""}</button>}
+        {/* task #369: every scheme is listed on arrival; still publishing or stopped is a filter the user chooses (it was a tick box that added the stopped ones) */}
+        <Seg label="Status" value={q.status} onChange={(v) => set({ status: v as ListQuery["status"] })} options={[["active", "Still publishing"], ["stopped", "Stopped"], ["", "All"]]} />
+        {n > 0 && <button type="button" className="mf-linkbtn" onClick={() => set({ amc: "", ...tabDefaults(q.tab), status: "", min1y: "", max1y: "", min5y: "", max5y: "" })}>Clear {n} filter{n > 1 ? "s" : ""}</button>}
       </div>
       {more && (
         <div className="mf-ranges" id="mf-ranges">

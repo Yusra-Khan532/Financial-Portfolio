@@ -14,15 +14,23 @@ jobs:
     runs-on: ubuntu-latest
     defaults: {run: {working-directory: finlit-platform/frontend}}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: {persist-credentials: false}
-      - uses: actions/setup-node@v5
-        with: {node-version: "22", cache: npm, cache-dependency-path: finlit-platform/frontend/package-lock.json}
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: |
+            finlit-platform/frontend/package-lock.json
+            finlit-platform/frontend/lint/package-lock.json
       - run: npm ci
       - run: npm run typecheck
+      # React hooks rules (lint/eslint.config.mjs): a hook called conditionally fails; missing effect dependencies may not grow past the count in package.json
+      - run: npm run lint:install
+      - run: npm run lint
       - run: npm test
       - run: npm audit --omit=dev --audit-level=high
       - run: npm run build
         env: {VITE_API_BASE: "${{ vars.VITE_API_BASE }}"}
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with: {name: site, path: finlit-platform/frontend/dist, retention-days: 7}

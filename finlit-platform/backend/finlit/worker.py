@@ -140,6 +140,12 @@ async def ingest_one(client: FinEdgeClient, store: Store, symbol: str, statement
     company = await store.company(symbol)
     try:
         bundle = await client.fetch_bundle(symbol, statement, low=low)
+        if not slim:   # task #325 (file 26, 5.5): the exchange's own daily candles (NSE first) in place of the provider's series, when they are stored: see candles.py
+            try:
+                from . import candles
+                await candles.apply(store, bundle, symbol)
+            except Exception:
+                log.exception("exchange candles skipped for %s", symbol)
         sections = await _build_sections(client, store, symbol, bundle, company, slim=slim)
         checks = sections["summary"]["dataQuality"]["checks"]
         row = snapshot.score_row(sections)
@@ -320,6 +326,12 @@ async def refresh_universe(client: FinEdgeClient, store: Store) -> int:
 QUOTES_AT_ONCE = 24            # companies updated at the same time (a read and a write of each stored summary): never thousands at once
 QUOTES_BUDGET_S = 7 * 60       # a run stops starting new companies after this long, inside the job's 10-minute limit; the next run carries on from there
 QUOTES_CURSOR_KEY = "quotes:cursor"
+QUOTES_SLICE = 240           # companies priced, then followed up (live scores, screener numbers), before the next slice starts
+# 17 Nov 2026, after the slices above: the two steps the budget still did not cover. The Dhan batch calls before the first slice (each up to 4 tries of
+# 20 s plus back-off, with the account's call pacing shared with the Prism price-history lane) and a company that never answers inside a slice.
+QUOTES_DHAN_S = 90             # the Dhan batch phase; slower than this, the run goes on with FinEdge as for a Dhan error
+QUOTES_COMPANY_S = 30          # one company (read, live score, write); a slower one is left for a later run (the cursor comes back to it)
+QUOTES_PROGRESS_S = 60         # a progress line this often in a scheduled run, so the supervisor's hang check (it reads the log) sees it working
 
 
 async def refresh_quotes(client: FinEdgeClient, store: Store, symbols: Optional[List[Tuple[str, str]]] = None, dhan_client=None,
@@ -345,16 +357,37 @@ async def refresh_quotes(client: FinEdgeClient, store: Store, symbols: Optional[
     touched: List[Tuple[str, str]] = []
     live_scores: List[dict] = []
     batch: Dict[str, dict] = {}
+    bounded = budget_s is not None
+    phase: Dict[str, float] = {}
+
+    def say(msg: str) -> None:   # the scheduled run's own log: stdout is what the supervisor keeps and reads
+        if bounded:
+            print(f"quotes: {msg}", flush=True)
+
+    t0 = time.monotonic()
     if dhan_client is not None and dhan_client.configured and items:
         from . import dhan
-        try:
+
+        async def dhan_batch() -> Dict[str, dict]:
             ids = await dhan.security_map(store, sorted({s for s, _ in items}))
             raw = await dhan_client.quotes(sorted(set(ids.values())))
-            batch = {sym: q for sym, key in ids.items() if (q := dhan.to_quote(raw.get(key) or {}))}
+            return {sym: q for sym, key in ids.items() if (q := dhan.to_quote(raw.get(key) or {}))}
+        try:
+            batch = await (asyncio.wait_for(dhan_batch(), QUOTES_DHAN_S) if bounded else dhan_batch())
+        except asyncio.TimeoutError:
+            log.warning("Dhan quotes took longer than %d s, using FinEdge for all in this run", QUOTES_DHAN_S)
+            say(f"Dhan did not answer within {QUOTES_DHAN_S} s; this run uses FinEdge")
         except dhan.DhanError as e:
             log.warning("Dhan quotes unavailable, using FinEdge for all: %s", e)
         except Exception:
             log.exception("Dhan quotes failed, using FinEdge for all")
+    phase["dhan"] = time.monotonic() - t0
+    if batch:   # task #338: every company's latest price is shared at once (finlit/livequote.py), before the slow per-company writes below
+        try:
+            from . import livequote
+            say(f"{await livequote.save(store.redis, batch)} latest prices shared")
+        except Exception:
+            log.exception("latest prices were not shared")
 
     async def one(symbol: str, statement: str):
         nonlocal updated
@@ -392,7 +425,7 @@ async def refresh_quotes(client: FinEdgeClient, store: Store, symbols: Optional[
         for k in ("upperCircuit", "lowerCircuit"):   # a price band belongs to the quote it came with: never an older day's band beside a newer price
             if live.get(k) is None:
                 summary["quote"].pop(k, None)
-        if len(live_scores) < scorelive.cohort_max():   # the price-driven part of the FinLit IQ follows the price (same function as the full build)
+        if scored + len(live_scores) < scorelive.cohort_max():   # (a cap for the whole run, across slices) the price-driven part of the FinLit IQ follows the price (same function as the full build)
             fields = await scorelive.apply_live_price(store, symbol, statement, summary)
             if fields:
                 live_scores.append(fields)
@@ -403,18 +436,67 @@ async def refresh_quotes(client: FinEdgeClient, store: Store, symbols: Optional[
     gate = asyncio.Semaphore(QUOTES_AT_ONCE)
     reached = 0
 
+    slow = 0
+
     async def guarded(symbol: str, statement: str):
-        nonlocal reached
+        nonlocal reached, slow
         async with gate:
             if budget_s is not None and time.monotonic() - started > budget_s:
                 return
             reached += 1
             try:
-                await one(symbol, statement)
+                if bounded:
+                    await asyncio.wait_for(one(symbol, statement), QUOTES_COMPANY_S)
+                else:
+                    await one(symbol, statement)
+            except asyncio.TimeoutError:   # left for a later run, which comes back to it in turn
+                slow += 1
+                log.warning("quote update for %s took longer than %d s; left for a later run", symbol, QUOTES_COMPANY_S)
             except Exception:      # one company never stops the others
                 log.exception("quote update failed for %s", symbol)
 
-    await asyncio.gather(*(guarded(s, st) for s, st in items))
+    async def follow_up():
+        """What each updated price feeds: the live FinLit IQ rows and the screener's price-based numbers (P/E, market cap, returns, 52-week position)."""
+        if live_scores:   # the screener reads the same numbers the stock page now shows
+            try:
+                await store.update_live_scores(list(live_scores))
+            except Exception:
+                log.exception("live FinLit IQ rows were not stored")
+            live_scores.clear()
+        if touched:
+            try:
+                from .screener.jobs import refresh_metrics_for
+                await refresh_metrics_for(store, list(touched))
+            except Exception:
+                log.exception("screener metrics were not refreshed after the quote update")
+            touched.clear()
+
+    # 17 November 2026: the follow-up used to run once, after every price, and outside the budget: with ~3,000 prices updated it ran past the job's
+    # 10-minute limit, the job was killed ("timeout" every run) and the screener numbers of that run were never stored. Now a slice of companies is
+    # priced and followed up before the next slice starts, and the budget covers both, so a run ends at most one slice after the budget.
+    async def progress():
+        while True:
+            await asyncio.sleep(QUOTES_PROGRESS_S)
+            say(f"{reached} of {len(items)} companies reached, {updated} updated, {time.monotonic() - started:.0f} s")
+
+    scored = 0
+    priced = followed = 0.0
+    ticker = asyncio.create_task(progress()) if bounded else None
+    try:
+        for i in range(0, len(items), QUOTES_SLICE):
+            if budget_s is not None and time.monotonic() - started > budget_s:
+                break
+            t0 = time.monotonic()
+            await asyncio.gather(*(guarded(s, st) for s, st in items[i:i + QUOTES_SLICE]))
+            scored += len(live_scores)
+            t1 = time.monotonic()
+            await follow_up()
+            priced += t1 - t0
+            followed += time.monotonic() - t1
+    finally:
+        if ticker:
+            ticker.cancel()
+    phase["prices"], phase["follow-up"] = priced, followed
     if budget_s is not None and items:
         try:
             await store.redis.set(QUOTES_CURSOR_KEY, str((start_at + reached) % len(items)), ex=86400)
@@ -422,17 +504,8 @@ async def refresh_quotes(client: FinEdgeClient, store: Store, symbols: Optional[
             pass
         if reached < len(items):
             log.info("quotes: reached %d of %d companies in this run; the next run starts with the rest", reached, len(items))
-    if live_scores:   # the screener reads the same numbers the stock page now shows
-        try:
-            await store.update_live_scores(live_scores)
-        except Exception:
-            log.exception("live FinLit IQ rows were not stored")
-    if touched:  # keep the screener's price-based numbers (P/E, market cap, returns, 52-week position) as fresh as the quote
-        try:
-            from .screener.jobs import refresh_metrics_for
-            await refresh_metrics_for(store, touched)
-        except Exception:
-            log.exception("screener metrics were not refreshed after the quote update")
+    say(f"done in {time.monotonic() - started:.0f} s: {updated} updated, {reached} of {len(items)} companies reached"
+        + (f", {slow} too slow (a later run)" if slow else "") + "; phases " + ", ".join(f"{k} {v:.1f} s" for k, v in phase.items()))
     return updated
 
 
@@ -1001,6 +1074,15 @@ def _start_job_heartbeat():
     return asyncio.get_running_loop().create_task(beat())
 
 
+def export_failure_line(res: dict):
+    """The scores export's reason for a failed run as one line (task #326 follow-up): the day and the checker's words, or None when nothing failed.
+    Printed last, because the supervisor keeps a failed run's last output line as its reason (jobs/runner.py, tail)."""
+    failed = res.get("failed") or []
+    if not failed:
+        return None
+    return "; ".join(f"scores export FAILED {f.get('date')}: {f.get('why')}" for f in failed)[:300]
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Every worker command and its options. A function of its own so a test can check that each scheduled job's arguments (jobs/registry.py) are valid."""
     parser = argparse.ArgumentParser(prog="finlit.worker")
@@ -1009,6 +1091,8 @@ def build_parser() -> argparse.ArgumentParser:
     p_isin = sub.add_parser("load-isin-list", help="load a newer NSDL ISIN list (the .zip NSDL sends, or its .csv) into isin_master (task #128)")
     p_isin.add_argument("--file", required=True)
     sub.add_parser("refresh-universe")
+    p_cls = sub.add_parser("classify-companies", help="NSE's four levels (macro sector, sector, industry, basic industry) for every company (task #192)")
+    p_cls.add_argument("--force", action="store_true", help="place every company again, not only new ones and those placed by older rules")
     p_short = sub.add_parser("refresh-short-history", help="reload stored reports whose yearly statements cover 4 years or fewer, so the second source can add older years (reads a few KB)")
     p_short.add_argument("--days", type=float, default=7.0, help="only reports not reloaded in this many days, oldest first")
     p_short.add_argument("--max-minutes", type=float, default=None, help="stop by itself after this long (the rest waits for the next run)")
@@ -1029,7 +1113,8 @@ def build_parser() -> argparse.ArgumentParser:
     p_alerts.add_argument("--kind", choices=["live", "daily", "all"], default="all", help="live: price metrics (market hours); daily: the rest (evenings)")
     sub.add_parser("check-screens", help="email members when a company newly matches one of their saved screens")
     sub.add_parser("send-digest", help="send the weekly week-ahead email to members who switched it on")
-    sub.add_parser("refresh-quotes")
+    p_q = sub.add_parser("refresh-quotes")
+    p_q.add_argument("--max-minutes", type=float, default=QUOTES_BUDGET_S / 60, help="no new slice of companies after this long (the rest waits for the next run)")
     p_aud = sub.add_parser("audit-coverage", help="compare what the provider sends with what the reports show, for a random sample (exit 1 on any mismatch)")
     p_aud.add_argument("--sample", type=int, default=100)
     p_aud.add_argument("--seed", type=int, default=None)
@@ -1054,6 +1139,14 @@ def build_parser() -> argparse.ArgumentParser:
     p_prune = sub.add_parser("prune", help="keep the database inside its storage limit (reports outside the top INGEST_LIMIT nobody opened lately, old prices and logs)")
     p_prune.add_argument("--keep", type=int, default=None, help="companies always kept (default: INGEST_LIMIT, else 500)")
     sub.add_parser("refresh-calendars", help="IPO and results calendars from the data provider")
+    p_ip = sub.add_parser("refresh-ipo-prices", help="listed IPOs' listing-day prices and latest close from the NSE and BSE daily price files")
+    p_ip.add_argument("--max-dates", type=int, default=60, help="listing dates read in this run")
+    p_ip.add_argument("--max-minutes", type=float, default=10.0, help="start no new file after this many minutes")
+    p_ig = sub.add_parser("refresh-ipo-gmp", help="each IPO's record and GMP from InvestorGain's IPO pages (one page at a time), then NSE's subscription by category")
+    p_ig.add_argument("--limit", type=int, default=100, help="pages read in this run")
+    p_ig.add_argument("--nse-limit", type=int, default=40, help="listed mainboard issues whose NSE book is asked for in this run")
+    p_ig.add_argument("--max-minutes", type=float, default=8.0, help="start no new page or NSE request after this many minutes")
+    p_ig.add_argument("--pause", type=float, default=2.0, help="seconds between two requests to the same site")
     p_rm = sub.add_parser("rebuild-metrics", help="recompute every screener filter value from stored snapshots (no provider calls)")
     p_rm.add_argument("--only-missing", action="store_true")
     sub.add_parser("refresh-indices", help="download NIFTY index constituent lists for the screener")
@@ -1063,21 +1156,36 @@ def build_parser() -> argparse.ArgumentParser:
     p_cb.add_argument("--max-writes", type=int, default=None, help="write at most this many briefs in this run (default BRIEF_MAX_WRITES_PER_NIGHT)")
     p_cb.add_argument("--max-minutes", type=float, default=40.0, help="start no new company after this many minutes")
     p_cb.add_argument("symbols", nargs="*", help="only these companies")
+    p_cc = sub.add_parser("refresh-concalls", help="every few hours: read new earnings-call filings (schedule, recording, transcript) for the Concall Monitor (docs/CONCALLS.md)")
+    p_cc.add_argument("--limit", type=int, default=160, help="letters read in this run")
+    p_cc.add_argument("--max-minutes", type=float, default=20.0, help="start no new letter after this many minutes")
+    p_cc.add_argument("symbols", nargs="*", help="only these companies")
+    p_fs = sub.add_parser("feed-sort", help="daily: when the feed's sorting rules changed, re-sort every stored filing once (kind and FinLit topic; resumable; task #309)")
+    p_fs.add_argument("--max-minutes", type=float, default=20.0, help="stop after this many minutes; the next run continues")
+    p_ss = sub.add_parser("score-sentiment", help="nightly: the sentiment score of every news item and filing not scored yet (task #365; finlit/sentiment.py)")
+    p_ss.add_argument("--limit", type=int, default=40000, help="items scored in this run")
+    p_ss.add_argument("--max-minutes", type=float, default=30.0, help="stop after this many minutes; the next run continues")
+    p_dc = sub.add_parser("refresh-discovery", help="nightly: read each company's newest investor presentation (Documents) and put it in the Discovery themes (docs/DISCOVERY.md)")
+    p_dc.add_argument("--limit", type=int, default=300, help="presentations read in this run")
+    p_dc.add_argument("--max-minutes", type=float, default=40.0, help="start no new presentation after this many minutes")
+    p_dc.add_argument("symbols", nargs="*", help="only these companies")
     p_oi = sub.add_parser("refresh-ownership", help="nightly: ownership insights of every company (docs/OWNERSHIP.md): a row from the stored shareholding, then the premium filing details (shareholders, pledge, share count, lock-in, named holders) for the companies that lack them, bounded")
     p_oi.add_argument("--max-minutes", type=float, default=20.0, help="start no new premium call after this many minutes")
     p_oi.add_argument("--limit", type=int, default=120, help="premium calls per run")
     p_oi.add_argument("--concurrency", type=int, default=3, help="premium calls at the same time")
     p_oi.add_argument("symbols", nargs="*", help="only these companies")
-    p_st = sub.add_parser("refresh-stress", help="nightly, after the statements and the macro refresh: builds and stores the Stress Lab page and company pack of every covered company (large and mid caps that are not financials), largest first, resumable (docs/STRESS.md)")
+    p_st = sub.add_parser("refresh-stress", help="nightly, after the statements and the macro refresh: builds and stores the Stress Lab page and company pack of every covered company (₹10,000 Cr or more: large, mid and small caps that are not financials), largest first, resumable (docs/STRESS.md)")
     p_st.add_argument("--max-minutes", type=float, default=40.0, help="start no new company after this many minutes")
     p_st.add_argument("--limit", type=int, default=None, help="at most this many companies in this run")
     p_st.add_argument("--force", action="store_true", help="rebuild companies already built today")
     p_st.add_argument("symbols", nargs="*", help="only these companies")
+    sub.add_parser("export-scores", help="after the presets job: the day's scores and every ready-made screen into one file for the owner's archive (task #326); stored results only")
     sub.add_parser("refresh-presets", help="nightly, after the Prism batch: momentum and growth scores, industry breadth and theme states, theme-tag top-up, and every prebuilt screen into the cache (database only)")
     p_ld = sub.add_parser("refresh-leadership", help="weekly: Leader / In line / Laggard labels from the stored weekly prices and the sector and market indices (database and cached index levels only)")
     p_ld.add_argument("--backfill-from", default=None, help="YYYY-MM-DD: also compute every 4th Friday back to this date, so the rank-history chart starts with points")
     p_ld.add_argument("--as-of", default=None, help="YYYY-MM-DD: the Friday to compute (default: the latest)")
     p_ld.add_argument("--if-stale", action="store_true", help="skip when the latest Friday is already done (a redeploy must not repeat the weekly run)")
+    sub.add_parser("rebuild-peer-labels", help="one time (task #409): build the weekly peer-label record from the stored weekly readings with the two-run rule; does nothing once it has rows")
     p_sl = sub.add_parser("refresh-scores-live", help="within minutes of a company's results being stored: recalculate its FinLit Prism rating (queued by refresh-results), one at a time, bounded (docs/REALTIME-SCORES.md)")
     p_sl.add_argument("--limit", type=int, default=0, help="companies per run (default RT_PRISM_PER_RUN, 20)")
     p_sl.add_argument("--max-minutes", type=float, default=12.0)
@@ -1121,8 +1229,23 @@ def build_parser() -> argparse.ArgumentParser:
     p_mi = sub.add_parser("refresh-industry", help="daily: AMFI's monthly category report (industry AUM, net flows, folios by scheme category) for the Mutual Fund Insights page; resumable, only new or re-published months are read")
     p_mi.add_argument("--since", default=None, help="first month to load, YYYY-MM (default and earliest: 2019-04, the first category-wise report)")
     p_mi.add_argument("--max-age-hours", type=float, default=None, help="skip when this ran fine in the last N hours")
+    p_eod = sub.add_parser("refresh-eod", help="after the close: the day's official closes of every company from NSE's and BSE's end-of-day files, as soon as they are out (finlit/eod_bhav.py)")
+    p_eod.add_argument("--date", default=None, help="the session to load (YYYY-MM-DD); default: today")
+    p_eod.add_argument("--exchange", choices=("NSE", "BSE"), default=None, help="only this exchange's file")
+    p_cdl = sub.add_parser("refresh-candles", help="nightly, after the close: daily candles from the exchange (Dhan, NSE first) into daily_candles, for prices, volume and the chart patterns")
+    p_cdl.add_argument("symbols", nargs="*", help="only these companies (default: every company, the longest-unloaded first)")
+    p_cdl.add_argument("--days", type=int, default=1150, help="history to load for a company seen for the first time")
+    p_cdl.add_argument("--limit", type=int, default=None)
+    p_cdl.add_argument("--max-minutes", type=float, default=150.0, help="time box; companies left when it is reached are first in line on the job's next try (the run is recorded as partial)")
+    p_ps = sub.add_parser("refresh-price-sections", help="nightly, after refresh-candles: rewrite ONLY the chart sections (price-1M ... price-MAX) of every stored report from daily_candles; no provider calls; resumable (a chart already at its newest candle is left alone)")
+    p_ps.add_argument("symbols", nargs="*", help="only these companies (default: every stored report)")
+    p_ps.add_argument("--force", action="store_true", help="rewrite charts that already end on their newest candle too")
+    p_ps.add_argument("--max-minutes", type=float, default=40.0, help="no new chunk of companies after this long; the next run continues (it skips charts already current)")
     p_di = sub.add_parser("refresh-instruments", help="weekly: Dhan's public instrument file (ISIN, surveillance flag, margin eligibility, F&O status of every NSE and BSE equity); needs no account")
     p_di.add_argument("--max-age-hours", type=float, default=None, help="skip when this ran fine in the last N hours")
+    p_lf = sub.add_parser("refresh-lab-flow", help="every 3 minutes in market hours: the Trading Lab's Order Flow snapshot of every F&O stock (one Dhan quote call; lab/flow.py)")
+    p_lf.add_argument("--history-seconds", type=float, default=90.0, help="at most this long filling missing previous-session open interest from Dhan's daily history")
+    sub.add_parser("refresh-global-cues", help="twice a day: the Trading Lab's Global cues series from FRED's public download (US yields, Fed funds, dollar index, EUR/JPY/CNY, WTI and Brent; lab/global_cues.py)")
     p_cm = sub.add_parser("refresh-commodities", help="commodity prices: MCX futures from Dhan and international prices from metals.dev / MetalpriceAPI into Redis (--loop: keeps running)")
     p_cm.add_argument("--loop", action="store_true")
     p_hp = sub.add_parser("history-probe", help="how many yearly statements each source holds for a few old companies (recorded at /api/mf/status, run:history-probe)")
@@ -1133,7 +1256,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_dc.add_argument("--skip", nargs="*", default=None, help="steps or fund-house keys to leave out")
     p_dc.add_argument("--months", type=int, default=None, help="month-ends to read per fund house (default: the latest 3)")
     p_dc.add_argument("--max-age-hours", type=float, default=None, help="skip when this ran in the last N hours")
-    p_sc = sub.add_parser("score-mf", help="daily, after refresh-portfolios: FinLit FundPulse of every Growth scheme; exchange-traded funds are not scored (finlit/mfscore; one transaction, idempotent); recorded at /api/mf/status (run:score-mf)")
+    p_sc = sub.add_parser("score-mf", help="daily, after refresh-portfolios: Mutual Fund Score of every Growth scheme; exchange-traded funds are not scored (finlit/mfscore; one transaction, idempotent); recorded at /api/mf/status (run:score-mf)")
     p_sc.add_argument("--symbols", nargs="*", default=None, help="AMFI scheme codes or ETF symbols: the whole universe is scored (peer medians need it) but only these are written")
     p_sc.add_argument("--limit", type=int, default=None, help="testing only: score just the first N schemes and N ETFs (their peer sets are then not the real ones); never removes other rows")
     p_sc.add_argument("--max-age-hours", type=float, default=None, help="skip when this ran fine in the last N hours")
@@ -1143,7 +1266,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_bf.add_argument("--amc", default="all", help="AMFI fund house id or name, or all")
     p_bf.add_argument("--force", action="store_true")
     p_lg = sub.add_parser("refresh-logos", help="nightly: company and fund-house logos from their own websites (robots.txt obeyed; blocked sites are left alone)")
-    p_lg.add_argument("--limit", type=int, default=150, help="sites to try in one run")
+    p_lg.add_argument("--limit", type=int, default=300, help="sites to try in one run (300: about 6-10 minutes at 4 at a time, inside the job's 30)")
     p_lg.add_argument("--profiles", type=int, default=100, help="provider company-profile calls for large companies with no website on file")
     p_mc = sub.add_parser("refresh-macro", help="nightly: India macro data from MoSPI (CPI, WPI, GDP, IIP, PLFS) and the RBI (policy rates, weekly reserves and credit)")
     p_mc.add_argument("--full", action="store_true", help="reload the full history (the first run does this by itself)")
@@ -1253,7 +1376,15 @@ async def main(argv: Optional[List[str]] = None, settings: Optional[Settings] = 
             from .isin import ensure_shipped
             meta = await ensure_shipped(store)   # the depository's ISIN list shipped with the code, when newer than the stored one (task #128)
             await store.invalidate_search()      # the search list carries each company's ISIN: rebuilt once after a deploy
-            print("migrated; timescale =", store.timescale, "; ISIN list", (meta or {}).get("date"), (meta or {}).get("rows"))
+            try:   # NSE's four levels for every company not yet placed by the current rules (task #192): stored data only, a few seconds
+                placed = await store.classify_all()
+            except Exception as exc:   # never stops a deploy: the next start tries again, and every saved report places its company
+                log.exception("NSE classification not worked out at start")
+                placed = {"error": type(exc).__name__}
+            print("migrated; timescale =", store.timescale, "; ISIN list", (meta or {}).get("date"), (meta or {}).get("rows"), "; NSE classification", placed)
+            return 0
+        if args.cmd == "classify-companies":
+            print(json.dumps(await store.classify_all(force=args.force)))
             return 0
         if args.cmd == "load-isin-list":
             from pathlib import Path
@@ -1364,6 +1495,28 @@ async def main(argv: Optional[List[str]] = None, settings: Optional[Settings] = 
                                                "failed": dict(list(result["failed"].items())[:4]), "listing": result["listing"]})
             print(json.dumps(result, default=str)[:4000])
             return 0 if result["status"] in ("ok", "partial") else 1
+        if args.cmd == "refresh-lab-flow":
+            from .dhan import DhanClient, DhanError
+            from .lab import flow as lab_flow
+            from .mf import record_run
+            async with DhanClient(settings, store.redis) as dc:
+                if not dc.configured:
+                    print({"status": "failed", "error": "Dhan is not set up (DHAN_CLIENT_ID empty)"})
+                    return 1
+                try:
+                    result = await lab_flow.refresh(store, dc, history_seconds=args.history_seconds)
+                except DhanError as e:
+                    result = {"status": "failed", "error": str(e)}
+            await record_run(store, args.cmd, result)
+            print(result)
+            return 0 if result["status"] == "ok" else 1
+        if args.cmd == "refresh-global-cues":
+            from .lab import global_cues
+            from .mf import record_run
+            result = await global_cues.refresh(store)
+            await record_run(store, args.cmd, result)
+            print(result)
+            return 0 if result["status"] == "ok" else 1
         if args.cmd == "refresh-instruments":
             from . import dhan
             from .mf import last_run_age_hours, record_run
@@ -1375,12 +1528,17 @@ async def main(argv: Optional[List[str]] = None, settings: Optional[Settings] = 
                     if not empty:
                         print({"status": "skipped", "reason": f"ran {age:.1f} hours ago ({last})"})
                         return 0
+            from .lab.flow import FutureCollector, save_futures
             from .options import LotCollector, save_option_lots
-            lots = LotCollector()
+            lots, futs = LotCollector(), FutureCollector()
+
+            def each_row(r: dict) -> None:
+                lots.add(r)
+                futs.add(r)
             idx: List[dict] = []
             mcx: List[dict] = []
             try:
-                n = await dhan.save_instruments(store, await dhan.fetch_instruments(indices=idx, on_row=lots.add, commodities=mcx))
+                n = await dhan.save_instruments(store, await dhan.fetch_instruments(indices=idx, on_row=each_row, commodities=mcx))
             except dhan.DhanError as e:
                 await record_run(store, args.cmd, {"status": "failed", "error": str(e)})
                 print({"status": "failed", "error": str(e)})
@@ -1396,6 +1554,10 @@ async def main(argv: Optional[List[str]] = None, settings: Optional[Settings] = 
                 result["option_series"] = await save_option_lots(store, lots.rows())   # lot size per underlying and expiry (option chain)
             except dhan.DhanError as e:
                 result["option_series_error"] = str(e)
+            try:                                  # the stock futures the Trading Lab's Order Flow reads (lab/flow.py); a short list keeps the stored ones
+                result["stock_futures"] = await save_futures(store, futs.rows())
+            except dhan.DhanError as e:
+                result["stock_futures_error"] = str(e)
             try:                                  # likewise the MCX futures: the commodity page keeps the stored contracts if the list is short
                 result["commodities"] = await dhan.save_commodity_contracts(store, mcx)
                 await store.redis.delete("cmd:contracts")
@@ -1442,6 +1604,10 @@ async def main(argv: Optional[List[str]] = None, settings: Optional[Settings] = 
             await record_run(store, args.cmd, {"status": result.get("status"), "why": str(result.get("why") or "")[:200],
                                                "parts": {k: v.get("status") for k, v in parts.items()},
                                                "stored": sum(int(v.get("stored") or 0) for v in result.get("amc", {}).values()),
+                                               # task #281 (24 Nov): the exit-load step's counts only, so its progress shows on /api/mf/status
+                                               "loads": {k: (parts.get("loads") or {}).get(k) for k in ("asked", "loadsStored", "blank", "refused429", "familiesLeft",
+                                                                                                          "housesReached", "housesWithWork", "houseListsCached")}
+                                               if isinstance(parts.get("loads"), dict) else None,
                                                "failed": [f"{k}: {str(v.get('why') or '')[:80]}" for k, v in parts.items() if v.get("status") in ("error", "refused")][:8]})
             print(json.dumps(result, default=str)[:4000])
             return 0 if result.get("status") in ("ok", "partial") else 1
@@ -1551,6 +1717,10 @@ async def main(argv: Optional[List[str]] = None, settings: Optional[Settings] = 
                 shard = (int(part), int(of))
             print(await prism.precompute(store, settings, limit=args.limit, max_minutes=args.max_minutes, days=args.days, shard=shard, stale_not_rated=args.stale_not_rated))
             return 0
+        if args.cmd == "rebuild-peer-labels":
+            from . import peerlabels
+            print(json.dumps(await peerlabels.rebuild(store), default=str))
+            return 0
         if args.cmd in ("refresh-leadership", "backtest-leadership"):
             from datetime import date as _date
             from . import leadership
@@ -1581,6 +1751,34 @@ async def main(argv: Optional[List[str]] = None, settings: Optional[Settings] = 
             await record_run(store, args.cmd, {k: v for k, v in res.items() if k != "written_symbols"})
             print(json.dumps(res, default=str)[:3000])
             return 0
+        if args.cmd == "refresh-concalls":
+            from .concall import service as concall_service
+            from .mf import record_run
+            res = await concall_service.run(store, limit=args.limit, max_minutes=args.max_minutes, symbols=[x.upper() for x in args.symbols] or None)
+            await record_run(store, args.cmd, res)
+            print(json.dumps(res, default=str)[:3000])
+            return 0
+        if args.cmd == "feed-sort":
+            from . import feed as feed_mod
+            from .mf import record_run
+            res = await feed_mod.ensure_sorted(store, max_minutes=args.max_minutes)
+            await record_run(store, args.cmd, res)
+            print(json.dumps(res, default=str)[:3000])
+            return 0
+        if args.cmd == "score-sentiment":
+            from . import sentiment as sentiment_mod
+            from .mf import record_run
+            res = await sentiment_mod.score_pending(store, limit=args.limit, max_minutes=args.max_minutes)
+            await record_run(store, args.cmd, res)
+            print(json.dumps(res, default=str)[:3000])
+            return 0
+        if args.cmd == "refresh-discovery":
+            from .discovery import service as discovery_service
+            from .mf import record_run
+            res = await discovery_service.run(store, limit=args.limit, max_minutes=args.max_minutes, symbols=[x.upper() for x in args.symbols] or None)
+            await record_run(store, args.cmd, res)
+            print(json.dumps(res, default=str)[:3000])
+            return 0
         if args.cmd == "refresh-ownership":
             from . import ownership_insights
             from .mf import record_run
@@ -1596,6 +1794,17 @@ async def main(argv: Optional[List[str]] = None, settings: Optional[Settings] = 
             # Companies that are not ready yet, or that the data provider answered slowly, are waiting, not a fault: they are tried again next run. Only a run in which nothing at all
             # could be built (the provider or the macro inputs are down) is a fault the supervisor retries with its back-off.
             return 1 if res["tried"] >= 10 and res["built"] == 0 and res["not_covered"] == 0 else 0
+        if args.cmd == "export-scores":
+            from . import scores_export
+            from .mf import record_run
+            res = await scores_export.run(store)
+            await record_run(store, args.cmd, res)
+            print(json.dumps(res.get("notes") or {}, default=str)[:3000])
+            print(json.dumps({k: v for k, v in res.items() if k != "notes"}, default=str)[:3000])
+            line = export_failure_line(res)
+            if line:
+                print(line)
+            return 1 if res["failed"] else 0
         if args.cmd == "refresh-presets":
             from .presets import service as preset_service
             res = await preset_service.refresh_presets(store, settings)
@@ -1665,6 +1874,12 @@ async def main(argv: Optional[List[str]] = None, settings: Optional[Settings] = 
             elif args.cmd == "refresh-logos":
                 from .logos import refresh as refresh_logos
                 print(await refresh_logos(store, client, limit=args.limit, profile_limit=args.profiles))
+            elif args.cmd == "refresh-ipo-prices":
+                from .ipobhav import refresh as refresh_ipo_prices
+                print(await refresh_ipo_prices(store, max_dates=args.max_dates, max_minutes=args.max_minutes))
+            elif args.cmd == "refresh-ipo-gmp":
+                from .ipogmp import refresh as refresh_ipo_gmp
+                print(await refresh_ipo_gmp(store, limit=args.limit, max_minutes=args.max_minutes, nse_limit=args.nse_limit, pause_s=max(0.5, args.pause)))
             elif args.cmd == "refresh-calendars":
                 from .calendars import refresh_calendars
                 rep: dict = {}
@@ -1675,10 +1890,65 @@ async def main(argv: Optional[List[str]] = None, settings: Optional[Settings] = 
                     raise
                 print(counts)
                 await _record_results_run(store, args.cmd, "failed" if rep.get("errors") else "ok", counts, rep)
+            elif args.cmd == "refresh-eod":
+                from datetime import date as _date, datetime as _dt, timezone as _tz
+                from . import eod_bhav
+                from .jobs.reasons import PARTIAL_EXIT
+                from .mf import record_run
+                if args.date:
+                    runs = [await eod_bhav.load(store, _date.fromisoformat(args.date), only=[args.exchange] if args.exchange else None)]
+                else:      # 27 Nov 2026: the previous weekday too, when its files are missing (an evening the job missed), then today's in its hours
+                    runs = await eod_bhav.catch_up(store)
+                res = {"days": runs, "written": sum(r.get("written", 0) for r in runs)}
+                print(res)
+                failed = [f"{r['day']} {x}" for r in runs for x in ("NSE", "BSE") if (r.get(x) or {}).get("status") == "failed"]
+                # a file not published yet is the normal evening wait (the job asks again in 10 minutes; the "Closing prices" freshness line says when it is
+                # late); a refusal or a broken file is a fault: recorded partial, so the supervisor shows it degraded and the admins are told
+                await record_run(store, args.cmd, {"status": "partial" if failed else "ok", **({"why": f"{', '.join(failed)} file failed"} if failed else {}), **res})
+                if failed:
+                    log.warning("refresh-eod: %s", res)
+                    return PARTIAL_EXIT
+            elif args.cmd == "refresh-candles":
+                from . import candles
+                from .dhan import DhanClient
+                from .jobs.reasons import PARTIAL_EXIT
+                from .mf import record_run
+                async with DhanClient(settings, store.redis) as dc:
+                    res = await candles.refresh(store, dc, symbols=[x.upper() for x in args.symbols] or None, days=args.days, max_minutes=args.max_minutes, limit=args.limit)
+                print(res)
+                # task #394 F1: a run that reached its time box with companies left is not "done": it is recorded as partial with the count, the
+                # supervisor shows it as degraded and tries again (the companies left are the longest-unloaded, so first in line), and it is logged.
+                if res.get("left"):
+                    log.warning("refresh-candles stopped at its %g-minute time box with %d companies left; they are first in line on the next try", args.max_minutes, res["left"])
+                    await record_run(store, args.cmd, {"status": "partial", "why": f"{res['left']} companies left at the {args.max_minutes:g}-minute time box; continued on the next try", **res})
+                    return PARTIAL_EXIT
+                # task #394 (live, 25 Nov): the run at 18:30 IST found no 25 Nov candles yet (Dhan had not published them) and was recorded "ok", so the
+                # session counted as done and every chart stayed on 23 Nov. A full run that ends without the expected session's candles is partial: it is
+                # tried again (night and morning), and the chart job follows it. On an exchange holiday this clears with the next session's candles.
+                from datetime import datetime as _dt, timezone as _tz
+                from .prism_candles import expected_session
+                expected = expected_session(_dt.now(_tz.utc)).isoformat()
+                if not args.symbols and not args.limit and (res.get("newestSession") or "") < expected:
+                    why = f"waiting for the exchange's {expected} candles (the newest stored session is {res.get('newestSession') or 'none'}); tried again later"
+                    log.warning("refresh-candles: %s", why)
+                    await record_run(store, args.cmd, {"status": "partial", "why": why, "expectedSession": expected, **res})
+                    return PARTIAL_EXIT
+                await record_run(store, args.cmd, {"status": "ok", "expectedSession": expected, **res})
+            elif args.cmd == "refresh-price-sections":
+                from . import price_sections
+                from .mf import record_run
+                res = await price_sections.refresh(store, symbols=[x.upper() for x in args.symbols] or None, force=args.force, max_minutes=args.max_minutes)
+                print(json.dumps(res, default=str)[:3000])
+                if res["left"]:   # stopped at its time box: recorded as partial and tried again (it continues: current charts are skipped)
+                    from .jobs.reasons import PARTIAL_EXIT
+                    log.warning("refresh-price-sections stopped at its %g-minute time box with %d reports left", args.max_minutes, res["left"])
+                    await record_run(store, args.cmd, {"status": "partial", "why": f"{res['left']} reports left at the {args.max_minutes:g}-minute time box", **res})
+                    return PARTIAL_EXIT
+                await record_run(store, args.cmd, {"status": "ok", **res})
             elif args.cmd == "refresh-quotes":
                 from .dhan import DhanClient
                 async with DhanClient(settings, store.redis) as dc:
-                    print(await refresh_quotes(client, store, dhan_client=dc, budget_s=QUOTES_BUDGET_S), "quotes updated")
+                    print(await refresh_quotes(client, store, dhan_client=dc, budget_s=args.max_minutes * 60), "quotes updated")
             elif args.cmd == "audit-integrity":
                 from . import integrity
                 from .sysctl import loads_enabled

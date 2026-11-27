@@ -1,29 +1,48 @@
 // Hide / Show on an optional panel (the 9 Nov 2026 pages update): a helpful extra, never the page's main table, the user's own shares or an alert. Hidden, the panel shrinks to one row: its title,
 // a "Hidden" tag and a Show button, and it stays hidden on the next visit until Show is clicked. The choice is kept per panel in this browser (the dashboard does the same, dashboard/parts.tsx).
-import { useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import "../styles/hideable.css";
 
 const key = (id: string) => `finlit.hide.${id}`;
-const read = (id: string) => { try { return localStorage.getItem(key(id)) === "1"; } catch { return false; } };
+/** Task #323 (developer file 21, part 9; file 22, W1): panels that start closed until the member opens them once (Show stores "0", so it stays open):
+ *  the equity portfolio's three Key figures sections, and the Watchlists page's. Every other panel starts open, as before. */
+export const CLOSED_BY_DEFAULT = new Set(["pack.wl-keys"]);   // task #385 (developer file 33): the equity portfolio's Key figures open by default
+/** Task #385 (Equity portfolio, developer file 33, "Added in this check" 2): with one section at a time the round Hide button on each section's corner
+ *  goes. A page sets this to false; a section the member already hid keeps its slim Show row. */
+export const HideButtons = createContext(true);
+const read = (id: string) => { try { const v = localStorage.getItem(key(id)); return v == null ? CLOSED_BY_DEFAULT.has(id) : v === "1"; } catch { return CLOSED_BY_DEFAULT.has(id); } };
 
+// Task #274: a change made elsewhere on the page (the Equity view bar's All sections, its Sections menu) reaches every panel at once.
+const EV = "finlit-hide";
+export const isHidden = (id: string) => read(id);
+export function setHidden(id: string, v: boolean) {
+  try { localStorage.setItem(key(id), v ? "1" : "0"); } catch { /* private window: lasts for this visit */ }
+  if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent(EV, { detail: { id, v } }));
+}
 export function useHideable(id: string): [boolean, (v: boolean) => void] {
   const [hidden, set] = useState(() => read(id));
-  return [hidden, (v) => { set(v); try { localStorage.setItem(key(id), v ? "1" : "0"); } catch { /* private window: lasts for this visit */ } }];
+  useEffect(() => { const f = (e: Event) => { const d = (e as CustomEvent<{ id: string; v: boolean }>).detail; if (d?.id === id) set(d.v); }; window.addEventListener(EV, f); return () => window.removeEventListener(EV, f); }, [id]);
+  return [hidden, (v) => { set(v); setHidden(id, v); }];
 }
+/** Task #274 (Equity portfolio, change 11): a page can ask for the slim hidden card: the title, "Hidden · " and the section's subtitle on one line, and Show ▾;
+ *  Show brings it back in place and focuses its Hide button. Other pages keep the plain card. */
+export const HideSlim = createContext(false);
 
-export function Hideable({ id, title, children, className = "" }: { id: string; title: string; children: ReactNode; className?: string }) {
-  const [hidden, setHidden] = useHideable(id);
+export function Hideable({ id, title, children, className = "", sub }: { id: string; title: string; children: ReactNode; className?: string; sub?: string }) {
+  const [hidden, setHidden] = useHideable(id), slim = useContext(HideSlim), withBtn = useContext(HideButtons), refocus = useRef(false), on = useRef<HTMLButtonElement>(null);
+  useEffect(() => { if (!hidden && refocus.current) { refocus.current = false; on.current?.focus(); } }, [hidden]);
   if (hidden) {
     return (
-      <section className={"hz hz-off " + className} aria-label={title}>
-        <span className="hz-t">{title}</span><span className="hz-tag">Hidden</span>
-        <button type="button" className="hz-btn" aria-expanded="false" aria-label={`Show: ${title}`} onClick={() => setHidden(false)}>Show</button>
+      <section className={"hz hz-off " + (slim ? "hz-slim " : "") + className} aria-label={title} data-hz={id}>
+        <span className="hz-t">{title}</span>{slim ? <span className="hz-sub"><span className="hz-tag">Hidden</span>{sub ? ` · ${sub}` : ""}</span> : <span className="hz-tag">Hidden</span>}
+        <button type="button" className="hz-btn" aria-expanded="false" aria-label={`Show: ${title}`} onClick={() => { refocus.current = slim; setHidden(false); }}>{slim ? "Show ▾" : "Show"}</button>
       </section>);
   }
+  if (!withBtn) return <div className={"hz " + className}>{children}</div>;
   return (
     <div className={"hz " + className}>
       {children}
-      <button type="button" className="hz-btn hz-on" aria-expanded="true" aria-label={`Hide: ${title}`} onClick={() => setHidden(true)}>
+      <button ref={on} type="button" className="hz-btn hz-on" aria-expanded="true" aria-label={`Hide: ${title}`} onClick={() => setHidden(true)}>
         {/* the eye with a line through it, as the "FinLit final pages" pack draws Hide on every page (13 Nov 2026) */}
         <svg className="hz-ic" viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false"><path d="M3 3l14 14M8.6 5.2A8 8 0 0 1 10 5c4 0 6.8 3.2 7.8 5-.4.8-1.2 1.9-2.3 2.9M12.8 12.9A4 4 0 0 1 7.1 7.2M5.2 6.6C3.9 7.6 3 8.9 2.2 10c1 1.8 3.8 5 7.8 5 1 0 1.9-.2 2.7-.5" /></svg>Hide</button>
     </div>);

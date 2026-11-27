@@ -1,9 +1,11 @@
 // The scheme table: sortable columns, the columns you chose, a tick box to add a scheme to the comparison. Wide tables scroll inside their own box.
 import { Link } from "react-router";
 import { HScroll } from "../components/HScroll";
+import { useEffect, useState } from "react";
+import { PHONE_ROWS, useIsPhone } from "../components/PhoneFold";
 import { useInfoPop } from "../components/Info";
 import {
-  COLUMNS, COL_GROUPS, aumBucket, aumText, costLevel, returnBand, categoryShort, checklistLines, navFull, navText, noReturnsText, terText,
+  COLUMNS, COL_GROUPS, GROWTH_RETURNS_LABEL, PLAN_SCORE_NOTE, aumBucket, aumText, costLevel, growthFigure, returnBand, categoryShort, checklistLines, navFull, navText, noReturnsText, terText,
   type ColDef, type ColId, type FundRow, type ListQuery, type PeerStats, type SortKey,
 } from "../lib/mf";
 import { dateIN } from "../lib/format";
@@ -11,7 +13,7 @@ import { Fig, PlanChip } from "./Bits";
 import { tintOf } from "../lib/mfSummary";
 import { useUI } from "../lib/ui";
 import { useScores, type ScoreItem } from "../lib/mfScore";
-import { ScoreCell, ScoreChip } from "./ScoreCell";
+import { isEtfCategory, ScoreCell } from "./ScoreCell";
 
 const shortAmc = (a: string) => a.replace(/\s*mutual fund\s*$/i, "");
 const MARK = { pass: "✓", fail: "✗", unknown: "–" } as const;
@@ -59,7 +61,13 @@ function cell(c: ColDef, r: FundRow, peers?: Record<string, PeerStats>, scale: S
     case "change": return <span className="mf-rf"><Fig v={r.change} why={r.active ? "The previous NAV is not on file yet." : why} />{r.change == null && <small>{r.active ? "no previous NAV" : "stopped"}</small>}</span>;
     case "r1y": case "r3y": case "r5y": {
       const years = c.id === "r1y" ? 1 : c.id === "r3y" ? 3 : 5;
-      const v = r[c.id] ?? null;
+      const own = r[c.id] ?? null;
+      const g = own == null ? growthFigure(r, c.id) : null;   // task #281: an IDCW row shows its Growth option's return, labelled; never as its own
+      if (g != null && r.growthReturns) {
+        return <span className="mf-rf mf-grf" title={`${GROWTH_RETURNS_LABEL}: ${r.growthReturns.name} (${r.plan}, Growth). This option's own NAV change is not shown because payouts would make it wrong.`}>
+          <Fig v={g} why="" /><Bar v={g} max={scale[c.id] ?? 0} /><small className="mf-gr">{GROWTH_RETURNS_LABEL}</small></span>;
+      }
+      const v = own;
       const short = v == null ? shortWhy(r.noReturns, "Insufficient history") : "";
       const band = returnBand(c.id, v);
       return <span className="mf-rf"><Fig v={v} why={why || `Younger than ${years} year${years > 1 ? "s" : ""}, or no NAV near the start date.`} /><Bar v={v} max={scale[c.id] ?? 0} />{short && <small>{short}</small>}
@@ -85,7 +93,7 @@ function cell(c: ColDef, r: FundRow, peers?: Record<string, PeerStats>, scale: S
         return <span className="mf-aum" title={`Total expense ratio of the ${r.plan} plan, percent a year${r.terDate ? `, as of ${dateIN(r.terDate)}` : ""} (AMFI)`}>{terText(r.ter)}
           {cost && <small className={"mf-band c" + cost.step} title="Against the median of the same category and plan: low is 20% or more under it, high is 20% or more over it.">{cost.label} for category</small>}</span>;
       })();
-    case "score": return <ScoreCell item={scores?.map.get(r.code)} locked={!!scores?.locked} loading={!!scores?.loading} why={r.optionClass !== "Growth" ? "Not scored: IDCW and other options inherit the Growth plan's score, see the Growth plan." : !r.active ? "Not scored: stopped publishing NAVs." : "Not scored yet."} />;
+    case "score": return <ScoreCell item={scores?.map.get(r.code)} locked={!!scores?.locked} loading={!!scores?.loading} etf={isEtfCategory(r.category)} why={r.optionClass !== "Growth" ? "Not scored: IDCW and other options show the score of the Growth option of the same plan, and this fund has none scored." : !r.active ? "Not scored: stopped publishing NAVs." : "Not scored yet."} />;
     case "checklist": return <ChecklistCell r={r} peers={peers} />;
   }
 }
@@ -100,13 +108,15 @@ function shortWhy(code: FundRow["noReturns"], young: string): string {
   }
 }
 
-export function FundTable({ rows, cols, q, onSort, picked, onPick, peers }: {
+export function FundTable({ rows, cols, q, onSort, picked, onPick, peers, wish }: {
   rows: FundRow[]; cols: ColId[]; q: ListQuery; onSort: (s: SortKey) => void; picked: number[]; onPick: (code: number, name?: string) => void; peers?: Record<string, PeerStats>;
+  /** Task #375: the Mutual Funds page's wishlist star on each scheme (left out where the table is drawn elsewhere). */
+  wish?: { has: (code: number) => boolean; toggle: (code: number, name: string) => void };
 }) {
   const defs = COLUMNS.filter((c) => cols.includes(c.id));
   const { has } = useUI();
   const showScore = defs.some((c) => c.id === "score");
-  const sq = useScores(rows.map((r) => r.code), has("gold"));   // one batch request, also for the chip beside each name
+  const sq = useScores(rows.map((r) => r.code), has("gold"));   // one batch request for the score column
   const scores: Scores = { map: new Map((sq.data?.items || []).map((i) => [i.code, i])), locked: showScore && (!has("gold") || !!sq.data?.locked), loading: sq.isLoading };
   // the heading row above: neighbouring columns of one group share a heading ("Returns", "SIP returns")
   const runs: { group?: ColDef["group"]; n: number }[] = [];
@@ -117,11 +127,19 @@ export function FundTable({ rows, cols, q, onSort, picked, onPick, peers }: {
   const tint = (c: ColDef, r: FundRow): React.CSSProperties | undefined => {
     if (c.id !== "r1y" && c.id !== "r3y" && c.id !== "r5y" && c.id !== "sip3y" && c.id !== "sip5y") return undefined;
     const t = tintOf(r[c.id], scale[c.id] ?? 0);
-    return t ? ({ "--tint": `color-mix(in srgb, var(${t.tone === "pos" ? "--gain" : "--loss"}) ${Math.round(8 + t.k * 22)}%, transparent)` } as React.CSSProperties) : undefined;
+    // task #310 G: the share runs through --ui-heat-scale (1 in light, .66 in dark), so green figures on the green tint keep 4.5:1 in dark (were 3.8 to 4.4)
+    return t ? ({ "--tint": `color-mix(in srgb, var(${t.tone === "pos" ? "--gain" : "--loss"}) calc(${Math.round(8 + t.k * 22)}% * var(--ui-heat-scale)), transparent)` } as React.CSSProperties) : undefined;
   };
   const cls = (c: ColDef) => (c.num ? "num" : "txt") + (c.group ? ` mf-retcol mf-g-${c.group}` : "") + ` mf-c-${c.id}`;
+  // task #310 part E (05-phone.md, fix 6): on a phone the list shows its first 5 schemes and a Show all button; desktop shows every row
+  const phone = useIsPhone();
+  const [all, setAll] = useState(false);
+  useEffect(() => { setAll(false); }, [rows]);
+  const cut = phone && !all && rows.length > PHONE_ROWS;
+  const shown = cut ? rows.slice(0, PHONE_ROWS) : rows;
   return (
-    <HScroll label="schemes table" controls={false}>
+    <>
+    <HScroll label="schemes table" controls={false} tall>{/* task #341: the header stays in view while the list scrolls down (styles/frozen.css) */}
       <table className="mf-table">
         <caption className="sr-only">Mutual fund schemes. Use the column buttons to sort.</caption>
         <thead>
@@ -136,15 +154,21 @@ export function FundTable({ rows, cols, q, onSort, picked, onPick, peers }: {
           </tr>
         </thead>
         <tbody>
-          {rows.map((r) => (
+          {shown.map((r) => (
             <tr key={r.code} className={r.active ? "" : "mf-stopped"}>
               <th scope="row" className="mf-name">
+                <span className="mf-rowacts">{/* task #375: the compare tick and, under it, the wishlist star */}
                 <label className="mf-pickbox" title={picked.includes(r.code) ? "Remove from comparison" : "Add to comparison"}>
                   <input type="checkbox" checked={picked.includes(r.code)} onChange={() => onPick(r.code, r.name)} aria-label={`Compare ${r.name}`} />
                 </label>
+                  {wish && <button type="button" className="mf-wish" aria-pressed={wish.has(r.code)} onClick={() => wish.toggle(r.code, r.name)}
+                    aria-label={wish.has(r.code) ? `Remove ${r.name} from your wishlist` : `Add ${r.name} to your wishlist`} title={wish.has(r.code) ? "In your wishlist: press to remove" : "Add to your wishlist"}>
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.6l2.6 5.3 5.8.8-4.2 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.2-4.1 5.8-.8z" /></svg></button>}
+                </span>
                 <span className="mf-nm">
-                  <Link to={`/funds/${r.code}`}>{r.name}</Link>{has("gold") && <ScoreChip item={scores.map.get(r.code)} />}
-                  <small><span className="mf-house">{shortAmc(r.amc)}</span><PlanChip plan={r.plan} option={r.option} />{!r.active && <span className="chip ghost">Stopped publishing</span>}</small>
+                  {/* task #304 (the team, 22 Nov 2026): no score chip beside the name: the Mutual Fund Score column already gives it ("2 times score") */}
+                  <Link to={`/funds/${r.code}`} title={r.name}>{r.name}</Link>
+                  <small><span className="mf-house">{shortAmc(r.amc)}</span><PlanChip plan={r.plan} option={r.option} category={r.category} />{!r.active && <span className="chip ghost">Stopped publishing</span>}</small>
                   {r.nav != null && <small className="mf-navm">NAV <span className="mono" title={navFull(r.nav)}>{navText(r.nav)}</span></small>}
                 </span>
               </th>
@@ -152,6 +176,9 @@ export function FundTable({ rows, cols, q, onSort, picked, onPick, peers }: {
             </tr>))}
         </tbody>
       </table>
+      {defs.some((c) => c.id === "score") && <p className="mf-plannote" data-testid="plan-note">{PLAN_SCORE_NOTE}</p>}
     </HScroll>
+    {cut && <button type="button" className="ui-btn ui-btn--secondary mf-showall" onClick={() => setAll(true)}>Show all {rows.length} schemes</button>}
+    </>
   );
 }

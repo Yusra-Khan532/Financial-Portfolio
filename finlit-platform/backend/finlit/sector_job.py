@@ -1,4 +1,4 @@
-"""`refresh-sectors`: the nightly sector run (docs/SECTORS.md).
+"""`refresh-sectors`: the weekly sector run, on weekend nights (docs/SECTORS.md, docs/JOBS.md).
 
     1. fetch   (SECTOR_FETCH=1, default) bring the NSE data folder up to date with `python -m finlit_technicals fetch-nse`, in a child process with a time
                limit. NSE sometimes refuses data-centre servers: that is reported in plain words (run status, /api/sectors/status) and the run carries on
@@ -139,6 +139,7 @@ def quick_probe(timeout: float = 20.0, today: Optional[date] = None) -> Optional
     import urllib.request
     if str(BACKEND_DIR) not in sys.path:
         sys.path.insert(0, str(BACKEND_DIR))
+    url = None
     try:
         from finlit_technicals import fetch
         day = today or datetime.now(IST).date()
@@ -153,11 +154,30 @@ def quick_probe(timeout: float = 20.0, today: Optional[date] = None) -> Optional
         except urllib.error.HTTPError as e:
             code = e.code
     except Exception as exc:
+        if relay_answers(url):
+            return None
         return f"NSE's archive could not be reached from this server ({type(exc).__name__}: {str(exc)[:120]}). NSE often refuses data-centre addresses; the data stays at the last files held (docs/SECTORS.md)."
     if code in (200, 404):
         return None
-    return (f"NSE's archive refused this server (HTTP {code}). NSE often refuses data-centre addresses; the data stays at the last files held. "
-            "Run the download from a PC in India and copy the folder up (docs/SECTORS.md).")
+    if relay_answers(url):
+        return None                   # refused directly, but FinLit's relay reaches NSE: fetch-nse goes through it (finlit_technicals/fetch.py)
+    return (f"NSE's archive refused this server (HTTP {code}) and FinLit's relay did not reach it either (or is not set: EXCHANGE_RELAY_URL / AMFI_RELAY_URL). "
+            "The data stays at the last files held. Run the download from a PC in India and copy the folder up (docs/SECTORS.md).")
+
+
+def relay_answers(url: Optional[str]) -> bool:
+    """True when the relay (deploy/amfi-relay) is set and NSE answers through it (200 or 404). Never raises."""
+    if not url:
+        return False
+    try:
+        from finlit_technicals import fetch
+        f = fetch.Fetcher()
+        if not f._relayable(url):
+            return False
+        code, _ = f._relay(url, "https://www.nseindia.com/")
+        return code in (200, 404)
+    except Exception:
+        return False
 
 
 def interpret_fetch(code: Optional[int], lines: List[str]) -> Dict[str, Any]:
@@ -200,6 +220,32 @@ def staged_runner():
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod
+
+
+def default_levels(nse: Path, release: Path) -> Any:
+    """Adds the Sectors view (by-sector/) to a release built before it existed, from the same NSE files, in a child process (finlit_technicals/staged.py, levels)."""
+    return staged_runner().add_levels(nse, release)
+
+
+def has_sectors_view(release: Optional[Path]) -> bool:
+    return bool(release and (release / sd.LEVELS_DIR / "sectors" / "_board.json").is_file())
+
+
+async def add_sectors_view(levels_fn: Callable[[Path, Path], Any], nse: Path, live: Path) -> Dict[str, Any]:
+    """The live set holds the industry groups but not the Sectors view (task #192: built before it existed). It is added in place, from the same NSE files,
+    in a few minutes: no new build. A failure is reported and never touches the industry pages, which keep serving."""
+    t = time.monotonic()
+    try:
+        await asyncio.to_thread(levels_fn, nse, live)
+    except Exception as exc:
+        msg = f"the Sectors view was not added ({type(exc).__name__}: {exc})"[:300]
+        print(f"sectors view: {msg}", flush=True)
+        return {"status": "failed", "message": msg}
+    sd.clear_cache()
+    board = sd.read_json(live / sd.LEVELS_DIR / "sectors" / "_board.json") or {}
+    msg = f"added to the live set: {board.get('groups')} sectors with a reading, {len(board.get('too_few_stocks') or [])} too small, in {round(time.monotonic() - t)} s"
+    print(f"sectors view: {msg}", flush=True)
+    return {"status": "ok", "message": msg}
 
 
 def peak_rss_mb() -> Optional[float]:
@@ -282,7 +328,7 @@ async def expected_data_date(store: Any, now: datetime) -> date:
 
 async def refresh(store: Any, *, env: Optional[Dict[str, str]] = None, force: bool = False, fetch: Optional[bool] = None, symbols: Optional[List[str]] = None,
                   fetch_fn: Optional[Callable[..., Any]] = None, batch_fn: Optional[Callable[..., List[Dict[str, Any]]]] = None,
-                  now: Optional[datetime] = None) -> Dict[str, Any]:
+                  now: Optional[datetime] = None, levels_fn: Optional[Callable[[Path, Path], Any]] = None) -> Dict[str, Any]:
     """The whole run. Returns the result dict (also recorded). `status`: ok | unchanged | behind | error."""
     env = dict(os.environ if env is None else env)
     now = now or datetime.now(IST)
@@ -297,7 +343,7 @@ async def refresh(store: Any, *, env: Optional[Dict[str, str]] = None, force: bo
         print(busy["reason"], flush=True)
         return busy
     try:
-        res = await _refresh(store, env, nse, out, res, force, fetch, symbols, fetch_fn or run_fetch, batch_fn or default_batch, now)
+        res = await _refresh(store, env, nse, out, res, force, fetch, symbols, fetch_fn or run_fetch, batch_fn or default_batch, now, levels_fn or default_levels)
     except Exception as exc:      # a bug or an out-of-disk must not take the supervisor down, and must be reported in words
         log.exception("refresh-sectors failed")
         res.update(status="error", reason=f"{type(exc).__name__}: {exc}"[:300])
@@ -338,7 +384,8 @@ def read_lock_note(out: Path) -> str:
         return "start time not recorded"
 
 
-async def _refresh(store, env, nse: Path, out: Path, res: Dict[str, Any], force: bool, fetch: Optional[bool], symbols, fetch_fn, batch_fn, now: datetime) -> Dict[str, Any]:
+async def _refresh(store, env, nse: Path, out: Path, res: Dict[str, Any], force: bool, fetch: Optional[bool], symbols, fetch_fn, batch_fn, now: datetime,
+                   levels_fn: Callable[[Path, Path], Any] = None) -> Dict[str, Any]:
     problem = folder_problem(nse)
     if problem:
         return {**res, "status": "error", "reason": f"Cannot run: {problem}."}
@@ -360,6 +407,8 @@ async def _refresh(store, env, nse: Path, out: Path, res: Dict[str, Any], force:
     if live and not force and not symbols and prev_meta.get("nse_signature") == sig:
         # the files are the ones the live set was built from: building again would give the same answer
         res["unchanged"] = True
+        if levels_fn is not None and not has_sectors_view(live):
+            res["sectorsView"] = await add_sectors_view(levels_fn, nse, live)
         return {**res, **_verdict(live_date, expected, built=False, fetch=res["fetch"])}
     stamp = now.strftime("%Y%m%d-%H%M")
     # The full build takes longer than one run of the job on the small server (about 2.5 hours measured on 4 Nov 2026), so the build folder is keyed on the

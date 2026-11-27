@@ -1,0 +1,201 @@
+/* Task #341 (23 Nov 2026, the team: "at start make it 3x2 columns", with the Mutual Funds refinement prompt and its HTML; PR A = prompt sections 8 and 9).
+   Loaded by the Mutual funds page (pages/Funds.tsx) after mf.css; every rule starts at .mf-list, the list page's own wrapper, so the other
+   mutual fund pages (which share .mf, and keep this sheet once it has loaded in a visit) never change. Every label, figure and link stays as it was; only the
+   layout and spacing move. Sizes are the site's own type scale (styles/typescale.css: 12, 13, 14, 16, 20, 24 ...), the nearest step to each size the
+   prompt names (its 11px becomes 12px, the smallest the site uses; 15px becomes 16px; 22px becomes 24px). Tokens only, so light and dark follow.
+   Section 7 (the heading card) keeps the shared page header (page-header.css, task #310: every quick link the same second button), as on every page.
+   - 8  the six category cards: three columns and two rows on a desktop (the task's own line; the prompt's four columns are left for this), equal heights,
+        16px padding, a 6px score bar, a quiet hover. Tablet: two columns. Phone: unchanged (the cards scroll sideways in one row, as before).
+   - 9  the two tool cards (Fund industry trends, Fund score screener): about 70px tall, 36px icon, Open aligned right. */
+
+/* 8: the six category cards (3 x 2, task #341) were replaced by "Frequently visited funds" inside the category box (task #344, below). */
+
+/* 9: the two tool cards were replaced by gold header buttons (task #345: Fund industry trends, Import my funds; styles/page-header.css). */
+
+/* 11 (PR B): the filters in two rows. Row 1: Search, Fund house, Plan, Option, each with its small label above (the labels were read to screen
+   readers only, except Fund house). Row 2: Return range and "Include schemes that stopped publishing NAVs", under a hairline. Controls 38px. */
+.mf-list .mf-ctl { gap: 12px; padding: 16px 18px; }
+.mf-list .mf-fbar { align-items: end; gap: 12px 14px; }
+.mf-list .mf-search-w { display: grid; gap: 4px; flex: 1 1 280px; min-width: 0; }
+.mf-list .mf-fbar .mf-search { height: 38px; }
+@media (min-width: 761px) { .mf-list .mf-fbar .mf-search input { font-size: var(--fs-14); } }   /* phones keep 16px inputs (no iOS zoom) */
+.mf-list .mf-fbar .mf-pick-b { height: 38px; min-width: 190px; }
+.mf-list .mf-fbar .mf-seg-w { display: grid; gap: 4px; }
+.mf-list .mf-fbar .label { margin: 0; font: 600 var(--fs-12)/var(--lh-12) var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.mf-list .mf-fbar2 { align-items: center; padding-top: 12px; border-top: 1px solid var(--border); }
+.mf-list .mf-fbar2 .mf-rangebtn { min-height: 38px; }
+@media (max-width: 760px) {
+  .mf-list .mf-search-w { flex-basis: 100%; }
+  .mf-list .mf-fbar .mf-pick { flex: 1 1 100%; } .mf-list .mf-fbar .mf-pick-b { min-width: 0; }
+}
+
+/* 10 (PR B): the category tabs and chips. Tabs 40px; "Select All" on its own line with "N of M selected", a hairline under it; every chip the same
+   height (38px), its tick and name centred, its count in a small tabular badge, long names wrapping inside the chip. */
+.mf-list .mf-tabs button { min-height: 40px; padding-inline: 16px; }
+.mf-list .mf-allrow { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding-bottom: 10px; margin-bottom: 12px; border-bottom: 1px solid var(--border); }
+.mf-list .mf-allrow .mf-all { margin: 0; }
+.mf-list .mf-alln { font-size: var(--fs-12); color: var(--muted); font-variant-numeric: tabular-nums; }
+.mf-list .mf-subgrid { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px 10px; }
+.mf-list .mf-subgrid .mf-check { min-height: 38px; align-items: center; gap: 8px; padding: 6px 10px; line-height: var(--lh-13); font-size: var(--fs-13); }
+.mf-list .mf-subgrid .mf-check input { width: 16px; height: 16px; flex: none; }
+.mf-list .mf-subgrid .mf-check small { margin-left: auto; padding: 1px 7px; border-radius: var(--ui-r-pill); background: var(--s3); font-size: var(--fs-12); font-variant-numeric: tabular-nums; color: var(--muted); }
+
+/* 12 (PR C): the summary tiles. One quiet surface for all six (the tinted blue, green, amber and teal backgrounds made the row colourful), equal
+   heights; the Schemes count, a count rather than a performance figure, is set apart with a raised surface and a firmer edge. */
+.mf-list .mf-sum { grid-auto-rows: 1fr; gap: 12px; }
+.mf-list .mf-sc, .mf-list .mf-sc.t-blue, .mf-list .mf-sc.t-green, .mf-list .mf-sc.t-amber, .mf-list .mf-sc.t-teal, .mf-list .mf-sc.t-grey { background: var(--s1); box-shadow: none; padding: 14px 16px; gap: 4px; }
+.mf-list .mf-sum > .mf-sc:first-child { background: var(--s2); border-color: var(--border-strong); }
+.mf-list .mf-sc span { font-size: var(--fs-12); line-height: var(--lh-12); }
+
+/* 13 (PR C): "Order by" list + three quick buttons, 36px. */
+.mf-list .mf-pills { gap: 8px 10px; }
+.mf-list .mf-sortsel { display: inline-flex; align-items: center; gap: 8px; }
+.mf-list .mf-sortsel select { height: 36px; min-width: 220px; padding: 0 10px; border: 1px solid var(--ui-field-line); border-radius: var(--r-ctl); background: var(--s1); color: var(--text); font: inherit; font-size: var(--fs-14); }
+.mf-list .mf-qsorts { display: inline-flex; flex-wrap: wrap; gap: 8px; padding-left: 10px; border-left: 1px solid var(--border); }
+.mf-list .mf-pills button { min-height: 36px; }
+@media (max-width: 760px) {
+  .mf-list .mf-sortsel { flex: 1 1 100%; } .mf-list .mf-sortsel select { flex: 1; min-width: 0; font-size: var(--fs-16); }
+  .mf-list .mf-qsorts { padding-left: 0; border-left: 0; }
+}
+
+/* 14 (PR D): the scheme table.
+   - The header stays in view while the list scrolls down: the sideways-scrolling box is also the box that scrolls down on a desktop (HScroll "tall",
+     styles/frozen.css), as tall as the window; the Scheme corner stays above both the frozen column and the header. A phone keeps one page scroll.
+   - The header on a raised surface; scheme names at most two lines (the full name on hover), so rows stay about 60-64px; figures at 13px. */
+.mf-list .tw-tall thead th, .mf-list .mf-table thead th:first-child { background: var(--s2); }
+.mf-list .tw-tall thead th:first-child { z-index: 5; }
+.mf-list .mf-table thead th { padding-top: 12px; padding-bottom: 12px; }
+.mf-list .mf-table .mf-nm > a { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-weight: 600; line-height: var(--lh-14); }
+.mf-list .mf-table td.num { font-size: var(--fs-13); }
+.mf-list .mf-table tbody tr:hover th.mf-name, .mf-list .mf-table tbody tr:hover td { background: color-mix(in srgb, var(--gold) 6%, var(--s1)); }
+@media (max-width: 760px) { .mf-list .tw.tw-tall { max-height: none; } }
+
+/* pager: left the count, centre the pages, right per page (as before); 36px buttons, the current page clearly marked */
+.mf-list .mf-pages { display: inline-flex; gap: 6px; align-items: center; }
+.mf-list .mf-pages .btn { min-width: 36px; min-height: 36px; padding: 0 10px; justify-content: center; }
+.mf-list .mf-pages .btn[aria-current="page"] { background: var(--ui-on-bg); color: var(--ui-on-fg); border-color: var(--ui-on-bg); font-weight: 600; }
+
+/* 15 (PR E): "How to read this table": the same nine cards and their full text, in three numbered groups side by side (Understanding returns,
+   Understanding Mutual Fund Scores, Fund data and methodology); one column on a phone. Card titles are h4 under each group's h3. */
+.mf-list .mf-note-groups { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; align-items: start; }
+.mf-list .mf-note-group { padding: 14px; border: 1px solid var(--border); border-radius: var(--r-card); background: var(--s1); }
+.mf-list .mf-ng-h { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; font: 600 var(--fs-12)/var(--lh-12) var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--gain); }
+.mf-list .mf-ng-h i { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; border: 1px solid var(--border-strong); font-style: normal; letter-spacing: 0; color: var(--muted); }
+.mf-list .mf-note-group .mf-note-cards { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+.mf-list .mf-note-card { background: var(--s2); }
+.mf-list .mf-note-card h4 { margin: 0 0 6px; font: 600 var(--fs-14)/var(--lh-14) var(--sans); color: var(--text); }
+.mf-list .mf-note-card > p { line-height: var(--lh-13); }
+@media (max-width: 1000px) { .mf-list .mf-note-groups { grid-template-columns: minmax(0, 1fr); } }
+
+/* 16 (PR E): the disclaimer and source: one framed block, the risk line and the disclaimer first, then a hairline, then the source, data date and
+   last update (the date line in the accent so it is easy to find), the fund houses not listed last. Wording unchanged. */
+.mf-list .mf-foot { margin-top: 24px; padding: 16px 20px; border: 1px solid var(--border); border-radius: var(--r-card); background: var(--s1); }
+.mf-list .mf-foot p { margin: 0 0 6px; font-size: var(--fs-13); line-height: var(--lh-13); }
+.mf-list .mf-foot p:nth-child(2) { padding-bottom: 12px; margin-bottom: 12px; border-bottom: 1px solid var(--border); }
+.mf-list .mf-foot p:nth-child(3), .mf-list .mf-foot p.faint { font-size: var(--fs-12); color: var(--muted); }
+
+/* 17 (PR E): the page's questions follow 40-48px after the disclaimer (they sat 118px below it: the page's own bottom padding plus the FAQ's
+   margin). Only this page: the shared FAQ is not changed elsewhere. */
+.wrap.mf-list { padding-bottom: 8px; }
+
+/* Task #343 (23 Nov 2026, the team, "Chosen categories | Ready list": "when selected it should fill properly we can see gaps"): the site's switch keeps
+   2-3px of track around the chosen button. On this page the three switches (Chosen categories / Ready list, Plan, Option) are edge to edge: the chosen
+   button fills its part of the box to the border, with no gap; the box's rounded corners clip the outer buttons. Other pages keep the shared switch. */
+.mf-list .seg { padding: 0; gap: 0; overflow: hidden; align-items: stretch; }
+.mf-list .seg button { border-radius: 0; min-height: 36px; padding: 0 14px; }
+.mf-list .seg button + button { border-left: 1px solid var(--border); }
+.mf-list .seg button[aria-pressed="true"], .mf-list .seg button[aria-pressed="true"] + button { border-left-color: transparent; }
+
+/* Task #344: "Frequently visited funds" at the top of the category box: the six names in one row (wrapping on narrow screens), the chosen one in
+   the site's selected look, and an (i) that opens what each is (its two lines, its Mutual Fund Score strip for Gold, the ELSS footnote) in a panel
+   under the row, three across on a desktop. */
+.mf-list .mf-freq { padding: 12px 18px; border-bottom: 1px solid var(--border); }
+.mf-list .mf-freq-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.mf-list .mf-freq-k { margin-right: 4px; font: 600 var(--fs-12)/var(--lh-12) var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.mf-list .mf-freq-b { min-height: 34px; padding: 0 12px; border: 1px solid var(--border-strong); border-radius: var(--ui-r-pill); background: var(--s1); color: var(--text); font: 600 var(--fs-13) var(--sans); cursor: pointer; }
+.mf-list .mf-freq-b:hover { border-color: var(--gold); }
+.mf-list .mf-freq-b[aria-pressed="true"] { background: var(--ui-on-bg); color: var(--ui-on-fg); border-color: var(--ui-on-bg); }
+.mf-list .mf-freq-b:focus-visible, .mf-list .mf-freq-i:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.mf-list .mf-freq-i { display: inline-grid; place-items: center; width: 30px; height: 30px; padding: 0; border: 1px solid var(--border-strong); border-radius: 50%; background: none; color: var(--muted); cursor: pointer; }
+.mf-list .mf-freq-i[aria-expanded="true"] { color: var(--text); border-color: var(--gold); }
+.mf-list .mf-freq-i svg { width: 16px; height: 16px; }
+.mf-list .mf-freq-info { margin-top: 12px; }
+.mf-list .mf-freq-info ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.mf-list .mf-freq-info li { display: grid; gap: 4px; align-content: start; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--r-ctl); background: var(--s2); }
+.mf-list .mf-freq-info li > b { font: 600 var(--fs-14)/var(--lh-14) var(--sans); }
+.mf-list .mf-freq-info li > span { font-size: var(--fs-13); line-height: var(--lh-13); color: var(--muted); }
+.mf-list .mf-freq-info .mf-qscore { margin: 6px -14px -12px; border-left: 0; border-right: 0; border-bottom: 0; border-radius: 0 0 var(--r-ctl) var(--r-ctl); background: var(--s1); min-height: 0; }
+.mf-list .mf-freq-info > p { margin: 10px 0 0; font-size: var(--fs-12); }
+@media (max-width: 1000px) { .mf-list .mf-freq-info ul { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 760px) { .mf-list .mf-freq { padding: 12px 14px; } .mf-list .mf-freq-info ul { grid-template-columns: minmax(0, 1fr); } }
+
+/* Task #346 (23 Nov 2026, the team: "give column button inside the table"): the Columns button sits in the table's own top strip, just left of the
+   enlarge button (it was above the summary tiles, away from the table); its list opens over the table. */
+.mf-list .mf-tablecard { position: relative; }
+.mf-list .mf-tbar { position: absolute; top: 8px; right: 58px; z-index: 10; }
+.mf-list .mf-tbar .mf-cols > .btn { min-height: 36px; }
+@media (max-width: 760px) { .mf-list .mf-tbar { right: 54px; } }
+
+/* Task #347 (23 Nov 2026): the filter panel on the left of the table. Desktop: a 320px column beside the list; "Hide filters" folds it to a 44px
+   handle in the same place ("Show filters", written down the handle), never on the table. Tablet and phone: the panel sits above the list and folds to
+   one "Show filters" button. Inside: the search at the top, the fund types as sections (the open one is the type shown, its box ticked or partly
+   ticked), then fund house, plan, option, return range and the stopped tick, one column. */
+.mf-list .mf-layout { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 16px; align-items: start; margin-top: 16px; }
+.mf-list .mf-layout.closed { grid-template-columns: 44px minmax(0, 1fr); }
+.mf-list .mf-main { min-width: 0; }
+.mf-list .mf-side { min-width: 0; padding: 14px; border: 1px solid var(--border); border-radius: var(--r-card); background: var(--s1); }
+.mf-list .mf-layout.closed .mf-side { padding: 0; border: 0; background: none; }
+.mf-list .mf-side-h { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+.mf-list .mf-side-h h2 { margin: 0; font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif); }
+.mf-list .mf-hidef { min-height: 34px; }
+.mf-list .mf-side-b { display: grid; gap: 12px; }
+.mf-list .mf-showf { display: flex; flex-direction: column; align-items: center; gap: 10px; width: 44px; min-height: 180px; padding: 12px 0; border: 1px solid var(--border-strong); border-radius: var(--r-card); background: var(--s1); color: var(--text); font: 600 var(--fs-13) var(--sans); cursor: pointer; }
+.mf-list .mf-showf span { writing-mode: vertical-rl; transform: rotate(180deg); }
+.mf-list .mf-showf svg { width: 18px; height: 18px; }
+.mf-list .mf-showf:hover, .mf-list .mf-showf:focus-visible { border-color: var(--gold); }
+/* inside the panel: one column */
+.mf-list .mf-side .mf-ctl { padding: 0; border: 0; background: none; box-shadow: none; }
+.mf-list .mf-side .mf-fbar { flex-direction: column; align-items: stretch; gap: 12px; }
+.mf-list .mf-side .mf-fbar > * { flex: none; width: 100%; min-width: 0; }
+.mf-list .mf-side .mf-fbar .mf-pick-b { min-width: 0; width: 100%; }
+.mf-list .mf-side .mf-seg-w .seg { width: 100%; } .mf-list .mf-side .mf-seg-w .seg button { flex: 1; padding: 0 8px; }
+.mf-list .mf-side .mf-fbar2 { align-items: stretch; }
+.mf-list .mf-side .mf-search-w { flex: none; }
+.mf-list .mf-catside { display: grid; gap: 8px; }
+.mf-list .mf-catside .mf-freq { padding: 0 0 12px; }
+.mf-list .mf-catside .mf-freq-info ul { grid-template-columns: minmax(0, 1fr); }
+.mf-list .mf-acc { border: 1px solid var(--border); border-radius: var(--r-ctl); background: var(--s1); }
+.mf-list .mf-acc.on { border-color: var(--border-strong); }
+.mf-list .mf-acc-h { all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 10px; width: 100%; min-height: 40px; padding: 0 12px; cursor: pointer; font: 600 var(--fs-14) var(--sans); color: var(--text); }
+.mf-list .mf-acc-h:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; border-radius: var(--r-ctl); }
+.mf-list .mf-acc-t { flex: 1; }
+.mf-list .mf-acc-h small { font: 500 var(--fs-12) var(--sans); color: var(--muted); font-variant-numeric: tabular-nums; }
+.mf-list .mf-acc-box { display: inline-grid; place-items: center; width: 18px; height: 18px; flex: none; border: 1.5px solid var(--border-strong); border-radius: var(--ui-r-mark); font: 700 var(--fs-12)/1 var(--sans); color: var(--on-gold); }
+.mf-list .mf-acc-box.all, .mf-list .mf-acc-box.some { background: var(--gold); border-color: var(--gold); }
+.mf-list .mf-acc-car { color: var(--muted); font-size: var(--fs-12); }
+.mf-list .mf-acc-b { padding: 4px 12px 12px; }
+.mf-list .mf-catside .mf-subgrid { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+.mf-list .mf-catside .mf-allrow { margin-bottom: 8px; padding-bottom: 8px; }
+@media (max-width: 1100px) {
+  .mf-list .mf-layout, .mf-list .mf-layout.closed { grid-template-columns: minmax(0, 1fr); }
+  .mf-list .mf-showf { flex-direction: row; justify-content: center; width: 100%; min-height: 44px; padding: 0 14px; }
+  .mf-list .mf-showf span { writing-mode: horizontal-tb; transform: none; }
+  .mf-list .mf-catside .mf-subgrid { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+}
+.mf-list .mf-catside fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+.mf-list .mf-catside .mf-alln { display: none; }   /* the section's own header already says "N of M selected" */
+
+/* Task #348 (23 Nov 2026, the team: "make the information and numbers center aligned in the table and make the column lines more evident"): every
+   column of the scheme table, its heading, its figures and the small band words under them, is centred (the Scheme column keeps names left, easier
+   to read, and is not marked in the team's pictures); every column has a clear line on its left (the strong border colour, light and dark alike). */
+.mf-list .mf-table thead th:not(:first-child), .mf-list .mf-table td, .mf-list .mf-table th.num, .mf-list .mf-table td.num, .mf-list .mf-table th.txt, .mf-list .mf-table td.txt { text-align: center; }
+.mf-list .mf-table td .mf-rf, .mf-list .mf-table td .mf-grf, .mf-list .mf-table td .mf-aum { justify-items: center; }
+.mf-list .mf-table td .mf-rf small, .mf-list .mf-table td .mf-grf .mf-gr { text-align: center; }
+.mf-list .mf-table thead th .mf-sort { justify-content: center; margin-inline: auto; }
+.mf-list .mf-table thead th:not(:first-child), .mf-list .mf-table tbody td { border-left: 1px solid var(--border-strong); }
+.mf-list .mf-table .mf-grouprow th + th { border-left: 1px solid var(--border-strong); }
+
+/* task #353 (team, 23 Nov 2026): the same 16px gap between every box of the main column (the category tabs, the summary tiles, the order-by row,
+   the table card), as between the page header and the cards above it; the boxes used to touch (0px). */
+.mf-list .mf-main { display: flex; flex-direction: column; gap: 16px; }
+.mf-list .mf-main > * { margin-top: 0; margin-bottom: 0; }

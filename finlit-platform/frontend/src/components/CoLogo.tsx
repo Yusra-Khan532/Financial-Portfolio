@@ -5,6 +5,7 @@ import { QueryClientContext, useQuery } from "@tanstack/react-query";
 import { apiGet, type ApiError } from "../lib/api";
 import type { Quotes } from "../lib/globalSearch";
 import { Logo } from "./search/parts";
+import { logoFor } from "../lib/logoCdn";
 
 /** symbol -> logo path, from the one search-quotes request the whole site shares. */
 export function useLogoMap(enabled = true): Map<string, string> | undefined {
@@ -14,7 +15,7 @@ export function useLogoMap(enabled = true): Map<string, string> | undefined {
   // eslint-disable-next-line react-hooks/rules-of-hooks
   return useQuery<Quotes, ApiError, Map<string, string>>({
     queryKey: ["search-quotes"], queryFn: () => apiGet("/api/search/quotes"), enabled, staleTime: 300_000, gcTime: 600_000, retry: 1,
-    select: (q) => { const m = new Map<string, string>(); for (const r of q?.rows || []) if (r[6]) m.set(String(r[0]).toUpperCase(), r[6]); return m; },
+    select: (q) => { const m = new Map<string, string>(); for (const r of q?.rows || []) { const src = logoFor(String(r[0]), r[6], q?.logoCdn, (r as unknown[])[7] as string | null | undefined, q?.logoCdnSkip); if (src) m.set(String(r[0]).toUpperCase(), src); } return m; },
   }).data;
 }
 
@@ -23,4 +24,14 @@ export function CoLogo({ symbol, name, size = 24, inline = false }: { symbol: st
   const m = useLogoMap();
   const logo = <Logo src={m?.get(symbol.toUpperCase()) ?? null} name={name || symbol} kind="stock" size={size} />;
   return inline ? <span className="cl-in">{logo}</span> : logo;   // `inline`: sits in a line of text, centred on it, with a gap before the name
+}
+
+/** Logo.dev's required credit (free plan, commercial site): shown in the footer only while the server sends a Logo.dev key, i.e. only when its
+ *  logos can appear. Reads the shared quotes list from the cache; it never fetches it just for the footer. */
+export function LogoCredit() {
+  const qc = useContext(QueryClientContext);
+  if (!qc) return null;
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  const key = useQuery<Quotes, ApiError, string | null>({ queryKey: ["search-quotes"], queryFn: () => apiGet("/api/search/quotes"), enabled: false, select: (q) => q?.logoCdn ?? null }).data;
+  return key ? <span className="logo-credit"><a href="https://logo.dev" target="_blank" rel="noopener">Logos provided by Logo.dev</a></span> : null;
 }

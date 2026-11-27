@@ -26,8 +26,9 @@ const DOCS: Record<string, { title: string; body: [string, string][] }> = {
   disclosures: { title: "Research disclosures", body: [
     ["Not a registered adviser", COMPANY.disclaimer],
     ["How scores are made", "Research scores, pros and cons, and notes are generated automatically by fixed rules in our software from company filings and market data. They are not individually reviewed by an analyst and can be wrong or out of date. The FinLit AI chat is separate: it uses a generative AI model (Google Gemini) and can also make mistakes."],
-    ["Model", "The FinLit IQ averages five pillars (quality, growth, profitability, balance sheet, technical). Each input is mapped to a score using fixed thresholds. The score has not been back-tested against future returns and does not predict them. The method is explained on every stock page."],
+    ["Model", "FinLit Prism, FinLit's only company score, weighs four financial-health parts (Growth & Profitability, Valuation, Quality, Risk), each read against the company's industry group; its two technical views are shown separately and are not part of the score. The score has not been back-tested against future returns and does not predict them. The method is explained on every company page and on the FinLit Prism page."],
     ["Conflicts", "Team members may hold, or may trade, securities discussed on this site, and may do so before or after anything is published. The Portfolio page shows realised results from one broker statement. It is a record of past trades, not a recommendation, not audited, and not a promise or indication of future returns."],
+    ["Company names and logos", "Company names, logos and trademarks belong to their owners. FinLit shows a company's logo only beside its name, unchanged, to identify the company being described (from the company's own website, or from Logo.dev where its site offers none); this does not mean the company endorses, sponsors or is connected with FinLit. A company that wants its logo changed or removed can write to us through the contact page, and we will act on it."],
     ["Risk", "Investments in securities markets are subject to market risks, including the loss of your capital. Read all related documents carefully before investing."],
   ] },
 };
@@ -39,7 +40,7 @@ export function Legal() {
   if (!d) return <div className="wrap state"><h2>We cannot find that page</h2></div>;
   return (
     <section className="sec"><div className="wrap legal">
-      <div className="eyebrow">Legal</div><h1 style={{ font: "300 clamp(32px,5vw,52px)/1.1 var(--serif)", margin: "8px 0 8px" }}>{d.title}</h1>
+      <div className="eyebrow">Legal</div><h1 className="ui-title ui-title--read" style={{ margin: "8px 0 8px" }}>{d.title}</h1>
       <p className="faint">Draft for review by FinLit's legal adviser before launch. Last updated October 2026.</p>
       {d.body.map(([h, t]) => <div key={h}><h2>{h}</h2><p>{t}</p></div>)}
       <p style={{ marginTop: 32 }}>{Object.keys(DOCS).filter((k) => k !== doc).map((k) => <Link key={k} to={`/legal/${k}`} style={{ marginRight: 16 }}>{DOCS[k].title}</Link>)}</p>

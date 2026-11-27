@@ -1,6 +1,7 @@
 // Site-wide search: the pure part (no React), so it is tested without the page.
 // Stocks are searched in the browser over the full name list (/api/stocks/search-index) and joined to /api/search/quotes for price, day
 // change, score and logo. Funds, ETFs and news come from their own server searches; this file only shapes and orders what they return.
+import { logoFor } from "./logoCdn";
 import { companyRank } from "./companySearch";
 import type { SearchRow } from "./api";
 
@@ -12,7 +13,7 @@ export const TABS: { key: Tab; label: string }[] = [
 export type Band = "strong" | "healthy" | "mixed" | "watch" | "insufficient" | "locked" | null;
 /** One row of /api/search/quotes. */
 export type QuoteRow = [symbol: string, price: number | null, changePct: number | null, priceDate: string | null, score: number | null, band: Band, logo: string | null];
-export type Quotes = { fields: string[]; rows: QuoteRow[]; amcLogos: Record<string, string>; level: string; builtAt: number };
+export type Quotes = { fields: string[]; rows: QuoteRow[]; amcLogos: Record<string, string>; level: string; builtAt: number; /** Logo.dev publishable key, when set on the server */ logoCdn?: string | null; /** companies whose Logo.dev image is wrong */ logoCdnSkip?: string[] };
 export type Quote = { price: number | null; chg: number | null; date: string | null; score: number | null; band: Band; logo: string | null };
 
 export type Item = {
@@ -23,12 +24,12 @@ export type Item = {
 };
 export type Section = { id: string; title: string; items: Item[]; more?: { tab: Tab; label: string } };
 
-export const BAND_LABEL: Record<string, string> = { strong: "Strong", healthy: "Healthy", mixed: "Mixed", watch: "Watch", insufficient: "Not scored", locked: "Silver" };
+export const BAND_LABEL: Record<string, string> = { strong: "Strong", healthy: "Healthy", mixed: "Mixed", watch: "Watch", insufficient: "Not scored", locked: "FinLit Prism" };
 export const KIND_LABEL: Record<Kind, string> = { stock: "Stock", mf: "Fund", etf: "ETF", news: "News" };
 
 export function quoteMap(q: Quotes | undefined): Map<string, Quote> {
   const m = new Map<string, Quote>();
-  for (const r of q?.rows || []) m.set(r[0], { price: r[1], chg: r[2], date: r[3], score: r[4], band: r[5], logo: r[6] });
+  for (const r of q?.rows || []) m.set(r[0], { price: r[1], chg: r[2], date: r[3], score: r[4], band: r[5], logo: logoFor(String(r[0]), r[6], q?.logoCdn, (r as unknown[])[7] as string | null | undefined, q?.logoCdnSkip) });
   return m;
 }
 

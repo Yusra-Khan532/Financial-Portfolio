@@ -57,7 +57,7 @@ def test_a_deploy_never_shows_visitors_a_502():
     proxy = caddy[caddy.index("reverse_proxy app:8000 {"):]
     proxy = proxy[:proxy.index("}") + 1]
     assert "lb_try_duration 90s" in proxy and "lb_try_interval 1s" in proxy
-    assert "header_up X-Forwarded-For {remote_host}" in proxy                       # the visitor's real address still reaches the app
+    assert "header_up X-Forwarded-For {client_ip}" in proxy                         # the visitor's real address still reaches the app
     errors = caddy[caddy.index("handle_errors 502 503 504 {"):]
     assert "@api path /api/*" in errors and '"status":"updating"' in errors
     assert 'http-equiv="refresh"' in errors and 'Cache-Control "no-store"' in errors
@@ -89,3 +89,15 @@ def test_jobs_run_in_their_own_container_so_a_website_deploy_never_stops_one():
     assert "dc stop app jobs" in deploy                                    # a restore stops the jobs too: nothing writes while the database is replaced
     auto = (ROOT / "deploy/aws/auto-deploy.sh").read_text()
     assert 'bash "$DEPLOY_SH" jobs' in auto and "deploy-gate check" not in auto   # the website deploy itself never waits for a job
+
+
+def test_behind_cloudflare_the_real_visitor_address_is_trusted_only_from_cloudflare():
+    """Owner, 17 Nov 2026: Cloudflare (free) in front. Its real-visitor header (CF-Connecting-IP) is believed only for connections from Cloudflare's
+    published ranges; anybody else is their own connecting address, so the login pause and the per-visitor limits cannot be dodged with a header."""
+    caddy = (ROOT / "deploy/aws/Caddyfile").read_text()
+    glob = caddy[:caddy.index("{$SITE_ADDRESS")]                                     # the global options block, before the site
+    assert "client_ip_headers CF-Connecting-IP" in glob
+    trusted = next(line for line in glob.splitlines() if "trusted_proxies static" in line).split()[2:]
+    assert "173.245.48.0/20" in trusted and "104.16.0.0/13" in trusted and "2606:4700::/32" in trusted and len(trusted) == 22
+    assert "0.0.0.0/0" not in trusted and "private_ranges" not in glob                # never "trust everybody"
+    assert "{remote_host}" not in caddy[caddy.index("reverse_proxy app:8000"):caddy.index("handle_errors")]

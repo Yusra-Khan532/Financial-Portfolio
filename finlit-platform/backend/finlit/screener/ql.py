@@ -23,6 +23,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 
+from ..auth.entitlements import part_of
 from .catalog import BY_KEY, GROUP_LABEL, allowed, offered
 from .qaliases import ALIAS, ALIAS_TEXT, PREFIXES, UNIT_WORDS, norm
 
@@ -33,7 +34,6 @@ OP_WORDS = {">": "is greater than", ">=": "is at least", "<": "is less than", "<
 UNIT_NAME = {"pct": "a percentage (%)", "Cr": "an amount in ₹ crore", "Rs": "an amount in rupees (₹)", "x": "a multiple (times)", "d": "a number of days",
              "n": "a count", "pts": "a score in points", "flag": "a yes/no answer"}
 SUFFIX_TEXT = {"pct": "%", "Cr": "Cr", "Rs": "₹", "x": "x", "d": "days", "flag": "yes/no"}
-TIER_NAME = {"basic": "Basic", "silver": "Silver", "gold": "Gold"}
 # ownership changes are measured in percentage points: "Promoter holding change > 2%" reads naturally
 PCT_POINTS = {k for k, m in BY_KEY.items() if m.unit == "pts" and (m.group == "ownership" or k == "opm_change")}
 STOP_WORDS = {"the", "of", "a", "an", "to", "in", "and", "or", "ratio", "per", "for", "is", "vs"}
@@ -225,6 +225,7 @@ def suggest(phrase: str, limit: int = 3) -> List[str]:
         for n, k in ALIAS.items():
             if q in n:
                 score[k] = max(score.get(k, 0), 0.5 + 0.3 * len(q) / len(n))
+    score = {k: v for k, v in score.items() if BY_KEY[k].group != "model"}   # task #283: the retired score is never suggested
     ranked = sorted(score.items(), key=lambda kv: (-kv[1], BY_KEY[kv[0]].tier != "basic", kv[0]))
     return [k for k, s in ranked if s >= 0.5][:limit]
 
@@ -869,11 +870,15 @@ def plan_problems(root: Node, plan: str) -> List[Problem]:
     for n in walk(root):
         if isinstance(n, Met):
             m = BY_KEY[n.key]
-            if m.group == "model" and not offered(plan, m.group):   # one score per plan (task #100): Gold uses FinLit Prism, never the FinLit IQ
-                out.append(Problem("plan_score", f"{m.label} is not part of your plan's score. Use FinLit Prism instead.", n.start, n.end, "error", [], {"key": n.key}))
+            if m.group == "model" and not offered(plan, m.group):   # task #283: the retired score is offered to no plan
+                if n.key == "overall":   # task #283 PR D: the retired overall score has a Prism twin: say so and offer it (its levels differ, so never swapped silently)
+                    out.append(Problem("plan_score", "That score has been retired: FinLit Prism is FinLit's only company score. Write Prism score instead, "
+                                                     "and check the number, since the two scores' levels differ (Prism: Strong 80, Healthy 65, Average 50).",
+                                       n.start, n.end, "error", [fix("Use Prism score", n.start, n.end, "Prism score")], {"key": n.key}))
+                else:
+                    out.append(Problem("plan_score", "That ratio is not offered: queries use the FinLit Prism score and its parts.", n.start, n.end, "error", [], {"key": n.key}))
             elif not allowed(plan, m.tier):
-                tier = TIER_NAME[m.tier]
-                out.append(Problem("plan_locked", f"{m.label} is part of the {tier} plan. Upgrade to {tier} to use it, or pick another ratio.", n.start, n.end, "error", [],
+                out.append(Problem("plan_locked", f"{m.label} is part of {part_of(m.tier)}. Pick another ratio, or ask for a plan from your account.", n.start, n.end, "error", [],
                                    {"plan": m.tier, "key": n.key}))
     return out
 
@@ -956,8 +961,55 @@ class Analysis:
         return self.root is not None and not any(p.severity == "error" for p in self.problems)
 
 
+# Task #262: a typed size ("Size = micro", "size is small cap") stands for its market-value range on the site's one rule (finlit/sizes.py), so the four
+# sizes can be typed as words. The words are swapped for the range before parsing; problem positions are mapped back to what the member typed.
+SIZE_WORD = re.compile(r"\b(?:company\s+)?size\s*(?:=|is)\s*(large|mid|small|micro)(?:[\s-]*caps?)?\b", re.I)
+
+
+def size_range(word: str) -> str:
+    from ..sizes import LARGE_ABOVE, MID_FROM, SMALL_FROM
+    big, mid, small = (int(x) for x in (LARGE_ABOVE, MID_FROM, SMALL_FROM))
+    return {"large": f"Market cap > {big} Cr", "mid": f"(Market cap >= {mid} Cr AND Market cap <= {big} Cr)",
+            "small": f"(Market cap >= {small} Cr AND Market cap < {mid} Cr)", "micro": f"Market cap < {small} Cr"}[word.lower()]
+
+
+def expand_sizes(text: str) -> Tuple[str, List[Tuple[int, int, int, int]]]:
+    """The text with each typed size swapped for its range, and the swaps as (typed start, typed end, new start, new end)."""
+    out, spans, last, shift = [], [], 0, 0
+    for m in SIZE_WORD.finditer(text):
+        rep = size_range(m.group(1))
+        out.append(text[last:m.start()]); out.append(rep)
+        spans.append((m.start(), m.end(), m.start() + shift, m.start() + shift + len(rep)))
+        shift += len(rep) - (m.end() - m.start())
+        last = m.end()
+    out.append(text[last:])
+    return "".join(out), spans
+
+
+def _back(pos: int, spans: List[Tuple[int, int, int, int]]) -> int:
+    """A position in the expanded text, as a position in the typed text."""
+    for a, b, na, nb in reversed(spans):
+        if pos >= nb:
+            return pos - (nb - na) + (b - a)
+        if pos >= na:
+            return a if pos == na else b
+    return pos
+
+
 def analyze(text: str, plan: str = "gold") -> Analysis:
-    """Parse and check a query for a member on `plan`. Every problem is returned together, sorted by position."""
+    """Parse and check a query for a member on `plan`. Every problem is returned together, sorted by position. Typed sizes are read as their ranges."""
+    typed = text
+    text, spans = expand_sizes(text) if SIZE_WORD.search(text) else (text, [])
+    a = _analyze(text, plan)
+    if not spans:
+        return a
+    for p in a.problems:
+        p.start, p.end = _back(p.start, spans), _back(p.end, spans)
+        p.fixes = [{**f, "start": _back(f["start"], spans), "end": _back(f["end"], spans)} for f in p.fixes]
+    return Analysis(typed, a.root, a.problems)
+
+
+def _analyze(text: str, plan: str = "gold") -> Analysis:
     if len(text) > MAX_CHARS:
         return Analysis(text, None, [Problem("too_long", f"This query is {len(text):,} characters long; the limit is {MAX_CHARS:,}. Shorten it or split it into two baskets.",
                                              MAX_CHARS, len(text))])

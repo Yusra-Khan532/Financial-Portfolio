@@ -13,28 +13,28 @@ const src = (p: string) => resolve(__dirname, "..", p);
 const json = JSON.parse(readFileSync(resolve(__dirname, "../../../scripts/data/page-faqs.json"), "utf8")) as (typeof PAGE_FAQS[number] & { declared: number })[];
 
 describe("page FAQ data (built from the PDF by scripts/build-page-faqs.py)", () => {
-  it("has 32 pages and 228 questions, as the PDF header says", () => {
-    expect(PAGE_FAQS).toHaveLength(32);
-    expect(PAGE_FAQS.reduce((n, f) => n + f.items.length, 0)).toBe(228);
+  it("has 27 pages and 205 questions (founder, 25 Nov 2026: My baskets joined the Query builder page, its five questions with the Query builder's seven as one list of 12; task #330 joined Results calendar and Latest results into one Results list of 14; task #325 took off the Advanced screener's Quick views question; task #317 took off Commodity prices, 8, and Company financials, 6; the PDF's 228, less the company report's download question, task #216, plus \"Which screener should I use?\" on Basic and Advanced, task #243, less the Basic stock screener's nine and Advanced's question comparing with it, task #283)", () => {
+    expect(PAGE_FAQS).toHaveLength(27);
+    expect(PAGE_FAQS.reduce((n, f) => n + f.items.length, 0)).toBe(205);
   });
   it("every page has the number of questions its 'N questions' line declares", () => {
-    expect(json).toHaveLength(32);
+    expect(json).toHaveLength(27);
     for (const p of json) expect(p.items.length, p.title).toBe(p.declared);
   });
   it("the TS file is the JSON without the bookkeeping field", () => {
     expect(PAGE_FAQS).toEqual(json.map(({ declared: _d, ...rest }) => rest));
   });
   it("ids are unique, questions end with '?', nothing is empty", () => {
-    expect(new Set(PAGE_FAQS.map((f) => f.id)).size).toBe(32);
+    expect(new Set(PAGE_FAQS.map((f) => f.id)).size).toBe(27);
     for (const f of PAGE_FAQS) for (const it of f.items) { expect(it.q.endsWith("?"), it.q).toBe(true); expect(it.a.length).toBeGreaterThan(5); expect(it.a).not.toMatch(/\s{2}|\n/); }
   });
   it("keeps verbatim text: typographic quotes, rupee signs, multi-line joins, plans, routes", () => {
     const dash = PAGE_FAQS.find((f) => f.id === "dashboard")!;
     expect(dash.items[2].q).toBe("What is the difference between “Market” and “My stocks” on a widget?");
     expect(dash.items[5].a).toBe("Sectors are grouped from the exchange's industry list. Each block is sized by the sector's total market value and coloured by its cap-weighted move today. Companies below ₹100 crore are left out.");
-    expect(dash.items[6].a).toContain("A flag is a reason to look closer, not a reason to buy or sell.");
-    const score = PAGE_FAQS.find((f) => f.id === "basic-score-screener")!;
-    expect(score.plan).toBe("Silver (full table)");
+    expect(dash.items[6].a).toContain("Strong or Healthy (65 or more)");   // task #283: "Worth a second look" is FinLit Prism's
+    expect(PAGE_FAQS.find((f) => f.id === "basic-score-screener")).toBeUndefined();   // task #283: the Basic stock screener's set is gone
+    expect(JSON.stringify(PAGE_FAQS)).not.toMatch(/FinLit IQ|\bMixed and Watch\b/);
     expect(PAGE_FAQS.find((f) => f.id === "company-report")!.routes).toEqual(["/research", "/stocks/:symbol"]);
     expect(PAGE_FAQS.find((f) => f.id === "sip-calculator")!.plan).toBe("Free, no sign-in");
   });
@@ -50,7 +50,7 @@ describe("route matching", () => {
     expect(faqForPath("/dashboard")?.id).toBe("dashboard");
     expect(faqForPath("/dashboard/")?.id).toBe("dashboard");
     expect(faqForPath("/screener?q=roe&x=1#top")?.id).toBe("stock-screener");
-    expect(faqForPath("/Score-Screener")?.id).toBe("basic-score-screener");
+    expect(faqForPath("/Advanced-Score-Screener")?.id).toBe("advanced-score-screener");
     expect(faqForPath("/stocks/TCS")?.id).toBe("company-report");
     expect(faqForPath("/research")?.id).toBe("company-report");
     expect(faqForPath("/prism/INFY")?.id).toBe("finlit-prism");
@@ -72,7 +72,7 @@ describe("route matching", () => {
 });
 
 describe("<PageFaqs />", () => {
-  const at = (p: string) => render(<MemoryRouter initialEntries={[p]}><PageFaqs inline={p.startsWith("/dashboard")} /></MemoryRouter>);   // the dashboard places its own copy (final pages pack)
+  const at = (p: string) => render(<MemoryRouter initialEntries={[p]}><PageFaqs inline={p.startsWith("/dashboard") || /^\/prism\/./.test(p)} /></MemoryRouter>);   // the dashboard places its own copy (final pages pack)
   it("renders nothing on a page without a set", () => { const { container } = at("/glossary"); expect(container.innerHTML).toBe(""); cleanup(); });
   it("shows title, count, plan, note and the All FAQs link", () => {
     at("/prism/TCS");
@@ -99,15 +99,15 @@ describe("<PageFaqs />", () => {
   });
   it("the All FAQs hub lists every set grouped by section", () => {
     render(<MemoryRouter><FaqsPage /></MemoryRouter>);
-    expect(screen.getAllByRole("heading", { level: 3 })).toHaveLength(32);
-    expect(screen.getAllByRole("button").filter((b) => b.hasAttribute("aria-controls"))).toHaveLength(228);
+    expect(screen.getAllByRole("heading", { level: 3 })).toHaveLength(27);
+    expect(screen.getAllByRole("button").filter((b) => b.hasAttribute("aria-controls"))).toHaveLength(205);
     expect(screen.getByRole("heading", { level: 2, name: "Gold dashboards" })).toBeTruthy();
     cleanup();
   });
 });
 
 describe("FAQ upgrades", () => {
-  const at = (p: string) => render(<MemoryRouter initialEntries={[p]}><PageFaqs inline={p.startsWith("/dashboard")} /></MemoryRouter>);   // the dashboard places its own copy (final pages pack)
+  const at = (p: string) => render(<MemoryRouter initialEntries={[p]}><PageFaqs inline={p.startsWith("/dashboard") || /^\/prism\/./.test(p)} /></MemoryRouter>);   // the dashboard places its own copy (final pages pack)
   it("Expand all / Collapse all toggles every answer", () => {
     at("/dashboard");
     const qs = () => screen.getAllByRole("button").filter((b) => b.hasAttribute("aria-controls"));
@@ -135,8 +135,8 @@ describe("FAQ upgrades", () => {
     const box = screen.getByRole("searchbox");
     fireEvent.change(box, { target: { value: "sector" } });
     const n = screen.getAllByRole("button").filter((b) => b.hasAttribute("aria-controls")).length;
-    expect(n).toBeGreaterThan(0); expect(n).toBeLessThan(228);
-    expect(screen.getByRole("status").textContent).toBe(`${n} of 228 questions match`);
+    expect(n).toBeGreaterThan(0); expect(n).toBeLessThan(205);
+    expect(screen.getByRole("status").textContent).toBe(`${n} of 205 questions match`);
     fireEvent.change(box, { target: { value: "zzzqqq" } });
     expect(screen.getByRole("status").textContent).toContain("No question matches");
     cleanup();

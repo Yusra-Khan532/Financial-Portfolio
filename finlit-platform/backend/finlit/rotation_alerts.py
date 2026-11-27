@@ -77,7 +77,7 @@ async def auto_rotation_alerts(pool, mailer: Mailer, site_url: str, release=None
     async with pool.acquire() as conn:
         users = await conn.fetch(
             "SELECT u.id, u.email, s.watchlist, s.prefs FROM users u JOIN user_state s ON s.user_id = u.id "
-            "WHERE u.status = 'active' AND u.email_verified_at IS NOT NULL AND u.plan IN ('silver', 'gold') "
+            "WHERE u.status = 'active' AND u.email_verified_at IS NOT NULL AND u.plan IN ('silver', 'gold', 'mfetf', 'equity', 'combined', 'platinum') "
             "AND (u.plan_until IS NULL OR u.plan_until > now())")
         group_of: Dict[str, Optional[str]] = {}
         for u in users:

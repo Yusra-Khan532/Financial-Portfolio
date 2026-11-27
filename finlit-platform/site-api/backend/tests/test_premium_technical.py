@@ -219,15 +219,19 @@ def test_provisional_long_term_score_only_when_the_rs_rating_alone_is_missing():
     gap = _lt_signals(rs_rating=(None, "Aligned stock and benchmark history is insufficient for the beta-adjusted relative strength percentile."))
     withheld = summarise_signals(LT, gap, stage=2)                                        # the model as it was: all or nothing
     assert withheld["score"] is None and withheld["status"] == "incomplete" and "provisional" not in withheld
-    prov = summarise_signals(LT, gap, stage=2, allow_provisional=True)
+    # task #247: a gap counts only when the history is too short for it (history_gaps), which build_technical_assessment works out
+    H = dict(history_gaps=("rs_rating",), bars=300, needs={"rs_rating": 505})
+    assert summarise_signals(LT, gap, stage=2, allow_provisional=True)["score"] is None                  # an RS gap for another reason: withheld
+    prov = summarise_signals(LT, gap, stage=2, allow_provisional=True, **H)
     assert prov["score"] == 100 and prov["status"] == "ready" and prov["provisional"] is True      # the 12 known signals' weights only (80), not 100
-    assert prov["availableCount"] == 12 and prov["requiredCount"] == 13 and "two years" in prov["provisionalNote"] and "12 signals" in prov["provisionalNote"]
-    half = summarise_signals(LT, _lt_signals(rs_rating=(None, "x"), weekly_rsi=(-1, "x")), stage=2, allow_provisional=True)
+    assert prov["availableCount"] == 12 and prov["requiredCount"] == 13 and "12 signals" in prov["provisionalNote"]
+    assert "has 300 sessions of daily prices; the relative strength rating needs 505." in prov["provisionalNote"]
+    half = summarise_signals(LT, _lt_signals(rs_rating=(None, "x"), weekly_rsi=(-1, "x")), stage=2, allow_provisional=True, **H)
     assert half["provisional"] is True and half["score"] == round(100 * (80 - 2 * 5) / 80, 6) or abs(half["score"] - 100 * (80 - 2 * 5) / 80) < 1e-9
-    assert not summarise_signals(LT, gap, stage=None, allow_provisional=True).get("provisional")                               # the market stage is still mandatory
-    assert summarise_signals(LT, _lt_signals(rs_rating=(None, "x"), weekly_rsi=(None, "x")), stage=2, allow_provisional=True)["score"] is None   # a second gap still withholds it
-    assert summarise_signals(LT, _lt_signals(leadership=(None, "x")), stage=2, allow_provisional=True)["score"] is None                       # only the RS rating may be missing
-    capped = summarise_signals(LT, gap, stage=3, allow_provisional=True)
+    assert not summarise_signals(LT, gap, stage=None, allow_provisional=True, **H).get("provisional")                               # the market stage is still mandatory
+    assert summarise_signals(LT, _lt_signals(rs_rating=(None, "x"), weekly_rsi=(None, "x")), stage=2, allow_provisional=True, **H)["score"] is None   # a gap not due to history still withholds it
+    assert summarise_signals(LT, _lt_signals(leadership=(None, "x")), stage=2, allow_provisional=True, **H)["score"] is None                       # ...whatever the signal
+    capped = summarise_signals(LT, gap, stage=3, allow_provisional=True, **H)
     assert capped["provisional"] is True and capped["score"] == 19 and capped["stageCapped"]                                            # the stage cap still applies
     full = summarise_signals(LT, _lt_signals(), stage=2, allow_provisional=True)
     assert full["score"] == 100 and "provisional" not in full and "provisionalNote" not in full                                          # a complete score is exactly as before
@@ -246,7 +250,72 @@ def test_end_to_end_a_recent_listing_gets_a_provisional_long_term_score_and_an_o
     lt = result["longTerm"]
     assert lt["score"] is not None and result["shortTerm"]["score"] is not None
     if provisional:
-        assert lt["provisional"] is True and lt["availableCount"] == 12 and lt["requiredCount"] == 13 and "two years" in lt["provisionalNote"]
+        assert lt["provisional"] is True and lt["availableCount"] == 12 and lt["requiredCount"] == 13 and "the relative strength rating needs 505" in lt["provisionalNote"]
         assert [f["key"] for f in lt["factors"] if f["status"] == "unavailable"] == ["rs_rating"]
     else:
         assert "provisional" not in lt and lt["availableCount"] == lt["requiredCount"] == 13      # the model exactly as before
+
+
+# ---------------------------------------------------------------------------------------------------- task #247: short histories
+# Fractal Analytics (186 sessions since 16 Feb 2026) and Vedanta Aluminium Metal (107 since 15 Jun 2026) showed "Not available" for both horizons
+# while the same ST/LT v14.3 indicator on TradingView showed their scores.
+
+@pytest.mark.young
+def test_a_young_listing_is_scored_as_on_the_chart_provisional_and_in_the_models_rows():
+    import subprocess
+    from backend import premium_technical as PT
+    runtime = PT._young_runtime()
+    if runtime is None or subprocess.run([runtime[0], "-c", "import numpy, pandas"], capture_output=True, check=False).returncode != 0:
+        pytest.skip("finlit_technicals' Python (with numpy and pandas) is not installed here (the site-api CI job installs only the site's requirements)")
+    bars = candles(186)
+    marks = benchmarks(candles(700))
+    young = PT.young_assessment(bars, marks, 17.36)
+    assert young is not None and young["bars"] == 186
+    result = build_technical_assessment(resolve_technical_prices(bars, "FinEdge", ASOF), ASOF, marks, 17.36)
+    st, lt = result["shortTerm"], result["longTerm"]
+    assert result["status"] == "ready" and st["score"] == young["stScore"] and lt["score"] == young["ltScore"]
+    for h, spec in ((st, ST), (lt, LT)):
+        assert h["provisional"] is True and h["youngListing"] is True and h["status"] == "ready"
+        assert h["provisionalNote"].startswith("Young listing: this company has 186 sessions of daily prices, from ")
+        assert [f["key"] for f in h["factors"]] == [row[0] for row in spec] and [f["label"] for f in h["factors"]] == [row[1] for row in spec]
+        assert h["requiredCount"] == len([f for f in h["factors"] if f["status"] != "disabled"])
+    assert any("n/a" in f["detail"] for f in lt["factors"])                         # EMA 200, the 52-week figures: as the chart reads them
+    assert result["verdict"] == combine_verdict(st["score"], lt["score"]) and result["observations"]["youngListing"] is True
+
+
+@pytest.mark.young
+def test_without_its_python_the_young_scorer_steps_aside(monkeypatch):
+    from backend import premium_technical as PT
+    monkeypatch.setattr(PT, "_young_runtime", lambda: None)
+    assert PT.young_assessment(candles(186), {}, None) is None
+    monkeypatch.setattr(PT, "_young_runtime", lambda: ("/bin/false", "/"))
+    assert PT.young_assessment(candles(186), {}, None) is None                     # a failing process: None, and the strict view runs
+
+
+def test_the_strict_view_scores_what_it_can_and_says_when_the_rest_comes():
+    """When the young scorer cannot run: the short term from about 50 sessions (provisional while only history-short signals are missing), and a
+    withheld horizon says how many sessions it has and from when it is shown, signal by signal."""
+    bars = candles(107)
+    result = build_technical_assessment(resolve_technical_prices(bars, "FinEdge", ASOF), ASOF, benchmarks(candles(700)), 17.36)
+    st, lt = result["shortTerm"], result["longTerm"]
+    assert st["score"] is not None and st["provisional"] is True and "youngListing" not in st
+    assert "has 107 sessions of daily prices; the daily RSI needs 200" in st["provisionalNote"]
+    assert {f["key"] for f in st["factors"] if f["status"] == "unavailable"} <= {"rsi", "squeeze", "rs_rating"}
+    assert lt["score"] is None and lt["status"] == "incomplete"
+    assert lt["historyNote"] == f"Not available yet: this company has 107 sessions of daily prices, from {lt['historyNote'].split('from ')[1].split('.')[0]}. This view is shown from about 252 sessions, about 145 more trading sessions."
+    stage = next(f for f in lt["factors"] if f["key"] == "stage")
+    assert stage["detail"].startswith("Needs at least 200 sessions of daily prices; this company has 107, from ")
+    # the short-term rows that only read EMA 9/20/50, ADX and MACD now exist from 50 sessions (they started at 200)
+    assert all(f["status"] == "available" for f in st["factors"] if f["key"] in ("ema_stack", "price_ema20", "macd"))
+
+
+def test_an_unadjusted_break_in_any_providers_series_starts_the_view_after_it():
+    """Vedanta, 4 May 2026: the close fell 60% (demerger ex-date, not adjusted). Whatever the provider, the view uses the sessions after it, and says so."""
+    bars = candles(600)
+    for row in bars[460:]:
+        for k in ("open", "high", "low", "close"):
+            row[k] = row[k] * 0.4
+    result = build_technical_assessment(resolve_technical_prices(bars, "FinEdge", ASOF), ASOF, benchmarks(candles(700)), 17.36)
+    assert result["usableDailyBars"] == 140
+    note = next(n for n in result["notes"] if n.startswith("Daily prices before "))
+    assert "the close moved -59." in note and "demerger" in note and "140 sessions since" in note

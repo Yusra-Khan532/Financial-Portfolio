@@ -1,32 +1,30 @@
-// /methodology/mf-score: the FinLit FundPulse in plain language. Describes the model; it never advises.
+// /methodology/mf-score: what the Mutual Fund Score means, in plain language (task #311, developer file 21: cut to what the score means; how it is
+// built, its settings, weights and missing-data rules are not shown). Describes; it never advises.
 import { PageHeader } from "../components/PageHeader";
 import { Link } from "react-router";
 import { useEffect, useState } from "react";
 import { apiGet } from "../lib/api";
-import walk from "../lib/fixtures/mfScoreWalk.json";
-import { PILLARS, STATE_EXPLAIN, STATE_WORD } from "../lib/mfScoreUp";
 import { useDocTitle } from "../lib/title";
-import { MF_SCORE_COMPLIANCE, MF_SCORE_NAME, PILLAR_HELP, SCORE_BANDS, partWord } from "../lib/mfScore";
+import { MF_SCORE_NAME, PILLAR_HELP, SCORE_BANDS } from "../lib/mfScore";
 import "../styles/mf.css";
 
 const FAQ: [string, string][] = [
   ["Is a higher score a reason to invest?", "No. The score describes how a fund's past NAVs, costs and holdings compare with funds of the same kind. It is not a forecast and not advice."],
   ["Why do two funds with the same return have different scores?", "Return is one part. Risk (how bumpy and how deep the falls), Cost and Quality (age, size, how the portfolio is built) count too, and how much each counts depends on the fund group."],
   ["Why is my fund provisional or not rated?", "A fund with 12 to 35 months of NAV history is provisional and its label stops at Healthy. Under 12 months it is not rated. Heavy data gaps also make a score provisional."],
-  ["What does a gap mean?", "When a figure is missing the measure takes the group value, which can never be better than a typical fund. The fund page lists every such measure under Data gaps."],
+  ["What does a gap mean?", "The fund has not reported that figure. The fund page says so, and a missing figure never helps a fund's score."],
   ["How often does it change?", "The score is worked out every night and stored once a week. The fund page shows the stored weekly history."],
   ["Why are Direct and Regular plans scored separately?", "Each plan is compared with funds of the same plan, because the Regular plan's higher cost would otherwise count against it in every comparison."],
 ];
-const ex = (v: number | null) => (v == null ? "—" : String(Math.round(v * 100) / 100));
 
 export function MfScoreMethodPage() {
   const [runDate, setRunDate] = useState<string | null>(null);
   useEffect(() => { apiGet<{ runDate: string | null }>("/api/mf/scores/categories").then((r) => setRunDate(r.runDate)).catch(() => undefined); }, []);
-  useDocTitle("How the FinLit FundPulse works", "The FinLit FundPulse in plain language: four parts, how gaps are treated, and what the score is not.");
+  useDocTitle("What the Mutual Fund Score means", "The Mutual Fund Score in plain language: its four parts, who a fund is compared with, and what the score is not.");
   return (
     <div className="wrap mf mfs-method">
       <p className="mf-back"><Link to="/funds">← All mutual fund schemes</Link></p>
-      <PageHeader eyebrow="Method" title={<>How the {MF_SCORE_NAME} works</>} art="report" links={["/fund-score-screener", "/funds", "/funds/compare"]} description={MF_SCORE_COMPLIANCE} meta={runDate ? <>Scores last worked out on {runDate}.</> : undefined} />
+      <PageHeader titleVariant="read" eyebrow="Mutual Fund Score" title={<>What the {MF_SCORE_NAME} means</>} art="report" links={["/fund-score-screener", "/funds", "/funds/compare"]} description="Describes a fund's health from its past NAVs, costs and holdings; not a recommendation." meta={runDate ? <>Scores last worked out on {runDate}.</> : undefined} />
 
       <section className="card mf-card"><h2 className="mf-h4">What the score is, and what it is not</h2>
         <ul className="mfs-list">
@@ -38,45 +36,23 @@ export function MfScoreMethodPage() {
         </ul></section>
 
       <section className="card mf-card"><h2 className="mf-h4">Four parts, one total</h2>
-        <p>The total is 0 to 100 and combines four parts: Performance, Risk, Cost and Quality. How much each part counts depends on the kind of fund (for example, Cost counts for more in a liquid fund than in an equity fund) and stays with the model. Each part is itself built from a few measures and shown as a word: Strong, Fair or Weak.</p>
+        <p>The total is 0 to 100 and combines four parts: Performance, Risk, Cost and Quality. Each part is shown as a word: Strong, Fair or Weak.</p>
         <ul className="mfs-list">{Object.entries(PILLAR_HELP).map(([k, v]) => <li key={k}><b>{k[0].toUpperCase() + k.slice(1)}.</b> {v}</li>)}</ul>
-        <p>Every measure is turned into points with one rule: the nearer a value sits to the good end of its range, the more points it earns, in a straight line from none to full. Where there is nothing to tell funds apart, the measure scores a neutral middle value.</p>
       </section>
 
       <section className="card mf-card"><h2 className="mf-h4">Who a fund is compared with</h2>
-        <p>Direct and Regular plans are scored separately, each against its own plan. A fund is compared with the active Growth schemes of the same category and plan, with the fund itself left out. At least 8 such funds with the figure are needed; otherwise the comparison widens to the whole group (marked as substituted), and if that is still too small the measure uses the group value. Index funds and ETFs are compared with funds tracking the same index (at least 3). IDCW and other options carry the score of the Growth plan and say so.</p>
+        <p>A fund is compared with funds of the same category and plan. Direct plans are compared with Direct, Regular with Regular.</p>
       </section>
 
       <section className="card mf-card"><h2 className="mf-h4">Gaps are shown as gaps</h2>
-        <p>A measure with no data takes the <b>group value</b>: the lower of the group's median points and 50, so a gap can never score better than the typical fund. The page says how many measures used the group value and why. A zero that stands for "not reported" (for example an expense ratio of 0) is treated as missing; a zero that is a real result (no fall, no exit load, a risk-o-meter level of Low) is scored.</p>
+        <p>Where a fund has not reported a figure, the page says so, and a missing figure never helps a fund's score.</p>
       </section>
 
       <section className="card mf-card"><h2 className="mf-h4">History and status</h2>
-        <div className="tw"><table className="mf-cmp"><thead><tr><th scope="col">Months of NAV history</th><th scope="col">What is used</th><th scope="col">Status</th></tr></thead><tbody>
-          <tr><th scope="row">60 or more</th><td>Every measure</td><td>Rated</td></tr>
-          <tr><th scope="row">36 to 59</th><td>3-year measures; the 5-year return measure is filled</td><td>Rated</td></tr>
-          <tr><th scope="row">12 to 35</th><td>Window measures, trusted in proportion to their length</td><td>Provisional, label at most Healthy</td></tr>
-          <tr><th scope="row">Under 12</th><td>Nothing</td><td>Not rated</td></tr></tbody></table></div>
-        <p>A score also says what share of it rested on real data. A weak Risk or Quality part holds the total down, so a high return cannot hide weak risk or weak foundations.</p>
-      </section>
-
-      <section className="card mf-card" id="states"><h2 className="mf-h4">The five states of a measure</h2>
-        <p>Every measure on a fund page carries one of these states, so a gap is never hidden.</p>
-        <ul className="mfs-list">{(["A", "Z", "S", "F", "N"] as const).map((k) => <li key={k}><b>{k === "Z" ? "Zero points (loss)" : STATE_WORD[k]}.</b> {STATE_EXPLAIN[k]}</li>)}</ul></section>
-
-      <section className="card mf-card" id="examples"><h2 className="mf-h4">Worked examples</h2>
-        <ol className="mfs-list">
-          <li><b>Points from a value.</b> A mid-sized equity fund's 3-year return is measured against the median of its similar funds. A return level with the median earns a middling number of points, a clearly better one earns more, a clearly weaker one earns fewer, in a straight line between.</li>
-          <li><b>A missing expense ratio.</b> If a fund house has not reported it, or reported 0 (a placeholder), the measure is not scored as zero cost. It takes the group value: the lower of the group's median points and 50. The page shows "Filled" with the reason.</li>
-          <li><b>A real zero.</b> A month-end fall of exactly 0 over 36 months is not credible for a fund of this kind, so it is treated as missing and shown as a gap. A risk-o-meter level of Low or an exit load of nil are real zeros and are scored.</li>
-          <li><b>A loss.</b> A negative 5-year return earns 0 points on the absolute return measure, whatever the peers did.</li>
-        </ol>
-        <h3 className="mf-h4">One fund, measure by measure</h3>
-        <p className="faint">An example fund from our test data, not a real fund: group {walk.group}, {walk.plan} plan, {walk.months} months of NAV history, compared with {walk.peerN} funds. All numbers are the engine's stored output.</p>
-        <div className="tw"><table className="mf-cmp"><caption className="sr-only">Worked example, every measure</caption>
-          <thead><tr><th scope="col">Measure</th><th scope="col">Part</th><th scope="col" className="num">Value</th><th scope="col" className="num">Peer median</th><th scope="col">Reading</th></tr></thead>
-          <tbody>{walk.metrics.map((m) => <tr key={m.label}><th scope="row">{m.label}</th><td>{m.pillar}</td><td className="num">{ex(m.own)}</td><td className="num">{ex(m.peer)}</td><td>{partWord(m.points)}</td></tr>)}</tbody></table></div>
-        <p>Parts: {PILLARS.map(([k, n]) => `${n} ${partWord((walk.pillars as Record<string, number>)[k])}`).join(", ")}. The four parts combine into the total: <b>{walk.final}</b>, label <b>{walk.label}</b>.</p>
+        <div className="tw"><table className="mf-cmp"><thead><tr><th scope="col">Months of NAV history</th><th scope="col">Status</th></tr></thead><tbody>
+          <tr><th scope="row">36 or more</th><td>Rated</td></tr>
+          <tr><th scope="row">12 to 35</th><td>Provisional, label at most Healthy</td></tr>
+          <tr><th scope="row">Under 12</th><td>Not rated</td></tr></tbody></table></div>
       </section>
 
       <section className="card mf-card"><h2 className="mf-h4">Freshness</h2>
@@ -87,7 +63,7 @@ export function MfScoreMethodPage() {
         {FAQ.map(([q, a]) => <details key={q} className="mfu-faq"><summary>{q}</summary><p>{a}</p></details>)}</section>
 
       <section className="card mf-card"><h2 className="mf-h4">Labels and colours</h2>
-        <p>Labels follow the FinLit IQs: {SCORE_BANDS.map(([w, a, b]) => `${w} (${a}${b === 100 ? " to 100" : " to under " + b})`).join(", ")}. Colour is green from 70, orange from 50 and red under 50.</p>
+        <p>Labels: {SCORE_BANDS.map(([w, a, b]) => `${w} (${a}${b === 100 ? " to 100" : " to under " + b})`).join(", ")}. Colour is green from 70, orange from 50 and red under 50.</p>
         <p>Not scored in this version: 1 and 6 month returns, daily volatility, exit load of solution-oriented funds (lock-in), fund managers and the five-point checklist. Not available at all: tracking error, index total return, portfolio P/E, credit ratings, yield and duration, portfolio turnover and manager tenure.</p>
       </section>
     </div>

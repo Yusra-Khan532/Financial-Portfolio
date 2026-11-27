@@ -49,7 +49,49 @@ export function NotificationBell() {
   );
 }
 
+/** Task #283 PR D: an account notice from the server (kind "notice", e.g. the one about saved screens and alerts converted to FinLit Prism) is shown
+ *  as a card on whichever page the member opens, in the server's own words, until they close it; closing marks it read on the server, so it is shown
+ *  once. It also stays in the notification centre and on the Alerts page. */
+export function AccountNotice() {
+  const { user } = useAuth();
+  const { items, markRead } = useNotices();
+  const [closed, setClosed] = useState<number[]>([]);
+  const n = user ? items.find((x) => x.kind === "notice" && !x.read && !closed.includes(x.id)) : undefined;
+  if (!n) return null;
+  const close = () => { setClosed((c) => [...c, n.id]); markRead([n.id]); };
+  return (
+    <section className="card acct-notice" role="region" aria-label={n.title}>
+      <span className="alx-ti" aria-hidden="true"><Icon name="bell" /></span>
+      <div><b>{n.title}</b><p>{n.body}</p>
+        <div className="acct-notice-f"><button type="button" className="btn primary" onClick={close}>Got it</button><Link className="alx-link" to="/alerts" onClick={close}>Open my alerts <Icon name="arrow" /></Link></div>
+      </div>
+      <button type="button" className="alx-x" aria-label="Close the notice" onClick={close}>✕</button>
+    </section>
+  );
+}
+
+/** Several alerts at once: one card that counts them, names the first two, and opens the alerts page; closing it only hides it (the alerts stay unread there). */
+export function AlertSummary({ items, onOpen, onClose }: { items: Notice[]; onOpen: () => void; onClose: () => void }) {
+  const alerts = items.filter((n) => n.kind === "alert").length;
+  const head = alerts === items.length ? `${items.length} alerts triggered` : `${items.length} new notices`;
+  const names = items.slice(0, 2).map((n) => n.title);
+  return (
+    <div className="alx-toast alx-sum">
+      <span className="alx-ti"><Icon name="bell" /></span>
+      <div className="alx-tb">
+        <b>{head}</b>
+        <p>{names.join("; ")}{items.length > 2 ? ` and ${items.length - 2} more` : ""}</p>
+        <div className="alx-tf"><button className="alx-link" onClick={onOpen}>Open my alerts <Icon name="arrow" /></button><small>{timeAgo(items[0].createdAt)}</small></div>
+      </div>
+      <button className="alx-x" aria-label="Dismiss" onClick={onClose}>✕</button>
+    </div>
+  );
+}
+
 /** Pops a card for each alert that fires while the site is open ("Alert triggered … View stock →" for a stock; other notices say what they are), and raises browser notifications if allowed. */
+/** Task #310 part E (05-phone.md, fix 3): a toast closes by itself after 6 seconds. */
+export const TOAST_MS = 6000;
+
 export function AlertToasts() {
   const { user } = useAuth();
   const { items, markRead } = useNotices();
@@ -64,14 +106,15 @@ export function AlertToasts() {
     if (!fresh.length) return;
     fresh.forEach((n) => seen.current!.add(n.id));
     setShown((s) => [...fresh.slice(0, 3), ...s].slice(0, 3));
-    fresh.forEach((n) => setTimeout(() => setShown((s) => s.filter((x) => x.id !== n.id)), 9000));
+    fresh.forEach((n) => setTimeout(() => setShown((s) => s.filter((x) => x.id !== n.id)), TOAST_MS));
   }, [items, user]);
   if (!shown.length) return DEMO && user ? <DemoSeeder /> : null;
   return (
     <>
     {DEMO && <DemoSeeder />}
     <div className="alx-toasts" role="region" aria-label="New alerts" aria-live="polite">
-      {shown.map((n) => { const lb = noticeLabels(n); return (
+      {/* QA 23 Nov (item 15): two or more at once are one card ("3 alerts triggered", the first names, Open my alerts), not a stack over the page */}
+      {shown.length > 1 ? <AlertSummary items={shown} onOpen={() => { setShown([]); nav("/alerts"); }} onClose={() => setShown([])} /> : shown.map((n) => { const lb = noticeLabels(n); return (
         <div className="alx-toast" key={n.id}>
           <span className="alx-ti"><Icon name="bell" /></span>
           <div className="alx-tb">

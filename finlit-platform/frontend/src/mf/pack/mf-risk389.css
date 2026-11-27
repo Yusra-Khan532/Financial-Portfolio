@@ -1,0 +1,77 @@
+/* Task #389 PR C (developer file 32, Risk analytics and Update 25 Nov rows 3, 4, 7): the MF page's Risk view. Scoped to the view's own classes (mfr-, and .mfr on
+   "Reading a beta"), so the Equity and ETF pages are untouched. The scale labels and the pop-up reuse the Equity page's pieces (RiskPack BetaScale, Popup;
+   betaLabels.ts); their rules there are scoped to .eq, so the ones the MF view needs are repeated here under .mfr. Nothing under 12 px. */
+
+/* labels on the scale (BetaScale): one row with curved lines on a laptop, stepped rows with straight lines on a phone */
+.mfr .eqb-scale { margin: 8px 0 6px; }
+.mfr .eqb-labs { position: relative; min-height: 58px; }
+.mfr .eqb-lab { position: absolute; z-index: 2; display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px; border: 1px solid var(--border-strong); border-radius: var(--ui-r-pill); background: var(--s1); color: var(--text); font: 500 var(--fs-12)/1 var(--sans); white-space: nowrap; box-shadow: 0 1px 2px color-mix(in srgb, var(--text) 6%, transparent); box-sizing: border-box; }
+.mfr .eqb-lab b { font: 700 var(--fs-13)/1 var(--sans); font-variant-numeric: tabular-nums; }
+.mfr .eqb-lab.list { background: var(--text); border-color: var(--text); color: var(--s1); }
+.mfr .eqb-lab.pick { border-style: dashed; }
+.mfr svg.eqb-lnk { position: absolute; left: 0; top: 0; z-index: 1; overflow: visible; pointer-events: none; }
+.mfr svg.eqb-lnk path { fill: none; stroke: var(--muted); stroke-width: 1.25; }
+.mfr svg.eqb-lnk path.list { stroke: var(--text); stroke-width: 1.75; }
+.mfr svg.eqb-lnk circle { fill: var(--s1); stroke: var(--text); stroke-width: 1.5; }
+.mfr svg.eqb-lnk circle.list { fill: var(--text); }
+/* a band name that does not fit its band is hidden (the colour stays; the range boxes name every range) */
+.mfr .eqr-bands span.eqb-tight { color: transparent !important; }
+
+/* Update row 7: the range chips, the band names on the scale and the range counts under it in darker ink on light, lighter on dark (4.5:1 or better) */
+.mfr :is(.eqr-bands, .eqr-spread) .r-less, .eqr-chip.mfr-chip.r-less { color: var(--ui-beta-less); }
+.mfr :is(.eqr-bands, .eqr-spread) .r-defensive, .eqr-chip.mfr-chip.r-defensive { color: var(--ui-beta-defensive); }
+.mfr :is(.eqr-bands, .eqr-spread) .r-similar, .eqr-chip.mfr-chip.r-similar { color: var(--ui-beta-similar); }
+.mfr :is(.eqr-bands, .eqr-spread) .r-more, .eqr-chip.mfr-chip.r-more { color: var(--ui-beta-more); }
+.mfr :is(.eqr-bands, .eqr-spread) .r-high, .eqr-chip.mfr-chip.r-high { color: var(--ui-beta-high); }
+.mfr :is(.eqr-bands, .eqr-spread) .r-very_high, .eqr-chip.mfr-chip.r-very_high { color: var(--ui-beta-very-high); }
+
+/* Update row 4 and Risk 5: six boxes of one size whatever their counts; room for 3 funds (a name on two lines at most, then "…", left-aligned) and one
+   line kept for "+N more". One row on a laptop, three on a tablet, two on a phone. */
+.mfr-ranges { grid-template-columns: repeat(6, minmax(0, 1fr)); align-items: stretch; }
+@media (max-width: 1100px) { .mfr-ranges { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 640px) { .mfr-ranges { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.mfr-ranges .eqr-range { display: flex; flex-direction: column; min-width: 0; }
+.mfr-ranges .eqr-range > .eqr-chip { align-self: flex-start; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.mfr-ranges .eqr-range ul { min-height: calc(3 * 44px); margin-bottom: 0; }
+.mfr-ranges .eqr-range li { min-height: 44px; padding: 4px 0; flex-wrap: nowrap; align-items: center; box-sizing: border-box; }
+.mfr-ranges .eqr-range li > b { flex: none; font-variant-numeric: tabular-nums; }
+.mfr-nm { flex: 1; min-width: 0; text-align: left; justify-content: flex-start; }
+.mfr-nm > span { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; text-align: left; }
+.mfr-ranges li.mfr-none { border-top: 0; color: var(--sp-mute); font: 400 var(--fs-13)/1.3 var(--sans); }
+.mfr-foot { display: flex; align-items: flex-end; min-height: 34px; margin-top: auto; padding-top: 4px; }
+.mfr-mw { position: relative; }
+.mfr-more { min-height: 30px; padding: 0 12px; border: 1px solid var(--border-strong); border-radius: var(--ui-r-pill); background: var(--s1); font: 500 var(--fs-13)/1 var(--sans); color: var(--text); cursor: pointer; }
+.mfr-more:hover, .mfr-more[aria-expanded="true"] { background: var(--s2); }
+.mfr-more:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+/* the "+N more" pop-up (RiskPack Popup) */
+.mfr .eqb-pop { position: absolute; left: 0; top: calc(100% + 6px); z-index: 30; width: min(300px, calc(100vw - 20px)); max-height: 60vh; overflow: auto; padding: 12px 14px 14px; border: 1px solid var(--border-strong); border-radius: var(--r-card); background: var(--s1); color: var(--text); box-shadow: 0 22px 50px -20px color-mix(in srgb, var(--text) 45%, transparent); }
+.mfr .eqr-range:nth-child(6n) .eqb-pop, .mfr .eqr-range:nth-child(6n - 1) .eqb-pop { left: auto; right: 0; }
+@media (max-width: 1100px) { .mfr .eqr-range:nth-child(6n - 1) .eqb-pop { left: 0; right: auto; } .mfr .eqr-range:nth-child(3n) .eqb-pop { left: auto; right: 0; } }
+@media (max-width: 640px) { .mfr .eqr-range .eqb-pop { left: 0; right: auto; } .mfr .eqr-range:nth-child(2n) .eqb-pop { left: auto; right: 0; } }
+.mfr .eqb-poph { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0 0 6px; font: 600 var(--fs-14)/1.3 var(--sans); }
+.mfr .eqb-popx { flex: none; width: 30px; height: 30px; border: 1px solid var(--border); border-radius: 50%; background: var(--s1); font: 400 var(--fs-18, 18px)/1 var(--sans); color: var(--text); cursor: pointer; }
+.mfr .eqb-popl { list-style: none; margin: 0; padding: 0; }
+.mfr .eqb-popl li { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 32px; border-top: 1px solid var(--border); font-size: var(--fs-13); }
+.mfr .eqb-popl .mfr-nm > span { -webkit-line-clamp: 3; line-clamp: 3; }
+
+/* Risk 4: "Yours +1.6%" and "Index +0.3%" on one line each; the Overall reading (green: rises more, falls less; red: rises less, falls more) */
+.mfr-sb .mfr-yi { display: block; white-space: nowrap; }
+.mfr-sb .mfr-yx { font-size: var(--fs-12); color: var(--sp-mute); }
+.mfr-sb .px-ix { font: 500 var(--fs-12)/1 var(--sans); color: var(--sp-mute); }
+.mfr-ov { display: inline-block; padding: 4px 9px; border-radius: var(--ui-r-pill); background: var(--s2); font: 600 var(--fs-13)/1.2 var(--sans); color: var(--text); white-space: nowrap; }
+.mfr-ov.g { background: var(--gain-soft); color: var(--gain); }
+.mfr-ov.r { background: var(--loss-soft); color: var(--loss); }
+
+/* fault 13: "What stands out", one note a line, at most two (then "+N more"), in a column wide enough that no row grows */
+.mfr-each th.mfr-so-h { min-width: 260px; }
+.mfr-each td.mfr-so-c { min-width: 260px; }
+.mfr-so { list-style: none; margin: 0; padding: 0; font: 400 var(--fs-13)/1.3 var(--sans); color: var(--sp-ink); }
+.mfr-so li { white-space: nowrap; }   /* one note a line: two notes take the height of the fund's own two lines */
+.mfr-so li + li { margin-top: 1px; }
+.mfr-so-more { padding: 0; border: 0; background: none; font: 600 var(--fs-13)/1.35 var(--sans); color: var(--text); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.mfr-so-more:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+.mfr-each .eqr-chip { white-space: nowrap; }
+/* Audit of 26 Nov (files 39, 40; SHARED.md spacing rule): the six beta ranges sit 12 px apart side by side and 18 px apart when they wrap, with 18 px
+   above them (under "Tap a fund below…") and 18 px below them (was 8 / 10 / 14); the MF and ETF pages both */
+.mfp .eqr-ranges.mfr-ranges { gap: 18px 12px; margin-bottom: 18px; }
+.mfp .eqr-hint { margin-bottom: 18px; }

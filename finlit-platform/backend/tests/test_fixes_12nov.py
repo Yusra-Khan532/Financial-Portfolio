@@ -19,7 +19,7 @@ def test_lender_on_the_cut_off_passes_and_the_rule_matches_the_equivalent_value(
 
 
 def test_order_notes_are_plain_and_name_no_model_detail():
-    assert engine.rank_order_note(BY_ID["basic-top-large"]) == "The 10 highest FinLit IQs first."
+    assert "basic-top-large" not in BY_ID                     # task #283: the Basic tab's lists, ordered by the retired FinLit IQ, are gone
     assert engine.rank_order_note(BY_ID["highest-rated-large"]) == "Ordered by the FinLit Prism rating."
     assert engine.rank_order_note(BY_ID["setup-pre-breakout"]) is None and engine.rank_order_note(BY_ID["emerging-tech"]) is None
 
@@ -262,7 +262,7 @@ def test_a_recent_listing_gives_the_scans_its_candles_though_it_has_under_a_year
             days.append(d)
         d -= timedelta(days=1)
     rows = [{"day": x, "open": 100.0 + i, "high": 102.0 + i, "low": 99.0 + i, "close": 101.0 + i, "volume": 1000} for i, x in enumerate(sorted(days))]
-    assert pc.clean_reason(rows, end, pc.STOCK_MIN)[0] is None                       # the Prism view still needs a year
+    assert pc.clean_reason(rows, end, pc.STOCK_MIN)[0] is None                       # the Prism view needs STOCK_MIN (50) sessions (task #247)
     got, why = pc.clean_reason(rows, end, pc.PATTERN_MIN)
     assert got is not None and len(got) == 40 and got[-1][0] == "2026-11-13", why
     bad = [dict(r) for r in rows]
@@ -284,3 +284,31 @@ def test_the_presets_top_up_uses_the_scans_own_fetch(monkeypatch):
     monkeypatch.setattr(pc, "pattern_candles", fake)
     got = asyncio.run(patterns.top_up_candles(st, "settings", _Table(list(ends)), day))
     assert asked == [("YOUNG", "settings")] and got == {"candlesBehind": 1, "candlesFetched": 1, "candlesNotFetched": 0}
+
+
+def test_the_scans_take_the_exchange_closes_first_then_the_providers():
+    """27 Nov 2026: daily_candles held the 26 Nov official closes of 4,944 companies (eod-candles), but the scans extended the series only from price_daily,
+    still on 25 Nov, so the 98% gate held them and the 12 chart-pattern screens stayed on 25 Nov while every other list said 26 Nov."""
+    from finlit.presets import candles
+    D = lambda d: date(2026, 11, d)  # noqa: E731
+
+    class Pool:
+        def acquire(self):
+            class C:
+                async def __aenter__(self):
+                    return self
+
+                async def __aexit__(self, *a):
+                    return False
+
+                async def fetch(self, sql, sym, after, limit):
+                    table = {"daily_candles": [(D(25), 101.0, 900), (D(26), 103.0, 950)],          # the exchange's official closes
+                             "price_daily": [(D(25), 999.0, 5), (D(26), 999.0, 5), (D(27), 104.0, 7)]}  # the provider: later, but only past what the exchange has
+                    rows = table["daily_candles" if "daily_candles" in sql else "price_daily"]
+                    return [{"day": d, "open": c, "high": c, "low": c, "close": c, "volume": v} for d, c, v in rows if d > after][:limit]
+            return C()
+
+    st = type("St", (), {"pool": Pool()})()
+    out = asyncio.run(candles.with_daily_closes(st, "X", {"t": ["2026-11-24"], "o": [1.0], "h": [1.0], "l": [1.0], "c": [100.0], "v": [800]}))
+    assert out["t"] == ["2026-11-24", "2026-11-25", "2026-11-26", "2026-11-27"]
+    assert out["c"] == [100.0, 101.0, 103.0, 104.0] and out["v"][1:3] == [900, 950]      # 25 and 26 Nov from the exchange, never the provider's 999

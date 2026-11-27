@@ -1,9 +1,8 @@
 // MF portfolio: the mutual funds a member holds. Types of /api/me/mf-portfolio, the hooks, sorting, the review table's state and the CSV export.
-// Everything that decides WHAT the member may see (FundPulse is Gold) is decided by the server; this file only draws what it was sent.
+// Everything that decides WHAT the member may see (Mutual Fund Score is Gold) is decided by the server; this file only draws what it was sent.
 // Nothing here gives buy, sell, hold, switch or redeem advice. Information only, not investment advice.
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiGet, apiSend, type ApiError } from "./api";
-import { csvText } from "./format";
 import type { RawRow } from "./mfStatement";
 
 export const MF_PORTFOLIO_NAME = "MF portfolio";
@@ -16,11 +15,18 @@ export type Lot = { id: string; units: number; invested: number | null; boughtOn
 export type ScoreBlock = {
   locked: boolean; final: number | null; label: string | null; status: string | null; reason: string | null; runDate: string | null;
   parts: Record<PartKey, number | null> | null; inherited: { name: string; why: string } | null;
+  /** The server's word for each part (Strong / Fair / Weak, task #183): the page never cuts the numbers itself. */
+  words?: Record<PartKey, string> | null;
+  /** The fund's place in its category ("13 of 28 in category"); for an IDCW option, its Growth plan's. */
+  rank?: { rank: number; of: number; scope: string | null; categoryLabel: string | null } | null;
 };
 export type Holding = {
   id: string; code: number; folio: string; units: number | null; lots: Lot[]; followed?: boolean;
-  name: string | null; amc: string | null; plan: string | null; option: string | null; category: string | null; categoryLabel: string | null; active: boolean; isin?: string | null;
+  /** task #235: every buy and sale as stored (platform, side); `lots` is what is left of each buy, first in, first out */ lines?: Line[];
+  name: string | null; amc: string | null; plan: string | null; option: string | null; category: string | null; categoryLabel: string | null; active: boolean; isin?: string | null; isinWhy?: string | null;
   nav: number | null; navDate: string | null; navStale: boolean; navNote: string | null;
+  /** task #389 (fault 8): the change against the previous NAV AMFI gave (the public fund page's own figure), named by that NAV's date; null with its reason */
+  change?: { abs: number; pct: number; since: string | null } | null; changeWhy?: string | null;
   invested: number | null; investedWhy: string | null; current: number | null; currentWhy: string | null;
   gain: number | null; gainPct: number | null; gainWhy: string | null;
   xirr: number | null; xirrWhy: string | null; xirrKind: "cagr" | "xirr";
@@ -29,6 +35,8 @@ export type Holding = {
   weight: number | null; weightWhy: string | null; score: ScoreBlock;
 };
 export type Share = { label: string; value: number; pct: number };
+export type Line = { id: string; units: number; invested: number | null; boughtOn: string | null; pf: string; side: "buy" | "sell" };
+export type SoldFund = { id: string; code: number; folio: string; name: string | null; lines: Line[] };
 export type Summary = {
   funds: number; valued: number; withCost: number; gainFunds: number; invested: number | null; current: number | null; gain: number | null; gainPct: number | null;
   navFrom: string | null; navTo: string | null; notes: string[]; xirr: number | null; xirrFunds: number; xirrWhy: string | null;
@@ -36,7 +44,7 @@ export type Summary = {
 };
 export type Concentration = { level: "concentrated" | "moderate" | "spread" | null; text: string; top1Pct: number | null; top3Pct: number | null; topFund?: string; topAmc?: string; topAmcPct?: number | null };
 export type MfPortfolio = {
-  plan: string; scoreLocked: boolean; limit: number; count: number; dataDate: string | null; holdings: Holding[]; summary: Summary;
+  plan: string; scoreLocked: boolean; limit: number; count: number; dataDate: string | null; holdings: Holding[]; summary: Summary; /** task #235: funds sold in full */ sold?: SoldFund[];
   allocation: { byCategory: Share[]; byAmc: Share[] }; concentration: Concentration; disclaimer: string; scoreDisclaimer: string;
 };
 
@@ -50,9 +58,11 @@ export type Preview = { rows: ReviewRow[]; counts: Record<ReviewStatus, number>;
 export type CommitResult = { status: string; added: number; replaced: number; skipped: number; duplicates: number };
 
 const KEY = ["mf-portfolio"];
-export const useMfPortfolio = (enabled: boolean) => useQuery<MfPortfolio, ApiError>({ queryKey: KEY, queryFn: () => apiGet<MfPortfolio>("/api/me/mf-portfolio"), enabled, staleTime: 30_000, retry: (n, e) => e.status >= 500 && n < 2 });
+/** Task #235: `pf` reads one platform ("all": every platform together, as before). */
+const pq = (pf: string) => (pf && pf !== "all" ? `?pf=${encodeURIComponent(pf)}` : "");
+export const useMfPortfolio = (enabled: boolean, pf = "all") => useQuery<MfPortfolio, ApiError>({ queryKey: pf === "all" ? KEY : [...KEY, "pf", pf], queryFn: () => apiGet<MfPortfolio>("/api/me/mf-portfolio" + pq(pf)), enabled, staleTime: 30_000, retry: (n, e) => e.status >= 500 && n < 2 });
 
-export type LotInput = { units: string; invested?: string; avgCost?: string; boughtOn?: string };
+export type LotInput = { units: string; invested?: string; avgCost?: string; boughtOn?: string; /** task #235 */ pf?: string; side?: "buy" | "sell" };
 export function useMfWrites() {
   const qc = useQueryClient();
   const done = () => qc.invalidateQueries({ queryKey: KEY });
@@ -60,7 +70,8 @@ export function useMfWrites() {
     add: useMutation({ mutationFn: (b: Partial<LotInput> & { code: number; folio?: string; follow?: boolean }) => apiSend<{ id: string; merged: boolean }>("POST", "/api/me/mf-portfolio", b), onSuccess: done }),
     update: useMutation({ mutationFn: (b: { id: string; folio?: string; lots: LotInput[] }) => apiSend("PUT", `/api/me/mf-portfolio/${b.id}`, { folio: b.folio, lots: b.lots }), onSuccess: done }),
     remove: useMutation({ mutationFn: (id: string) => apiSend("DELETE", `/api/me/mf-portfolio/${id}`), onSuccess: done }),
-    clear: useMutation({ mutationFn: () => apiSend<{ status: string; removed: number }>("DELETE", "/api/me/mf-portfolio"), onSuccess: done }),   // "Remove all" (task #127)
+    clear: useMutation({ mutationFn: () => apiSend<{ status: string; removed: number; undoSeconds: number }>("POST", "/api/me/mf-portfolio/clear"), onSuccess: done }),   // Clear portfolio (task #183): held 10 s for Undo
+    undoClear: useMutation({ mutationFn: () => apiSend<{ status: string; restored: number }>("POST", "/api/me/mf-portfolio/undo-clear"), onSuccess: done }),
     preview: useMutation({ mutationFn: (rows: RawRow[]) => apiSend<Preview>("POST", "/api/me/mf-portfolio/import-preview", { rows }) }),
     commit: useMutation({ mutationFn: (b: { items: CommitItem[]; existing: "skip" | "replace" }) => apiSend<CommitResult>("POST", "/api/me/mf-portfolio/import-commit", b), onSuccess: done }),
   };
@@ -118,28 +129,6 @@ export function sortHoldings(rows: Holding[], key: SortKey, dir: "asc" | "desc")
 /** Words for the concentration level (the tile's tag). */
 export const LEVEL_WORD: Record<NonNullable<Concentration["level"]>, string> = { concentrated: "Concentrated", moderate: "Fairly spread", spread: "Well spread" };
 
-// ------------------------------------------------------------------------------------------------------------------ CSV
-
-const plain = (v: number | null | undefined, d = 2) => (v == null ? "" : v.toFixed(d));
-/** Every blank cell has its reason in the last column, so the file explains itself outside the page. */
-export function toCsv(rows: Holding[], scoreLocked: boolean): string {
-  const head = ["Fund", "Fund house", "Plan", "Option", "Category", "NAV", "NAV date", "1Y return %", "3Y return % a year", "5Y return % a year",
-    "Expense ratio %", "Fund size (Rs crore)", ...(scoreLocked ? [] : ["FundPulse", "Label", "Performance", "Risk", "Cost", "Quality"]), "Notes"];
-  const lines = [head.map(q).join(",")];
-  for (const h of rows) {
-    const why: string[] = [];
-    const note = (label: string, v: unknown, reason: string | null | undefined) => { if (v == null && reason) why.push(`${label}: ${reason}`); };
-    note("Returns", h.returns.r1y ?? h.returns.r3y ?? h.returns.r5y, h.returns.why); note("Expense ratio", h.ter, h.terWhy); note("Fund size", h.aum, h.aumWhy);
-    if (!scoreLocked) note("FundPulse", h.score.final, h.score.reason);
-    if (h.navNote) why.push(h.navNote);
-    const score = scoreLocked ? [] : [plain(h.score.final, 1), h.score.label || "", ...(["performance", "risk", "cost", "quality"] as PartKey[]).map((k) => plain(h.score.parts?.[k], 1))];
-    lines.push([h.name || `Scheme ${h.code}`, h.amc || "", h.plan || "", h.option || "", h.categoryLabel || "", plain(h.nav, 4), h.navDate || "", plain(h.returns.r1y), plain(h.returns.r3y), plain(h.returns.r5y), plain(h.ter), plain(h.aum), ...score, why.join(" | ")].map(q).join(","));
-  }
-  return lines.join("\r\n") + "\r\n";
-}
-const q = (s: string) => `"${csvText(String(s)).replace(/"/g, '""')}"`;
-export const csvFileName = (d = new Date()) => `finlit-mf-portfolio-${d.toISOString().slice(0, 10)}.csv`;
-
 // ------------------------------------------------------------------------------------------------------------------ small text helpers
 
 /** "₹1,23,456" for money: whole rupees, Indian grouping, true minus sign. */
@@ -176,21 +165,33 @@ export type MfSpread = {
     overlap: SpreadReading & { top: { a: number; b: number; pct: number; n: number } | null }; theme: SpreadReading & { theme: string | null; funds: number[] };
     houses: SpreadReading & { top: string; count: number }; assets: SpreadReading & { equityShare: number } };
   mix: { shares: number; sharesUnknown: number; debt: number; other: number };
-  size: { Large: number; Mid: number; Small: number; Other: number };
-  sectors: { name: string; share: number }[];
-  topStocks: { name: string; symbol: string | null; sector: string | null; w: number; funds: number[]; prism?: { score: number | null; label: string | null; st: string | null; lt: string | null } | null }[];
+  size: { Large: number; Mid: number; Small: number; Micro?: number; Other: number };   // FinLit's four sizes (Micro since task #262)
+  /** NSE's industries (task #192), largest first; "Listed abroad" and "Not classified" are lines of their own */
+  industries: { name: string; share: number }[];
+  topStocks: { name: string; symbol: string | null; industry: string | null; w: number; funds: number[]; prism?: { score: number | null; label: string | null; st: string | null; lt: string | null } | null }[];
   trendLocked?: boolean; trend?: MfTrend;
   overlap: { a: number; b: number; pct: number; n: number }[];
   together: { codes: number[]; C: number[][]; weeks: number; from: string | null; to: string | null };
-  coverage: { funds: number; disclosed: number; missing: number[] };
-  funds: { code: number; name: string; amc: string; category: string; weight: number; holdingsAsOf: string | null; why: string | null }[];
+  coverage: { funds: number; disclosed: number; missing: number[]; notMatched?: number };
+  /** Task #183: the look-through grid. Keys "Macro sector|Large" (or "Sector|Small", "…|Unsized"); w = share of the whole list; every company per cell. */
+  lookThrough?: Record<"macro" | "sector", Record<string, { w: number; n: number; stocks: { name: string; symbol: string | null; w: number }[] }>>;
+  /** Each NSE sector's macro sector. */
+  sectorMacro?: Record<string, string>;
+  /** Each fund's split of its own money: by macro sector, by sector and by size (fractions of the fund). */
+  perFund?: Record<string, { macro: Record<string, number>; sector: Record<string, number>; size: Record<string, number> }>;
+  funds: { code: number; name: string; amc: string; category: string; weight: number; holdingsAsOf: string | null; why: string | null; assetSplit?: { equity?: number; debt?: number; cash?: number; other?: number } | null }[];
 };
-export const useMfSpread = (enabled: boolean) => useQuery<MfSpread, ApiError>({ queryKey: [...KEY, "spread"], queryFn: () => apiGet<MfSpread>("/api/me/mf-portfolio/diversification"), enabled, staleTime: 60_000, retry: (n, e) => e.status >= 500 && n < 2 });
+export const useMfSpread = (enabled: boolean, pf = "all") => useQuery<MfSpread, ApiError>({ queryKey: [...KEY, "spread", pf], queryFn: () => apiGet<MfSpread>("/api/me/mf-portfolio/diversification" + pq(pf)), enabled, staleTime: 60_000, retry: (n, e) => e.status >= 500 && n < 2 });
 
 export type TrendCell = { name: string; share: number; n: number; symbols: string[] };
 export type TrendRead = {
   n: number; rated: number; coverage: number; grid: Record<string, TrendCell>; breadth: { up: number; down: number }; direction: { improving: number; weakening: number; steady: number };
   business: Record<"strong_up" | "strong_down" | "weak_up" | "weak_down", { n: number; share: number; symbols: string[] }>; average: { stLabel: string; ltLabel: string } | null;
+  /** Rated shares with neither a strong nor a weak business, or a sideways long-term trend (the Equity portfolio counts them under its list). */
+  between?: number;
+  /** Task #274 change 7: the same shares listed, each with its reason (its Prism score, and whether the long-term trend is flat): the fifth box, In between. */
+  betweenList?: { n: number; share: number; items: { symbol: string; prism: number | null; flat: boolean }[] };
+  ndirection?: { improving: number; weakening: number; steady: number };
   words: { longTerm: string; shortAgainstLong: string; businessAndPrice: string };
 };
 export type MfTrend = { all: TrendRead; perFund?: Record<string, TrendRead>; sharedWeakSpots?: { n: number; share: number; symbols: string[] } };

@@ -40,7 +40,6 @@ CHANGE_FLAG = 0.30         # a pair moved by this much or more ...
 CHANGE_FLOOR = 0.50        # ... and the higher of its two correlations is at least this
 TILT_HIGH, TILT_LOW = 65, 35
 UNCLASSIFIED = "Not classified"
-SIZE_BANDS = (("Large", 100), ("Mid", 250), ("Small", None))   # market-cap rank 1-100, 101-250, 251 and below
 TILT_PARTS = [  # (field, name, wording when high, wording when low)
     ("prism_fundamental", "Growth & Profitability", "faster-growing, more profitable companies", "slower-growing, less profitable companies"),
     ("prism_valuation", "Valuation", "cheaper stocks", "more expensive stocks"),
@@ -141,14 +140,11 @@ def pair_flag(recent: float, long_run: float) -> bool:
     return abs(recent - long_run) >= CHANGE_FLAG - 1e-9 and max(recent, long_run) >= CHANGE_FLOOR
 
 
-def size_band(rank: Optional[int]) -> Optional[str]:
-    """Large: market-cap rank 1-100, Mid: 101-250, Small: 251 and below. None when the company's rank is not known."""
-    if rank is None or rank < 1:
-        return None
-    for name, top in SIZE_BANDS:
-        if top is None or rank <= top:
-            return name
-    return None
+def size_band(mcap_cr: Optional[float]) -> Optional[str]:
+    """Large, Mid, Small or Micro on the site's one ₹ rule (finlit/sizes.py, task #262; it replaced the market-cap ranks 1-100 / 101-250 / 251+, which
+    FinLit keeps only inside mutual fund category names). None when the company's market value is not known."""
+    from ..sizes import size_of
+    return size_of(mcap_cr)
 
 
 def _clusters(corr: np.ndarray, names: Sequence[str]) -> List[Dict[str, Any]]:
@@ -182,7 +178,7 @@ def spread_by_count(symbols: Sequence[str], sectors: Dict[str, str], groups: Dic
         counts[k] = counts.get(k, 0) + 1
         order.setdefault(k, len(order))
     sec = [{"name": k, "count": c} for k, c in sorted(counts.items(), key=lambda kv: (-kv[1], order[kv[0]]))]
-    size = {"Large": 0, "Mid": 0, "Small": 0}
+    size = {"Large": 0, "Mid": 0, "Small": 0, "Micro": 0}   # task #262: four sizes, in the site's order
     unknown_size = []
     for s in symbols:
         b = sizes.get(s)

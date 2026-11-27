@@ -94,6 +94,12 @@ async def test_a_board_slug_with_no_page_file_is_a_503_that_says_so(anon, out): 
     assert r.status_code == 503 and "missing from the current data set" in r.json()["reason"]
 
 
+async def _no_record(app) -> None:
+    async with app.state.store.pool.acquire() as conn:
+        await conn.execute("DELETE FROM peer_label_week")
+        await conn.execute("DELETE FROM peer_label_run")
+
+
 # ------------------------------------------------------------------------------------------------ plans over HTTP
 async def test_basic_visitor_sees_states_and_breadth_but_not_tables_flags_or_cards(anon, out):  # noqa: F811
     b = (await anon.get("/api/sectors")).json()
@@ -108,6 +114,7 @@ async def test_basic_visitor_sees_states_and_breadth_but_not_tables_flags_or_car
 
 
 async def test_silver_sees_ranked_tables_and_flags_gold_sees_peer_labels_and_stock_cards(app, out):  # noqa: F811
+    await _no_record(app)    # task #409: these check the sector build's own label (the record's is in test_peerlabels_409)
     silver = await signed_in(app, "s@example.com", plan="silver")
     p = (await silver.get("/api/sectors/ferrous-metals")).json()
     assert p["plan"] == "silver" and p["stocks"][0]["symbol"] == "KIRLFER" and p["stocks"][0]["peer_label"] is None and p["not_counted"] and p["locked"] == {"peer_label": "gold"}
@@ -122,6 +129,7 @@ async def test_silver_sees_ranked_tables_and_flags_gold_sees_peer_labels_and_sto
 
 
 async def test_an_administrator_below_gold_still_sees_everything(app, out):  # noqa: F811
+    await _no_record(app)    # task #409: these check the sector build's own label (the record's is in test_peerlabels_409)
     admin = await admin_client(app, "boss@example.com")
     async with app.state.store.pool.acquire() as conn:
         await conn.execute("UPDATE users SET plan = 'basic' WHERE lower(email) = 'boss@example.com'")
@@ -327,3 +335,47 @@ async def test_the_state_history_carries_the_daily_share_of_stocks_rising_for_ea
         assert len(g["rising"]) == len(d["dates"]) == len(g["states"])
         assert all(v is None or 0 <= v <= 100 for v in g["rising"])
     assert any(v is not None for g in d["groups"] for v in g["rising"])
+
+
+# ------------------------------------------------------------------------------------------------ the Sectors view (?show=sectors, task #192)
+def _add_sectors_view(out):
+    """by-sector/ as the job writes it: the same files, groups named after NSE sectors."""
+    lvl = fakes.make_release((out / "current").resolve() / sd.LEVELS_DIR, rotation=True)
+    b = json.loads((lvl / "sectors" / "_board.json").read_text())
+    for r in b["rows"]:
+        r["kind"], r["sector"] = "sector", "Metals & Mining"
+    b["industries"] = 0
+    (lvl / "sectors" / "_board.json").write_text(json.dumps(b))
+    sd.clear_cache()
+    return lvl
+
+
+async def test_the_sectors_view_says_why_until_it_is_added_and_the_industries_view_is_untouched(anon, out):  # noqa: F811
+    for url in ("/api/sectors?show=sectors", "/api/sectors/ferrous-metals?show=sectors", "/api/rotation?show=sectors", "/api/sector-history?show=sectors",
+                "/api/sector-map?show=sectors", "/api/sectors/membership?symbols=TATASTEEL&show=sectors"):
+        r = await anon.get(url)
+        assert r.status_code == 503 and r.json()["reason"].startswith("The Sectors view is not loaded yet:") and r.headers["cache-control"] == "no-store", url
+    ind = await anon.get("/api/sectors")
+    assert ind.status_code == 200 and ind.json()["show"] == "industries" and len(ind.json()["rows"]) == 3
+    assert (await anon.get("/api/sectors/status")).json()["sectorsViewLoaded"] is False
+
+
+async def test_the_sectors_view_reads_by_sector_with_the_same_plan_rules(anon, out):  # noqa: F811
+    _add_sectors_view(out)
+    b = (await anon.get("/api/sectors?show=sectors")).json()
+    assert b["show"] == "sectors" and b["industries"] == 0 and all(r["kind"] == "sector" for r in b["rows"]) and all(r["leader_flags"] is None for r in b["rows"])
+    assert all(r["kind"] != "sector" or r["sector"] != "Metals & Mining" for r in (await anon.get("/api/sectors")).json()["rows"])   # the default view is the industries' board
+    p = (await anon.get("/api/sectors/ferrous-metals?show=sectors")).json()
+    assert p["stocks"] is None and p["locked"]["stocks"] == "silver"                         # Basic: the same redaction as the industry pages
+    rot = await anon.get("/api/rotation?show=sectors")
+    assert rot.status_code == 200 and rot.json()["show"] == "sectors"
+    assert (await anon.get("/api/sectors/status")).json()["sectorsViewLoaded"] is True
+    m = (await anon.get("/api/sectors/membership?symbols=TATASTEEL&show=sectors")).json()
+    assert m["groups"] == {} or all(g["slug"] in {r["slug"] for r in b["rows"]} for g in m["groups"].values())
+
+
+async def test_any_other_show_value_is_the_industries_view_and_never_a_path(anon, out):  # noqa: F811
+    _add_sectors_view(out)
+    for v in ("../..", "by-sector", "SECTORS", "%2e%2e"):
+        r = await anon.get(f"/api/sectors?show={v}")
+        assert r.status_code == 200 and r.json()["show"] == "industries", v

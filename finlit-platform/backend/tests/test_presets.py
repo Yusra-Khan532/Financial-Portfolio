@@ -37,7 +37,7 @@ def syms(body):
 # ---------------------------------------------------------------------------------------------------------------- registry
 def test_registry_shape_names_and_rules():
     live = [p for p in ADVANCED if p.status == "live" and p.kind not in ("pattern", "gainers")]       # the eleven Chart patterns screens are checked in their own test
-    assert len(live) == 19 and [p.id for p in ADVANCED if p.status == "blocked"] == ["psu-stocks"] and len(QUICK_VIEWS) == 4
+    assert len(live) == 34 and [p.id for p in ADVANCED if p.status == "blocked"] == ["psu-stocks"] and len(QUICK_VIEWS) == 4
     assert len({p.id for p in ALL}) == len(ALL)
     for p in ALL:
         text = (p.name + " " + p.card_text).lower()
@@ -52,13 +52,17 @@ def test_registry_shape_names_and_rules():
                 assert analyze(line, "gold").ok, (p.id, line)
             for rule, _ in c.effect.get("derived_add", ()):
                 expr.parse(rule)
-    tops = [BY_ID[f"highest-rated-{k}"] for k in ("large", "mid", "small")]
+    tops = [BY_ID[f"highest-rated-{k}"] for k in ("large", "mid", "small", "micro")]   # task #262: four sizes, four top screens
     assert all(p.limit == 10 and p.top10 and p.sector_cap == 3 and abs(sum(w for _, w in p.rank_score) - 1.0) < 1e-9 for p in tops)
-    assert [p.prism_filters["zrmin"] for p in tops] == [50, 50, 50] and all(p.prism_filters["zmin"] == 65 and p.prism_filters["zqmin"] == 50 for p in tops)
-    assert all(p.limit == 25 for p in live[3:]) and tops[0].card_text.startswith("Large caps with a strong Prism rating")
-    assert [p.id for p in live][3:] == ["momentum-leaders", "at-52-week-high", "both-views-positive", "consistent-growers", "emerging-tech", "sector-themes", "quality-fair-price",
-                                         "quality-off-highs", "value-with-quality", "low-risk-compounders", "low-volatility", "higher-risk-list", "setup-pre-breakout", "setup-breakout-pullback", "setup-ema9-consolidation", "rating-upgrades"]
-    assert [p.id for p in QUICK_VIEWS] == ["strongsafe", "fairvalue", "bothtech", "weakvalue"] and "weak valuation" in BY_ID["weakvalue"].card_text
+    assert [p.prism_filters["zrmin"] for p in tops] == [50, 50, 50, 50] and all(p.prism_filters["zmin"] == 65 and p.prism_filters["zqmin"] == 50 for p in tops)
+    assert [p.id for p in live][:4] == [p.id for p in tops] and all(p.limit == 25 for p in live[4:]) and tops[0].card_text.startswith("Large caps (above ₹75,000 Cr) with a strong Prism rating")   # task 258 (SPEC §5): the card names its range; #262's rule
+    assert [p.id for p in live][4:] == ["momentum-leaders", "at-52-week-high", "both-views-positive", "consistent-growers", "emerging-tech", "sector-themes", "quality-fair-price",
+                                         "quality-off-highs", "value-with-quality", "low-risk-compounders", "low-volatility", "higher-risk-list", "setup-pre-breakout", "setup-breakout-pullback", "setup-ema9-consolidation", "rating-upgrades",
+                                         "strong-results", "dividend-payers", "turnarounds", "rating-downgrades", "institutions-buying", "promoter-buying", "fresh-results", "weak-results",   # task #243 round 3a
+                                         "sector-leaders-leading", "sector-rebound-leaders", "sector-early-leaders", "sector-setups-behind", "sector-turning-up", "sector-results-leading"]   # round 3b
+    assert [p.id for p in QUICK_VIEWS] == ["strongsafe", "fairvalue", "weakvalue", "bothtech"] and "weak valuation" in BY_ID["weakvalue"].card_text      # 14 Nov N-35: the mock-up's order
+    assert [p.name for p in QUICK_VIEWS] == ["Strong and safe", "Growth at a reasonable valuation", "Growth with a stretched valuation", "Uptrend on both views"]   # task #325 (file 25, 6: renamed, approved 22 Nov)
+    assert True and not any(re.search(r"\d", p.card_text) for p in QUICK_VIEWS)      # N-31: words, no cut-offs
     for p in PRESETS:     # a blocked card says it in plain words, never a developer's note
         if p.status == "blocked":
             assert not re.search(r"prism_reports|is_psu|one row|flag", p.blocked_reason or "", re.I), p.id
@@ -145,11 +149,12 @@ def test_percentile_of_a_value_among_a_bucket_ties_and_non_members():
 
 
 def uni(extra=()):
-    """100 large, 150 mid and 30 small companies of Rs 1,000 Cr or more, each with the figures every Top 10 gate and input reads."""
+    """100 large, 150 mid and 30 small companies of Rs 1,000 Cr or more, each with the figures every Top 10 gate and input reads.
+    Task #262 rupee rule: large 100,000-90,100 Cr (above 75,000), mid 60,000-45,100 Cr (25,000-75,000), small 20,000-19,710 Cr (10,000-25,000)."""
     def m(mc, i): return dict(market_cap=mc, pct_from_high=10, ret_3m=5 + i % 9, ret_6m=8 + i % 7, ret_1y=15 + i % 11, high_52w=120, low_52w=100)
     rows = [row(f"L{i:03d}", mcap=100000 - i * 100, sector=f"SecL{i % 30}", **m(100000 - i * 100, i)) for i in range(100)]
-    rows += [row(f"M{i:03d}", mcap=20000 - i * 10, sector=f"SecM{i % 30}", **m(20000 - i * 10, i)) for i in range(150)]
-    rows += [row(f"X{i:03d}", mcap=3000 - i * 10, sector=f"SecX{i % 20}", **m(3000 - i * 10, i)) for i in range(30)]
+    rows += [row(f"M{i:03d}", mcap=60000 - i * 100, sector=f"SecM{i % 30}", **m(60000 - i * 100, i)) for i in range(150)]
+    rows += [row(f"X{i:03d}", mcap=20000 - i * 10, sector=f"SecX{i % 20}", **m(20000 - i * 10, i)) for i in range(30)]
     return rows + list(extra)
 
 
@@ -370,7 +375,7 @@ def test_blocked_screens_do_not_run():
 
 def test_prism_basics_are_served_like_every_other_screen():
     """SC-10: the four Prism basics run on the server (so they get history, As on and a place in Top gainers), including "Uptrend on both technical views"."""
-    assert [p.id for p in QUICK_VIEWS] == ["strongsafe", "fairvalue", "bothtech", "weakvalue"] and all(p.kind == "rules" for p in QUICK_VIEWS)
+    assert [p.id for p in QUICK_VIEWS] == ["strongsafe", "fairvalue", "weakvalue", "bothtech"] and all(p.kind == "rules" for p in QUICK_VIEWS)
     rows = [mrow("SAFE"), mrow("UP"), mrow("DOWN"), mrow("CHEAP")]
     prism = {"SAFE": pz(final=85, risk=70, st=0, lt=0), "UP": pz(final=50, risk=30, st=25, lt=40), "DOWN": pz(final=50, risk=30, st=25, lt=10), "CHEAP": pz(final=50, fund=70, val=40, risk=30, st=0, lt=0)}
     fr = frame(rows, prism)
@@ -489,94 +494,21 @@ def test_history_roundtrip_ignores_rows_written_by_the_old_moving_average_breadt
     assert len(stored) == 5 and stored[-1]["Hot"]["in_play"] is True and all(h["Hot"]["b50"] == 20 for h in stored)
 
 
-# ---------------------------------------------------------------------------------------------------------------- the Basic tab
-def buni(n_large=100, n_mid=60):
-    """Large and mid caps of Rs 1,000 Cr or more with FinLit scores, no Prism ratings at all (the Basic tab never needs them)."""
-    def m(mc, i): return dict(market_cap=mc, pct_from_high=10, ret_3m=5 + i % 9, ret_6m=8 + i % 7, ret_1y=15 + i % 11, fundamental_score=70 + i % 10, pillar_technical=60 + i % 10, pillar_quality=60,
-                              pillar_growth=60, pillar_profitability=60, pillar_balance=60, overall=70, is_bank=0)
-    rows = [row(f"L{i:03d}", sector=f"SecL{i % 30}", **m(100000 - i * 100, i)) for i in range(n_large)]
-    rows += [row(f"M{i:03d}", sector=f"SecM{i % 30}", **m(20000 - i * 10, i)) for i in range(n_mid)]
-    return rows
-
-
-def edit(r, **kw):
-    r["metrics"] = json.dumps({**json.loads(r["metrics"]), **kw})
-    return r
-
-
-def test_basic_registry_has_the_fourteen_cards_all_on_the_basic_tab():
-    basic = [p for p in PRESETS if p.tab == "basic" and p.kind not in ("pattern", "gainers")]
-    assert [p.id for p in basic] == ["basic-top-large", "basic-top-mid", "basic-top-small", "basic-strong-both", "basic-strong-business-lagging", "basic-strong-trend-weaker-business",
-                                     "basic-strong-all-four", "basic-growth-leaders", "basic-profitable-debt-light", "basic-quality-compounders", "basic-momentum-leaders", "basic-near-high",
-                                     "basic-quality-off-highs", "basic-emerging-tech", "basic-sector-themes", "basic-caution-list",
-                                     "basic-setup-pre-breakout", "basic-setup-breakout-pullback", "basic-setup-ema9-consolidation"]
-    assert [p.id for p in basic if p.status != "live"] == [] and sum(1 for p in basic if p.top10) == 3
-    for p in basic:
-        text = " ".join(p.how_it_works).lower()
-        assert "prism" not in text and "prism" not in p.card_text.lower(), p.id       # the Basic tab never names a Prism field
-
-
-def test_basic_top_gates_sector_cap_and_the_bank_balance_sheet_blank():
-    rows = buni()
-    edit(rows[0], overall=61)                                # FinLit IQ below Healthy
-    edit(rows[1], pillar_technical=44)
-    edit(rows[2], pillar_quality=44)
-    edit(rows[3], pillar_balance=44)
-    edit(rows[4], pct_from_high=31)
-    edit(rows[5], pillar_balance=None)                        # blank, not a bank: out
-    edit(rows[6], pillar_balance=None, is_bank=1)             # blank bank: in
-    body = engine.run(frame(rows), BY_ID["basic-top-large"])
-    got = syms(body)
-    assert all(s not in got for s in ("L000", "L001", "L002", "L003", "L004", "L005"))
-    assert body["listText"] == f"{body['count']} pass · the top 10 first" and body["count"] == 94 and len(tops(body)) == 10
-    secs = [r["sector"] for r in tops(body)]
-    assert max(secs.count(s) for s in set(secs)) <= 3 and all(r["rank"] == i for i, r in enumerate(body["rows"], 1))
-    allrows = engine.run(frame(rows), BY_ID["basic-top-large"])["exportRows"]
-    assert allrows[0]["symbol"] and all(c["key"] != "prism_final" for c in body["columns"])
-    mids = engine.run(frame(rows), BY_ID["basic-top-mid"])
-    assert all(s.startswith("M") for s in syms(mids)) and mids["count"] == 60
-
-
-def test_basic_small_cap_needs_a_healthy_balance_sheet_and_one_thousand_crore():
-    rows = buni(100, 150)
-    smalls = [row(f"X{i:03d}", sector=f"SecX{i}", market_cap=3000 - i * 10, pct_from_high=10, ret_3m=5, ret_6m=8, ret_1y=15, fundamental_score=70 + i % 5, pillar_technical=60, pillar_quality=60,
-                  pillar_growth=60, pillar_profitability=60, pillar_balance=62 if i else 61, overall=70, is_bank=0) for i in range(20)]
-    smalls.append(row("MICRO", sector="Other", market_cap=400, pct_from_high=10, ret_3m=5, ret_6m=8, ret_1y=15, fundamental_score=90, pillar_technical=90, pillar_quality=90, pillar_growth=90,
-                      pillar_profitability=90, pillar_balance=90, overall=90, is_bank=0))
-    body = engine.run(frame(rows + smalls), BY_ID["basic-top-small"])
-    assert body["count"] == 19 and "X000" not in body["exportRows"][0]["symbol"] and "MICRO" not in [r["symbol"] for r in body["exportRows"]]
-
-
-def test_basic_two_sided_cards_blank_allowed_and_cautions():
-    def one(sym, **kw):
-        base = dict(market_cap=5000, fundamental_score=80, pillar_technical=80, pillar_quality=80, pillar_growth=80, pillar_profitability=80, pillar_balance=80, overall=80, pct_from_high=3,
-                    ret_3m=4, ret_6m=9, ret_1y=20, is_bank=0)
-        base.update(kw)
-        return row(sym, **base)
-    rows = [one("BOTH"), one("LAG", pillar_technical=40, pct_from_high=35), one("TREND", overall=70, pillar_quality=40, pillar_growth=40), one("NOBAL", pillar_balance=None),
-            one("SMALLMC", market_cap=1500), one("RISKY", overall=40, pct_from_high=50, pillar_technical=20), one("DEEP", pct_from_high=30)]
-
-    def ids(pid): return set(syms(engine.run(frame(rows), BY_ID[pid])))
-    assert ids("basic-strong-both") == {"BOTH", "NOBAL", "SMALLMC", "DEEP"}
-    assert ids("basic-strong-business-lagging") == {"LAG", "RISKY"} and ids("basic-strong-trend-weaker-business") == {"TREND"}
-    assert "NOBAL" not in ids("basic-strong-all-four") and "NOBAL" in ids("basic-growth-leaders") and "SMALLMC" in ids("basic-growth-leaders")     # blank balance sheet allowed there; floor Rs 1,000 Cr
-    assert ids("basic-caution-list") >= {"RISKY"} and "BOTH" not in ids("basic-caution-list")
-    assert ids("basic-quality-off-highs") == {"LAG", "RISKY", "DEEP"}
-    assert ids("basic-near-high") >= {"BOTH"} and "LAG" not in ids("basic-near-high") and "SMALLMC" not in ids("basic-near-high")
-    pb = engine.run(frame(rows), BY_ID["basic-profitable-debt-light"])
-    assert "profit_plus_balance" not in pb["rows"][0] and "fundamental_score" not in pb["rows"][0]      # no sixth score on the Basic page
-
+# ---------------------------------------------------------------------------------------------------------------- the Basic tab (retired, task #283)
+def test_the_basic_tab_is_retired_with_the_finlit_iq():
+    """Task #283: FinLit Prism is FinLit's only company score. The Basic tab's screens, built on the retired FinLit IQ, are gone; no screen reads its fields."""
+    assert not [p.id for p in ALL if p.tab != "advanced" or p.id.startswith("basic-")]
+    assert [p.id for p in ADVANCED] == [p.id for p in PRESETS]
 
 def test_a_stock_that_ran_over_300_percent_in_a_year_stays_out_of_top_10_and_momentum_lists():
-    rows = buni()
-    edit(rows[0], ret_1y=450)
-    edit(rows[1], ret_1y=None)                  # no full year of prices: out of every price-reading screen
-    for pid in ("basic-top-large", "basic-momentum-leaders"):
-        body = engine.run(frame(rows), BY_ID[pid])
-        got = [r["symbol"] for r in body["exportRows"]]
-        assert "L000" not in got, pid
-    assert engine.run(frame(rows), BY_ID["basic-top-large"])["count"] == 98       # the 450% run and the company without a full year are out
-
+    from finlit.presets.registry import RUN_GUARD
+    for pid in ("highest-rated-large", "highest-rated-mid", "highest-rated-small", "momentum-leaders"):
+        assert RUN_GUARD in BY_ID[pid].derived, pid
+    rows = [row("L000", mcap=200000, ret_1y=450, pct_from_high=5, ret_3m=10, ret_6m=10), row("L001", mcap=190000, ret_1y=40, pct_from_high=5, ret_3m=10, ret_6m=10)]
+    prism = {"L000": pz(85, lt=40, label="STRONG"), "L001": pz(85, lt=40, label="STRONG")}
+    for pid in ("highest-rated-large", "momentum-leaders"):
+        got = [r["symbol"] for r in engine.run(frame(rows, prism), BY_ID[pid])["exportRows"]]
+        assert "L000" not in got and "L001" in got, pid
 
 # ---------------------------------------------------------------------------------------------------------------- issue 30.b: Sector label, not the macro sector or the Industry
 def mac(r, macro, label=None):
@@ -620,21 +552,6 @@ def test_top_small_caps_cap_three_per_sector_label_not_per_macro_sector():
         prism2[sym] = pz(final=90 - i, qual=80)
     got2 = [r["symbol"] for r in tops(engine.run(frame(rows2, prism2), BY_ID["highest-rated-small"]))]
     assert sum(1 for s in got2 if s in names[:4]) == 3
-
-
-def test_basic_top_ten_also_caps_on_the_sector_label():
-    rows = buni()
-    for i in range(6):
-        mac(rows[i], "Consumer Discretionary", f"Label {i}")
-        edit(rows[i], fundamental_score=99, pillar_technical=99, pillar_quality=99, ret_3m=60, ret_6m=60, ret_1y=100, pct_from_high=0)
-    got = [r["symbol"] for r in tops(engine.run(frame(rows), BY_ID["basic-top-large"]))]
-    assert {f"L00{i}" for i in range(6)} <= set(got)          # six labels, one macro sector: all six stand
-    rows2 = buni()
-    for i in range(5):
-        mac(rows2[i], f"Macro {i}", "One Label")
-        edit(rows2[i], fundamental_score=99, pillar_technical=99, pillar_quality=99, ret_3m=60, ret_6m=60, ret_1y=100, pct_from_high=0)
-    got2 = [r["symbol"] for r in tops(engine.run(frame(rows2), BY_ID["basic-top-large"]))]
-    assert sum(1 for s in got2 if s in {f"L00{i}" for i in range(5)}) == 3
 
 
 def test_no_cap_or_grouping_in_the_presets_reads_the_macro_sector_or_the_industry():
@@ -689,8 +606,6 @@ def test_emerging_tech_universe_is_the_union_of_named_list_and_sector_label_memb
     assert tags["LABELCAMS"] == ["Fintech and market infrastructure"] and tags["LABELWEB"] == ["Digital platforms"]
     body = engine.run(frame(rows, {}, tags=tags), BY_ID["emerging-tech"])
     assert set(syms(body)) == set(tags)
-    basic = engine.run(frame([edit(r, pillar_growth=62, pillar_balance=60) for r in rows], {}, tags=tags), BY_ID["basic-emerging-tech"])
-    assert set(syms(basic)) == set(tags)
 
 
 def test_the_named_examples_of_the_spec_are_in_the_theme_by_label_or_by_name():
@@ -776,28 +691,36 @@ def test_every_advanced_list_has_a_one_thousand_crore_floor_and_the_provisional_
 
 
 # ---------------------------------------------------------------------------------------------------------------- Chart patterns
-def test_chart_pattern_screens_exist_on_both_tabs_with_worded_facts_and_no_rules():
-    from finlit.presets.patterns import SCAN_IDS, facts_of
-    adv = [p for p in PRESETS if p.kind == "pattern" and p.tab == "advanced"]
-    bas = [p for p in PRESETS if p.kind == "pattern" and p.tab == "basic"]
-    assert [p.spec for p in adv] == SCAN_IDS == [p.spec for p in bas] and len(adv) == 11
-    assert all(p.group == "chart-patterns" and p.status == "live" for p in adv + bas)
-    for p in adv + bas:
-        assert not re.search(r"\d", p.card_text.replace("50-day", "")) and "setup" not in p.card_text.lower() and "entry" not in p.card_text.lower(), p.id
-    assert facts_of("daily_base", {"length": 30, "depth_pct": 12.34, "to_pivot_pct": 3.1}) == [["Base age", "30 sessions"], ["Depth", "12.3%"], ["Below the pivot", "3.1%"]]
-    assert facts_of("flag", {"depth_pct": 9.0, "detail": {"pole_rise": 25.0}, "to_pivot_pct": 2.0})[0] == ["Run-up", "25.0%"]       # a fact with no value is left out
+def test_chart_pattern_screens_exist_with_worded_facts_and_no_rules():
+    # task #325 (developer file 26): engine 2, twelve screens (Fresh close above a base is new); card lines and How this screen works from the pack, word for word
+    from finlit.presets.patterns import HOW, SCAN_IDS, number_of
+    adv = [p for p in PRESETS if p.kind == "pattern"]
+    assert [p.spec for p in adv] == SCAN_IDS and len(adv) == 12 and SCAN_IDS[-1] == "fresh_breakout" and all(p.tab == "advanced" for p in adv)
+    assert all(p.group == "chart-patterns" and p.status == "live" for p in adv)
+    assert all(p.how_it_works and p.how_it_works == tuple(HOW[p.spec]) for p in adv)        # file 25, 2.1 row 1: no screen opens an empty How this screen works
+    allowed = {"tight_range": "3-month", "ipo_base": "8%"}                                     # the pack's own two card lines carry a figure
+    for p in adv:
+        txt = p.card_text.replace("50-day", "").replace(allowed.get(p.spec, "\0"), "")
+        assert not re.search(r"\d", txt) and "setup" not in p.card_text.lower() and "entry" not in p.card_text.lower(), p.id
+    assert number_of("Below the level", "1.8%") == 1.8 and number_of("Level age", "89 sessions") == 89 and number_of("Volume, last 10 against 50", "0.50x") == 0.5
+    assert number_of("Closed above", "Rs 141.20") == 141.2 and number_of("Kind", "Flag") == "Flag" and number_of("Listed", "2026-11-03") == "2026-11-03"
 
 
 def test_a_chart_pattern_screen_lists_the_scanned_companies_ranked_by_the_page_score_with_facts_and_drawing():
     rows = [mrow(f"P{i}", market_cap=3000 + i) for i in range(5)]
     for i, r in enumerate(rows):
-        r["metrics"] = json.dumps({**json.loads(r["metrics"]), "overall": 50 + i})
-    fr = frame(rows, {})
+        r["metrics"] = json.dumps({**json.loads(r["metrics"]), "overall": 90 - i})      # the retired score (highest on P1) is never the order
+    fr = frame(rows, {f"P{i}": pz(50 + i) for i in range(5)})
     fr.patterns = {"as_of": "2026-11-06", "left_out": [["P4", "candles end 5 Nov, before the 6 Nov close"]],
-                   "scans": {"daily_base": {"P1": {"facts": [["Base age", "20 sessions"]], "draw": {"level": 101.0}, "new": True}, "P3": {"facts": [], "draw": {}, "new": False}}}}
-    body = engine.run(fr, BY_ID["basic-pattern-daily_base"])
-    assert [r["symbol"] for r in body["rows"]] == ["P3", "P1"] and body["count"] == 2 and body["newToday"] == 1
-    assert body["rows"][1]["facts"] == [["Base age", "20 sessions"]] and body["rows"][1]["pf1"] == "20 sessions" and body["rows"][1]["draw"] == {"level": 101.0}
+                   "scans": {"daily_base": {"P1": {"facts": [["Level (Rs)", "418.50"], ["Level age", "20 sessions"]], "nums": {"Level (Rs)": 418.5, "Level age": 20.0},
+                                                   "draw": {"level": 101.0}, "new": True, "q": 79, "status": "At the level", "clean": "Clean"},
+                                            "P3": {"facts": [], "draw": {}, "new": False, "q": 40}}}}
+    body = engine.run(fr, BY_ID["pattern-daily_base"])
+    # task #325: ordered by how cleanly the chart meets the pattern (P1, quality 79, before P3, 40), never by the retired score
+    assert [r["symbol"] for r in body["rows"]] == ["P1", "P3"] and body["count"] == 2 and body["newToday"] == 1
+    r1 = body["rows"][0]
+    assert r1["facts"][1] == ["Level age", "20 sessions"] and r1["pf1"] == 418.5 and r1["pf4"] == 20.0 and r1["draw"] == {"level": 101.0}
+    assert r1["pf_status"] == "At the level" and r1["pf_clean"] == "Clean" and "q" not in r1
     assert body["leftOutCount"] == 1 and "leftOut" not in body
     fr.patterns = None
-    assert engine.run(fr, BY_ID["basic-pattern-daily_base"])["emptyText"].startswith("The nightly chart-pattern run")
+    assert engine.run(fr, BY_ID["pattern-daily_base"])["emptyText"].startswith("The nightly chart-pattern run")

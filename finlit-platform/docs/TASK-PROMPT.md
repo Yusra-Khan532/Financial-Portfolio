@@ -76,7 +76,7 @@ SHIP AND VERIFY LIVE
 - Wait for every check to pass, then squash-merge.
   - Deploys wait for running long jobs by themselves, so you never need to time a merge around a job.
 - After it is live (about 10 minutes, or when `/api/health` shows the new version), open the live page and confirm every checklist point once more.
-  - If a point needs a sign-in you do not have, the task is NOT done: ask the founder for that exact page, signed in, as a screenshot.
+  - If a point needs a sign-in you do not have, prove it every other way (a local build with the pack's or saved figures in the Silver or Gold view, tests), say so in the done note, and set the task to done: the team checks the signed-in view and moves the task back to "needs changes" if it is wrong (the owner, 18 Nov 2026).
 - Only then: ws done "<what changed> | <where> | <PR link> | <how to check>", in plain words.
   - Write the next ideas with ws note.
 

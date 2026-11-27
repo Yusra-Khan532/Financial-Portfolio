@@ -13,12 +13,13 @@ from datetime import date
 from typing import Any, Dict, List, Optional, Tuple
 
 from .analytics.indicators import ema, rsi
+from . import mailpolicy
 from .auth.mailer import Mailer
 
 log = logging.getLogger("finlit.alertengine")
 
 # key -> (label, unit, live, tier, ops).  live = checked every few minutes in market hours; the rest after the nightly load.
-# tier: "basic" metrics are open to every member; "silver" metrics (model scores, fundamentals, filings) need Silver.
+# tier: "basic" metrics are open to every member; "silver" metrics (fundamentals, filings) need Silver; "gold" (FinLit Prism) needs Gold.
 M = Dict[str, Any]
 METRICS: Dict[str, M] = {
     "price":          dict(label="Price", unit="₹", live=True, tier="basic", ops=("above", "below")),
@@ -34,7 +35,10 @@ METRICS: Dict[str, M] = {
     "from_low52":     dict(label="Distance from 52-week low", unit="%", live=False, tier="basic", ops=("below",)),
     "return_1m":      dict(label="1-month return", unit="%", live=False, tier="silver", ops=("above", "below")),
     "return_1y":      dict(label="1-year return", unit="%", live=False, tier="silver", ops=("above", "below")),
-    "overall":        dict(label="FinLit IQ", unit="", live=False, tier="silver", ops=("above", "below")),
+    # task #283 PR D: FinLit Prism's score (prism_reports.final, 0 to 100; none for a company not rated), FinLit's only company score. A member's alert
+    # on the retired overall score was converted to it (finlit/iq_retire.py); an alert on a part of the retired score was paused with the reason.
+    "prism_final":    dict(label="FinLit Prism score", unit="", live=False, tier="gold", ops=("above", "below")),
+    "overall":        dict(label="Overall score (retired)", unit="", live=False, tier="silver", ops=("above", "below")),
     "pillar_quality": dict(label="Quality score", unit="", live=False, tier="silver", ops=("above", "below")),
     "pillar_growth":  dict(label="Growth score", unit="", live=False, tier="silver", ops=("above", "below")),
     "pillar_profitability": dict(label="Profitability score", unit="", live=False, tier="silver", ops=("above", "below")),
@@ -56,6 +60,8 @@ METRICS: Dict[str, M] = {
     "news_keyword":   dict(label="News or filing mentions", unit="", live=False, tier="basic", ops=("event",)),
     "new_filing":     dict(label="Any new filing", unit="", live=False, tier="silver", ops=("event",)),
     "result_soon":    dict(label="Results due within (days)", unit="days", live=False, tier="basic", ops=("event",)),
+    # task #272: a filing Discover sorts as one of its eight kinds (order win, capacity, ...), for one stock or a whole list (filingalerts.py)
+    "discover_filing": dict(label="A filing Discover sorts as…", unit="", live=False, tier="silver", ops=("event",)),
 }
 # the parts of the stored financials and ownership reports the alerts read, cut inside the database (a full report is ~40 KB, this ~1 KB)
 SNAP_SQL = ("SELECT symbol, section, CASE WHEN section = 'financials' THEN jsonb_build_object('quarterly', jsonb_build_object('pl', jsonb_build_object("
@@ -68,16 +74,19 @@ SCORE_COLUMNS = {"price", "change_pct", "return_1m", "return_1y", "overall", "pi
                  "pillar_technical", "pe", "pb", "dividend_yield", "market_cap", "roe", "roce", "operating_margin", "debt_to_equity"}
 TECH = {"rsi14", "ema50_gap", "ema200_gap", "volume_x", "from_high52", "from_low52"}
 SNAP = {"q_net_profit", "q_revenue", "rev_profit_gap", "promoter_chg", "fii_chg"}
-EVENTS = {"news_keyword", "new_filing", "result_soon"}
+EVENTS = {"news_keyword", "new_filing", "result_soon", "discover_filing"}
 FIXED_TARGET = {"circuit": {"above": 1.0, "below": -1.0}}   # metric -> op -> the only target it takes (set by the server)
 CHANNELS = ("app", "email", "browser")
 ALERT_LIMITS = {"basic": 3, "silver": 30, "gold": 300}
-RANK = {"basic": 0, "silver": 1, "gold": 2}
+RANK = {"basic": 0, "silver": 1, "gold": 2, "platinum": 2, "admin": 2}
 COOLDOWN_HOURS = 1  # a repeating alert never fires twice inside this window
+# Task #283: the retired overall score and its parts. The keys stay so members' converted or paused alerts still read; no alert can be set on them,
+# resumed on them or checked on them.
+RETIRED = {"overall", "pillar_quality", "pillar_growth", "pillar_profitability", "pillar_balance", "pillar_technical"}
 
 
 def allowed(plan: str, metric: str) -> bool:
-    return METRICS[metric]["tier"] == "basic" or RANK.get(plan, 0) >= 1
+    return RANK.get(plan, 0) >= RANK[METRICS[metric]["tier"]]
 
 
 def fmt(metric: str, v: float) -> str:
@@ -158,6 +167,10 @@ async def load_values(conn, symbols: List[str], needed: set) -> Dict[str, Dict[s
                                   "ORDER BY symbol, (statement = 'consolidated') DESC", symbols):
             q = json.loads(r["q"]) if isinstance(r["q"], str) else r["q"]
             out[r["symbol"]]["circuit"], out[r["symbol"]]["_circuit_detail"] = circuit_state(q)
+    if "prism_final" in needed:   # the stored FinLit Prism rating, as the screener reads it (consolidated first; a company not rated has none)
+        for r in await conn.fetch("SELECT DISTINCT ON (symbol) symbol, final, status FROM prism_reports WHERE symbol = ANY($1::text[]) "
+                                  "ORDER BY symbol, (statement = 'consolidated') DESC, generated_at DESC", symbols):
+            out[r["symbol"]]["prism_final"] = round(float(r["final"]), 2) if r["final"] is not None and r["status"] != "NOT RATED" else None
     if needed & TECH:
         bars: Dict[str, List[Any]] = {}
         for r in await conn.fetch("SELECT symbol, close, high, low, volume FROM price_daily WHERE symbol = ANY($1::text[]) AND day > current_date - 420 ORDER BY symbol, day", symbols):
@@ -248,7 +261,7 @@ async def deliver(conn, mailer: Mailer, site_url: str, user: Dict[str, Any], a: 
     await conn.execute("INSERT INTO notifications (user_id, alert_id, symbol, kind, title, body, link, push) VALUES ($1, $2, $3, 'alert', $4, $5, $6, $7)",
                        user["id"], a["id"], a["symbol"], title, body, link, "browser" in channels)
     prefs = json.loads(user["prefs"]) if isinstance(user["prefs"], str) else (user["prefs"] or {})
-    if "email" in channels and prefs.get("alerts") is not False:
+    if mailpolicy.ALERT_EMAILS and "email" in channels and prefs.get("alerts") is not False:   # alert emails are off (mailpolicy.py)
         subject, text = email_body(title, body, f"{site_url}{link}")
         try:
             await mailer.send(user["email"], subject, text)
@@ -330,13 +343,13 @@ async def evaluate(pool, mailer: Mailer, site_url: str, kind: str = "all") -> in
     fired = 0
     async with pool.acquire() as conn:
         rows = await conn.fetch(
-            "SELECT a.*, u.email, u.plan, u.id AS uid, s.prefs FROM alerts a JOIN users u ON u.id = a.user_id LEFT JOIN user_state s ON s.user_id = u.id "
+            "SELECT a.*, u.email, u.plan, u.id AS uid, s.prefs, s.watchlist AS s_watchlist, s.portfolio AS s_portfolio, s.invest_list AS s_invest FROM alerts a JOIN users u ON u.id = a.user_id LEFT JOIN user_state s ON s.user_id = u.id "
             "WHERE a.status = 'active' AND u.status = 'active' AND u.email_verified_at IS NOT NULL")
         todo = []
         for r in rows:
             a = dict(r)
             meta = METRICS.get(a["metric"])
-            if not meta or not allowed(a["plan"], a["metric"]):
+            if not meta or a["metric"] in RETIRED or not allowed(a["plan"], a["metric"]):
                 continue
             if kind == "live" and not meta["live"]:
                 continue
@@ -349,6 +362,10 @@ async def evaluate(pool, mailer: Mailer, site_url: str, kind: str = "all") -> in
             user = {"id": a["uid"], "email": a["email"], "prefs": a["prefs"]}
             link = f"/stocks/{a['symbol']}"
             try:
+                if a["metric"] == "discover_filing":   # task #272: Discover's sorted filings, for one stock or a whole list (filingalerts.py)
+                    from . import filingalerts
+                    fired += await filingalerts.run_alert(conn, deliver, mailer, site_url, user, a, {"watchlist": a.get("s_watchlist"), "portfolio": a.get("s_portfolio"), "invest": a.get("s_invest")})
+                    continue
                 if a["op"] == "event":
                     hits, top = await event_hits(conn, a)
                     if hits:
@@ -390,6 +407,8 @@ async def evaluate(pool, mailer: Mailer, site_url: str, kind: str = "all") -> in
             fired += await auto_pl_flags(pool, mailer, site_url)
             from .rotation_alerts import auto_rotation_alerts   # the Sector Rotation alerts read the nightly rotation file, not the database
             fired += await auto_rotation_alerts(pool, mailer, site_url)
+            from .sector_alerts import auto_sector_alerts   # task #333: Sector Pulse "Alert me" (state, box, top 5), after the weekly close
+            fired += await auto_sector_alerts(pool, mailer, site_url)
         except Exception:
             log.exception("built-in alerts failed")
         try:   # the Watchlists page's "Tell me when a label changes": after each weekly Leader / In line / Laggard check (deduped per stock and week)
@@ -397,4 +416,9 @@ async def evaluate(pool, mailer: Mailer, site_url: str, kind: str = "all") -> in
             fired += await auto_label_alerts(pool, mailer, site_url)
         except Exception:
             log.exception("label-change alerts failed")
+        try:   # task #289: a followed tracked investor's moves in each new shareholding filing (deduped per member, investor, company and quarter)
+            from .superinvestors_follow import follow_alerts
+            fired += await follow_alerts(pool, mailer, site_url)
+        except Exception:
+            log.exception("superinvestor alerts failed")
     return fired

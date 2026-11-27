@@ -186,6 +186,26 @@ async def test_search_list_carries_the_current_exchange_isin_not_the_old_one(db)
     assert at["ZZATLANTA"] == ""                                                # no list knows it: empty, not guessed
 
 
+async def test_search_list_carries_each_bse_scrip_id_a_broker_file_names_a_company_by(db):
+    """22 Nov 2026: a broker's holdings report named two BSE-only companies (no NSE listing) by their BSE scrip IDs, which no field of the list held,
+    so the shares were "not recognised". The list now carries the scrip ID from the exchange's scrip master, only when it adds a name."""
+    import orjson
+    async with db.pool.acquire() as conn:
+        await conn.execute("INSERT INTO dhan_instruments (exch, security_id, symbol, isin, name, series) VALUES ('BSE', '999104', 'ZZNAMEDID', NULL, 'Zz Named', 'X')")
+    try:
+        await db.invalidate_search()
+        doc = orjson.loads((await db.search_index())[0])
+        at = {row[0]: doc["bseId"][i] for i, row in enumerate(doc["rows"])}
+        assert len(doc["bseId"]) == len(doc["rows"])
+        assert at["ZZNAMED"] == "ZZNAMEDID"          # BSE 999104's scrip ID
+        assert at["ZZBSE"] == ""                     # its scrip ID is its symbol already: nothing to add
+        assert at["ZZKNOW"] == ""                    # no BSE line in the scrip master
+    finally:
+        async with db.pool.acquire() as conn:
+            await conn.execute("DELETE FROM dhan_instruments WHERE exch = 'BSE' AND security_id = '999104'")
+        await db.invalidate_search()
+
+
 async def test_loader_reads_the_zip_nsdl_sends_and_refuses_a_cut_short_file(db, tmp_path: Path):
     small = tmp_path / "ISIN_DETAILS_01-Dec-2026.zip"
     with zipfile.ZipFile(small, "w") as z:
@@ -194,3 +214,70 @@ async def test_loader_reads_the_zip_nsdl_sends_and_refuses_a_cut_short_file(db, 
         await I.load_master(db, small)
     async with db.pool.acquire() as conn:
         assert await conn.fetchval("SELECT count(*) FROM isin_master WHERE isin = $1", PARTLY) == 1   # the stored list is kept
+
+
+# ------------------------------------------------------------------------------------------------------------- task #183: ISIN as the key
+async def test_every_company_has_its_current_share_isin_from_the_exchange_lists(db):
+    import types
+    app = types.SimpleNamespace(state=types.SimpleNamespace(store=db))
+    got = await I.symbol_isins(app)
+    assert got["ZZKNOW"] == CUR and got["ZZBSE"] == BSE_ONLY and got["ZZPART"] == CUR2      # NSE first, BSE by scrip code; never the old disclosure ISIN
+    assert "ZZATLANTA" not in got                                                          # no list carries it: absent, not guessed
+    assert I.looks_like_isin(" ine040a01034 ") and not I.looks_like_isin("RELIANCE")
+
+
+async def test_an_isin_reads_as_its_company_in_every_address(db):
+    import httpx
+    from finlit.api import create_app
+    app = create_app(db.test_settings, store=db)
+    async with app.router.lifespan_context(app), httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as api:
+        for path in (f"/api/isin/{CUR}", f"/api/securities/{CUR.lower()}"):
+            a = (await api.get(path)).json()
+            assert (a["status"], a["symbol"], a["url"]) == ("matched", "ZZKNOW", "/stocks/ZZKNOW")
+        bond = (await api.get(f"/api/securities/{BOND}")).json()
+        assert bond["status"] == "not_share" and bond["symbol"] is None and bond["url"] is None and "NCD" in bond["note"]
+        r = await api.get(f"/api/stocks/{BOND}")                                               # a company's bond is not its share: said, not guessed
+        assert r.status_code == 404 and "NCD" in r.json()["detail"]["detail"]
+        r = await api.get(f"/api/stocks/{CUR}")                                                # the share's ISIN reads as ZZKNOW (its report is not built here)
+        assert r.status_code != 404 or "ISIN" not in str(r.json())
+
+
+async def test_the_stock_answer_and_the_screener_rows_carry_the_isin(db):
+    import httpx
+    import orjson
+    from finlit.api import create_app
+    from finlit.snapshot import SNAPSHOT_VERSION
+    from finlit.store import stock_key
+    body = orjson.dumps({"meta": {"symbol": "ZZKNOW", "statement": "consolidated", "version": SNAPSHOT_VERSION}, "quote": {"price": 100.0}, "profile": {"name": "Zz Knowledge Marine Ltd"}})
+    await db.redis.hset(stock_key("ZZKNOW", "consolidated"), mapping={"summary": body, "summary:etag": '"zz1"'})
+    app = create_app(db.test_settings, store=db)
+    try:
+        async with app.router.lifespan_context(app), httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as api:
+            for path in ("/api/stocks/ZZKNOW", f"/api/stocks/{CUR}"):
+                r = await api.get(path)
+                assert r.status_code == 200, r.text
+                assert r.json()["meta"]["isin"] == CUR and r.json()["quote"]["price"] == 100.0       # the stored answer, with its ISIN added
+            rows = {x["symbol"]: x for x in (await api.get("/api/screener/universe")).json()["rows"]}
+            if "ZZKNOW" in rows:                                                                    # the universe lists companies with a listing row
+                assert rows["ZZKNOW"]["isin"] == CUR
+            assert all("isin" in x for x in rows.values())
+    finally:
+        await db.redis.delete(stock_key("ZZKNOW", "consolidated"))
+
+
+async def test_search_list_carries_each_company_nse_industry(db, monkeypatch):
+    """Task #336 (23 Nov 2026): the company pickers' Filters gain Industry, so the list carries each company's NSE industry as a table of names
+    (most companies first) and one code per row (-1: not known), as it does for sectors."""
+    import orjson
+    from finlit import taxonomy
+    monkeypatch.setattr(taxonomy, "quote_pages", lambda: {"ZZKNOW": "Banks", "ZZBSE": "Banks", "ZZPART": "Power"})
+    await db.invalidate_search()
+    try:
+        doc = orjson.loads((await db.search_index())[0])
+        assert len(doc["ind"]) == len(doc["rows"])
+        assert doc["industries"][:2] == ["Banks", "Power"]            # most companies first
+        at = {row[0]: doc["ind"][i] for i, row in enumerate(doc["rows"])}
+        assert doc["industries"][at["ZZKNOW"]] == "Banks" and doc["industries"][at["ZZPART"]] == "Power"
+        assert at["ZZATLANTA"] == -1                                   # not on NSE's quote pages: not known, never guessed
+    finally:
+        await db.invalidate_search()

@@ -3,12 +3,12 @@
 import { useMemo, useState } from "react";
 import { MINUS, nf } from "../../../lib/format";
 import {
-  growthPercent, incomeNote, incomeWord, statementWord, trendSentence,
+  growthPercent, reportIncomeNote, incomeWord, statementWord, trendSentence,
   type PrismHistory, type PrismReport, type Trend,
 } from "../../../lib/prism";
 import { periodLabel, ratioPct, yoy, type Series } from "../../../lib/prismReport";
 import { ChartTable, ShowTable, useWidth } from "../PrismCharts";
-import { ChartZoom } from "../../../components/ChartZoom";
+import { ChartZoom, useZoomHeight } from "../../../components/ChartZoom";
 
 type Basis = "annual" | "quarterly";
 type Pt = { period: string; value: number | null; growth?: number | null };
@@ -42,7 +42,8 @@ function Chart({ kind, title, unitNote, data, color, concl, valueText, tableHead
 }) {
   const [box, W] = useWidth<HTMLDivElement>(320);
   const [table, setTable] = useState(false);
-  const H = 190, M = { t: 26, r: 12, b: 26, l: 12 };
+  const [svgRef, H] = useZoomHeight<SVGSVGElement>(190);   // task #167: in full screen it fills the height too
+  const M = { t: 26, r: 12, b: 26, l: 12 };
   const vals = data.map((d) => d.value).filter((v): v is number => v != null);
   const enough = vals.length >= 2;
   const pad = kind === "line" && vals.length ? (Math.max(...vals) - Math.min(...vals) || 1) * 0.18 : 0;
@@ -63,11 +64,13 @@ function Chart({ kind, title, unitNote, data, color, concl, valueText, tableHead
   return (
     <figure className="pzr-ch" style={{ "--c": color } as React.CSSProperties}>
       <ChartZoom label={title} className="cz-r">
+      {/* task #220 (README 3.3): the chart's colour travels with it into the enlarge window (which sits outside this figure) */}
+      <div className="pzr-ch-in" style={{ "--c": color } as React.CSSProperties}>
       <figcaption><b>{title}</b><span>{last ? <>{valueText(last.value)} <small>{periodLabel(last.period)}</small></> : "No data"}</span></figcaption>
       <div ref={box} className="pzr-ch-b" tabIndex={enough ? 0 : -1} role="group" aria-label={`${title}. Use the left and right arrow keys to read each ${basis === "annual" ? "year" : "quarter"}.`} {...(enough ? scrub.props : {})}>
         {!enough ? <p className="pzr-empty">Not enough reported {basis === "annual" ? "years" : "quarters"} for a chart.</p> : (
           <>
-            <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} role="img" aria-label={concl}>
+            <svg ref={svgRef} width={W} height={H} viewBox={`0 0 ${W} ${H}`} role="img" aria-label={concl}>
               {lo <= 0 && hi >= 0 && <line x1={M.l} x2={M.l + iw} y1={Y(0)} y2={Y(0)} className="pzr-zero" />}
               {kind === "bars" ? data.map((d, i) => {
                 if (d.value == null) return <g key={d.period}><text x={X(i)} y={Y(0) - 6} textAnchor="middle" className="pzr-gap">n/a</text></g>;
@@ -96,6 +99,7 @@ function Chart({ kind, title, unitNote, data, color, concl, valueText, tableHead
             )}
           </>
         )}
+      </div>
       </div>
       </ChartZoom>
       <div className="pzr-cfoot"><span>{unitNote}</span>{enough && <ShowTable on={table} set={setTable} />}</div>
@@ -141,7 +145,7 @@ export function HistoryCharts({ report }: { report: PrismReport }) {
   const hasQ = (report.financialHistory?.quarterly || []).filter((r) => r.sales != null || r.profit != null).length >= 2;
   const hasA = report.trends.length > 0 || (report.financialHistory?.annual?.length ?? 0) > 0;
   const [basis, setBasis] = useState<Basis>(hasA ? "annual" : "quarterly");
-  const income = incomeWord(report.rating.group), note = incomeNote(report.rating.group);
+  const income = incomeWord(report.rating.group), note = reportIncomeNote(report.rating);
   const s = useMemo(() => seriesFor(report, basis), [report, basis]);
   const step = 12, per = basis === "annual" ? "year" : "quarter";
   const trendOf = (label: string, key: "revenue" | "profit" | "eps", v: Series) => trendSentence(label, v.map((p) => ({ period: periodLabel(p.period), revenue: key === "revenue" ? p.value : null, profit: key === "profit" ? p.value : null, eps: key === "eps" ? p.value : null })), key);
@@ -174,7 +178,8 @@ export function HistoryCharts({ report }: { report: PrismReport }) {
 }
 
 const cell = (v: number | null | undefined, d?: number) => (v == null ? "—" : (v < 0 ? MINUS : "") + nf(Math.abs(v), d ?? (Math.abs(v) >= 1000 ? 0 : 2)));
-export function HistoryTables({ history, income, note = null, benchmark }: { history: PrismHistory; income: string; note?: string | null; benchmark?: PrismReport["benchmark"] }) {
+/** `part` (task #220, README 3.3): one table for a tab of 03 (Quarterly results, Annual results, Key financial ratios); all three when not given. */
+export function HistoryTables({ history, income, note = null, benchmark, part }: { history: PrismHistory; income: string; note?: string | null; benchmark?: PrismReport["benchmark"]; part?: "quarterly" | "annual" | "ratios" }) {
   const table = (title: string, rows: { period: string; [k: string]: number | string | null }[], fields: [string, string][]) => (
     <div className="pzr-htab"><h4>{title}</h4>
       {rows.length ? <div className="pzr-tw" tabIndex={0} role="region" aria-label={`${title}, scrolls sideways on a small screen`}>
@@ -185,10 +190,10 @@ export function HistoryTables({ history, income, note = null, benchmark }: { his
   const inc = income;
   return (
     <div className="pzr-tables">
-      <p className="pzr-small">Oldest to newest · amounts in ₹ crore · EPS in ₹ per share · missing values shown as a dash.{note ? ` ${note}` : ""}</p>
-      {table("Quarterly results", history.quarterly, [["sales", inc], ["profit", "Owner-attributable net profit"], ["ebitda", "EBITDA"], ["eps", "EPS (₹)"]])}
-      {table("Annual results", history.annual, [["sales", inc], ["profit", "Owner-attributable net profit"], ["cashFlow", "Operating cash flow"], ["netWorth", "Book equity"]])}
-      <KeyRatios latest={history.latest} benchmark={benchmark} />
+      {part !== "ratios" && <p className="pzr-small">Oldest to newest · amounts in ₹ crore · EPS in ₹ per share · missing values shown as a dash.{note ? ` ${note}` : ""}</p>}
+      {(!part || part === "quarterly") && table("Quarterly results", history.quarterly, [["sales", inc], ["profit", "Owner-attributable net profit"], ["ebitda", "EBITDA"], ["eps", "EPS (₹)"]])}
+      {(!part || part === "annual") && table("Annual results", history.annual, [["sales", inc], ["profit", "Owner-attributable net profit"], ["cashFlow", "Operating cash flow"], ["netWorth", "Book equity"]])}
+      {(!part || part === "ratios") && <KeyRatios latest={history.latest} benchmark={benchmark} />}
     </div>
   );
 }
@@ -234,7 +239,7 @@ export function KeyRatios({ latest, benchmark }: { latest: Ratio[]; benchmark?: 
   return (
     <div className="pzr-htab"><h4>Key financial ratios</h4>
       <div className="pzr-kr">
-        {multiples.length > 0 && <div className="pzr-tw pzr-kr-v"><table className="pzr-t"><thead><tr><th scope="col">Valuation multiple</th><th scope="col" className="n">Company</th><th scope="col" className="n">Own 5-year median</th><th scope="col" className="n">{sector ? "Sector benchmark" : "Industry median"}</th></tr></thead>
+        {multiples.length > 0 && <div className="pzr-tw pzr-kr-v"><table className="pzr-t"><thead><tr><th scope="col">Valuation multiple</th><th scope="col" className="n">Company</th><th scope="col" className="n">Own 5-year median</th><th scope="col" className="n">{sector ? "Sector benchmark" : "Peer group median (FinEdge)"}</th></tr></thead>
           <tbody>{multiples.map((m) => <tr key={m.label}><th scope="row">{m.label}</th><td className="n pzr-kr-co">{m.co ? ratioText(m.co) : "—"}</td><td className="n">{m.own ? ratioText(m.own) : "—"}</td><td className="n">{m.bm ? ratioText(m.bm) : "—"}</td></tr>)}</tbody></table></div>}
         {groups.map(([title, rows]) => one(title, rows))}
         {rest.length > 0 && one("Other", rest.map((r) => ({ label: r.label, r })))}

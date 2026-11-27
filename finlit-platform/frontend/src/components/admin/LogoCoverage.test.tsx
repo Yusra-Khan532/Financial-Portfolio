@@ -14,7 +14,7 @@ vi.mock("../../lib/api", async (orig) => ({
   apiSend: vi.fn(async (method: string, path: string, body: unknown) => { st.sent.push({ method, path, body }); return { status: "manual" }; }),
 }));
 vi.mock("../../lib/ui", () => ({ useUI: () => ({ toast: st.toast }) }));
-import { LogoCoverage, readImage } from "./LogoCoverage";
+import { LogoCoverage, parseLinks, readImage } from "./LogoCoverage";
 
 const wrap = () => render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><LogoCoverage /></QueryClientProvider>);
 beforeEach(() => { st.sent = []; st.toast.mockReset(); });
@@ -40,12 +40,19 @@ describe("company logo coverage", () => {
     expect(typeof b.image).toBe("string"); expect(b.image.length).toBeGreaterThan(100);
     await waitFor(() => expect(st.toast).toHaveBeenCalledWith("Logo saved for SBIN."));
   });
-  it("refuses a file over 64 KB at once, with the reason, and sends nothing", async () => {
-    await expect(readImage(file(70 * 1024))).rejects.toThrow(/at most 64 KB/);
+  it("refuses a file over 128 KB at once, with the reason, and sends nothing", async () => {
+    await expect(readImage(file(140 * 1024))).rejects.toThrow(/at most 128 KB/);
     wrap();
     await screen.findByText("SBIN");
-    fireEvent.change(screen.getByLabelText("Logo file for SBIN"), { target: { files: [file(70 * 1024)] } });
-    await screen.findByText(/at most 64 KB/);
+    fireEvent.change(screen.getByLabelText("Logo file for SBIN"), { target: { files: [file(140 * 1024)] } });
+    await screen.findByText(/at most 128 KB/);
     expect(st.sent.length).toBe(0);
+  });
+});
+
+describe("set logos from links (owner, 25 Nov 2026)", () => {
+  it("reads 'SYMBOL link' lines, with a space, tab or comma, and skips anything else", () => {
+    expect(parseLinks("TCS https://a.example/tcs.png\nltts\thttps://b.example/l.png\nM&M, https://c.example/m.webp\n\nnot a line\nX ftp://bad")).toEqual([
+      { symbol: "TCS", url: "https://a.example/tcs.png" }, { symbol: "LTTS", url: "https://b.example/l.png" }, { symbol: "M&M", url: "https://c.example/m.webp" }]);
   });
 });

@@ -13,8 +13,8 @@ from typing import List
 from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel, Field, field_validator
 
-from .auth.entitlements import LIMITS
-from .auth.routes import NO_STORE, SYMBOL, fail, need_plan, secure_ctx, user_ctx
+from .auth.entitlements import LIMITS, part_of
+from .auth.routes import NO_STORE, SYMBOL, fail, need_plan, read_limit, secure_ctx, user_ctx
 from .auth.service import Ctx, current
 from .screener.catalog import BY_KEY, GROUP_LABEL, allowed, offered
 from .screener.compute import MULTIPLES
@@ -24,6 +24,8 @@ router = APIRouter(prefix="/api/compare")
 MAX_METRICS = 300   # the whole catalogue fits (205 metrics today); the website itself offers fewer at a time
 SET_LIMITS = {"silver": 10, "gold": 30}   # saved measure sets kept in the account (Basic keeps them in the browser only)
 KEY = re.compile(r"^[a-z0-9_]{2,40}$")
+# POST /metrics per minute (visitor by IP, member by account): the page sends one each time a company or a measure is added or taken off.
+METRICS_VISITOR, METRICS_MEMBER = 60, 120
 
 
 def _plan(ctx: Ctx) -> str:
@@ -80,17 +82,19 @@ class MetricsIn(BaseModel):
 
 @router.post("/metrics")
 async def metrics(request: Request, body: MetricsIn):
-    plan = _plan(await current(request))
+    ctx = await current(request)
+    await read_limit(request, ctx, "compare_metrics", METRICS_VISITOR, METRICS_MEMBER)
+    plan = _plan(ctx)
     cap = LIMITS.get(plan, LIMITS["basic"])["compare"]
     if len(body.symbols) > cap:
         raise fail(403, "plan_limit", f"Your plan compares up to {cap} companies at once.", plan="gold")
-    if any(BY_KEY[k].group == "model" and not offered(plan, "model") for k in body.keys):   # one score per plan (task #100): Gold uses FinLit Prism
-        raise fail(400, "bad_request", "Gold compares on FinLit Prism, not the FinLit IQ.")
+    if any(BY_KEY[k].group == "model" and not offered(plan, "model") for k in body.keys):   # task #283: the retired score is offered to no plan
+        raise fail(400, "bad_request", "That figure is not offered: FinLit Prism is FinLit's company score.")
     locked = [k for k in body.keys if not allowed(plan, BY_KEY[k].tier)]
     if locked:
         tier = "gold" if any(BY_KEY[k].tier == "gold" for k in locked) else "silver"
         names = ", ".join(BY_KEY[k].label for k in locked[:3])
-        raise fail(403, "plan_required", f"{names} {'is' if len(locked) == 1 else 'are'} part of the {tier.title()} plan.", plan=tier, keys=locked)
+        raise fail(403, "plan_required", f"{names} {'is' if len(locked) == 1 else 'are'} part of {part_of(tier)}.", plan=tier, keys=locked)
     t = await get_table(request.app.state.store)
     companies, values = [], {k: {} for k in body.keys}
     for sym in body.symbols:

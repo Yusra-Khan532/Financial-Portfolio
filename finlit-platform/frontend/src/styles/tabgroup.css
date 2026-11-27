@@ -1,0 +1,46 @@
+/* The report's one tab group (components/TabGroup.tsx; company report handover 17 Nov 2026, README 1.2).
+   Task #310: the chart blue (--c1) is for charts only, so the bar and its tabs use the site's one selected look (--ui-on-bg / --ui-on-fg, black on cream in
+   light and cream on dark green in dark) and the neutral borders; it was blue. */
+.ctabs { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin: 6px 0 16px; padding: 10px 12px 10px 14px; max-width: 100%;
+  background: var(--s1); border: 1.5px solid var(--border); border-left: 5px solid var(--ui-on-bg); border-radius: var(--r-ctl);
+  box-shadow: none; color: var(--text); }
+.ctabs-h { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; font: 600 var(--fs-13, 13px) var(--sans); color: var(--text); }
+.ctabs-h b { font-weight: 700; }
+.ctabs-ic { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: var(--r-ctl); background: var(--s2); color: var(--text); font-size: var(--fs-14, 14px); font-weight: 700; }
+.ctabs-hint { font-weight: 500; font-size: var(--fs-12, 12px); color: var(--muted); }
+.ct-crown { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: var(--ui-r-pill); background: var(--ui-on-bg); color: var(--ui-on-fg); font: 700 var(--fs-12, 12px)/1 var(--sans); letter-spacing: .08em; }
+.ct-list { display: flex; flex: 1 1 auto; flex-wrap: nowrap; gap: 8px; max-width: 100%; overflow-x: auto; scrollbar-width: none; overscroll-behavior-x: contain; }
+.ct-list::-webkit-scrollbar { display: none; }
+.ct-list button { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 8px 14px; border: 1px solid var(--border-strong); border-radius: var(--r-ctl);
+  background: var(--s1); color: var(--text); font: 600 var(--fs-14, 14px)/1.2 var(--sans); cursor: pointer; box-shadow: none; transition: transform .15s, box-shadow .15s, border-color .15s, background .15s; }
+.ct-list button:hover { border-color: var(--text); background: var(--s2); }
+.ct-list button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.ct-list button[aria-selected="true"] { background: var(--ui-on-bg); border-color: var(--ui-on-bg); color: var(--ui-on-fg); box-shadow: none; }
+.ct-n { display: inline-grid; place-items: center; min-width: 20px; height: 20px; border-radius: var(--ui-r-pill); font: 700 var(--fs-12, 12px) var(--sans); background: var(--s2); color: var(--text); }
+.ct-list button[aria-selected="true"] .ct-n { background: var(--ui-on-fg); color: var(--ui-on-bg); }
+/* the nudge: the tab after the chosen one pulses softly, 4 times, until the reader first uses the bar */
+@keyframes ctNudge { 0%, 100% { box-shadow: 0 0 0 0 transparent; } 50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--text) 18%, transparent); } }
+.ctabs:not(.used) .ct-list button[aria-selected="true"] + button { animation: ctNudge 2.2s ease-in-out 1s 4; }
+.ctabs.ct-highlighted { border-width: 2px; border-left-width: 6px; background: var(--s1); }
+/* Next view, at the bottom of every panel */
+.ct-next { display: flex; align-items: center; gap: 10px; width: 100%; margin: 14px 0 0; padding: 12px 16px; border: 1px solid var(--border-strong); border-radius: var(--r-ctl);
+  background: var(--s1); color: var(--text); font: 500 var(--fs-13, 13px) var(--sans); text-align: left; cursor: pointer; }
+.ct-next:hover { border-color: var(--text); background: var(--s2); }
+.ct-next:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.ct-next-k { color: var(--muted); }
+.ct-next b { font-weight: 700; }
+.ct-next-a { margin-left: auto; display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--ui-on-bg); color: var(--ui-on-fg); font-weight: 700; }
+.ctab-panel > .card:first-child, .ctab-panel > .gate:first-child { margin-top: 0; }
+@media (max-width: 700px) { .ctabs-hint { display: none; } }
+@media (prefers-reduced-motion: reduce) { .ct-list button { transition: none; } .ctabs:not(.used) .ct-list button { animation: none; } }
+/* a bar or its panels placed in a grid or flex parent (10's Decoding ROE sits in a grid): never let the row of tabs widen the parent; the tabs scroll instead */
+.ctabs, .ct-panels, .ctab-panel { min-width: 0; }
+/* task #220 (Prism report, README 1.3): a score or count in a tab label; controls inside the bar under the tabs */
+.ctabs [role="tab"] .ct-sc { margin-left: 6px; padding: 1px 7px; border-radius: var(--ui-r-pill); font: 600 var(--fs-12, 12px) var(--sans); font-style: normal; background: var(--s2); color: var(--text); }
+.ctabs [role="tab"][aria-selected="true"] .ct-sc { background: color-mix(in srgb, var(--ui-on-fg) 20%, transparent); color: var(--ui-on-fg); }
+.ctabs [role="tab"] .ct-cnt { margin-left: 6px; font: 600 var(--fs-12, 12px) var(--sans); color: inherit; }
+.ctabs.has-tools { flex-wrap: wrap; }
+.ctabs .ct-tools { flex: 1 1 100%; min-width: 0; margin-top: 4px; padding-top: 8px; border-top: 1px dashed var(--border); }
+/* task #329 (IPOs): a short line after the tabs, in the bar ("Showing: …") */
+.ctabs .ct-aside { flex: 1 1 220px; min-width: 0; font: 400 var(--fs-13)/1.4 var(--sans); color: var(--muted); }
+.ctabs .ct-aside b { color: var(--text); font-weight: 600; }

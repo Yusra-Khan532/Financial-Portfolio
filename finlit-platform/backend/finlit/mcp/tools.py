@@ -249,19 +249,29 @@ async def get_price_history(gw: Gateway, a: Dict[str, Any]) -> Out:
                 "count": len(rows), "prices": rows}, as_of=ts[-1], routes=[f"/api/stocks/{sym}/price-{rng}"], notes=notes)
 
 
+PRISM_NEEDS_PLAN = "The FinLit score of a company is FinLit Prism, FinLit's only company score. It needs a FinLit plan with FinLit Prism on the website."
+
+
 async def get_finlit_score(gw: Gateway, a: Dict[str, Any]) -> Out:
+    """FinLit Prism for one company where the caller's plan has it (task #283 PR C: FinLit Prism is FinLit's only company score; the FinLit IQ is
+    retired). Anonymous (this server) gets it for the free showcase company only; any other company says it needs a plan with FinLit Prism."""
     sym = clean_symbol(a["symbol"])
-    s = await _section(gw, sym)
-    sc = s.get("score") or {}
-    asof = (s.get("meta") or {}).get("generatedAt")
-    if sc.get("overall") is None:
-        return Out({"symbol": sym, "locked": True, "score": None,
-                    "message": "The FinLit IQ for this company is a Silver plan feature on the FinLit website and is not available through this free server."},
-                   as_of=asof, routes=[f"/api/stocks/{sym}"])
-    return Out({"symbol": sym, "locked": False, "score": {"overall": sc.get("overall"), "scale": "0 to 100", "band": sc.get("band"), "model": sc.get("model"),
-                                                           "pillars": [{k: p.get(k) for k in ("key", "label", "score", "band")} for p in sc.get("pillars", [])]}},
-               as_of=asof, routes=[f"/api/stocks/{sym}"],
-               notes=["The score and its bands describe financial health from filings and prices. They are computed mechanically and are not a recommendation."])
+    route = "/api/prism/reports/latest"
+    try:
+        p = await gw.json(route, {"symbol": sym, "view": "summary"}, subject=f"FinLit Prism for {sym}")
+    except ToolError as e:
+        msg = str(e)
+        if "plan" in msg.lower() or "sign in" in msg.lower() or "not available through this free server" in msg:
+            return Out({"symbol": sym, "locked": True, "score": None, "message": PRISM_NEEDS_PLAN}, routes=[route])
+        if "not found" in msg:
+            return Out({"symbol": sym, "locked": False, "score": None, "message": "FinLit Prism has not rated this company yet."}, routes=[route])
+        raise
+    s = (p or {}).get("summary") or {}
+    rated = s.get("status") != "NOT RATED" and s.get("final") is not None
+    return Out({"symbol": sym, "locked": False, "score": {"name": "FinLit Prism", "final": s.get("final") if rated else None, "scale": "0 to 100", "label": s.get("label"),
+                                                           "status": s.get("status"), "parts": s.get("parts") if rated else None}},
+               as_of=s.get("generatedAt"), routes=[route],
+               notes=["FinLit Prism describes a company's financial health from its filings and prices. It is worked out mechanically and is not a recommendation."])
 
 
 def _results_params(a: Dict[str, Any], limit: int) -> Dict[str, Any]:
@@ -275,7 +285,7 @@ def _results_params(a: Dict[str, Any], limit: int) -> Dict[str, Any]:
 def _results_out(b: Dict[str, Any], path: str, extra_notes: Optional[List[str]] = None) -> Out:
     notes = list(extra_notes or [])
     if b.get("locked"):
-        notes.append("Growth and margin figures for these results are a Silver feature on the website, so rows here carry dates, names and status only; figures are null because they are withheld, not because they are zero.")
+        notes.append("Growth and margin figures for these results are a paid-plan feature on the website, so rows here carry dates, names and status only; figures are null because they are withheld, not because they are zero.")
     if not b.get("quarter"):
         notes.append("No quarter with declarations is loaded yet.")
     rows = [{k: r.get(k) for k in ("symbol", "name", "sector", "cap", "date", "status", "periodEnd", "hasNumbers", "revenue", "netProfit", "revenueYoY", "profitYoY") if k in r} for r in b.get("rows", [])]
@@ -469,7 +479,7 @@ def build_tools() -> List[Tool]:
         Tool("get_price_history", "Price history", "Daily or weekly open, high, low, close and volume. Beyond about one year only weekly candles are stored.",
              {**sym, "days": {"type": "integer", "minimum": 5, "maximum": 1825, "default": 90, "description": "How many calendar days back, up to 1825"},
               "interval": {"type": "string", "enum": ["daily", "weekly"], "default": "daily", "description": "daily or weekly"}}, get_price_history, ["symbol"]),
-        Tool("get_finlit_score", "FinLit IQ", "The FinLit financial-health score (0 to 100) and its five pillars, only where the website shows it to a visitor. Otherwise it says the score is a Silver plan feature.", sym, get_finlit_score, ["symbol"]),
+        Tool("get_finlit_score", "FinLit Prism score", "FinLit Prism, FinLit's only company score (0 to 100, with its label and four parts), where the caller's plan has it. Otherwise it says the score needs a plan with FinLit Prism.", sym, get_finlit_score, ["symbol"]),
         Tool("get_quarter_results", "Quarter results", "Companies that announced results for a quarter or on a date, with status. Figures such as growth are withheld, as on the free website.",
              {"quarter": {"type": "string", "pattern": r"^\d{4}-(03|06|09|12)$", "maxLength": 7, "description": "Quarter-end month, for example 2026-09"},
               "date": {"type": "string", "pattern": r"^\d{4}-\d{2}-\d{2}$", "maxLength": 10, "description": "Announcement date, YYYY-MM-DD"},
@@ -480,7 +490,7 @@ def build_tools() -> List[Tool]:
         Tool("screen_stocks", "Stock screener", "Filter listed companies on the free FinLit screener metrics (market cap, price, P/E, ROE, ROCE, margins, growth, debt, returns). Each filter is {min, max} in the metric's unit.",
              {"filters": {"type": "object", "propertyNames": {"enum": keys}, "additionalProperties": {"type": "object", "properties": {"min": {"type": "number"}, "max": {"type": "number"}}, "additionalProperties": False},
                           "description": "Metric name to {min, max}. Metrics: " + ", ".join(keys)},
-              "sector": {"type": "string", "maxLength": 80, "description": "Sector name"}, "cap": {"type": "string", "enum": ["Large", "Mid", "Small"], "description": "Company size"},
+              "sector": {"type": "string", "maxLength": 80, "description": "Sector name"}, "cap": {"type": "string", "enum": ["Large", "Mid", "Small", "Micro"], "description": "Company size by full market value at the last close: Large above ₹75,000 Cr, Mid ₹25,000-75,000 Cr, Small ₹10,000-25,000 Cr, Micro below ₹10,000 Cr"},
               "query": {"type": "string", "maxLength": 60, "description": "Part of a name or symbol"},
               "sort_by": {"type": "string", "enum": ["market_cap", "price", "pe", "roe", "roce", "name", "symbol", *[k for k in keys if k not in ("market_cap", "price", "pe", "roe", "roce")]], "default": "market_cap"},
               "order": {"type": "string", "enum": ["asc", "desc"], "default": "desc"}, "limit": lim(10, 25, "How many rows (the free screener shows at most 25)")}, screen_stocks),

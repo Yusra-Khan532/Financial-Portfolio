@@ -1,0 +1,397 @@
+{
+ "about": "Proposed starting list of tracked investors for the Superinvestor portfolios page (21 Nov 2026). Each entry groups the names the investor files under, as written in the shareholding filings (keys as on /api/superinvestors). FinLit's editor confirms every grouping against the filings before it goes live; entries with editor_check true group more than one name.",
+ "investors": [
+  {
+   "key": "rekha-jhunjhunwala",
+   "name": "Rekha Jhunjhunwala",
+   "filed_names": [
+    {
+     "key": "rekha-jhunjhunwala",
+     "as_filed": "Rekha Jhunjhunwala",
+     "kind": "person"
+    }
+   ],
+   "editor_check": false
+  },
+  {
+   "key": "radhakishan-damani",
+   "name": "Radhakishan Damani",
+   "filed_names": [
+    {
+     "key": "radhakishan-shivkishan-damani",
+     "as_filed": "Radhakishan Shivkishan Damani",
+     "kind": "person"
+    },
+    {
+     "key": "derive-trading-and-resorts-pvt-ltd",
+     "as_filed": "Derive Trading And Resorts Private Limited",
+     "kind": "firm"
+    },
+    {
+     "key": "bright-star-investments",
+     "as_filed": "Bright Star Investments",
+     "kind": "firm"
+    }
+   ],
+   "editor_check": true
+  },
+  {
+   "key": "mukul-agrawal",
+   "name": "Mukul Agrawal",
+   "filed_names": [
+    {
+     "key": "mukul-mahavir-agrawal",
+     "as_filed": "Mukul Mahavir Agrawal",
+     "kind": "person"
+    },
+    {
+     "key": "mukul-mahavir-agarwal",
+     "as_filed": "Mukul Mahavir  Agarwal",
+     "kind": "person"
+    },
+    {
+     "key": "asha-mukul-agrawal",
+     "as_filed": "Asha Mukul Agrawal",
+     "kind": "person"
+    }
+   ],
+   "editor_check": true
+  },
+  {
+   "key": "akash-bhanshali",
+   "name": "Akash Bhanshali",
+   "filed_names": [
+    {
+     "key": "akash-bhanshali",
+     "as_filed": "Akash Bhanshali",
+     "kind": "person"
+    },
+    {
+     "key": "akash-manek-bhanshali",
+     "as_filed": "Akash Manek Bhanshali",
+     "kind": "person"
+    }
+   ],
+   "editor_check": true
+  },
+  {
+   "key": "ashish-kacholia",
+   "name": "Ashish Kacholia",
+   "filed_names": [
+    {
+     "key": "ashish-kacholia",
+     "as_filed": "Ashish Kacholia",
+     "kind": "person"
+    },
+    {
+     "key": "bengal-finance-and-investment-pvt-ltd",
+     "as_filed": "Bengal Finance &  Investment Pvt. Ltd",
+     "kind": "firm"
+    },
+    {
+     "key": "suryavanshi-commotrade-pvt-ltd",
+     "as_filed": "Suryavanshi Commotrade Private Limited",
+     "kind": "firm"
+    }
+   ],
+   "editor_check": true
+  },
+  {
+   "key": "vijay-kedia",
+   "name": "Vijay Kedia",
+   "filed_names": [
+    {
+     "key": "vijay-kishanlal-kedia",
+     "as_filed": "Vijay Kishanlal Kedia",
+     "kind": "person"
+    },
+    {
+     "key": "vijay-kedia",
+     "as_filed": "Vijay Kedia",
+     "kind": "person"
+    },
+    {
+     "key": "kedia-securities-pvt-ltd",
+     "as_filed": "Kedia Securities Private Limited",
+     "kind": "firm"
+    }
+   ],
+   "editor_check": true
+  },
+  {
+   "key": "nemish-shah",
+   "name": "Nemish Shah",
+   "filed_names": [
+    {
+     "key": "nemish-s-shah",
+     "as_filed": "Nemish S Shah",
+     "kind": "person"
+    }
+   ],
+   "editor_check": false
+  },
+  {
+   "key": "ashish-dhawan",
+   "name": "Ashish Dhawan",
+   "filed_names": [
+    {
+     "key": "ashish-dhawan",
+     "as_filed": "Ashish Dhawan",
+     "kind": "person"
+    }
+   ],
+   "editor_check": false
+  },
+  {
+   "key": "madhusudan-kela",
+   "name": "Madhusudan Kela",
+   "filed_names": [
+    {
+     "key": "madhusudan-murlidhar-kela",
+     "as_filed": "Madhusudan Murlidhar Kela",
+     "kind": "person"
+    },
+    {
+     "key": "madhuri-madhusudan-kela",
+     "as_filed": "Madhuri Madhusudan Kela",
+     "kind": "person"
+    },
+    {
+     "key": "mahi-madhusudan-kela",
+     "as_filed": "Mahi Madhusudan Kela",
+     "kind": "person"
+    },
+    {
+     "key": "singularity-holdings-ltd",
+     "as_filed": "Singularity Holdings Limited",
+     "kind": "firm"
+    }
+   ],
+   "editor_check": true
+  },
+  {
+   "key": "anil-kumar-goel",
+   "name": "Anil Kumar Goel",
+   "filed_names": [
+    {
+     "key": "anil-kumar-goel",
+     "as_filed": "Anil Kumar Goel",
+     "kind": "person"
+    },
+    {
+     "key": "seema-goel",
+     "as_filed": "Seema Goel",
+     "kind": "person"
+    }
+   ],
+   "editor_check": true
+  },
+  {
+   "key": "nikhil-kamath",
+   "name": "Nikhil Kamath",
+   "filed_names": [
+    {
+     "key": "nksquared",
+     "as_filed": "Nksquared",
+     "kind": "person"
+    },
+    {
+     "key": "kamath-associates",
+     "as_filed": "Kamath Associates",
+     "kind": "firm"
+    }
+   ],
+   "editor_check": true
+  },
+  {
+   "key": "dolly-khanna",
+   "name": "Dolly Khanna",
+   "filed_names": [
+    {
+     "key": "dolly-khanna",
+     "as_filed": "Dolly Khanna",
+     "kind": "person"
+    }
+   ],
+   "editor_check": false
+  },
+  {
+   "key": "porinju-veliyath",
+   "name": "Porinju Veliyath",
+   "filed_names": [
+    {
+     "key": "porinju-veliyath",
+     "as_filed": "Porinju Veliyath",
+     "kind": "person"
+    },
+    {
+     "key": "equity-intelligence-india-pvt-ltd",
+     "as_filed": "Equity Intelligence India Private Limited",
+     "kind": "firm"
+    }
+   ],
+   "editor_check": true
+  },
+  {
+   "key": "ramesh-damani",
+   "name": "Ramesh Damani",
+   "filed_names": [
+    {
+     "key": "ramesh-damani",
+     "as_filed": "Ramesh Damani",
+     "kind": "person"
+    }
+   ],
+   "editor_check": false
+  },
+  {
+   "key": "sanjiv-shah",
+   "name": "Sanjiv Shah",
+   "filed_names": [
+    {
+     "key": "sanjiv-dhireshbhai-shah",
+     "as_filed": "Sanjiv  Dhireshbhai  Shah",
+     "kind": "person"
+    }
+   ],
+   "editor_check": false
+  },
+  {
+   "key": "hemendra-kothari",
+   "name": "Hemendra Kothari",
+   "filed_names": [
+    {
+     "key": "hemendra-m-kothari",
+     "as_filed": "Hemendra M Kothari",
+     "kind": "person"
+    }
+   ],
+   "editor_check": false
+  },
+  {
+   "key": "vanaja-sundar-iyer",
+   "name": "Vanaja Sundar Iyer",
+   "filed_names": [
+    {
+     "key": "vanaja-sundar-iyer",
+     "as_filed": "Vanaja Sundar Iyer",
+     "kind": "person"
+    }
+   ],
+   "editor_check": false
+  },
+  {
+   "key": "govindlal-parikh",
+   "name": "Govindlal Parikh",
+   "filed_names": [
+    {
+     "key": "govindlal-m-parikh",
+     "as_filed": "Govindlal M Parikh",
+     "kind": "person"
+    }
+   ],
+   "editor_check": false
+  },
+  {
+   "key": "ajay-upadhyaya",
+   "name": "Ajay Upadhyaya",
+   "filed_names": [
+    {
+     "key": "ajay-upadhyaya",
+     "as_filed": "Ajay Upadhyaya",
+     "kind": "person"
+    }
+   ],
+   "editor_check": false
+  },
+  {
+   "key": "vikas-khemani",
+   "name": "Vikas Khemani",
+   "filed_names": [
+    {
+     "key": "vikas-vijaykumar-khemani",
+     "as_filed": "Vikas Vijaykumar Khemani",
+     "kind": "person"
+    }
+   ],
+   "editor_check": false
+  },
+  {
+   "key": "hitesh-javeri",
+   "name": "Hitesh Ramji Javeri",
+   "filed_names": [
+    {
+     "key": "hitesh-ramji-javeri",
+     "as_filed": "Hitesh Ramji Javeri",
+     "kind": "person"
+    },
+    {
+     "key": "harsha-hitesh-javeri",
+     "as_filed": "Harsha Hitesh Javeri",
+     "kind": "person"
+    }
+   ],
+   "editor_check": true
+  },
+  {
+   "key": "sharad-shah",
+   "name": "Sharad Kanayalal Shah",
+   "filed_names": [
+    {
+     "key": "sharad-kanayalal-shah",
+     "as_filed": "Sharad Kanayalal Shah",
+     "kind": "person"
+    }
+   ],
+   "editor_check": false
+  },
+  {
+   "key": "girish-gulati",
+   "name": "Girish Gulati",
+   "filed_names": [
+    {
+     "key": "girish-gulati-huf",
+     "as_filed": "GIRISH GULATI (huf)",
+     "kind": "person"
+    }
+   ],
+   "editor_check": false
+  },
+  {
+   "key": "satpal-khattar",
+   "name": "Satpal Khattar",
+   "filed_names": [
+    {
+     "key": "satpal-khattar",
+     "as_filed": "Satpal Khattar",
+     "kind": "person"
+    }
+   ],
+   "editor_check": false
+  },
+  {
+   "key": "utpal-sheth",
+   "name": "Utpal Sheth",
+   "filed_names": [
+    {
+     "key": "utpal-h-sheth",
+     "as_filed": "Utpal H Sheth",
+     "kind": "person"
+    }
+   ],
+   "editor_check": false
+  },
+  {
+   "key": "chetan-shah",
+   "name": "Chetan Shah",
+   "filed_names": [
+    {
+     "key": "chetan-jayantilal-shah",
+     "as_filed": "Chetan Jayantilal Shah",
+     "kind": "person"
+    }
+   ],
+   "editor_check": false
+  }
+ ]
+}

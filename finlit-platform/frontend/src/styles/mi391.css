@@ -1,0 +1,96 @@
+/* Task #391 PR A (developer file 35, All my investments, 24 Nov updated 25 Nov): the calm cards, Since your last visit, Data as of, the step bar's one-stop
+   mode, the key figures' questions, the risk note, the phone folds and the filter row under the section bar. Scoped to the page (.mi); tokens only;
+   nothing under 12px. Classes: mi391-. */
+
+/* ---- four calm cards with a crown each (Top 1–5) */
+.mi .mi391-strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 22px 0 14px; }
+.mi .mi391-c { position: relative; display: block; min-width: 0; margin: 0; padding: 14px 16px; border: 1px solid var(--border); border-radius: var(--r-card); background: var(--s1); color: var(--text);
+  font: inherit; text-align: left; cursor: pointer; box-shadow: inset 0 3px 0 var(--vc), 0 12px 26px -24px color-mix(in srgb, var(--text) 50%, transparent); transition: border-color .15s, background .15s; }
+.mi .mi391-c:hover { border-color: color-mix(in srgb, var(--vc) 45%, var(--border)); background: color-mix(in srgb, var(--vc) 4%, var(--s1)); }
+.mi .mi391-c:focus-visible { outline: 2px solid var(--vc); outline-offset: 2px; }
+.mi .mi391-c.on { background: var(--s2); border-color: var(--border-strong); cursor: default; }
+.mi .mi391-c .px-crown { position: absolute; top: -11px; left: 14px; z-index: 2; display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--ui-crown); color: var(--ui-crown-ink); box-shadow: 0 0 0 3px var(--bg); }
+.mi .mi391-k { display: flex; align-items: center; gap: 7px; min-height: 24px; margin: 0 0 8px; font: 700 var(--fs-12)/1 var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.mi .mi391-k em { margin-left: auto; font: 600 var(--fs-12)/1 var(--sans); font-style: normal; letter-spacing: 0; text-transform: none; color: var(--gain); white-space: nowrap; }
+.mi .mi391-c.on .mi391-k em { padding: 4px 8px; border-radius: var(--ui-r-pill); background: var(--text); color: var(--s1); }
+.mi .mi391-v { margin: 0; font: 500 var(--fs-24)/1.15 var(--serif); color: var(--text); overflow-wrap: anywhere; }
+.mi .mi391-x { margin: 8px 0 0; font: 400 var(--fs-13)/1.4 var(--sans); color: var(--muted); }
+@media (max-width: 1100px) and (min-width: 761px) { .mi .mi391-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+/* Phone: one card per row, the name and the figure only */
+@media (max-width: 760px) {
+  .mi .mi391-strip { grid-template-columns: minmax(0, 1fr); gap: 14px; margin-top: 18px; }
+  .mi .mi391-c { display: grid; grid-template-columns: minmax(0, auto) minmax(0, 1fr); column-gap: 12px; align-items: baseline; padding: 12px 14px; }
+  .mi .mi391-k { grid-column: 1; margin: 0; letter-spacing: .02em; }
+  .mi .mi391-k em, .mi .mi391-x { display: none; }
+  .mi .mi391-v { grid-column: 2; font-size: var(--fs-18); justify-self: end; text-align: right; }
+  .mi .mi391-c .px-crown { width: 20px; height: 20px; top: -9px; left: 10px; }
+  .mi .mi391-c .px-crown svg { width: 12px; height: 12px; }
+}
+
+/* ---- Since your last visit (Top 6) and Data as of (Top 7) */
+.mi .mi391-since { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; margin: -4px 0 14px; padding: 10px 16px; border: 1px solid var(--border); border-radius: var(--r-ctl); background: var(--s1); font: 400 var(--fs-14)/1.4 var(--sans); color: var(--muted); }
+.mi .mi391-since b { color: var(--text); font-weight: 600; margin-right: 2px; }
+.mi .mi391-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--gain); }
+.mi .mi391-since > span { flex: 1; min-width: 220px; }
+.mi .mi391-since button { flex: none; min-height: 34px; padding: 0 14px; border: 1px solid var(--border-strong); border-radius: var(--ui-r-pill); background: var(--s1); color: var(--text); font: 600 var(--fs-13)/1 var(--sans); cursor: pointer; }
+.mi .mi391-since button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.mi .mi391-asof { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin: -8px 0 12px; font: 400 var(--fs-12)/1.4 var(--sans); color: var(--muted); }
+.mi .mi391-asof > b { font-weight: 700; color: var(--text); }
+.mi .mi391-ai { display: inline-flex; align-items: baseline; gap: 6px; }
+.mi .mi391-ai > i { font-style: normal; }
+.mi .mi391-ak { font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text); }
+.mi .mi391-anchor { height: 0; scroll-margin-top: 72px; }
+@media (max-width: 760px) { .mi .mi391-since { font-size: var(--fs-13); padding: 10px 12px; } .mi .mi391-since button { width: 100%; } .mi .mi391-since > span { min-width: 0; } }
+
+/* ---- the money box: the value of every holding with a quantity, on its own labelled line (fault 3) */
+.mi .mi391-allv { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin: 10px 0 0; padding: 8px 0 0; border-top: 1px dashed var(--border); font: 400 var(--fs-13)/1.4 var(--sans); }
+.mi .mi391-allv b { font: 600 var(--fs-16)/1.2 var(--sans); color: var(--text); }
+
+/* ---- the section bar: one stop at a time; the chosen stop and All sections (pressed) in black with a white number */
+.mi .stb-one .stb-chip[aria-current="step"], .mi .stb-one .stb-all[aria-pressed="true"] { background: var(--text) !important; color: var(--s1) !important; border-color: var(--text) !important; }
+.mi .stb-one .stb-chip[aria-current="step"] .stb-n { background: var(--s1); color: var(--text); }
+/* All sections stays pinned at the left of the scrolling bar and is never faded (the preview's SS04 fault) */
+.mi .stb-one .stb-all { position: sticky; left: 0; z-index: 2; box-shadow: 8px 0 10px -8px color-mix(in srgb, var(--text) 35%, transparent); }
+.mi .stb-wrap.stb-one.edge-l > .stb { -webkit-mask-image: none; mask-image: none; }
+.mi .stb-wrap.stb-one.edge-l.edge-r > .stb { -webkit-mask-image: linear-gradient(90deg, currentColor calc(100% - 40px), transparent); mask-image: linear-gradient(90deg, currentColor calc(100% - 40px), transparent); }
+/* the section bar stays while the Every company filter row is up; the row stops just under it (Update 25 Nov, row 3) */
+html.mi7-rowup .wrap.mi .stb-wrap { transform: none; opacity: 1; pointer-events: auto; }
+.mi .mi7-frow { top: var(--eq-bar-b, 62px); }
+
+/* ---- Key figures: one plain, numbered question on each card (All together) */
+.mi .mi391-kq { display: flex; align-items: flex-start; gap: 8px; margin: 0 0 8px; font: 600 var(--fs-16)/1.35 var(--sans); color: var(--text); }
+.mi .mi391-kn { flex: none; display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--text); color: var(--s1); font: 700 var(--fs-12)/1 var(--sans); }
+
+/* ---- How risky it is: each kind's window in the column header; the one-line note with its i */
+.mi .mi391-win { margin: 8px 0 0; color: var(--muted); }
+.mi .mi391-rnote { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+
+/* ---- things to know: the pill at the right of each heading; on a phone it wraps under the title, never squeezing it */
+.mi .mi-sh-r:has(.eq8k-btn) { align-self: flex-start; }
+.mi .mi-sh-r .eq8k-btn { margin: 4px 0 0; }
+@media (max-width: 760px) {
+  .mi .mi-sh:has(.mi-sh-r .eq8k-btn) { flex-wrap: wrap; }
+  .mi .mi-sh:has(.mi-sh-r .eq8k-btn) .mi-sh-t { flex: 1 1 calc(100% - 48px); }
+  .mi .mi-sh-r:has(.eq8k-btn) { flex: 1 1 100%; padding-left: 48px; }
+}
+
+/* ---- phone folds with All sections on: each stop after the first shows only its heading block and Open ▾ */
+.mi .mi391-fold:not(.open) { margin: 0 0 16px; padding: 0 0 14px; border: 1px solid var(--border); border-radius: var(--r-card); background: var(--s1); }
+.mi .mi391-fold:not(.open) > .mi-step, .mi .mi391-fold:not(.open) > .mi7-wc > section {   /* task #391 (file 41 v4, E1): the steps are .sp-sec, not .card */
+  margin: 0; border: 0; box-shadow: none; background: none; padding-bottom: 4px; }
+.mi .mi391-fold:not(.open) > section.mi-step > :not(.mi-sh), .mi .mi391-fold:not(.open) .mi-sh-r { display: none !important; }
+.mi .mi391-fold:not(.open) > .mi7-wc > section.wc > :not(h2):not(.wp-sub):not(.mi41-step) { display: none !important; }   /* file 41 v4, A2: the Step 5 label stays */
+.mi .mi391-fo, .mi .mi391-fc { display: flex; align-items: center; justify-content: flex-end; gap: 6px; min-height: 40px; padding: 0 14px; border: 1px solid var(--border); border-radius: var(--r-ctl); background: var(--s2); color: var(--text); font: 600 var(--fs-13)/1 var(--sans); cursor: pointer; }
+.mi .mi391-fo { width: calc(100% - 32px); margin: 0 16px; }
+.mi .mi391-fc { margin: 0 0 8px auto; }
+.mi .mi391-fo i, .mi .mi391-fc i { font-style: normal; }
+.mi .mi391-fo:focus-visible, .mi .mi391-fc:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+/* ---- the Equity, Mutual funds and ETFs views on a phone with All sections on: each step after the first folds (portfolio/pack/EqSteps385 Fold, PR B) */
+.mi .eqf { margin: 0 0 16px; padding: 16px 18px; border: 1px solid var(--border); border-radius: var(--r-card); background: var(--s1); }
+.mi .eqf-h { margin: 0; font: 500 var(--fs-20)/1.25 var(--serif); color: var(--text); }
+.mi .eqf-sum { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; margin: 10px 0 0; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--r-ctl); background: var(--s2); color: var(--text); font: 400 var(--fs-14)/1.4 var(--sans); text-align: left; cursor: pointer; }
+.mi .eqf-sum .c, .mi .eqf-close { display: inline-flex; align-items: center; gap: 5px; flex: none; font: 600 var(--fs-13)/1 var(--sans); color: var(--text); }
+.mi .eqf-sum i, .mi .eqf-close i { font-style: normal; }
+.mi .eqf-close { margin: 10px 0 -4px auto; padding: 6px 0; border: 0; background: none; cursor: pointer; }
+.mi .eqf-open { display: flex; flex-direction: column; }

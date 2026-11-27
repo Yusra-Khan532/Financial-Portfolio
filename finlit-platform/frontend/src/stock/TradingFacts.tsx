@@ -5,14 +5,15 @@ import { leverageText, priceBand, stageText, useTrading } from "../lib/trading";
 
 /** Under the price: a surveillance warning when the exchange has the share under ASM/GSM, then the day's price band, F&O and margin trading.
  * Nothing is said when a fact is not positively known (no "not under surveillance", no "no F&O"). Information only, never a suggestion. */
-export function TradingFacts({ s }: { s: Summary }) {
+/** `part`: "all" (as before), "warn" (only the surveillance note) or "list" (only the facts list: the header's "Trading details" drop-down, task #216). */
+export function TradingFacts({ s, part = "all" }: { s: Summary; part?: "all" | "warn" | "list" }) {
   const t = useTrading(s.profile.symbol).data;
   const band = priceBand(s.quote), sv = t?.surveillance, fno = t?.fno, mtf = t?.mtf;
-  if (!sv && !fno && !mtf && !band) return null;
+  if (part === "warn" ? !sv : part === "list" ? !fno && !mtf && !band : !sv && !fno && !mtf && !band) return null;
   const stage = stageText(sv?.stage), from = `the broker Dhan's instrument file${t?.asOf ? ` of ${dateIN(t.asOf)}` : ""}`;
   return (
     <div className="tfacts">
-      {sv && (
+      {sv && part !== "list" && (
         <div className="tf-warn" role="note" aria-label="Exchange surveillance">
           <Icon name="alert" />
           <div>
@@ -22,7 +23,7 @@ export function TradingFacts({ s }: { s: Summary }) {
           </div>
         </div>
       )}
-      {(band || fno || mtf) && (
+      {(band || fno || mtf) && part !== "warn" && (
         <ul className="tf-list" aria-label="Trading facts">
           {band && <li title="The lowest and highest prices the exchange allows in the trading session, from the same live quote as the price above."><span className="k">Day's price band</span><span className="v">₹{nf(band.lower)} – ₹{nf(band.upper)}</span>{band.at && <em>At the {band.at} circuit</em>}</li>}
           {fno && <li><span className="k">Futures &amp; options (F&amp;O)</span><span className="v">Yes{fno.lotSize ? `, NSE lot of ${nf(fno.lotSize, 0)} shares` : ""}</span></li>}

@@ -140,7 +140,7 @@ export function EtfVsIndexPage() {
   return (
     <>
       <PageHeader wrap plan="free" title="ETF vs index fund" art="compare" back={<nav className="evi-crumb" aria-label="Breadcrumb"><Link to="/etfs">{"\u2190"} All ETFs</Link></nav>} links={["/etfs", "/etfs/compare", "/funds"]}
-        description={<>Pick an index, then the <b>ETFs and the direct-plan index funds</b> that follow it. See how they compared on returns, costs, tracking and risk, using the prices and NAVs we store. Information only.</>} />
+        description="An index's ETFs and index funds, compared on returns, costs, tracking and risk." />
 
       <div className="wrap etf-page evi-page">
         <div className="card evi-select" ref={top}>

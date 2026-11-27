@@ -28,7 +28,7 @@ def test_every_shown_key_has_a_complete_entry():
 
 
 def test_terms_complete_and_unique():
-    assert len(TERMS) == 450          # 443 + the seven new terms of the 9 Nov 2026 pages update
+    assert len(TERMS) == 1260         # 448 + the 812 new terms of the team's 1,000-term glossary (task #381)
     for t in TERMS.values():
         assert t["meaning"] and t["why"] and t["how"] and t["topic"], t["term"]
 
@@ -59,7 +59,11 @@ def test_the_glossary_does_not_spell_out_how_scores_are_made():
 
 
 def test_the_renamed_terms_keep_their_old_names_as_search_words():
-    old = {"Company size (Large, Mid, Small)": "Company size bands (mega cap to nano cap)", "Standout (strong and early)": "Leader flag"}
-    for new, was in old.items():
+    # task #262 renamed the two size terms again (four sizes); each keeps every name it had before as a search word
+    old = {"Company size (Large, Mid, Small, Micro)": ["Company size (Large, Mid, Small)", "Company size bands (mega cap to nano cap)"],
+           "Large cap, mid cap, small cap and micro cap": ["Large cap, mid cap and small cap"],
+           "Standout (strong and early)": ["Leader flag"]}
+    for new, olds in old.items():
         t = TERMS[new] if new in TERMS else next(x for x in TERMS.values() if x["term"] == new)
-        assert was in t["aliases"], (new, was)
+        for was in olds:
+            assert was in t["aliases"], (new, was)

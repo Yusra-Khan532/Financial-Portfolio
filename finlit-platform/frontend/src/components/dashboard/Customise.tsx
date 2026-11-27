@@ -1,12 +1,13 @@
-// Customise: every block can be switched on or off, made third, half or full width, and moved by dragging or with the up and down buttons (for the keyboard). Reset layout restores
+// Customise: every block can be switched on or off, made quarter, third, half or full width, and moved by dragging or with the up and down buttons (for the keyboard). Reset layout restores
 // the default. Changes save as they are made (prefs mirror to /api/me/state).
 import { useState } from "react";
 import { Link } from "react-router";
 import { RANK, TIER, type Plan } from "../../lib/ui";
 import { WIDGETS, type WidgetPref, type WidgetSize } from "../../lib/prefs";
 import { moveBlock } from "../../lib/dashboard";
+import { buttonClass } from "../ui";
 
-const SIZES: [WidgetSize, string][] = [["third", "Third"], ["half", "Half"], ["full", "Full"]];
+const SIZES: [WidgetSize, string][] = [["quarter", "Quarter"], ["third", "Third"], ["half", "Half"], ["full", "Full"]];
 
 export function Customise({ layout, plan, onChange, onReset, onDone }: { layout: WidgetPref[]; plan: Plan; onChange: (l: WidgetPref[]) => void; onReset: () => void; onDone: () => void }) {
   const meta = Object.fromEntries(WIDGETS.map((w) => [w.id, w]));
@@ -15,8 +16,8 @@ export function Customise({ layout, plan, onChange, onReset, onDone }: { layout:
   const move = (i: number, to: number) => { onChange(moveBlock(layout, i, to)); setSaid(`${meta[layout[i].id].label} moved to place ${to + 1} of ${layout.length}`); };
   return (
     <section className="dsh-card dsh-edit" aria-label="Customise your dashboard">
-      <div className="dsh-ch"><div><h2>Make it yours</h2><p className="dsh-sub">Switch blocks on or off, choose third, half or full width, and drag them (or use the arrows) to reorder. Changes save as you go and follow your account.</p></div>
-        <button type="button" className="dsh-btn dark" onClick={onDone}>Done</button></div>
+      <div className="dsh-ch"><div><h2>Make it yours</h2><p className="dsh-sub">Switch blocks on or off, choose quarter, third, half or full width, and drag them (or use the arrows) to reorder; each block stays in its numbered step. Changes save as you go and follow your account.</p></div>
+        <button type="button" className={buttonClass("primary", "md")} onClick={onDone}>Done</button></div>
       <ul>{layout.map((w, i) => { const m = meta[w.id]; return (
         <li key={w.id} draggable onDragStart={(e) => { setDrag(i); e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", w.id); }} onDragOver={(e) => { e.preventDefault(); setOver(i); }}
           onDrop={(e) => { e.preventDefault(); if (drag != null) move(drag, i); setDrag(null); setOver(null); }} onDragEnd={() => { setDrag(null); setOver(null); }} className={(drag === i ? "dragging " : "") + (over === i && drag !== i ? "over" : "")}>

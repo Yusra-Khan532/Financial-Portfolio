@@ -38,7 +38,7 @@ export type Insights = {
   diversification: {
     sectors: SectorShare[]; sectorCount: number; top: SectorShare | null; unknownSector: number;
     hhi: number; label: "Concentrated" | "Moderate" | "Well spread"; flags: string[];
-    caps: { large: number; mid: number; small: number; unknown: number; line: string };
+    caps: { large: number; mid: number; small: number; micro: number; unknown: number; line: string };
     summary: string;
   } | null;
   strongest: ShareNote[]; weakest: ShareNote[];
@@ -126,10 +126,10 @@ export function portfolioInsights(lines: InsightLine[]): Insights {
   const flags: string[] = [];
   if (scored >= 2 && top && top.share > 40) flags.push(`${top.sector} makes up ${pctTxt(top.share)} of your holdings, more than 40% in one sector.`);
   if (scored >= 2 && sectorCount < 5) flags.push(`Your holdings cover ${plural(sectorCount, "sector", "sectors")}, fewer than 5.`);
-  let large = 0, mid = 0, small = 0, unk = 0;
-  sc.forEach((s) => { const b = capBucket(s.cap); if (!b) unk++; else if (b.id === "large") large++; else if (b.id === "mid") mid++; else small++; });
-  const capParts = [large && `${pctTxt(share(large, scored))} large`, mid && `${pctTxt(share(mid, scored))} mid`, small && `${pctTxt(share(small, scored))} small`, unk && `${pctTxt(share(unk, scored))} size unknown`].filter(Boolean);
-  const caps = { large, mid, small, unknown: unk, line: capParts.length ? `Company size: ${capParts.join(", ")}.` : "Company size is not available." };
+  let large = 0, mid = 0, small = 0, micro = 0, unk = 0;
+  sc.forEach((s) => { const b = capBucket(s.cap); if (!b) unk++; else if (b.id === "large") large++; else if (b.id === "mid") mid++; else if (b.id === "small") small++; else micro++; });
+  const capParts = [large && `${pctTxt(share(large, scored))} large`, mid && `${pctTxt(share(mid, scored))} mid`, small && `${pctTxt(share(small, scored))} small`, micro && `${pctTxt(share(micro, scored))} micro`, unk && `${pctTxt(share(unk, scored))} size unknown`].filter(Boolean);
+  const caps = { large, mid, small, micro, unknown: unk, line: capParts.length ? `Company size: ${capParts.join(", ")}.` : "Company size is not available." };
   const summary = scored === 1 ? "With one holding, everything rides on a single company, so spread cannot be assessed."
     : `Equal-weighted, the portfolio reads as ${label.toLowerCase()} across ${plural(sectorCount, "sector", "sectors")}${top ? `; the largest is ${top.sector} at ${pctTxt(top.share)}` : ""}.`;
 

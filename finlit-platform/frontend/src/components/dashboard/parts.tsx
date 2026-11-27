@@ -1,32 +1,36 @@
 // Small shared pieces of the refreshed dashboard: the one card style, loading placeholders, hooks for width and phone size.
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 
-/** The one card every block uses: serif title, 13px subtitle, optional right-hand control. Placeholders (not "no data" text) belong in `children` while a call is pending. */
-/** Panels that are a helpful extra rather than the page's main job: they get Hide / Show (the user's own shares, alerts and the main lists never do). The choice is kept per panel in this browser. */
-export const HIDEABLE = new Set(["sectors", "flows", "heatmap"]);   // as the final pages pack marks them (04)
-const hideKey = (id: string) => `finlit.hide.dashboard.${id}`;
-function useHidden(id: string): [boolean, (v: boolean) => void] {
-  const [hidden, set] = useState<boolean>(() => { try { return localStorage.getItem(hideKey(id)) === "1"; } catch { return false; } });
-  return [hidden, (v) => { set(v); try { localStorage.setItem(hideKey(id), v ? "1" : "0"); } catch { /* private window: lasts for this visit */ } }];
-}
+import { CARD_NAME, CardMenu, ExpandButton, InCardCtx, XCtx, useDashUi, useDx, useExpand, useExpanded, usePane } from "./dx";
 
-export function Card({ id, title, sub, right, children, className = "" }: { id: string; title: ReactNode; sub?: ReactNode; right?: ReactNode; children: ReactNode; className?: string }) {
-  const can = HIDEABLE.has(id);
-  const [hidden, setHidden] = useHidden(id);
-  const label = typeof title === "string" ? title : id;
-  const btn = can ? <button type="button" className="dsh-hide" aria-expanded={!hidden} aria-label={`${hidden ? "Show" : "Hide"}: ${label}`} onClick={() => setHidden(!hidden)}>{hidden ? "Show" : "Hide"}</button> : null;
-  if (can && hidden) {
-    return (
-      <section className={"dsh-card dsh-is-hidden " + className} aria-labelledby={`dsh-${id}`}>
-        <div className="dsh-ch dsh-ch-h"><h2 id={`dsh-${id}`}>{title}</h2><span className="dsh-tag">Hidden</span>{btn}</div>
-      </section>
-    );
-  }
+/** The one card every block uses: serif title, 13px subtitle, optional right-hand control. Placeholders (not "no data" text) belong in `children` while a call is pending.
+ *  Task #316: every card has the expand button (its expanded view) and the ⋯ menu (open the full page, hide this card). Hidden cards are kept on the account
+ *  (prefs.dashUi.hidden) and come back from "N cards hidden · Show" in the section bar. */
+export function Card({ id, title, sub, right, children, className = "", hideId, menu = true, page }: { id: string; title: ReactNode; sub?: ReactNode; right?: ReactNode; children: ReactNode; className?: string; /** the ⋯ menu's full page, when it is not the usual one */ page?: { to: string; label: string };
+  /** the id the Hide choice is kept under (a merged card hides as one) */ hideId?: string; /** false for a card shown inside another card */ menu?: boolean }) {
+  const dx = useDx();
+  const label = typeof title === "string" ? title : CARD_NAME[id] ?? id;
+  const inside = useContext(InCardCtx), shownX = useExpanded();
+  const pane = usePane();
+  const x = useExpand(label, !pane && !inside);
+  const hid = hideId ?? id;
+  if (pane) return (   // a pane of a merged card: its heading comes from the card's switch (and from data-label in the expanded view)
+    <div className={"dx-pane " + className + " dx-gl-" + id} data-pane="glance" data-label={pane.label(id)} hidden={pane.active !== id} role="group" aria-label={pane.label(id)}>
+      {sub ? <p className="dsh-sub dx-pane-sub">{sub}</p> : null}{children}
+    </div>
+  );
+  if (dx?.hidden.has(hid)) return null;
+  const tools = dx && menu && !inside ? <><ExpandButton title={label} onClick={x.expand} btnRef={x.btnRef} /><CardMenu id={id} title={label} page={page} onHide={() => dx.hide(hid)} /></> : null;
   return (
-    <section className={"dsh-card " + className} aria-labelledby={`dsh-${id}`}>
-      <div className="dsh-ch"><div><h2 id={`dsh-${id}`}>{title}</h2>{sub ? <p className="dsh-sub">{sub}</p> : null}</div><div className="dsh-chr">{right}{btn}</div></div>
-      {children}
-    </section>
+    <>
+      {x.open && <div className="dx-hold" style={{ height: x.hold ?? undefined }} aria-hidden="true" />}
+      <section ref={x.panelRef} className={"dsh-card " + className + (x.open ? " dx-xp" : "")} aria-labelledby={`dsh-${id}`} {...(x.open ? { role: "dialog", "aria-modal": true } : {})} data-card={id}>
+        {x.bar}
+        <div className="dsh-ch"><div><h2 id={`dsh-${id}`}>{title}</h2>{sub ? <p className="dsh-sub">{sub}</p> : null}</div><div className="dsh-chr">{right}{tools}</div></div>
+        <InCardCtx.Provider value={true}><XCtx.Provider value={x.open || shownX}>{children}</XCtx.Provider></InCardCtx.Provider>
+      </section>
+      {x.backdrop}
+    </>
   );
 }
 
@@ -68,36 +72,28 @@ export function useIsPhone(): boolean {
 
 export const tone = (v: number | null | undefined) => (v == null || Math.abs(v) < 0.005 ? "" : v > 0 ? "up" : "down");
 
-/** "Market" (every company) or "My stocks" for the results and filings blocks; the choice is remembered in this browser. */
+/** "Market" (every company) or "My stocks" for the results and filings blocks. Task #316: one "From" choice for the whole Results and news section, kept on the account. */
 export type Scope = "market" | "mine";
-export function useScope(id: string, hasStocks: boolean): [Scope, (s: Scope) => void] {
-  const key = "finlit-dash-scope:" + id;
-  const [scope, set] = useState<Scope>(() => { try { return localStorage.getItem(key) === "mine" ? "mine" : "market"; } catch { return "market"; } });
-  const choose = (s: Scope) => { set(s); try { localStorage.setItem(key, s); } catch { /* private mode */ } };
-  return [hasStocks ? scope : "market", choose];
-}
-export function ScopeSeg({ label, scope, onChange, hasStocks }: { label: string; scope: Scope; onChange: (s: Scope) => void; hasStocks: boolean }) {
-  return (
-    <div className="dsh-seg" role="group" aria-label={`${label}: whose companies`}>
-      <button type="button" aria-pressed={scope === "mine"} disabled={!hasStocks} title={hasStocks ? "Only the stocks you follow" : "Follow a stock to use this"} onClick={() => onChange("mine")}>My stocks</button>
-      <button type="button" aria-pressed={scope === "market"} onClick={() => onChange("market")}>Market</button>
-    </div>
-  );
+export function useScope(_id: string, hasStocks: boolean): [Scope, (s: Scope) => void] {
+  const [ui, set] = useDashUi();
+  return [hasStocks ? ui.who : "market", (s: Scope) => set({ who: s })];
 }
 
 /** The first `limit` items of a list, with a toggle for the rest. `resetKey` (a tab, say) closes the list again when it changes. */
 export function useShowMore<T>(items: readonly T[], limit = 5, resetKey?: unknown) {
-  const [open, setOpen] = useState(false);
+  const [own, setOpen] = useState(false);
   useEffect(() => { setOpen(false); }, [resetKey]);
-  const extra = Math.max(0, items.length - limit);
+  const xp = useExpanded();   // folded lists are open in the expanded view (task #316)
+  const open = own || xp;
+  const extra = xp ? 0 : Math.max(0, items.length - limit);
   return { visible: open || extra === 0 ? items : items.slice(0, limit), extra, open, toggle: () => setOpen((v) => !v) };
 }
 export type ShowMore = ReturnType<typeof useShowMore>;
 
-/** "Show 2 more stocks" / "Show fewer" under a list; nothing when nothing is hidden. */
-export function ShowMoreButton({ more, noun, plural, controls }: { more: Pick<ShowMore, "extra" | "open" | "toggle">; noun: string; plural?: string; controls?: string }) {
+/** "Show 2 more stocks" (or, given `total`, "Show all 18 investments", task #195) / "Show fewer" under a list; nothing when nothing is hidden. */
+export function ShowMoreButton({ more, noun, plural, controls, total }: { more: Pick<ShowMore, "extra" | "open" | "toggle">; noun: string; plural?: string; controls?: string; total?: number }) {
   if (!more.extra) return null;
-  const label = more.open ? "Show fewer" : `Show ${more.extra} more ${more.extra === 1 ? noun : plural ?? noun + "s"}`;
+  const label = more.open ? "Show fewer" : total != null ? `Show all ${total} ${total === 1 ? noun : plural ?? noun + "s"}` : `Show ${more.extra} more ${more.extra === 1 ? noun : plural ?? noun + "s"}`;
   return (
     <button type="button" className="dsh-more" aria-expanded={more.open} aria-controls={controls} onClick={more.toggle}>
       <span>{label}</span>

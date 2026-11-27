@@ -14,13 +14,13 @@ describe("Stress Lab SL-12 (13 Nov)", () => {
     expect(css).toMatch(/\.ibi\{text-transform:none;/);
   });
   it("b. text boxes are 16 px on phones", () => {
-    expect(css).toMatch(/@media \(max-width:760px\)\{\.sl-root input,\.sl-root select,\.sl-root textarea\{font-size:16px\}\}/);
+    expect(css).toMatch(/@media \(max-width:760px\)\{\.sl-root input,\.sl-root select,\.sl-root textarea\{font-size:var\(--fs-16\)\}\}/);
   });
-  it("c. on a phone Share feedback is a small round icon that steps aside while the page scrolls down", () => {
-    expect(fb).toMatch(/\.pf-fab span \{ display: none; \} \.pf-fab \{ width: 44px; padding: 0; justify-content: center; \}/);
-    expect(fb).toMatch(/\.pf-dock\[data-away\] \{ transform: translateY\(calc\(100% \+ 110px\)\); opacity: 0; pointer-events: none; \}/);
-    expect(dock).toMatch(/data-away=\{away \|\| undefined\}/);
-    expect(dock).toMatch(/aria-label="Share feedback"/);                  // the icon keeps its name for screen readers
+  it("c. Share feedback never sits over what is being read (task #310 part D: the floating dock is gone; it is a menu action)", () => {
+    expect(fb).not.toMatch(/\.pf-dock|\.pf-fab/);
+    expect(dock).not.toMatch(/pf-dock/);
+    expect(dock).toMatch(/export function HelpActions/);
+    expect(dock).toContain("Share feedback");
   });
   it("d. Compare two: 'about the same' only under half a point, otherwise the bigger hit is named (the team's wording)", () => {
     expect(js).toContain("if (Math.abs(ea - eb) < 0.5) return 'Both are affected about the same: EPS '");

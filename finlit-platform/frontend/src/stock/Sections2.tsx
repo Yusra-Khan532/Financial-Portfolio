@@ -1,17 +1,20 @@
 import { useState } from "react";
+import { TabGroup } from "../components/TabGroup";
 import { Icon } from "../lib/icons";
 
 import { LineChart } from "../charts/LineChart";
 import { cr, dateIN, nf, pct, signed } from "../lib/format";
 import type { Events, Ratios, Segments, Summary } from "../lib/api";
 import { SectionHead } from "./Sections";
+import { BuildCard } from "./DiscoverThemes";
 import { Plain } from "../components/Plain";
 import { ChartHelp } from "../components/ChartHelp";
-import { ScoreMovesCard } from "./ScoreMoves";
 import { SegmentHistory } from "./SegmentMix";
 import { OTHERS_COLOR, segmentColors, segmentNames } from "../lib/segmentMix";
 import { ChartZoom } from "../components/ChartZoom";
 import { CoLogo } from "../components/CoLogo";
+import { useClassification } from "../lib/taxonomy";
+import { divPlain, divView } from "../lib/dividends17";
 
 const v = (n: string) => `var(${n})`;
 
@@ -20,6 +23,7 @@ export { OwnershipSection } from "./own/OwnershipSection";
 
 /* ---------------- Company ---------------- */
 export function BusinessSection({ s }: { s: Summary }) {
+  const cls = useClassification(s.profile.symbol).data;   // NSE's levels, each named (task #192): the provider's `sector` mixed levels
   const p = s.profile, [more, setMore] = useState(false);
   const desc = (p.description || "Neither of our data sources holds a description of this company yet. The sector, the exchange codes and the announcements below are still shown.").replace(/\s+/g, " ");
   const fromUpstox = !!p.description && s.dataQuality?.secondarySource?.profile === "upstox";
@@ -40,7 +44,7 @@ export function BusinessSection({ s }: { s: Summary }) {
           <svg className="skyline" viewBox="0 0 400 120" aria-hidden="true" preserveAspectRatio="xMaxYMax meet">
             {[[10, 60, 36], [52, 30, 30], [88, 74, 26], [120, 20, 40], [166, 52, 30], [202, 38, 34], [244, 70, 28], [278, 14, 36], [320, 48, 30], [356, 66, 30]].map(([x, y, w], i) => <g key={i}><rect x={x} y={y} width={w} height={120 - y} rx="3" fill="var(--p-growth)" opacity={0.1 + (i % 3) * 0.05} />{Array.from({ length: 4 }, (_, j) => <rect key={j} x={x + 6 + (j % 2) * 12} y={y + 8 + Math.floor(j / 2) * 14} width="5" height="6" rx="1" fill="var(--gold)" opacity=".5" className="win" style={{ animationDelay: `${(i * 4 + j) * 140}ms` }} />)}</g>)}
           </svg>
-          <div className="biz-id"><span className="biz-av"><CoLogo symbol={p.symbol} name={p.name} size={58} /></span><div><b>{p.name}</b><div className="biz-tags">{p.sector && <span className="chip">{p.sector}</span>}{p.industry && <span className="chip">{p.industry}</span>}</div></div></div>
+          <div className="biz-id"><span className="biz-av"><CoLogo symbol={p.symbol} name={p.name} size={58} /></span><div><b>{p.name}</b><div className="biz-tags">{cls?.sector && <span className="chip" title="Sector (NSE)">Sector · {cls.sector}</span>}{cls?.industry && <span className="chip" title="Industry (NSE)">Industry · {cls.industry}</span>}</div></div></div>
           <p className={"biz-desc" + (more ? " open" : "")}>{desc}</p>
           <div className="biz-actions">{long && <button className="btn" onClick={() => setMore(!more)}>{more ? "Show less" : "Read the full description"}</button>}
             {p.website && /^[\w.-]+\.[a-z]{2,}/i.test(p.website) && <a className="chip gold" href={`https://${p.website.replace(/^https?:\/\//, "")}`} target="_blank" rel="noopener noreferrer">{p.website} ↗</a>}
@@ -50,6 +54,7 @@ export function BusinessSection({ s }: { s: Summary }) {
         </div>
         <div className="bstats">{stats.map(([ic, k, val, c], i) => <div className="bs" key={k} style={{ "--bc": v(c), animationDelay: `${i * 80}ms` } as React.CSSProperties}><span className="bs-i"><Icon name={ic} /></span><div className="label">{k}</div><div className="bs-v">{val}</div></div>)}</div>
       </div>
+      <BuildCard symbol={p.symbol} name={p.name} />{/* task #271 (report pack 20 Nov, change 20b): what its presentation says it is building (Discover) */}
     </section>
   );
 }
@@ -59,21 +64,19 @@ const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "
 export function DividendsSection({ e, price, r }: { e?: Events; price?: number | null; r?: Ratios }) {
   const [shares, setShares] = useState(100);
   if (!e) return null;
-  const divs = e.actions.filter((a) => a.type.endsWith("dividend")), recent = divs.slice(0, 6);
-  const fy = e.dividendsByFY, last = fy.dps[fy.dps.length - 1] ?? 0, max = Math.max(...fy.dps, 1), avg = fy.dps.reduce((a, b) => a + b, 0) / Math.max(1, fy.dps.length);
-  const first = fy.dps.find((x) => x > 0) ?? 0, yrs = Math.max(1, fy.dps.length - 1);
-  const cagr = first > 0 && last > 0 ? (Math.pow(last / first, 1 / yrs) - 1) * 100 : null;
-  let streak = 0; for (let i = fy.dps.length - 1; i >= 0 && fy.dps[i] > 0; i--) streak++;
-  let rising = 0; for (let i = fy.dps.length - 1; i > 0 && fy.dps[i] >= fy.dps[i - 1]; i--) rising++;
+  // Task #222 (19 Nov pack): 17 is "Dividends" with two views; the exchange filings are their own section, 18 News and filings (NewsSection).
+  // D1: the year in progress is "so far" (lib/dividends17.ts); the calculator uses the last 12 months, the yield tile's basis. W1: no advice-like line.
+  const d = divView(e), divs = e.actions.filter((a) => a.type.endsWith("dividend")), recent = divs.slice(0, 6);
   const payout = r?.latest.dividend_payout?.value ?? null, payHist = r?.history.rows.dividend_payout || [];
   const safe = payout == null ? null : payout < 40 ? ["Comfortable", "good"] : payout < 70 ? ["Moderate", "mid"] : ["Stretched", "warn"];
   const R = 46, C = 2 * Math.PI * R, yld = Math.min(100, ((e.dividendYieldTtm ?? 0) / 5) * 100);
-  const paidMonths = new Set(divs.map((d) => new Date(d.date).getMonth()));
-  const monthly = (shares * last) / 12;
+  const paidMonths = new Set(divs.map((x) => new Date(x.date).getMonth()));
+  const monthly = (shares * d.ttm) / 12;
+  const partLabel = d.partial ? (divs.filter((x) => x.forFY === d.partial!.p).length === 1 && divs.find((x) => x.forFY === d.partial!.p)?.type === "interim_dividend" ? "the interim dividend declared so far" : "the dividends declared so far") : "";
   return (
     <section className="block" style={{ "--sc": "var(--gold-deep)" } as React.CSSProperties}>
-      <SectionHead id="dividends" no="16 · Dividends & events" icon="coins" tier="basic" title="Cash returned to shareholders" sub="Amounts are adjusted for splits and bonuses." color="--gold-deep" />
-      {e.dividendYieldTtm != null && <Plain tone={streak >= 5 && rising >= 3 ? "good" : "info"}>For every ₹100 invested at today's price, this company pays about ₹{nf(e.dividendYieldTtm, 2)} a year. It has paid a dividend for {streak} year{streak === 1 ? "" : "s"} running{rising >= 2 ? ` and raised it ${rising} years in a row` : ""}.{payout != null ? ` It keeps about ${nf(100 - payout, 0)}% of its profit to grow the business.` : ""} {e.dividendYieldTtm < 1 ? "A low yield suggests owning it for growth rather than income." : ""}</Plain>}
+      <SectionHead id="dividends" no="17 · Dividends" icon="coins" tier="basic" title="Cash returned to shareholders" sub="Amounts are adjusted for splits and bonuses." color="--gold-deep" />
+      {e.dividendYieldTtm != null && <Plain tone={d.streak >= 5 && d.rising >= 3 ? "good" : "info"}>{divPlain(e.dividendYieldTtm, d, payout, nf)}</Plain>}
       <div className="dvk">
         <div className="dk" style={{ "--dc": "var(--gold)" } as React.CSSProperties}>
           <div className="dk-ring"><svg viewBox="0 0 120 120" aria-hidden="true"><defs><linearGradient id="dvy" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#F3E6BF" /><stop offset=".5" stopColor="var(--gold)" /><stop offset="1" stopColor="var(--gold-deep)" /></linearGradient></defs><circle cx="60" cy="60" r={R} fill="none" stroke="var(--s3)" strokeWidth="10" /><circle className="ring-in" cx="60" cy="60" r={R} fill="none" stroke="var(--gold)" strokeWidth="10" strokeLinecap="round" strokeDasharray={`${(C * yld) / 100} ${C}`} transform="rotate(-90 60 60)" /></svg><b>{pct(e.dividendYieldTtm)}</b></div>
@@ -85,29 +88,37 @@ export function DividendsSection({ e, price, r }: { e?: Events; price?: number |
         </div>
         <div className="dk" style={{ "--dc": "var(--c3)" } as React.CSSProperties}>
           <span className="dk-i"><Icon name="growth" /></span>
-          <div><span className="label">Dividend growth</span><b className="dk-v">{cagr == null ? "—" : (cagr >= 0 ? "+" : "−") + nf(Math.abs(cagr), 1) + "% a year"}</b><p>From ₹{nf(first, 2)} to ₹{nf(last, 2)} per share over {yrs} years.</p></div>
+          <div><span className="label">Dividend growth</span><b className="dk-v">{d.cagr == null ? "—" : (d.cagr >= 0 ? "+" : "−") + nf(Math.abs(d.cagr), 0) + "% a year"}</b>
+            <p>{d.first && d.last ? `From ₹${nf(d.first.v, 2)} (${d.first.p}) to ₹${nf(d.last.v, 2)} (${d.last.p}) per share.` : "No dividend in the years shown."}{d.partial ? ` ${d.partial.p} is not over yet.` : ""}</p></div>
         </div>
         <div className="dk" style={{ "--dc": "var(--c4)" } as React.CSSProperties}>
           <span className="dk-i"><Icon name="check" /></span>
-          <div><span className="label">Years paid in a row</span><b className="dk-v">{streak} of {fy.dps.length}</b><div className="dk-dots">{fy.dps.map((x, i) => <i key={i} className={x > 0 ? "on" : ""} title={`${fy.periods[i]}: ₹${nf(x, 2)}`} />)}</div></div>
+          <div><span className="label">Years paid in a row</span><b className="dk-v">{d.streak} of {d.total}</b><div className="dk-dots">{d.years.filter((y) => !y.part || y.v > 0).map((y) => <i key={y.p} className={(y.v > 0 ? "on" : "") + (y.part ? " part" : "")} title={y.part ? `${y.p} so far: ₹${nf(y.v, 2)}` : `${y.p}: ₹${nf(y.v, 2)}`} />)}</div></div>
         </div>
       </div>
+      <TabGroup label="Dividends" views={[
+        { key: "history", label: "Dividend history", content: <>
       <div className="div3">
         <div className="card acc" style={{ "--ac": "var(--gold)" } as React.CSSProperties}>
           <div className="card-h"><h3><span className="ci"><Icon name="bars" /></span>Dividend per share<ChartHelp id="div-dps" /></h3><span className="s">₹ per financial year</span></div>
           <ChartZoom label="Dividend per share by year" className="cz-top">
-          <div className="dbars" data-chart style={{ "--avg": `${(avg / max) * 150}px` } as React.CSSProperties}>
-            {fy.periods.map((p, i) => { const prv = fy.dps[i - 1], g = i && prv ? ((fy.dps[i] - prv) / prv) * 100 : null; return <div className="dcol" key={p}>{g != null && <b className={"yoy " + (g >= 0 ? "up" : "down")}>{g >= 0 ? "▲" : "▼"}{nf(Math.abs(g), 0)}%</b>}<span>₹{nf(fy.dps[i], 2)}</span><i style={{ height: Math.max(6, (fy.dps[i] / max) * 150), animationDelay: `${i * 90}ms` }} /><em>{p}</em></div>; })}
+          <div className="dbars" data-chart style={{ "--avg": `${(d.avg / d.max) * 150}px` } as React.CSSProperties}>
+            {d.years.map((y, i) => {
+              const prv = d.years[i - 1]?.v, g = !y.part && i && prv ? ((y.v - prv) / prv) * 100 : null;
+              return <div className={"dcol" + (y.part ? " part" : "")} key={y.p}>{y.part ? <b className="yoy part">so far</b> : g != null && <b className={"yoy " + (g >= 0 ? "up" : "down")}>{g >= 0 ? "▲" : "▼"}{nf(Math.abs(g), 0)}%</b>}<span>₹{nf(y.v, 2)}</span><i style={{ height: Math.max(6, (y.v / d.max) * 150), animationDelay: `${i * 90}ms` }} /><em>{y.p}{y.part ? "*" : ""}</em></div>;
+            })}
             <u className="avgline"><b>average</b></u>
           </div>
           </ChartZoom>
-          <p className="faint" style={{ fontSize: 12, margin: "14px 0 0" }}>{fy.basis}.</p>
+          <p className="faint" style={{ fontSize: "var(--fs-12)", margin: "14px 0 0" }}>{e.dividendsByFY.basis}.{d.partial ? ` *${d.partial.p} is in progress: ${partLabel}. The average line uses ended years.` : ""}</p>
         </div>
         <div className="card acc" style={{ "--ac": "var(--c2)" } as React.CSSProperties}>
           <div className="card-h"><h3><span className="ci"><Icon name="percent" /></span>Payout ratio over time<ChartHelp id="payout" /></h3><span className="s">% of profit paid as dividends</span></div>
           {payHist.filter((x) => x != null).length > 1 ? <LineChart periods={r!.history.periods} series={[{ key: "payout", label: "Payout", color: "var(--c2)", values: payHist }]} fmt={(x) => nf(x, 0) + "%"} area height={300} /> : <p className="muted">Not enough history to chart.</p>}
         </div>
       </div>
+        </> },
+        { key: "pay", label: "What it would pay you", content: <>
       <div className="div3">
         <div className="card acc dv-calc" style={{ "--ac": "var(--gold)" } as React.CSSProperties}>
           <div className="card-h"><h3><span className="ci"><Icon name="wallet" /></span>What would it pay you?<ChartHelp id="div-calc" /></h3><span className="s">Drag or type</span></div>
@@ -115,39 +126,20 @@ export function DividendsSection({ e, price, r }: { e?: Events; price?: number |
           <input className="dv-rng" type="range" min={1} max={1000} value={Math.min(shares, 1000)} onChange={(ev) => setShares(Number(ev.target.value))} aria-label="Shares slider" />
           <div className="dv-out">
             {price != null && <div><span className="label">You would invest</span><b>₹{nf(shares * price, 0)}</b></div>}
-            <div className="hl"><span className="label">Dividends for {fy.periods[fy.periods.length - 1]}</span><b>₹{nf(shares * last, 0)}</b><small>≈ ₹{nf(monthly, 0)} a month</small></div>
-            {price != null && <div><span className="label">Return on that money</span><b>{pct((last / price) * 100)}</b></div>}
+            <div className="hl"><span className="label">Dividends in the last 12 months</span><b>₹{nf(shares * d.ttm, 0)}</b><small>≈ ₹{nf(monthly, 0)} a month</small></div>
+            {price != null && <div><span className="label">Return on that money</span><b>{pct((d.ttm / price) * 100)}</b></div>}
           </div>
-          <p className="faint" style={{ fontSize: 12, margin: "12px 0 0" }}>Based on the latest declared dividend per share and today's price, before tax. Past dividends do not guarantee future ones.</p>
+          <p className="faint" style={{ fontSize: "var(--fs-12)", margin: "12px 0 0" }}>Based on the dividends declared in the last 12 months (₹{nf(d.ttm, 2)} a share{d.ttmAdjusted ? (d.ttmSplit ? ", adjusted for the split" : ", adjusted for splits and bonuses") : ""}) and today's price, before tax. Past dividends do not guarantee future ones.</p>
         </div>
         <div className="card acc" style={{ "--ac": "var(--gold)" } as React.CSSProperties}>
           <div className="card-h"><h3><span className="ci"><Icon name="coins" /></span>When it usually pays<ChartHelp id="div-months" /></h3><span className="s">Months with past payouts</span></div>
           <div className="cal">{MONTHS.map((m, i) => <span key={m} className={paidMonths.has(i) ? "on" : ""}>{m}</span>)}</div>
-          <div className="payouts">{recent.map((d, i) => <div className="pay" key={d.date + d.amount} style={{ animationDelay: `${i * 70}ms` }}><div className="pc">₹{nf(d.amount ?? 0, d.amount && d.amount % 1 ? 2 : 0)}</div><div><b>{d.type === "interim_dividend" ? "Interim" : d.type === "special_dividend" ? "Special" : "Final"}</b><span>{dateIN(d.date)}</span></div></div>)}</div>
+          <div className="payouts">{recent.map((x, i) => <div className="pay" key={x.date + x.amount} style={{ animationDelay: `${i * 70}ms` }}><div className="pc">₹{nf(x.amount ?? 0, x.amount && x.amount % 1 ? 2 : 0)}</div><div><b>{x.type === "interim_dividend" ? "Interim" : x.type === "special_dividend" ? "Special" : "Final"}</b><span>{dateIN(x.date)}</span></div></div>)}</div>
         </div>
       </div>
-      <div className="card acc dv-news" id="announcements" style={{ "--ac": "var(--info)", marginTop: 16 } as React.CSSProperties}>
-        <div className="card-h"><h3><span className="ci"><Icon name="notes" /></span>Exchange announcements</h3><span className="s">Routine filings hidden</span></div>
-        <ol className="tl">{e.announcements.slice(0, 6).map((a) => {
-          const ok = a.link && /^https?:\/\//.test(a.link);
-          const Tag = ok ? "a" : "div";
-          return <li key={a.date + a.description.slice(0, 30)}><span className="tl-d">{dateIN(a.date, { day: "numeric", month: "short" })}</span><Tag className="tl-b" {...(ok ? { href: a.link!, target: "_blank", rel: "noopener noreferrer" } : {})}><span className="chip ghost">{a.category}</span><span className="tl-t">{a.description}</span>{ok && <span className="tl-go" aria-hidden="true">↗</span>}</Tag></li>;
-        })}{!e.announcements.length && <li><span className="muted">No recent announcements.</span></li>}</ol>
-      </div>
-    </section>
-  );
-}
-
-/* ---------------- How the score works ---------------- */
-export function MethodSection({ s }: { s: Summary }) {
-  return (
-    <section className="block" style={{ "--sc": "var(--info)" } as React.CSSProperties}>
-      <SectionHead id="method" no="17 · Pros, cons & Prism history" icon="info" title="Pros and cons, and how the Prism score has moved" sub="What is strong and what needs care, overall, then how the Prism score has changed over time." color="--info" />
-      <div className="pc-g pc-all">
-        <div className="pcb pro"><h4 aria-level={3}><Icon name="check" /> Pros <span className="chip up">{s.strengths.length}</span></h4>{s.strengths.length ? <ul>{s.strengths.map((n) => <li key={n.key}><b>{n.title}</b><small>{n.text}</small></li>)}</ul> : <p className="faint">Nothing stands out as a clear strength.</p>}</div>
-        <div className="pcb con"><h4 aria-level={3}><Icon name="alert" /> Cons <span className="chip down">{s.watchouts.length}</span></h4>{s.watchouts.length ? <ul>{s.watchouts.map((n) => <li key={n.key}><b>{n.title}</b><small>{n.text}</small></li>)}</ul> : <p className="faint">No clear weakness stands out.</p>}</div>
-      </div>
-      <ScoreMovesCard symbol={s.meta.symbol} statement={s.meta.statement} />
+        </> },
+      ]} />
+      <p className="faint nf-x">Board decisions, record dates and other dividend notices are listed in <a href="#news">18 News and filings</a>.</p>
     </section>
   );
 }

@@ -1,10 +1,12 @@
 // Site-wide search (Ctrl K or "/"): stocks, mutual funds, ETFs and news in one box, with filter pills, recent visits, live prices,
 // scores, logos and a preview of the highlighted result. Stocks are matched in the browser over every listed company (no wait); funds,
 // ETFs and news are asked from the server after a short pause in typing. Information only: no buy or sell words anywhere.
+import { SENT_WORD, fmtScore, type Sentiment } from "../../lib/sentiment";   // task #365
 import { useUniverse } from "../../lib/screener";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useNavigate } from "react-router";
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useWithLatest } from "../../lib/liveQuote";
 import { apiGet, prefetchStock, useSearchIndex, useSearchQuotes, useSummary, type SearchRow } from "../../lib/api";
 import { etfGet, type EtfItem, type EtfList } from "../../lib/etf";
 import { mfGet, type FundList, type FundRow, type HotList } from "../../lib/mf";
@@ -15,7 +17,7 @@ import { visits, type Visit } from "../../lib/recentVisits";
 import { MINUS, dateIN, nf } from "../../lib/format";
 import {
   KIND_LABEL, TABS, allSections, amcLogo, flat, moversToday, quoteMap, searchStocks, stockItem, todayIST,
-  type Band, type Item, type Quotes, type Section, type Tab,
+  type Item, type Quotes, type Section, type Tab,
 } from "../../lib/globalSearch";
 import { SearchFilters } from "../SearchFilters";
 import { NO_FILTER, filterNoun, filterOn, filterPhrase, filterStocks, hasFilterData, indexFacets, passes, type StockFilter } from "../../lib/searchFilters";
@@ -24,8 +26,9 @@ import { usePrismScores, type PrismScoreMap } from "../../lib/prismScores";
 import { PrismChips, PrismPreviewScores, stateOf } from "./prismParts";
 import { FlagIN, Hl, Logo, PriceChange, Range52, ScoreRing, Spark } from "./parts";
 import "../../styles/search.css";
+import "../../styles/mfup.css";   // task #287: the score chip's band colours (the chip was drawn unstyled in the search box)
 
-type News = { id: number; title: string; symbol: string | null; company: string | null; source: string | null; link: string | null; date: string; category: string | null };
+type News = { id: number; title: string; symbol: string | null; company: string | null; source: string | null; link: string | null; date: string; category: string | null; sentiment?: Sentiment | null };
 const PLACEHOLDER: Record<Tab, string> = {
   all: "Search stocks, mutual funds, ETFs and news", stocks: "Company name, NSE symbol or BSE code", mf: "Fund name or fund house, e.g. flexi cap, SBI",
   etf: "ETF name or symbol, e.g. NIFTYBEES, gold", news: "Company or headline (3 letters or more)", global: "Global markets are coming soon",
@@ -84,7 +87,7 @@ const etfItems = (rows: EtfItem[] | undefined, logos: Quotes["amcLogos"] | undef
   metrics: [{ label: "1Y return", value: r.ret1y }, { label: "From 52W high", value: r.from52 }],
 }));
 const newsItems = (rows: News[] | undefined): Item[] => (rows || []).map((n) => ({
-  kind: "news", key: "news:" + n.id, title: n.title, sub: [n.company, dateIN(n.date, { day: "numeric", month: "short" })].filter(Boolean).join(" · "),
+  kind: "news", key: "news:" + n.id, title: n.title, sub: [n.company, dateIN(n.date, { day: "numeric", month: "short" }), n.sentiment ? `Sentiment ${fmtScore(n.sentiment.score)} ${SENT_WORD[n.sentiment.band]}` : null].filter(Boolean).join(" · "),   // task #365
   href: n.link || (n.symbol ? `/stocks/${encodeURIComponent(n.symbol)}` : "/news"), external: !!n.link, tag: n.category || "News", meta: n.source || undefined,
 }));
 
@@ -93,7 +96,7 @@ export function SearchOverlay({ open, onClose }: { open: boolean; onClose: () =>
   const [tab, setTab] = useState<Tab>("all");
   const [sel, setSel] = useState(0);
   const [filter, setFilter] = useState<StockFilter>(NO_FILTER);   // sector and market-cap choices: they narrow the stock rows of the All and Stocks tabs
-  const [menu, setMenu] = useState<"sector" | "cap" | null>(null);
+  const [menu, setMenu] = useState<"sector" | "cap" | "industry" | null>(null);
   const [cap, setCap] = useState(PAGE);      // how many stocks are drawn: the list grows as it is scrolled, so every listed company can be reached
   const input = useRef<HTMLInputElement>(null);
   const list = useRef<HTMLDivElement>(null);
@@ -112,7 +115,7 @@ export function SearchOverlay({ open, onClose }: { open: boolean; onClose: () =>
       const x = m.get(r.symbol);
       if (x && x.price != null) continue;
       if (r.price == null) continue;
-      m.set(r.symbol, { price: r.price, chg: r.change_pct ?? null, date: x?.date ?? null, score: x?.score ?? r.overall ?? null, band: x?.band ?? (r.band as Band) ?? null, logo: x?.logo ?? null });
+      m.set(r.symbol, { price: r.price, chg: r.change_pct ?? null, date: x?.date ?? null, score: x?.score ?? null, band: x?.band ?? null, logo: x?.logo ?? null });
     }
     return m;
   }, [quotes.data, uni.data]);
@@ -278,7 +281,7 @@ export function SearchOverlay({ open, onClose }: { open: boolean; onClose: () =>
                   {sec.id === "recent" && <button type="button" onClick={() => visits.clear()}>Clear</button>}
                   {sec.more && tab === "all" && <button type="button" onClick={() => setTab(sec.more!.tab)}>{sec.more.label} →</button>}
                 </div>
-                {sec.items.map((it) => { i += 1; const me = i; return <Row key={sec.id + it.key} fs={gold && it.kind === "mf" ? scoreOf.get(Number(it.key.split(":")[1])) : undefined} it={it} gold={gold} prism={prism} q={q.trim()} today={today} id={`gs-o-${me}`} active={me === sel} index={me} best={sec.id === "best"} onHover={() => setSel(me)} onPick={pick} />; })}
+                {sec.items.map((it) => { i += 1; const me = i; return <Row key={sec.id + it.key} fs={gold && it.kind === "mf" ? scoreOf.get(Number(it.key.split(":")[1])) : undefined} fsBusy={fundScores.isLoading} it={it} gold={gold} prism={prism} q={q.trim()} today={today} id={`gs-o-${me}`} active={me === sel} index={me} best={sec.id === "best"} onHover={() => setSel(me)} onPick={pick} />; })}
               </div>
             ))}
           </div>
@@ -293,13 +296,13 @@ export function SearchOverlay({ open, onClose }: { open: boolean; onClose: () =>
   );
 }
 
-function Row({ fs, it, gold, prism, q, today, id, active, index, best, onHover, onPick }: { it: Item; gold: boolean; prism: PrismScoreMap; q: string; today: string; id: string; active: boolean; index: number; best: boolean; onHover: () => void; onPick: (it: Item, newTab?: boolean) => void; fs?: import("../../lib/mfScore").ScoreItem }) {
+function Row({ fs, fsBusy = false, it, gold, prism, q, today, id, active, index, best, onHover, onPick }: { fsBusy?: boolean; it: Item; gold: boolean; prism: PrismScoreMap; q: string; today: string; id: string; active: boolean; index: number; best: boolean; onHover: () => void; onPick: (it: Item, newTab?: boolean) => void; fs?: import("../../lib/mfScore").ScoreItem }) {
   return (
-    <div id={id} data-i={index} data-sym={gold && it.kind === "stock" ? it.sub : undefined} role="option" aria-selected={active} className={`gs-row k-${it.kind}${gold && it.kind === "stock" ? " pz" : ""}${active ? " on" : ""}${best ? " best" : ""}`} onMouseMove={active ? undefined : onHover}
+    <div id={id} data-i={index} data-sym={gold && it.kind === "stock" ? it.sub : undefined} role="option" aria-selected={active} className={`gs-row k-${it.kind}${gold && it.kind === "stock" ? " pz" : ""}${gold && it.kind === "mf" ? " fsc" : ""}${active ? " on" : ""}${best ? " best" : ""}`} onMouseMove={active ? undefined : onHover}
       onClick={(e) => onPick(it, e.ctrlKey || e.metaKey)} onAuxClick={(e) => { if (e.button === 1) onPick(it, true); }}>
       <Logo src={it.logo} name={it.title} kind={it.kind} size={best ? 46 : 40} />
       <span className="gs-main">
-        <span className="gs-t"><Hl text={it.title} q={q} />{fs && <ScoreChip item={fs} />}</span>
+        <span className="gs-t"><Hl text={it.title} q={q} /></span>
         <span className="gs-s">
           {it.kind !== "news" && <FlagIN />}
           {it.kind === "stock" ? <span className="gs-tk"><Hl text={it.sub} q={q} /></span> : <span className="gs-sub">{it.sub}</span>}
@@ -308,10 +311,20 @@ function Row({ fs, it, gold, prism, q, today, id, active, index, best, onHover, 
         </span>
       </span>
       {it.kind !== "news" && <PriceChange price={it.price} chg={it.chg} date={it.date} today={today} unit={it.kind === "mf" ? "NAV ₹" : "₹"} />}
-      {it.kind === "stock" ? (gold ? <PrismChips state={stateOf(prism, it.sub)} /> : <ScoreRing score={it.score} band={it.band} />) : it.kind !== "news" ? <span className="gs-score gs-none gs-metric">{metricBadge(it)}</span> : null}
+      {gold && it.kind === "mf" && <FundScoreCol item={fs} busy={fsBusy} />}
+      {it.kind === "stock" ? (gold ? <PrismChips state={stateOf(prism, it.sub)} /> : <ScoreRing band="locked" />) : it.kind !== "news" ? <span className="gs-score gs-none gs-metric">{metricBadge(it)}</span> : null}
       <span className={`gs-tag t-${it.kind}`}>{it.kind === "news" ? (it.tag || "News") : KIND_LABEL[it.kind]}{it.external && <svg viewBox="0 0 24 24" aria-label="opens the source"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" /></svg>}</span>
     </div>
   );
+}
+
+/** Task #287: a fund's Mutual Fund Score in a column of its own (Gold), between the NAV and the 1Y return, captioned like the 1Y return, so the scores line
+ *  up down the list instead of running on from the fund's name. No score: a dash and "No score", with the reason on hover. */
+export function FundScoreCol({ item, busy }: { item?: import("../../lib/mfScore").ScoreItem; busy: boolean }) {
+  if (item && item.final != null) return <span className="gs-score gs-fsc"><ScoreChip item={item} /><span className="gs-band">MF Score</span></span>;
+  const wait = busy && !item;
+  return <span className="gs-score gs-fsc is-none" title={wait ? "Loading the score" : item?.reason || "This plan has no Mutual Fund Score yet."} aria-label={wait ? "Loading the score" : `No score. ${item?.reason || ""}`.trim()}>
+    <span className="gs-fsc-na" aria-hidden="true">{wait ? "…" : MINUS}</span><span className="gs-band" aria-hidden="true">{wait ? "MF Score" : "No score"}</span></span>;
 }
 
 function metricBadge(it: Item) {
@@ -324,7 +337,8 @@ function Preview({ it, gold, prism, today, onOpen, onClose }: { it: Item; gold: 
   const nav = useNavigate();
   const ready = it.kind === "stock" && !!it.ready;
   const s = useSummary(it.sub, ready);
-  const sum = ready && s.data && s.data.meta?.symbol === it.sub ? s.data : null;
+  const latest = useWithLatest(ready && s.data && s.data.meta?.symbol === it.sub ? s.data : undefined);   // task #338: the same latest price as the company page
+  const sum = latest ?? null;
   const up = (it.chg ?? 0) >= 0;
   return (
     <aside className="gs-pre" aria-label="Preview">
@@ -338,10 +352,8 @@ function Preview({ it, gold, prism, today, onOpen, onClose }: { it: Item; gold: 
       {it.kind === "stock" && gold && <PrismPreviewScores state={stateOf(prism, it.sub)} />}
       {it.kind === "stock" && !gold && (
         <div className="gs-pre-sc">
-          <ScoreRing score={it.score ?? sum?.score.overall} band={it.band ?? (sum?.score.band.key as Item["band"])} size={54} />
-          {sum?.score.pillars?.length ? (
-            <ul className="gs-pil">{sum.score.pillars.slice(0, 5).map((p) => <li key={p.key}><span>{p.label}</span><i><em style={{ width: `${p.score ?? 0}%` }} /></i><b>{p.score ?? MINUS}</b></li>)}</ul>
-          ) : <p className="gs-pre-note">{it.band === "locked" ? "The score and its five pillars are part of the Silver plan." : ready ? "Loading the report…" : "The full report is built the first time it is opened."}</p>}
+          <ScoreRing band="locked" size={54} />
+          <p className="gs-pre-note">FinLit Prism, FinLit's only company score, comes with a plan that has it. <a href="/plans">See plans</a>.</p>
         </div>
       )}
       {(it.kind === "mf" || it.kind === "etf") && (

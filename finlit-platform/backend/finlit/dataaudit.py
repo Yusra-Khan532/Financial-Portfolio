@@ -203,7 +203,7 @@ TABLES: Tuple[T, ...] = (
     T("funds", "Fund expense ratios (TER)", "mf_ter", "t.name_key", "t.ter_date", 45, date_label="TER date", job="facts",
       nulls=(N("ter_regular", 15), N("ter_direct", 25)),
       rules=(R("TER below 0 or above 5 percent", "t.ter_regular < 0 OR t.ter_regular > 5 OR t.ter_direct < 0 OR t.ter_direct > 5"), R("direct plan costs more than regular", "t.ter_direct > t.ter_regular"))),
-    T("funds", "FinLit FundPulse", "mf_scores", "t.key", "t.run_date", 4, date_label="run date", job="score-mf",
+    T("funds", "Mutual Fund Score", "mf_scores", "t.key", "t.run_date", 4, date_label="run date", job="score-mf",
       nulls=(N("final", 40, "NOT RATED funds have none; run score-mf"), N("label", 40), N("category", 20)),
       rules=(_score_rule("health score or part score", ("final", "perf", "risk", "cost", "quality", "percentile")), R("rank beyond group size", "t.rank > t.rank_of"),
              R("NAV date in the future", "t.nav_date > current_date + 1"))),
@@ -312,7 +312,7 @@ COVERAGE: Tuple[Tuple[str, str, str, str, str, str, float, str], ...] = (
      "index_members t", 15, "run refresh-listing; or refresh-indices if the member list is old"),
     ("funds", "Mutual fund schemes (NAV, returns, SIP, AUM)", "active Growth schemes with NAV history but no monthly series", "mf_schemes t WHERE t.active AND t.option_class = 'Growth' AND t.has_hist AND NOT EXISTS (SELECT 1 FROM mf_monthly m WHERE m.code = t.code)", "t.code::text",
      "mf_schemes t WHERE t.active AND t.option_class = 'Growth' AND t.has_hist", 40, "run backfill-mf"),
-    ("funds", "FinLit FundPulse", "active Growth schemes with no health score row", "mf_schemes t WHERE t.active AND t.option_class = 'Growth' AND NOT EXISTS (SELECT 1 FROM mf_scores s WHERE s.code = t.code)", "t.code::text",
+    ("funds", "Mutual Fund Score", "active Growth schemes with no health score row", "mf_schemes t WHERE t.active AND t.option_class = 'Growth' AND NOT EXISTS (SELECT 1 FROM mf_scores s WHERE s.code = t.code)", "t.code::text",
      "mf_schemes t WHERE t.active AND t.option_class = 'Growth'", 60, "run score-mf"),
     ("funds", "Fund facts (AUM, launch)", "active Growth schemes with no fund-facts row", "mf_schemes t WHERE t.active AND t.option_class = 'Growth' AND NOT EXISTS (SELECT 1 FROM mf_facts f WHERE f.code = t.code)", "t.code::text",
      "mf_schemes t WHERE t.active AND t.option_class = 'Growth'", 40, "run refresh-facts"),
@@ -885,3 +885,98 @@ async def run_cli(settings: Any, only: Optional[Sequence[str]], quick: bool, jso
     except Exception as exc:       # pragma: no cover - run_audit does not raise; this keeps the promise anyway
         print(f"audit could not run: {_why(exc)}")
     return 0
+
+
+# ------------------------------------------------------------------------------------------------ fund data gaps for the admin Data health panel
+# Task #281 round 5: the funds rules above run only from the command line, so a gap (no exit load for any fund, holdings missing for whole fund houses,
+# plans AMFI leaves blank) was found by hand. The admin Data health panel now counts every gap of the active schemes each time it is opened.
+# Read-only, one query on one connection with the same statement timeout as the audit. ETFs are left out of plan, option and holdings: an ETF has no
+# Direct/Regular plan or Growth/IDCW option, and its holdings are not read from fund-house files.
+
+FUND_GAP_SQL = """
+SELECT s.code, s.name, s.category, s.plan, s.option_class, s.aum_lakh, s.ter, s.r5y, f.launch_date,
+       EXISTS (SELECT 1 FROM disclosure_portfolios p WHERE p.fkey = s.family) AS hold,
+       EXISTS (SELECT 1 FROM disclosure_facts d WHERE d.fkey = s.family AND d.kind = 'exitload') AS exitl,
+       EXISTS (SELECT 1 FROM disclosure_facts d WHERE d.fkey = s.family AND d.kind = 'benchmark')
+         OR EXISTS (SELECT 1 FROM disclosure_portfolios p WHERE p.fkey = s.family AND coalesce(p.benchmark, '') <> '') AS bench,
+       EXISTS (SELECT 1 FROM disclosure_facts d WHERE d.fkey = s.family AND d.kind = 'risk') AS risk
+  FROM mf_schemes s LEFT JOIN mf_facts f ON f.code = s.code
+ WHERE s.active
+"""
+
+# (key, label, which schemes it is counted among, what to run or fix)
+FUND_GAPS: Tuple[Tuple[str, str, str, str], ...] = (
+    ("plan", "No plan (Direct / Regular)", "active schemes, ETFs aside", "AMFI's NAV file and scheme master both leave it blank: refresh-mf, refresh-facts"),
+    ("option", "No clear option (Growth / IDCW)", "active schemes, ETFs aside", "AMFI leaves it blank or uses an unknown word: refresh-mf, refresh-facts"),
+    ("aum", "No AUM", "active schemes", "AMFI's average AUM row not matched: refresh-facts"),
+    ("ter", "No expense ratio", "active schemes", "AMFI's TER row not matched: refresh-facts, refresh-portfolios (ter)"),
+    ("holdings", "No holdings", "active schemes, ETFs aside", "the fund house's monthly portfolio file is not read: refresh-portfolios"),
+    ("exitload", "No exit load", "active schemes", "AMFI scheme details not read: refresh-portfolios (loads)"),
+    ("benchmark", "No benchmark", "active schemes", "AMFI fund performance not read: refresh-portfolios (performance)"),
+    ("risk", "No risk-o-meter", "active schemes", "AMFI fund performance not read: refresh-portfolios (performance)"),
+    ("r5y", "No 5-year return although over 5 years old", "active Growth schemes", "history cut at a scheme-code change, or not backfilled: backfill-mf"),
+    ("new", "New launch: no score until 12 month-end NAVs", "active Growth schemes", "nothing to fix: scored by itself after 12 months"),
+)
+
+
+def _is_etf(category: Optional[str], name: Optional[str]) -> bool:
+    try:
+        from .mf import classify
+        from .mfscore.groups import ETF_SUBS
+        return classify(category or "")[1] in ETF_SUBS
+    except Exception:
+        return bool(re.search(r"\bETF\b|exchange traded", f"{category} {name}", re.I))
+
+
+def _months_since(d: Any, today: Any) -> Optional[int]:
+    if not d:
+        return None
+    return (today.year - d.year) * 12 + (today.month - d.month) - (1 if today.day < d.day else 0)
+
+
+def fund_gap_counts(rows: Sequence[Any], today: Any, examples: int = 5) -> dict:
+    """Count each gap of FUND_GAPS over the active schemes `rows` (FUND_GAP_SQL). Pure: tested without a database."""
+    hit: Dict[str, List[Any]] = {k: [] for k, *_ in FUND_GAPS}
+    base: Dict[str, int] = {k: 0 for k, *_ in FUND_GAPS}
+    for r in rows:
+        etf = _is_etf(r["category"], r["name"])
+        growth = r["option_class"] == "Growth"
+        age = _months_since(r["launch_date"], today)
+        checks = {
+            "plan": (not etf, r["plan"] not in ("Direct", "Regular")),
+            "option": (not etf, r["option_class"] not in ("Growth", "IDCW")),
+            "aum": (True, r["aum_lakh"] is None),
+            "ter": (True, r["ter"] is None),
+            "holdings": (not etf, not r["hold"]),
+            "exitload": (True, not r["exitl"]),
+            "benchmark": (True, not r["bench"]),
+            "risk": (True, not r["risk"]),
+            "r5y": (growth and not etf and age is not None and age >= 61, r["r5y"] is None),
+            "new": (growth and not etf, age is not None and age < 12),
+        }
+        for k, (counted, missing) in checks.items():
+            if counted:
+                base[k] += 1
+                if missing:
+                    hit[k].append(r)
+    out = []
+    for k, label, among, fix in FUND_GAPS:
+        ex = [f"{r['code']} {r['name']}" for r in hit[k][:examples]]
+        out.append({"key": k, "label": label, "count": len(hit[k]), "of": base[k], "among": among, "fix": fix, "examples": ex})
+    return {"active": len(rows), "gaps": out}
+
+
+async def fund_gaps(pool) -> Optional[dict]:
+    """fund_gap_counts over the live active schemes, read-only. None when the fund tables do not exist yet (fresh database) or the read fails:
+    the panel then says it could not count, never that nothing is missing."""
+    from datetime import date as _date
+    try:
+        async with pool.acquire() as conn:
+            async with conn.transaction(readonly=True):
+                await conn.execute(f"SET LOCAL statement_timeout = {STATEMENT_TIMEOUT_MS}")
+                rows = await conn.fetch(FUND_GAP_SQL)
+    except Exception:
+        return None
+    body = fund_gap_counts(rows, _date.today())
+    body["at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    return body

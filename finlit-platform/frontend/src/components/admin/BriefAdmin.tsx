@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError, apiGet, apiSend } from "../../lib/api";
 import { BriefBody } from "../../stock/CompanyBrief";
 import type { BriefReply, Brief } from "../../lib/companyBrief";
+import { coTitle, subLine, titleOf } from "../../lib/companyLabel";
 
 type Row = { symbol: string; name: string | null; status: string; asOf: string | null; writtenAt: string; writtenBy: string | null; parts: string[]; problems: string[]; flags: string[]; citations: number; passed: number;
   failed: number; unchecked: number; published: boolean; publishedAt: string | null; publishMode?: string | null; rewriteAsked: boolean; canPublish: boolean };
@@ -55,7 +56,7 @@ function Detail({ symbol, onClose }: { symbol: string; onClose: () => void }) {
         <button role="tab" aria-selected={view === "page"} onClick={() => setView("page")}>As readers see it</button>
         <button role="tab" aria-selected={view === "text"} onClick={() => setView("text")}>Plain text</button>
       </div>
-      {view === "text" ? <pre style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere", fontSize: 13 }}>{o.text}</pre> : <div className="cb" style={{ margin: 0 }}><BriefBody r={reply as Extract<BriefReply, { state: "published" }>} /></div>}
+      {view === "text" ? <pre style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere", fontSize: "var(--fs-13)" }}>{o.text}</pre> : <div className="cb" style={{ margin: 0 }}><BriefBody r={reply as Extract<BriefReply, { state: "published" }>} /></div>}
     </section>
   );
 }
@@ -90,7 +91,7 @@ export function BriefAdmin() {
         </div>
         {!d.briefs.length ? <p className="muted">Nothing here.</p> : (
           <div className="tw"><table className="qtt"><thead><tr><th>Company</th><th>Status</th><th>Filings to</th><th>Written</th><th>Citations</th><th>Flags</th><th /></tr></thead>
-            <tbody>{d.briefs.map((r) => <tr key={r.symbol}><td><b>{r.symbol}</b><div className="muted">{r.name}</div></td><td>{r.status}{r.publishMode === "auto" ? " (auto-checked)" : ""}{r.published && r.status !== "published" ? " (older copy live)" : ""}</td><td>{r.asOf ?? "—"}</td><td>{when(r.writtenAt)}</td>
+            <tbody>{d.briefs.map((r) => <tr key={r.symbol}><td><b title={coTitle(r)}>{titleOf(r)}</b><div className="muted">{subLine(r, r.name)}</div></td><td>{r.status}{r.publishMode === "auto" ? " (auto-checked)" : ""}{r.published && r.status !== "published" ? " (older copy live)" : ""}</td><td>{r.asOf ?? "—"}</td><td>{when(r.writtenAt)}</td>
               <td>{r.passed}/{r.citations}{r.failed ? <b> · {r.failed} wrong</b> : ""}</td><td>{r.problems.length ? <b>{r.problems.length} blocking</b> : r.flags.length ? `${r.flags.length} to read` : "none"}</td>
               <td><button className="btn" onClick={() => setOpen(r.symbol)}>Review</button></td></tr>)}</tbody></table></div>
         )}
@@ -105,7 +106,7 @@ export function BriefAdmin() {
         </div>
         {save.error && <div className="formerr" role="alert">{msg(save.error)}</div>}
         {miss.data && <div className="tw"><table className="qtt"><thead><tr><th>Largest companies where no annual report was found</th><th>State</th><th /></tr></thead>
-          <tbody>{miss.data.missing.slice(0, 25).map((m) => <tr key={m.symbol}><td><b>{m.symbol}</b> <span className="muted">{m.name}</span></td><td>{m.ar_detail || m.last_reason || m.ar_state || "not looked up yet"}</td><td><button className="btn" onClick={() => setSym(m.symbol)}>Use</button></td></tr>)}</tbody></table></div>}
+          <tbody>{miss.data.missing.slice(0, 25).map((m) => <tr key={m.symbol}><td><b title={coTitle(m)}>{titleOf(m)}</b> <span className="muted">{subLine(m, m.name)}</span></td><td>{m.ar_detail || m.last_reason || m.ar_state || "not looked up yet"}</td><td><button className="btn" onClick={() => setSym(m.symbol)}>Use</button></td></tr>)}</tbody></table></div>}
       </section>
     </>
   );

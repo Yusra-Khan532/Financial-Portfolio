@@ -2,23 +2,27 @@
 import { useState } from "react";
 import { apiUrl } from "../../lib/api";
 import { DEMO } from "../../lib/demo";
+import { altOf, isCdnLogo } from "../../lib/logoCdn";
 import { MINUS, dateIN, initials, nf } from "../../lib/format";
 import { BAND_LABEL, highlight, type Band, type Kind } from "../../lib/globalSearch";
 
 const TINTS = ["#2A4E8A", "#7A5B16", "#2E6B57", "#7B3F5E", "#4B4A8C", "#8A4B2A", "#3E5F73", "#6B5A2E"];
 const tint = (s: string) => TINTS[[...s].reduce((a, c) => a + c.charCodeAt(0), 0) % TINTS.length];
 /** Logo files: from our own API (or the saved copies in the demo build). */
-const logoSrc = (path: string) => (DEMO ? `${import.meta.env.BASE_URL}demo/logos/${path.split("/").pop()}` : apiUrl(path));
+const logoSrc = (path: string) => (isCdnLogo(path) ? path : DEMO ? `${import.meta.env.BASE_URL}demo/logos/${path.split("/").pop()}` : apiUrl(path));
 
 /** The company's own logo on a light tile (readable on both themes); initials in a coloured tile when there is none or it fails to load. */
 export function Logo({ src, name, kind, size = 40 }: { src?: string | null; name: string; kind: Kind; size?: number }) {
   const [broken, setBroken] = useState(false);
+  const [onAlt, setOnAlt] = useState(false);   // Logo.dev had no image: our own small logo instead (lib/logoCdn.ts logoFor)
+  const alt = src ? altOf(src) : null;
   const style = { width: size, height: size, borderRadius: Math.round(size * 0.28) };
   if (kind === "news") return <span className="gs-logo gs-logo-news" style={style} aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 4h11v16H6a2 2 0 0 1-2-2V5a1 1 0 0 1 1-1Zm11 5h3a1 1 0 0 1 1 1v8a2 2 0 0 1-4 0M8 8h5M8 12h5M8 16h3" /></svg></span>;
   if (src && !broken) {
-    return <span className="gs-logo gs-logo-img" style={style}><img src={logoSrc(src)} alt="" loading="lazy" decoding="async" width={size} height={size} onError={() => setBroken(true)} referrerPolicy="no-referrer" /></span>;
+    const cur = onAlt && alt ? alt : src;
+    return <span className="gs-logo gs-logo-img" style={style}><img key={cur} src={logoSrc(cur)} alt="" loading="lazy" decoding="async" width={size} height={size} onError={() => (alt && !onAlt ? setOnAlt(true) : setBroken(true))} referrerPolicy={isCdnLogo(cur) ? "strict-origin" : "no-referrer"} /></span>;
   }
-  return <span className="gs-logo gs-logo-txt" style={{ ...style, background: `linear-gradient(140deg, ${tint(name)}, color-mix(in srgb, ${tint(name)} 55%, #000))`, fontSize: size >= 44 ? 16 : size >= 36 ? 14 : size >= 30 ? 12 : 11 }} aria-hidden="true">{initials(name.replace(/^the\s+/i, ""))}</span>;
+  return <span className="gs-logo gs-logo-txt" style={{ ...style, background: `linear-gradient(140deg, ${tint(name)}, color-mix(in srgb, ${tint(name)} 55%, #000))`, fontSize: size >= 44 ? "var(--fs-16)" : size >= 36 ? "var(--fs-14)" : "var(--fs-12)" }} aria-hidden="true">{initials(name.replace(/^the\s+/i, ""))}</span>;
 }
 
 /** India's flag, drawn (emoji flags do not show on Windows). */
@@ -32,13 +36,13 @@ export function FlagIN() {
 }
 
 const RING: Record<string, string> = { strong: "var(--gain)", healthy: "var(--k1)", mixed: "var(--warn)", watch: "var(--loss)" };
-/** The 0-100 score as a ring with its band word. "locked" (below Silver) shows a lock; unscored shows a dash. Never buy/sell words. */
+/** The 0-100 score as a ring with its band word. "locked" (a plan without FinLit Prism, task #283) shows a lock; unscored shows a dash. Never buy/sell words. */
 export function ScoreRing({ score, band, size = 38, word = true }: { score?: number | null; band?: Band; size?: number; word?: boolean }) {
   if (band === "locked") {
     return (
-      <span className="gs-score gs-lock" title="Scores are part of the Silver plan">
+      <span className="gs-score gs-lock" title="FinLit Prism, FinLit's only company score, comes with a plan that has it. See plans.">
         <span className="gs-ring" style={{ width: size, height: size }}><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5.5" y="10.5" width="13" height="9" rx="2" /><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5" /></svg></span>
-        {word && <span className="gs-band">Silver</span>}
+        {word && <span className="gs-band">FinLit Prism</span>}
       </span>
     );
   }

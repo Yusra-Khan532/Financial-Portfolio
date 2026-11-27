@@ -9,7 +9,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 const st = vi.hoisted(() => ({ me: { signedIn: true, plan: "gold", board: "gold", handle: null, canPost: false, banned: false, moderator: false } as Record<string, unknown> }));
-vi.mock("../../lib/forum", async (orig) => ({ ...(await orig<typeof import("../../lib/forum")>()), forumMe: () => ({ data: st.me }) }));
+vi.mock("../../lib/forum", async (orig) => ({ ...(await orig<typeof import("../../lib/forum")>()), useForumMe: () => ({ data: st.me }) }));
 vi.mock("../../lib/api", async (orig) => ({ ...(await orig<typeof import("../../lib/api")>()), apiGet: vi.fn(async () => ({ threads: [], total: 0, page: 1, pages: 1 })) }));
 import { ThreadList } from "./ForumParts";
 
@@ -38,8 +38,10 @@ describe("join form placement", () => {
     expect(container.querySelector(".fo-join")!.textContent).toContain("Posting is paused");
     expect(container.querySelector(".fo-tl-top .fo-start")).toBeNull();
   });
-  it("the report keeps the Trending column's room only when there is a Trending list", () => {
+  it("the report's side column holds Trending only when there is a list, and the notes box always (task #216, README 3.19, which replaced task #168's empty column rule)", () => {
     const src = readFileSync(resolve(__dirname, "../../stock/CommunitySection.tsx"), "utf8");
-    expect(src).toContain('(open == null && n != null && n > 1 ? " has-aside" : "")');
+    expect(src).toContain('(open == null ? " has-aside" : "")');
+    expect(src).toMatch(/<div className="fo-side">\s*\{n != null && n > 1 && <Trending/);
+    expect(src.indexOf("<Trending symbol")).toBeLessThan(src.indexOf('<div className="fo-notes">'));
   });
 });

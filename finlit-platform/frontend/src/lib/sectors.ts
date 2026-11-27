@@ -56,7 +56,7 @@ export type GroupRow = {
 export type MarketNow = { date: string; nifty50: number | null; nifty50_200d_average: number | null; pct_vs_200d: number | null; above_200d: boolean | null; note: string | null;
   /** "200-day exponential average": the name to print for the average. */
   average_label?: string };
-export type LeaderFlag = { symbol: string; group: string; group_slug: string; tier: string; tier_code?: number; sessions_ago: number; new_today: boolean; quarter: number | null; state: StateName; when?: string };
+export type LeaderFlag = { symbol: string; name?: string | null; group: string; group_slug: string; tier: string; tier_code?: number; sessions_ago: number; new_today: boolean; quarter: number | null; state: StateName; when?: string };
 export type Universe = { date: string; stocks_with_industry_traded: number; meet_rules: number; counted_in_groups_with_reading: number; not_counted: number; text?: string };
 export type StudyFigures = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 export type Board = {
@@ -94,6 +94,7 @@ export type StockSector = {
 };
 export type SectorStatus = {
   enabled: boolean; loaded: boolean; dataDate: string | null; stocksCounted: number | null; groups: number | null; industries: number | null;
+  sectorsViewLoaded?: boolean;
   stockFiles: number | null; stockErrors: number | null; builtAt: string | null; seconds: number | null;
   lastRun: { status: string | null; at: string | null; reason: string | null; dataDate: string | null; fetch?: { status?: string; message?: string } } | null; reason: string | null;
 };
@@ -101,8 +102,11 @@ export type SectorStatus = {
 // ------------------------------------------------------------------------------------------------ reading the API
 const retry = (n: number, e: unknown) => !(e instanceof ApiError && e.status < 500) && n < 1;
 const STALE = 5 * 60_000;
-export const useSectorBoard = () => useQuery<Board, ApiError>({ queryKey: ["sectors", "board"], queryFn: () => apiGet<Board>("/api/sectors"), staleTime: STALE, retry });
-export const useSectorPage = (slug: string) => useQuery<IndustryPage, ApiError>({ queryKey: ["sectors", "page", slug], queryFn: () => apiGet<IndustryPage>(`/api/sectors/${encodeURIComponent(slug)}`), staleTime: STALE, retry, enabled: !!slug });
+/** "Show: Sectors | Industries" (task #192): which grouping a Sector Pulse / Rotation view reads. The API takes ?show=sectors for NSE's 22 sectors; Industries is its default. */
+export type Show = "sectors" | "industries";
+export const showQuery = (show: Show, first = true): string => (show === "sectors" ? `${first ? "?" : "&"}show=sectors` : "");
+export const useSectorBoard = (show: Show = "industries", enabled = true) => useQuery<Board, ApiError>({ queryKey: ["sectors", "board", show], queryFn: () => apiGet<Board>("/api/sectors" + showQuery(show)), staleTime: STALE, retry, enabled });
+export const useSectorPage = (slug: string, show: Show = "industries") => useQuery<IndustryPage, ApiError>({ queryKey: ["sectors", "page", slug, show], queryFn: () => apiGet<IndustryPage>(`/api/sectors/${encodeURIComponent(slug)}` + showQuery(show)), staleTime: STALE, retry, enabled: !!slug });
 export const useSectorStatus = () => useQuery<SectorStatus, ApiError>({ queryKey: ["sectors", "status"], queryFn: () => apiGet<SectorStatus>("/api/sectors/status"), staleTime: 60_000, retry });
 export const useStockSector = (symbol: string, enabled = true) =>
   useQuery<StockSector, ApiError>({ queryKey: ["sectors", "stock", symbol], queryFn: () => apiGet<StockSector>(`/api/technicals/${encodeURIComponent(symbol)}/sector`), staleTime: STALE, retry, enabled: enabled && !!symbol });

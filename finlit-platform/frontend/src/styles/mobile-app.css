@@ -1,0 +1,220 @@
+/* The phone app (docs/MOBILE-APP.md, owner 25 Nov 2026): bottom tabs, section chips, the Menu sheet, the Tools button, the slim footer.
+   Everything here applies under 860px only, the width at which the left menu becomes a sheet (phone310.css); above it nothing of this is drawn,
+   so the desktop site, and "Desktop site" in a phone browser (about 980px wide), are unchanged. Class prefix ma- (checked unused elsewhere).
+   Sizes from ui-tokens.css; stacking from the --z scale of overlay.css. Locked in by styles/mobileApp.test.tsx. */
+
+.ma-tabs, .ma-hub, .ma-fab, .ma-fabp, .ma-scrim, .ma-menu, .ma-foot, .ma-doors { display: none; }
+
+@media (max-width: 860px) {
+  /* ---- the top bar: logo, a search box that says what it finds, Ask FinLit AI (and the bell for a member) ---- */
+  :root .top .wrap { gap: 8px; padding-inline: 12px; min-height: 56px; height: 56px; }
+  :root .top .lg-mark { height: 32px; }
+  :root:root .top > .wrap > :is(.grow, .wod-top, .av-btn, .acct-dd, .mob-cta, .signin-ph) { display: none !important; }
+  :root:root .top > .wrap > .logo { order: 0; flex: none; }
+  :root:root .top > .wrap > .search { order: 1; flex: 1 1 auto; width: auto; min-width: 0; height: 40px; padding: 0 12px; justify-content: flex-start; gap: 8px;
+    border-radius: var(--r-ctl); background: var(--s2); border: 1px solid var(--border); color: var(--faint); }
+  :root:root .top > .wrap > .search .t { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: var(--ui-fw-regular) var(--fs-14)/1 var(--font-sans); }
+  :root:root .top > .wrap > .search svg { width: 17px; height: 17px; flex: none; }
+  :root:root .top > .wrap > .ai-top { order: 2; }
+  :root:root .top > .wrap > .ai-top > span { display: none; }
+  :root:root .top > .wrap > .nt { order: 3; }
+
+  /* ---- the bottom tabs: Home, Markets, Discover, Portfolio, Menu ---- */
+  .ma-tabs { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); position: fixed; left: 0; right: 0; bottom: 0; z-index: var(--z-tray);
+    padding: 0 env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+    background: var(--s1); border-top: 1px solid var(--border); }
+  .ma-tab { all: unset; box-sizing: border-box; display: grid; justify-items: center; align-content: center; gap: 3px; min-width: 0; min-height: var(--ui-bar-h); padding: 6px 2px;
+    color: var(--muted); font: var(--ui-fw-medium) var(--fs-12)/1 var(--font-sans); text-align: center; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  .ma-tab > span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ma-tab svg { width: 21px; height: 21px; }
+  .ma-tab.on { color: var(--text); font-weight: var(--ui-fw-semibold); }
+  .ma-tab.on svg { color: var(--gold); }
+  .ma-tab:focus-visible { outline: 2px solid var(--focus); outline-offset: -4px; border-radius: var(--r-ctl); }
+  :root main { padding-bottom: calc(var(--ui-bar-h) + 24px + env(safe-area-inset-bottom, 0px)); }
+
+  /* ---- the section chips of a tab, under the top bar, staying on screen as the page scrolls ---- */
+  .ma-hub { display: block; position: sticky; top: calc(56px + env(safe-area-inset-top, 0px)); z-index: calc(var(--z-header) - 1); background: var(--bg); border-bottom: 1px solid var(--border); }
+  .ma-hub-row { display: flex; gap: 6px; overflow-x: auto; padding: 8px 12px; scrollbar-width: none; scroll-padding-inline: 12px; overscroll-behavior-x: contain; }
+  .ma-hub-row::-webkit-scrollbar { display: none; }
+  .ma-chip { position: relative; flex: none; display: inline-flex; align-items: center; height: 34px; padding: 0 14px; border-radius: var(--ui-r-pill); border: 1px solid var(--border-strong);
+    background: var(--s1); color: var(--text); font: var(--ui-fw-medium) var(--fs-13)/1 var(--font-sans); white-space: nowrap; text-decoration: none; }
+  :root:root .ma-hub .ma-chip { border-radius: var(--ui-r-pill); }   /* a card rule on links inside main gave it 12px corners */
+  .ma-chip::after { content: ""; position: absolute; inset: -5px -2px; }   /* a 44px tap area around a 34px chip */
+  .ma-chip.on { background: var(--text); border-color: var(--text); color: var(--bg); font-weight: var(--ui-fw-semibold); }
+  .ma-chip:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+  /* ---- the Menu sheet: full screen, the page underneath does not scroll ---- */
+  :root.ma-locked, :root.ma-locked body { overflow: hidden; }
+  .ma-menu { display: flex; flex-direction: column; position: fixed; inset: 0; z-index: var(--z-drawer); background: var(--bg); padding-top: env(safe-area-inset-top, 0px); }
+  .ma-menu-h { display: flex; align-items: center; justify-content: space-between; flex: none; height: 56px; padding: 0 8px 0 16px; border-bottom: 1px solid var(--border); }
+  .ma-menu-h b { font: var(--ui-fw-semibold) var(--fs-18)/1 var(--font-serif); }
+  .ma-x { all: unset; display: grid; place-items: center; width: 44px; height: 44px; border-radius: var(--r-ctl); cursor: pointer; color: var(--text); }
+  .ma-x svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; }
+  .ma-x:focus-visible { outline: 2px solid var(--focus); }
+  .ma-menu-b { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 12px 14px calc(28px + env(safe-area-inset-bottom, 0px)); outline: none; }
+  .ma-list { display: grid; background: var(--s1); border: 1px solid var(--border); border-radius: var(--r-ctl); overflow: hidden; }
+  .ma-row { all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 12px; width: 100%; min-height: 48px; padding: 8px 12px; border-top: 1px solid var(--border);
+    color: var(--text); font: var(--ui-fw-medium) var(--fs-14)/1.3 var(--font-sans); cursor: pointer; text-decoration: none; }
+  .ma-list > .ma-row:first-child { border-top: 0; }
+  .ma-row:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+  .ma-row.on { background: var(--gold-soft); }
+  .ma-rt { flex: 1; min-width: 0; display: grid; gap: 2px; }
+  .ma-rt b { font-weight: var(--ui-fw-semibold); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ma-link .ma-rt b { font-weight: var(--ui-fw-medium); }
+  .ma-rt small { color: var(--faint); font-size: var(--fs-12); line-height: 1.35; }
+  .ma-ico { flex: none; display: grid; place-items: center; width: 30px; height: 30px; border-radius: var(--r-ctl); background: var(--s2); color: var(--gold); }
+  .ma-ico svg { width: 16px; height: 16px; }
+  .ma-av { flex: none; display: grid; place-items: center; width: 38px; height: 38px; border-radius: var(--r-ctl); background: var(--gold-soft); color: var(--gold); font: 700 var(--fs-16)/1 var(--font-sans); }
+  .ma-av svg { width: 20px; height: 20px; }
+  .ma-chev { flex: none; width: 16px; height: 16px; color: var(--faint); }
+  .ma-sw { flex: none; position: relative; width: 40px; height: 24px; border-radius: var(--r-ctl); background: var(--s3); transition: background .15s; }
+  .ma-sw::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: var(--s1); border: 1px solid var(--border-strong); box-sizing: border-box; transition: left .15s; }
+  .ma-sw.on { background: var(--btn-bg); }
+  .ma-sw.on::after { left: 19px; }
+  .ma-gold, .ma-new { flex: none; font-style: normal; font: 700 var(--fs-12)/1 var(--font-sans); letter-spacing: .04em; text-transform: uppercase; padding: 3px 6px; border-radius: var(--ui-r-mark); }
+  .ma-gold { background: var(--gold-soft); color: var(--gold); }
+  .ma-new { background: var(--gain-soft, var(--s2)); color: var(--gain); }
+  .ma-find { display: flex; align-items: center; gap: 8px; height: var(--ui-ctl-h); margin-top: 14px; padding: 0 12px; border-radius: var(--r-ctl); background: var(--s1); border: 1px solid var(--ui-field-line); color: var(--faint); }
+  .ma-find svg { width: 17px; height: 17px; flex: none; }
+  .ma-find input { all: unset; flex: 1; min-width: 0; font: var(--ui-fw-regular) var(--fs-16)/1.2 var(--font-sans); color: var(--text); }
+  .ma-find:focus-within { border-color: var(--focus); }
+  :root:root .ma-find input { -webkit-appearance: none; appearance: none; border: 0; outline: none; box-shadow: none; background: transparent; padding: 0; height: auto; min-height: 0; }
+  :root:root .ma-find input::-webkit-search-cancel-button { -webkit-appearance: none; }
+  :root:root .ma-find input:is(:focus, :focus-visible) { outline: none; box-shadow: none; border: 0; }   /* the box itself shows the focus (.ma-find:focus-within) */
+  .ma-gt { display: flex; align-items: baseline; justify-content: space-between; margin: 22px 4px 8px; font: var(--ui-fw-semibold) var(--fs-12)/1 var(--font-sans); letter-spacing: .06em; text-transform: uppercase; color: var(--faint); }
+  .ma-gt small { font-weight: var(--ui-fw-medium); letter-spacing: 0; }
+  .ma-cta { display: flex; align-items: center; justify-content: center; min-height: 44px; margin-top: 10px; border-radius: var(--r-ctl); background: var(--btn-bg); color: var(--btn-fg); font: var(--ui-fw-semibold) var(--fs-16)/1 var(--font-sans); text-decoration: none; }
+  .ma-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px 4px; }
+  .ma-tool { display: grid; justify-items: center; gap: 6px; padding: 6px 2px; border-radius: var(--r-ctl); color: var(--text); font: var(--ui-fw-medium) var(--fs-12)/1.2 var(--font-sans); text-align: center; text-decoration: none; }
+  .ma-tool span { display: grid; place-items: center; width: 40px; height: 40px; border-radius: var(--r-ctl); background: var(--s1); border: 1px solid var(--border); color: var(--gold); }
+  .ma-tool svg { width: 18px; height: 18px; }
+  .ma-tool:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  .ma-help { padding: 0; }
+  :root:root .ma-help > :is(button, a) { all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 12px; width: 100%; min-height: 48px; padding: 8px 12px;
+    border-top: 1px solid var(--border); color: var(--text); font: var(--ui-fw-medium) var(--fs-14)/1.3 var(--font-sans); cursor: pointer; }
+  :root:root .ma-help > :is(button, a):first-child { border-top: 0; }
+  :root:root .ma-help > :is(button, a) svg { width: 18px; height: 18px; flex: none; color: var(--gold); }
+  :root:root .ma-help > :is(button, a):focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+  .ma-fine { margin: 18px 4px 0; color: var(--faint); font-size: var(--fs-12); line-height: 1.5; }
+
+  /* ---- the Tools button: bottom right, 16px above the tabs; hides while scrolling down; a list of labelled tools rises from it ---- */
+  .ma-fab { display: flex; align-items: center; gap: 7px; position: fixed; right: 16px; bottom: calc(var(--ui-bar-h) + 16px + env(safe-area-inset-bottom, 0px)); z-index: calc(var(--z-tray) + 2);
+    height: 52px; padding: 0 18px 0 15px; border: 0; border-radius: var(--ui-r-pill); background: var(--btn-bg); color: var(--btn-fg); font: var(--ui-fw-semibold) var(--fs-14)/1 var(--font-sans); cursor: pointer;
+    box-shadow: var(--ui-pop-shadow); transition: transform .15s cubic-bezier(.3, 0, .8, .15), opacity .15s ease, background .15s ease; -webkit-tap-highlight-color: transparent; }
+  .ma-fab svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; transition: transform .25s cubic-bezier(.05, .7, .1, 1); }
+  .ma-fab.hid { transform: translateY(90px); opacity: 0; pointer-events: none; }
+  .ma-fab.open { background: var(--text); color: var(--bg); }
+  .ma-fab.open svg { transform: rotate(45deg); }
+  .ma-fab:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
+  .ma-scrim { display: block; position: fixed; inset: 0; z-index: calc(var(--z-tray) + 1); background: var(--ov-backdrop); opacity: 0; pointer-events: none; transition: opacity .2s ease; }
+  .ma-scrim.show { opacity: 1; pointer-events: auto; }
+  .ma-fabp { display: flex; flex-direction: column; gap: 6px; position: fixed; right: 16px; bottom: calc(var(--ui-bar-h) + 16px + 52px + 10px + env(safe-area-inset-bottom, 0px)); z-index: calc(var(--z-tray) + 2);
+    width: min(272px, calc(100vw - 32px)); max-height: calc(100dvh - 210px); overflow-y: auto; pointer-events: none; }
+  .ma-fabp[hidden] { display: flex; visibility: hidden; }
+  .ma-fabp.show { pointer-events: auto; visibility: visible; }
+  .ma-fr { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 6px 14px 6px 7px; border-radius: var(--ui-r-pill); border: 1px solid var(--border); background: var(--s1); color: var(--text);
+    font: var(--ui-fw-semibold) var(--fs-14)/1.2 var(--font-sans); text-decoration: none; box-shadow: var(--ui-pop-shadow);
+    opacity: 0; transform: translateY(8px) scale(.96); transform-origin: 100% 50%; }
+  .ma-fabp.show .ma-fr { opacity: 1; transform: none; transition: opacity .25s cubic-bezier(.05, .7, .1, 1), transform .25s cubic-bezier(.05, .7, .1, 1); transition-delay: calc(var(--i, 0) * 25ms); }
+  .ma-fr > span { flex: none; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: var(--gold-soft); color: var(--gold); }
+  .ma-fr svg { width: 18px; height: 18px; }
+  .ma-fr b { flex: 1; min-width: 0; font-weight: inherit; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ma-fr.here > span { background: var(--btn-bg); color: var(--btn-fg); }
+  .ma-fr.all { background: var(--text); border-color: var(--text); color: var(--bg); }
+  .ma-fr.all > span { background: color-mix(in srgb, var(--bg) 18%, transparent); color: inherit; }
+  .ma-fr:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+  /* toasts sit above the Tools button */
+  :root:root:root :is(.toast, .prep-toast, .cpf-toast, .alx-toasts) { bottom: calc(var(--ui-bar-h) + 84px + env(safe-area-inset-bottom, 0px)); }
+
+  /* ---- the landing's doors (owner, 25 Nov 2026): a member's dashboard first, then the three places people start most ---- */
+  .ma-doors { display: grid; gap: 10px; margin: 4px 0 18px; }
+  .ma-door { display: flex; align-items: center; gap: 12px; min-height: 64px; padding: 12px 14px; border-radius: var(--r-ctl); background: var(--btn-bg); color: var(--btn-fg); text-decoration: none; }
+  .ma-door-i { flex: none; display: grid; place-items: center; width: 38px; height: 38px; border-radius: var(--r-ctl); background: color-mix(in srgb, var(--btn-fg) 16%, transparent); }
+  .ma-door-i svg { width: 19px; height: 19px; }
+  .ma-door-t { flex: 1; min-width: 0; display: grid; gap: 2px; }
+  .ma-door-t b { font: var(--ui-fw-semibold) var(--fs-16)/1.25 var(--font-sans); }
+  .ma-door-t small { font: var(--ui-fw-regular) var(--fs-12)/1.35 var(--font-sans); opacity: .85; }
+  .ma-door > svg { flex: none; width: 18px; height: 18px; }
+  .ma-door-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .ma-door-s { display: grid; justify-items: center; align-content: center; gap: 6px; min-height: 72px; padding: 10px 4px; border-radius: var(--r-ctl); border: 1px solid var(--border);
+    background: var(--s1); color: var(--text); font: var(--ui-fw-semibold) var(--fs-13)/1.2 var(--font-sans); text-align: center; text-decoration: none; }
+  .ma-door-s svg { width: 20px; height: 20px; color: var(--gold); }
+  :is(.ma-door, .ma-door-s):focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+  /* ---- compact page titles (checklist 14, 15, 24): the title card no longer fills the first screen ----
+     one smaller title, no eyebrow line above it, the description in two lines, the quick links in one sideways row, the sibling tabs (Sector
+     Pulse | Sector Rotation, the three portfolios) left to the section chips above, and no ticker strip (Markets today shows the indices). */
+  :root { --fs-page-title: var(--fs-24); }
+  :root:root main h1:not(.ui-title--marketing) { font-size: var(--fs-24) !important; line-height: 1.2 !important; }
+  :root:root .tape { display: none; }
+  :root:root main .sp-eyebrow { display: none; }
+  :root:root main .sp-desc { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: var(--fs-14); line-height: var(--lh-14); }
+  :root:root main :is(.sp-head, .gp-head, .wp-head) { padding: 14px; margin-block: 10px 12px; gap: 8px; }   /* .ph: page-header.css */
+  :root:root main .xsh-nav { display: flex; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; gap: 6px; }
+  :root:root main .xsh-nav > * { flex: none; width: auto; }
+  body:has(.ma-hub) main .page-tabs { display: none; }
+
+  /* ---- upgrade round 2: Sector Pulse and Sector Rotation (the Markets tab's next chips). The market backdrop box and the Show / View / Find
+     controls take less height: smaller padding, the reading at 24px instead of 28px, 12px between the control rows. ---- */
+  :root:root main .sp-side { padding: 12px 14px; }
+  :root:root main .sp-side-v b { font-size: var(--fs-24); }
+  :root:root main .sp-side-x { font-size: var(--fs-13); }
+  :root:root main .sp-head-bar { margin-top: 12px; padding-top: 12px; gap: 8px 12px; }
+
+  /* ---- a locked part (components/Gate.tsx) is one compact card on a phone: what it is, the plan, the unlock button. The blurred example
+     behind it is not drawn there (the company report's Prism lock was 1,148px tall, a screen and a half of nothing usable). A member whose
+     plan includes the part never sees this: the rules apply to .is-locked only. ---- */
+  :root:root .gate.is-locked { min-height: 0; }
+  :root:root .gate.is-locked > :not(.lock) { display: none; }
+  :root:root .gate.is-locked > .lock { position: static; display: block; padding: 0; }
+  :root:root .gate.is-locked .lock-card { width: 100%; display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 2px 12px; align-items: center; padding: 12px 14px; text-align: left; box-shadow: none; }
+  :root:root .gate.is-locked .lock-card .lk-ic { grid-row: span 2; width: 40px; height: 40px; margin: 0; border-radius: var(--r-ctl); }
+  :root:root .gate.is-locked .lock-card .lk-ic svg { width: 18px; height: 18px; }
+  :root:root .gate.is-locked .lock-card .tier { justify-self: start; }
+  :root:root .gate.is-locked .lock-card h4 { margin: 0; font: var(--ui-fw-semibold) var(--fs-16)/1.3 var(--font-sans); }
+  :root:root .gate.is-locked .lock-card ul { display: none; }
+  :root:root .gate.is-locked .lock-card :is(.btn, .sub) { grid-column: 1 / -1; }
+  :root:root .gate.is-locked .lock-card .btn { margin-top: 10px; min-height: var(--ui-ctl-h); }
+  :root:root .gate.is-locked .lock-card .sub { margin-top: 6px; text-align: center; }
+
+  /* ---- the company report's top card: the four actions two to a row, all in view. The sideways row of v1 hid "Value (DCF)" and "Share"
+     past the right edge with nothing to say more was there (phone audit, 24 Nov 2026). ---- */
+  :root:root main .hx-acts .actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; overflow: visible; }
+  :root:root main .hx-acts .actions > * { min-width: 0; min-height: 44px; justify-content: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* ---- layout faults the phone audit measured (24 Nov 2026) ---- */
+  /* Results: the month calendar fits the screen, seven narrow days with the count; a day still opens its companies below.
+     Before, a 780px grid hid Thursday to Sunday off the right edge. */
+  :root:root main .rs-cal { min-width: 0; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; }
+  :root:root main .rs-cal-h { padding: 4px 0; text-align: center; letter-spacing: .02em; }
+  :root:root main .rs-cal-c { min-height: 48px; padding: 5px 2px; align-items: center; gap: 1px; text-align: center; }
+  :root:root main .rs-cal-c :is(.rs-cal-x, em, .rs-cal-w) { display: none; }
+  /* Sector Pulse and Rotation: "On this page" scrolls with the page instead of sticking at 70px, where it covered the top bar and the chips. */
+  :root:root main .sx-nav { position: static; }
+  /* Concalls: the page had no side margin (it is not inside .wrap); the site's 14px phone gutter. */
+  :root:root main .page.ccm { padding-left: max(14px, env(safe-area-inset-left, 0px)); padding-right: max(14px, env(safe-area-inset-right, 0px)); }
+
+  /* ---- tap areas (checklist 9 and 26): small links and buttons the phone check found under 40px get a transparent 40px-plus tap area that
+     does not move anything on screen (the way the i buttons already have one, phone310.css). Calendar day cells stay as they are: a calendar
+     is a grid of days, and each cell opens the same panel the list below it shows. ---- */
+  :root:root main :is(.feed-sym, .p4-open, .p4-ab, .ccm-name, .dsc-lock, .cb-p, .sp-fbtn, .mf-sort, .fl-sort, .etf-sort, .ipo-more, .gp-chip, .sx-go, .sx-go2,
+    .sp-link, .rp-ind, .sp-secbar-c, .fl-tog, .dtl-btn, .ld-fig, .dsc-ib, .p4-gl, .dbx-ddb) { position: relative; }
+  :root:root main :is(.feed-sym, .p4-open, .p4-ab, .ccm-name, .dsc-lock, .cb-p, .sp-fbtn, .mf-sort, .fl-sort, .etf-sort, .ipo-more, .gp-chip, .sx-go, .sx-go2,
+    .sp-link, .rp-ind, .sp-secbar-c, .fl-tog, .dtl-btn, .ld-fig, .dsc-ib, .p4-gl, .dbx-ddb)::after { content: ""; position: absolute; inset: -13px -4px; }
+
+  /* ---- the foot of a page: the disclaimer and one line of links (the 2,300px desktop footer is not drawn on a phone) ---- */
+  :root:root footer.band :is(.fcta, .fcols, .fslim) { display: none; }
+  :root:root footer.band { padding-top: 14px; }
+  .ma-foot { display: flex; flex-wrap: wrap; gap: 0 14px; margin: 0 0 6px; }
+  .ma-foot :is(a, button) { all: unset; display: inline-flex; align-items: center; min-height: 40px; color: var(--muted); font: var(--ui-fw-medium) var(--fs-13)/1 var(--font-sans); cursor: pointer; }
+  .ma-foot :is(a, button):focus-visible { outline: 2px solid var(--focus); }
+  :root:root footer.band .ffine { flex-direction: column; gap: 6px; font-size: var(--fs-12); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ma-fab, .ma-fab svg, .ma-scrim, .ma-sw, .ma-sw::after { transition: opacity .1s linear; }
+  .ma-fabp.show .ma-fr, .ma-fr { transform: none !important; transition: opacity .1s linear !important; transition-delay: 0s !important; }
+}
+
+/* "Desktop site" chosen on a phone (lib/mobileNav.ts): the way back, at the foot of every page, at any width */
+.ma-back { margin: 0 0 12px; }

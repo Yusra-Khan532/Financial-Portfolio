@@ -1,4 +1,4 @@
-"""The FinLit FundPulse is not given for exchange-traded funds: whatever mf_scores holds for an ETF (the score run still reads ETFs as peers of
+"""The Mutual Fund Score is not given for exchange-traded funds: whatever mf_scores holds for an ETF (the score run still reads ETFs as peers of
 index funds), no route sends a score, a rank, a history or an alert for one, and the ETF list cannot be ordered by it. Mutual funds are unchanged."""
 
 import json
@@ -11,7 +11,7 @@ from test_mfscore_upgrade import BASE, RUN, clients, seed
 
 pytestmark = pytest.mark.integration
 SYM = "ZZETFTEST"
-OFFERED = "FinLit FundPulse is not given for exchange-traded funds."
+OFFERED = "Mutual Fund Score is not given for exchange-traded funds."
 
 
 async def with_etf(app):
@@ -71,3 +71,23 @@ async def test_etf_list_has_no_score_order_and_mutual_funds_keep_theirs(app):
     assert [i["symbol"] for i in by_score.json()["items"]] == [i["symbol"] for i in (await gold.get("/api/etf")).json()["items"]]   # same as the default order
     mine = await gold.get(f"/api/mf/{BASE + 1}/score")
     assert mine.status_code == 200 and mine.json().get("final") is not None              # a mutual fund still has its score
+
+
+async def test_an_etfs_amfi_code_says_the_score_is_not_given(app):
+    """Task #281: an ETF has no Direct / Regular plan (AMFI's columns said "Regular Plan; IDCW" for SBI's ETFs). Asked for by its AMFI scheme code, its
+    score reason is the ETF one: never "plan not stated" or "IDCW options inherit the Growth plan's score"."""
+    await seed(app, weeks=3)
+    code = BASE + 2
+    async with app.state.store.pool.acquire() as conn:
+        await conn.execute("UPDATE mf_schemes SET category = 'Other Scheme - Other  ETFs', plan = 'Unspecified', option_class = 'Growth', option_label = 'Growth' "
+                           "WHERE code = $1", code)
+        await conn.execute("DELETE FROM mf_scores WHERE code = $1", code)
+    gold = (await clients(app))["gold"]
+    item = [i for i in (await gold.get(f"/api/mf/scores?codes={code}")).json()["items"] if i["code"] == code][0]
+    assert item["final"] is None and item["notOffered"] is True and item["reason"] == OFFERED
+    one = (await gold.get(f"/api/mf/{code}/score")).json()
+    assert one.get("final") is None and one.get("notOffered") is True
+    async with app.state.store.pool.acquire() as conn:   # the same with AMFI's old IDCW label: still the ETF reason
+        await conn.execute("UPDATE mf_schemes SET plan = 'Regular', option_class = 'IDCW', option_label = 'IDCW' WHERE code = $1", code)
+    item = [i for i in (await gold.get(f"/api/mf/scores?codes={code}")).json()["items"] if i["code"] == code][0]
+    assert item["reason"] == OFFERED and (await gold.get(f"/api/mf/{code}/score")).json().get("notOffered") is True

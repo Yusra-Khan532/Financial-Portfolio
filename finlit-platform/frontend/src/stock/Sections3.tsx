@@ -1,4 +1,6 @@
 import { HScroll } from "../components/HScroll";
+import { DropChev } from "../components/DropChev";
+import { newInfo } from "../lib/reportInfo";
 import { scoreView, usePlanModel, usePlanPrism } from "../lib/planScore";
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router";
@@ -15,8 +17,10 @@ import { Fragment } from "react";
 import { NotMeaningful, ReadingCell, ReadingFilter, ReadingMobileRow, useRatioReadings } from "./RatioReading";
 import { prefetchStock, type Peers, type Ratios, type Segments, type Summary } from "../lib/api";
 import { buckets, metric } from "./derive";
+import { useClassification } from "../lib/taxonomy";
 import { useUI } from "../lib/ui";
 import { SectionHead } from "./Sections";
+import { TabGroup } from "../components/TabGroup";
 import { ProfitabilityRatios } from "./ProfitabilityRatios";
 import { DuPont } from "./DuPont";
 import { EarningsCash, useEarningsFindings } from "./EarningsCash";
@@ -25,6 +29,7 @@ import { PeerRanking } from "./Leadership";
 import { useLeadership } from "../lib/leadership";
 import { ChartZoom } from "../components/ChartZoom";
 import { CoLogo } from "../components/CoLogo";
+import { codeText, coTitle } from "../lib/companyLabel";
 
 const v = (n: string) => `var(${n})`;
 
@@ -52,7 +57,7 @@ function Meter({ m, r, on, onSel }: { m: (typeof METERS)[number]; r: Ratios; on:
   const zc = m.good === "none" ? ["--info", "--info", "--info"] : m.good === "low" ? ["--gain", "--warn", "--loss"] : ["--loss", "--warn", "--gain"];
   return (
     <div className={"mtr" + (on ? " on" : "")} tabIndex={0} onMouseEnter={onSel} onFocus={onSel} style={{ "--mc": v(tone) } as React.CSSProperties}>
-      <div className="mtr-h"><span className="label">{e.label} <Info g={r.glossary[m.key]} /></span><span className="mtr-pill">{m.words[zone]}</span></div>
+      <div className="mtr-h"><span className="label"><LabelI text={e.label}><Info g={r.glossary[m.key]} /></LabelI></span><span className="mtr-pill">{m.words[zone]}</span></div>
       <div className="mtr-v">{fmtUnit(x, e.unit)}<em>{e.period === "latest" ? "" : e.period}</em></div>
       <div className="mtr-bar" role="img" aria-label={`${e.label} ${fmtUnit(x, e.unit)}, ${m.words[zone]}`}>
         <span style={{ left: 0, width: `${a}%`, background: v(zc[0]) }} /><span style={{ left: `${a}%`, width: `${b - a}%`, background: v(zc[1]) }} /><span style={{ left: `${b}%`, width: `${100 - b}%`, background: v(zc[2]) }} />
@@ -63,6 +68,12 @@ function Meter({ m, r, on, onSel }: { m: (typeof METERS)[number]; r: Ratios; on:
 }
 
 /** The change of a ratio in its own unit (+31 days, +0.33 pts, +0.10×): a percent change of a ratio misleads. */
+/** Task #230: a label with its "i" kept on the label's last line, right after the last word, so a narrow card wraps the words and never strands the "i" alone or lays it over the text. */
+export function LabelI({ text, children }: { text: string; children: React.ReactNode }) {
+  const k = text.lastIndexOf(" ");
+  return <>{k > 0 ? text.slice(0, k + 1) : ""}<span className="li-nw">{k > 0 ? text.slice(k + 1) : text}{children}</span></>;
+}
+
 export function ratioChange(unit: string | null | undefined, last: number, prev: number): { text: string; delta: number } {
   const d = last - prev, sg = d > 0 ? "+" : d < 0 ? MINUS : "", a = Math.abs(d);
   return { delta: d, text: unit === "days" ? `${sg}${nf(a, 0)} days` : unit === "x" ? `${sg}${nf(a, 2)}×` : `${sg}${nf(a, 2)} pts` };
@@ -111,7 +122,7 @@ export function HistoryTable({ r, profile }: { r: Ratios; profile?: unknown }) {
           </Fragment>
         );
       })}</tbody>
-    </table>{(hidden > 0 || (all && group === "all" && everyRow.length > HEAD_RATIOS.length + 1)) && <p className="rh-more" style={{ margin: "10px 0 0" }}><button type="button" className="mf-linkbtn" aria-expanded={all} onClick={() => setAll(!all)}>{all ? "Show the main eight" : `Show all ${everyRow.length}`}</button></p>}<p className="faint" style={{ fontSize: 12, margin: "10px 0 0" }}>Green cells are the most favourable years for that ratio, red the weakest. Where "better" depends on the business, cells stay uncoloured. n/m: the figure cannot be read that year (for example a negative base). They describe; they are not a recommendation.</p></HScroll>
+    </table>{(hidden > 0 || (all && group === "all" && everyRow.length > HEAD_RATIOS.length + 1)) && <p className="rh-more" style={{ margin: "10px 0 0" }}><button type="button" className="mf-linkbtn" aria-expanded={all} onClick={() => setAll(!all)}>{all ? "Show the main eight" : `Show all ${everyRow.length}`}</button></p>}<p className="faint" style={{ fontSize: "var(--fs-12)", margin: "10px 0 0" }}>Green cells are the most favourable years for that ratio, red the weakest. Where "better" depends on the business, cells stay uncoloured. n/m: the figure cannot be read that year (for example a negative base). They describe; they are not a recommendation.</p></HScroll>
     </>
   );
 }
@@ -125,15 +136,18 @@ function ValuationHistory({ r }: { r: Ratios }) {
   return (
     <div className="vh">
       <ChartZoom label="Valuation history" className="cz-r">
-      <div className="tools"><div><div className="label" style={{ display: "flex", alignItems: "center", gap: 8 }}>Valuation history<ChartHelp id="valuation-history" /></div><p className="faint" style={{ margin: "4px 0 0", fontSize: 13 }}>How much investors paid over the years</p></div><div className="seg">{(["pe", "pb", "ps"] as const).map((x) => <button key={x} aria-pressed={k === x} onClick={() => setK(x)}>{x === "pe" ? "P/E" : x === "pb" ? "P/B" : "P/S"}</button>)}</div></div>
+      <div className="tools"><div><div className="label" style={{ display: "flex", alignItems: "center", gap: 8 }}>Valuation history<ChartHelp id="valuation-history" /></div><p className="faint" style={{ margin: "4px 0 0", fontSize: "var(--fs-13)" }}>How much investors paid over the years</p></div><div className="seg">{(["pe", "pb", "ps"] as const).map((x) => <button key={x} aria-pressed={k === x} onClick={() => setK(x)}>{x === "pe" ? "P/E" : x === "pb" ? "P/B" : "P/S"}</button>)}</div></div>
+      <LineChart periods={vh.periods} series={[{ key: k, label: name, color: "var(--c4)", values: vals }]} fmt={(x) => nf(x, 1) + "×"} area avg={mean} height={250} />
+      {/* task #328 (developer file 27, change 5): the chart keeps its drawn size (720 × 250); the three figures are rows beside it, In simple words under them */}
+      <div className="vh-side">
       <div className="vh-top">
         <div className="vh-k"><span className="label">{name} in {vh.periods[vh.periods.length - 1]}</span><b>{nf(now, 1)}×</b></div>
         <div className="vh-k"><span className="label">{vh.periods.length}-year average</span><b>{nf(mean, 1)}×</b></div>
         <div className={"vh-k " + (diff > 10 ? "hi" : diff < -10 ? "lo" : "")}><span className="label">Versus its history</span><b>{diff >= 0 ? "▲ " : "▼ "}{nf(Math.abs(diff), 0)}% {diff >= 0 ? "above" : "below"}</b></div>
       </div>
-      <LineChart periods={vh.periods} series={[{ key: k, label: name, color: "var(--c4)", values: vals }]} fmt={(x) => nf(x, 1) + "×"} area avg={mean} height={250} />
-      </ChartZoom>
       <Plain tone={diff > 10 ? "warn" : diff < -10 ? "good" : "info"}>{diff > 10 ? `Investors are paying more than usual for each rupee of ${k === "pe" ? "profit" : k === "pb" ? "book value" : "sales"} — about ${nf(Math.abs(diff), 0)}% above this company's own average.` : diff < -10 ? `Investors are paying less than usual — about ${nf(Math.abs(diff), 0)}% below this company's own average.` : "The price is close to what investors have usually paid for this company."}</Plain>
+      </div>
+      </ChartZoom>
     </div>
   );
 }
@@ -152,11 +166,18 @@ export function RatiosSection({ r, lender = false, sector, industry, labels }: {
       <Plain>Ratios turn big numbers into fair comparisons. The meters below show where each one sits against common rules of thumb. Zones are a starting point: always compare with companies in the same industry.</Plain>
       <div className="mtr-grid">{meters.map((m) => <Meter key={m.key} m={m} r={r} on={cur?.key === m.key} onSel={() => setSel(m.key)} />)}</div>
       {cur && <p className="mtr-say" aria-live="polite"><b>{r.latest[cur.key].label}</b> {cur.say(r.latest[cur.key].value)}</p>}
-      <div className="card acc" style={{ margin: "24px 0 8px", "--ac": "var(--p-profit)" } as React.CSSProperties}>
-        <div className="card-h"><h3><span className="ci"><Icon name="gauge" /></span>Profitability ratios<ChartHelp id="profit-ratios" /></h3><span className="chip ghost">Annual · 8 years</span></div>
-        <ProfitabilityRatios periods={hist.periods} rows={hist.rows as Record<string, (number | null)[]>} />
-      </div>
-      <h3 className="rg-h">All ratios today</h3>
+      {/* task #216 (README 3.9): the meters stay above; the rest is one tab group with the Key view badge. Task #222 (owner, 18 Nov: "in 09 swap 1st and 3rd tabs - bring ratio history to the front"): it opens on Ratio history */}
+      <TabGroup label="Ratios" variant="key" hint="Ratio history shown here" views={[
+        { key: "history", label: "Ratio history", content: <>
+      <Gate tier="gold" title="Detailed ratio analysis" points={["Every ratio with its history", "Quality, growth, solvency and efficiency", "Full multi-year table"]}>
+        <div className="card acc" style={{ marginTop: 16, "--ac": "var(--p-profit)" } as React.CSSProperties}>
+          <div className="card-h"><h3><span className="ci"><Icon name="table" /></span>Ratio history<ChartHelp id="ratio-history" /></h3><TierChip tier="gold" /></div>
+          <HistoryTable r={r} profile={{ sector, industry, subIndustry: labels?.[2] }} />
+          <ValuationHistory r={r} />
+        </div>
+      </Gate>
+        </> },
+        { key: "today", label: "All ratios today", content: <>
       <div className="grid g3">
         {r.groups.filter((g) => g.keys.length).map((g) => {
           const keys = g.keys.filter((k) => !(DUPES[k] && r.latest[DUPES[k]]));
@@ -168,7 +189,7 @@ export function RatiosSection({ r, lender = false, sector, industry, labels }: {
               {rows.map((k) => {
                 const e = r.latest[k], gl = r.glossary[k];
                 return (
-                  <div className="mrow" key={k}><span className="k"><i className={"bttr " + (e.better || "")} title={e.better ? `${e.better === "higher" ? "Higher" : "Lower"} is usually better` : ""}>{e.better === "higher" ? "▲" : e.better === "lower" ? "▼" : "•"}</i>{e.label} <Info g={gl} /></span><span className="v">{fmtUnit(e.value, e.unit)}<span className="unit" style={{ marginLeft: 6, fontSize: 11 }}>{e.period === "latest" ? "" : e.period}</span></span></div>
+                  <div className="mrow" key={k}><span className="k"><i className={"bttr " + (e.better || "")} title={e.better ? `${e.better === "higher" ? "Higher" : "Lower"} is usually better` : ""}>{e.better === "higher" ? "▲" : e.better === "lower" ? "▼" : "•"}</i>{e.label} <Info g={gl} /></span><span className="v">{fmtUnit(e.value, e.unit)}<span className="unit" style={{ marginLeft: 6, fontSize: "var(--fs-12)" }}>{e.period === "latest" ? "" : e.period}</span></span></div>
                 );
               })}
               {gold && keys.length > 2 && <div className="more-gold" role="button" tabIndex={0} onClick={() => upgrade("gold", "Detailed ratio analysis is a Gold feature.")} onKeyDown={(e) => e.key === "Enter" && upgrade("gold", "Detailed ratio analysis is a Gold feature.")}><Icon name="crown" /><span><b>+{keys.length - 2} more ratios</b> in detailed ratio analysis · Gold</span></div>}
@@ -176,19 +197,20 @@ export function RatiosSection({ r, lender = false, sector, industry, labels }: {
           );
         })}
       </div>
-      <p className="faint" style={{ fontSize: 12, margin: "10px 2px 0" }}>▲ higher is usually better · ▼ lower is usually better</p>
-      <Gate tier="gold" title="Detailed ratio analysis" points={["Every ratio with its history", "Quality, growth, solvency and efficiency", "Full multi-year table"]}>
-        <div className="card acc" style={{ marginTop: 16, "--ac": "var(--p-profit)" } as React.CSSProperties}>
-          <div className="card-h"><h3><span className="ci"><Icon name="table" /></span>Ratio history<ChartHelp id="ratio-history" /></h3><TierChip tier="gold" /></div>
-          <HistoryTable r={r} profile={{ sector, industry, subIndustry: labels?.[2] }} />
-          <ValuationHistory r={r} />
-        </div>
-      </Gate>
+      <p className="faint" style={{ fontSize: "var(--fs-12)", margin: "10px 2px 0" }}>▲ higher is usually better · ▼ lower is usually better</p>
+        </> },
+        { key: "profit", label: "Profitability ratios", content: <>
+      <div className="card acc" style={{ margin: "0 0 8px", "--ac": "var(--p-profit)" } as React.CSSProperties}>
+        <div className="card-h"><h3><span className="ci"><Icon name="gauge" /></span>Profitability ratios<ChartHelp id="profit-ratios" /></h3><span className="chip ghost">Annual · 8 years</span></div>
+        <ProfitabilityRatios periods={hist.periods} rows={hist.rows as Record<string, (number | null)[]>} />
+      </div>
+        </> },
+      ]} />
     </section>
       <DuPont symbol={r.meta.symbol} lender={lender}
         head={<SectionHead id="dupont" no="10 · DuPont analysis" icon="layers" tier="basic" title="What drives return on equity" sub="ROE split into profit margin, asset turnover and leverage, then cleaned of one-off items and split further." color="--p-quality" />} />
       <section className="block" style={{ "--sc": "var(--p-profit)" } as React.CSSProperties}>
-        <SectionHead id="earnings" no="11 · Earnings & cash quality" icon="shield" tier="gold" title="Is the profit real, and is it turning into cash?" sub="Profit against cash, collections and stock, and one-off items." color="--p-profit" aside={ef ? <span className="sh-counts">{ef.red} red flag{ef.red === 1 ? "" : "s"} · {ef.watch} to watch · {ef.investigate} to investigate</span> : undefined} />
+        <SectionHead id="earnings" no="11 · Earnings & cash quality" icon="shield" tier="gold" title="Is the profit real, and is it turning into cash?" sub="Profit against cash, collections and stock, and one-off items." color="--p-profit" counts={ef ? [{ n: ef.red, label: ef.red === 1 ? "red flag" : "red flags", tone: "red" }, { n: ef.watch, label: "to watch", tone: "amb" }, { n: ef.investigate, label: "to investigate", tone: "amb" }] : undefined} />
         <EarningsCash symbol={r.meta.symbol} lender={lender} sector={sector} industry={industry} labels={labels} />
       </section>
     </>
@@ -202,17 +224,18 @@ const hue = (s: string) => HUES[[...s].reduce((a, c) => (a * 31 + c.charCodeAt(0
 export function PeersSection({ p, self, s }: { p?: Peers; self: string; s: Summary }) {
   const nav = useNavigate(); const qc = useQueryClient();
   const lead = useLeadership(self).data;
+  const cls = useClassification(self).data;
   const [hv, setHv] = useState<string | null>(null);
   const items = (p?.items || p?.symbols.map((x) => ({ symbol: x, name: null })) || []) as NonNullable<Peers["items"]>;
   const peers = items.filter((i) => i.symbol !== self);
-  // task #100: the score column is the plan's model: FinLit Prism for Gold, the FinLit IQ for Silver
+  // task #283: the score is FinLit Prism, for plans that have it; other plans see no score
   const model = usePlanModel();
   const pm = usePlanPrism(useMemo(() => [self, ...items.map((i) => i.symbol)], [self, items]), model);
-  const sc = (sym: string, iq: number | null | undefined) => { if (model !== "prism") return iq ?? null; const v = scoreView("prism", { score: null }, pm[sym]); return v.score; };
-  const scName = model === "prism" ? "Prism" : "FinLit IQ";
+  const sc = (sym: string) => (model === "prism" ? scoreView(pm[sym]).score : null);
+  const scName = "Prism";
   if (!p || !peers.length) return null;
-  const me = { score: sc(self, s.score.overall), mcap: s.profile.marketCapCr, pe: metric(s, "pe")?.value ?? null, roe: metric(s, "roe")?.value ?? null };
-  const hasData = peers.some((i) => sc(i.symbol, i.overall) != null || i.market_cap != null || i.pe != null);
+  const me = { score: sc(self), mcap: s.profile.marketCapCr, pe: metric(s, "pe")?.value ?? null, roe: metric(s, "roe")?.value ?? null };
+  const hasData = peers.some((i) => sc(i.symbol) != null || i.market_cap != null || i.pe != null);
   const maxCap = Math.max(me.mcap || 0, ...peers.map((i) => i.market_cap || 0), 1);
   const rad = (cap: number | null | undefined) => (cap ? 20 + 18 * Math.sqrt(cap / maxCap) : 26);
   const go = (sym: string) => nav(`/stocks/${sym}`);
@@ -221,7 +244,7 @@ export function PeersSection({ p, self, s }: { p?: Peers; self: string; s: Summa
   return (
     <section className="block" style={{ "--sc": "var(--gold-deep)" } as React.CSSProperties}>
       <SectionHead id="peers" no="13 · Peers" icon="layers" tier="basic" title={`How ${s.profile.name.split(" ")[0]} compares with its peers`} sub="Select a company to open its report." color="--gold-deep" />
-      <Plain>Comparing a company with its closest rivals is the quickest way to tell whether a number is good or just normal for the industry. {s.profile.sector ? `These ${N} companies work in ${s.profile.sector}.` : ""}</Plain>
+      <Plain>Comparing a company with its closest rivals is the quickest way to tell whether a number is good or just normal for the industry. {cls?.industry ? `${s.profile.name.split(" ")[0]} is in NSE's ${cls.industry} industry${cls.basic_industry ? ` (basic industry: ${cls.basic_industry})` : ""}; these ${N} are the companies the data provider lists as its peers.` : ""}</Plain>
       <div className="pr2">
         <div className="card acc orbit-card" style={{ "--ac": "var(--gold)" } as React.CSSProperties}>
           <ChartZoom label="Peer map: companies in the same industry">
@@ -236,23 +259,23 @@ export function PeersSection({ p, self, s }: { p?: Peers; self: string; s: Summa
                   <line x1={CX} y1={CY} x2={x} y2={y} stroke={c} strokeWidth={on ? 2.4 : 1.2} strokeOpacity={on ? 0.9 : 0.35} strokeDasharray={on ? "" : "4 5"} />
                   <g className="orb-n" tabIndex={0} role="link" aria-label={`Open ${i.name || i.symbol} (${i.symbol})`} transform={`translate(${x} ${y})`} onMouseEnter={() => { setHv(i.symbol); prefetchStock(qc, i.symbol, 150); }} onMouseLeave={() => setHv(null)} onFocus={() => setHv(i.symbol)} onBlur={() => setHv(null)} onClick={() => go(i.symbol)} onKeyDown={(e) => e.key === "Enter" && go(i.symbol)} style={{ cursor: "pointer" }}>
                     <circle r={r + 8} fill={c} opacity={on ? 0.28 : 0.12} /><circle r={r} fill={`color-mix(in srgb, ${c} 30%, var(--s1))`} stroke={c} strokeWidth={on ? 3 : 2} />
-                    <text textAnchor="middle" dy=".35em" fontSize={11} fontWeight="700" fontFamily="IBM Plex Mono, monospace" fill="var(--text)">{i.symbol.length > (r > 28 ? 7 : 5) ? i.symbol.slice(0, r > 28 ? 6 : 4) + "…" : i.symbol}</text>
+                    <text textAnchor="middle" dy=".35em" fontSize={11} fontWeight="700" fontFamily="Inter Variable, Inter, monospace" fill="var(--text)">{i.symbol.length > (r > 28 ? 7 : 5) ? i.symbol.slice(0, r > 28 ? 6 : 4) + "…" : i.symbol}</text>
                   </g>
                 </g>
               ); })}
-            <g transform={`translate(${CX} ${CY})`}><circle r="58" fill="var(--gold)" opacity=".16" /><circle r="46" fill="url(#orbg)" /><text textAnchor="middle" dy="-.15em" fontSize="12" fontWeight="700" fill="#2a1c00" fontFamily="IBM Plex Mono, monospace">{self}</text><text textAnchor="middle" dy="1.5em" fontSize="11" fill="#2a1c00" opacity=".75">THIS COMPANY</text></g>
+            <g transform={`translate(${CX} ${CY})`}><circle r="58" fill="var(--gold)" opacity=".16" /><circle r="46" fill="url(#orbg)" /><text textAnchor="middle" dy="-.15em" fontSize="12" fontWeight="700" fill="#2a1c00" fontFamily="Inter Variable, Inter, monospace">{self}</text><text textAnchor="middle" dy="1.5em" fontSize="11" fill="#2a1c00" opacity=".75">THIS COMPANY</text></g>
           </svg>
           <p className="orb-cap">{hov ? <><b>{hov.name || hov.symbol}</b> · click to open its report</> : hasData ? "Bubble size shows market value. Hover or click a company." : "Hover or click a company to open its report."}</p>
           </ChartZoom>
         </div>
         <div className="pr-list">
-          <div className="pr-row me"><CoLogo symbol={s.profile.symbol} name={s.profile.name} size={32} /><span className="pr-nm"><b>{s.profile.name}</b><span className="tk">{self} · this company</span></span>
-            <span className="pr-st"><span>{scName}</span><b>{me.score ?? "—"}</b></span><span className="pr-st"><span>P/E</span><b>{me.pe != null ? nf(me.pe, 1) + "×" : "—"}</b></span><span className="pr-st"><span>ROE</span><b>{me.roe != null ? nf(me.roe, 1) + "%" : "—"}</b></span><span className="pr-st"><span>Cap</span><b>{me.mcap ? "₹" + cr(me.mcap) : "—"}</b></span></div>
+          <div className="pr-row me"><CoLogo symbol={s.profile.symbol} name={s.profile.name} size={32} /><span className="pr-nm"><b>{s.profile.name}</b><span className="tk">{codeText(self)} · this company</span></span>
+            {model && <span className="pr-st"><span>{scName}</span><b>{me.score ?? "—"}</b></span>}<span className="pr-st"><span>P/E</span><b>{me.pe != null ? nf(me.pe, 1) + "×" : "—"}</b></span><span className="pr-st"><span>ROE</span><b>{me.roe != null ? nf(me.roe, 1) + "%" : "—"}</b></span><span className="pr-st"><span>Cap</span><b>{me.mcap ? "₹" + cr(me.mcap) : "—"}</b></span></div>
           {peers.map((i) => { const c = hue(i.symbol); return (
             <a key={i.symbol} className={"pr-row" + (hv === i.symbol ? " hot" : "")} href={`/stocks/${i.symbol}`} style={{ "--pc": c } as React.CSSProperties} onMouseEnter={() => { setHv(i.symbol); prefetchStock(qc, i.symbol, 150); }} onMouseLeave={() => setHv(null)} onClick={(e) => { e.preventDefault(); go(i.symbol); }}>
               <CoLogo symbol={i.symbol} name={i.name} size={32} />
-              <span className="pr-nm"><b>{i.name || i.symbol}</b><span className="tk">{i.symbol}</span></span>
-              {hasData ? <><span className="pr-st"><span>{scName}</span><b>{sc(i.symbol, i.overall) ?? "—"}</b></span><span className="pr-st"><span>P/E</span><b>{i.pe != null ? nf(i.pe, 1) + "×" : "—"}</b></span><span className="pr-st"><span>ROE</span><b>{i.roe != null ? nf(i.roe, 1) + "%" : "—"}</b></span><span className="pr-st"><span>Cap</span><b>{i.market_cap ? "₹" + cr(i.market_cap) : "—"}</b></span></> : <span className="pr-go">Open report <Icon name="arrow" /></span>}
+              <span className="pr-nm"><b title={coTitle(i)}>{i.name || i.symbol}</b><span className="tk">{codeText(i.symbol)}</span></span>
+              {hasData ? <>{model && <span className="pr-st"><span>{scName}</span><b>{sc(i.symbol) ?? "—"}</b></span>}<span className="pr-st"><span>P/E</span><b>{i.pe != null ? nf(i.pe, 1) + "×" : "—"}</b></span><span className="pr-st"><span>ROE</span><b>{i.roe != null ? nf(i.roe, 1) + "%" : "—"}</b></span><span className="pr-st"><span>Cap</span><b>{i.market_cap ? "₹" + cr(i.market_cap) : "—"}</b></span></> : <span className="pr-go">Open report <Icon name="arrow" /></span>}
             </a>); })}
         </div>
       </div>
@@ -263,8 +286,9 @@ export function PeersSection({ p, self, s }: { p?: Peers; self: string; s: Summa
 
 /* ================= Gold insights ================= */
 const SPEC: Record<string, { stops: string[]; at: (val: string) => number; say: (val: string) => string }> = {
-  Size: { stops: ["Small", "Mid", "Large"], at: (x) => (/Large/.test(x) ? 2.5 : /Mid/.test(x) ? 1.5 : 0.5), say: (x) => (/Large/.test(x) ? "A big, established company" : /Mid/.test(x) ? "A mid-sized company with room to grow" : "A smaller company; can move faster, with more risk") },
-  Style: { stops: ["Value", "Blend", "Growth"], at: (x) => (/Premium/.test(x) ? 2.5 : /Value/.test(x) ? 0.5 : 1.5), say: (x) => (/Premium/.test(x) ? "The market pays a high price for its growth" : /Value/.test(x) ? "Priced low against what it earns" : "Neither cheap nor expensive") },
+  // the four sizes (task #262), smallest to largest along the bar
+  Size: { stops: ["Micro", "Small", "Mid", "Large"], at: (x) => (/Large/.test(x) ? 3.5 : /Mid/.test(x) ? 2.5 : /Micro/.test(x) ? 0.5 : 1.5), say: (x) => (/Large/.test(x) ? "A big, established company" : /Mid/.test(x) ? "A mid-sized company with room to grow" : /Micro/.test(x) ? "A very small company; can move faster, with more risk" : "A smaller company; can move faster, with more risk") },
+  Style: { stops: ["Value", "Blend", "Growth"], at: (x) => (/Premium/.test(x) ? 2.5 : /Value/.test(x) ? 0.5 : 1.5), say: (x) => (/Premium/.test(x) ? "The market pays a high price for its growth" : /Value/.test(x) ? "Priced low against what it earns" : "Between the value and growth groups") },   // task #328 (file 27, C): no cheap or expensive
   Income: { stops: ["Low", "Moderate", "High"], at: (x) => (/High/.test(x) ? 2.5 : /Moderate/.test(x) ? 1.5 : 0.5), say: (x) => (/High/.test(x) ? "Pays out a large share as dividends" : /Moderate/.test(x) ? "Pays a steady dividend" : "Pays little; keeps cash for growth") },
   Momentum: { stops: ["Oversold", "Neutral", "Overbought"], at: (x) => (/Oversold/.test(x) ? 0.5 : /Overbought/.test(x) ? 2.5 : 1.5), say: (x) => (/Oversold/.test(x) ? "Sold off heavily lately" : /Overbought/.test(x) ? "Bought heavily lately" : "No extreme in recent price moves") },
 };
@@ -273,6 +297,8 @@ const WHY: Record<string, [string, string]> = {
   profit_cagr: ["Profit growing slower than sales means costs are eating into margins.", "Watch the profit margin in the next two quarters."],
   current_ratio: ["Short-term bills slightly exceed short-term assets, so cash management matters.", "Watch operating cash flow and short-term borrowings."],
   rsi14: ["Heavy selling can mean fear, or a chance if the business is sound.", "Watch for the price to stop falling before drawing conclusions."],
+  // task #328 (developer file 27, C): the overbought trigger ("Heavy recent buying") has its own two lines; it shared the oversold ones
+  rsi14_high: ["Heavy recent buying has lifted the price fast: an RSI above 70 means recent gains far outweigh recent losses.", "Watch whether RSI eases back below 70 and how the price holds against its 50-day average."],
   vsEma200Pct: ["Trading below its long-term average signals a weak longer trend.", "Watch whether the price reclaims its 200-day average."],
   cfo_to_pat: ["Profit is turning into real cash, which makes earnings more trustworthy.", "Watch that cash flow stays above reported profit."],
   debt_to_equity: ["Low borrowing leaves room to handle a bad year or fund growth.", "Watch if debt rises faster than profit."],
@@ -280,12 +306,13 @@ const WHY: Record<string, [string, string]> = {
 };
 
 export function InsightsSection({ s, r, tech }: { s: Summary; r?: Ratios; tech?: { rsi14: number | null } }) {
-  const b = useMemo(() => buckets(s, r, tech), [s, r, tech]);
+  const cls = useClassification(s.profile.symbol).data;
+  const b = useMemo(() => buckets(s, r, tech, cls), [s, r, tech, cls]);
   const trig = [...s.watchouts.slice(0, 3).map((n) => ({ ...n, kind: "watch" as const })), ...s.strengths.slice(0, 3).map((n) => ({ ...n, kind: "good" as const }))];
   const spec = b.filter(([, k]) => SPEC[k]), plain = b.filter(([, k]) => !SPEC[k]);
   return (
     <section className="block" style={{ "--sc": "var(--t-gold)" } as React.CSSProperties}>
-      <SectionHead id="insights" no="14 · Gold insights" icon="crown" tier="gold" title={`Triggers to watch and where ${s.profile.name.split(" ")[0]} fits`} sub="Where this company sits in FinLit's stock buckets, and what to watch next." color="--t-gold" />
+      <SectionHead id="insights" no="15 · Gold insights" icon="crown" tier="gold" title={`Triggers to watch and where ${s.profile.name.split(" ")[0]} fits`} sub="Where this company sits in FinLit's stock buckets, and what to watch next." color="--t-gold" />
       <Plain>Buckets tell you what kind of company this is, and where it sits on each scale. Triggers are the specific things most worth watching next.</Plain>
       <p className="faint" style={{ margin: "0 0 14px" }}><Link to={`/outlook/${encodeURIComponent(s.profile.symbol)}`}>Profit and revenue forecasting, from this company's own history (Gold) →</Link></p>
       <Gate tier="gold" title="Unlock Gold insights" points={["Stock bucketing by size, style and theme", "Key triggers and sector benchmarking"]}>
@@ -293,23 +320,23 @@ export function InsightsSection({ s, r, tech }: { s: Summary; r?: Ratios; tech?:
           const sp = SPEC[k], pos = ((sp.at(val)) / sp.stops.length) * 100;
           return (
             <div className="spc" key={k} style={{ "--bc": v(c), animationDelay: `${i * 80}ms` } as React.CSSProperties}>
-              <div className="spc-h"><span className="bk-i"><Icon name={ic} /></span><div><span className="label">{k}</span><b>{val}</b></div></div>
+              <div className="spc-h"><span className="bk-i"><Icon name={ic} /></span><div><span className="label">{k}<Info g={newInfo(k)} /></span><b>{val}</b></div></div>
               <div className="spc-bar"><span>{sp.stops.map((t) => <em key={t}>{t}</em>)}</span><div className="spc-t"><i style={{ left: `${pos}%` }} /></div></div>
               <p>{sp.say(val)}</p>
             </div>
           );
         })}
-          {plain.length > 0 && <div className="spc tags"><span className="label">Where it fits</span><div>{plain.map(([ic, k, val, c]) => <span className="tagc" key={k} style={{ "--bc": v(c) } as React.CSSProperties}><Icon name={ic} /><small>{k}</small><b>{val}</b></span>)}</div></div>}
+          {plain.length > 0 && <div className="spc tags"><span className="label">Where it fits<Info g={newInfo("Where it fits")} /></span><div>{plain.map(([ic, k, val, c]) => <span className="tagc" key={k} style={{ "--bc": v(c) } as React.CSSProperties}><Icon name={ic} /><small>{k}</small><b>{val}</b></span>)}</div></div>}
         </div>
         <div className="card acc" style={{ "--ac": "var(--t-gold)", marginTop: 16 } as React.CSSProperties}>
-          <div className="card-h"><h3><span className="ci"><Icon name="alert" /></span>Key triggers to watch</h3><span className="s">{s.watchouts.length} worries · {s.strengths.length} strengths</span></div>
+          <div className="card-h"><h3><span className="ci"><Icon name="alert" /></span>Key triggers to watch</h3><span className="s">{s.watchouts.length} worries · {s.strengths.length} strengths · <a href="#notes" className="trg-03" onClick={(e) => { const el = document.getElementById("notes"); if (el) { e.preventDefault(); el.scrollIntoView({ behavior: "smooth", block: "start" }); } }}>Full findings in 03 ↑</a></span></div>
           <div className="trg-bal"><span style={{ flex: s.watchouts.length || 0.2, background: "var(--warn)" }} /><span style={{ flex: s.strengths.length || 0.2, background: "var(--gain)" }} /></div>
           <div className="trg-cols">
             {([["watch", "Worries", "alert"], ["good", "Strengths", "check"]] as const).map(([kind, title]) => (
               <div key={kind}><div className={"trg-colh " + kind}>{title}<span>{trig.filter((n) => n.kind === kind).length}</span></div>
-                <ul className="trg2">{trig.filter((n) => n.kind === kind).map((n) => { const w = WHY[n.key]; return (
-                  <li key={n.key} className={n.kind}><div className="trg2-h"><span className="trg-i"><Icon name={n.kind === "watch" ? "alert" : "check"} /></span><b>{n.title}</b></div><p>{n.text}</p>
-                    {w && <div className="trg2-w"><span><small>Why it matters</small>{w[0]}</span><span><small>What to watch</small>{w[1]}</span></div>}</li>
+                <ul className="trg2">{trig.filter((n) => n.kind === kind).map((n) => { const w = WHY[n.key === "rsi14" && /buying|overbought/i.test(`${n.title} ${n.text ?? ""}`) ? "rsi14_high" : n.key]; return (
+                  <li key={n.key} className={n.kind}><div className="trg2-h"><span className="trg-i"><Icon name={n.kind === "watch" ? "alert" : "check"} /></span><b>{n.title}</b></div>
+                    {w && <details className="trg2-dd xdd"><summary>Why it matters, and what to watch<DropChev /></summary><div className="trg2-w"><span><small>Why it matters</small>{w[0]}</span><span><small>What to watch</small>{w[1]}</span></div></details>}</li>
                 ); })}{!trig.some((n) => n.kind === kind) && <li className={kind}><p>Nothing stands out.</p></li>}</ul></div>
             ))}
           </div>
@@ -323,7 +350,7 @@ export function InsightsSection({ s, r, tech }: { s: Summary; r?: Ratios; tech?:
 export function SegmentsSection({ seg }: { seg?: Segments }) {
   return (
     <section className="block" style={{ "--sc": "var(--p-profit)" } as React.CSSProperties}>
-      <SectionHead id="segments" no="15 · Segments" icon="pie" tier="gold" title="Where the revenue comes from" sub="Each business segment's share of revenue, its growth and its profit, year by year." color="--p-profit" />
+      <SectionHead id="segments" no="16 · Segments" icon="pie" tier="gold" title="Where the revenue comes from" sub="Each business segment's share of revenue, its growth and its profit, year by year." color="--p-profit" />
       <Gate tier="gold" title="Unlock revenue segmentation" points={["Revenue by business segment, year by year", "Each segment's share, growth and profit", "How dependent the company is on one segment"]}>
         <SegmentCard seg={seg} />
       </Gate>

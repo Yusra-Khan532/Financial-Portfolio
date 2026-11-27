@@ -545,6 +545,18 @@ async def cached(app, key: str, fresh: Callable[[float], bool], fetch: Callable[
         mine = bool(await redis.set(lock, b"1", nx=True, ex=40))
     except Exception:
         mine = True
+    if mine:   # the answer may have been stored between our first read and taking the lock (another request just finished): use it, ask nobody
+        try:
+            raw = await redis.get(key)
+            cur = json.loads(raw) if raw else None
+        except Exception:
+            cur = None
+        if cur and fresh(cur["t"]):
+            try:
+                await redis.delete(lock)
+            except Exception:
+                pass
+            return cur, "fresh"
     if entry and not wait_if_stale:
         if mine:
             spawn(refresh())
@@ -566,6 +578,11 @@ async def cached(app, key: str, fresh: Callable[[float], bool], fetch: Callable[
             if cur and cur["t"] > since:
                 return cur, "fresh"
             if not await redis.exists(lock):
+                # the other request may have stored its answer and let go of the lock between our read and this check: read once more
+                raw = await redis.get(key)
+                cur = json.loads(raw) if raw else None
+                if cur and cur["t"] > since:
+                    return cur, "fresh"
                 break
         except Exception:
             break
@@ -610,8 +627,23 @@ def _busy(e: Busy) -> Response:
                   "retryAfter": secs}, 503, {"Retry-After": str(secs)})
 
 
+async def lab_member_ctx(request: Request, ctx: Ctx = Depends(secure_ctx)) -> Ctx:
+    """Trading Lab > Option Pulse: members an administrator gave Lab access (lab.access), whatever their plan. Same chain, cache and Dhan pacing."""
+    from .lab.access import lab_ctx
+    return await lab_ctx(request, ctx)
+
+
 @router.get("/underlyings")
 async def underlyings(request: Request, _ctx: Ctx = Depends(gold_ctx)):
+    return await _underlyings(request)
+
+
+@router.get("/lab/underlyings")
+async def lab_underlyings(request: Request, _ctx: Ctx = Depends(lab_member_ctx)):
+    return await _underlyings(request)
+
+
+async def _underlyings(request: Request):
     stocks = await stock_underlyings(request.app.state.store)
     return _json({"indices": [{**_public({**i, "kind": "index"})} for i in INDICES], "stocks": stocks,
                   "connected": _client(request.app).configured})
@@ -619,6 +651,15 @@ async def underlyings(request: Request, _ctx: Ctx = Depends(gold_ctx)):
 
 @router.get("/expiries")
 async def expiries(request: Request, u: str = Query(..., max_length=24), _ctx: Ctx = Depends(gold_ctx)):
+    return await _expiries_route(request, u)
+
+
+@router.get("/lab/expiries")
+async def lab_expiries(request: Request, u: str = Query(..., max_length=24), _ctx: Ctx = Depends(lab_member_ctx)):
+    return await _expiries_route(request, u)
+
+
+async def _expiries_route(request: Request, u: str):
     app = request.app
     und = await resolve(app.state.store, u)
     _connected(app)
@@ -636,6 +677,15 @@ async def expiries(request: Request, u: str = Query(..., max_length=24), _ctx: C
 
 @router.get("/chain")
 async def chain(request: Request, u: str = Query(..., max_length=24), expiry: str = Query(..., max_length=10), _ctx: Ctx = Depends(gold_ctx)):
+    return await _chain(request, u, expiry)
+
+
+@router.get("/lab/chain")
+async def lab_chain(request: Request, u: str = Query(..., max_length=24), expiry: str = Query(..., max_length=10), _ctx: Ctx = Depends(lab_member_ctx)):
+    return await _chain(request, u, expiry)
+
+
+async def _chain(request: Request, u: str, expiry: str):
     app = request.app
     store = app.state.store
     if not EXPIRY.match(expiry):

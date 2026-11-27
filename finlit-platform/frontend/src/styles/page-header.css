@@ -1,54 +1,79 @@
-/* Page header (components/PageHeader.tsx). One look for every feature page: plan badge, serif title, short description, quick links, key figures, a line illustration.
+/* Page header (components/PageHeader.tsx). One look for every feature page: serif title with the plan badge beside it, a one-line description, quick links.
    Class prefix ph- is owned by this file. Only theme tokens: neutral surfaces, hairline borders, the single gold accent. Light and dark follow the tokens. */
 .ph-wrap { padding-top: 18px; }
-.ph { --ph-on: var(--on-gold); position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px 32px; align-items: center; padding: 24px 28px; margin: 0 0 16px; background: var(--s1); border: 1px solid var(--border); border-radius: 18px; color: var(--text); }
+.ph { --ph-on: var(--on-gold); position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px 24px; align-items: center; padding: 14px 18px 16px; margin: 12px 0 16px; color: var(--text); }
+/* section.ph.card outranks the page-scoped card padding (".mf .card", ".ssw .card", ".ol .card", ".dcf .card", ".oc .card": 20px 22px or 18px 20px) */
+section.ph.card { padding: 14px 18px 16px; }
+/* Founder, 22 Nov 2026: the header is back in a box. It carries the shared class "card" (frame, corners, surface and shadow in light and dark, from the theme), with
+   the padding of the Equity portfolio header (.eqx-top, portfolio/pack/eq-top.css). The title is ui-title (Serif 32px/500, 28px on a phone) or ui-title--read for
+   the long reads (components/ui, ui.css). Task #310 had made it open (no card). */
 :root[data-theme="light"] .ph { --ph-on: #FFFDF6; }
 .ph-solo { grid-template-columns: minmax(0, 1fr); }
-.ph-main { min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
-.ph-back { font: 600 13px var(--sans); color: var(--muted); } .ph-back a { color: var(--gold); text-underline-offset: 3px; }
+.ph-main { min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.ph-back { font: 600 var(--fs-13) var(--sans); color: var(--muted); } .ph-back a { color: var(--gold); text-underline-offset: 3px; }
 .ph-top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.ph-plan { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px 0 8px; border-radius: 999px; border: 1px solid var(--border-strong); background: var(--s2); color: var(--muted); font: 700 11px var(--sans); letter-spacing: .1em; text-transform: uppercase; white-space: nowrap; }
+.ph-plan { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px 0 8px; border-radius: var(--ui-r-pill); border: 1px solid var(--border-strong); background: var(--s2); color: var(--muted); font: 700 var(--fs-12) var(--sans); letter-spacing: .1em; text-transform: uppercase; white-space: nowrap; }
 .ph-plan svg { width: 13px; height: 13px; flex: none; }
 .ph-plan.gold { background: var(--gold-soft); border-color: color-mix(in srgb, var(--gold) 55%, transparent); color: var(--gold); }
-.ph-eyebrow { font: 700 11px var(--sans); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
-.ph-titlerow { align-self: stretch; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 10px 14px; } .ph-titlerow > .ph-title { flex: 1 1 260px; min-width: 0; }
-.ph-title { margin: 0; font: 500 var(--fs-page-title)/1.12 var(--serif); letter-spacing: -.01em; text-wrap: balance; overflow-wrap: anywhere; }
-.ph-desc { margin: 0; max-width: 64ch; color: var(--muted); font-size: var(--fs-16); line-height: 1.55; }
-.ph-desc b, .ph-desc strong { color: var(--text); font-weight: 650; }
+.ph-eyebrow { font: 700 var(--fs-12) var(--sans); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.ph-titlerow { align-self: stretch; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 10px 14px; } .ph-titlerow > :is(.ph-title, .ph-tline) { flex: 1 1 260px; min-width: 0; }
+/* the plan badge beside the title (it wraps under a long title on a phone) */
+.ph-tline { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; min-width: 0; } .ph-tline .ph-plan { flex: none; }
+.ph-title { margin: 0; letter-spacing: -.01em; text-wrap: balance; overflow-wrap: anywhere; }
+.ph-desc { margin: 0; color: var(--muted); font-size: var(--fs-16); line-height: 1.5; }
+/* one line on a desktop (founder, 22 Nov 2026); .ph .ph-desc outranks the site's ".card p { max-width: 68ch }" (premium.css) */
+.ph .ph-desc, .ph .ph-meta { max-width: 104ch; }
+.ph-desc b, .ph-desc strong { color: var(--text); font-weight: 600; }
 .ph-desc a { color: var(--gold); text-underline-offset: 3px; }
-.ph-meta { margin: 0; color: var(--faint); font-size: 13px; }
-.ph-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin-top: 4px; }
-.ph-lk, .ph-learn, .ph-qbtn { display: inline-flex; align-items: center; gap: 6px; min-height: 38px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--border-strong); background: var(--s1); color: var(--text); font: 600 14px var(--sans); text-decoration: none; cursor: pointer; transition: border-color .15s, background .15s; }
-.ph-lk:hover, .ph-learn:hover, .ph-qbtn:hover { border-color: var(--gold); background: var(--s2); }
+.ph-meta { margin: 0; color: var(--faint); font-size: var(--fs-13); line-height: 1.45; }
+.ph-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin-top: 2px; }
+.ph-learn, .ph-qbtn { display: inline-flex; align-items: center; gap: 6px; min-height: 38px; padding: 0 14px; border-radius: var(--ui-r-pill); border: 1px solid var(--border-strong); background: var(--s1); color: var(--text); font: 600 var(--fs-14) var(--sans); text-decoration: none; cursor: pointer; transition: border-color .15s, background .15s; }
+.ph-learn:hover, .ph-qbtn:hover { border-color: var(--gold); background: var(--s2); }
 .ph-lk svg, .ph-learn svg, .ph-qbtn svg { width: 15px; height: 15px; flex: none; }
-.ph-lk.primary { background: var(--gold); border-color: var(--gold); color: var(--ph-on); }
-.ph-lk.primary:hover { background: var(--gold-2); border-color: var(--gold-2); color: #1A1405; }
+/* Task #310: the quick links ("Fund Screener →") are the shared second button, ui-btn ui-btn--secondary ui-btn--sm (components/ui), all alike; the gold pill for the
+   "primary" one is gone (gold means Prism and the Gold plan). */
 .ph-learn { background: transparent; color: var(--muted); } .ph-learn:hover { color: var(--text); }
 /* "Raise a Query" (components/PageFeedback.tsx): the same button as the others, with a gold edge so it is easy to find */
 .ph-qbtn { border-color: var(--gold); }
 .ph-side { display: flex; flex-direction: column; align-items: stretch; gap: 14px; width: min(340px, 36vw); min-width: 0; }
 .ph-stats { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
-.ph-stat { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--border); background: var(--s2); }
-.ph-si { flex: none; display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 9px; border: 1px solid var(--border-strong); color: var(--gold); }
+.ph-stat { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 10px 12px; border-radius: var(--r-ctl); border: 1px solid var(--border); background: var(--s2); }
+.ph-si { flex: none; display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: var(--r-ctl); border: 1px solid var(--border-strong); color: var(--gold); }
 .ph-si svg { width: 16px; height: 16px; }
-.ph-sv { min-width: 0; display: grid; } .ph-sv b { font: 650 18px/1.15 var(--sans); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; } .ph-sv small { color: var(--muted); font-size: 12px; }
+.ph-sv { min-width: 0; display: grid; } .ph-sv b { font: 600 var(--fs-18)/1.15 var(--sans); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; } .ph-sv small { color: var(--muted); font-size: var(--fs-12); }
 .ph-art-box { color: var(--faint); display: flex; justify-content: center; }
 .ph-art { width: 100%; max-width: 250px; height: auto; max-height: 140px; }
 .ph-acc { stroke: var(--gold); }
 .ph-sub { grid-column: 1 / -1; min-width: 0; }
 .ph-link-btn { appearance: none; font: inherit; }
-.ph :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 8px; }
+.ph :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--r-ctl); }
 @media (prefers-reduced-motion: no-preference) {
   .ph { animation: ph-in .35s ease-out both; }
   @keyframes ph-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 }
 @media (max-width: 1100px) { .ph-side { width: min(300px, 34vw); } }
 @media (max-width: 760px) {
-  .ph { grid-template-columns: minmax(0, 1fr); padding: 18px 16px; gap: 14px; border-radius: 16px; }
+  .ph { grid-template-columns: minmax(0, 1fr); margin-top: 8px; gap: 14px; }
+  .ph .ph-desc { font-size: var(--fs-14); line-height: var(--lh-14); }   /* the one-line description at the site's body size on a phone, so a header there is no taller than in the approved preview */   /* on a phone every card, this one and the Equity portfolio header included, takes the site's 14px padding and 16px corners (luxe.css, !important) */
   .ph-art-box { display: none; }
   .ph-side { width: auto; }
   .ph-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .ph-title { font-size: var(--fs-28); }
-  .ph-lk, .ph-learn, .ph-qbtn { min-height: 40px; }
+  .ph-learn, .ph-qbtn { min-height: 40px; }
+}
+/* The phone app (docs/MOBILE-APP.md, checklist 24): under 860px the header is one compact card: no eyebrow, a two-line description, a one-line
+   note, and the quick links in one sideways row instead of a stack of buttons (the IPO header was 394px tall, 250px of it links). */
+@media (max-width: 860px) {
+  :root:root main .ph { padding: 14px; margin-block: 10px 12px; gap: 8px; }
+  :root:root main .ph-eyebrow { display: none; }
+  :root:root main .ph-desc { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: var(--fs-14); line-height: var(--lh-14); }
+  :root:root main .ph-meta { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+  :root:root main .ph-row { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin-inline: -14px; padding: 2px 14px; align-self: stretch; }
+  :root:root main .ph-row::-webkit-scrollbar { display: none; }
+  :root:root main .ph-row > * { flex: none; }
 }
 @media print { .ph { animation: none; } .ph-art-box { display: none; } }
+
+/* Task #345 (23 Nov 2026, Mutual funds list page): a header button with a gold edge and a gold crown (Fund industry trends, Import my funds). */
+.ph-lk.ph-gold { border-color: color-mix(in srgb, var(--gold) 60%, transparent); background: color-mix(in srgb, var(--gold) 10%, transparent); }   /* task #350: a subtle gold tint and border (Gold features) */
+.ph-lk.ph-gold:hover { border-color: var(--gold); background: color-mix(in srgb, var(--gold) 18%, transparent); }
+.ph-lk .ph-crown { width: 15px; height: 15px; flex: none; color: var(--gold); }

@@ -7,7 +7,10 @@
  *     a line left over next to a complete name casts doubt on it ("Tata Motors" + "Finance Ltd" is not Tata Motors);
  *   - a line's ISIN decides its company (task #128; lib/isin.ts): the line's name is used only when the line has no ISIN, or its ISIN could not be checked;
  *     an ISIN that is a fund unit, a bond, an unlisted share or unknown is listed with that reason, never matched by its name;
- *   - ISINs written inside the name cell are split off; mutual fund, ETF, bond and G-sec lines (ISIN INF / IN0, or under a Mutual Funds / Bonds heading) are skipped;
+ *   - ISINs written inside the name cell are split off; bond and G-sec lines (ISIN IN0, or under a Mutual Funds / Bonds heading) are skipped; ETF and
+ *     fund lines (ISIN INF) are not company shares either, but are listed in `funds` with their units, for the ETF portfolio (task #323);
+ *   - each company's quantity and average buy price come from the statement's own columns (lib/holdingsAmounts.ts, task #323): a depository
+ *     statement's ISIN table first (added up across demat accounts), else the table's Qty and Avg / Cost columns; see `withAmounts`;
  *   - several tables: only a table headed Holdings / Portfolio / Demat is used; tables headed or labelled sold / trades / realised / transactions / dividends are
  *     ignored; if none is headed Holdings, the one table not marked as sold is used; if still unclear, everything is shown unticked (see `findHoldingsInRows`);
  *   - when there is no table, a name at the start of a line that carries an amount is found in the text, always unticked ("scan");
@@ -18,6 +21,8 @@ import { resolveIsins, type IsinAnswer } from "./isin";
 import { SPLIT_NAMES } from "./aliases";
 import { plausibleName, tidy, type Grid } from "./holdingsFile";
 import { makeLookup, makeMatcher, matchNames, type Found } from "./holdingsMatch";
+import { headerCols, statementAmounts, tableAmounts, tableCols, type TableCols } from "./holdingsAmounts";
+import { combine, dayLabel, issuerOf, RATE_HEAD } from "./holdingsColumns";
 
 export type PdfItem = { str: string; x: number; y: number; w: number; h: number };
 export const PDF_MAX_BYTES = 10_000_000;
@@ -151,13 +156,21 @@ const kindOf = (r: PdfRow): Kind => {
 
 /* ------------------------------------------------------------------ names in the rows */
 
-export type PdfFound = Found & { unsure?: string };
-export type PdfFinds = { found: PdfFound[]; missing: string[]; mode: "table" | "text"; rows: number; notes: string[] };
+/** qty: shares held (added up across lines and demat accounts, task #191); accounts: in how many demat accounts; avg: average buy price per share;
+ *  avgHow: read from an average column, or worked out as cost / quantity; lines: how many lines of the statement were added up (task #323);
+ *  rate / rateOn: the statement's Rate column (that day's price, not a buy price) and its date. */
+export type PdfFound = Found & { unsure?: string; isin?: string; qty?: number; accounts?: number; lines?: number; avg?: number; avgHow?: "column" | "worked"; rate?: number; rateOn?: string };
+/** An ETF or fund line (ISIN INF...): the words in the PDF, its units and its Rate. The dialog sends these to the ETF portfolio (importFunds.ts). */
+export type PdfFund = { isin: string; input: string; qty?: number; rate?: number; rateOn?: string };
+/** cas: where the quantities and prices came from (the import dialog's line "Upstox statement: quantities from its Current Qty column"). */
+export type PdfAmountsInfo = { source: string; asOf: string | null; column: string; price: string | null; priceHow: "column" | "worked" | null; rateLike: string | null; rate?: string | null; rateOn?: string | null };
+/** `cas`: the statement is a depository statement (NSDL or CDSL CAS); its source, the date of its balances and the column the quantities came from. */
+export type PdfFinds = { found: PdfFound[]; missing: string[]; mode: "table" | "text"; rows: number; notes: string[]; cas?: PdfAmountsInfo; funds?: PdfFund[] };
 /** Whether a find may be ticked without asking: an exact name, ticker, code or retired ticker, and nothing in the statement that casts doubt on it. */
 export const isSure = (f: PdfFound) => (f.how === "exact" || f.how === "alias" || f.how === "split" || f.how === "isin" || f.how === "old_isin") && !f.unsure;
 
 type Rec = { row: PdfRow; own?: PdfCell; skip: boolean; name: string; isin?: string; others: string[]; doubt?: string };
-type Table = { cls: TableClass; heading: string; recs: Rec[]; rows: PdfRow[]; above: Set<string> };
+type Table = { cls: TableClass; heading: string; recs: Rec[]; rows: PdfRow[]; above: Set<string>; cols: TableCols | null };
 
 /** The records of one table (one record per line that carries numbers), with wrapped names put back together. For every candidate name column the
  *  best way of giving the wrapped lines to the records above and below is chosen by how many records then name a listed company. */
@@ -167,6 +180,7 @@ function recordsOf(region: PdfRow[], grade: (name: string) => number): Rec[] {
   const nearD = href * 1.75;
   const idx: number[] = []; let skipping = false; const skipAt = new Set<number>();
   kinds.forEach((k, i) => { if (i && region[i].page !== region[i - 1].page) skipping = false;   // a new page: the fund / bond section may have ended (the ISIN check still guards)
+    if (isHeaderRow(region[i])) skipping = false;           // a new heading row starts a new table (the next demat account of a CAS, task #191): a fund section above it has ended
     if (k === "skipSec") skipping = true; else if (k === "eqSec") skipping = false; else if (k === "num") { idx.push(i); if (skipping) skipAt.add(i); } });
   if (!idx.length) return [];
   const namey = (c: PdfCell) => hasAlpha(c.t) && !(c.isin && c.t === c.isin) && !isNum(c.t);
@@ -246,7 +260,8 @@ function recordsOf(region: PdfRow[], grade: (name: string) => number): Rec[] {
     const recs: Rec[] = idx.map((i, k) => {
       const row = region[i], own = at(row);
       const rest = row.cells.filter((c) => c !== own && namey(c)).map((c) => c.t);
-      const isin = row.cells.find((c) => c.isin)?.isin;
+      // the ISIN can sit on a wrapped line of the name ("INE312A01313 HDFC ASSET MANAGEMENT COMPANY" above the figures, "LIMITED" below): it still decides (task #128)
+      const isin = [row, ...head[k].slice(head[k].length - hs[k]).map((j) => region[j]), ...tail[k].slice(0, ts[k]).map((j) => region[j])].flatMap((x) => x.cells).find((c) => c.isin)?.isin;
       const r: Rec = { row, own, skip: skipAt.has(i), name: assemble(k, hs[k], ts[k]), isin, others: rest };
       if (doubtful.has(k)) r.doubt = "The line next to it in the statement is not part of the name, or the name was cut: please check";
       return r;
@@ -293,9 +308,9 @@ export function findHoldingsInRows(rowsIn: PdfRow[], index: SearchRow[], isins?:
       if (continuing) cls = prev.cls;
       const body = rows.slice(h + 1, end);
       if (same && cls === prev.cls && (continuing || cls !== "unknown")) { prev.rows.push(rows[h], ...body); lines.forEach((a) => prev.above.add(a)); }
-      else tables.push({ cls, heading, recs: [], rows: [rows[h], ...body], above: new Set(lines) });
+      else tables.push({ cls, heading, recs: [], rows: [rows[h], ...body], above: new Set(lines), cols: tableCols(headerCols(rows, h), above.join(" ")) });
     });
-  } else tables.push({ cls: "unknown", heading: "", recs: [], rows, above: new Set() });
+  } else tables.push({ cls: "unknown", heading: "", recs: [], rows, above: new Set(), cols: null });
   for (const t of tables) t.recs = recordsOf(t.rows.slice(heads.length ? 1 : 0), grade).filter((r) => !r.skip);
 
   // match each table's records
@@ -307,15 +322,21 @@ export function findHoldingsInRows(rowsIn: PdfRow[], index: SearchRow[], isins?:
   for (const f of matched.found) byInput.set(f.input, [...(byInput.get(f.input) || []), f]);
   const missingSet = new Set(matched.missing);
 
-  type TableFinds = { table: Table; found: PdfFound[]; missing: string[] };
+  type TableFinds = { table: Table; found: PdfFound[]; missing: string[]; funds: PdfFund[] };
   const results: TableFinds[] = tables.map((table) => {
-    const found: PdfFound[] = [], missing: string[] = [];
+    const found: PdfFound[] = [], missing: string[] = [], funds: PdfFund[] = [];
     for (const r of table.recs) {
       const n = nameOf.get(r)!;
+      if (r.isin?.startsWith("INF")) {                       // an ETF or fund unit: not a share, kept with its units for the ETF portfolio (task #323)
+        if (!funds.some((x) => x.isin === r.isin)) { const a = tableAmounts(table.cols, r.row); funds.push({ isin: r.isin, input: tidy(r.name || n || r.isin), ...(a ? { qty: a.qty, ...(a.rate ? { rate: a.rate, ...(a.rateOn ? { rateOn: a.rateOn } : {}) } : {}) } : {}) }); }
+        continue;
+      }
+      const amt = tableAmounts(table.cols, r.row);           // the line's own quantity, average buy price and Rate (task #323)
+      const amounts = amt ? { qty: amt.qty, lines: 1, ...(amt.avg != null ? { avg: amt.avg, avgHow: amt.how } : {}), ...(amt.rate ? { rate: amt.rate, ...(amt.rateOn ? { rateOn: amt.rateOn } : {}) } : {}) } : {};
       const a = r.isin ? isins?.get(r.isin) : undefined;
       if (a && r.isin) {                                     // the ISIN decides (task #128): the name is not looked at
         const input = n || r.isin;
-        if (a.symbol && (a.status === "matched" || a.status === "check")) found.push({ input, symbol: a.symbol, name: a.name || a.symbol, how: a.how || "isin", isin: r.isin, ...(a.status === "check" ? { unsure: a.note || "Please check" } : {}) });
+        if (a.symbol && (a.status === "matched" || a.status === "check")) found.push({ input, symbol: a.symbol, name: a.name || a.symbol, how: a.how || "isin", isin: r.isin, ...amounts, ...(a.status === "check" ? { unsure: a.note || "Please check" } : {}) });
         else missing.push(`${input}${input !== r.isin ? ` (${r.isin})` : ""}: ${a.note || "not a listed company's share"}`);
         continue;
       }
@@ -334,10 +355,11 @@ export function findHoldingsInRows(rowsIn: PdfRow[], index: SearchRow[], isins?:
         }
         if (!u && h.how === "split" && !/^TATAMOTORS$/i.test(n)) u = "Tata Motors was split in two: this name could be either part. Please check which you hold";
         if (!u) { const other = r.others.map((o) => exact(tidyName(o, matcher))).find((x) => x && x[0] !== h.symbol); if (other && h.how !== "split") u = `Another column of this line says ${other[0]}: please check`; }
-        found.push(u ? { ...h, unsure: u } : { ...h });
+        const own = r.isin && !h.isin ? { isin: r.isin } : {};       // the line's ISIN stays with a name match, so a depository quantity can follow it (task #191)
+        found.push(u ? { ...h, ...own, ...amounts, unsure: u } : { ...h, ...own, ...amounts });
       }
     }
-    return { table, found: dedupe(found), missing };
+    return { table, found: dedupe(found), missing, funds };
   });
 
   const withFinds = results.filter((r) => r.found.length);
@@ -350,7 +372,8 @@ export function findHoldingsInRows(rowsIn: PdfRow[], index: SearchRow[], isins?:
   if (why) notes.push(why);
   const found = dedupe(chosen.flatMap((r) => r.found.map((f) => (why && !f.unsure ? { ...f, unsure: why } : f))));
   const missing = [...new Set(chosen.flatMap((r) => r.missing))];
-  if (found.length) return { found, missing, mode: "table", rows: rowsIn.length, notes };
+  const funds = (hold.length ? hold : results).flatMap((r) => r.funds).filter((x, i, a) => a.findIndex((y) => y.isin === x.isin) === i);
+  if (found.length) return { found, missing, mode: "table", rows: rowsIn.length, notes, ...(funds.length ? { funds } : {}) };
   return { ...textFinds(rows, exact), rows: rowsIn.length, notes: [...notes, ...(notes.length ? [] : [])], missing: [] };
 }
 
@@ -404,10 +427,22 @@ export function findHoldings(grid: Grid, index: SearchRow[]): PdfFinds {
   return findHoldingsInRows(rows, index);
 }
 
+/** One find per company. Its lines' quantities are added up and their averages weighted (only when every line has a quantity, so a line
+ *  without one never hides behind a total, and only lines matched as surely as the kept one). */
 function dedupe(found: PdfFound[]): PdfFound[] {
-  const by = new Map<string, PdfFound>();
-  for (const f of found) { const cur = by.get(f.symbol); if (!cur || score(f) < score(cur)) by.set(f.symbol, f); }
-  return [...by.values()];
+  const by = new Map<string, PdfFound>(), all = new Map<string, PdfFound[]>();
+  for (const f of found) { all.set(f.symbol, [...(all.get(f.symbol) || []), f]); const cur = by.get(f.symbol); if (!cur || score(f) < score(cur)) by.set(f.symbol, f); }
+  return [...by.values()].map((f) => {
+    // only lines read as surely as the one kept are added up: "Tata Motors Finance Ltd" (a guess) never adds to "Tata Motors Passenger Vehicles Ltd"
+    const same = all.get(f.symbol)!.filter((x) => isSure(x) === isSure(f));
+    if (same.length < 2) return f;
+    const { qty, avg, accounts, lines, avgHow, ...rest } = f;
+    void qty; void avg; void accounts; void lines; void avgHow;
+    if (!same.every((x) => x.qty != null)) return rest;
+    const c = combine(same.map((x) => ({ qty: x.qty!, ...(x.avg != null ? { avg: x.avg } : {}) })));
+    const n = same.reduce((s, x) => s + (x.lines ?? 1), 0);
+    return { ...rest, qty: c.qty, lines: n, ...(c.avg != null ? { avg: c.avg, avgHow: same.some((x) => x.avgHow === "worked") ? "worked" : "column" } : {}) };
+  });
 }
 const rank = (h: Found["how"]) => ({ exact: 0, isin: 0, old_isin: 0, alias: 1, split: 1, issuer: 2, issuer_name: 2, close: 2, scan: 3 }[h]);
 const score = (f: PdfFound) => (isSure(f) ? 0 : 10) + rank(f.how);
@@ -458,7 +493,68 @@ export async function readPdfHoldings(file: File, index: SearchRow[], password?:
   const res = isins.length && search ? await resolveIsins(isins, search) : null;   // the page always passes the company list; without it the PDF is read by names, as before
   const finds = findHoldingsInRows(rows, index, res?.answers);
   if (res?.offline) finds.notes.push("Some ISINs could not be checked just now, so those lines were matched by their names and are marked please check.");
-  return finds;
+  return withAmounts(finds, rows);
+}
+
+/* ------------------------------------------------------------------ quantities and buy prices (task #191, task #323) */
+
+const RATE_LIKE = RATE_HEAD;
+const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
+
+/** Puts each find's quantity and average buy price on it, and says plainly what could not be read. ISIN statements (a depository CAS, or a broker's
+ *  statement with an ISIN column) win, because they add up demat accounts; otherwise the table's own Qty and Avg columns are used. */
+export function withAmounts(f: PdfFinds, rows: PdfRow[]): PdfFinds {
+  if (f.mode !== "table") return f;
+  const s = statementAmounts(rows);
+  const notes = [...f.notes];
+  let found = f.found;
+  let cas: PdfAmountsInfo | undefined;
+  const headText = rows.slice(0, 60).map((r) => r.cells.map((c) => c.t).join(" ")).join("\n");
+  const heads = rows.filter(isHeaderRow);
+  const rateLike = heads.flatMap((r) => r.cells.map((c) => c.t.trim())).find((t) => RATE_LIKE.test(t)) ?? null;
+  if (s?.column) {
+    const zero = new Set(s.zero);
+    const left = found.filter((x) => x.isin && zero.has(x.isin));
+    found = found.filter((x) => !left.includes(x)).map((x) => {
+      const a = x.isin ? s.byIsin.get(x.isin) : undefined;
+      if (!a) return x;
+      const { avg, avgHow, rate, rateOn, ...rest } = x; void avg; void avgHow; void rate; void rateOn;
+      return { ...rest, qty: a.qty, accounts: a.accounts, lines: a.lines, ...(a.avg != null ? { avg: a.avg, avgHow: s.priceHow ?? "column" } : {}), ...(a.rate != null ? { rate: a.rate, ...(a.rateOn ? { rateOn: a.rateOn } : {}) } : {}) };
+    });
+    // ETF and fund lines: their units (added up across accounts) and Rate, as for a share
+    if (f.funds?.length) f = { ...f, funds: f.funds.map((x) => { const a = s.byIsin.get(x.isin); return a ? { isin: x.isin, input: x.input, qty: a.qty, ...(a.rate != null ? { rate: a.rate, ...(a.rateOn ? { rateOn: a.rateOn } : {}) } : {}) } : x; }) };
+    if (left.length) notes.push(`${left.map((x) => x.symbol).join(", ")} ${plural(left.length, "has", "have")} a balance of 0 in the statement, so ${plural(left.length, "it is", "they are")} left out.`);
+    cas = { source: s.source, asOf: s.asOf, column: s.column, price: s.price, priceHow: s.priceHow, rateLike, rate: s.rate, rateOn: s.rateOn };
+  } else {
+    const withQty = found.filter((x) => x.qty != null);
+    if (!withQty.length) {
+      return found.length ? { ...f, notes: [...notes, "This statement has no quantity column that could be read, so each share comes in as 1 share; type the quantities in the list."] } : f;
+    }
+    const t = rows.map((r, i) => (r.cells.length >= 2 ? tableCols(headerCols(rows, i)) : null)).find((c) => c?.qty);
+    const anyAvg = found.find((x) => x.avg != null);
+    cas = {
+      source: issuerOf(headText, true) ?? issuerOf(headText) ?? "broker", asOf: null, column: t?.qty?.label.replace(/\s+/g, " ") ?? "quantity",
+      price: anyAvg ? (t?.avg ?? t?.cost)?.label.replace(/\s+/g, " ") ?? null : null, priceHow: anyAvg ? anyAvg.avgHow ?? "column" : null, rateLike,
+      rate: found.some((x) => x.rate != null) ? t?.rate?.label.replace(/\s+/g, " ") ?? rateLike : null, rateOn: found.find((x) => x.rateOn)?.rateOn ?? null,
+    };
+  }
+  const noQty = found.filter((x) => x.qty == null).length;
+  if (noQty) notes.push(`${noQty === 1 ? "One company's" : `${noQty} companies'`} quantity could not be read from the statement's ${cas.column} column, so ${plural(noQty, "it comes", "they come")} in as 1 share; you can type the quantity in the list.`);
+  if (!cas.price) {
+    const on = dayLabel(cas.rateOn);
+    notes.push(cas.rate
+      ? `This statement has no buy price column. Its ${cas.rate} column is each share's price${on ? ` on ${on}` : " on the statement's date"}, not what you paid: tick "Use the statement's ${cas.rate} as the buy price" to take it anyway (Gain or loss then counts from that day), or type what you paid under Edit.`
+      : `This statement has no buy price column${cas.rateLike ? ` (its ${cas.rateLike} column is the price on the statement's date, not what you paid)` : ""}, so the shares come in without a buy price. Type it under Edit, or upload your broker's holdings report, which lists the average buy price.`);
+  }
+  else {
+    const noAvg = found.filter((x) => x.qty != null && x.avg == null).length;
+    if (noAvg) notes.push(`${noAvg === 1 ? "One company has" : `${noAvg} companies have`} no buy price in the statement's ${cas.price} column, so ${plural(noAvg, "it comes", "they come")} in without one.`);
+    if (cas.priceHow === "worked") notes.push(`Buy prices are worked out from the statement's ${cas.price} column divided by the quantity.`);
+  }
+  const added = found.filter((x) => (x.lines ?? 1) > 1).length;
+  if (added) notes.push(`${added === 1 ? "One company is" : `${added} companies are`} on more than one line of the statement; ${plural(added, "its", "their")} quantities are added up (shown next to ${plural(added, "it", "each")}).`);
+  if (f.funds?.length) notes.push(`${f.funds.length === 1 ? "One line is an ETF or fund" : `${f.funds.length} lines are ETFs or funds`} (ISIN INF…), not company shares: ${f.funds.length === 1 ? "it goes" : "they go"} to your ETF portfolio, with ${f.funds.length === 1 ? "its" : "their"} units.`);
+  return { ...f, found, notes, cas };
 }
 
 export { tidy };

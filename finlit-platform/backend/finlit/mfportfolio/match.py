@@ -150,10 +150,7 @@ def match_row(ix: Index, row: Clean) -> Match:
     by_isin = _order(ix.by_isin.get(row.isin, [])) if row.isin else []
     if by_amfi and row.isin and by_isin and by_amfi.code not in {s.code for s in by_isin}:
         return Match("choose", None, None, _order([by_amfi] + by_isin)[:MAX_CANDIDATES], "The AMFI code and the ISIN in the file point to different funds. Choose the right one.")
-    if by_amfi:
-        if row.name and words and _jaccard(words, by_amfi.words) < SANITY_MIN:
-            return Match("choose", "amfi", by_amfi, [by_amfi], "The AMFI code in the file belongs to a fund whose name does not look like the name in the file. Check it, then choose.")
-        return Match("matched", "amfi", by_amfi)
+    # Task #183 (COMMON-RULES 9): the ISIN names the exact plan and option, so it decides first; the AMFI code only when the ISIN is not in AMFI's list.
     if by_isin:
         act = [s for s in by_isin if s.active]
         pick = by_isin[0] if len(by_isin) == 1 else act[0] if len(act) == 1 else None
@@ -162,6 +159,10 @@ def match_row(ix: Index, row: Clean) -> Match:
         if row.name and words and _jaccard(words, pick.words) < SANITY_MIN:
             return Match("choose", "isin", pick, [pick], "The ISIN in the file belongs to a fund whose name does not look like the name in the file. Check it, then choose.")
         return Match("matched", "isin", pick)
+    if by_amfi:
+        if row.name and words and _jaccard(words, by_amfi.words) < SANITY_MIN:
+            return Match("choose", "amfi", by_amfi, [by_amfi], "The AMFI code in the file belongs to a fund whose name does not look like the name in the file. Check it, then choose.")
+        return Match("matched", "amfi", by_amfi)
     if row.isin and kind_of(row.isin) == "share":
         return Match("not_found", None, None, [], f"The ISIN in the file ({row.isin}) is a company's share, not a mutual fund unit: add it on the Equity portfolio page.")
     found = _by_name(ix, row, words, plan, option)

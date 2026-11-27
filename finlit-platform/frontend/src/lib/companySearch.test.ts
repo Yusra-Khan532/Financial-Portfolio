@@ -47,3 +47,26 @@ describe("company search", () => {
     expect(syms("zzzz")).toEqual([]);
   });
 });
+
+// Task #274 (equity pack, change 1, reference/companySearch.patch.md): over the live search index of 20 Nov 2026 (5,844 companies, index order = size).
+import LIVE from "./__fixtures__/search-index-20nov.json";
+const L = LIVE as unknown as CompanyRow[];
+const live = (q: string, n = 8) => rankCompanies(L, q, n).map((h) => h.name);
+describe("company search over the full live index (task #274)", () => {
+  it("'aarti' gives the four Aartis and nothing else", () => {
+    expect(new Set(live("aarti"))).toEqual(new Set(["Aarti Industries Ltd", "Aarti Surfactants Ltd", "Aarti Drugs Ltd", "Aarti Pharmalabs Ltd"]));
+  });
+  it("'aarti pharma' gives Aarti Pharmalabs only", () => { expect(live("aarti pharma")).toEqual(["Aarti Pharmalabs Ltd"]); });
+  it("'relaince' and 'relai' put Reliance Industries first", () => {
+    expect(live("relaince")[0]).toBe("Reliance Industries Ltd");
+    expect(live("relai")[0]).toBe("Reliance Industries Ltd");
+  });
+  it("a BSE code matches exactly or by its start, never as a close match: '526433' gives ASM Technologies only", () => {
+    expect(live("526433")).toEqual(["Asm Technologies Ltd"]);
+    expect(companyRank("526433", "526434", "Other Ltd")).toBe(0);
+  });
+  it("'tata mot' gives Tata Motors companies first", () => {
+    expect(live("tata mot").slice(0, 2).every((n) => /^Tata Motors/.test(n))).toBe(true);
+  });
+  it("nonsense finds nothing", () => { expect(live("zzzqq")).toEqual([]); });
+});

@@ -1,10 +1,11 @@
 // Sector Rotation: the contract of GET /api/rotation and /api/rotation/{slug} (backend/finlit/sector_api.py, finlit_technicals/rotation.py), the hooks that read them and the pure
 // helpers the Rotation tab, the industry card and the stock line share. Every number and every group name is the server's; nothing here is typed in from the design.
-// The pages describe past prices against the average industry; they never advise, and every study figure is a past average, not a forecast.
+// The pages describe past prices against the average group; they never advise, and every study figure is a past average, not a forecast.
+import { nseName } from "./groupNames";
 import { useQuery } from "@tanstack/react-query";
 import { ApiError, apiGet } from "./api";
 import { MINUS } from "./format";
-import type { CornerCode, Locked, PlanName, StateName, StateCode } from "./sectors";
+import { showQuery, type CornerCode, type Locked, type PlanName, type Show, type StateName, type StateCode } from "./sectors";
 
 export const CORNERS: CornerCode[] = ["ahead_gaining", "ahead_slowing", "behind_slipping", "behind_gaining"];
 /** Where each corner sits on the map and in its 2x2 glyph: x = ahead (right) or behind (left) over 6 months, y = gaining (up) or slowing / slipping (down) over the last month. */
@@ -43,9 +44,9 @@ export type RotationCard = RotationRow & { reading?: boolean; note?: string };
 
 const retry = (n: number, e: unknown) => !(e instanceof ApiError && e.status < 500) && n < 1;
 const STALE = 5 * 60_000;
-export const useRotationMap = () => useQuery<RotationMap, ApiError>({ queryKey: ["rotation", "map"], queryFn: () => apiGet<RotationMap>("/api/rotation"), staleTime: STALE, retry });
-export const useRotationCard = (slug: string, enabled = true) =>
-  useQuery<RotationCard, ApiError>({ queryKey: ["rotation", "card", slug], queryFn: () => apiGet<RotationCard>(`/api/rotation/${encodeURIComponent(slug)}`), staleTime: STALE, retry, enabled: enabled && !!slug });
+export const useRotationMap = (show: Show = "industries", enabled = true) => useQuery<RotationMap, ApiError>({ queryKey: ["rotation", "map", show], queryFn: () => apiGet<RotationMap>("/api/rotation" + showQuery(show)), staleTime: STALE, retry, enabled });
+export const useRotationCard = (slug: string, enabled = true, show: Show = "industries") =>
+  useQuery<RotationCard, ApiError>({ queryKey: ["rotation", "card", slug, show], queryFn: () => apiGet<RotationCard>(`/api/rotation/${encodeURIComponent(slug)}` + showQuery(show)), staleTime: STALE, retry, enabled: enabled && !!slug });
 
 // ------------------------------------------------------------------------------------------------ words and numbers
 export const pts = (v: number | null | undefined, d = 1): string => (v == null || !Number.isFinite(v) ? "—" : (v < 0 ? MINUS : v > 0 ? "+" : "") + Math.abs(v).toFixed(d));
@@ -63,11 +64,8 @@ export const shortDate = (iso: string): string => new Date(iso + "T00:00:00Z").t
 export const longDate = (iso: string): string => new Date(iso + "T00:00:00Z").toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 export const monthYear = (iso: string): string => new Date(iso + "T00:00:00Z").toLocaleDateString("en-GB", { month: "long", year: "numeric", timeZone: "UTC" });
 
-/** A group's name for the small rank grid; the full NSE name stays in the cell's title. */
-export function shortName(name: string): string {
-  return name.replace(/Pharmaceuticals & Biotechnology/, "Pharma & Biotech").replace(/Industrial Manufacturing/, "Industrial Mfg").replace(/Media Entertainment & Publication/, "Media & Entertainment")
-    .replace(/Agricultural Commercial & Construction Vehicles/, "Agri & Construction Vehicles").replace(/Fast Moving Consumer Goods/, "FMCG").replace(/Fertilizers & Agrochemicals/, "Fertilizers & Agrochem").replace(/Electrical Equipment/, "Electrical Equip.");
-}
+/** A group's name for the small rank grid and the map: NSE's own, with its commas (task #192, T12: no home-made short names; lib/groupNames.ts). */
+export const shortName = (name: string): string => nseName(name);
 
 // ------------------------------------------------------------------------------------------------ filters
 export type CornerFilter = "all" | CornerCode;
@@ -101,12 +99,6 @@ export function mapGeometry(rows: RotationRow[], w: number, h: number, weeks: nu
   return { w, h, x, y, xTicks: ticks(xl, xh, stepOf(xh - xl)), yTicks: ticks(yl, yh, stepOf(yh - yl)), x0: x(0), y0: y(0), dots, left, right, top, bottom };
 }
 
-/** Short names for the final pages pack's map labels (the same as lib/pulsePack's SHORT; written here so this file needs nothing from that one). */
-const SHORT_NAME: Record<string, string> = {
-  "Agricultural Commercial & Construction Vehicles": "Agri & Construction Vehicles", "Agricultural Food & other Products": "Agri Food Products", "Cement & Cement Products": "Cement",
-  "Chemicals & Petrochemicals": "Chemicals", "Commercial Services & Supplies": "Commercial Services", "Fast Moving Consumer Goods": "FMCG", "Fertilizers & Agrochemicals": "Fertilizers & Agrochem",
-  "Industrial Manufacturing": "Industrial Mfg", "Media Entertainment & Publication": "Media & Entertainment", "Oil Gas & Consumable Fuels": "Oil, Gas & Fuels", "Pharmaceuticals & Biotechnology": "Pharma & Biotech",
-};
 /** Places for the labels so that they do not stack on one another: right of the dot if that spot is free, else left, above or below (greedy, best rank first). */
 /** `drop`: leave a dot unlabelled when no spot is free, instead of overlapping, keep labels off every dot and a ring's width away (the final pages pack's map). */
 export function placeLabels(dots: MapDot[], charW = 6.6, lineH = 14, w = 0, drop = false, first: Set<string> = new Set()): Record<string, { x: number; y: number; anchor: "start" | "end" }> {
@@ -114,7 +106,7 @@ export function placeLabels(dots: MapDot[], charW = 6.6, lineH = 14, w = 0, drop
   const out: Record<string, { x: number; y: number; anchor: "start" | "end" }> = {};
   const hit = (b: { x1: number; x2: number; y1: number; y2: number }) => taken.some((t) => b.x1 < t.x2 && b.x2 > t.x1 && b.y1 < t.y2 && b.y2 > t.y1);
   if (drop) for (const d of dots) taken.push({ x1: d.x - 6, x2: d.x + 6, y1: d.y - 6, y2: d.y + 6 });
-  const o = drop ? 12 : 9, name = drop ? (n: string) => SHORT_NAME[n] ?? n : shortName;
+  const o = drop ? 12 : 9, name = shortName;
   for (const d of [...dots].filter((q) => q.label).sort((a, b) => Number(first.has(b.slug)) - Number(first.has(a.slug)) || (a.row.rank ?? 99) - (b.row.rank ?? 99))) {   // `first` (your industries) are labelled before the rest
     const wd = name(d.name).length * charW;
     const tries: { x: number; y: number; anchor: "start" | "end" }[] = [
@@ -175,7 +167,7 @@ export function failureText(e: unknown): string {
   return "The rotation data could not be loaded. Please check your connection and try again.";
 }
 
-/** A group's return against the average industry over six months and over the last month, in percentage points (null when the run had no figure). */
+/** A group's return against the average group over six months and over the last month, in percentage points (null when the run had no figure). */
 export const sixMonth = (r: RotationRow): number | null => num(r.vs_average?.["126d"]);
 export const lastMonth = (r: RotationRow): number | null => num(r.vs_average?.["21d"]);
 const num = (x: unknown): number | null => (typeof x === "number" && Number.isFinite(x) ? x : null);

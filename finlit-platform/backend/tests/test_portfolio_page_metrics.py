@@ -120,3 +120,30 @@ def test_site_inputs_give_the_same_page_as_the_csv(name):
     extra = page.pop("first_k")                           # the one addition to the pack's object: long lists only
     assert (extra is None) == (page["layout"] == "short") and (extra is None or extra["k"] == 12 and extra["rest"] == 28)
     assert json.dumps(page, sort_keys=True) == json.dumps(stored["page"], sort_keys=True)
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# Developer file 28: the same spread score with each share counted by its value (Your portfolio score and the top cards, once every share has a quantity)
+# ---------------------------------------------------------------------------------------------------------------
+def test_spread_by_value_limits():
+    w = np.array([0.5, 0.3, 0.2])
+    assert math.isclose(pm.effective_stocks_by_value(np.eye(3), w), 1 / float((w ** 2).sum()), rel_tol=1e-9)    # unrelated: the equal holdings it is worth
+    assert math.isclose(pm.effective_stocks_by_value(np.ones((3, 3)), w), 1, rel_tol=1e-6)                       # move as one: one, whatever the amounts
+    C = np.full((5, 5), 0.3) + 0.7 * np.eye(5)
+    assert math.isclose(pm.effective_stocks_by_value(C, np.ones(5)), pm.effective_stocks(C), rel_tol=1e-9)        # equal amounts: the page's own figure
+    secs = ["Banks", "Banks", "IT", "Energy"]
+    assert math.isclose(pm.effective_sectors_by_value(secs, np.ones(4)), pm.effective_sectors(secs), rel_tol=1e-9)
+    assert math.isclose(pm.effective_sectors_by_value(secs, np.array([0.1, 0.1, 0.7, 0.1])), 1 / (0.2 ** 2 + 0.7 ** 2 + 0.1 ** 2), rel_tol=1e-9)
+
+
+def test_spread_by_value_with_equal_amounts_is_the_pages_score_and_money_in_one_share_reads_lower():
+    frame, nifty, meta = synthetic()
+    page = pm.build_page(frame, nifty, meta)
+    r, _, _ = pm.weekly_returns(frame, nifty)
+    sector = {s: meta[s]["sector"] for s in meta}
+    eq = pm.spread_by_value(r, sector, {s: 1 / len(meta) for s in meta})
+    assert eq == page["score"]
+    heavy = {s: (0.78 if s == "S00" else 0.02) for s in meta}                      # 78% in one share, 2% in each of the other eleven
+    hv = pm.spread_by_value(r, sector, heavy)
+    assert hv["score"] < eq["score"] and hv["effective_stocks"] < eq["effective_stocks"] and hv["effective_sectors"] < eq["effective_sectors"]
+    assert set(hv) == set(eq)

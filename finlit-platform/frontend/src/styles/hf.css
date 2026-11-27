@@ -1,0 +1,31 @@
+/* The screener's header-row layout (components/screener/ScreenerFrame.tsx, task #257 and #258): the chips under the row, the full-width table, the search box
+   and the count line. Class prefix hf-. Tokens only, so light and dark follow. Task #283: the retired Basic screener's own filter panels (HeaderFilters) are gone. */
+/* active filters under the header row */
+.hf-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 10px 0 0; min-height: 28px; }
+.hf-chips .fchip { margin: 0; }
+.hf-empty { margin: 0; font: 400 var(--fs-13) var(--sans); color: var(--muted); }
+.hf-clear { border: 0; background: none; color: var(--gold); font: 600 var(--fs-13) var(--sans); cursor: pointer; padding: 4px 6px; }
+
+/* the frame in header-row mode (ScreenerFrame headerFilters): no side panel, the table takes the full width */
+.scr.hf-full { grid-template-columns: minmax(0, 1fr); }
+.scr.hf-full > .scr-main { grid-column: 1; }
+/* Task #263 (20 Nov 2026, the team: "ui issue in this box", the Advanced screener's filter bar): when the filters wrap to a second line, the search box
+   stays level with the first line (it floated between the two), is the filters' height (fgx.css), and never narrows below its placeholder
+   (it was cut to "Search company name or sy"). */
+.hf-tool { flex-wrap: nowrap; align-items: flex-start; }
+.hf-tool > :first-child { flex: 0 1 280px; min-width: 220px; }
+.hf-top { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 12px; }
+.hf-count { margin: 0; font: 600 var(--fs-14) var(--sans); color: var(--text); }
+.hf-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+@media (max-width: 760px) { .hf-tool { flex-wrap: wrap; } .hf-tool > :first-child { flex: 1 1 100%; } }
+
+/* Task #337 (23 Nov 2026, the team's screenshot of the Advanced screener: "we see the issue of the box"): the sticky filter bar was a flat page-coloured
+   band with square corners and no side padding, so it showed as a dark rectangle against the page's gradient; and when the filters wrapped, the
+   search box kept the first line and left an empty dark block under it. The bar is now a card like the boxes around it (card surface, hairline edge,
+   rounded corners, inner padding), and when the filters do not fit beside the search box the whole filter group moves to the line below, with the
+   search box across the full width above it: no empty space. On a phone the filters still scroll sideways under the search box. */
+.sx-root .sx-stick.hf-bar { background: var(--s1); border: 1px solid var(--border); border-radius: var(--r-card); padding: 8px 10px; margin: 0; box-shadow: var(--shadow); }
+.sx-root .hf-bar .hf-tool { flex-wrap: wrap; align-items: center; gap: 8px; margin: 0; }
+.sx-root .hf-bar .hf-tool > :first-child { flex: 1 1 220px; min-width: 220px; }
+.sx-root .hf-bar .hf-tool > .afx { flex: 0 1 auto; min-width: 0; max-width: 100%; }
+@media (max-width: 760px) { .sx-root .hf-bar .hf-tool > .afx { flex: 1 1 100%; } }

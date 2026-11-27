@@ -1,4 +1,4 @@
-"""FinLit FundPulse, part 3: the engine (every group sheet, history rows, caps, labels, ranks, reasons, compliance wording) and the
+"""Mutual Fund Score, part 3: the engine (every group sheet, history rows, caps, labels, ranks, reasons, compliance wording) and the
 database side (job, API, plan gating)."""
 
 import json
@@ -253,11 +253,15 @@ async def test_job_rows_and_api_gating(store, monkeypatch):
         assert (await c.get("/api/mf/scores?group=EQ-LARGE")).json()["items"] == []            # a list's order would leak the ranking
         body = (await c.get(f"/api/mf/scores?codes={code}")).text
         sd = (await c.get(f"/api/mf/{code}/score")).json()
-        assert sd["locked"] and sd["final"] is None and all(p["reading"] is None and "score" not in p for p in sd["pillars"]) and "metrics" not in sd and "reasons" not in sd and "rank" not in sd
+        assert sd["locked"] and sd["final"] is None and all(p["reading"] is None and "score" not in p and "points" not in p for p in sd["pillars"]) and "metrics" not in sd and "reasons" not in sd and "rank" not in sd
         assert str(funds[0].code) in body
     async with await _client(store, monkeypatch, "gold") as c:
         r = (await c.get(f"/api/mf/{code}/score")).json()
         assert not r["locked"] and r["final"] is not None and len(r["pillars"]) == 4 and r["metrics"] and r["rank"]["of"] == 10
+        # task #238: each part's own figure, 0 to 100, one decimal, and the word agrees with it
+        for p in r["pillars"]:
+            assert isinstance(p["points"], float) and 0 <= p["points"] <= 100 and p["points"] == round(p["points"], 1)
+            assert p["reading"] == ("Strong" if p["points"] >= 70 else "Fair" if p["points"] >= 50 else "Weak")
         assert r["disclaimer"].startswith("Describes the fund's health") and r["method"] == "/methodology/mf-score"
         assert not BANNED.search(json.dumps(r["reasons"]))
 
@@ -274,7 +278,7 @@ async def test_not_rated_and_inherited_and_unscored_answers(store, monkeypatch):
     await _write(store, [tiny])
     async with await _client(store, monkeypatch, "gold") as c:
         n = (await c.get("/api/mf/910001/score")).json()
-        assert n["status"] == "NOT RATED" and n["final"] is None and "under 12 months" in n["reason"] and n["pillars"][0]["reading"] == "Not scored" and "score" not in n["pillars"][0]
+        assert n["status"] == "NOT RATED" and n["final"] is None and "under 12 months" in n["reason"] and n["pillars"][0]["reading"] == "Not scored" and "score" not in n["pillars"][0] and "points" not in n["pillars"][0]
         i = (await c.get("/api/mf/910002/score")).json()
         assert i["status"] == "NOT RATED" and i["inherited"]["code"] == 910001
         s = (await c.get("/api/mf/910003/score")).json()
@@ -283,6 +287,43 @@ async def test_not_rated_and_inherited_and_unscored_answers(store, monkeypatch):
         assert (await c.get("/api/mf/555555/score")).status_code == 404
     async with store.pool.acquire() as c:
         await c.execute("DELETE FROM mf_schemes WHERE code IN (910001, 910002, 910003)")
+
+
+async def test_idcw_rows_show_the_same_plans_growth_score_and_returns_labelled_as_such(store, monkeypatch):
+    """Task #281 (owner, 20 Nov 2026): IDCW rows in the fund list, screener and compare showed a dash for the score and every return (e.g. Parag Parikh Flexi Cap
+    Direct Monthly IDCW 153964). They show the Growth option of the SAME fund and plan, labelled; with no Growth option of that plan, a dash and the reason."""
+    from finlit import mf
+    codes = (910011, 910012, 910013, 910014)
+    async with store.pool.acquire() as c:
+        await c.execute("DELETE FROM mf_schemes WHERE code = ANY($1::int[])", list(codes))
+        await c.execute("DELETE FROM mf_scores WHERE key = 'mf:910011'")
+        for code, plan, opt in ((910011, "Direct", "Growth"), (910012, "Direct", "IDCW"), (910013, "Regular", "IDCW"), (910014, "Direct", "IDCW")):
+            await c.execute("INSERT INTO mf_schemes (code, name, plan, option_class, family, amc, scheme_type, category, nav, nav_date, active, r1y, r3y, r5y) "
+                            "VALUES ($1,$2,$3,$4,$5,'X Mutual Fund','Open Ended','Equity Scheme - Flexi Cap Fund',10.0,$6,true,$7,$8,$9)",
+                            code, f"Fund {code}", plan, opt, "lone|other" if code == 910014 else "pp|flexi", date(2026, 10, 28),
+                            *((12.5, 15.1, 18.2) if opt == "Growth" else (None, None, None)))
+    g = fund("mf:910011", "EQ-BROAD", "flexi-cap", months=60, seed=5)
+    g.code, g.category = 910011, "Equity Scheme - Flexi Cap Fund"
+    await _write(store, [g])
+    async with await _client(store, monkeypatch, "gold") as c:
+        body = (await c.get("/api/mf/scores?codes=910012,910013,910014")).json()
+        by = {i["code"]: i for i in body["items"]}
+        assert by[910012]["inherited"]["code"] == 910011 and by[910012]["inherited"]["label"] == "Growth option's score" and by[910012]["status"] is not None
+        assert "inherited" not in by[910013] and by[910013]["final"] is None and "same plan" in by[910013]["reason"]   # Regular IDCW: no Regular Growth, never the Direct one
+        assert by[910014]["final"] is None and "inherited" not in by[910014]
+        assert body["planNote"] == "Scores compare Direct plans with Direct plans and Regular with Regular."
+        one = (await c.get("/api/mf/910013/score")).json()
+        assert one["final"] is None and not one.get("inherited")                                        # the fund page agrees: same plan only
+    async with store.pool.acquire() as c:
+        sib = await mf.growth_siblings(c, [910012, 910013, 910014, 910011])
+        assert sib[910012]["code"] == 910011 and (sib[910012]["r1y"], sib[910012]["r3y"], sib[910012]["r5y"]) == (12.5, 15.1, 18.2)
+        assert sib[910012]["label"] == "Growth option's returns (before payouts)" and set(sib) == {910012}
+        items = [{"code": 910012, "optionClass": "IDCW"}, {"code": 910013, "optionClass": "IDCW"}, {"code": 910011, "optionClass": "Growth"}]
+        await mf.attach_growth_returns(c, items)
+        assert items[0]["growthReturns"]["code"] == 910011 and items[1]["growthReturns"] is None and "No Growth option" in items[1]["growthReturnsWhy"]
+        assert "growthReturns" not in items[2]
+        await c.execute("DELETE FROM mf_schemes WHERE code = ANY($1::int[])", list(codes))
+        await c.execute("DELETE FROM mf_scores WHERE key = 'mf:910011'")
 
 
 async def test_the_fund_list_sorts_by_score_for_gold_only(store, monkeypatch):
@@ -341,7 +382,7 @@ async def test_category_dashboard_is_gold_only_and_direct_plan_only(store, monke
 
 
 async def test_scores_by_etf_symbol_give_no_score_to_anyone(store, monkeypatch):
-    """FinLit FundPulse is not given for exchange-traded funds: the rows exist (the score run reads ETFs as peers of index funds) but nothing leaves the server."""
+    """Mutual Fund Score is not given for exchange-traded funds: the rows exist (the score run reads ETFs as peers of index funds) but nothing leaves the server."""
     etfs = [fund(f"etf:ZZ{i}", "OT-PASSIVE", "etf", plan="ETF", seed=40 + i, kind="etf", symbol=f"ZZ{i}", family_key="nifty50") for i in range(4)]
     await _write(store, etfs)
     async with await _client(store, monkeypatch, "gold") as c:
@@ -378,3 +419,28 @@ async def test_the_etf_list_has_no_score_order(store, monkeypatch):
             assert r.status_code == 200 and r.headers["cache-control"].startswith("public"), plan         # no score order and no plan check: it is the plain list
             assert [i["symbol"] for i in r.json()["items"]] == [i["symbol"] for i in plain.json()["items"]], plan
             assert "final" not in r.text                                                                   # the list carries no score at all
+
+
+async def test_the_screener_score_filters_are_gold_only_and_private(store, monkeypatch):
+    """Task #350: filtering the fund list (and the screener's counts) by the Mutual Fund Score says what the score says: Gold only, never shared-cached."""
+    from finlit import mf
+    app = FastAPI()
+    app.include_router(score_api.router)
+    app.include_router(mf.router)
+    app.state.store = store
+    from finlit.auth.service import Ctx
+    ctx = {"v": Ctx(user_id="u", plan="basic")}
+
+    async def cur(request):
+        return ctx["v"]
+    monkeypatch.setattr(score_api, "current", cur)
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://t") as c:
+        for url in ("/api/mf?sc=total:65:80", "/api/mf?sc=risk:70:100", "/api/mf/filters?screen=true&sc=total:65:80"):
+            r = await c.get(url)
+            assert r.status_code == 403 and r.json()["error"]["code"] == "plan_required" if isinstance(r.json().get("error"), dict) else r.status_code == 403, url
+        assert (await c.get("/api/mf")).status_code == 200                 # without a score filter nothing changes
+        ctx["v"] = Ctx(user_id="u", plan="gold")
+        for url in ("/api/mf?sc=total:65:80&sc=risk:70:100", "/api/mf/filters?screen=true&sc=total:65:80"):
+            r = await c.get(url)
+            assert r.status_code == 200 and r.headers["cache-control"] == "private, no-store", (url, r.text[:200])
+        assert (await c.get("/api/mf?sc=perf:55:100")).status_code == 400   # a part takes its band edges only

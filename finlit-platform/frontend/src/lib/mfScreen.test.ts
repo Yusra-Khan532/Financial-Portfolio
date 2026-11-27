@@ -1,35 +1,57 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULTS, PRESETS, apiParams, chipsFor, figureOf, isDefault, listPath, parseQuery, presetOn, queryToParams, withRange, type ScreenRow } from "./mfScreen";
+import { DEFAULTS, PRESETS, apiParams, chipsFor, figureOf, isDefault, listPath, migrateSavedQuery, parseQuery, presetOn, queryToParams, statusSplit, withRange, type ScreenRow } from "./mfScreen";
 import { NUM, unitText, rangeText, NUM_BY } from "./mfScreenDefs";
 
 const P = (s: string) => parseQuery(new URLSearchParams(s));
 
 describe("query round trip", () => {
-  it("a fresh page has a clean address and explicit API parameters", () => {
+  it("task #369: a fresh page preselects nothing and asks the server for every scheme (it asked for Direct, Growth, still publishing: 1,719 funds)", () => {
     const q = P("");
     expect(isDefault(q)).toBe(true);
     expect(queryToParams(q).toString()).toBe("");
+    expect(q).toMatchObject({ plans: [], options: [], inst: [], status: "both" });
+    expect(chipsFor(q)).toEqual([]);
     const api = apiParams(q);
-    expect(api.getAll("plans")).toEqual(["Direct"]);
-    expect(api.getAll("options")).toEqual(["Growth"]);
-    expect(api.get("status")).toBe("active");
+    expect(api.getAll("plans")).toEqual([]);
+    expect(api.getAll("options")).toEqual([]);
+    expect(api.get("option")).toBe("All");    // the server alone would answer Growth options only
+    expect(api.get("status")).toBe("both");   // the server alone would answer schemes still publishing only
   });
   it("keeps what differs and drops unknown fields and bad numbers", () => {
     const q = P("rng=ter:0:1&rng=bogus:1:2&rng=r3y:x:y&cap=mid&plans=Direct,Regular&sort=ter&dir=asc&page=3&status=nonsense");
     expect(q.rng).toEqual({ ter: ["0", "1"] });
     expect(q.cap).toEqual(["mid"]);
     expect(q.plans).toEqual(["Direct", "Regular"]);
-    expect(q.status).toBe("active");
+    expect(q.status).toBe("both");
     expect(q.page).toBe(3);
     const back = P(queryToParams(q).toString());
     expect(back).toEqual(q);
+    expect(P("status=active&options=Growth")).toMatchObject({ status: "active", options: ["Growth"] });
+    expect(P(queryToParams(P("status=stopped")).toString()).status).toBe("stopped");
   });
-  it("all options is expressed to the server as option=All", () => {
-    const q = P("options=");
-    expect(q.options).toEqual([]);
-    expect(apiParams(q).get("option")).toBe("All");
-    expect(queryToParams(q).get("options")).toBe("");
-    expect(queryToParams(q).has("option")).toBe(false);
+  it("all options is expressed to the server as option=All, and kept out of the address", () => {
+    for (const s of ["options=", "option=All", ""]) {
+      const q = P(s);
+      expect(q.options).toEqual([]);
+      expect(apiParams(q).get("option")).toBe("All");
+      expect(queryToParams(q).toString()).toBe("");
+    }
+  });
+  it("a chosen plan, option or status is a removable chip that goes back to none", () => {
+    const q = P("plans=Direct&options=Growth&status=active");
+    expect(chipsFor(q).map((c) => c.label)).toEqual(["Plan: Direct", "Option: Growth", "Still publishing"]);
+    let r = q; for (const c of chipsFor(q)) r = c.clear(r);
+    expect(isDefault(r)).toBe(true);
+  });
+  it("the count line splits every scheme into still publishing and stopped, only when the two add up to the total", () => {
+    expect(statusSplit(P(""), { active: 8345, stopped: 5660 }, 14005)).toBe("8,345 still publishing a NAV, 5,660 stopped");
+    expect(statusSplit(P(""), { active: 8345, stopped: 5660 }, 1719)).toBeNull();   // an answer for another query
+    expect(statusSplit(P("status=active"), { active: 8345, stopped: 0 }, 8345)).toBeNull();
+  });
+  it("a screen saved before task #369 keeps the old defaults it left out, so it opens the same funds", () => {
+    expect(P(migrateSavedQuery("cap=mid"))).toMatchObject({ cap: ["mid"], plans: ["Direct"], options: ["Growth"], status: "active" });
+    expect(P(migrateSavedQuery("plans=&options=&status=both"))).toMatchObject({ plans: [], options: [], status: "both" });
+    expect(P(migrateSavedQuery("plans=Regular&option=All&status=stopped"))).toMatchObject({ plans: ["Regular"], options: [], status: "stopped" });
   });
   it("no-data keeps only fields that have a range", () => {
     expect(P("nd=ter&rng=r3y:5:").nd).toEqual([]);
@@ -75,9 +97,12 @@ describe("preset screens", () => {
       expect(presetOn({ ...q, family: true }, p), p.id).toBe(false);
     }
   });
-  it("the preset that needs the score filter is off and never applies", () => {
+  it("task #350: the score preset works now (Gold): total 65 or more and expense ratio at or below the category median", () => {
     const p = PRESETS.find((x) => x.id === "score-cost")!;
-    expect(p.off).toBeTruthy(); expect(presetOn(DEFAULTS, p)).toBe(false);
+    expect(p.off).toBeFalsy(); expect(p.gold).toBe(true); expect(presetOn(DEFAULTS, p)).toBe(false);
+    const q = p.set(DEFAULTS);
+    expect(q.sc).toEqual({ total: ["65", ""] }); expect(q.rng.ter_rel).toEqual(["", "1"]);
+    expect(queryToParams(q).getAll("sc")).toEqual(["total:65:"]);
   });
   it("preset names never recommend", () => {
     const words = /\b(buy|sell|hold|reduce|avoid|accumulate|target|best|top pick)\b/i;

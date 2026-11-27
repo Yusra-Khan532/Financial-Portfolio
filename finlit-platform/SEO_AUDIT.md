@@ -66,7 +66,7 @@ Lighthouse's SEO score of 100 only checks basics (a title, a description, crawla
 - ✅ Hashed assets cached for a year, compression on, fonts self-hosted, CLS good.
 
 ## Section 10: mobile and accessibility
-- ✅ Lighthouse accessibility 100 on the home page; mobile layout was reworked earlier (docs/MOBILE.md). Other pages still to be measured.
+- ✅ Lighthouse accessibility 100 on the home page; mobile layout was reworked earlier. Other pages still to be measured.
 
 ## Section 11: internal linking
 - ⚠️ Company and fund pages are reached through search boxes and screeners, which crawlers cannot use. There is no browsable directory (by letter or sector), so most of the 5,800 pages are more than 3 clicks from the home page or unreachable for a crawler.

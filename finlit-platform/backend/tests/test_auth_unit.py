@@ -6,6 +6,23 @@ from finlit.auth.entitlements import LIMITS, has, redact_section, redact_univers
 RFC_SECRET = "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ"  # base32 of "12345678901234567890"
 
 
+def test_normalise_mobile_owner_24_nov():
+    for ok in ("9876543210", "98765 43210", "+91 98765-43210", "919876543210", "09876543210", "(987) 654-3210"):
+        assert crypto.normalise_mobile(ok) == "+919876543210", ok
+    for bad in ("", None, "12345", "5876543210", "+44 7700 900123", "98765432101", "9876x43210"):
+        assert crypto.normalise_mobile(bad) is None, bad
+
+
+def test_normalise_mobile_takes_only_ascii_digits():
+    """Python's \\d also matches other scripts' digits: a Devanagari or full-width number must not become a second account for the same mobile."""
+    for ok in ("+91 98765 43210", "098765-43210", "919876543210"):
+        assert crypto.normalise_mobile(ok) == "+919876543210", ok
+    deva = "९८७६५४३२१०"          # 9876543210 in Devanagari digits
+    full = "９８７６５４３２１０"          # 9876543210 in full-width digits
+    for bad in (deva, "+91 " + deva, "0" + deva, "98765" + deva[5:], full, "+91" + full):
+        assert crypto.normalise_mobile(bad) is None, bad
+
+
 def test_totp_matches_rfc6238_vector():
     assert crypto.totp_code(RFC_SECRET, 59 // 30) == "287082"
     assert crypto.totp_code(RFC_SECRET, 1111111109 // 30) == "081804"
@@ -61,10 +78,11 @@ def test_plan_ranking_and_limits():
 
 def test_summary_redaction_per_plan():
     basic = redact_section("summary", _summary(), "basic")
-    assert basic["score"]["overall"] is None and basic["thesis"] is None and basic["strengths"] == [] and basic["watchouts"] == []
-    assert basic["score"]["pillars"][0]["score"] is None
-    silver = redact_section("summary", _summary(), "silver")
-    assert silver["score"]["overall"] == 72 and silver["thesis"] == "Strong"
+    assert basic["strengths"] == [] and basic["watchouts"] == []
+    for plan in ("basic", "silver", "gold"):          # task #283 PR C: the retired FinLit IQ (score, its written read) goes for every plan
+        out = redact_section("summary", _summary(), plan)
+        assert "score" not in out and "thesis" not in out, plan
+    assert redact_section("summary", _summary(), "silver")["strengths"] == ["a"]
 
 
 def test_ratio_and_price_redaction():
@@ -74,9 +92,9 @@ def test_ratio_and_price_redaction():
     silver = redact_section("ratios", __import__("copy").deepcopy(ratios), "silver")
     assert set(silver["history"]["rows"]) == {"roe", "roce", "gross_margin"} and silver["valuationHistory"]["rows"] == {}
     basic = redact_section("ratios", __import__("copy").deepcopy(ratios), "basic")
-    assert set(basic["history"]["rows"]) == {"roe", "roce", "gross_margin"} and basic["score"]["overall"] is None
+    assert set(basic["history"]["rows"]) == {"roe", "roce", "gross_margin"} and "score" not in basic and "score" not in silver
     gold = redact_section("ratios", __import__("copy").deepcopy(ratios), "gold")
-    assert "debt_to_equity" in gold["history"]["rows"]
+    assert "debt_to_equity" in gold["history"]["rows"] and "score" not in gold
     price = {"technical": {"price": 1, "ema50": 2, "ema200": 3, "rsi": 50, "vsEma200Pct": 1.2}, "series": {"t": [1], "ema200": [1]}}
     out = redact_section("price-1Y", price, "silver")
     assert set(out["technical"]) == {"price", "ema50", "vsEma200Pct"} and "ema200" not in out["series"]
@@ -86,10 +104,11 @@ def test_ratio_and_price_redaction():
 
 def test_universe_redaction_keeps_showcase():
     rows = [{"symbol": "RELIANCE", "overall": 62, "band": "healthy"}, {"symbol": "TCS", "overall": 80, "band": "strong"}]
-    out = redact_universe(rows, "basic", {"RELIANCE"})
-    assert out[0]["overall"] == 62 and out[1]["overall"] is None and out[1]["band"] is None
-    assert redact_universe(rows, "silver", {"RELIANCE"})[1]["overall"] == 80       # Silver keeps the FinLit IQ (its Prism figures are Gold: tests/test_screener_prism.py)
-    assert redact_universe(rows, "gold", {"RELIANCE"}) == rows
+    rows = [{**r, "prism_final": 70} for r in rows]
+    for plan in ("basic", "silver", "gold"):          # task #283 PR C: the retired FinLit IQ's fields go to no plan, not even the showcase company
+        out = redact_universe(rows, plan, {"RELIANCE"})
+        assert not any(k in r for r in out for k in ("overall", "band")), plan
+        assert out[0]["prism_final"] == 70 and out[1]["prism_final"] == (70 if plan == "gold" else None), plan      # the showcase company stays open
 
 
 def test_which_sections_vary():

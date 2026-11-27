@@ -6,8 +6,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { apiGet } from "../lib/api";
-import { BOARD_NAME, forumMe, useStats, ago, type Page, type Post } from "../lib/forum";
-import { Disclaimer, ThreadList, ThreadView } from "../components/forum/ForumParts";
+import { BOARD_NAME, useForumMe, useStats, ago, type Page, type Post } from "../lib/forum";
+import { Disclaimer, JoinHead, ThreadList, ThreadView } from "../components/forum/ForumParts";
 import { Icon } from "../lib/icons";
 import { SectionHead } from "./Sections";
 
@@ -16,7 +16,7 @@ const shortName = (name: string) => name.replace(/\s+(Ltd|Limited)\.?$/i, "");
 
 /** One line under the company header: how many discussions and comments there are about this company, and the way in. A visitor is invited to sign in. */
 export function CommunityStrip({ symbol, name, jump }: { symbol: string; name: string; jump: (id: string) => void }) {
-  const { data: me } = forumMe();
+  const { data: me } = useForumMe();
   const stats = useStats(symbol).data;
   if (!me) return null;
   const short = shortName(name), threads = stats?.threads ?? 0, replies = stats?.replies ?? 0;
@@ -36,7 +36,7 @@ export function CommunityStrip({ symbol, name, jump }: { symbol: string; name: s
 
 /** The three discussions members valued most (upvotes, then comments): a quick way into the best ones. */
 function Trending({ symbol, onOpen }: { symbol: string; onOpen: (id: number) => void }) {
-  const { data: me } = forumMe();
+  const { data: me } = useForumMe();
   const q = useQuery<Page<{ threads: Post[] }>>({ queryKey: ["forum", "trending", symbol], enabled: !!me?.signedIn, staleTime: 60_000, retry: false,
     queryFn: () => apiGet(`/api/forum/threads?sort=top&page=1&per=3&symbol=${encodeURIComponent(symbol)}`) });
   const list = q.data?.threads ?? [];
@@ -44,9 +44,9 @@ function Trending({ symbol, onOpen }: { symbol: string; onOpen: (id: number) => 
   return (
     <aside className="fo-trend" aria-label="Trending discussions">
       <h3>Trending</h3>
-      <ol>{list.map((t) => (
+      <ol>{list.map((t, i) => (
         <li key={t.id}><button type="button" onClick={() => onOpen(t.id)}>
-          <span className="fo-trend-t">{t.title}</span>
+          <span className="fo-trend-n" aria-hidden="true">{i + 1}</span><span className="fo-trend-t">{t.title}</span>
           <span className="fo-trend-m"><span title="Upvotes">▲ {t.upvotes}</span><span>{plural(t.replies, "comment")}</span><span>{ago(t.lastActivityAt)}</span></span>
         </button></li>))}</ol>
     </aside>
@@ -54,7 +54,7 @@ function Trending({ symbol, onOpen }: { symbol: string; onOpen: (id: number) => 
 }
 
 export function CommunitySection({ symbol, name }: { symbol: string; name: string }) {
-  const { data: me } = forumMe();
+  const { data: me } = useForumMe();
   const stats = useStats(symbol).data;
   const [open, setOpen] = useState<number | null>(null), [n, setN] = useState<number | null>(null);
   const top = useRef<HTMLElement>(null);
@@ -69,7 +69,7 @@ export function CommunitySection({ symbol, name }: { symbol: string; name: strin
   const threads = stats?.threads ?? n ?? 0, replies = stats?.replies ?? 0;
   return (
     <section className="block fo-rep" ref={top} aria-label="Community discussions" style={{ "--sc": "var(--gold)" } as React.CSSProperties}>
-      <SectionHead id="community" no="18 · Community" icon="users" title="Community discussions" color="--gold"
+      <SectionHead id="community" no="19 · Community" icon="users" title="Community discussions" color="--gold"
         sub={`What members are saying about ${short}. Opinion only, not advice.`}
         aside={me?.signedIn ? <Link className="btn" to={`/forum/c/${encodeURIComponent(symbol)}`}>Open in Discussion forums</Link> : undefined} />
       {me && !me.signedIn ? (
@@ -79,19 +79,16 @@ export function CommunitySection({ symbol, name }: { symbol: string; name: strin
           <Link className="btn primary" to={`/login?next=${encodeURIComponent(`/stocks/${symbol}#community`)}`}>Sign in to discuss</Link>
         </div>
       ) : (
-        <div className="fo-panel">
+        <JoinHead.Provider value={true}><div className="fo-panel">
           <div className="fo-panel-h">
-            <div className="fo-counts" aria-label="Activity on this company">
+            {/* task #216 (README 3.19): three count tiles, a big number and a small label */}
+            <div className="fo-counts fo-tiles" aria-label="Activity on this company">
               <span><b>{threads.toLocaleString("en-IN")}</b> {threads === 1 ? "discussion" : "discussions"}</span>
               <span><b>{replies.toLocaleString("en-IN")}</b> {replies === 1 ? "comment" : "comments"}</span>
-              {stats?.lastActivityAt && <span>last activity {ago(stats.lastActivityAt)}</span>}
-            </div>
-            <div className="fo-notes">
-              {me?.board && <p className="fo-board fo-board-sm" role="note"><b>{BOARD_NAME[me.board]} board</b>{count ? ` · ${count}` : ""} · seen by {BOARD_NAME[me.board]} members only</p>}
-              <Disclaimer compact />
+              <span><b>{stats?.lastActivityAt ? ago(stats.lastActivityAt) : "—"}</b> last activity</span>
             </div>
           </div>
-          <div className={"fo-hub" + (open == null && n != null && n > 1 ? " has-aside" : "")}>{/* task #168: the Trending column's room only when there is a Trending list */}
+          <div className={"fo-hub" + (open == null ? " has-aside" : "")}>{/* the side column: Trending (when there is a list), then the notes box */}
             <div className="fo-hub-main">
               {open != null
                 ? <ThreadView id={open} onBack={() => show(null)} backLabel={`All discussions about ${short}`} />
@@ -99,9 +96,15 @@ export function CommunitySection({ symbol, name }: { symbol: string; name: strin
                     linkTo={(t) => `/forum/t/${t.id}`} />}
               {open == null && n != null && n > 5 && <p className="fo-rep-more"><Link to={`/forum/c/${encodeURIComponent(symbol)}`}>See all {count} in Discussion forums →</Link></p>}
             </div>
-            {open == null && n != null && n > 1 && <Trending symbol={symbol} onOpen={show} />}
+            {open == null && <div className="fo-side">
+              {n != null && n > 1 && <Trending symbol={symbol} onOpen={show} />}
+              <div className="fo-notes">
+                {me?.board && <p className="fo-board fo-board-sm" role="note"><b>{BOARD_NAME[me.board]} board</b>{count ? ` · ${count}` : ""} · seen by {BOARD_NAME[me.board]} members only</p>}
+                <Disclaimer compact />
+              </div>
+            </div>}
           </div>
-        </div>
+        </div></JoinHead.Provider>
       )}
     </section>
   );

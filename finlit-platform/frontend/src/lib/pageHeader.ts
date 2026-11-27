@@ -2,27 +2,27 @@
 // and it takes its name from lib/nav.ts, so a renamed page is renamed everywhere. Pages that are not in the menus are listed once in EXTRA.
 import { MORE, PRICING, SECTIONS, type NavItem } from "./nav";
 
-/** Short names for the buttons ("Basic Screener", not "Basic stock screener"). Anything not listed uses its menu name. */
+/** Short names for the buttons ("Advanced Screener", not "Advanced stock screener"). Anything not listed uses its menu name. */
 const SHORT: Record<string, string> = {
-  "/screener": "Stock Screener", "/score-screener": "Basic Screener", "/advanced-score-screener": "Advanced Screener", "/query-builder": "Query Builder",
+  "/screener": "Stock Screener", "/advanced-score-screener": "Advanced Screener", "/query-builder": "Query Builder",
   "/fund-score-screener": "Fund Screener", "/research": "Company Report", "/compare": "Compare", "/prism": "FinLit Prism", "/outlook": "Forecasting",
   "/premium/report": "Premium Reports", "/eps-calculator": "P/E, EPS & PEG Calculator", "/dcf": "DCF Calculator", "/sip-calculator": "SIP Calculator",
-  "/graphs": "Chart Builder", "/graphs/advanced": "Correlation Charts", "/fii-dii": "FII & DII", "/macro": "India Economy", "/commodities": "Commodities",
-  "/results": "Results Calendar", "/results/quarter": "Latest Results", "/ipo": "IPO Calendar", "/news": "News & Filings",
+  "/graphs": "Chart Builder", "/graphs/advanced": "Correlation Charts", "/fii-dii": "FII & DII", "/macro": "India Economy",
+  "/results": "Results", "/results/quarter": "Results", "/ipo": "IPOs", "/news": "News & Filings",
   "/funds/screener": "MF Screener", "/funds": "Mutual Funds", "/etfs": "ETFs", "/holdings": "Equity Portfolio", "/mf-portfolio": "MF Portfolio", "/etf-portfolio": "ETF Portfolio", "/watchlist": "Watchlists",
 };
 /** Pages that exist but are not in the menus. */
 const EXTRA: Record<string, string> = {
   "/fund-score-screener": "Fund score screener", "/funds/compare": "Fund Compare", "/funds/insights": "Fund Trends", "/etfs/compare": "Compare ETFs",
-  "/etfs/compare-index-funds": "ETF vs Index Fund", "/baskets": "My Baskets", "/plans": "Plans", "/faq": "FAQs", "/methodology/mf-score": "How the score works",
+  "/etfs/compare-index-funds": "ETF vs Index Fund", "/plans": "Plans", "/faq": "FAQs", "/methodology/mf-score": "What the score means",
   "/premium": "Gold Dashboards", "/account": "Account", "/portfolio": "Portfolio Report", "/leadership-label": "Leadership Label",
 };
 
 const ALL: NavItem[] = [...SECTIONS, MORE].flatMap((s) => s.groups.flatMap((g) => g.items)).concat(PRICING);
 const base = (to: string) => to.split(/[?#]/)[0].replace(/(.)\/+$/, "$1");
 
-export type PhLink = string | { to: string; label?: string; primary?: boolean };
-export type ResolvedLink = { to: string; label: string; primary: boolean };
+export type PhLink = string | { to: string; label?: string; primary?: boolean; /** task #351: a Gold feature: gold border and tint with a crown */ gold?: boolean };
+export type ResolvedLink = { to: string; label: string; primary: boolean; gold?: boolean };
 
 /** The button for an address, or null when the site has no such page (it is then left out, never shown broken). */
 export function resolveLink(l: PhLink): ResolvedLink | null {
@@ -32,7 +32,7 @@ export function resolveLink(l: PhLink): ResolvedLink | null {
   const label = ("label" in o && o.label) || SHORT[b] || it?.label || EXTRA[b];
   const dyn = /^\/(stocks|funds|etfs|outlook|prism)\/[^/]+$/.test(b);   // a company / fund page: needs a label from the caller
   if (!label || (!it && !(b in EXTRA) && !(dyn && ("label" in o && o.label)))) return null;
-  return { to: o.to, label, primary: !!(typeof l !== "string" && l.primary) };
+  return { to: o.to, label, primary: !!(typeof l !== "string" && l.primary), ...(typeof l !== "string" && l.gold ? { gold: true } : {}) };
 }
 export const resolveLinks = (ls: PhLink[] = [], max = 4): ResolvedLink[] => ls.map(resolveLink).filter((x): x is ResolvedLink => !!x).slice(0, max);
 

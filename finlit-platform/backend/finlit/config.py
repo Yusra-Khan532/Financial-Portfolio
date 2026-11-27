@@ -19,6 +19,20 @@ def _list(value: str) -> List[str]:
     return [v.strip() for v in value.split(",") if v.strip()]
 
 
+def _effort(value: str, default: str) -> str:
+    v = (value or "").strip().lower()
+    return v if v in ("low", "medium", "high") else default
+
+
+def _ask_max_tokens(value: str) -> int:
+    """ASK_MAX_TOKENS (task #349): a whole number between 2,000 and 16,000; empty or unreadable means the default, 6,000."""
+    try:
+        n = int((value or "").strip() or 6000)
+    except ValueError:
+        n = 6000
+    return max(2000, min(16000, n))
+
+
 def site_api_url_default(env=None) -> str:
     """SITE_API_URL, or the address of the site backend that deploy/start.sh starts inside this container: the SAME rule as its site_api_wanted(),
     so a process started by `docker compose exec` (not a child of start.sh, which only exports the variable to its own children) behaves like the scheduler's."""
@@ -61,6 +75,8 @@ class Settings:
     # the page then shows the MCX price alone and says the international price is not connected. Secrets: set only in the host's dashboard.
     metals_dev_api_key: str = field(default_factory=lambda: os.getenv("METALS_DEV_API_KEY", "").strip())
     metalprice_api_key: str = field(default_factory=lambda: os.getenv("METALPRICEAPI_KEY", "").strip())
+    twelvedata_api_key: str = field(default_factory=lambda: os.getenv("TWELVEDATA_API_KEY", "").strip())       # task #294: the global markets card's Europe and Asia indices, gold and same-day moves (optional; set in .env.aws)
+    eodhd_api_key: str = field(default_factory=lambda: os.getenv("EODHD_API_KEY", "").strip())             # task #298: the free EODHD plan for the Europe and Asia indices and gold (set in .env.aws)
     metals_dev_poll_seconds: int = field(default_factory=lambda: max(30, int(os.getenv("METALS_DEV_POLL_SECONDS", "60"))))        # $19.99 plan: 60 s fits 50,000 requests a month
     metalprice_poll_seconds: int = field(default_factory=lambda: max(30, int(os.getenv("METALPRICEAPI_POLL_SECONDS", "600"))))   # $12 plan: 10-minute data
     # DECISION PENDING: set to 1 only after Dhan and MCX have said in writing that prices may be shown publicly. Until then the page never says "Live".
@@ -98,6 +114,9 @@ class Settings:
     auto_verify_email: bool = field(default_factory=lambda: os.getenv("AUTO_VERIFY_EMAIL", "").lower() in ("1", "true", "yes"))
     mail_mode: str = field(default_factory=lambda: os.getenv("MAIL_MODE", "console"))
     resend_api_key: str = field(default_factory=lambda: os.getenv("RESEND_API_KEY", ""))
+    # Logo.dev's PUBLISHABLE key (pk_..., made to sit in a web page; owner's decision of 25 Nov 2026): the logo of a company whose own website gave
+    # none is drawn from img.logo.dev by its NSE/BSE ticker. Empty = off (initials tiles). Set it in /opt/finlit/.env.aws, never in code.
+    logo_dev_key: str = field(default_factory=lambda: os.getenv("LOGO_DEV_PUBLISHABLE_KEY", "").strip())
     mail_from: str = field(default_factory=lambda: os.getenv("MAIL_FROM", "FinLit <hello@finlitventures.com>"))
     # Where each query raised on a page is emailed (finlit/page_feedback.py): the team's mailbox, chosen by the founder. FEEDBACK_NOTIFY_EMAIL changes it; set it to "-" to switch the email off.
     # Every query and every piece of feedback is stored either way and read at /admin/feedback.
@@ -105,6 +124,17 @@ class Settings:
     # Earnings-call summaries (finlit/earnings, docs/EARNINGS-CALLS.md). Empty key = the nightly job reports "not configured" and the site says the summaries are not available yet.
     gemini_api_key: str = field(default_factory=lambda: os.getenv("GEMINI_API_KEY", "").strip())
     gemini_model: str = field(default_factory=lambda: os.getenv("EARNINGS_LLM_MODEL", "").strip() or os.getenv("GEMINI_MODEL", "").strip() or "gemini-3.8-flash")
+    # Ask FinLit AI (finlit/ask, docs/ASK-AI.md): the chat that answers from FinLit's own data. Empty key = the chat says it is not switched on and the panel
+    # keeps its instant listed answers. The key lives only in /opt/finlit/.env.aws. ASK_MODEL changes the model (founder's choice: Haiku, for cost).
+    anthropic_api_key: str = field(default_factory=lambda: os.getenv("ANTHROPIC_API_KEY", "").strip())
+    ask_model: str = field(default_factory=lambda: os.getenv("ASK_MODEL", "").strip() or "claude-haiku-5-5")
+    # Task #349: the room for one request's output (the model's thinking, its tool calls and the answer; not the answer's length, which the
+    # instructions set). Optional ASK_MAX_TOKENS, kept between 2,000 and 16,000; default 6,000.
+    ask_max_tokens: int = field(default_factory=lambda: _ask_max_tokens(os.getenv("ASK_MAX_TOKENS", "")))
+    # How much the model thinks before it answers (low / medium / high), for today's answer style and for the answer style v2 (ask/variant.py).
+    # Haiku's own default is medium; v2 uses it. ASK_EFFORT / ASK_EFFORT_V2 change them.
+    ask_effort: str = field(default_factory=lambda: _effort(os.getenv("ASK_EFFORT", ""), "low"))
+    ask_effort_v2: str = field(default_factory=lambda: _effort(os.getenv("ASK_EFFORT_V2", ""), "medium"))
     # Free sample reports shown in full to everyone (the home page example).
     # The separate site backend (blog/CMS, portfolio report, contact forms, chat, ticker). Empty = those /api routes answer 404.
     site_api_url: str = field(default_factory=lambda: site_api_url_default())

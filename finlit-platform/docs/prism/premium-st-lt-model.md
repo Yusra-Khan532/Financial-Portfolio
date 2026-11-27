@@ -139,6 +139,29 @@ is not zero. Undefined flat-series RSI or zero-ATR extension is explicitly
 unavailable. Data more than 10 calendar days old is withheld as a current score.
 These are data-integrity safeguards; they do not change the source weights.
 
+### Short histories: recent listings and demerged companies (task #247, 19 Nov 2026)
+
+Fractal Analytics (listed 16 Feb 2026, 186 sessions) and the Vedanta demerged companies (listed 15 Jun 2026, about 107 sessions) showed
+"Not available" for both horizons while the same indicator on TradingView showed their scores. Causes and rules now:
+
+- **Candles.** The research API sent Dhan's daily candles to the model only for 252+ sessions (`finlit/prism_candles.py` `STOCK_MIN`, and the
+  same check in `premium_supplied_candles.py`); the model then fell back to FinEdge, which holds little or nothing for a recent listing (VAML:
+  0 of 14 signals). The minimum is now 50 sessions, the shortest history the short-term rows read.
+- **A history shorter than the full window (505 sessions)** is scored exactly as the indicator scores it on the chart:
+  `finlit_technicals.young` runs `stlt.compute` (the port that matches TradingView, young-listing mode on: EMA 50 and the 50-day average volume
+  seeded from the bars there are; a row with no value yet read as its formula reads it, for example "EMA 200 falling (n/a)" = -1 and an RS
+  percentile with no value = -1; the divisors stay 96 and 92). The site backend runs it in a short-lived process of the research API's Python
+  (pandas and numpy are not loaded into the website); both horizons are then shown, marked provisional with the young-listing note, and the
+  screeners treat them as not available (`provisional`). Checked on the live candles of 18 Nov 2026: FRACTAL long term -20.7 and VAML -42.4, as on
+  TradingView.
+- **If that process cannot run**, the strict view is used: the short-term EMA, MACD and price-vs-EMA-20 rows exist from 50 sessions (they started
+  at 200; only the RSI row's regime reads EMA 200), a horizon whose only gaps are signals the history is too short for, with at least 75% of the
+  weight, is shown provisional, and a withheld one says how many sessions it has and from when it is shown (`historyNote`); each such signal says
+  "Needs at least N sessions of daily prices; this company has M, from <date>" (`technical_scoring.HISTORY_NEED`).
+- **An unadjusted break.** One close-to-close move over 40% (Vedanta fell 60.1% on 4 May 2026, its demerger ex-date, which Dhan does not adjust)
+  used to throw the whole Dhan series away. Now only the sessions after the last such move are used, whatever the provider, nothing is
+  rescaled, and the notes say where and why.
+
 No prior swing profile and no active SFP are **neutral under explicit source
 rules**, rather than missing-data fills. Missing share count triggers the source's
 Nifty 500 benchmark fallback and is disclosed.

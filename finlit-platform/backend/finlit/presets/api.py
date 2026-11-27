@@ -4,21 +4,25 @@ from __future__ import annotations
 
 import csv
 import io
+import logging
 import math
 import re
-from typing import List
+from typing import Dict, List, Optional
 
+import orjson
 from fastapi import APIRouter, Request, Response
 
 from ..auth.entitlements import has, sees_all
 from ..auth.routes import NO_STORE, fail
 from ..auth.service import current
-from datetime import date as _date
+from datetime import date as _date, datetime, timezone
+from zoneinfo import ZoneInfo
 
 from ..screener.data import get_table
-from . import engine, history, service
-from .registry import ALL, BY_ID, DISCLAIMER, GROUPS, Preset, render_card
+from . import engine, history, savedlists, service
+from .registry import ALL, BY_ID, DISCLAIMER, FEATURED_GROUPS, GROUPS, Preset, render_card
 
+log = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/screener/presets")
 gainers_router = APIRouter(prefix="/api/screener/gainers")
 API_ONLY = ("exportRows",)
@@ -28,13 +32,14 @@ def _gold(ctx) -> bool:
     return bool(ctx.authed and (has(ctx.plan, "gold") or sees_all(ctx)))
 
 
-def _allowed(ctx, tab: str) -> bool:
-    """The Advanced tab's screens are Gold (Prism columns); the Basic tab's are Silver (FinLit score columns)."""
-    return bool(ctx.authed and (has(ctx.plan, "gold" if tab == "advanced" else "silver") or sees_all(ctx)))
+def _allowed(ctx, tab: str = "advanced") -> bool:
+    """The ready-made screens are built on FinLit Prism: Gold (task #283: the Basic tab, built on the retired FinLit IQ for Silver, is gone)."""
+    return _gold(ctx)
 
 
 def _tab_of(request: Request) -> str:
-    return "basic" if request.query_params.get("tab") == "basic" else "advanced"
+    """The one tab. An older request for ?tab=basic gets the same Prism screens (its own screens were retired with the Basic stock screener)."""
+    return "advanced"
 
 
 def _json(body, status: int = 200) -> Response:
@@ -43,24 +48,49 @@ def _json(body, status: int = 200) -> Response:
 
 
 def _chips(p: Preset) -> List[dict]:
-    return [{"id": c.id, "label": c.label, "default": c.default, "description": c.description} for c in p.chips]
+    # task #325 (file 25, section 1 row 5): a sub-theme chip is marked, so the page shows the sub-themes as one group with one i button
+    return [{"id": c.id, "label": c.label, "default": c.default, "description": c.description, **({"sub": True} if (c.effect or {}).get("sub") else {})} for c in p.chips]
 
 
 def _list_text(p: Preset, cached: dict | None) -> str | None:
-    """What the card says about its list: "Top 10 of 40 that pass" (the Top 10 screens), nothing for the others (they page through everything that passes)."""
+    """What the card says about its list: "40 pass · the top 10 first" (the Top 10 screens: the ten strongest first, then every other company that passes, as
+    the list shows them and as the screen's own list text says; QA 23 Nov: "Top 10 of 33 that pass" read as if only ten were listed), nothing for the others."""
     if not cached:
         return None
     if p.kind == "themes":
         return cached.get("listText")
     n = cached["count"]
-    return f"Top {p.limit} of {n} that pass" if p.top10 else None      # the other screens page through everything that passes: the count says it all
+    return f"{n} pass · the top {p.limit} first" if p.top10 else None      # the other screens page through everything that passes: the count says it all
+
+
+NEW_DAYS = 14      # task #243: a new screen's card carries the NEW tag ("new screen") for two weeks after its first run
+
+
+def _is_new(p: Preset, today: Optional[_date] = None) -> bool:
+    if not p.added:
+        return False
+    return 0 <= ((today or _date.today()) - _date.fromisoformat(p.added)).days <= NEW_DAYS
+
+
+def _about(p: Preset) -> Optional[dict]:
+    """The i beside the screen's name (pack v4): what it shows, and three points on how to use it."""
+    return {"shows": p.about[0], "use": list(p.about[1])} if p.about else None
+
+
+def _with_meta(body: dict, p: Preset) -> dict:
+    """Task #243: the i beside the name, the screen's own notes (first in the notes line), and whether it is new."""
+    body["about"], body["isNew"] = _about(p), _is_new(p)
+    if p.notes:
+        body["notes"] = list(p.notes) + [n for n in (body.get("notes") or []) if n not in p.notes]
+    return body
 
 
 def _card(p: Preset, gold: bool, cached: dict | None) -> dict:
     live = p.status == "live" and p.kind != "quickview"
     return {"id": p.id, "name": p.name, "group": p.group, "cardText": render_card(p, (cached or {}).get("of", {}).get("n") if cached else None), "count": cached["count"] if (gold and cached) else None, "listText": _list_text(p, cached) if gold else None,
             "asOf": cached["asOf"] if (gold and cached) else None, "status": p.status, "blockedReason": p.blocked_reason, "chips": _chips(p), "howItWorks": list(p.how_it_works),
-            "locked": not gold, "tab": p.tab, "kind": p.kind, "handledBy": "frontend" if p.kind == "quickview" else "server", "computed": bool(live and cached), "disclaimer": DISCLAIMER}
+            "locked": not gold, "tab": p.tab, "kind": p.kind, "handledBy": "frontend" if p.kind == "quickview" else "server", "computed": bool(live and cached), "disclaimer": DISCLAIMER,
+            "about": _about(p), "isNew": _is_new(p)}
 
 
 async def _resolve(request: Request, pid: str):
@@ -69,8 +99,7 @@ async def _resolve(request: Request, pid: str):
         raise fail(404, "not_found", "No such screen.")
     ctx = await current(request)
     if not _allowed(ctx, p.tab):
-        need = "gold" if p.tab == "advanced" else "silver"
-        raise fail(403, "plan_required", f"Prebuilt screens on this tab are part of the {need.title()} plan.", plan=need)
+        raise fail(403, "plan_required", "Prebuilt screens are part of the Gold plan.", plan="gold")
     if p.kind in ("blocked", "quickview"):
         raise fail(409, "blocked" if p.kind == "blocked" else "not_a_server_screen",
                    p.blocked_reason or "This quick view is handled by the page itself.", blockedReason=p.blocked_reason)
@@ -94,15 +123,55 @@ def _as_on(request: Request):
     return d
 
 
+RETIRED_KEYS = ("overall", "pillar_quality", "pillar_growth", "pillar_profitability", "pillar_balance", "pillar_technical")
+
+
+def _bands_now(cols: List[dict]) -> List[dict]:
+    """Task #283: a list stored before FinLit IQ was retired may still name one of its columns; it is never served (the rows keep only the columns shown)."""
+    return [c for c in cols if c.get("key") not in RETIRED_KEYS]
+
+
 def _history_columns(cols: List[dict], p: Preset, then: bool) -> List[dict]:
-    """The On this list band: Added and Since added (Since then when a past day is shown), after the standard columns and before This screen's own."""
-    if p.kind in ("themes", "gainers") or any(c["key"] in ("added_on", "since_added_pct", "since_then_pct") for c in cols):
+    """The On this list band (Added, Since added) after the standard columns and before This screen's own, on EVERY date; a past date adds one column, Since then,
+    in its own "After this list" band, and never drops one (task #243, pack P5.1 and L3)."""
+    if p.kind in ("themes", "gainers"):
         return cols
-    extra = [{"key": "added_on", "label": "Added", "format": "date", "align": "left", "band": "On this list"} if not then else None,
-             {"key": "since_then_pct" if then else "since_added_pct", "label": "Since then" if then else "Since added", "format": "since", "align": "right", "band": "On this list"}]
-    extra = [c for c in extra if c]
+    cols = [c for c in cols if c.get("key") not in ("added_on", "since_added_pct", "since_then_pct")]
+    extra = [{"key": "added_on", "label": "Added", "format": "date", "align": "left", "band": "On this list"},
+             {"key": "since_added_pct", "label": "Since added", "format": "since", "align": "right", "band": "On this list"}]
+    if then:
+        extra.append({"key": "since_then_pct", "label": "Since then", "format": "since", "align": "right", "band": "After this list"})
     at = next((n for n, c in enumerate(cols) if c.get("band") == "This screen"), len(cols))          # after the standard columns, before this screen's own
     return cols[:at] + extra + cols[at:]
+
+
+SAVED_KEYS = ("added_on", "lists_on", "added_baseline", "since_added_pct", "price_added", "price_on", "bench_since_added_pct", "since_then_pct", "price_latest", "bench_since_then_pct")
+
+
+async def _saved_figures(store, p: Preset, active: List[str], rows: List[dict], day: _date) -> Optional[dict]:
+    """Task #243 (pack L): Added, Since added (and Since then on a past date) on every row, worked out only from the screen's saved lists (savedlists.py), and the
+    date bar's figures for that day. None when the screen has no saved list for the day."""
+    sl = await savedlists.load(store, p.id, engine.chip_key(active))
+    if day not in sl.days:
+        return None
+    bench = await history._bench(store, _date.today())
+    latest = sl.days[-1]
+    t = None
+    if day != latest:
+        try:
+            t = await get_table(store)
+        except Exception:
+            t = None
+    for r in rows:
+        sym = r.get("symbol")
+        lp = sl.on(latest).get(sym)
+        if lp is None and t is not None and sym in t.pos and "price" in t.cols:      # no longer on the latest list: the latest close
+            v = t.cols["price"][t.pos[sym]]
+            lp = v if v == v else None
+        r.update(savedlists.row_figures(sl, sym, day, lp, bench))
+    j, l, prev = savedlists.joined_left(sl, day)
+    return {"date": day.isoformat(), "latest": latest.isoformat(), "count": sl.counts.get(day, len(sl.on(day))), "joined": len(j) if prev else None,
+            "left": len(l) if prev else None, "prev": prev.isoformat() if prev else None, "first": sl.days[0].isoformat(), "rulesUpdated": bool(sl.rules_changed.get(day))}
 
 
 async def _gainers_body(request: Request, p: Preset) -> dict:
@@ -115,7 +184,7 @@ async def _gainers_body(request: Request, p: Preset) -> dict:
         r["stillOn"] = "On the list" if r.get("stillOn") else (f"Left {r['leftOn']}" if r.get("leftOn") else "Left")
         if r.get("others"):
             r["screen"] = f"{r['screen']} (also {', '.join(r['others'])})"
-    page = "Basic" if p.tab == "basic" else "Advanced"
+    page = "Advanced"
     return {"id": p.id, "name": p.name, "asOf": got["session"], "count": len(rows), "shown": len(rows), "columns": [{"key": c.key, "label": c.label, "format": c.format, "align": c.align} for c in p.columns],
             "rows": rows, "exportRows": rows, "chips": [], "howItWorks": [], "cardText": p.card_text, "disclaimer": DISCLAIMER, "pageSize": 25,
             "heading": f"The 20 biggest rises · of the companies that joined a {page} screen at one of the closes before {got['session']}" if rows else None,
@@ -132,45 +201,108 @@ async def _body(request: Request, p: Preset, active: List[str]) -> dict:
         if snap is None:
             raise fail(404, "no_history", "This screen has no stored list for that day.")
         base = await service.get_result(store, p, active) or {}
-        latest = {}
-        t = await get_table(store)
         for r in snap["rows"]:
-            i = t.pos.get(r["symbol"])
-            latest[r["symbol"]] = t.cols["price"][i] if i is not None and "price" in t.cols and t.cols["price"][i] == t.cols["price"][i] else None
-            c0 = r.pop("_close", None)
-            r["since_then_pct"] = None if not c0 or not latest[r["symbol"]] else round((latest[r["symbol"]] / c0 - 1) * 100, 2)
+            r.pop("_close", None)
+        figs = await _saved_figures(store, p, active, snap["rows"], as_on)
         bench = await history._bench(store, as_on)
-        b0, b1 = history._bench_at(bench, as_on.isoformat()), history._bench_at(bench, _date.today().isoformat())
+        b0, b1 = history._bench_at(bench, as_on.isoformat()), history._bench_at(bench, (figs or {}).get("latest") or _date.today().isoformat())
         out = {**base, "rows": snap["rows"], "exportRows": snap["rows"], "count": snap["count"], "shown": len(snap["rows"]), "asOn": snap["session"],
-               "benchSincePct": history._pct(b0, b1)}
+               "asOf": snap["session"], "benchSincePct": history._pct(b0, b1), "list": figs}      # L1: the date picked, everywhere
         out.pop("listText", None)
-        out["columns"] = _history_columns(out.get("columns") or [], p, then=True)
-        return out
+        out["columns"] = price_label(_bands_now(_history_columns(out.get("columns") or [], p, then=True)), None)
+        return _with_meta(out, p)
     body = await service.get_result(store, p, active)
     if body is None:
         raise fail(503, "computing", "This screen is being prepared. Try again in a few seconds.")
-    try:       # Added and Since added on every row (the stored spells; nothing is worked out on the page)
-        t = await get_table(store)
-        latest = {r["symbol"]: (t.cols["price"][t.pos[r["symbol"]]] if r["symbol"] in t.pos else None) for r in (body.get("exportRows") or body.get("rows") or [])}
-        bench = await history._bench(store, _date.today())
+    try:       # Added and Since added on every row, from the saved lists (task #243, pack L); nothing is worked out on the page
         rows = body.get("exportRows") or body.get("rows") or []
-        await history.enrich(store, p.id, engine.chip_key(active), rows, {k: v for k, v in latest.items() if v == v}, bench, _date.fromisoformat(body["asOf"]))
-        if body.get("exportRows") is not None and body.get("rows") is not body["exportRows"]:
-            by = {r["symbol"]: r for r in rows}
-            for r in body.get("rows") or []:
-                if r["symbol"] in by:
-                    r.update({k: by[r["symbol"]][k] for k in ("added_on", "since_added_pct", "bench_since_added_pct") if k in by[r["symbol"]]})
+        figs = await _saved_figures(store, p, active, rows, _date.fromisoformat(str(body["asOf"])[:10]))
+        if figs is not None:
+            body["list"] = figs
+            if body.get("exportRows") is not None and body.get("rows") is not body["exportRows"]:
+                by = {r["symbol"]: r for r in rows}
+                for r in body.get("rows") or []:
+                    if r["symbol"] in by:
+                        r.update({k: v for k, v in by[r["symbol"]].items() if k in SAVED_KEYS})
         body["columns"] = _history_columns(body.get("columns") or [], p, then=False)
     except Exception:
-        pass
-    return body
+        log.warning("saved-list figures not added for %s", p.id, exc_info=True)
+    live_at = None
+    try:       # task #269: during market hours, today's live price and day change, the same as the company page, the search box and the dashboard
+        now = _now()
+        if market_open(now):        # task #394 (developer file 37, F3): after the close the row keeps the official close of the list's day (price_on)
+            latest = await latest_prices(request.app)
+            seen = {id(r): r for r in (body.get("rows") or []) + (body.get("exportRows") or [])}
+            if overlay_prices(list(seen.values()), latest, str(body["asOf"])):
+                days = sorted({r["price_day"] for r in seen.values() if r.get("price_day") and r.get("price_live")})
+                body["priceDay"] = days[-1] if days else None
+                live_at = now.astimezone(IST).strftime("%H:%M")
+                body["priceLive"] = live_at
+    except Exception:
+        log.warning("latest prices not added for %s", p.id, exc_info=True)
+    body["columns"] = price_label(_bands_now(body.get("columns") or []), live_at)
+    body["name"] = p.name          # a list stored under an older name is served with today's (14 Nov N-35)
+    return _with_meta(body, p)
+
+
+async def latest_prices(app) -> Dict[str, tuple]:
+    """Task #269 (20 Nov 2026, the team: "the scores are different when we open it", APOLLOHOSP at 8,738 -0.9% on a screen and 9,141 +4.61% on its page): a
+    screen's list is built from last night's frame, so its price and day change were last night's close all day while the company page showed today's.
+    These are the latest prices the search box and the dashboard use (search.quote_rows: the stored report or the market-wide listing, whichever is newer,
+    with the trading day it belongs to), from their saved copy (rebuilt every 2 minutes). {symbol: (price, day change %, trading day)}."""
+    from .. import search
+    try:
+        raw = await app.state.store.redis.hget("search-quotes:silver", "body")
+    except Exception:
+        raw = None
+    if raw is None:
+        raw = (await search.build(app, "silver"))[0]
+    doc = orjson.loads(raw)
+    return {r[0]: (r[1], r[2], r[3]) for r in doc.get("rows") or [] if r[1] is not None and r[3]}
+
+
+IST = ZoneInfo("Asia/Kolkata")
+
+
+def _now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def market_open(now: datetime) -> bool:
+    """Weekday 09:15 to 15:30 IST, the exchange's session (jobs/schedule.market_open)."""
+    from ..jobs.schedule import market_open as is_open
+    return is_open(now)
+
+
+def price_label(cols: List[dict], live_at: Optional[str]) -> List[dict]:
+    """C10 (developer file 37): the table's price column says what its prices are: "Close (₹)" (the official close of the list's day) or, during market
+    hours, "Live (₹) · 11:40" (the live price, with the time it was read)."""
+    for c in cols:
+        if c.get("key") == "price":
+            c["label"] = f"Live (₹) · {live_at}" if live_at else "Close (₹)"
+    return cols
+
+
+def overlay_prices(rows: List[dict], latest: Dict[str, tuple], list_day: str) -> int:
+    """During market hours: each row's price and day change set to the live price when it is from the list's own trading day or later (an older one is
+    never put over a newer close); the row says which day its price is from (price_day) and that it is live (price_live). Its official close of the list
+    day stays in price_on. Whether a company is on the screen still follows the list's rules. Returns how many changed."""
+    n = 0
+    for r in rows:
+        q = latest.get(r.get("symbol"))
+        if q is None or q[2] < list_day[:10]:
+            continue
+        r["price"], r["ret_1d"], r["price_day"], r["price_live"] = q[0], q[1], q[2], True
+        r.pop("ret_1d_note", None)
+        n += 1
+    return n
 
 
 FIGURE = {"setups": ("From 52-week high", "pct_from_high"), "top-gainers": ("Since it joined", "since")}
 
 
-def _score_figure(tab: str) -> tuple:
-    return ("FinLit IQ", "overall") if tab == "basic" else ("FinLit Prism", "prism_final")
+def _score_figure(tab: str = "advanced") -> tuple:
+    return ("FinLit Prism", "prism_final")
 
 
 def _num(v):
@@ -178,19 +310,39 @@ def _num(v):
 
 
 async def _joined_counts(store, keys: List[tuple]) -> dict:
-    """{(preset_id, chips): companies on the list now whose Added date is that screen's latest close}. Lists built on the first stored close count none:
-    every company on them was already there when FinLit began storing lists, so 'joined since yesterday' would not be true."""
+    """{(preset_id, chips, latest session): joined} for the cards, from the SAME saved lists the open screen reads (savedlists.joined_left): the companies on
+    the latest list that were not on the one before. Task #325 (developer file 25, 2.1 row 5): the cards used to count open spells and disagreed with the open
+    screen (Momentum leaders 17 against 16, Uptrend on both views 67 against 61). On a day the screen's rules changed the value is "rules" (row 3 and 4: the
+    joined figure would mix rule changes with price moves), and a list built on the first stored close counts none."""
     if not keys:
         return {}
     base = await history.baseline_session(store)
     async with store.pool.acquire() as conn:
-        rows = await conn.fetch("SELECT preset_id, chips, added_on, count(*) AS n FROM screen_spells WHERE left_on IS NULL AND preset_id = ANY($1::text[]) "
-                                "AND added_on >= CURRENT_DATE - 14 GROUP BY preset_id, chips, added_on", list({k[0] for k in keys}))
-    out = {}
+        rows = await conn.fetch(
+            "WITH r AS (SELECT preset_id, chips, session, registry, row_number() OVER (PARTITION BY preset_id, chips ORDER BY session DESC) AS rn "
+            "FROM screen_runs WHERE preset_id = ANY($1::text[])) "
+            "SELECT r.preset_id, r.chips, r.session, r.rn, r.registry::text AS reg, s.symbol FROM r LEFT JOIN screen_snapshots s "
+            "ON s.preset_id = r.preset_id AND s.chips = r.chips AND s.session = r.session WHERE r.rn <= 2", list({k[0] for k in keys}))
+    lists: dict = {}
     for r in rows:
-        if base is not None and r["added_on"] == base:
+        k = (r["preset_id"], r["chips"])
+        d = lists.setdefault(k, {})
+        e = d.setdefault(r["rn"], {"session": r["session"], "reg": r["reg"], "syms": set()})
+        if r["symbol"]:
+            e["syms"].add(r["symbol"])
+    out = {}
+    for k, d in lists.items():
+        now = d.get(1)
+        if now is None:
             continue
-        out[(r["preset_id"], r["chips"], r["added_on"].isoformat())] = r["n"]
+        key = (k[0], k[1], now["session"].isoformat())
+        before = d.get(2)
+        if before is None or (base is not None and now["session"] == base):
+            out[key] = 0
+        elif before["reg"] != now["reg"]:
+            out[key] = "rules"
+        else:
+            out[key] = len(now["syms"] - before["syms"])
     return out
 
 
@@ -218,7 +370,7 @@ async def listing(request: Request):
     as_of = None
     found = []
     for p in ALL:
-        if p.tab != tab:
+        if p.tab != tab or p.status == "blocked":      # task #243 (pack L12): a screen that cannot run yet is not listed; its card comes back once it runs
             continue
         cached = None
         if gold and p.kind == "gainers" and p.status == "live":
@@ -244,6 +396,11 @@ async def listing(request: Request):
             joined = await _joined_counts(store, keys)
         except Exception:
             joined = None
+        try:          # Top gainers: This month waits for 21 saved closes; until then its card says since when it counts
+            async with store.pool.acquire() as conn:
+                sessions_saved = await conn.fetchval("SELECT count(DISTINCT session) FROM screen_runs")
+        except Exception:
+            sessions_saved = None
         for p, card, cached in found:
             card["top10"] = bool(p.top10)
             card["figure"] = FIGURE.get(p.group, _score_figure(p.tab))[0]
@@ -251,10 +408,30 @@ async def listing(request: Request):
                 continue
             if p.kind == "gainers":
                 card["count"], card["asOf"] = cached["count"], cached["asOf"]
+                if p.id == "gainers-month" and sessions_saved is not None and sessions_saved < 21:      # task #325 (file 25, 2.1 row 2)
+                    card["cardText"] = (f"Companies that joined a screen of this page since 11 Nov 2026, when FinLit began storing lists ({sessions_saved} closes so far; "
+                                        "a full month is 21), ranked by how far the price has risen since.")
             card["first"] = _first3(p, cached, table)
             if joined is not None and p.kind != "gainers" and cached.get("asOf"):
-                card["joined"] = joined.get((p.id, engine.chip_key([c.id for c in p.chips if c.default]), str(cached["asOf"])[:10]), 0)
-    return _json({"tab": tab, "asOf": as_of, "groups": [{"id": g, "name": n, "presets": by_group[g]} for g, n in GROUPS if by_group[g]]})
+                j = joined.get((p.id, engine.chip_key([c.id for c in p.chips if c.default]), str(cached["asOf"])[:10]), 0)
+                if j == "rules":
+                    card["rulesUpdated"] = True      # the card shows "rules updated", never "+N joined", on that day
+                else:
+                    card["joined"] = j
+    return _json({"tab": tab, "asOf": as_of, "groups": [{"id": g, "name": n, "featured": g in FEATURED_GROUPS, "presets": by_group[g], **GROUP_EXTRA.get(g, {})}
+                                                        for g, n in GROUPS if by_group[g]]})
+
+
+# Task #243 (pack v4): the Sectors tab (Advanced only) is new, and has a one-line intro over its cards with an i.
+GROUP_EXTRA: Dict[str, dict] = {"sectors": {
+    "isNew": True,
+    "intro": "Screens that read each company's industry: where it stands on Sector Rotation and Sector Pulse, and how the company compares with its peers.",
+    "about": {"shows": "Sector Rotation places each industry against the average industry: Ahead and gaining, Ahead but slowing, Behind but gaining or Behind and slipping. "
+                       "Sector Pulse reads how many of an industry's stocks are rising: Sold off, Bouncing back, Bouncing back after a crash, Rising together, Losing steam or No clear signal. "
+                       "The peer label compares a company with the others in its industry: Leader, In line or Laggard.",
+              "use": ["Pick a screen by the question it answers: leaders in strong industries, the first stocks to rise in weak ones, or setups with the industry behind them.",
+                      "Columns, then Sector reading, adds the same five readings to any Advanced screen.",
+                      "The sector reading comes from a weekly run: the page says which date it is from."]}}}
 
 
 BADGE_GROUPS = ("top-rated", "themes")      # the screens a company page names: the highest-rated lists and the themes (a value or safety screen would read as a verdict on one company)
@@ -299,57 +476,351 @@ def _int(request: Request, name: str, default: int, lo: int, hi: int) -> int:
 
 def _size_of(r: dict) -> str | None:
     mc = r.get("market_cap")
-    return None if not isinstance(mc, (int, float)) else ("Large" if mc > 50000 else "Mid" if mc >= 10000 else "Small")
+    from ..sizes import size_of
+    return size_of(mc) if isinstance(mc, (int, float)) else None
 
 
 def _strong(r: dict) -> bool:
-    iq, pr = r.get("overall"), r.get("prism_final")
-    return (isinstance(iq, (int, float)) and iq >= 62) or (isinstance(pr, (int, float)) and pr >= 65)
+    """Prism Strong or Healthy (65 or more). Task #283: the retired FinLit IQ is never read."""
+    pr = r.get("prism_final")
+    return isinstance(pr, (int, float)) and not isinstance(pr, bool) and pr >= 65
 
 
-def _facets(rows: List[dict]) -> dict:
-    """What the filter bar offers for this screen's list: counts by size and by sector (the list as the screen made it, before the bar's own filters)."""
-    sizes, sectors = {}, {}
+def _strong_only(r: dict) -> bool:
+    """Prism Strong (80 or more)."""
+    pr = r.get("prism_final")
+    return isinstance(pr, (int, float)) and not isinstance(pr, bool) and pr >= 80
+
+
+def _bse_only(r: dict) -> bool:
+    return str(r.get("exchange") or "").upper() == "BSE"
+
+
+# Task #258 (20 Nov handoff, Advanced SPEC §2 and §3): an open Advanced screen filters on NSE's three levels, the Prism rating words, five score ranges and
+# the two technical views in five words. NSE's classification (task #192) is read once an hour and joined onto the screen's rows.
+_CLS: Dict[str, object] = {"at": 0.0, "map": {}}
+CLS_TTL = 3600.0
+
+
+async def _classification(store) -> Dict[str, tuple]:
+    import time
+    if _CLS["map"] and time.monotonic() - float(_CLS["at"]) < CLS_TTL:      # type: ignore[arg-type]
+        return _CLS["map"]       # type: ignore[return-value]
+    try:
+        async with store.pool.acquire() as conn:
+            rows = await conn.fetch("SELECT symbol, macro_sector, sector, industry FROM company_classification")
+        _CLS["map"] = {r["symbol"]: (r["macro_sector"] or None, r["sector"] or None, r["industry"] or None) for r in rows}
+        _CLS["at"] = time.monotonic()
+    except Exception:
+        log.warning("NSE classification not read for the open screen", exc_info=True)
+    return _CLS["map"]       # type: ignore[return-value]
+
+
+DISC_EVENTS = ("order", "capacity", "partnership", "mna")      # the four filing kinds file 25 section 4 names; ESOPs, ESG ratings and TDS notices are not counted
+DISC_SCREENS = ("emerging-tech",)
+_DISC_CACHE: Dict[str, tuple] = {}
+
+
+async def _discover_rows(store) -> Dict[str, dict]:
+    """Discover's board (finlit/discovery/board.py) by symbol, kept for 10 minutes: the board is built nightly and read by the Discover page the same way."""
+    import time
+    hit = _DISC_CACHE.get("board")
+    if hit and time.monotonic() - hit[0] < 600:
+        return hit[1]
+    from ..discovery import board as dboard
+    from ..discovery import signals as dsig
+    b = await dboard.board(store, per_event=0, per_theme=0)
+    by = {r["s"]: {**r, "lf": None} for r in b.get("rows") or []}
+    async with store.pool.acquire() as conn:      # the latest filing of the four kinds only (the board's own latest also counts ratings, legal and fund raising)
+        for x in await conn.fetch(
+                "SELECT DISTINCT ON (symbol) symbol, item_date, event, title, link FROM discovery_signals WHERE symbol = ANY($1::text[]) AND event = ANY($2::text[]) "
+                "AND item_date >= current_date - $3::int ORDER BY symbol, item_date DESC, feed_id DESC", list(by), list(DISC_EVENTS), dboard.NEWS_DAYS):
+            lf = {"d": x["item_date"].isoformat(), "e": x["event"], "el": dsig.EVENT_LABEL.get(x["event"], "Filing"), "t": dboard.clean_title(x["title"])}
+            if dboard.safe_link(x["link"]):
+                lf["l"] = x["link"]
+            by[x["symbol"]]["lf"] = lf
+    _DISC_CACHE["board"] = (time.monotonic(), by)
+    return by
+
+
+async def _with_discover(store, p: Preset, body: dict) -> dict:
+    """Task #325 (developer file 25, section 4): on Emerging tech every row carries what Discover knows: the stage the newest investor presentation
+    describes, its themes, the counts of the four filing kinds over 90 days and the latest of them. A company Discover has not placed says so
+    (disc_placed False); the two broad themes are left out of the themes."""
+    if p.id not in DISC_SCREENS:
+        return body
+    try:
+        by = await _discover_rows(store)
+    except Exception:      # Discover unavailable: the screen still opens, without the columns
+        return body
+    from ..discovery.board import BROAD
+    seen = set()
+    for r in (body.get("exportRows") or []) + (body.get("rows") or []):
+        if id(r) in seen or not isinstance(r, dict):
+            continue
+        seen.add(id(r))
+        x = by.get(r.get("symbol"))
+        r["disc_placed"] = x is not None
+        if x is None:
+            r["disc_stage"] = "Not placed"      # no investor presentation on file, so Discover has not placed the company
+            continue
+        r["disc_stage"] = x.get("st")
+        r["disc_themes"] = [t for t in [x.get("th"), *(x.get("sec") or [])] if t and t not in BROAD]
+        r["disc_ev"] = {k: int((x.get("ev") or {}).get(k) or 0) for k in DISC_EVENTS}
+        r["disc_latest"] = x.get("lf")
+        r["disc_latest_d"] = (x.get("lf") or {}).get("d")      # the column sorts by the filing's date; the cell shows the filing
+    cols = [c for c in body.get("columns") or [] if not str(c.get("key", "")).startswith("disc_")]
+    cols += [{"key": "disc_stage", "label": "Stage it describes", "format": "text", "align": "left", "band": "From Discover"},
+             {"key": "disc_latest_d", "label": "Latest filing", "format": "text", "align": "left", "band": "From Discover"}]
+    return {**body, "discover": True, "columns": cols}
+
+
+async def _with_classification(store, body: dict) -> dict:
+    """Adds cls_macro / cls_sector / cls_industry to each row of a screen (None when NSE does not classify the company)."""
+    cls = await _classification(store)
+    seen = set()
+    for r in (body.get("exportRows") or []) + (body.get("rows") or []):
+        if id(r) in seen or not isinstance(r, dict):
+            continue
+        seen.add(id(r))
+        r["cls_macro"], r["cls_sector"], r["cls_industry"] = cls.get(r.get("symbol"), (None, None, None))
+    return body
+
+
+def _name_key(s) -> str:
+    """A level name without case, commas or spacing: NSE's file writes "Oil, Gas & Consumable Fuels", the site's taxonomy "Oil Gas & Consumable Fuels"."""
+    return re.sub(r"[^a-z0-9]", "", str(s or "").lower())
+
+
+RATING_SLUGS = ("strong", "healthy", "average", "weak", "poor", "notrated")
+TREND5 = ("su", "u", "s", "d", "sd")
+_TREND_OF = {"strongpos": "su", "pos": "u", "neutral": "s", "neg": "d", "strongneg": "sd"}
+SCORE_RANGES = {"z": "prism_final", "zf": "prism_fundamental", "zv": "prism_valuation", "zq": "prism_quality", "zr": "prism_risk"}
+# Task #283: the Basic screen's panel on the retired FinLit IQ (its ranges o, pq ... pt and its rating groups, ?iqg=) is gone; such parameters are ignored.
+
+
+def _rating_of(r: dict) -> str:
+    """SHARED §4: Strong 80 and above, Healthy 65-79, Average 50-64, Weak 35-49, Poor below 35, Not rated without a Prism score."""
+    v = r.get("prism_final")
+    if not isinstance(v, (int, float)) or isinstance(v, bool) or v != v:
+        return "notrated"
+    return "strong" if v >= 80 else "healthy" if v >= 65 else "average" if v >= 50 else "weak" if v >= 35 else "poor"
+
+
+def _trend_of(v) -> Optional[str]:
+    from ..technical_wording import score_band
+    return _TREND_OF.get(score_band(v))
+
+
+def _range_of(qp, k: str) -> Optional[tuple]:
+    """A from-to box pair: empty means no limit, values are held to 0-100; None when neither box is set."""
+    def one(name):
+        raw = (qp.get(name) or "").strip()
+        try:
+            v = float(raw)
+        except ValueError:
+            return None
+        return None if v != v else min(100.0, max(0.0, v))
+    lo, hi = one(k + "min"), one(k + "max")
+    if lo is None and hi is None:
+        return None
+    if lo is not None and hi is not None and lo > hi:
+        lo, hi = hi, lo
+    return (lo, hi)
+
+
+# Task #243 (pack P4): the open screen's filters. Each one is a test on a row; the drop-downs offer each option with the number of rows it would leave, given the
+# OTHER filters that are on. "New on this list" = joined since the previous saved list; "Ahead of NIFTY 500 since added" = Since added above NIFTY 500 over the same days.
+def _bar(request: Request) -> dict:
+    qp = request.query_params
+    rating = qp.get("rating") or ("healthy" if qp.get("strong") == "1" else "")
+    return {"q": (qp.get("q") or "").strip().lower()[:60], "size": set(qp.getlist("size")), "sector": set(qp.getlist("sector")),
+            "rating": rating if rating in ("healthy", "strong") else "", "new": qp.get("new") == "1", "ahead": qp.get("ahead") == "1", "nse": qp.get("nse") == "1",
+            "fno": qp.get("fno") == "1", "liquid": qp.get("liquid") == "1",
+            # task #243 (pack v4, Advanced): Industry ahead and gaining, Peer leaders only, and the industry board's chip (an industry's address on Sector Pulse)
+            "sag": qp.get("sag") == "1", "plead": qp.get("plead") == "1", "ind": (qp.get("ind") or "").strip().lower()[:80],
+            # task #258 (Advanced SPEC §2, §3): NSE's macro sector, sector and industry; the Prism rating words, score ranges and the five trend words
+            "macro": {x[:80] for x in qp.getlist("macro") if x}, "nsec": {x[:80] for x in qp.getlist("nsec") if x}, "indu": {x[:80] for x in qp.getlist("indu") if x},
+            "pl": {x for x in ",".join(qp.getlist("pl")).split(",") if x in RATING_SLUGS},
+            "ranges": {k: rg for k in SCORE_RANGES if (rg := _range_of(qp, k)) is not None},
+            "st5": {x for x in (qp.get("st5") or "").split(",") if x in TREND5}, "lt5": {x for x in (qp.get("lt5") or "").split(",") if x in TREND5},
+            # task #325 (developer file 25, section 4): Emerging tech's "Filings, 90 days" filter, from Discover's exchange filings
+            "filing": {x for x in ",".join(qp.getlist("filing")).split(",") if x in DISC_EVENTS}}
+
+
+def _tests(f: dict, new_day: Optional[str]) -> Dict[str, object]:
+    t: Dict[str, object] = {}
+    if f.get("filing"):
+        kinds = set(f["filing"]); t["filing"] = lambda r: any(((r.get("disc_ev") or {}).get(k) or 0) > 0 for k in kinds)
+    if f["q"]:
+        q = f["q"]; t["q"] = lambda r: q in str(r.get("symbol", "")).lower() or q in str(r.get("name", "")).lower() or q in str(r.get("sector", "")).lower()
+    if f["size"]:
+        t["size"] = lambda r: _size_of(r) in f["size"]
+    if f["sector"]:
+        t["sector"] = lambda r: r.get("sector") in f["sector"]
+    if f["rating"]:
+        t["rating"] = _strong_only if f["rating"] == "strong" else _strong
+    if f["new"]:
+        t["new"] = lambda r: bool(new_day) and r.get("added_on") == new_day and not r.get("added_baseline")
+    if f["ahead"]:
+        t["ahead"] = lambda r: isinstance(r.get("since_added_pct"), (int, float)) and isinstance(r.get("bench_since_added_pct"), (int, float)) and r["since_added_pct"] > r["bench_since_added_pct"]
+    if f["nse"]:
+        t["nse"] = lambda r: not _bse_only(r)
+    if f.get("fno"):
+        t["fno"] = _fno_on
+    if f.get("liquid"):
+        t["liquid"] = _liquid
+    if f.get("sag"):
+        t["sag"] = _sector_ahead
+    if f.get("plead"):
+        t["plead"] = _peer_leader
+    if f.get("ind"):
+        ind = f["ind"]; t["ind"] = lambda r: r.get("sr_slug") == ind
+    if f.get("macro"):
+        want_m = {_name_key(x) for x in f["macro"]}; t["macro"] = lambda r: _name_key(r.get("cls_macro")) in want_m
+    if f.get("nsec"):
+        want_s = {_name_key(x) for x in f["nsec"]}; t["nsec"] = lambda r: _name_key(r.get("cls_sector")) in want_s
+    if f.get("indu"):
+        want_i = {_name_key(x) for x in f["indu"]}; t["indu"] = lambda r: _name_key(r.get("cls_industry")) in want_i
+    if f.get("pl"):
+        t["pl"] = lambda r: _rating_of(r) in f["pl"]
+    for k, (lo, hi) in (f.get("ranges") or {}).items():
+        col = SCORE_RANGES[k]
+        t["rg_" + k] = lambda r, col=col, lo=lo, hi=hi: isinstance(r.get(col), (int, float)) and (lo is None or r[col] >= lo) and (hi is None or r[col] <= hi)
+    for k, col in (("st5", "prism_st_score"), ("lt5", "prism_lt_score")):
+        if f.get(k):
+            t[k] = lambda r, col=col, want=f[k]: _trend_of(r.get(col)) in want
+    return t
+
+
+def _sector_ahead(r: dict) -> bool:
+    return r.get("sr_ag") == 1
+
+
+def _peer_leader(r: dict) -> bool:
+    return r.get("sr_lead") == 1
+
+
+def _board(rows: List[dict], tests: Dict[str, object]) -> List[dict]:
+    """The industry board of a Sectors screen: one chip per industry on the list (after the other filters), with its count, rotation corner and Pulse state.
+    The counts add up to the list; a company with no sector reading is counted under "No sector reading"."""
+    by: Dict[str, dict] = {}
     for r in rows:
-        z = _size_of(r)
-        if z:
-            sizes[z] = sizes.get(z, 0) + 1
-        if r.get("sector"):
+        if not _passes(r, tests, "ind"):
+            continue
+        slug = r.get("sr_slug") or ""
+        b = by.setdefault(slug, {"slug": slug or None, "name": r.get("sr_industry") or "No sector reading", "n": 0, "corner": r.get("sr_corner"),
+                                 "rotation": (r.get("sr_rotation") or "").split(" · ")[0] or None, "pulse": r.get("sr_pulse"), "pulseCode": r.get("sr_pulse_code")})
+        b["n"] += 1
+    return sorted(by.values(), key=lambda b: (b["slug"] is None, -b["n"], str(b["name"])))
+
+
+LIQUID_CR = 10.0     # pack v4: "Liquid only" = 20-session average value traded of Rs 10 Cr or more
+
+
+def _fno_on(r: dict) -> bool:
+    return r.get("fno") == 1
+
+
+def _liquid(r: dict) -> bool:
+    v = r.get("turnover20_cr")
+    return isinstance(v, (int, float)) and v >= LIQUID_CR
+
+
+def _passes(r: dict, tests: Dict[str, object], skip: str = "") -> bool:
+    return all(fn(r) for k, fn in tests.items() if k != skip)       # type: ignore[operator]
+
+
+def _facets(rows: List[dict], tests: Optional[Dict[str, object]] = None, new_day: Optional[str] = None) -> dict:
+    """What the filters offer for this screen's list: each option's count is the rows it would leave with the other filters that are on."""
+    tests = tests or {}
+    sizes: Dict[str, int] = {}
+    sectors: Dict[str, int] = {}
+    for r in rows:
+        if _passes(r, tests, "size"):
+            z = _size_of(r)
+            if z:
+                sizes[z] = sizes.get(z, 0) + 1
+        if _passes(r, tests, "sector") and r.get("sector"):
             sectors[r["sector"]] = sectors.get(r["sector"], 0) + 1
-    return {"sizes": sizes, "sectors": sorted(sectors.items(), key=lambda kv: (-kv[1], kv[0]))[:80], "strong": sum(1 for r in rows if _strong(r))}
-
-
-def _filtered(request: Request, rows: List[dict]) -> List[dict]:
-    """The filter bar: search, size, sector and Only Strong or Healthy, applied to the screen's own list. Order and ranks stay as the screen made them."""
-    q = (request.query_params.get("q") or "").strip().lower()[:60]
-    sizes = set(request.query_params.getlist("size"))
-    secs = set(request.query_params.getlist("sector"))
-    strong = request.query_params.get("strong") == "1"
-    if not (q or sizes or secs or strong):
-        return rows
-    out = []
+    probe = _tests({"q": "", "size": set(), "sector": set(), "rating": "", "new": True, "ahead": True, "nse": True, "fno": True, "liquid": True, "sag": True, "plead": True, "ind": ""}, new_day)
+    n = lambda key, fn: sum(1 for r in rows if _passes(r, tests, key) and fn(r))       # noqa: E731
+    # task #258 (SPEC §2, §3): each NSE level's values on this list with their counts (own level left out), and the counts of each rating and trend word
+    levels: Dict[str, Dict[str, int]] = {"macros": {}, "nsecs": {}, "industries": {}}
+    ratings = {s: 0 for s in RATING_SLUGS}
+    trend = {"st": {s: 0 for s in TREND5}, "lt": {s: 0 for s in TREND5}}
     for r in rows:
-        if q and q not in str(r.get("symbol", "")).lower() and q not in str(r.get("name", "")).lower() and q not in str(r.get("sector", "")).lower():
-            continue
-        if sizes and _size_of(r) not in sizes:
-            continue
-        if secs and r.get("sector") not in secs:
-            continue
-        if strong and not _strong(r):
-            continue
-        out.append(r)
+        for key, test, col in (("macros", "macro", "cls_macro"), ("nsecs", "nsec", "cls_sector"), ("industries", "indu", "cls_industry")):
+            if r.get(col) and _passes(r, tests, test):
+                levels[key][r[col]] = levels[key].get(r[col], 0) + 1
+        if _passes(r, tests, "pl"):
+            ratings[_rating_of(r)] += 1
+        for k, col in (("st", "prism_st_score"), ("lt", "prism_lt_score")):
+            w = _trend_of(r.get(col))
+            if w and _passes(r, tests, k + "5"):
+                trend[k][w] += 1
+    disc = any("disc_placed" in r for r in rows)
+    filings = {k: n("filing", lambda r, k=k: ((r.get("disc_ev") or {}).get(k) or 0) > 0) for k in DISC_EVENTS} if disc else None
+    return {**{k: sorted(v.items(), key=lambda kv: (-kv[1], kv[0])) for k, v in levels.items()}, "ratings": ratings, "trend": trend, **({"filings": filings} if disc else {}),
+            "sizes": sizes, "sectors": sorted(sectors.items(), key=lambda kv: (-kv[1], kv[0]))[:80],
+            "strong": n("rating", _strong), "strongOnly": n("rating", _strong_only), "anyRating": n("rating", lambda r: True),
+            "new": n("new", probe["new"]), "ahead": n("ahead", probe["ahead"]), "nse": n("nse", probe["nse"]), "bse": sum(1 for r in rows if _bse_only(r)),
+            "fno": n("fno", probe["fno"]), "liquid": n("liquid", probe["liquid"]),
+            "sag": n("sag", probe["sag"]), "plead": n("plead", probe["plead"])}
+
+
+def _filtered(request: Request, rows: List[dict], new_day: Optional[str] = None) -> List[dict]:
+    """The open screen's filters, applied to the screen's own list. Order and ranks stay as the screen made them."""
+    tests = _tests(_bar(request), new_day)
+    return rows if not tests else [r for r in rows if _passes(r, tests)]
+
+
+def _summary(rows: List[dict], table=None) -> dict:
+    """Task #325 (developer file 25, section 1 row 7): what kind of list it is, before reading the rows. Over the rows the open filters leave: how many have a
+    long-term technical view of Uptrend or Strong uptrend, how many Downtrend or Strong downtrend, how many sit within 10% of the 52-week high, and how many are
+    rated Healthy or Strong by Prism. `held` is the rows with a long-term view at all. A value missing on the row is read from the screener table."""
+    def val(r, key):
+        v = _num(r.get(key))
+        if v is None and table is not None and key in table.cols and r.get("symbol") in table.pos:
+            v = _num(table.cols[key][table.pos[r["symbol"]]])
+        return v
+    out = {"count": len(rows), "held": 0, "up": 0, "down": 0, "nearHigh": 0, "highHeld": 0, "sound": 0}
+    for r in rows:
+        w = _trend_of(val(r, "prism_lt_score"))
+        if w:
+            out["held"] += 1
+            out["up"] += w in ("su", "u")
+            out["down"] += w in ("d", "sd")
+        h = val(r, "pct_from_high")
+        if h is not None:
+            out["highHeld"] += 1
+            out["nearHigh"] += abs(h) <= 10
+        out["sound"] += _rating_of({"prism_final": val(r, "prism_final")}) in ("healthy", "strong")
     return out
 
 
-def _page(request: Request, body: dict) -> dict:
+def _page(request: Request, body: dict, table=None) -> dict:
     """A screen that is not a Top-10 list and not a theme view pages: `offset` (default 0) and `limit` (default 25, at most EXPORT_MAX) pick rows of the ranked list.
     The answer carries `offset`, `limit`, `available` (rows that can be paged to) and `hasMore`; `count` stays the number of companies that pass."""
     if "pageSize" not in body:
         return body
     avail = body.get("exportRows") or body["rows"]
-    facets = _facets(avail)
-    avail = _filtered(request, avail)
+    lst = body.get("list") or {}
+    new_day = lst.get("date") if lst.get("prev") else None          # the first saved list has no "new": nothing to compare with
+    tests = _tests(_bar(request), new_day)
+    facets = _facets(avail, tests, new_day)
+    board = _board(avail, tests) if BY_ID.get(str(body.get("id"))) is not None and BY_ID[str(body["id"])].group == "sectors" else None
+    avail = _filtered(request, avail, new_day)
     body = {**body, "facets": facets, "filtered": len(avail)} if len(avail) != len(body.get("exportRows") or body["rows"]) or facets else body
+    if board is not None:
+        body = {**body, "industryBoard": board}
+    body = {**body, "summary": _summary(avail, table)}
+    subs: Dict[str, int] = {}
+    for r in avail:      # task #325 (file 25, section 1 row 5): each sub-theme chip shows how many companies of the list it holds
+        if r.get("sub_theme"):
+            subs[r["sub_theme"]] = subs.get(r["sub_theme"], 0) + 1
+    if subs:
+        body = {**body, "subCounts": subs}
     offset = _int(request, "offset", 0, 0, engine.EXPORT_MAX)
     limit = _int(request, "limit", body["pageSize"], 1, engine.EXPORT_MAX)
     rows = avail[offset:offset + limit]
@@ -359,9 +830,47 @@ def _page(request: Request, body: dict) -> dict:
 @router.get("/{pid}")
 async def detail(request: Request, pid: str):
     p, ctx, active = await _resolve(request, pid)
-    body = _page(request, await _body(request, p, active))
+    body = await _body(request, p, active)
+    # task #258: NSE's three levels on every row, for the open screen's Macro sector, Sector and Industry filters
+    body = await _with_classification(request.app.state.store, body)
+    body = await _with_discover(request.app.state.store, p, body)
+    try:
+        table = await get_table(request.app.state.store)
+    except Exception:      # the summary then reads only the screen's own rows
+        table = None
+    body = _page(request, body, table)
     await service.log_usage(request.app.state.store, p.id, "open")
     return _json({k: v for k, v in body.items() if k not in API_ONLY})
+
+
+PRICE_SESSIONS = {"3M": 63, "6M": 126, "1Y": 252}
+PRICES_MAX = 12
+
+
+@router.get("/{pid}/prices")
+async def prices_route(request: Request, pid: str):
+    """Task #325 (developer file 25, section 5): the chart wall's prices in one call, for up to 12 companies of this screen, from the daily series the
+    pattern job keeps (presets/candles.py), so a card never waits for a company report to be built ("Preparing this stock's report" kept 17 of 113
+    cards on Loading). A company with no stored series comes back as null and the card says the chart is being prepared."""
+    from . import candles as candles_mod
+    await _resolve(request, pid)
+    rng = request.query_params.get("range", "6M").upper()
+    n = PRICE_SESSIONS.get(rng, 126)
+    syms = [x.strip().upper() for x in (request.query_params.get("symbols") or "").split(",") if x.strip()][:PRICES_MAX]
+    store = request.app.state.store
+    out: Dict[str, Optional[dict]] = {}
+    for sym in syms:
+        try:
+            sr = await candles_mod.series(store, sym)
+        except Exception:
+            sr = None
+        t = (sr or {}).get("t") or []
+        if len(t) < 2:
+            out[sym] = None
+            continue
+        k = max(0, len(t) - n)
+        out[sym] = {f: list((sr.get(f) or [])[k:]) for f in ("t", "o", "h", "l", "c")}
+    return _json({"range": rng, "series": out})
 
 
 @router.get("/{pid}/history")
@@ -369,13 +878,30 @@ async def history_route(request: Request, pid: str):
     p, ctx, active = await _resolve(request, pid)
     if p.kind == "gainers":
         return _json({"id": p.id, "sessions": await history.gainer_sessions(request.app.state.store, p.tab, p.id.rsplit("-", 1)[-1])})
-    return _json({"id": p.id, "sessions": await history.sessions(request.app.state.store, p.id, engine.chip_key(active))})
+    store = request.app.state.store      # task #243 (pack P3, L7): every saved list with joined / left, and the trading days with no saved list
+    sl = await savedlists.load(store, p.id, engine.chip_key(active))
+    return _json({"id": p.id, "sessions": savedlists.sessions_view(sl, await history._bench(store, _date.today()))})
 
 
 @router.get("/{pid}/left")
 async def left_route(request: Request, pid: str):
     p, ctx, active = await _resolve(request, pid)
-    return _json({"id": p.id, "left": await history.left_list(request.app.state.store, p.id, engine.chip_key(active))})
+    store, key = request.app.state.store, engine.chip_key(active)      # task #243 (pack P8, L9, L15): follows the date picked, only from saved lists
+    sl = await savedlists.load(store, p.id, key)
+    if not sl.days:
+        return _json({"id": p.id, "date": None, "left": [], "counts": {"on": 0, "upto": 0, "after": 0}})
+    day = _as_on(request) or sl.days[-1]
+    if day not in sl.days:
+        raise fail(404, "no_history", "This screen has no stored list for that day.")
+    mode = request.query_params.get("mode") or "on"
+    if mode not in ("on", "upto", "after"):
+        raise fail(422, "bad_mode", "mode must be on, upto or after.")
+    reasons = await savedlists.reasons_for(store, p.id, key)
+    rows = savedlists.left_rows(sl, day, mode, reasons)
+    for r in rows:
+        r["sessions"] = r["lists_on"]       # the older name the page read
+    counts = {m: len(savedlists.left_rows(sl, day, m)) for m in ("on", "upto", "after")}
+    return _json({"id": p.id, "date": day.isoformat(), "first": sl.days[0].isoformat(), "mode": mode, "left": rows, "counts": counts})
 
 
 @router.get("/{pid}/export")
@@ -397,14 +923,15 @@ async def export(request: Request, pid: str):
 
 @gainers_router.get("")
 async def gainers_route(request: Request):
-    """Top gainers of a page and window, for the latest close or any close of the last 2 months. Silver on the Basic page, Gold on the Advanced one."""
-    page = "basic" if request.query_params.get("page") == "basic" else "advanced"
+    """Top gainers of a window, for the latest close or any close of the last 2 months. Gold, like the screens (task #283: the Basic page is retired; an older
+    ?page=basic gets the same list)."""
+    page = "advanced"
     win = request.query_params.get("window", "day")
     if win not in history.WINDOWS:
         raise fail(422, "bad_window", "window must be day, week or month.")
     ctx = await current(request)
     if not _allowed(ctx, page):
-        raise fail(403, "plan_required", "Top gainers are part of the Silver plan (Basic page) or the Gold plan (Advanced page).", plan="gold" if page == "advanced" else "silver")
+        raise fail(403, "plan_required", "Top gainers are part of the Gold plan.", plan="gold")
     got = await history.gainers_for(request.app.state.store, page, win, _as_on(request))
     if got is None:
         raise fail(404, "no_history", "No Top gainers are stored for that day yet.")

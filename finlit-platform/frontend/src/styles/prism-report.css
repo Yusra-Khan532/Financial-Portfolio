@@ -2,11 +2,11 @@
 /* The top of a Prism report is the company page's card pair (see components/prism/pzr/CardTop.tsx) */
 .pzr-cardtop { margin: 0 0 22px; }
 .pzr-ct-h { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; margin-bottom: 14px; }
-.pzr-ct-h h2 { margin: 0; font: 500 var(--fs-28)/1.15 var(--serif, Georgia, serif); }
+.pzr-ct-h h2 { margin: 0; font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif); }
 .pzr-ct-sub { margin: 4px 0 0; color: var(--muted); font-size: var(--fs-14); }
 .pzr-ct-chips { display: flex; gap: 8px; flex-wrap: wrap; }
-.pzr-ct-chips .pzr-st { color: var(--text); background: var(--s1); border: 1px solid var(--border-strong, var(--border)); padding: 5px 12px; border-radius: 999px; font: 700 12px var(--sans); letter-spacing: .06em; text-transform: uppercase; }
-.pzr-ct-chips .pzr-lab { font-size: 18px; }
+.pzr-ct-chips .pzr-st { color: var(--text); background: var(--s1); border: 1px solid var(--border-strong, var(--border)); padding: 5px 12px; border-radius: var(--ui-r-pill); font: 700 var(--fs-12) var(--sans); letter-spacing: .06em; text-transform: uppercase; }
+.pzr-ct-chips .pzr-lab { font-size: var(--fs-18); }
 
 /* The Prism report's two cards (Fundamental analysis, Technical analysis) wear the same navy card surface and ring colours as the company page's Prism card
    (.report.dk-card in prism-compare.css): the tokens below were missing here, so the report page showed flat black cards with no ring ticks (6 Nov 2026). */
@@ -18,6 +18,6 @@
   --band-hi: #1E9A60; --band-mid: #CC7A00; --band-lo: #D33A3F; --band-hi-ink: #11794D; --band-mid-ink: #8F5400; --band-lo-ink: #B82A30;
   --text: #1C1A15; --muted: #4A463B; --faint: #675F50; --border: #DBD2BE; --border-strong: #B9AE95; --gold: #7A5B16; --gold-2: #8A6A25; --gain: #1F6B49; --loss: #A12E26;
   --v-strong: #1F6B49; --v-healthy: #2E2A20; --v-mixed: #7A5B16; --v-weak: #A12E26; --pop-bg: #FFFFFF; }
-:root:root .pzr-cardtop .pcx-body { padding: 24px 32px; border-radius: 20px; border: 1px solid var(--dk-border); color: var(--text); box-shadow: var(--dk-shadow);
+:root:root .pzr-cardtop .pcx-body { padding: 24px 32px; border-radius: var(--r-card); border: 1px solid var(--dk-border); color: var(--text); box-shadow: var(--dk-shadow);
   background: radial-gradient(560px 230px at 100% -12%, color-mix(in srgb, var(--gold) 9%, transparent), transparent 70%), linear-gradient(180deg, var(--dk-a), var(--dk-b)); }
 @media (max-width: 760px) { :root:root .pzr-cardtop .pcx-body { padding: 16px 14px; } }

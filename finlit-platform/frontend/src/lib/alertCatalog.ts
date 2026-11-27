@@ -1,7 +1,12 @@
 // Everything an alert can watch. Mirrors backend/finlit/alertengine.py (a test keeps the metric keys identical).
 export type Op = "above" | "below" | "event";
-export type Group = "Price & momentum" | "Technical signals" | "Valuation" | "Quality & growth" | "FinLit IQ" | "Results & ownership" | "News & filings";
-export type Metric = { label: string; unit: string; group: Group; live: boolean; tier: "basic" | "silver"; ops: Op[]; hint: string; sample: number; text?: string };
+export type Group = "Price & momentum" | "Technical signals" | "Valuation" | "Quality & growth" | "FinLit Prism" | "Retired score" | "Results & ownership" | "News & filings";
+export type Tier = "basic" | "silver" | "gold";
+export type Metric = { label: string; unit: string; group: Group; live: boolean; tier: Tier; ops: Op[]; hint: string; sample: number; text?: string };
+const TIER_RANK: Record<string, number> = { basic: 0, silver: 1, gold: 2 };
+/** True when the member's plan does not include the metric (Silver metrics below Silver; FinLit Prism below Gold). */
+export const tierLocked = (tier: Tier, plan: string): boolean => (TIER_RANK[plan] ?? 0) < TIER_RANK[tier];
+export const TIER_LABEL: Record<Tier, string> = { basic: "Free", silver: "Paid plans", gold: "Gold" };   // task #410: the new plan names (silver = every paid plan)
 
 export const METRICS: Record<string, Metric> = {
   price: { label: "Price", unit: "₹", group: "Price & momentum", live: true, tier: "basic", ops: ["above", "below"], hint: "The last traded price. Checked every few minutes while the market is open.", sample: 0 },
@@ -24,12 +29,16 @@ export const METRICS: Record<string, Metric> = {
   roce: { label: "ROCE", unit: "%", group: "Quality & growth", live: false, tier: "silver", ops: ["above", "below"], hint: "Return on capital employed.", sample: 15 },
   operating_margin: { label: "Operating margin", unit: "%", group: "Quality & growth", live: false, tier: "silver", ops: ["above", "below"], hint: "Operating profit as a share of sales.", sample: 15 },
   debt_to_equity: { label: "Debt to equity", unit: "×", group: "Quality & growth", live: false, tier: "silver", ops: ["above", "below"], hint: "Borrowings relative to shareholders' money.", sample: 1 },
-  overall: { label: "FinLit IQ", unit: "", group: "FinLit IQ", live: false, tier: "silver", ops: ["above", "below"], hint: "The overall 0–100 FinLit IQ.", sample: 70 },
-  pillar_quality: { label: "Quality score", unit: "", group: "FinLit IQ", live: false, tier: "silver", ops: ["above", "below"], hint: "The Quality pillar, 0–100.", sample: 70 },
-  pillar_growth: { label: "Growth score", unit: "", group: "FinLit IQ", live: false, tier: "silver", ops: ["above", "below"], hint: "The Growth pillar, 0–100.", sample: 70 },
-  pillar_profitability: { label: "Profitability score", unit: "", group: "FinLit IQ", live: false, tier: "silver", ops: ["above", "below"], hint: "The Profitability pillar, 0–100.", sample: 70 },
-  pillar_balance: { label: "Balance-sheet score", unit: "", group: "FinLit IQ", live: false, tier: "silver", ops: ["above", "below"], hint: "The Balance-sheet pillar, 0–100.", sample: 70 },
-  pillar_technical: { label: "Technical score", unit: "", group: "FinLit IQ", live: false, tier: "silver", ops: ["above", "below"], hint: "The Technical pillar, 0–100.", sample: 60 },
+  // Task #283 PR D: FinLit Prism's score, FinLit's only company score (Gold); members' alerts on the retired overall score were converted to it.
+  prism_final: { label: "FinLit Prism score", unit: "", group: "FinLit Prism", live: false, tier: "gold", ops: ["above", "below"], hint: "FinLit Prism's score of the company, 0–100: Strong 80 or more, Healthy 65–79, Average 50–64, Weak below 50. Checked after the nightly load.", sample: 65 },
+  // Task #283: the retired overall score and its five parts. The keys stay (they mirror backend/finlit/alertengine.py, and members' existing alerts on
+  // them still show); the group is not in GROUPS, so no new alert can be set on them. FinLit Prism is FinLit's only company score.
+  overall: { label: "Overall score (retired)", unit: "", group: "Retired score", live: false, tier: "silver", ops: ["above", "below"], hint: "The retired overall 0–100 score. FinLit Prism is now FinLit's only company score.", sample: 70 },
+  pillar_quality: { label: "Quality score (retired)", unit: "", group: "Retired score", live: false, tier: "silver", ops: ["above", "below"], hint: "A part of the retired overall score, 0–100.", sample: 70 },
+  pillar_growth: { label: "Growth score (retired)", unit: "", group: "Retired score", live: false, tier: "silver", ops: ["above", "below"], hint: "A part of the retired overall score, 0–100.", sample: 70 },
+  pillar_profitability: { label: "Profitability score (retired)", unit: "", group: "Retired score", live: false, tier: "silver", ops: ["above", "below"], hint: "A part of the retired overall score, 0–100.", sample: 70 },
+  pillar_balance: { label: "Balance-sheet score (retired)", unit: "", group: "Retired score", live: false, tier: "silver", ops: ["above", "below"], hint: "A part of the retired overall score, 0–100.", sample: 70 },
+  pillar_technical: { label: "Technical score (retired)", unit: "", group: "Retired score", live: false, tier: "silver", ops: ["above", "below"], hint: "A part of the retired overall score, 0–100.", sample: 60 },
   q_net_profit: { label: "Net profit (latest quarter)", unit: "Cr", group: "Results & ownership", live: false, tier: "silver", ops: ["above", "below"], hint: "Net profit of the newest reported quarter, in crore rupees. Checked when new results are loaded.", sample: 1000 },
   q_revenue: { label: "Revenue (latest quarter)", unit: "Cr", group: "Results & ownership", live: false, tier: "silver", ops: ["above", "below"], hint: "Revenue of the newest reported quarter, in crore rupees.", sample: 10000 },
   rev_profit_gap: { label: "Revenue vs profit growth gap", unit: "pp", group: "Results & ownership", live: false, tier: "silver", ops: ["above"], hint: "Tell me when the latest quarter's revenue growth and net-profit growth (each against the same quarter last year) are this many percentage points apart. Sales up 37% while profit falls 36% is a gap of 73. Worth a close look at the report.", sample: 15 },
@@ -38,8 +47,23 @@ export const METRICS: Record<string, Metric> = {
   result_soon: { label: "Results due within (days)", unit: "days", group: "Results & ownership", live: false, tier: "basic", ops: ["event"], hint: "Tell me when a results date or board meeting for the company is announced inside this many days.", sample: 7 },
   news_keyword: { label: "News or filing mentions", unit: "", group: "News & filings", live: false, tier: "basic", ops: ["event"], hint: "Tell me when a new headline or filing for the company contains this word or phrase.", sample: 0, text: "e.g. dividend, buyback, acquisition" },
   new_filing: { label: "Any new filing", unit: "", group: "News & filings", live: false, tier: "silver", ops: ["event"], hint: "Tell me about every new exchange filing or document for the company.", sample: 0 },
+  discover_filing: { label: "A filing Discover sorts as…", unit: "", group: "News & filings", live: false, tier: "silver", ops: ["event"], hint: "An order win, new capacity or any of Discover's eight kinds, from the exchange filings of each weekday. For one stock or a whole list.", sample: 0 },
 };
-export const GROUPS: Group[] = ["Price & momentum", "Technical signals", "Valuation", "Quality & growth", "FinLit IQ", "Results & ownership", "News & filings"];
+/** Task #272: Discover's eight kinds (discovery/board.py EVENTS), as the alert's chips say them; Order win and Capacity are ticked to start. */
+export const FILING_KINDS: { k: string; chip: string; lower: string }[] = [
+  { k: "order", chip: "Order win", lower: "order win" }, { k: "capacity", chip: "Capacity", lower: "capacity" }, { k: "partnership", chip: "Partnership", lower: "partnership" },
+  { k: "mna", chip: "Acquisition / merger", lower: "acquisition / merger" }, { k: "fundraise", chip: "Fund raising", lower: "fund raising" },
+  { k: "rating", chip: "Credit rating", lower: "credit rating" }, { k: "management", chip: "Management", lower: "management" }, { k: "legal", chip: "Legal / regulatory", lower: "legal / regulatory" },
+];
+export const DEFAULT_FILING_KINDS = ["order", "capacity"];
+/** "an order win or capacity filing" */
+export function kindsText(kinds: string[] | null | undefined): string {
+  const ws = FILING_KINDS.filter((x) => (kinds ?? DEFAULT_FILING_KINDS).includes(x.k)).map((x) => x.lower);
+  if (ws.length === FILING_KINDS.length) return "any of Discover's eight kinds";
+  return ws.length <= 1 ? (ws[0] ?? "a filing") : `${ws.slice(0, -1).join(", ")} or ${ws[ws.length - 1]}`;
+}
+/** The groups a new alert can be set in (task #283: the retired score's group is not offered). */
+export const GROUPS: Group[] = ["Price & momentum", "Technical signals", "Valuation", "Quality & growth", "FinLit Prism", "Results & ownership", "News & filings"];
 export const isEvent = (k: string) => METRICS[k]?.ops[0] === "event";
 /** Alerts with no number to choose: the server sets the target (alertengine.FIXED_TARGET). */
 export const fixedTarget = (k: string, op: Op): number | null => (k === "circuit" ? (op === "below" ? -1 : 1) : null);
@@ -55,8 +79,9 @@ export function fmtValue(metric: string, v: number | null | undefined): string {
   return u === "₹" ? `${sign}₹${x}` : u === "Cr" ? `${sign}₹${x} Cr` : u === "pp" ? `${sign}${x} pp` : u === "days" ? `${x} days` : u ? `${sign}${x}${u}` : `${sign}${x}`;
 }
 /** "RSI (14) rises above 30" */
-export function describe(a: { metric: string; op: Op; value: number | null; keyword?: string | null }): string {
+export function describe(a: { metric: string; op: Op; value: number | null; keyword?: string | null; kinds?: string[] | null; digest?: boolean }): string {
   const m = METRICS[a.metric]; if (!m) return a.metric;
+  if (a.metric === "discover_filing") return `A filing Discover sorts as ${kindsText(a.kinds)}${a.digest ? " (one summary a day)" : ""}`;
   if (a.metric === "news_keyword") return `News or a filing mentions “${a.keyword}”`;
   if (a.metric === "new_filing") return "A new filing is published";
   if (a.metric === "result_soon") return `Results announced within ${a.value ?? 7} days`;

@@ -1,0 +1,53 @@
+// Equity portfolio, signed in (mocked session), with the pack's 40-share sample run through the page engine and the live site's own answers for everything else.
+// node state.mjs <before|after> <gold|silver> <desk|phone> <light|dark>
+import pw from "/opt/node-tools/node_modules/playwright/index.js"; const { chromium } = pw;
+import fs from "node:fs";
+const [tag, plan, dev, theme] = process.argv.slice(2);
+const FE = "/home/user/Financial-Portfolio/finlit-platform/frontend", OUT = new URL(".", import.meta.url).pathname;
+const D = JSON.parse(fs.readFileSync(`${FE}/src/portfolio/__fixtures__/sample_40.json`, "utf8"));
+const meta = D.inputs.meta, symbols = Object.keys(meta);
+const IND = {}; await Promise.all(symbols.map(async (s) => { try { const r = await (await fetch("https://finlitventures.com/api/stocks/" + s)).json(); IND[s] = r.profile?.industry ?? null; } catch { IND[s] = null; } }));
+const ready = (s) => { const m = meta[s], p = m.prism || {}; const fig = (v) => ({ value: v });
+  const st = { available: true, period: "FY26", periodEnd: "2026-03-31", revenue: fig(12345), other_income: fig(210), operating_profit: fig(2100), finance_costs: fig(300), net_profit: fig(1500), eps: fig(12.5), tax_ratio: fig(24.1) };
+  const base = { symbol: s, status: "ready", name: m.name, sector: m.sector, industry: IND[s] ?? m.sector, isBank: false, basis: "consolidated", reportAt: "2026-10-30", price: 100 + (s.length * 37) % 900, changePct: ((s.charCodeAt(0) % 7) - 3) / 2, priceAsOf: "2026-11-13", marketCapCr: m.mcap_cr,
+    ratios: { pe: fig(22.1), pb: fig(3.1), roe: fig(14.2), dividend_yield: fig(1.2), debt_to_equity: fig(0.4) }, financials: { year: st, quarter: { ...st, period: "Q2 FY27", periodEnd: "2026-09-30" } } };
+  if (plan === "gold") base.prism = { state: "rated", final: p.final, label: p.final >= 70 ? "Strong" : p.final >= 55 ? "Healthy" : p.final >= 45 ? "Average" : "Weak", status: "RATED", parts: { fundamental: p.growth_profitability, valuation: p.valuation, quality: p.quality, risk: p.risk }, shortTerm: { score: 40, word: "Uptrend" }, longTerm: { score: 22, word: "Uptrend" }, at: null, reason: null };
+  else base.finlit = { overall: p.final, band: "healthy", word: "Healthy", pillars: { quality: p.quality, growth: p.growth_profitability, profitability: p.risk, balance: p.valuation, technical: p.final }, pillarWords: Object.fromEntries(Object.entries({ quality: p.quality, growth: p.growth_profitability, profitability: p.risk, balance: p.valuation, technical: p.final }).map(([k, v]) => [k, v == null ? null : v >= 80 ? "Strong" : v >= 65 ? "Healthy" : v >= 50 ? "Mixed" : "Watch"])) };
+  return base; };
+const resp = { week: "2026-W46", symbols, unknown: [], noPrices: [], page: D.page, meta: Object.fromEntries(symbols.map((s) => [s, { name: meta[s].name, sector: meta[s].sector, size: meta[s].size, mcap_cr: meta[s].mcap_cr }])),
+  styleTilt: plan === "gold" ? { universe: 650, notRated: [], sentence: "Test tilt.", parts: [] } : { locked: "gold", reason: "The style tilt is built from FinLit Prism ratings, which are part of the Gold plan." } };
+const b = await chromium.launch();
+const vp = dev === "phone" ? { width: 390, height: 844 } : { width: 1440, height: 1000 };
+const ctx = await b.newContext({ viewport: vp, colorScheme: theme, deviceScaleFactor: 1 });
+await ctx.addInitScript(([syms, th]) => { try { localStorage.setItem("finlit-portfolio-v1", JSON.stringify({ holdings: syms.map((s, i) => ({ id: "i" + i, symbol: s, qty: 1, price: 0 })) })); localStorage.setItem("finlit-theme", th); } catch {} }, [symbols, theme]);
+await ctx.route("**/api/**", async (r) => {
+  const p = new URL(r.request().url()).pathname, j = (o) => r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(o) });
+  if (p === "/api/auth/me") return j({ user: { id: "u", email: "m@x.com", name: "M", role: "investor", plan, verified: true, mfa: false, mfaOk: false }, plan, limits: { holdings: plan === "gold" ? 500 : 30, mf_holdings: 30, etf_holdings: 15, compare: 4, watchlist_lists: 50, watchlist_symbols: 1000, screens: 100, baskets: 100, earnings_calls_per_month: 5 }, csrf: "c", showcase: [] });
+  if (p === "/api/portfolio/overview") return j({ model: plan === "gold" ? "prism" : "finlit", plan, count: symbols.length, holdings: symbols.map(ready), disclaimer: "Information only, not investment advice." });
+  if (p === "/api/portfolio/page") return j(resp);
+  try { const res = await r.fetch({ url: "https://finlitventures.com" + p + new URL(r.request().url()).search }); return r.fulfill({ response: res }); } catch { return j({}); }
+});
+const pg = await ctx.newPage(); const errs = []; pg.on("pageerror", (e) => errs.push(String(e).slice(0, 200)));
+await pg.goto("http://127.0.0.1:5199/holdings", { waitUntil: "networkidle", timeout: 90000 }); await pg.waitForTimeout(4000);
+const name = `${tag}-${plan}-${dev}-${theme}`;
+const res = { errs, sideways: await pg.evaluate(() => document.documentElement.scrollWidth - innerWidth) };
+res.badge = await pg.locator(".eq-plan").first().innerText().catch(() => null);
+res.exportCsv = await pg.getByText("Export CSV").count();
+res.tabs = await pg.locator('[role="tab"]').allInnerTexts();
+res.tiles = (await pg.locator(".mfp-tile, .eq-tile, [class*='tile']").allInnerTexts()).slice(0, 8).map((x) => x.replace(/\s+/g, " ").slice(0, 120));
+res.headers = (await pg.locator("table thead").first().innerText().catch(() => "")).replace(/\s+/g, " ");
+res.leaderMinus = await pg.evaluate(() => [...document.querySelectorAll("tr")].map((t) => t.innerText.replace(/\s+/g, " ")).filter((t) => /\bLeader\b/.test(t) && /−\d/.test(t)).slice(0, 5));
+res.h2 = await pg.locator("h2").allInnerTexts();
+await pg.locator("#pf-shares").screenshot({ path: `${OUT}${name}-table.png` }).catch(() => {});
+await pg.getByRole("tab", { name: "By sector" }).click().catch(() => {}); await pg.waitForTimeout(500);
+await pg.getByRole("button", { name: "Open all" }).click().catch(() => {}); await pg.waitForTimeout(300);
+res.sectorRows = await pg.locator(".pfx-secrow b").allInnerTexts(); res.levelBtns = await pg.locator('[aria-label="Group by"] button').allInnerTexts();
+await pg.locator("#pf-shares").screenshot({ path: `${OUT}${name}-bysector.png` }).catch(() => {});
+await pg.getByRole("tab", { name: "By company size" }).click().catch(() => {}); await pg.waitForTimeout(400);
+res.sizeCards = await pg.locator(".eq-sizecard").allInnerTexts();
+await pg.getByRole("tab", { name: "Overview" }).click().catch(() => {});
+await pg.screenshot({ path: `${OUT}${name}-portfolio.png`, fullPage: true });
+for (const t of res.tabs.filter((x) => /Divers|Risk/.test(x))) { await pg.getByRole("tab", { name: t }).first().click().catch(() => {}); await pg.waitForTimeout(2500);
+  await pg.screenshot({ path: `${OUT}${name}-${/Risk/.test(t) ? "risk" : "div"}.png`, fullPage: true }); res["h2_" + t.slice(0, 8)] = await pg.locator("h2").allInnerTexts(); }
+fs.writeFileSync(`${OUT}${name}.json`, JSON.stringify(res, null, 1)); console.log(name, JSON.stringify({ sectorRows: res.sectorRows, levels: res.levelBtns, sizes: res.sizeCards, errs: errs.length, sideways: res.sideways, badge: res.badge, exportCsv: res.exportCsv, tabs: res.tabs.slice(0, 8), leaderMinus: res.leaderMinus.length }));
+await b.close();

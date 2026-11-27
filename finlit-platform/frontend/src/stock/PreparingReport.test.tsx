@@ -4,10 +4,12 @@ import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ApiError, POLL_MAX_TRIES, pollDelayMs, retryDelayMs, shouldRetry } from "../lib/api";
 import { PreparingReport, progressText } from "./PreparingReport";
+import { cls, withClassifications } from "../lib/taxonomyTesting";
 
 afterEach(cleanup);
 const show = (props: Partial<Parameters<typeof PreparingReport>[0]> = {}) =>
-  render(<MemoryRouter><PreparingReport symbol="QUESS" name="Quess Corp Ltd" sector="Services" mode="building" done={3} total={16} {...props} /></MemoryRouter>);
+  render(withClassifications(<MemoryRouter><PreparingReport symbol="QUESS" name="Quess Corp Ltd" sector="Services" mode="building" done={3} total={16} {...props} /></MemoryRouter>,
+    { QUESS: cls("QUESS", "Services", "Services", "Commercial Services & Supplies", "Diversified Commercial Services") }));
 
 describe("the waiting page of a company that is being built", () => {
   it("shows the company, a progress bar and a truthful part count, not a bare spinner", () => {
@@ -82,5 +84,13 @@ describe("how the page asks again", () => {
     expect(shouldRetry(1, e(500))).toBe(true); expect(shouldRetry(2, e(500))).toBe(false);
     expect(shouldRetry(0, e(404))).toBe(false);
     expect(shouldRetry(7, e(429))).toBe(true); expect(shouldRetry(8, e(429))).toBe(false);
+  });
+});
+
+describe("task #192: the waiting page names NSE's industry", () => {
+  it("shows the industry under its own name, never the provider's mixed sector field", () => {
+    show();
+    expect(screen.getByText(/Industry: Commercial Services & Supplies/)).toBeTruthy();
+    expect(screen.queryByText(/· Services$/)).toBeNull();
   });
 });

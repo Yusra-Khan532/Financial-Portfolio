@@ -1,84 +1,204 @@
-// Block 7, Index heatmap (the old Heatmap and Sectoral activity merged): a Map or a List of an index's stocks. Tile size is market value, colour is today's move (white text at 4.5:1);
-// a tile too small for its ticker at 11px shows no label, and hover, focus or tap gives the details.
-import { useMemo, useState } from "react";
-import { Link } from "react-router";
+// Block 7, Index heatmap. Task #261 (team pack "05 Dashboard · Index heatmap", 20 Nov 2026): three views, Grid (new, the default: every stock the same
+// tile with its symbol and today's move), Map (a squarified treemap by market value, every tile labelled, the font shrinking with the tile) and List;
+// Nifty Midcap 50, 100 and 150 as chips and every NSE index of the pack under "More indices"; a breadth line under the tiles. Before, tile size was
+// market value only, so the smallest companies of an index were boxes too small to label. The logic is in heatmapLogic.ts (tested there).
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Link, useNavigate } from "react-router";
 import { MINUS, nf } from "../../lib/format";
-import { CATEGORIES, largest, stocksFor, treemap, useMembers, weightedMove, type Pill } from "../../lib/markets";
-import { tileColour, tileLabel, TILE_COLOURS } from "../../lib/dashboard";
+import { treemap, useMembers } from "../../lib/markets";
 import type { Row } from "../../lib/screener";
-import { Card, Seg, tone, useIsPhone, useWidth } from "./parts";
+import { Card, ShowMoreButton, tone, useIsPhone, useWidth } from "./parts";
+import { Dd, useExpanded, type DdOption } from "./dx";
+import { useIndices } from "../../lib/indices";
+import { useGold } from "../../lib/premium";
 import { CoLogo } from "../CoLogo";
+import { coTitle, shortLabel } from "../../lib/companyLabel";
+import {
+  GROUPS, MOVE_COLOURS, PINNED, PREF_KEY, breadth, byId, mapItems, mapLabel, moveColour, priceDay, readPrefs, resolve, sortCells,
+  type Cell, type HPrefs, type HSort, type HView, type MapItem,
+} from "./heatmapLogic";
 
-type Cell = { symbol: string; name: string; move: number | null; cap: number; price: number | null };
 const sgn = (v: number | null | undefined, d = 2) => (v == null ? MINUS : (v > 0 ? "+" : v < 0 ? MINUS : "") + nf(Math.abs(v), d) + "%");
-const BROAD = { id: "n50", label: "Nifty 50" };
-const MAIN = ["bank", "it", "auto", "pharma", "fmcg", "metal"];
-const ALL_PILLS: Pill[] = CATEGORIES.flatMap((c) => c.pills);
+const crore = (v: number) => "₹" + Math.round(v).toLocaleString("en-IN") + " Cr";
+const SORTS: [HSort, string][] = [["up", "Biggest gain first"], ["dn", "Biggest fall first"], ["mc", "Market value"], ["az", "A–Z"]];
+const SUB: Record<HView, string> = { grid: "Every stock the same size; colour is today's move", map: "Tile size is market value, colour is today's move",
+  list: "Every stock with its price, move and market value" };
 
-function HeatTiles({ cells, h }: { cells: Cell[]; h: number }) {
+function usePrefs(): [HPrefs, (p: Partial<HPrefs>) => void] {
+  const [p, setP] = useState<HPrefs>(() => { try { return readPrefs(localStorage.getItem(PREF_KEY)); } catch { return readPrefs(null); } });
+  const set = (x: Partial<HPrefs>) => setP((old) => {
+    const next = { ...old, ...x };
+    try { localStorage.setItem(PREF_KEY, JSON.stringify(next)); } catch { /* private window: the choice lasts this visit */ }
+    return next;
+  });
+  return [p, set];
+}
+
+type Tip = { c: Cell; x: number; y: number; pinned: boolean };
+/** Hover (mouse) or keyboard focus shows the card; a tap pins it with a link to the stock; a mouse click opens the stock. */
+function useTiles() {
+  const [tip, setTip] = useState<Tip | null>(null);
+  const nav = useNavigate(), touch = useRef(false);
+  const props = (c: Cell) => ({
+    onPointerDown: (e: React.PointerEvent) => { touch.current = e.pointerType !== "mouse"; },
+    onPointerEnter: (e: React.PointerEvent) => { if (e.pointerType === "mouse") setTip({ c, x: e.clientX, y: e.clientY, pinned: false }); },
+    onPointerMove: (e: React.PointerEvent) => { if (e.pointerType === "mouse") setTip((t) => (t && !t.pinned ? { ...t, x: e.clientX, y: e.clientY } : t)); },
+    onPointerLeave: (e: React.PointerEvent) => { if (e.pointerType === "mouse") setTip((t) => (t?.pinned ? t : null)); },
+    onFocus: (e: React.FocusEvent<HTMLElement>) => { const r = e.currentTarget.getBoundingClientRect(); setTip({ c, x: r.left, y: r.bottom, pinned: false }); },
+    onBlur: () => setTip((t) => (t?.pinned ? t : null)),
+    onClick: (e: React.MouseEvent) => {
+      if (touch.current) { setTip({ c, x: e.clientX, y: e.clientY, pinned: true }); touch.current = false; return; }
+      nav(`/stocks/${encodeURIComponent(c.symbol)}`);
+    },
+  });
+  return { tip, setTip, props };
+}
+
+function TipCard({ tip, onClose }: { tip: Tip; onClose: () => void }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState({ left: tip.x + 14, top: tip.y + 14 });
+  useEffect(() => {
+    const el = ref.current; if (!el) return;
+    const w = el.offsetWidth, h = el.offsetHeight;
+    setPos({ left: Math.min(innerWidth - w - 8, Math.max(8, tip.x + 14)), top: Math.min(innerHeight - h - 8, Math.max(8, tip.y + 14)) });
+  }, [tip.x, tip.y, tip.c.symbol]);
+  useEffect(() => {
+    if (!tip.pinned) return;
+    const off = (e: PointerEvent) => { if (!(e.target as HTMLElement).closest?.(".hmx-tip, .hmx-t")) onClose(); };
+    addEventListener("pointerdown", off);
+    return () => removeEventListener("pointerdown", off);
+  }, [tip.pinned, onClose]);
+  const c = tip.c;
+  return (
+    <div ref={ref} className={"hmx-tip" + (tip.pinned ? " pinned" : "")} role="status" style={pos}>
+      <span className="hmx-tn"><CoLogo symbol={c.symbol} name={c.name} size={22} /><b title={coTitle(c)}>{shortLabel(c, 18)}</b></span>
+      <span className="hmx-tco">{c.name}</span>
+      <span>{c.price != null ? "₹" + nf(c.price) : "No price today"} · <b className={tone(c.move)}>{c.move == null ? "move not readable" : sgn(c.move)}</b></span>
+      <small>{c.cap > 0 ? `Market value ${crore(c.cap)}` : "Market value not available"}</small>
+      {tip.pinned && <Link to={`/stocks/${encodeURIComponent(c.symbol)}`}>Open {c.symbol} →</Link>}
+    </div>
+  );
+}
+
+/** Task #316: how many tiles fit one row of the grid (read from the grid's own columns), so the page shows exactly three full rows. */
+function useCols(): [(el: HTMLElement | null) => void, number] {
+  const [cols, setCols] = useState(8);
+  const ro = useRef<ResizeObserver | null>(null);
+  const ref = useCallback((el: HTMLElement | null) => {
+    ro.current?.disconnect(); ro.current = null;
+    if (!el) return;
+    const read = () => { const n = getComputedStyle(el).gridTemplateColumns.split(" ").filter(Boolean).length; if (n > 0) setCols(n); };
+    read();
+    if (typeof ResizeObserver !== "undefined") { ro.current = new ResizeObserver(read); ro.current.observe(el); }
+  }, []);
+  useEffect(() => () => ro.current?.disconnect(), []);
+  return [ref, cols];
+}
+
+function Grid({ cells, tiles, gridRef, id }: { cells: Cell[]; tiles: ReturnType<typeof useTiles>["props"]; gridRef?: (el: HTMLElement | null) => void; id?: string }) {
+  return (
+    <div ref={gridRef} id={id} className={"hmx-grid" + (cells.length > 100 ? " dense" : "")} role="list" aria-label="Stocks of the index, each the same size">
+      {cells.map((c) => (
+        <button key={c.symbol} type="button" role="listitem" className={"hmx-t" + (c.move == null ? " nm" : "")} style={{ background: moveColour(c.move) }}
+          aria-label={`${c.symbol}, ${c.name}: ${c.move == null ? "move not readable" : sgn(c.move) + " today"}`} {...tiles(c)}>
+          <b>{shortLabel(c, 14)}</b><em>{c.move == null ? MINUS : sgn(c.move)}</em>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function HeatMap({ cells, h, tiles, onOther }: { cells: Cell[]; h: number; tiles: ReturnType<typeof useTiles>["props"]; onOther: () => void }) {
   const [box, W] = useWidth<HTMLDivElement>();
-  const tiles = useMemo(() => treemap(cells, (c) => Math.max(c.cap, 1), W, h), [cells, W, h]);
-  const [tip, setTip] = useState<{ c: Cell; x: number; y: number; pinned: boolean } | null>(null);
-  const show = (c: Cell, el: HTMLElement, pinned: boolean, e?: React.PointerEvent) => {
-    const r = (el.closest(".dsh-map") as HTMLElement).getBoundingClientRect(), t = el.getBoundingClientRect();
-    setTip({ c, x: e ? e.clientX - r.left : t.left - r.left + t.width / 2, y: e ? e.clientY - r.top : t.top - r.top, pinned });
-  };
+  const laid = useMemo(() => treemap<MapItem>(mapItems(cells), (m) => (m.kind === "stock" ? m.c.cap : m.cap), W, h), [cells, W, h]);
   return (
-    <div className="dsh-map" ref={box} style={{ height: h }} role="list" aria-label="Heat map: tile size is market value, colour is today's move" onPointerLeave={() => setTip((t) => (t?.pinned ? t : null))}>
-      {tiles.map(({ x, y, w, h: th, item: c }) => {
-        const lab = tileLabel(c.symbol, w, th);
-        const style = { left: x, top: y, width: w, height: th, background: tileColour(c.move) } as React.CSSProperties;
-        const aria = `${c.name}: ${sgn(c.move)} today`;
-        const hover = { onPointerEnter: (e: React.PointerEvent<HTMLElement>) => e.pointerType === "mouse" && show(c, e.currentTarget, false, e), onFocus: (e: React.FocusEvent<HTMLElement>) => show(c, e.currentTarget, false) };
-        if (!lab) return <button key={c.symbol} type="button" role="listitem" className="t" style={style} aria-label={aria} {...hover} onClick={(e) => show(c, e.currentTarget, true)} />;
-        return <Link key={c.symbol} to={`/stocks/${c.symbol}`} role="listitem" className="t" style={style} aria-label={aria} {...hover}>{w >= 104 && th >= 66 && <span className="t-lg"><CoLogo symbol={c.symbol} name={c.name} size={20} /></span>}<b style={{ fontSize: lab.size }}>{c.symbol}</b>{lab.pct && <em>{sgn(c.move)}</em>}</Link>;
+    <div className="dsh-map hmx-map" ref={box} style={{ height: h }} role="list" aria-label="Heat map: tile size is market value, colour is today's move">
+      {laid.map(({ x, y, w, h: th, item: m }) => {
+        const sym = m.kind === "stock" ? shortLabel(m.c, 14) : `Other ${m.n} stocks`;
+        const lab = mapLabel(sym, w, th), move = m.kind === "stock" ? m.c.move : m.move;
+        const style = { left: x, top: y, width: w, height: th, padding: lab.pad, background: moveColour(move) } as React.CSSProperties;
+        const inner = <><b style={{ fontSize: +lab.size.toFixed(1) }}>{sym}</b>{lab.move != null && <em style={{ fontSize: +lab.move.toFixed(1) }}>{move == null ? MINUS : sgn(move)}</em>}</>;
+        if (m.kind === "other") return (
+          <button key="other" type="button" role="listitem" className="hmx-t other" style={style} onClick={onOther}
+            aria-label={`Other ${m.n} stocks, ${crore(m.cap)} together, weighted move ${sgn(m.move)}: open the grid to see each`}>{inner}</button>);
+        return (
+          <button key={m.c.symbol} type="button" role="listitem" className={"hmx-t" + (m.c.move == null ? " nm" : "")} style={style}
+            aria-label={`${m.c.symbol}, ${m.c.name}: ${m.c.move == null ? "move not readable" : sgn(m.c.move) + " today"}`} {...tiles(m.c)}>
+            {w >= 104 && th >= 66 && <span className="t-lg"><CoLogo symbol={m.c.symbol} name={m.c.name} size={20} /></span>}{inner}
+          </button>);
       })}
-      {tip && <div className="dsh-htip" role="status" style={{ left: Math.max(8, Math.min(W - 196, tip.x + 12)), top: Math.max(4, Math.min(h - 96, tip.y + 12)) }}>
-        <span className="dsh-htn"><CoLogo symbol={tip.c.symbol} name={tip.c.name} size={22} /><b>{tip.c.symbol}</b></span><small>{tip.c.name}</small><span>{tip.c.price != null ? "₹" + nf(tip.c.price) : "No price"} · <i className={tone(tip.c.move)}>{sgn(tip.c.move)}</i></span>
-        {tip.c.cap > 0 && <small>Market value ₹{Math.round(tip.c.cap).toLocaleString("en-IN")} Cr</small>}
-        {tip.pinned && <Link to={`/stocks/${tip.c.symbol}`}>Open {tip.c.symbol} →</Link>}</div>}
     </div>
   );
 }
 
-type Key = "symbol" | "price" | "move";
-function List({ cells }: { cells: Cell[] }) {
-  const [by, setBy] = useState<Key>("move"), [dir, setDir] = useState<1 | -1>(-1);
-  const rows = useMemo(() => [...cells].sort((a, b) => (by === "symbol" ? a.symbol.localeCompare(b.symbol) : ((a[by === "price" ? "price" : "move"] ?? -Infinity) as number) - ((b[by === "price" ? "price" : "move"] ?? -Infinity) as number)) * dir), [cells, by, dir]);
-  const head = (k: Key, l: string, cls = "") => <button type="button" className={cls + (by === k ? " on" : "")} aria-label={`Sort by ${l}`} onClick={() => (k === by ? setDir((d) => (d === 1 ? -1 : 1)) : (setBy(k), setDir(k === "symbol" ? 1 : -1)))}>{l}{by === k ? (dir === 1 ? " ↑" : " ↓") : ""}</button>;
+function List({ cells, id }: { cells: Cell[]; id?: string }) {
   return (
-    <div className="dsh-hl" role="table" aria-label="Stocks of the index">
-      <div className="h" role="row"><span role="columnheader">{head("symbol", "Ticker")}</span><span role="columnheader" className="r">{head("price", "Price", "r")}</span><span role="columnheader" className="r">{head("move", "Today", "r")}</span></div>
-      {rows.map((c) => <Link key={c.symbol} to={`/stocks/${c.symbol}`} className="row" role="row"><span role="cell" className="dsh-hc"><CoLogo symbol={c.symbol} name={c.name} size={22} /><span><b>{c.symbol}</b><small>{c.name !== c.symbol ? c.name : ""}</small></span></span><span role="cell" className="r">{c.price != null ? "₹" + nf(c.price) : "—"}</span><span role="cell" className={"r " + tone(c.move)}>{sgn(c.move)}</span></Link>)}
+    <div className="dsh-hl hmx-list" id={id} role="table" aria-label="Stocks of the index">
+      <div className="h" role="row"><span role="columnheader">Stock</span><span role="columnheader">Company</span><span role="columnheader" className="r">Price (₹)</span>
+        <span role="columnheader" className="r">Today</span><span role="columnheader" className="r">Market value (₹ Cr)</span></div>
+      {cells.map((c) => (
+        <Link key={c.symbol} to={`/stocks/${encodeURIComponent(c.symbol)}`} className="row" role="row">
+          <span role="cell" className="hmx-ls"><i className="hmx-dot" style={{ background: moveColour(c.move) }} aria-hidden="true" /><b title={coTitle(c)}>{shortLabel(c, 14)}</b></span>
+          <span role="cell" className="hmx-lc">{c.name}</span>
+          <span role="cell" className="r">{c.price != null ? nf(c.price) : MINUS}</span>
+          <span role="cell" className={"r " + tone(c.move)}>{c.move == null ? MINUS : sgn(c.move)}</span>
+          <span role="cell" className="r">{c.cap > 0 ? Math.round(c.cap).toLocaleString("en-IN") : MINUS}</span>
+        </Link>
+      ))}
     </div>
   );
 }
 
-export function IndexHeatmap({ rows, loading }: { rows: Row[]; loading: boolean }) {
+export function IndexHeatmap({ rows, loading, asOf }: { rows: Row[]; loading: boolean; asOf?: string | null }) {
   const members = useMembers().data?.indices, phone = useIsPhone();
-  const [sel, setSel] = useState(BROAD.id), [view, setView] = useState<"map" | "list">("map"), [more, setMore] = useState(false);
-  const res = useMemo(() => {
-    if (sel === BROAD.id) {
-      const list = members?.NIFTY50;
-      if (list && list.length >= 20) { const by = new globalThis.Map(rows.map((r) => [r.symbol, r])); return { stocks: list.map((s) => by.get(s)).filter((r): r is Row => !!r && (r.price ?? 0) > 0 && r.change_pct != null), basis: "list" as const }; }
-      return { stocks: largest(rows, 50), basis: "cap" as const };
-    }
-    return stocksFor(ALL_PILLS.find((p) => p.id === sel)!, rows, members);
-  }, [sel, rows, members]);
-  const cells = useMemo<Cell[]>(() => res.stocks.slice(0, 60).map((r) => ({ symbol: r.symbol, name: r.name || r.symbol, move: r.change_pct, cap: r.market_cap ?? 0, price: r.price })), [res]);
-  const mv = weightedMove(res.stocks);
-  const main = [BROAD, ...MAIN.map((id) => ALL_PILLS.find((p) => p.id === id)!).filter(Boolean)], rest = ALL_PILLS.filter((p) => !MAIN.includes(p.id));
-  const basis = res.basis === "list" ? "Constituents from the exchange's published index list." : res.basis === "cap" ? "The exchange's constituent list is not loaded yet, so this shows the 50 largest listed companies by market value (not the official index)." : "The exchange's constituent list is not loaded yet, so companies are grouped by FinLit's sector classification (not the official index).";
+  const [pref, setPref] = usePrefs();
+  const ix = byId(pref.idx);
+  const xp = useExpanded(), gold = useGold(), nIdx = useIndices().data?.items.length;
+  const [gridRef, cols] = useCols(), [all, setAll] = useState(false);
+  const res = useMemo(() => resolve(ix, rows, members), [ix, rows, members]);
+  const cells = useMemo(() => sortCells(res.cells, pref.sort), [res, pref.sort]);
+  const b = breadth(res.cells), day = priceDay(asOf);
+  const { tip, setTip, props: tiles } = useTiles();
+
+  useEffect(() => { setTip(null); setAll(false); }, [pref.idx, pref.view, setTip]);
+
+  const count = (code: string) => members?.[code]?.length;
+  // task #316: Index, View and Sort dropdowns; the ten pinned indices first, then the rest of the pack's indices, then the markets page with every index
+  const pinned = new Set(PINNED);
+  const idxOptions: DdOption<string>[] = [
+    ...PINNED.map((id) => { const x = byId(id); return { v: id, label: x.label, small: x.isNew ? <em className="hmx-new">New</em> : count(x.code) }; }),
+    ...GROUPS.flatMap((g) => g.items.filter((x) => !pinned.has(x.id)).map((x) => ({ v: x.id, label: x.label, small: count(x.code) ?? "list loading" }))),
+    ...(gold ? [{ v: "__all", label: `All ${nIdx ?? ""} indices…`.replace("  ", " "), href: "/premium/markets#indices" }] : []),
+  ];
+  // three full rows of tiles on the page (List: ten rows); every tile in the expanded view and after "Show all N stocks"
+  const limit = pref.view === "grid" ? cols * 3 : pref.view === "list" ? 10 : Infinity;
+  const extra = xp ? 0 : Math.max(0, cells.length - limit);
+  const shownCells = extra && !all ? cells.slice(0, limit) : cells;
+  const basis = res.basis === "cap" ? "NSE's Nifty 50 list is not loaded yet, so this shows the 50 largest listed companies by market value (not the official index)."
+    : res.basis === "sector" ? `NSE's ${ix.label} list is not loaded yet, so companies are grouped by FinLit's sector classification (not the official index).` : "";
   return (
-    <Card id="heatmap" title="Index heatmap" sub="Tile size is market value, colour is today's move" right={<Seg label="View" value={view} options={[["map", "Map"], ["list", "List"]] as const} onChange={setView} />}>
-      <div className="dsh-chips" role="group" aria-label="Index">
-        {main.map((p) => <button key={p.id} type="button" aria-pressed={sel === p.id} onClick={() => setSel(p.id)}>{p.label}</button>)}
-        <span className="dsh-menu"><button type="button" aria-haspopup="listbox" aria-expanded={more} aria-pressed={rest.some((p) => p.id === sel)} onClick={() => setMore(!more)}>{rest.find((p) => p.id === sel)?.label ?? "More indices"} ▾</button>
-          {more && <div className="dsh-pop" role="listbox" aria-label="More indices">{rest.map((p) => <button key={p.id} type="button" role="option" aria-selected={sel === p.id} onClick={() => { setSel(p.id); setMore(false); }}>{p.label}</button>)}</div>}</span>
+    <Card id="heatmap" title="Index heatmap" sub={SUB[pref.view]} className="hmx"
+      right={<div className="dx-hm-dd">
+        <Dd k="Index" value={pref.idx} options={idxOptions} onChange={(v) => setPref({ idx: v })} />
+        <Dd k="View" value={pref.view} options={[{ v: "grid", label: "Grid" }, { v: "map", label: "Map" }, { v: "list", label: "List" }]} onChange={(v) => setPref({ view: v as HView })} />
+        {pref.view !== "map" && <Dd k="Sort" value={pref.sort} options={SORTS.map(([v, label]) => ({ v, label }))} onChange={(v) => setPref({ sort: v as HSort })} />}
+      </div>}>
+      {!loading && res.cells.length > 0 && <div className="hmx-tools"><span>{ix.label} · {res.cells.length} stocks</span></div>}
+      {loading ? <div className="skeleton" style={{ height: phone ? 420 : 440, borderRadius: "var(--r-ctl)" }} aria-busy="true" />
+        : !res.cells.length ? <p className="dsh-note">{res.basis === "none" ? `NSE's published list of the ${ix.label} stocks has not been loaded yet; it is fetched with the nightly index refresh. Every other index here is ready.` : "No traded stocks for this group today."}</p>
+          : pref.view === "grid" ? <Grid cells={shownCells} tiles={tiles} gridRef={gridRef} id="dx-hms" />
+            : pref.view === "map" ? <HeatMap cells={res.cells} h={xp ? 620 : phone ? 420 : 440} tiles={tiles} onOther={() => setPref({ view: "grid" })} />
+              : <List cells={shownCells} id="dx-hms" />}
+      {!loading && !xp && pref.view !== "map" && <ShowMoreButton more={{ extra, open: all, toggle: () => setAll(!all) }} noun="stock" total={cells.length} controls="dx-hms" />}
+      {tip && <TipCard tip={tip} onClose={() => setTip(null)} />}
+      <div className="dsh-hfoot">
+        {res.cells.length > 0 ? (
+          <span><b className="up">{b.up} up</b> · <b className="down">{b.down} down</b>{b.none ? ` · ${b.none} not readable` : ""}
+            {b.weighted != null && <> · move weighted by market value <b className={tone(b.weighted)}>{sgn(b.weighted)}</b></>}{day ? ` · ${day}` : ""}
+            {pref.view !== "list" ? " · hover or tap a tile for price and market value" : ""}{basis ? <span className="hmx-basis"> {basis}</span> : null}</span>
+        ) : <span />}
+        <span className="dsh-legend" aria-hidden="true">−2% {MOVE_COLOURS.map((c) => <i key={c} style={{ background: c }} />)} +2%</span>
       </div>
-      {loading ? <div className="skeleton" style={{ height: phone ? 300 : 420, borderRadius: 12 }} aria-busy="true" /> : !cells.length ? <p className="dsh-note">No traded stocks for this group today. {basis}</p> : view === "map" ? <HeatTiles cells={cells} h={phone ? 320 : 420} /> : <List cells={cells} />}
-      <div className="dsh-hfoot"><span>{cells.length ? `${cells.length} stocks${mv != null ? ` · cap-weighted move ${sgn(mv)}` : ""} · hover or tap a tile for price and detail. ` : ""}{basis}</span>
-        <span className="dsh-legend" aria-hidden="true">−2% {TILE_COLOURS.map((c) => <i key={c} style={{ background: c }} />)} +2%</span></div>
     </Card>
   );
 }

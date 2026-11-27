@@ -32,7 +32,7 @@
 /* ---- surfaces: opaque background, readable text, and the normal tokens restored for everything inside ---- */
 :root:root :is(.alx-modal, .alx-drawer, .modal, .ec-dlg, .palette, .pop, .dl-menu, .nt-p, .ddm, .alx-dd, .alx-toast, .toast, .ai, .adv-combo ul, .gx-search ul,
   .etf-pop, .evi-pop, .mf-pick-pop, .mf-cols-pop, .sf-fp, .sf-panel, .pm-sug, .cb-menu, .pk-m, .scr-colmenu, .qb-colmenu, .qb-drawer,
-  .mk-dd-m, .oc-hits, .plf-note, .qr-card.qr-zoomed,
+  .mk-dd-m, .oc-hits, .plf-note, .hf-p,
   .ld-tip, .chh-p, .tip, .adv-tip, .gx-tip, .ld-hov, .mk-htip, .h2h-tip, .ol-tip, .lc-tip, .ob-tip, .mb-tip, .pzr-tip, .etf-tip, .fl-tip, .mc-tip, .mk-tip,
   .etf-tray, .mf-tray, .wp-dock, .planseg, .prep-toast, .evi-sticky, .pzr-tools, .mtabs, .cz-modal, .pf-modal, .fl-modal) {
   --s1: var(--ov-surface); --s2: var(--ov-surface-2); --s3: var(--ov-surface-2);
@@ -49,7 +49,7 @@
 :root:root :is(.alx-modal, .alx-drawer, .modal, .ec-dlg, .palette, .dl-menu, .nt-p, .ddm, .ai, .qb-drawer, .plf-note, .pop, .ld-tip, .chh-p, .sf-panel, .etf-pop, .mf-cols-pop) { box-shadow: var(--ov-shadow); }
 
 /* ---- backdrops: dim enough that the page behind is clearly secondary ---- */
-:root:root :is(.scrim, .shell-scrim, .ipo-dr-bg, .qb-scrim, .sx-back, .ec-scrim, .gx-backdrop, .qr-backdrop, .cz-scrim, .fd-back, .ssk-back) { background: var(--ov-backdrop); z-index: var(--z-backdrop); }
+:root:root :is(.scrim, .shell-scrim, .ipo-dr-bg, .qb-scrim, .sx-back, .ec-scrim, .gx-backdrop, .cz-scrim, .fd-back, .ssk-back) { background: var(--ov-backdrop); z-index: var(--z-backdrop); }
 :root:root .gs-scrim { background: var(--ov-backdrop); z-index: calc(var(--z-backdrop) + 20); }
 
 /* ---- stacking ---- */
@@ -61,10 +61,10 @@
 :root:root :is(.ai, .qb-drawer) { z-index: var(--z-drawer); }
 :root:root :is(.pop, .chh-p) { z-index: var(--z-popover); }
 :root:root :is(.toast, .alx-toasts, .prep-toast) { z-index: var(--z-toast); }
-:root:root :is(.etf-tray, .mf-tray, .wp-dock, .planseg, .ai-fab, .shell-fab, .mtabs) { z-index: var(--z-tray); }
+:root:root :is(.etf-tray, .mf-tray, .wp-dock, .planseg, .ai-fab, .mtabs) { z-index: var(--z-tray); }
 :root:root .gs { z-index: calc(var(--z-backdrop) + 40); }
 @media (max-width: 1000px) { :root:root .sx.sx-open .sx-side { z-index: var(--z-drawer); background: var(--ov-surface); } }
-@media (max-width: 960px) { :root:root .side { z-index: var(--z-drawer); background: var(--ov-surface); } }
+@media (max-width: 860px) { :root:root .side { z-index: var(--z-drawer); background: var(--ov-surface); } }
 
 /* phones: the Download menu is a bottom sheet inside the viewport (it used to run off the left edge), and the bottom tab bar steps aside while a menu is open */
 @media (max-width: 700px) {
@@ -87,7 +87,7 @@
 @media (prefers-reduced-transparency: reduce) {
   :root:root * { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
   :root:root .top { background: var(--bg); }
-  :root:root :is(.scrim, .gs-scrim, .shell-scrim, .ipo-dr-bg, .qb-scrim, .sx-back, .ec-scrim, .gx-backdrop, .qr-backdrop, .fd-back, .ssk-back) { background: var(--ov-backdrop); }
+  :root:root :is(.scrim, .gs-scrim, .shell-scrim, .ipo-dr-bg, .qb-scrim, .sx-back, .ec-scrim, .gx-backdrop, .fd-back, .ssk-back) { background: var(--ov-backdrop); }
 }
 
 /* ---- crisp dialogs: centre with auto margins, never with translate(-50%) ----

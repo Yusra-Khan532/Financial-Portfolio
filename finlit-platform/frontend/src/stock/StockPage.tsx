@@ -5,12 +5,14 @@ import { visits } from "../lib/recentVisits";
 import { recents } from "../lib/mycompanies";
 import { useQueryClient } from "@tanstack/react-query";
 import type { OwnInsights } from "../lib/ownView";
+import { useWithLatest } from "../lib/liveQuote";
 import { ApiError, useSearchIndex, usePrice, useSection, useSummary, type Events, type Financials, type Ownership, type Peers, type Ratios, type Segments } from "../lib/api";
 import { Icon } from "../lib/icons";
+import { nf, signed } from "../lib/format";
 import { OpenAccess } from "../components/Gate";
 import { useAuth } from "../lib/auth";
 import { Hero } from "./Hero";
-import { Defer } from "./Defer";
+import { Defer, usualHeight } from "./Defer";
 import { ErrorBoundary } from "../components/ErrorBoundary";
 import { FinancialsSection, PriceSection } from "./Sections";
 import { InsightsSection, PeersSection, RatiosSection, SegmentsSection } from "./Sections3";
@@ -20,19 +22,25 @@ import { PlFlagsLayer } from "./PlFlagsLayer";
 import { CommunitySection, CommunityStrip } from "./CommunitySection";
 import { useStats } from "../lib/forum";
 import { MacroOutlookSection } from "./MacroOutlook";
-import { BusinessSection, DividendsSection, MethodSection, OwnershipSection } from "./Sections2";
+import { BusinessSection, DividendsSection, OwnershipSection } from "./Sections2";
+import { NewsSection } from "./NewsSection";
 import { CompanyBriefSection } from "./CompanyBrief";
 import { WhereStands } from "./pack/WhereStands";
 import { useDocTitle } from "../lib/title";
 import "../styles/report-polish.css";
+import "../styles/report216.css";   // task #216: compact headings, drop-down arrow, enlarge and phone rules (after the polish tokens it adjusts)
+import "../styles/company-report-layout.css";   // task #328 (developer file 27): the eight layout changes, after the sheets they adjust
 import { MiniBar } from "./MiniBar";
 import { useEarningsFindings } from "./EarningsCash";
 import { KeyFindings, checkItems, findingsOf } from "./KeyFindings";
 import { useProfitReality } from "./ProfitReality";
 import { earningsIntel } from "../lib/earningsIntel";
-import { GROUP_START, navFor } from "../lib/sectionNav";
+import { GROUP_START, NAV, navFor, sectionNo } from "../lib/sectionNav";
+import { usePlanModel } from "../lib/planScore";
 import { SectionsMenu } from "./SectionsMenu";
+import { PhoneFold, foldAnchor, revealFold } from "../components/PhoneFold";
 import { PreparingReport, type PreparingMode } from "./PreparingReport";
+import { coTitle, shortLabel } from "../lib/companyLabel";
 
 
 /** The dot on the Earnings & cash tab: it needs the section's own models, so it is a small component of its own (drawn only once the report is there). */
@@ -42,6 +50,14 @@ function EarnDot({ s }: { s: NonNullable<ReturnType<typeof useSummary>["data"]> 
   return k ? <i className={"tdot " + k} role="img" aria-label={k === "f" ? "has a red flag" : "has something to watch"} /> : null;
 }
 
+/** The closed row of a report section on a phone: its name and one line, from the section bar's list (lib/sectionNav NAV). */
+const FOLD_EXTRA: Record<string, [string, string]> = {
+  "company-brief": ["Company brief", "What the company says about itself in its filings: its plans, catalysts and key figures"],
+  ratios: ["Ratios", "Valuation, returns, margins and debt, with the DuPont analysis and earnings and cash quality"],
+};
+export const foldText = (id: string): [string, string] => { const n = NAV.find((x) => x[0] === id); return FOLD_EXTRA[id] ?? (n ? [n[1], n[3]] : [id, ""]); };
+const foldOf = (id: string) => { const [title, line] = foldText(id); return { id, title, line }; };
+
 export function StockPage() {
   const { symbol: raw = "" } = useParams();
   const symbol = canon(raw.toUpperCase());
@@ -50,7 +66,7 @@ export function StockPage() {
   useEffect(() => { if (symbol !== raw.toUpperCase()) nav(`/stocks/${symbol}`, { replace: true }); }, [symbol, raw]); // eslint-disable-line react-hooks/exhaustive-deps
   const { showcase } = useAuth();
   const sum = useSummary(symbol);
-  const s = sum.data;
+  const s = useWithLatest(sum.data);   // task #338: the latest price (asked again every 30 s in market hours), the same on every page
   const ready = !!s;
   const names = useSearchIndex(!s);   // the company's name for the waiting page, before its report exists (the list is cached for the search box anyway)
   // A report stored with its key numbers while ownership, peers, segments and announcements are still being fetched: ask again every 2.5 s (for up to 2 minutes) until it is complete.
@@ -70,16 +86,18 @@ export function StockPage() {
   const peers = useSection<Peers>(symbol, "peers", ready).data;
   const seg = useSection<Segments>(symbol, "segments", ready).data;
   const events = useSection<Events>(symbol, "events", ready).data;
-  const navItems = useMemo(() => navFor(), []);
+  const model = usePlanModel();
+  const navItems = useMemo(() => navFor(model), [model]);   // task #216: the Scores line follows the plan (one score per screen)
   const talk = useStats(symbol).data;      // how many discussions members have started about this company, on the viewer's own board (task #101)   // no pill for a section that is switched off
   const pReality = useProfitReality(symbol, !!s?.dataQuality.isBank);
   const found = useMemo(() => (s ? findingsOf(s, fin, !!s.dataQuality.isBank, checkItems(earningsIntel(pReality, s.profile.sector, s.profile.industry))) : null), [s, fin, pReality]);   // the red / orange dots on the tabs
   const dotOf = (id: string): "f" | "w" | null => { if (!found) return null; const only = (x: { to: string }[]) => x.filter((i) => i.to === id).length; if (id === "notes") return found.flags.length ? "f" : found.watch.length ? "w" : null; return only(found.flags) ? "f" : only(found.watch) ? "w" : null; };
   const tech = usePrice(symbol, "1Y", ready).data?.technical;   // waits for the summary, so a new stock is asked for once, not twice
-  useDocTitle(s ? `${s.profile.name} research` : `${symbol} research`, s ? `FinLit research report for ${s.profile.name}: score ${s.score.overall ?? "n/a"}, financials, ratios, ownership and peers.` : undefined);
+  useDocTitle(s ? `${s.profile.name} research` : `${symbol} research`, s ? `FinLit research report for ${s.profile.name}: financials, ratios, ownership and peers.` : undefined);
 
   const [active, setActive] = useState<string | null>(null);
   const [stuck, setStuck] = useState(false);
+  const [folded, setFolded] = useState(false);   // task #216 (README 1.8): 200 px past the bar the company bar folds away and a small chip shows instead
   const idrow = useRef<HTMLDivElement>(null);
   const links = useRef<HTMLDivElement>(null);
   const pill = useRef<HTMLSpanElement>(null);
@@ -98,13 +116,19 @@ export function StockPage() {
   const [shown, setShown] = useState(0);
   useEffect(() => {
     if (!s) return;
-    const vis = new Map<string, boolean>();
-    const io = new IntersectionObserver((es) => { es.forEach((e) => vis.set(e.target.id, e.isIntersecting)); const f = navItems.find(([id]) => vis.get(id)); setActive(f ? f[0] : null); }, { rootMargin: "-180px 0px -55% 0px" });
-    navItems.forEach(([id]) => { const n = document.getElementById(id); if (n) io.observe(n); });
+    // task #216 (README 1.8): the chosen chip is the last section whose heading top is above 230 px; a target inside a hidden tab counts by its section's
+    // heading. Read on scroll in one animation frame; nothing here scrolls the page (no scrollIntoView), so the page never jumps back while the reader scrolls.
+    const headOf = (id: string) => { let t = document.getElementById(id); if (t?.closest(".pfold:not(.is-open)")) return foldAnchor(t);   /* a closed phone section: its row */ if (t && (t.closest("[hidden]") || !t.getClientRects().length)) { const sec = t.closest("section.block"); t = (sec?.querySelector<HTMLElement>(".sh") ?? sec as HTMLElement | null); } return t; };
+    let tick = 0;
+    const upd = () => { tick = 0; let cur: string | null = null, curH: Element | null = null; for (const [id] of navItems) { const h = headOf(id); if (h && h.getBoundingClientRect().top < 230 && h !== curH) { cur = id; curH = h; } } setActive(cur ?? navItems[0]?.[0] ?? null); };
+    // The bar sticks once the identity row has gone 130 px above the top (also read here: the observer below does not fire on phones), and 200 px more folds it.
+    const fold = () => { const h = document.querySelector(".idr"); const bt = h ? h.getBoundingClientRect().bottom : Infinity; setFolded(bt < -70); if (bt < 130) setStuck(true); else if (bt > 200) setStuck(false); };
+    const onScroll = () => { fold(); if (!tick) tick = requestAnimationFrame(upd); };
+    addEventListener("scroll", onScroll, { passive: true }); addEventListener("resize", onScroll); upd(); fold();
     const hero = document.querySelector(".idr");
     const io2 = new IntersectionObserver(([e]) => setStuck(!e.isIntersecting && e.boundingClientRect.bottom < 200), { rootMargin: "-130px 0px 0px 0px" });   // gone off the TOP of the screen, not merely below it
     if (hero) io2.observe(hero);
-    return () => { io.disconnect(); io2.disconnect(); };
+    return () => { removeEventListener("scroll", onScroll); removeEventListener("resize", onScroll); cancelAnimationFrame(tick); io2.disconnect(); };
   }, [s, ratios, fin, own, peers, seg, events, navItems, shown]);
 
   useEffect(() => {
@@ -116,7 +140,7 @@ export function StockPage() {
   }, [active]);
 
   // The Prism section hides itself when there is nothing to show; its links then open the Prism page instead.
-  const jump = (id: string) => { const t = document.getElementById(id); if (!t && id !== "prism" && !opened.current) { opened.current = true; setOpenAll(true); setTimeout(() => jump(id), 80); setTimeout(() => jump(id), 600); return; } if (t) window.scrollTo({ top: t.getBoundingClientRect().top + scrollY - 176, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" }); else if (id === "prism") nav(`/prism/${encodeURIComponent(symbol)}`); };
+  const jump = (id: string, tries = 0) => { const t = document.getElementById(id); if (t && tries === 0) revealFold(t);   /* a phone: open the closed section first (PhoneFold) */ if (t && t.closest("[hidden]") && tries < 4) { requestAnimationFrame(() => requestAnimationFrame(() => jump(id, tries + 1))); return; }   /* a target inside a tab group's hidden panel (17's "Announcements"): the group opens that panel on the click; scroll once it is drawn */ if (!t && id !== "prism" && !opened.current) { opened.current = true; setOpenAll(true); setTimeout(() => jump(id), 80); setTimeout(() => jump(id), 600); return; } if (t) window.scrollTo({ top: t.getBoundingClientRect().top + scrollY - 176, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" }); else if (id === "prism") nav(`/prism/${encodeURIComponent(symbol)}`); };
   const q = useMemo(() => s?.quote, [s]);
 
   const err = (sum.error ?? sum.failureReason) as ApiError | null;   // while it retries, the last answer is the failure reason (it carries the progress)
@@ -136,19 +160,25 @@ export function StockPage() {
     if (demo) return <div className="wrap state"><h2>This demo includes the RELIANCE report</h2><p>The live site opens every listed stock. Try RELIANCE to see the full report.</p><Link className="btn primary" to="/stocks/RELIANCE">Open the RELIANCE report</Link></div>;
     return <div className="wrap state"><h2>{st === 404 ? `We couldn't find “${symbol}”` : "This report is unavailable right now"}</h2><p>{st === 404 ? "Check the ticker, or search by company name." : "Please try again in a moment."}</p><Link className="btn primary" to="/research">Browse research</Link></div>;
   }
+  // task #310 part E (05-phone.md, fix 6): on a phone every section below the header card and the Prism card is a closed row (its name and one line);
+  // a tap opens it, several can be open, and the choice lasts for the session. Desktop is unchanged (PhoneFold draws nothing of its own there).
+  // (PhoneFold is used directly, never through a component made inside this render, so a section keeps its state when the page draws again)
   return (
     <OpenAccess.Provider value={showcase.includes(symbol)}>
     <>
-      <Hero s={s} ratios={ratios} fin={fin} jump={jump} />
+      <Hero s={s} ratios={ratios} jump={jump} />
       <CommunityStrip symbol={symbol} name={s.profile.name} jump={jump} />
       <div className={"secnav" + (stuck ? " stuck" : "")} id="secnav">
-        <MiniBar s={s} on={stuck} />
+        <MiniBar s={s} on={stuck && !folded} />
         <div className="wrap">
+          {stuck && folded && <a className="sn-co" href="#top" title="Back to the top" onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" }); }}>
+            <b title={coTitle(s.profile)}>{shortLabel(s.profile)}</b><span className="sn-co-px">₹{s.quote.price == null ? "–" : nf(s.quote.price)}</span>
+            {s.quote.changePct != null && <span className={"sn-co-chg " + (s.quote.changePct >= 0 ? "up" : "down")}>{signed(s.quote.changePct)}</span>}</a>}
 
           <SectionsMenu items={navItems} active={active} onPick={jump} />
           <div className={"snav" + (edge.l ? " edge-l" : "") + (edge.r ? " edge-r" : "")}>
           {edge.l && <button type="button" className="snav-arrow" aria-label="Earlier sections" onClick={() => slide(-1)}>‹</button>}
-          <nav ref={links} aria-label="Sections"><span className="pill" ref={pill} />{navItems.map(([id, label, ic]) => <a key={id} data-s={id} href={`#${id}`} className={(active === id ? "active" : "") + (GROUP_START.has(id) ? " grp" : "")} aria-current={active === id ? "true" : undefined} onClick={(e) => { e.preventDefault(); jump(id); }}><Icon name={ic} />{label}{id === "community" && !!talk?.threads && <b className="snav-n" aria-label={`${talk.threads} discussions`}>{talk.threads}</b>}{id === "earnings" ? <EarnDot s={s} /> : dotOf(id) && <i className={"tdot " + dotOf(id)} role="img" aria-label={dotOf(id) === "f" ? "has a red flag" : "has something to watch"} />}</a>)}</nav>
+          <nav ref={links} aria-label="Sections"><span className="pill" ref={pill} />{navItems.map(([id, label, ic]) => <a key={id} data-s={id} href={`#${id}`} className={(active === id ? "active" : "") + (GROUP_START.has(id) ? " grp" : "")} aria-current={active === id ? "true" : undefined} onClick={(e) => { e.preventDefault(); jump(id); }}><Icon name={ic} />{sectionNo(id) ? <span className="sn-no">{sectionNo(id)}</span> : null}{label}{id === "community" && !!talk?.threads && <b className="snav-n" aria-label={`${talk.threads} discussions`}>{talk.threads}</b>}{id === "earnings" ? <EarnDot s={s} /> : dotOf(id) && <i className={"tdot " + dotOf(id)} role="img" aria-label={dotOf(id) === "f" ? "has a red flag" : "has something to watch"} />}</a>)}</nav>
           {edge.r && <button type="button" className="snav-arrow" aria-label="More sections" onClick={() => slide(1)}>›</button>}
           </div>
         </div>
@@ -156,27 +186,26 @@ export function StockPage() {
       <div className="wrap">
         <div ref={idrow} />
         {/* What the company does comes first: someone who has never heard of it starts here, then the score, then the numbers. */}
-        <ErrorBoundary section="This section"><BusinessSection s={s} /></ErrorBoundary>
-        <ErrorBoundary section="Company brief"><CompanyBriefSection symbol={symbol} /></ErrorBoundary>
-        <ErrorBoundary section="Macro outlook"><MacroOutlookSection symbol={symbol} /></ErrorBoundary>
-        <ErrorBoundary section="This section"><KeyFindings s={s} f={fin} lender={!!s.dataQuality.isBank} /></ErrorBoundary>
-        <ErrorBoundary section="This section"><PriceSection s={s} symbol={symbol} ratios={ratios} /></ErrorBoundary>
-        <PlFlagsLayer f={fin} lender={!!s.dataQuality.isBank} />
-        <Defer all={openAll} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><QuarterSection f={fin} /></ErrorBoundary></Defer>
-        <Defer all={openAll} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><FinancialsSection f={fin} /></ErrorBoundary></Defer>
-        <Defer all={openAll} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><TrendsSection f={fin} e={events} r={ratios} /></ErrorBoundary></Defer>
-        <Defer all={openAll} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><ChartLab s={s} symbol={symbol} f={fin} r={ratios} o={own} e={events} p={peers} /></ErrorBoundary></Defer>
-        <Defer all={openAll} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><RatiosSection r={ratios} lender={!!s.dataQuality.isBank} sector={s.profile.sector} industry={s.profile.industry} labels={[s.profile.sector, s.profile.industry, s.profile.subIndustry]} /></ErrorBoundary></Defer>
-        <Defer all={openAll} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><OwnershipSection o={own} ins={ownIns.data} insWhy={ownInsWhy} /></ErrorBoundary></Defer>
-        <Defer all={openAll} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><PeersSection p={peers} self={symbol} s={s} /></ErrorBoundary></Defer>
-        <Defer all={openAll} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="Where it stands"><WhereStands symbol={symbol} name={s.profile.name} s={s} peers={peers} /></ErrorBoundary></Defer>
-        <Defer all={openAll} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><InsightsSection s={s} r={ratios} tech={tech} /></ErrorBoundary></Defer>
-        <Defer all={openAll} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><SegmentsSection seg={seg} /></ErrorBoundary></Defer>
-        <Defer all={openAll} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><DividendsSection e={events} price={q?.price} r={ratios} /></ErrorBoundary></Defer>
-        <Defer all={openAll} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><MethodSection s={s} /></ErrorBoundary></Defer>
-        <Defer all={openAll} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><CommunitySection symbol={symbol} name={s.profile.name} /></ErrorBoundary></Defer>
+        <PhoneFold page="stock" {...foldOf("business")}><ErrorBoundary section="This section"><BusinessSection s={s} /></ErrorBoundary></PhoneFold>
+        <PhoneFold page="stock" {...foldOf("company-brief")}><ErrorBoundary section="Company brief"><CompanyBriefSection symbol={symbol} /></ErrorBoundary></PhoneFold>
+        <PhoneFold page="stock" {...foldOf("macro")}><ErrorBoundary section="Economy and sector"><MacroOutlookSection symbol={symbol} /></ErrorBoundary></PhoneFold>
+        <PhoneFold page="stock" {...foldOf("notes")}><ErrorBoundary section="This section"><KeyFindings s={s} f={fin} lender={!!s.dataQuality.isBank} /></ErrorBoundary></PhoneFold>
+        <PhoneFold page="stock" {...foldOf("price")}><ErrorBoundary section="This section"><PriceSection s={s} symbol={symbol} ratios={ratios} /></ErrorBoundary></PhoneFold>
+        <PhoneFold page="stock" {...foldOf("quarter")}><PlFlagsLayer f={fin} lender={!!s.dataQuality.isBank} /><Defer all={openAll} height={usualHeight("quarter")} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><QuarterSection f={fin} /></ErrorBoundary></Defer></PhoneFold>
+        <PhoneFold page="stock" {...foldOf("financials")}><Defer all={openAll} height={usualHeight("financials")} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><FinancialsSection f={fin} /></ErrorBoundary></Defer></PhoneFold>
+        <PhoneFold page="stock" {...foldOf("trends")}><Defer all={openAll} height={usualHeight("trends")} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><TrendsSection f={fin} e={events} r={ratios} /></ErrorBoundary></Defer></PhoneFold>
+        <PhoneFold page="stock" {...foldOf("charts")}><Defer all={openAll} height={usualHeight("charts")} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><ChartLab s={s} symbol={symbol} f={fin} r={ratios} o={own} e={events} p={peers} /></ErrorBoundary></Defer></PhoneFold>
+        <PhoneFold page="stock" {...foldOf("ratios")}><Defer all={openAll} height={usualHeight("ratios")} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><RatiosSection r={ratios} lender={!!s.dataQuality.isBank} sector={s.profile.sector} industry={s.profile.industry} labels={[s.profile.sector, s.profile.industry, s.profile.subIndustry]} /></ErrorBoundary></Defer></PhoneFold>
+        <PhoneFold page="stock" {...foldOf("ownership")}><Defer all={openAll} height={usualHeight("ownership")} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><OwnershipSection o={own} ins={ownIns.data} insWhy={ownInsWhy} /></ErrorBoundary></Defer></PhoneFold>
+        <PhoneFold page="stock" {...foldOf("peers")}><Defer all={openAll} height={usualHeight("peers")} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><PeersSection p={peers} self={symbol} s={s} /></ErrorBoundary></Defer></PhoneFold>
+        <PhoneFold page="stock" {...foldOf("sector")}><Defer all={openAll} height={usualHeight("sector")} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="Where it stands"><WhereStands symbol={symbol} name={s.profile.name} s={s} peers={peers} /></ErrorBoundary></Defer></PhoneFold>
+        <PhoneFold page="stock" {...foldOf("insights")}><Defer all={openAll} height={usualHeight("insights")} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><InsightsSection s={s} r={ratios} tech={tech} /></ErrorBoundary></Defer></PhoneFold>
+        <PhoneFold page="stock" {...foldOf("segments")}><Defer all={openAll} height={usualHeight("segments")} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><SegmentsSection seg={seg} /></ErrorBoundary></Defer></PhoneFold>
+        <PhoneFold page="stock" {...foldOf("dividends")}><Defer all={openAll} height={usualHeight("dividends")} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><DividendsSection e={events} price={q?.price} r={ratios} /></ErrorBoundary></Defer></PhoneFold>
+        <PhoneFold page="stock" {...foldOf("news")}><Defer all={openAll} height={usualHeight("news")} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><NewsSection e={events} name={s.profile.name} symbol={symbol} /></ErrorBoundary></Defer></PhoneFold>
+        <PhoneFold page="stock" {...foldOf("community")}><Defer all={openAll} height={usualHeight("community")} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><CommunitySection symbol={symbol} name={s.profile.name} /></ErrorBoundary></Defer></PhoneFold>
       </div>
-      <div className="wrap"><p className="rp-plans" id="plans">Basic, Silver and Gold open more of every report: the scores, the checks and the full statements. <Link to="/pricing">Compare the plans</Link></p></div>
+      <div className="wrap"><p className="rp-plans" id="plans">The paid plans open more of every report: the scores, the checks and the full statements. <Link to="/pricing">Compare the plans</Link></p></div>
       {partial && <div className="prep-toast" role="status"><i aria-hidden="true" />Ownership, peers, segments and announcements are still loading. Everything above is final.</div>}
     </>
     </OpenAccess.Provider>

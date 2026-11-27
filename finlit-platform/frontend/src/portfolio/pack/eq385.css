@@ -1,0 +1,236 @@
+/* Task #385 (developer file 33): the Equity portfolio's new top, steps, folds, gain-or-loss section, shares-table parts and phone list.
+   Scoped to the page (.eq); tokens only; nothing under 12px. Classes: eqc-, eqf-, eqg-, eqp-, eqs-, and a few eq- parts of the shares table. */
+
+/* ===== four calm cards, a crown on each ===== */
+.eq .eqx-row2 { display: block; margin-top: 0; }
+.eq .eqc-strip { display: grid; grid-template-columns: minmax(0, 1.3fr) repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 22px; }
+.eq .eqc-c { position: relative; display: flex; flex-direction: column; gap: 6px; min-width: 0; padding: 16px 16px 14px; border: 1px solid var(--border); border-radius: var(--r-card); background: var(--s1); }
+.eq .eqc-crown { position: absolute; top: -11px; left: 14px; z-index: 2; display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--ui-crown); color: var(--ui-crown-ink); box-shadow: 0 0 0 3px var(--bg); }
+.eq .eqc-k { display: flex; align-items: center; gap: 6px; margin: 0; font: 700 var(--fs-12)/1.3 var(--sans); letter-spacing: .07em; text-transform: uppercase; color: var(--text); }
+.eq .eqc-k .eqc-ic { display: inline-flex; color: var(--vc, var(--text)); }
+.eq .eqc-k .eqc-ic svg { width: 15px; height: 15px; }
+.eq .eqc-open, .eq .eqc-here { margin-left: auto; font: 600 var(--fs-12)/1.2 var(--sans); letter-spacing: 0; text-transform: none; font-style: normal; white-space: nowrap; }
+.eq .eqc-open { padding: 0; border: 0; background: none; color: var(--text); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.eq .eqc-here { padding: 3px 8px; border-radius: var(--ui-r-pill); background: var(--vc, var(--text)); color: var(--s1); }
+.eq .eqc-v { border-top: 3px solid var(--vc); }
+.eq .eqc-v.on { background: color-mix(in srgb, var(--vc) 7%, var(--s1)); border-color: color-mix(in srgb, var(--vc) 45%, var(--border)); border-top-color: var(--vc); }
+/* task #388 reopened (developer file 38, E4): a card that opens its view looks and acts like a link: pointer, a hover edge in its colour, a focus ring */
+.eq .eqc-v.eqc-go { cursor: pointer; transition: border-color .15s, box-shadow .15s; }
+.eq .eqc-v.eqc-go:hover { border-color: color-mix(in srgb, var(--vc) 45%, var(--border)); border-top-color: var(--vc); box-shadow: 0 6px 16px -12px color-mix(in srgb, var(--vc) 60%, transparent); }
+.eq .eqc-v.eqc-go:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.eq .eqc-v.eqc-go:hover .eqc-open { text-decoration-thickness: 2px; }
+@media (prefers-reduced-motion: reduce) { .eq .eqc-v.eqc-go { transition: none; } }
+.eq .eqc-v1 { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 2px 0 0; }
+.eq .eqc-v1 > b { font: 500 var(--fs-32)/1 var(--serif); color: var(--text); font-variant-numeric: tabular-nums; }
+.eq .eqc-pill { display: inline-flex; align-items: center; padding: 3px 9px; border-radius: var(--ui-r-pill); font: 600 var(--fs-12)/1.2 var(--sans); background: var(--s2); color: var(--text); }
+.eq .eqc-pill.hi, .eq .eqc-pill.t-hi { background: var(--gain-soft); color: var(--gain); }
+.eq .eqc-pill.mid, .eq .eqc-pill.t-mid { background: var(--warn-soft); color: var(--warn); }
+.eq .eqc-pill.lo, .eq .eqc-pill.t-lo { background: var(--loss-soft); color: var(--loss); }
+.eq .eqc-fs { margin: 0; font: 500 var(--fs-13)/1.3 var(--sans); color: var(--vc, var(--muted)); }
+:root[data-theme="dark"] .eq .eqc-fs, :root[data-theme="dark"] .eq .eqc-k .eqc-ic { color: color-mix(in srgb, var(--vc) 45%, var(--text)); }
+.eq .eqc-x { margin: 0; font: 400 var(--fs-13)/1.45 var(--sans); color: var(--muted); }
+.eq .eqc-seg { display: flex; gap: 2px; height: 6px; overflow: hidden; border-radius: var(--ui-r-pill); }
+.eq .eqc-seg i { display: block; height: 100%; } .eq .eqc-seg i.hi { background: var(--gain); } .eq .eqc-seg i.mid { background: var(--warn); } .eq .eqc-seg i.lo { background: var(--loss); } .eq .eqc-seg i.na { background: var(--border-strong); }
+.eq .eqc-track { display: block; height: 6px; border-radius: var(--ui-r-pill); background: var(--s2); overflow: hidden; }
+.eq .eqc-track i { display: block; height: 100%; background: var(--vc); }
+.eq .eqc-two { display: grid; gap: 4px; font: 500 var(--fs-12)/1.2 var(--sans); color: var(--muted); }
+.eq .eqc-two > span { display: grid; grid-template-columns: 5.5em 1fr auto; align-items: center; gap: 8px; }
+.eq .eqc-two em { font-style: normal; } .eq .eqc-two b { color: var(--text); font-variant-numeric: tabular-nums; }
+.eq .eqc-two i { display: block; height: 6px; border-radius: var(--ui-r-pill); background: var(--vc); }
+.eq .eqc-two .ix i { background: var(--border-strong); }
+/* the score card: its band's colour, a ring */
+.eq .eqc-sc { flex-direction: row; align-items: center; gap: 14px; --bc: var(--border-strong); background: color-mix(in srgb, var(--bc) 8%, var(--s1)); border-color: color-mix(in srgb, var(--bc) 40%, var(--border)); }
+.eq .eqc-sc.b-hi { --bc: var(--gain); } .eq .eqc-sc.b-mid { --bc: var(--warn); } .eq .eqc-sc.b-lo { --bc: var(--loss); }
+.eq .eqc-sc > .eqc-k { flex: 1; }
+.eq .eqc-ring { position: relative; flex: none; width: 64px; height: 64px; }
+.eq .eqc-ring svg { transform: rotate(-90deg); }
+.eq .eqc-ring .t { fill: none; stroke: var(--s2); stroke-width: 7; } .eq .eqc-ring .f { fill: none; stroke: var(--bc); stroke-width: 7; stroke-linecap: round; }
+.eq .eqc-ring b { position: absolute; inset: 0; display: grid; place-items: center; font: 600 var(--fs-20)/1 var(--serif); color: var(--text); }
+.eq .eqc-sb { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.eq .eqc-sixb { align-self: flex-start; padding: 0; border: 0; background: none; font: 600 var(--fs-13)/1.3 var(--sans); color: var(--text); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.eq .eqc-sixb i { font-style: normal; }
+@media (max-width: 1100px) { .eq .eqc-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .eq .eqc-strip { grid-template-columns: minmax(0, 1fr); } .eq .eqc-v1 > b { font-size: var(--fs-28); } }
+
+/* ===== the six parts ===== */
+.eq section.eqc-six { margin-top: 12px; padding: 16px 18px; border: 1px solid var(--border); border-radius: var(--r-card); background: var(--s1); }
+.eq .eqc-sh h3 { display: flex; align-items: center; gap: 6px; margin: 0 0 4px; font: 600 var(--ui-fs-h3)/1.3 var(--serif); }
+.eq .eqc-sh > p { margin: 0 0 12px; font: 400 var(--fs-13)/1.5 var(--sans); color: var(--muted); }
+.eq .eqc-lnk { padding: 0; border: 0; background: none; font: 600 var(--fs-13)/1.3 var(--sans); color: var(--text); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.eq .eqc-mine { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 14px; margin: 0 0 14px; padding: 12px; border-radius: var(--r-ctl); background: var(--s2); }
+.eq .eqc-mine label { display: grid; gap: 4px; font: 600 var(--fs-12)/1.2 var(--sans); color: var(--muted); }
+.eq .eqc-mine select { min-height: 36px; padding: 0 10px; border: 1px solid var(--ui-field-line); border-radius: var(--r-ctl); background: var(--s1); color: var(--text); font: 400 var(--fs-14) var(--sans); }
+.eq .eqc-mine .eqc-px { flex-basis: 100%; }
+.eq .eqc-sg { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 0; padding: 0; list-style: none; }
+.eq .eqc-p { display: flex; flex-direction: column; gap: 6px; padding: 12px; border: 1px solid var(--border); border-radius: var(--r-ctl); }
+.eq .eqc-pk { display: flex; align-items: center; gap: 6px; margin: 0; font: 600 var(--fs-13)/1.3 var(--sans); }
+.eq .eqc-pv { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.eq .eqc-pv small { font: 400 var(--fs-12) var(--sans); color: var(--muted); }
+.eq .eqc-num { font: 500 var(--fs-24)/1 var(--serif); font-variant-numeric: tabular-nums; }
+.eq .eqc-w { display: inline-flex; align-items: center; gap: 6px; font: 600 var(--fs-16)/1.2 var(--serif); }
+.eq .eqc-w i { width: 8px; height: 8px; border-radius: 50%; background: var(--border-strong); }
+.eq .eqc-w.t-hi i { background: var(--gain); } .eq .eqc-w.t-mid i { background: var(--warn); } .eq .eqc-w.t-lo i { background: var(--loss); }
+.eq .eqc-tech { padding: 2px 8px; border: 1px solid var(--border); border-radius: var(--ui-r-pill); font: 600 var(--fs-12)/1.2 var(--sans); color: var(--muted); }
+.eq .eqc-px { margin: 0; font: 400 var(--fs-13)/1.45 var(--sans); color: var(--muted); }
+.eq .eqc-pt { margin: 0; font: 600 var(--fs-12)/1.3 var(--sans); color: var(--muted); }
+.eq .eqc-ud { display: flex; gap: 2px; height: 6px; margin-top: 6px; overflow: hidden; border-radius: var(--ui-r-pill); background: var(--s2); }
+.eq .eqc-ud i { display: block; height: 100%; background: var(--border-strong); } .eq .eqc-ud i.u { background: var(--gain); } .eq .eqc-ud i.d { background: var(--loss); }
+@media (max-width: 860px) { .eq .eqc-sg { grid-template-columns: minmax(0, 1fr); } }
+
+/* ===== since your last visit, data as of ===== */
+.eq .eqc-since { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 14px; margin-top: 12px; padding: 12px 16px; border: 1px solid var(--border); border-radius: var(--r-card); background: var(--s1); font: 400 var(--fs-14)/1.45 var(--sans); color: var(--muted); }
+.eq .eqc-since > span { flex: 1; min-width: 220px; } .eq .eqc-since b { color: var(--text); font-weight: 600; }
+.eq .eqc-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--gain); }
+.eq .eqc-see { min-height: 36px; padding: 0 14px; border: 1px solid var(--border-strong); border-radius: var(--ui-r-pill); background: var(--s1); color: var(--text); font: 600 var(--fs-13) var(--sans); cursor: pointer; }
+.eq .eqc-asof { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin: 12px 0; font: 700 var(--fs-12)/1.3 var(--sans); letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
+.eq .eqc-asof b { padding: 3px 9px; border: 1px solid var(--border); border-radius: var(--ui-r-pill); background: var(--s1); font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--text); }
+
+/* the end of the page: the shared bottom (portfolio/shared/shared.css, .pgb; task #388 file 38 E1) */
+
+/* ===== the section bar: one section at a time ===== */
+.eq .eqt-all[aria-pressed="true"] { background: var(--ui-on-bg) !important; color: var(--ui-on-fg) !important; border-color: var(--ui-on-bg) !important; }
+.eq .eqt-chip[aria-current="step"] { background: var(--ui-on-bg); color: var(--ui-on-fg); }
+.eq .eqt-chip[aria-current="step"] .eqt-n { background: var(--ui-on-fg); color: var(--ui-on-bg); }
+@media (max-width: 860px) { .eq .eqt-bar.eqt-scr .eqt-all { display: inline-flex; flex: none; } }
+
+/* ===== phone, All sections: a folded section ===== */
+:is(.eq, .mfp) .eqf { padding: 16px 18px; }
+:is(.eq, .mfp) .eqf-h { margin: 0; font: 500 var(--fs-20)/1.25 var(--serif); }
+:is(.eq, .mfp) .eqf-sum { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; margin: 10px 0 0; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--r-ctl); background: var(--s2); color: var(--text); font: 400 var(--fs-14)/1.4 var(--sans); text-align: left; cursor: pointer; }
+:is(.eq, .mfp) .eqf-sum .c, :is(.eq, .mfp) .eqf-close { display: inline-flex; align-items: center; gap: 5px; flex: none; font: 600 var(--fs-13)/1 var(--sans); color: var(--text); }
+:is(.eq, .mfp) .eqf-sum i, :is(.eq, .mfp) .eqf-close i { font-style: normal; }
+:is(.eq, .mfp) .eqf-close { margin: 10px 0 -4px auto; padding: 6px 0; border: 0; background: none; cursor: pointer; }
+:is(.eq, .mfp) .eqf-open { display: flex; flex-direction: column; }
+
+/* ===== where your gain or loss came from ===== */
+:is(.eq, .mfp) .eqg-lead { max-width: 860px; margin: 14px 0 4px; padding: 12px 14px; border-radius: var(--r-ctl); background: var(--s2); font: 400 var(--fs-14)/1.5 var(--sans); color: var(--text); }
+:is(.eq, .mfp) .eqg-lead b { font-weight: 700; }
+:is(.eq, .mfp) .eqg-l { margin: 12px 0 0; padding: 0; list-style: none; }
+:is(.eq, .mfp) .eqg-l li { display: grid; grid-template-columns: minmax(150px, 220px) minmax(0, 1fr) 104px 64px; align-items: center; gap: 12px; padding: 7px 0; border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent); font: 400 var(--fs-14)/1.3 var(--serif); color: var(--text); }
+:is(.eq, .mfp) .eqg-l li:first-child { border-top: 0; }
+:is(.eq, .mfp) .eqg-l .n { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: inherit; text-decoration: none; }
+:is(.eq, .mfp) .eqg-l li.k .n { font-weight: 700; }
+:is(.eq, .mfp) .eqg-l .bar { display: grid; grid-template-columns: 1fr 1fr; height: 14px; }
+:is(.eq, .mfp) .eqg-l .h { display: flex; height: 100%; } :is(.eq, .mfp) .eqg-l .h.l { justify-content: flex-end; border-right: 2px solid var(--border-strong); }
+:is(.eq, .mfp) .eqg-l .h i { display: block; height: 100%; min-width: 2px; }
+:is(.eq, .mfp) .eqg-l .h.l i { background: var(--loss); border-radius: var(--ui-r-mark) 0 0 var(--ui-r-mark); }
+:is(.eq, .mfp) .eqg-l .h.r i { background: var(--gain); border-radius: 0 var(--ui-r-mark) var(--ui-r-mark) 0; }
+:is(.eq, .mfp) .eqg-l .v { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+:is(.eq, .mfp) .eqg-l .v.up { color: var(--gain); } :is(.eq, .mfp) .eqg-l .v.dn { color: var(--loss); } :is(.eq, .mfp) .eqg-l .v.flat { color: var(--muted); }
+:is(.eq, .mfp) .eqg-l .p { text-align: right; font-size: var(--fs-13); color: var(--muted); font-variant-numeric: tabular-nums; }
+:is(.eq, .mfp) .eqg-note { margin: 10px 0 0; font: 400 var(--fs-13)/1.4 var(--sans); color: var(--muted); }
+:is(.eq, .mfp) .eqg-lead .eqg-nw { white-space: nowrap; }   /* task #389 (file 32, L7): "(+₹55,227)" stays on one line with its fund */
+@media (max-width: 640px) {
+  :is(.eq, .mfp) .eqg-l li { grid-template-columns: minmax(0, 1fr) auto; gap: 4px 10px; padding: 9px 0; }
+  :is(.eq, .mfp) .eqg-l .n { grid-column: 1; } :is(.eq, .mfp) .eqg-l .v { grid-column: 2; grid-row: 1; }
+  :is(.eq, .mfp) .eqg-l .bar { grid-column: 1 / -1; grid-row: 2; height: 10px; }
+  :is(.eq, .mfp) .eqg-l .p { display: none; }
+}
+
+/* ===== Your shares: headings, the technical view, the account split, subtotal rows, Enlarge ===== */
+.eq .eqs-hsub { display: block; margin-top: 2px; font: 500 var(--fs-12)/1.2 var(--sans); letter-spacing: 0; text-transform: none; color: var(--muted); }
+.eq .eq-gpr, .eq .eq-gtv { white-space: nowrap; }
+.eq .eq-tv { display: grid; gap: 4px; min-width: 160px; }
+/* task #388 (developer file 38, A3): Short term and Long term, each a chip and its word like the Prism cell (TECH) */
+.eq #pf-shares .x-grp td.eq-tvx, .eq #pf-shares .x-grp td.eq-tvx .eq-pw { white-space: nowrap; }
+/* F3 (T5): the empty group cell over Share and Industry is the heading's colour, not the page's */
+.eq #pf-shares .x-grp thead tr:first-child > th:first-child { background: linear-gradient(var(--s1), var(--s1)), var(--bg); }
+/* F6 (T8): the column-heading row is 48px, two lines at most: no wrapped "Moves with rest" with its i on a line of its own, no empty band under short labels */
+.eq #pf-shares .x-grp .eqs-hsub { white-space: nowrap; }
+.eq #pf-shares .x-grp thead tr:last-child th { vertical-align: bottom; padding-top: 6px; padding-bottom: 8px; }
+.eq #pf-shares .x-grp thead tr:last-child th:last-child { min-width: 132px; }
+.eq #pf-shares .x-grp thead tr:last-child th:has(> .sp-i) { white-space: nowrap; }
+.eq #pf-shares .x-grp thead tr:last-child th > .pfx-sort { display: inline; white-space: normal; }
+.eq #pf-shares .x-grp thead tr:last-child th > .sp-i { display: inline-grid; vertical-align: middle; margin-left: 4px; }
+.eq .eq-mwr { display: inline-flex; flex-direction: column; align-items: flex-end; }
+.eq .eq-mwr small { font: 500 var(--fs-12)/1.2 var(--sans); color: var(--muted); }
+.eq .pfs-acc { display: block; font: 500 var(--fs-12)/1.3 var(--sans); color: var(--gold); }
+.eq tr.eqs-sub > td { background: color-mix(in srgb, var(--s2) 60%, var(--s1)); border-top: 1px solid var(--border-strong); font-weight: 600; }
+.eq tr.eqs-sub.open > td { background: var(--s2); box-shadow: inset 0 1px 0 var(--border-strong), 0 6px 10px -10px color-mix(in srgb, var(--text) 50%, transparent); }
+.eq tr.eqs-sub.open ~ tr.ind > td:first-child { box-shadow: inset 3px 0 0 var(--border-strong); }
+.eq #pf-shares tr.eqs-sub td.pfx-name > button { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 6px; width: 100%; min-width: 240px; text-align: left; }
+.eq #pf-shares tr.eqs-sub td.pfx-name > button .m { flex-basis: 100%; margin: 2px 0 0 18px; font-weight: 400; color: var(--muted); }
+.eq #pf-shares tr.eqs-sub .eqs-subbar { margin-left: 18px; }
+.eq .eqs-subbar { display: block; width: 120px; height: 5px; margin-top: 4px; border-radius: var(--ui-r-pill); background: var(--s2); overflow: hidden; }
+.eq .eqs-subbar i { display: block; height: 100%; background: var(--text); }
+.eq tr.eqs-capr td { padding: 10px 12px; background: var(--s1); }
+.eq tr.eqs-capr .eqs-more { margin: 0; }
+.eq .pfh-enl { flex: none; min-height: 36px; margin-left: 6px; padding: 0 12px; border: 1px solid var(--border-strong); border-radius: var(--ui-r-pill); background: var(--s1); color: var(--text); font: 600 var(--fs-13) var(--sans); cursor: pointer; }
+.eq .pfh-enl[aria-pressed="true"] { background: var(--ui-on-bg); color: var(--ui-on-fg); }
+.eq #pf-shares.eqs-full { position: fixed; inset: 0; z-index: 80; margin: 0; max-width: none; overflow: auto; border-radius: 0; background: var(--bg); --card-pad: 20px; padding: 0 var(--card-pad) 40px; }
+/* task #388 (developer file 38, F5, T6): no padding above the sticky tools row (rows showed in it); the first item keeps its 16px. T11: the frame bleeds by
+   the card's padding (20px here), so the frozen Share column is not cut at the screen's edge */
+.eq #pf-shares.eqs-full > :first-child { margin-top: 16px; }
+.eq #pf-shares .tw { --tw-pad: var(--card-pad, 24px); }
+.eq #pf-shares.eqs-full .pfx-tools.pfh { position: sticky; top: 0; }
+.eq .eqs-fullx { position: sticky; top: 0; z-index: 3; float: right; min-height: 36px; padding: 0 14px; border: 1px solid var(--border-strong); border-radius: var(--ui-r-pill); background: var(--s1); color: var(--text); font: 600 var(--fs-13) var(--sans); cursor: pointer; }
+html.eqs-noscroll { overflow: hidden; }
+
+/* What changed: updates on the tiles, filings on the rows */
+:is(.eq, .mfp) .wc-unit { margin-left: 6px; font: 500 var(--fs-13)/1 var(--sans); letter-spacing: 0; color: var(--muted); }
+:is(.eq, .mfp) .wc-upn { margin: 8px 0 12px; font: 400 var(--fs-13)/1.45 var(--sans); color: var(--muted); }
+:is(.eq, .mfp) .wc-np { margin: 10px 0 0; }
+:is(.eq, .mfp) .wc-np > summary { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 12px; border: 1px solid var(--border-strong); border-radius: var(--ui-r-pill); font: 600 var(--fs-13) var(--sans); cursor: pointer; list-style: none; }
+:is(.eq, .mfp) .wc-np > summary::-webkit-details-marker { display: none; }
+:is(.eq, .mfp) .wc-np[open] > summary span { display: inline-block; transform: rotate(90deg); }
+.eq .eq-ptn { margin: 12px 0 0; font: 400 var(--fs-13)/1.45 var(--sans); color: var(--muted); }
+
+/* ===== phone: the shares list instead of the wide table ===== */
+.eq .eqp { display: none; }
+@media (max-width: 860px) {
+  .eq #pf-shares .eqp { display: block; }
+  .eq #pf-shares .eqs-wide { display: none; }
+}
+.eq .eqp-sort { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 10px 0; font: 700 var(--fs-12)/1.2 var(--sans); letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
+.eq .eqp-sort button { min-height: 36px; padding: 0 12px; border: 1px solid var(--border); border-radius: var(--ui-r-pill); background: var(--s1); color: var(--text); font: 600 var(--fs-13) var(--sans); letter-spacing: 0; text-transform: none; cursor: pointer; }
+.eq .eqp-sort button[aria-pressed="true"] { background: var(--ui-on-bg); color: var(--ui-on-fg); border-color: var(--ui-on-bg); }
+.eq .eqp-list { margin: 0; padding: 0; list-style: none; border: 1px solid var(--border); border-radius: var(--r-card); overflow: hidden; }
+.eq .eqp-list > li + li { border-top: 1px solid var(--border); }
+.eq .eqp-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 3px 10px; width: 100%; padding: 12px 14px; border: 0; background: var(--s1); color: var(--text); text-align: left; cursor: pointer; }
+.eq .eqp-list > li.on .eqp-row { background: var(--s2); }
+.eq .eqp-sym { font: 700 var(--fs-14)/1.3 var(--sans); }
+.eq .eqp-v { text-align: right; font: 600 var(--fs-14)/1.3 var(--serif); font-variant-numeric: tabular-nums; }
+.eq .eqp-nm { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 400 var(--fs-13)/1.3 var(--sans); color: var(--muted); }
+.eq .eqp-g { text-align: right; font: 500 var(--fs-13)/1.3 var(--sans); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.eq .eqp-g .up { color: var(--gain); } .eq .eqp-g .dn { color: var(--loss); } .eq .eqp-g .flat { color: var(--muted); }
+.eq .eqp-tags { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 4px; }
+.eq .eqp-chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; border: 1px solid var(--border); border-radius: var(--ui-r-pill); font: 600 var(--fs-12)/1.2 var(--sans); }
+.eq .eqp-chip i { width: 7px; height: 7px; border-radius: 50%; background: var(--border-strong); }
+.eq .eqp-chip.b-hi i, .eq .eqp-chip.t-hi i { background: var(--gain); } .eq .eqp-chip.b-mid i, .eq .eqp-chip.t-mid i { background: var(--warn); } .eq .eqp-chip.b-lo i, .eq .eqp-chip.t-lo i, .eq .eqp-chip.t-lo2 i { background: var(--loss); }
+.eq .eqp-td { font: 500 var(--fs-12)/1.2 var(--sans); color: var(--muted); }
+.eq .eqp-d { padding: 4px 14px 14px; background: var(--s2); }
+.eq .eqp-d dl { display: grid; gap: 6px; margin: 0; }
+.eq .eqp-d dl > div { display: grid; grid-template-columns: 9em minmax(0, 1fr); gap: 8px; font: 400 var(--fs-13)/1.4 var(--sans); }
+.eq .eqp-d dt { color: var(--muted); } .eq .eqp-d dd { margin: 0; color: var(--text); }
+.eq .eqp-d small { font-size: var(--fs-12); color: var(--muted); }
+.eq .eqp-a { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.eq .eqp-a button, .eq .eqp-a a { display: inline-flex; align-items: center; min-height: 40px; padding: 0 12px; border: 1px solid var(--border-strong); border-radius: var(--ui-r-pill); background: var(--s1); color: var(--text); font: 600 var(--fs-13) var(--sans); text-decoration: none; cursor: pointer; }
+.eq .eqp-tot { display: flex; justify-content: space-between; padding: 12px 14px; background: var(--s2); font: 600 var(--fs-14)/1.3 var(--sans); }
+.eq .eqp-tot span:last-child { font-family: var(--serif); font-variant-numeric: tabular-nums; }
+
+/* things to know: one quiet list, a small coloured dot, a line opens on tap (file 33, Drop-downs) */
+.eq .eq-ins .dsh-ics { display: block; border: 1px solid var(--border); border-radius: var(--r-ctl); overflow: hidden; }
+.eq .eq-ins .dsh-ic { margin: 0; border: 0; border-radius: 0; background: var(--s1); box-shadow: none; }
+.eq .eq-ins .dsh-ic + .dsh-ic { border-top: 1px solid var(--border); }
+.eq .eq-ins .dsh-ic-row { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 12px; background: none; }
+.eq .eq-ins .sp-card-ic { width: 8px; height: 8px; min-width: 8px; padding: 0; border-radius: 50%; background: var(--muted); }
+.eq .eq-ins .sp-card-ic svg { display: none; }
+.eq .eq-ins .sp-good .sp-card-ic { background: var(--gain); } .eq .eq-ins .sp-watch .sp-card-ic, .eq .eq-ins .sp-warning .sp-card-ic { background: var(--warn); } .eq .eq-ins .sp-insight .sp-card-ic { background: var(--info); }
+.eq .eq-ins .dsh-ic-t { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+.eq .eq-ins .sp-kind { font: 700 var(--fs-12)/1.2 var(--sans); letter-spacing: .07em; text-transform: uppercase; }
+.eq .eq-ins .sp-good .sp-kind { color: var(--gain); } .eq .eq-ins .sp-watch .sp-kind, .eq .eq-ins .sp-warning .sp-kind { color: var(--warn); } .eq .eq-ins .sp-insight .sp-kind { color: var(--info); }
+.eq .eq-ins .sp-ct { font: 600 var(--fs-14)/1.35 var(--sans); color: var(--text); }
+.eq .eq-ins .dsh-ic-chev { margin-left: auto; }
+.eq .eq-ins .dsh-ic-body { padding: 0 12px 12px 30px; }
+/* the frozen Share cell of a tinted (weak) row is opaque: nothing shows through it when the table scrolls sideways */
+.eq #pf-shares .pfx-table tr.eq-weakrow > td:first-child { background: linear-gradient(color-mix(in srgb, var(--loss) 6%, transparent), color-mix(in srgb, var(--loss) 6%, transparent)), linear-gradient(var(--s1), var(--s1)), var(--bg); }
+.eq .eqh-npd { margin: 10px 0 0; }
+.eq .eqh-npd .eqh-np { margin-top: 8px; }
+/* phone: the list carries its own sort chips (Value, Today, Gain or loss, Prism) in one row that scrolls inside itself; the tools row is the table's */
+@media (max-width: 860px) {
+  .eq #pf-shares:has(.eqp) .pfx-tools, .eq #pf-shares:has(.eqp) .pff-chips { display: none; }
+  .eq .eqp-sort { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .eq .eqp-sort button { flex: none; }
+}
+/* the money card and Your portfolios: a change that rounds to zero is grey */
+.eq .eqx-pp.flat, .eq .eqx-flat { color: var(--muted); }

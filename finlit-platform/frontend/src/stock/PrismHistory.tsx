@@ -1,6 +1,7 @@
 // "Prism score over time" on the stock page, under the pros and cons: the score and its four parts (0 to 100), or the two technical views (−100 to +100), one
 // point per day a figure was worked out. Gold, like the report; the server sends nothing below Gold. It describes how the score moved; it never forecasts.
 import { useContext, useMemo, useState } from "react";
+import { DropChev } from "../components/DropChev";
 import { Icon } from "../lib/icons";
 import { dateIN, MINUS } from "../lib/format";
 import { useGold } from "../lib/premium";
@@ -65,7 +66,7 @@ export function HistoryChart({ points, view }: { points: HistPoint[]; view: View
           {defs.filter((l) => shown[l.s]).map((l) => <span key={l.s}>{l.name} {fmt(valueOf(h, l.s), view === "technical")}</span>)}
         </div>)}
       {changes.length > 0 && <p className="phx-note"><Icon name="info" /><span>The dashed gold line marks a day the scoring method was updated ({changes.map((c) => dateIN(c.day, { day: "numeric", month: "short" })).join(", ")}): a jump there can come from the new formula, not from the business.</span></p>}
-      <details className="phx-table"><summary>Show as table</summary>
+      <details className="phx-table xdd"><summary>Show as table<DropChev /></summary>
         <div className="tw"><table className="qtt"><thead><tr><th>Day</th>{defs.map((l) => <th key={l.s}>{l.name}</th>)}</tr></thead>
           <tbody>{[...points].reverse().map((p) => <tr key={p.day}><td>{dateIN(p.day)}</td>{defs.map((l) => <td key={l.s} className="num">{fmt(valueOf(p, l.s), view === "technical")}</td>)}</tr>)}</tbody></table></div>
       </details>

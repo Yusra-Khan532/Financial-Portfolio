@@ -9,10 +9,12 @@ vi.mock("../lib/ui", () => ({ useUI: () => ({ toast: vi.fn(), plan: st.plan, upg
 vi.mock("../lib/screener", async (orig) => ({ ...(await orig<typeof import("../lib/screener")>()), useUniverse: () => ({ data: { rows: st.rows, sample: true }, isLoading: false, isError: false }) }));
 vi.mock("react-router", async (orig) => ({ ...(await orig<typeof import("react-router")>()), useNavigate: () => st.go }));
 import { Compare } from "./Compare";
+import { cls, withClassifications } from "../lib/taxonomyTesting";
 
 const base = { sector: "Energy", price: 100, change_pct: 1, market_cap: 1000, pe: 10, roe: 12, debt_to_equity: 0.5, overall: 66, band: "healthy", pillar_quality: 60, pillar_growth: 50, pillar_profitability: 55, pillar_balance: 70, pillar_technical: 40 };
 const row = (sym: string, prism: number | null): Row => ({ ...base, symbol: sym, name: sym + " Ltd", prism_final: prism, prism_label: prism == null ? null : prism >= 65 ? "HEALTHY" : "AVERAGE", prism_status: prism == null ? null : "RATED", prism_state: prism == null ? "none" : "stored", prism_fundamental: prism, prism_valuation: prism, prism_quality: prism, prism_risk: prism } as unknown as Row);
-const view = () => render(<MemoryRouter initialEntries={["/compare?c=AAA,BBB"]}><Compare /></MemoryRouter>);
+const view = () => render(withClassifications(<MemoryRouter initialEntries={["/compare?c=AAA,BBB"]}><Compare /></MemoryRouter>,
+  { AAA: cls("AAA", "Energy", "Oil, Gas & Consumable Fuels", "Petroleum Products", "Refineries & Marketing"), BBB: null }));
 
 beforeEach(() => { st.rows = [row("AAA", 71), row("BBB", null), row("CCC", 55)]; });
 afterEach(cleanup);
@@ -31,13 +33,13 @@ describe("Compare: one score per plan (tasks #13, #100)", () => {
     const cards = [...container.querySelectorAll(".cc-prism")].map((c) => c.textContent);
     expect(cards[0]).toContain("71"); expect(cards[1]).toContain("Not rated yet");
   });
-  it("Silver sees only FinLit IQ: no model toggle and no Prism anywhere", () => {
+  it("Silver (task #283): a locked FinLit Prism row, no other score, no Prism figures", () => {
     st.plan = "silver"; const { container } = view();
-    expect(screen.queryByRole("button", { name: "FinLit Prism" })).toBeNull();
     expect(container.querySelectorAll(".cmp-models")).toHaveLength(0);
-    expect(container.querySelector(".cmp-cards")!.textContent).not.toContain("FinLit Prism");   // (the page header names Prism as a link, so only the comparison is checked)
-    expect(container.textContent).not.toContain("The FinLit Prism parts");
-    expect(container.querySelector(".cmp-cards")!.textContent).toContain("FinLit IQ");
+    const cards = container.querySelector(".cmp-cards")!.textContent!;
+    expect(cards).toContain("See FinLit Prism"); expect(cards).not.toMatch(/\bIQ\b|Five-pillar/);
+    expect(container.querySelectorAll(".cc-prism")).toHaveLength(2);
+    expect(container.textContent).not.toContain("The FinLit Prism parts"); expect(container.textContent).not.toContain("The five FinLit pillars");
   });
 });
 
@@ -96,5 +98,15 @@ describe("Compare: Prism's two technical readings (task #123)", () => {
     st.plan = "silver"; const { container } = view();
     expect(container.querySelector(".cmp-trend")).toBeNull();
     expect(container.querySelector(".cc-tech")).toBeNull();
+  });
+});
+
+describe("task #192: each company card names its NSE industry", () => {
+  beforeEach(() => { st.plan = "gold"; st.rows = [row("AAA", 70), row("BBB", 60)]; });
+  afterEach(cleanup);
+  it("shows Industry · <name> for a classified company, and nothing for one not classified, never the screener's mixed sector", () => {
+    view();
+    expect(screen.getAllByText("Industry · Petroleum Products").length).toBeGreaterThan(0);
+    expect(screen.queryByText("Energy", { selector: "small" })).toBeNull();     // before: the row's `sector` value, unlabelled
   });
 });

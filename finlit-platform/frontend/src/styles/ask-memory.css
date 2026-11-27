@@ -1,0 +1,22 @@
+/* Task #349 PR 2: FinLit AI's question memory (components/AskHistory.tsx, components/AccountAiHistory.tsx). Scoped aim- classes, tokens only. */
+.aim-q { display: grid; gap: 2px; min-width: 0; }
+.aim-q > span { overflow-wrap: anywhere; }
+.aim-meta { color: var(--muted); font-size: var(--fs-12); }
+.aim-off { margin: 0 0 10px; color: var(--muted); font-size: var(--fs-13); }
+.aim-note { margin: 6px 2px 0; color: var(--muted); font-size: var(--fs-12); line-height: 1.4; }
+.aim-note a, .aim-off a { color: inherit; text-decoration: underline; }
+
+/* Account > FinLit AI */
+.aim-acct { display: grid; gap: 14px; }
+.aim-acct > p { margin: 0; }
+.aim-count { color: var(--muted); font-size: var(--fs-14); }
+.aim-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.aim-confirm { display: grid; gap: 10px; padding: 12px; border: 1px solid var(--border-strong); border-radius: var(--r-ctl); }
+.aim-confirm > p { margin: 0; }
+
+/* The header's History button: the small window, and any window under 981px, where the full window's side menu is hidden */
+.ai header .aim-hist { width: auto; height: auto; min-height: 32px; padding: 0 10px; gap: 6px; font-size: var(--fs-13); }
+.ai header .aim-hist svg { width: 16px; height: 16px; }
+.ai header .aim-hist .aim-hist-l { font-size: inherit; color: inherit; }
+@media (min-width: 981px) { .aif.full:not(.nomenu) .aim-hist { display: none; } }
+@media (max-width: 480px) { .ai header .aim-hist { padding: 0; width: 44px; min-height: 44px; } .ai header .aim-hist .aim-hist-l { display: none; } }

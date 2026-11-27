@@ -22,7 +22,7 @@ import { ZoomGlyph } from "../components/ChartZoom";
 import { alignSeries, changes, corrMatrix, csvRow, pearson, rebase, RANGES, strength, windowPts } from "../lib/graphData";
 import { BY_ID, extract, GROUPS, IDX, indexCode, isIndexSym, metricFor, metricsIn, unsupportedWhy, UNITS, type Bundle, type Extracted, type Metric, type UnitId } from "../lib/graphMetrics";
 import { graphLimits, chartTier, type ChartKind } from "../lib/graphLimits";
-import { CHART_LABEL, LAYOUTS, LAYOUT_BUTTONS, MAX_CHARTS, nextFreeCell, cellCount, layoutAbove, withoutCell, chartCheck, decodeView, defaultView, encodeView, sanitize, type CellFacts, type CellSpec, type SeriesSpec, type View } from "../lib/graphState";
+import { CHART_LABEL, LAYOUTS, LAYOUT_BUTTONS, MAX_CHARTS, nextFreeCell, placeFor, cellCount, layoutAbove, withoutCell, chartCheck, decodeView, defaultView, encodeView, sanitize, type CellFacts, type CellSpec, type SeriesSpec, type View } from "../lib/graphState";
 import "../styles/graphs.css";
 
 const CHARTS = Object.keys(CHART_LABEL) as ChartKind[];
@@ -233,16 +233,32 @@ export function GraphStudio() {
     set({ ...base, cells });
     return true;
   };
-  /** Picking a measure (task #114): unticking removes it from the chart picked; a new one goes on that chart only when it is empty, otherwise it gets a
-   *  chart of its own (the first empty one, or one more), so measures in different units never share a chart and the charts already drawn stay as they are. */
-  const toggle = (mid: string) => {
-    const cell = cellOf(active); const has = cell.series.some((s) => s.m === mid);
-    if (has) { setCell(active, { ...cell, series: cell.series.filter((s) => s.m !== mid) }); return; }
-    if (!cell.series.length) { addTo(active, mid); return; }
+  /** One measure per chart (tasks #114 and #163), however a measure is added: on chart `i` when it is empty or shows only this measure, otherwise on a
+   *  chart of its own (the first empty one, or one more), so measures in different units never share a chart and the charts already drawn stay as they are.
+   *  `say`: a drop or a row's Add menu names the chart the measure went to, because it is not the one the person aimed at. */
+  const place = (i: number, mid: string, only?: string, say = false) => {
+    const to = placeFor(view, i, mid, Math.min(MAX_CHARTS, lim.cells));
+    if (!to) { toast(`${MAX_CHARTS} charts is the most a view can hold. Remove one to add another.`); return; }
+    if (!to.own) { addTo(i, mid, only); return; }
+    if (addTo(to.index, mid, only, { ...view, layout: to.layout })) {
+      setActive(to.index);
+      if (say) toast(`${BY_ID[mid]?.label ?? "This measure"} has a chart of its own (Chart ${to.index + 1}): one measure per chart, so measures in different units are never mixed.`);
+    }
+  };
+  /** A row's Add menu, "An empty chart": the first empty chart, or one more. */
+  const placeNew = (mid: string) => {
     const free = nextFreeCell(view, Math.min(MAX_CHARTS, lim.cells));
     if (!free) { toast(`${MAX_CHARTS} charts is the most a view can hold. Remove one to add another.`); return; }
     if (addTo(free.index, mid, undefined, { ...view, layout: free.layout })) setActive(free.index);
   };
+  /** Ticking in the list (task #114): unticking removes the measure from the chart picked; ticking places it as above. */
+  const toggle = (mid: string) => {
+    const cell = cellOf(active); const has = cell.series.some((s) => s.m === mid);
+    if (has) { setCell(active, { ...cell, series: cell.series.filter((s) => s.m !== mid) }); return; }
+    place(active, mid);
+  };
+  /** What a chart shows, for the rows' Add menus: its measure ("empty" when it has none), so it is clear where a measure will land (task #163). */
+  const chartHolds = (n: number) => { const ms = [...new Set(cellOf(n).series.map((x) => BY_ID[x.m]?.label).filter(Boolean))]; return ms.length ? ms.join(", ") : "empty"; };
   const nCo = (l: string[]) => l.filter((x) => !isIndexSym(x)).length;
   const addCompany = (s: string) => { if (companies.includes(s)) return; if (!isIndexSym(s) && nCo(companies) >= lim.companies) { upgrade(plan === "basic" ? "silver" : "gold", `Comparing more than ${lim.companies} companies`); return; } setCompanies([...companies, s]); setCq("");
     // the new company joins every chart: each measure already drawn gets a line for it (breakdown charts stay with one company; the plan's series limit and unsupported measures are respected)
@@ -323,7 +339,7 @@ export function GraphStudio() {
   return (
     <>
       <PageHeader wrap plan="free" title="Chart builder" art="chart" links={[{ to: "/graphs/advanced", primary: true }, "/compare", "/research"]}
-        description={<>Put several graphs next to each other to see patterns and correlation. Choose <b>companies and measures</b>, pick a chart type for each, and keep what you build.</>} />
+        description="Put charts side by side to spot patterns: pick companies, measures and a chart type for each." />
       <div className={"wrap gx" + (panel ? "" : " gx-wide")}>
         <aside className={"gx-panel" + (panel ? "" : " gx-shut")} aria-label="Choose companies and measures" id="gx-panel">
           <button className="btn ghost gx-toggle" aria-expanded={panel} onClick={() => setPanel(!panel)}>{panel ? "Hide" : "Choose"} companies and measures</button>
@@ -339,14 +355,14 @@ export function GraphStudio() {
               {hits.length > 0 && <ul role="listbox" aria-label="Companies and indices">{hits.map((r) => <li key={r[0]} role="option" aria-selected={false}><button onClick={() => addCompany(r[0])}>{r[1]} <small>{isIndexSym(r[0]) ? "Index" : r[0]}</small></button></li>)}</ul>}</div>
             <h2>2. Measures</h2>
             <div className="gx-seg" role="tablist" aria-label="How to pick">{([["list", "Choose from list"], ["drag", "Drag & drop"]] as const).map(([k, l]) => <button key={k} role="tab" aria-selected={tab === k} aria-pressed={tab === k} onClick={() => setTab(k)}>{l}</button>)}</div>
-            <p className="faint gx-hint">{tab === "list" ? <>Ticks apply to <b>Chart {active + 1}</b> (click a chart to change it).</> : "Drag a measure onto a chart, or use the Add menu on each row."}</p>
+            <p className="faint gx-hint">{tab === "list" ? <>Ticks apply to <b>Chart {active + 1}</b> (click a chart to change it).</> : <>Drag a measure onto a chart, or use the Add menu on each row. <b>One measure per chart:</b> a measure dropped on a chart that already shows another gets a chart of its own.</>}</p>
             <label className="sr" htmlFor="gx-q">Search measures</label><input id="gx-q" className="gx-q" type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search measures (revenue, P/E, ROE…)" />
             {!q && <div className="gx-groups">{GROUPS.map((g) => <button key={g.id} aria-pressed={group === g.id} onClick={() => setGroup(g.id)}>{g.label}</button>)}</div>}
             <ul className="gx-list">{list.map((m) => { const on = activeCell.series.some((s) => s.m === m.id); return (
               <li key={m.id} draggable={!whyOff(m)} className={whyOff(m) ? "off" : undefined} onDragStart={(e) => { e.dataTransfer.setData("text/plain", m.id); e.dataTransfer.effectAllowed = "copy"; }} title={m.hint}>
                 {tab === "list" ? <label><input type="checkbox" checked={on} disabled={!!whyOff(m)} onChange={() => toggle(m.id)} /><span>{m.label}</span></label> : <><span className="grip" aria-hidden="true">⋮⋮</span><span>{m.label}</span></>}
                 {whyOff(m) && <small className="faint">{whyOff(m)}</small>}<small>{UNITS[m.unit].label}{m.tier !== "basic" && <> · {m.tier === "gold" ? "Gold" : "Silver"}</>}</small>
-                {tab === "drag" && <select aria-label={`Add ${m.label} to a chart`} disabled={!!whyOff(m)} value="" onChange={(e) => { const n = +e.target.value; if (!Number.isNaN(n)) addTo(n, m.id); }}><option value="">Add to…</option>{Array.from({ length: count }, (_, n) => <option key={n} value={n}>Chart {n + 1}</option>)}</select>}
+                {tab === "drag" && <select aria-label={`Add ${m.label} to a chart`} disabled={!!whyOff(m)} value="" onChange={(e) => { const v = e.target.value; if (v === "new") { placeNew(m.id); return; } const n = +v; if (v !== "" && !Number.isNaN(n)) place(n, m.id, undefined, true); }}><option value="">Add to…</option>{Array.from({ length: count }, (_, n) => <option key={n} value={n}>Chart {n + 1} · {chartHolds(n)}</option>)}<option value="new">An empty chart</option></select>}
               </li>); })}{!list.length && <li className="faint">No measure matches.</li>}</ul>
           </div>
         </aside>
@@ -373,7 +389,7 @@ export function GraphStudio() {
           <div className="gx-grid" ref={gridRef} style={{ "--cols": co.cols } as React.CSSProperties}>
             {Array.from({ length: count }, (_, i) => <Cell key={i} i={i} cell={cellOf(i)} view={view} bundles={bundles} active={active === i} onActive={() => setActive(i)} plan={plan} c={colors}
               drawing={drawCells.includes(i)} onDraw={(o) => setDrawCells((d) => toggleDraw(d, i, o))}
-              onRemove={() => { setDrawCells((d) => shiftDraw(d, i)); removeCell(i); }} onZoom={() => setZoom(zoom === i ? null : i)} zoomed={zoom === i} onChange={(n) => setCell(i, n)} onDrop={(m) => (m.includes("@") ? addTo(i, m.split("@")[0], m.split("@")[1]) : addTo(i, m))} />)}
+              onRemove={() => { setDrawCells((d) => shiftDraw(d, i)); removeCell(i); }} onZoom={() => setZoom(zoom === i ? null : i)} zoomed={zoom === i} onChange={(n) => setCell(i, n)} onDrop={(m) => (m.includes("@") ? place(i, m.split("@")[0], m.split("@")[1], true) : place(i, m, undefined, true))} />)}
           </div>
           <p className="faint gx-foot">Figures are as reported by each company, in the units shown. Each series covers the chosen range back from its own latest reading. Information only; not advice to buy or sell.</p>
         </div>

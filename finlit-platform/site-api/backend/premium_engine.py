@@ -13,11 +13,11 @@ try:
         MODEL_VERSION, BASELINE_VERSION, FILL_VERSION, RATING_BANDS,
         QUARTERS_STORED, QUARTERS_JUDGED, POINTS_PER_GOOD_QUARTER,
         MISS_PENALTY, STREAK_MAGNITUDE_SHARE, PROFIT_TURNAROUND_POINTS,
-        LOSS_NARROWED_POINTS, CASH_LOSS_POINTS, IC_NOT_APPLICABLE_DE,
+        LOSS_NARROWED_POINTS, CASH_LOSS_POINTS, IC_LOW_DEBT_UNSCORED_BELOW,
         PEG_CORE_GROUPS, PEG_MIN_PROFIT_STREAK, PEG_GROWTH_CAP,
         EPS_SPLIT_BONUS_RATIOS, EPS_SPLIT_BONUS_TOLERANCE,
         PROVISIONAL_BELOW, NOT_RATED_BELOW, PROVISIONAL_MIN_QUARTERS,
-        FLAG_RED, FLAG_GREEN, PLEDGE_ALERT, VALUE_TRAP,
+        FLAG_RED, FLAG_GREEN, PLEDGE_ALERT, VALUE_TRAP, FULL_FALL_SESSIONS,
     )
 except ImportError:
     from financial_records import num
@@ -29,11 +29,11 @@ except ImportError:
         MODEL_VERSION, BASELINE_VERSION, FILL_VERSION, RATING_BANDS,
         QUARTERS_STORED, QUARTERS_JUDGED, POINTS_PER_GOOD_QUARTER,
         MISS_PENALTY, STREAK_MAGNITUDE_SHARE, PROFIT_TURNAROUND_POINTS,
-        LOSS_NARROWED_POINTS, CASH_LOSS_POINTS, IC_NOT_APPLICABLE_DE,
+        LOSS_NARROWED_POINTS, CASH_LOSS_POINTS, IC_LOW_DEBT_UNSCORED_BELOW,
         PEG_CORE_GROUPS, PEG_MIN_PROFIT_STREAK, PEG_GROWTH_CAP,
         EPS_SPLIT_BONUS_RATIOS, EPS_SPLIT_BONUS_TOLERANCE,
         PROVISIONAL_BELOW, NOT_RATED_BELOW, PROVISIONAL_MIN_QUARTERS,
-        FLAG_RED, FLAG_GREEN, PLEDGE_ALERT, VALUE_TRAP,
+        FLAG_RED, FLAG_GREEN, PLEDGE_ALERT, VALUE_TRAP, FULL_FALL_SESSIONS,
     )
 
 LABELS = {
@@ -94,6 +94,24 @@ def recent(series, annual):
     return (num(annual[-1]), num(annual[-2]), "Latest financial year vs previous year (short-history fallback)") if len(annual) >= 2 else (None, None, "Insufficient history")
 
 
+def trailing_eps(d):
+    """The EPS the P/E uses, with the basis it came from: the four latest quarters; with fewer than four quarters, the reported trailing EPS, then
+    the latest full year's EPS. 3.6.21 (task #318): when the four latest quarters do not give one (a quarter missing, a recent listing), the reported
+    trailing EPS and then the latest full year's EPS (before, one missing quarter left P/E, P/E vs own history and PEG all empty). No EPS is derived
+    from net profit, so a company that reports none keeps the treatment it had. (None, None) when none is available."""
+    eq = d.get("eps_q", [])
+    if len(eq) >= 4:
+        eps = complete_sum(eq, 4)
+        if eps is not None:
+            return eps, "Last four quarters"
+    for key, basis in (("eps_ttm", "Trailing twelve months (reported)"),
+                       ("eps_fy", "Latest full year (fewer than four quarters reported)" if len(eq) < 4 else "Latest full year (the latest four quarters are incomplete)")):
+        value = num(d.get(key))
+        if value is not None:
+            return value, basis
+    return None, None
+
+
 def reported_start(series):
     """Drop only leading empty slots; retain missing quarters inside a record."""
     first = next((i for i, value in enumerate(series) if num(value) is not None), len(series))
@@ -117,6 +135,44 @@ def cagr_window(annual):
         return [], 0, span
     years = next((n for n in CAGR_PREFERRED_YEARS if span >= n), span)
     return list(reversed(available[:years + 1])), years, span
+
+
+def growth_ladder(annual):
+    """PEG's growth (owner, 17 November 2026): the CAGR over 5 years, and when it cannot be worked out (a missing or non-positive start) or is
+    negative, over 4, then 3, then 2 years (then 1, the window that always existed). Only the latest unbroken run of annual figures is used, ending in
+    the latest year. Returns (growth %, years, [(years, why skipped)]); when no window gives a positive growth, the first one that could be worked out
+    (negative, so PEG is not meaningful) is returned; (None, 0, skipped) when none could."""
+    run = []
+    for value in reversed(annual[-(CAGR_MAX_YEARS + 1):]):
+        value = num(value)
+        if value is None:
+            break
+        run.append(value)
+    run.reverse()
+    span = len(run) - 1
+    skipped, first = [], None
+    for n in [y for y in CAGR_PREFERRED_YEARS if y <= span] + ([span] if 0 < span < min(CAGR_PREFERRED_YEARS) else []):
+        start, end = run[-1 - n], run[-1]
+        if start <= 0:
+            skipped.append((n, "start not positive"))
+            continue
+        g = ((end / start) ** (1 / n) - 1) * 100 if end > 0 else -100.
+        if g > 0:
+            return g, n, skipped
+        skipped.append((n, "negative"))
+        if first is None:
+            first = (g, n)
+    if first is None:
+        return None, 0, skipped
+    return first[0], first[1], [s for s in skipped if s != (first[1], "negative")]     # the window shown is not also listed as skipped
+
+
+def ladder_note(skipped, what):
+    """'; the 5-year EPS growth was negative' for the report's growth basis, or ''."""
+    if not skipped:
+        return ""
+    words = {"negative": "negative", "start not positive": "not measurable (the starting figure is zero or negative)"}
+    return "; " + ", ".join(f"the {n}-year {what} growth was {words[why]}" for n, why in skipped)
 
 
 def dated_cagr_window(values, ends):
@@ -360,21 +416,35 @@ def score_company(d, group):
         sn, so, _ = recent(sales_q, [])
         on, oo, _ = recent(op_q, [])
         now, before = ratio(on, sn), ratio(oo, so)
-        put("MARGIN_CHANGE", (now - before) * 100 if now is not None and before is not None else None)
+        margin_detail = None
+        if now is None or before is None:
+            # 3.6.21 (task #318): the quarters cannot be compared (a recent listing, or a missing quarter): the latest full year against the year before.
+            sy, oy = d.get("sales_y") or [], d.get("operating_profit_y") or []
+            if len(sy) >= 2 and len(oy) == len(sy):
+                yn, yb = ratio(oy[-1], sy[-1]), ratio(oy[-2], sy[-2])
+                if yn is not None and yb is not None:
+                    now, before = yn, yb
+                    margin_detail = {"basis": "Latest financial year vs previous year (the quarters cannot be compared)"}
+        put("MARGIN_CHANGE", (now - before) * 100 if now is not None and before is not None else None, detail=margin_detail)
         if LOSS_ADJUSTED_FUNDAMENTAL and now is not None and before is not None and now <= 0:
             put("MARGIN_CHANGE", (now - before) * 100, "Z", {"note": "Current operating margin is non-positive", "operatingLoss": True, "opMarginNow": now * 100}, 0.)
         de = ratio(debt, nw)
         put("DEBT_TO_EQUITY", de, explicit_points=0. if nw is not None and nw <= 0 else None)
         interest, pbt = num(d.get("interest_cost")), num(d.get("profit_before_tax"))
-        cover = (pbt + interest) / interest if pbt is not None and interest is not None and interest > 0 else None
-        if de is not None and de < IC_NOT_APPLICABLE_DE:
-            # Not scored (owner's v3.6 rule) but still worked out and shown, so the report agrees with the company page's interest coverage (3.6.14).
-            statuses["INTEREST_COVER"] = "N"
-            values["INTEREST_COVER"] = cover
-            details["INTEREST_COVER"] = {"note": f"Debt / equity is below {IC_NOT_APPLICABLE_DE:g}, so interest cover is shown for information and not scored",
-                                         "shownNotScored": cover is not None}
+        calculated = (pbt + interest) / interest if pbt is not None and interest is not None and interest > 0 else None
+        # 3.6.20 (owner, task #199): the interest cover is FinEdge's reported trailing-12-month interest coverage, the figure the
+        # company report shows (section 9), and it is scored for every company, low-debt ones included (the v3.6 rule that left it unscored below
+        # debt / equity 0.1 is retired). Without a reported figure, the latest full year's (PBT + interest) / interest is used, and the row says so.
+        reported = num(d.get("interest_cover_reported"))
+        if IC_LOW_DEBT_UNSCORED_BELOW is not None and de is not None and de < IC_LOW_DEBT_UNSCORED_BELOW:
+            statuses["INTEREST_COVER"] = "N"      # the retired v3.6 rule, reproduced only for the historical reference checks
+            details["INTEREST_COVER"] = {"note": f"Debt / equity is below {IC_LOW_DEBT_UNSCORED_BELOW:g}"}
+        elif reported is not None:
+            put("INTEREST_COVER", reported, detail={"source": d.get("interest_cover_source") or "FinEdge reported interest coverage (trailing 12 months)",
+                                                    "note": "Same figure as the company report's interest coverage."})
         else:
-            put("INTEREST_COVER", cover, explicit_points=100. if interest == 0 else None)
+            put("INTEREST_COVER", calculated, explicit_points=100. if interest == 0 else None,
+                detail={"source": "Calculated: latest full year (profit before tax + interest) / interest"} if calculated is not None or interest == 0 else None)
         value = ratio(annual_profit, annual_nw)
         put("ROE", value * 100 if value is not None else None, explicit_points=0. if annual_nw is not None and annual_nw <= 0 else None)
         p3 = complete_sum(d.get("net_profit_y", []), 3)
@@ -406,10 +476,7 @@ def score_company(d, group):
             explicit_points=100. if valid and interest == 0 else None)
 
     price, shares = num(d.get("price")), num(d.get("shares"))
-    eq = d.get("eps_q", [])
-    eps = complete_sum(eq, 4) if len(eq) >= 4 else num(d.get("eps_ttm"))
-    if eps is None and len(eq) < 4:
-        eps = num(d.get("eps_fy"))
+    eps, eps_basis = trailing_eps(d)
     pe = ratio(price, eps) if price is not None and price > 0 else None
     pb = ratio(price * shares, nw) if price is not None and price > 0 and shares is not None and shares > 0 else None
     loss, negative_nw = eps is not None and eps <= 0, nw is not None and nw <= 0
@@ -420,16 +487,18 @@ def score_company(d, group):
             if negative:
                 put(metric, None, "Z", {"note": "Non-positive EPS" if prefix == "PE" else "Non-positive net worth"}, 0.)
             elif suffix == "HISTORY" and (benchmark is None or benchmark <= 0) and industry is not None and industry > 0:
-                put(metric, ratio(current, industry), "S", {"note": "Industry median substituted for unavailable own history"})
+                put(metric, ratio(current, industry), "S", {"note": "Industry median substituted for unavailable own history",
+                                                             **({"epsBasis": eps_basis} if prefix == "PE" and eps_basis else {})})
             else:
-                put(metric, ratio(current, benchmark))
+                put(metric, ratio(current, benchmark), detail={"epsBasis": eps_basis} if prefix == "PE" and eps_basis and current is not None else None)
     # PEG growth (3.6.12): EPS growth first, because P/E is price per share and the growth must be per share too. Net profit growth only when there is no EPS CAGR.
+    # 3.6.19 (owner, 17 November 2026): each is a ladder: the 5-year CAGR, and when it is missing or negative the 4-year, then 3-year, then 2-year one.
     adj_eps, eps_adjustments = split_adjusted_eps(d.get("eps_y", []), d.get("net_profit_y", []))
-    eps_window, eps_years, _ = cagr_window(adj_eps)
-    g, g_basis = None, None
-    if eps_years and eps_window[0] is not None and eps_window[0] > 0:
-        g = ((eps_window[-1] / eps_window[0]) ** (1 / eps_years) - 1) * 100 if eps_window[-1] > 0 else -100.
-        g_basis = {"kind": "eps", "text": f"EPS growth over {eps_years} years", "years": eps_years}
+    g, eps_years, eps_skipped = growth_ladder(adj_eps)
+    g_basis = None
+    if g is not None:
+        g_basis = {"kind": "eps", "text": f"EPS growth over {eps_years} years" + ladder_note(eps_skipped, "EPS"), "years": eps_years,
+                   **({"skipped": eps_skipped} if eps_skipped else {})}
     # 3.6.14 (owner, 15 November 2026): a consolidated EPS history too short for a 3-year window is measured on the standalone statements instead, when they
     # reach the same latest year and give a longer usable window. Only PEG's growth changes; P/E and every other factor stay on the report's own basis.
     sa_eps, sa_ends = d.get("eps_y_standalone") or [], d.get("standalone_period_ends") or []
@@ -437,17 +506,22 @@ def score_company(d, group):
     if (g is None or eps_years < 3) and sa_eps and len(sa_ends) == len(sa_eps) and (not con_years_list or int(sa_ends[-1][:4]) >= con_years_list[-1]):
         sa_adj, sa_adjustments = split_adjusted_eps(sa_eps, d.get("net_profit_y_standalone", []))
         first_i, sa_years = dated_cagr_window(sa_adj, sa_ends)
-        if first_i is not None and sa_years > (eps_years if g is not None else 0):
+        sa_g = None
+        if first_i is not None:
             start, end = sa_adj[first_i], sa_adj[-1]
-            g = ((end / start) ** (1 / sa_years) - 1) * 100 if end > 0 else -100.
+            sa_g = ((end / start) ** (1 / sa_years) - 1) * 100 if end > 0 else -100.
+        # the longer standalone window replaces a short consolidated one, but never turns a positive EPS growth into a negative one (3.6.19)
+        if sa_g is not None and sa_years > (eps_years if g is not None else 0) and (g is None or g <= 0 or sa_g > 0):
+            g = sa_g
             periods = len(sa_adj) - 1 - first_i
             g_basis = {"kind": "eps_standalone", "text": f"standalone EPS growth over {sa_years:.1f} years, {sa_ends[first_i]} to {sa_ends[-1]} (consolidated history too short)",
                        "years": round(sa_years, 2), "periods": periods, "consolidatedYears": eps_years or None}
             eps_adjustments = sa_adjustments
     if g is None:
-        g = values.get("PROFIT_CAGR")
+        g, profit_years, profit_skipped = growth_ladder(d.get("net_profit_y", []))
         if g is not None:
-            g_basis = {"kind": "profit_cagr", "text": "net profit growth (no usable EPS growth)", "years": (details.get("PROFIT_CAGR") or {}).get("years")}
+            g_basis = {"kind": "profit_cagr", "text": f"net profit growth over {profit_years} years (no usable EPS growth)" + ladder_note(profit_skipped, "net profit"),
+                       "years": profit_years, **({"skipped": profit_skipped} if profit_skipped else {})}
     if g is None:
         g = values.get("PROFIT_GROWTH")
         if g is not None:
@@ -478,6 +552,11 @@ def score_company(d, group):
             continue
         if metric == "TRADING_VALUE" and value is not None:
             put(metric, value, explicit_points=next((p for threshold, p in TRADING_VALUE_STEPS if value >= threshold), 0))
+        elif metric == "BIGGEST_FALL" and value is not None and num(d.get("biggest_fall_sessions")) is not None:
+            # 3.6.21 (task #318): measured since listing over fewer than 250 sessions; it counts in confidence in proportion to the sessions covered
+            sessions = int(num(d["biggest_fall_sessions"]))
+            put(metric, value, detail={"sessions": sessions, "note": f"Since listing: {sessions} sessions (fewer than {FULL_FALL_SESSIONS})"})
+            credits[metric] = min(1., sessions / FULL_FALL_SESSIONS)
         else:
             put(metric, value)
 

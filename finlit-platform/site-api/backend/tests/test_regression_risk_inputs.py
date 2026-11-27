@@ -6,7 +6,6 @@ from backend.premium_engine import score_company
 RISK = ('VOLATILITY', 'BIGGEST_FALL', 'TRADING_VALUE')
 
 
-@pytest.mark.xfail(strict=False, reason="risk-inputs completeness fix in progress by another agent (premium_*.py); drop the marker once it lands")
 @pytest.mark.parametrize('inputs', [
     {'volatility_pct': 31.0, 'biggest_fall_pct': -42.0, 'trading_value_cr': 12.5},
     {'volatility_pct': 31.0, 'biggest_fall_pct': -42.0, 'trading_value_cr': 12.5, 'risk_calculation': {'sessions': 260}},

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { MINUS, nf } from "../lib/format";
 import { coverTicks, useWidth } from "./RoeLines";
-import { ChartZoom } from "../components/ChartZoom";
+import { ChartZoom, useZoomHeight } from "../components/ChartZoom";
 
 export type WfBar = { key: string; label: [string, string]; narrow?: [string, string]; value: number; kind: "total" | "delta" };
 
@@ -9,7 +9,8 @@ export type WfBar = { key: string; label: [string, string]; narrow?: [string, st
 export function Waterfall({ bars, ariaLabel, height = 250 }: { bars: WfBar[]; ariaLabel: string; height?: number }) {
   const [wrap, W] = useWidth();
   const [hv, setHv] = useState<number | null>(null);
-  const n = bars.length, H = height, pl = 42, pr = 8, pt = 32, pb = 40;   // pt leaves room above the tallest bar for its number (it used to be clamped onto the bar)
+  const [svgRef, H] = useZoomHeight<SVGSVGElement>(height);   // task #167: in full screen it fills the height too
+  const n = bars.length, pl = 42, pr = 8, pt = 32, pb = 40;   // pt leaves room above the tallest bar for its number (it used to be clamped onto the bar)
   let run = 0;
   const geo = bars.map((b) => { const from = b.kind === "total" ? 0 : run, to = b.kind === "total" ? b.value : run + b.value; run = to; return { from, to }; });
   const all = geo.flatMap((g) => [g.from, g.to]), lo = Math.min(0, ...all), hi = Math.max(...all, 1), ticks = coverTicks(lo, hi), top = ticks[ticks.length - 1], bot = Math.min(lo, ticks[0]);
@@ -19,15 +20,15 @@ export function Waterfall({ bars, ariaLabel, height = 250 }: { bars: WfBar[]; ar
   return (
     <ChartZoom label={"Bridge chart"}>
     <div className="mb dp-chart" ref={wrap} onMouseLeave={() => setHv(null)}>
-      <svg viewBox={`0 0 ${W} ${H}`} width={W} height={H} role="img" aria-label={ariaLabel}>
-        {ticks.map((t) => <g key={t}><line x1={pl} x2={W - pr} y1={Y(t)} y2={Y(t)} stroke="var(--border)" strokeWidth={t === 0 ? 1.4 : 1} /><text x={pl - 6} y={Y(t) + 3.5} textAnchor="end" fontSize="11" fill="var(--faint)" fontFamily="IBM Plex Mono, monospace">{(t < 0 ? MINUS : "") + nf(t, 0)}</text></g>)}
+      <svg ref={svgRef} viewBox={`0 0 ${W} ${H}`} width={W} height={H} role="img" aria-label={ariaLabel}>
+        {ticks.map((t) => <g key={t}><line x1={pl} x2={W - pr} y1={Y(t)} y2={Y(t)} stroke="var(--border)" strokeWidth={t === 0 ? 1.4 : 1} /><text x={pl - 6} y={Y(t) + 3.5} textAnchor="end" fontSize="11" fill="var(--faint)" fontFamily="Inter Variable, Inter, monospace">{(t < 0 ? MINUS : "") + nf(t, 0)}</text></g>)}
         {bars.map((b, i) => {
           const g = geo[i], y1 = Y(Math.max(g.from, g.to)), y2 = Y(Math.min(g.from, g.to)), fill = b.kind === "total" ? "var(--info)" : b.value >= 0 ? "var(--gain)" : "var(--loss)";
           return (
             <g key={b.key} opacity={hv == null || hv === i ? 1 : 0.5}>
               {i > 0 && <line x1={X(i - 1) + bw / 2} x2={X(i) - bw / 2} y1={Y(geo[i - 1].to)} y2={Y(geo[i - 1].to)} stroke="var(--border-strong)" strokeDasharray="2 3" />}
               <rect x={X(i) - bw / 2} y={y1} width={bw} height={Math.max(2, y2 - y1)} rx={3} fill={fill} />
-              <text x={X(i)} y={y1 - 6} textAnchor="middle" fontSize="11" fontWeight={600} fill="var(--text)" stroke="var(--s1)" strokeWidth={3} paintOrder="stroke" strokeLinejoin="round" fontFamily="IBM Plex Mono, monospace">{text(b)}</text>
+              <text x={X(i)} y={y1 - 6} textAnchor="middle" fontSize="11" fontWeight={600} fill="var(--text)" stroke="var(--s1)" strokeWidth={3} paintOrder="stroke" strokeLinejoin="round" fontFamily="Inter Variable, Inter, monospace">{text(b)}</text>
               <text x={X(i)} y={H - 22} textAnchor="middle" fontSize="11" fill="var(--muted)">{(tight && b.narrow ? b.narrow : b.label)[0]}</text>
               <text x={X(i)} y={H - 10} textAnchor="middle" fontSize="11" fill="var(--muted)">{(tight && b.narrow ? b.narrow : b.label)[1]}</text>
               <rect x={X(i) - step / 2} y={pt - 14} width={step} height={H - pt + 14} fill="transparent" tabIndex={0} role="img" style={{ outline: "none" }} onMouseEnter={() => setHv(i)} onFocus={() => setHv(i)} onBlur={() => setHv(null)} aria-label={`${b.label.join(" ")}: ${b.kind === "total" ? text(b) : `${b.value > 0 ? "up " : b.value < 0 ? "down " : ""}${nf(b.value, 1)} percentage points`}`} />

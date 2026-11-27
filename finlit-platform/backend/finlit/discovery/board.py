@@ -1,0 +1,314 @@
+"""Discover (task #251, the 19 Nov Discover pack): everything the /discovery page draws in one public read, GET /api/discovery/board.
+
+One compact row per placed company (its main theme, the other themes it mentions, the stage, the tone, 90 days of exchange filings by event, its NSE
+classification and the Sector Pulse / Sector Rotation group it belongs to), each theme's counts and checks, and the latest filings per event of the
+companies on the page (titles cleaned; no list of every filing that names a theme, task #250). The page joins it with FinLit's own readings it already reads (the screener universe, Sector Rotation, Sector Pulse), so each
+plan keeps seeing exactly what its plan shows elsewhere. A company's quotes and keywords come from GET /api/discovery?symbol= when its row is opened.
+
+Display rules of the pack (README "What a user runs into today", rows 7 and 13): "Renewable Power" is shown inside "Renewable Energy & Power"; the two
+broad groups (placed by general words such as orders and capacity, not a technology) come last and are named in plain words; filing titles lose the
+exchange's boilerplate ("a press release dated ..., titled", "1. To consider ..."). The stored classification is unchanged: this is how it is shown.
+Describes what companies say and file; never a pick."""
+
+from __future__ import annotations
+
+import json
+import logging
+import re
+from typing import Any, Dict, List, Optional
+
+from . import keywords as K
+from . import signals as S
+
+log = logging.getLogger("finlit.discovery.board")
+
+MERGE = {"Renewable Power": "Renewable Energy & Power"}
+BROAD = ("Corporate Catalysts & Growth Signals", "Industrial Manufacturing & Capex")
+DISPLAY = {"Corporate Catalysts & Growth Signals": "Corporate developments", "Industrial Manufacturing & Capex": "Industrial manufacturing & capex"}
+SHORT = {"Industrial Manufacturing & Capex": "Manufacturing", "Corporate Catalysts & Growth Signals": "Corporate", "EV & Automotive Technology": "EV & auto",
+         "Renewable Energy & Power": "Renewables", "Healthcare & Life Sciences": "Healthcare", "Solar Technology": "Solar", "Battery & Energy Storage": "Batteries",
+         "Mobile & Electronics Manufacturing": "Electronics", "Financial Services & Trading": "Finance & trading", "Defence & Aerospace": "Defence"}
+# The events of "What changed" (signals.py sorts every filing into one): the business ones first, as the pack lists them.
+EVENTS = ("order", "capacity", "partnership", "mna", "fundraise", "rating", "management", "legal")
+NEWS_DAYS = 90
+FILINGS_PER_EVENT = 12      # task #260: the page shows four, then "Show N more"
+FILINGS_PER_THEME = 12
+QUOTES = 2
+
+_PRESS = re.compile(r"^a press release dated [^,]+, \d{4}, titled\s*[\"“']?", re.I)
+_LEAD = re.compile(r"^[\s\-–—·:'\"‘“]+")
+_NUMBERED = re.compile(r"^\d+[.)]\s+")
+_TRAIL = re.compile(r"\s*['\"’”]\s*\.?\s*$")
+
+
+def theme_of(name: Optional[str]) -> Optional[str]:
+    """The theme a stored bucket is shown under (Renewable Power inside Renewable Energy & Power)."""
+    return MERGE.get(name or "", name) if name else name
+
+
+def label_of(name: Optional[str]) -> Optional[str]:
+    """Task #273: a theme's one label, the one its card shows ("Corporate developments"), for every API and page."""
+    t = theme_of(name)
+    return DISPLAY.get(t, t) if t else None
+
+
+def theme_slug(name: Optional[str]) -> Optional[str]:
+    """The theme page's address part, as the page builds it (discovery/model.ts slug()): /discover/themes/<slug>."""
+    t = theme_of(name)
+    return re.sub(r"^-|-$", "", re.sub(r"[^a-z0-9]+", "-", t.lower().replace("&", "and"))) if t else None
+
+
+def clean_title(t: Optional[str], cut: int = 78) -> str:
+    """A filing title as a reader would write it: no "a press release dated ..., titled" prefix, no list numbering, no stray quote at the end; a title the
+    exchange cut short ends with an ellipsis; the first letter is a capital."""
+    raw = str(t or "").strip()
+    s = S.BOILER.sub("", raw)            # "<Company> Limited has informed the Exchange regarding ..." (NSE's headline wrapper)
+    s = _PRESS.sub("", s)
+    s = _LEAD.sub("", s)
+    s = _NUMBERED.sub("", s)
+    s = _TRAIL.sub("", s).strip()
+    # the exchange cuts long subjects at a fixed length: a title that long with no closing mark was cut, wherever its prefix was
+    if s and len(raw) >= cut and not re.search(r"[.!?)…\"'”’]$", raw) and not re.search(r"[.!?)…]$", s):
+        s += "…"
+    return s[:1].upper() + s[1:]
+
+
+def _list(v: Any) -> List[Any]:
+    if isinstance(v, list):
+        return v
+    if isinstance(v, str) and v:
+        try:
+            out = json.loads(v)
+            return out if isinstance(out, list) else []
+        except ValueError:
+            return []
+    return []
+
+
+def group_slugs(symbols: List[str]) -> Dict[str, str]:
+    """symbol -> the Sector Pulse / Sector Rotation group slug, by the same rule as GET /api/sectors/membership (the NSE industry, else the NSE sector).
+    Empty when no sector data set is live (the page then shows "No reading" with the reason)."""
+    try:
+        from .. import sector_api, sector_data as sd
+        rel = sd.live_release()
+        board = sd.read_json(rel / "sectors" / "_board.json") if rel else None
+        if not board:
+            return {}
+        by_ind: Dict[str, str] = {}
+        by_sec: Dict[str, str] = {}
+        for r in board.get("rows", []):
+            if not isinstance(r, dict) or not r.get("slug"):
+                continue
+            if r.get("kind") == "sector":
+                by_sec[str(r.get("name") or "")] = r["slug"]
+            for ind in r.get("industries") or []:
+                by_ind[str(ind)] = r["slug"]
+        cls = sector_api._nse_classes()
+        out: Dict[str, str] = {}
+        for sym in symbols:
+            hit = cls.get(sym)
+            if not hit:
+                continue
+            ind, sec = hit
+            slug = by_ind.get(ind) or (by_sec.get(sec) if sec else None)
+            if slug:
+                out[sym] = slug
+        return out
+    except Exception:      # a sector data set that cannot be read must not take Discover down; the group column says "No reading"
+        log.warning("sector groups not read for Discover", exc_info=True)
+        return {}
+
+
+_SAFE = re.compile(r"^https://([a-z0-9-]+\.)*(nseindia\.(com|in)|bseindia\.com)/", re.I)
+
+
+def safe_link(u: Optional[str]) -> bool:
+    """Only the exchanges' own files are linked from Discover (a filing or a presentation)."""
+    return bool(u) and bool(_SAFE.match(str(u)))
+
+
+def _signal(r: Dict[str, Any], names: Dict[str, str]) -> Dict[str, Any]:
+    return {"s": r["symbol"], "n": names.get(r["symbol"]) or r["symbol"], "d": r["item_date"].isoformat(), "e": r["event"],
+            "el": S.EVENT_LABEL.get(r["event"], "Other filing"), "t": clean_title(r["title"]), "l": r["link"]}
+
+
+async def board(store, per_event: Optional[int] = FILINGS_PER_EVENT, per_theme: Optional[int] = FILINGS_PER_THEME) -> Dict[str, Any]:
+    async with store.pool.acquire() as conn:
+        rows = [dict(r) for r in await conn.fetch(
+            "SELECT symbol, company, primary_bucket, secondary, stage, tone, status, doc_date, pages, scores, evidence FROM discovery_companies "
+            "WHERE primary_bucket IS NOT NULL ORDER BY symbol")]
+        stat = {r["status"]: r["n"] for r in await conn.fetch("SELECT status, count(*) AS n FROM discovery_companies GROUP BY status")}
+        last = await conn.fetchval("SELECT max(read_at) FROM discovery_companies")
+        syms = [r["symbol"] for r in rows]
+        sec = {r["symbol"]: dict(r) for r in await conn.fetch(
+            "SELECT symbol, macro_sector, sector, industry FROM company_classification WHERE symbol = ANY($1::text[])", syms)}
+        ev = {r["symbol"]: (r["n"], dict(zip(r["ev"], r["evn"]))) for r in await conn.fetch(
+            "SELECT symbol, sum(n)::int AS n, array_agg(event) AS ev, array_agg(n) AS evn FROM ("
+            "  SELECT symbol, event, count(*)::int AS n FROM discovery_signals WHERE symbol = ANY($1::text[]) AND item_date >= current_date - $2::int"
+            "  GROUP BY symbol, event) x GROUP BY symbol", syms, NEWS_DAYS)}
+        theme_news = {r["t"]: (r["n"], r["pos"], r["neg"]) for r in await conn.fetch(
+            "SELECT t, count(*)::int AS n, count(*) FILTER (WHERE tone > 0)::int AS pos, count(*) FILTER (WHERE tone < 0)::int AS neg "
+            "FROM discovery_signals, unnest(themes) AS t WHERE item_date >= current_date - $1::int GROUP BY t", NEWS_DAYS)}
+        # task #260 (live check, 20 Nov): the event filings of the placed companies over the whole 90 days. The newest 4,000 filings of every company
+        # (the old read) reached back only a few days, so 40 of 950 rows had a latest filing and most themes had no "Latest filings in this theme".
+        recent = [dict(r) for r in await conn.fetch(
+            "SELECT symbol, item_date, event, title, link, themes FROM discovery_signals WHERE symbol = ANY($1::text[]) AND event = ANY($2::text[]) "
+            "AND item_date >= current_date - $3::int ORDER BY item_date DESC, feed_id DESC", syms, list(EVENTS), NEWS_DAYS)]
+    names = {r["symbol"]: (r["company"] or r["symbol"]) for r in rows}
+    groups = group_slugs(syms)
+
+    out_rows: List[Dict[str, Any]] = []
+    for r in rows:
+        c = sec.get(r["symbol"]) or {}
+        scores = r["scores"] if isinstance(r["scores"], dict) else (json.loads(r["scores"]) if r["scores"] else {})
+        prim, second, moved = K.seat(r["primary_bucket"], _list(r["secondary"]), scores, [str(x) for x in _list(r["evidence"])], c.get("industry"))
+        if not prim:
+            continue                     # task #273: a lender whose only theme was a technology mention is not placed
+        top = scores.get(prim) or {}
+        st = (top.get("stage") or {}).get("label") or (K.STAGE_LABEL.get(r.get("stage") or "", "Not stated") if not moved else "Not stated")
+        main = theme_of(prim)
+        also = [t for t in dict.fromkeys(theme_of(x) for x in second) if t and t != main]
+        n, events = ev.get(r["symbol"], (0, {}))
+        out_rows.append({"s": r["symbol"], "n": names[r["symbol"]], "th": main, "sec": also, "st": st,
+                         "tone": round(float(r["tone"]), 2) if r["tone"] is not None else None, "fc": n or 0,
+                         "ev": {k: v for k, v in events.items() if k in EVENTS}, "mac": c.get("macro_sector"), "sc": c.get("sector"), "ind": c.get("industry"),
+                         "dd": r["doc_date"].isoformat() if r["doc_date"] else None, "pg": r["pages"], "grp": groups.get(r["symbol"])})
+
+    # themes: the stored buckets, merged as shown; counts from the rows, so a merged theme adds up
+    themes: Dict[str, Dict[str, Any]] = {}
+    for name in K.BUCKETS:
+        t = theme_of(name)
+        o = themes.setdefault(t, {"name": t, "label": label_of(t), "slug": theme_slug(t), "short": SHORT.get(t, label_of(t)), "broad": t in BROAD,
+                                  "n": 0, "also": 0, "news": {"filings": 0, "positive": 0, "negative": 0}, "verify": [], "merged": []})
+        if name != t:
+            o["merged"].append(name)
+        f, p, ng = theme_news.get(name, (0, 0, 0))
+        o["news"]["filings"] += f
+        o["news"]["positive"] += p
+        o["news"]["negative"] += ng
+        if not o["verify"]:
+            o["verify"] = [v for v in (_directory_verify().get(name) or [])][:6]
+    for r in out_rows:
+        themes[r["th"]]["n"] += 1
+        for t in r["sec"]:
+            if t in themes:
+                themes[t]["also"] += 1
+
+    efil: Dict[str, List[Dict[str, Any]]] = {}
+    thfil: Dict[str, List[Dict[str, Any]]] = {}
+    theme_by_sym = {r["s"]: r["th"] for r in out_rows}
+    placed = set(theme_by_sym)
+    seen = set()
+    latest: Dict[str, Dict[str, Any]] = {}
+    for x in recent:
+        key = (x["symbol"], x["item_date"], x["title"])
+        if key in seen:
+            continue
+        seen.add(key)
+        sig = _signal(x, names)
+        if x["symbol"] in placed and x["event"] in EVENTS and x["symbol"] not in latest:
+            latest[x["symbol"]] = sig
+        # task #250 (the team, 19 Nov): no list of every filing that names a theme (it named companies of other themes and sectors); the event lists
+        # name only companies placed on Discover
+        if x["event"] in EVENTS and x["symbol"] in placed and (per_event is None or len(efil.setdefault(x["event"], [])) < per_event):
+            efil.setdefault(x["event"], [])
+            efil[x["event"]].append(sig)
+        # task #260 (SPEC §5.4 "Latest filings in this theme"): event filings of the companies whose MAIN theme it is, never of a company of another
+        # theme that merely names it (task #250)
+        th = theme_by_sym.get(x["symbol"])
+        if th and x["event"] in EVENTS and (per_theme is None or len(thfil.setdefault(th, [])) < per_theme):
+            thfil.setdefault(th, [])
+            thfil[th].append(sig)
+    for r in out_rows:
+        if r["s"] in latest:
+            r["lf"] = {k: latest[r["s"]][k] for k in ("d", "el", "t")}
+            if safe_link(latest[r["s"]].get("l")):      # task #260: "Open the filing ↗" opens the exchange's own PDF
+                r["lf"]["l"] = latest[r["s"]]["l"]
+
+    return {"updated": last.isoformat() if last else None, "companies": len(out_rows), "read": sum(stat.values()), "days": NEWS_DAYS,
+            "rows": out_rows, "themes": list(themes.values()), "efil": efil, "thfil": thfil, "events": list(EVENTS), "eventsTracked": sorted(set(S.EVENT_LABEL) & set(EVENTS)),
+            "caution": K.CAUTION, "method": _method()}
+
+
+async def company(store, symbol: str) -> Optional[Dict[str, Any]]:
+    """Task #260 (SPEC §10, §13): what the company panel needs that the board does not carry. The presentation (date, pages read, its PDF), the words
+    that placed the company, every passage FinLit kept with whether it names the theme and its PDF page (the quote rule of quotes.py, run on the stored
+    evidence and on the presentation's stored page texts), and its filings of the last 90 days with the exchange PDF of each. None when not placed."""
+    from ..ask import docstore
+    from . import quotes as Q
+    sym = symbol.strip().upper()
+    async with store.pool.acquire() as conn:
+        r = await conn.fetchrow("SELECT symbol, primary_bucket, secondary, scores, evidence, doc_title, doc_date, doc_link, pages FROM discovery_companies "
+                                "WHERE symbol = $1 AND primary_bucket IS NOT NULL", sym)
+        if not r:
+            return None
+        industry = await conn.fetchval("SELECT industry FROM company_classification WHERE symbol = $1", sym)
+        # task #273 (fix 6): every filing of the 90 days (a company files a few dozen at most), so the latest of each kind is there too
+        fil = [dict(x) for x in await conn.fetch(
+            "SELECT symbol, item_date, event, title, link FROM discovery_signals WHERE symbol = $1 AND item_date >= current_date - $2::int "
+            "ORDER BY item_date DESC, feed_id DESC LIMIT 400", sym, NEWS_DAYS)]
+    scores = r["scores"] if isinstance(r["scores"], dict) else (json.loads(r["scores"]) if r["scores"] else {})
+    ev = [str(x) for x in _list(r["evidence"])]
+    prim, _second, moved = K.seat(r["primary_bucket"], _list(r["secondary"]), scores, ev, industry)
+    if not prim:
+        return None                      # task #273: the board does not place it either
+    if moved:
+        ev = []                          # the kept sentences were about the technology mention, not the main theme
+    top = scores.get(prim) or {}
+    words = list((top.get("terms") or {}).keys())
+    pages = await docstore.get_pages(store, r["doc_link"]) if r["doc_link"] else None
+    extra: List[str] = []
+    if pages:
+        pats = [K.PATTERNS[(prim, t)] for t in words if (prim, t) in K.PATTERNS]
+        for s in K.sentences("\n\n".join(pages)):
+            if 40 <= len(s) <= 600 and not K.chart_like(s) and any(p.search(s) for p in pats):
+                extra.append(s)
+                if len(extra) >= 24:
+                    break
+    seen = set()
+    filings = []
+    for x in fil:
+        key = (x["item_date"], x["title"])
+        if key in seen:
+            continue
+        seen.add(key)
+        filings.append({"d": x["item_date"].isoformat(), "e": x["event"], "el": S.EVENT_LABEL.get(x["event"], "Other filing"), "t": clean_title(x["title"]),
+                        "l": x["link"] if safe_link(x["link"]) else None})
+    # task #273 (fix 6): the newest 12, and the latest filing of every other kind, so each kind the board counts has its subject and its PDF
+    shown = filings[:12]
+    kinds = {f["e"] for f in shown}
+    for f in filings[12:]:
+        if f["e"] not in kinds:
+            kinds.add(f["e"])
+            shown.append(f)
+    return {"symbol": sym, "theme": theme_of(prim), "themeLabel": label_of(prim), "themeSlug": theme_slug(prim), "words": words,
+            "passages": Q.passages(ev, words, pages, extra),
+            "document": {"title": r["doc_title"], "date": r["doc_date"].isoformat() if r["doc_date"] else None, "pages": r["pages"],
+                         "link": r["doc_link"] if safe_link(r["doc_link"]) else None, "pagesKept": bool(pages)},
+            "filings": shown}
+
+
+def _method() -> str:
+    from .service import METHOD
+    return METHOD
+
+
+_VERIFY: Dict[str, List[str]] = {}
+
+
+def _directory_verify() -> Dict[str, List[str]]:
+    if not _VERIFY:
+        from .service import DIRECTORY_VERIFY
+        _VERIFY.update(DIRECTORY_VERIFY)
+    return _VERIFY
+
+
+FEED_MAX = 1500
+
+
+async def feed(store, event: Optional[str] = None, theme: Optional[str] = None) -> Dict[str, Any]:
+    """Task #296: every event filing of the last 90 days of one event (What changed) or of the companies whose main theme it is, newest first, for the
+    "Latest …" panel once the table below it is filtered (the board itself sends only the newest 12, so a filtered panel was often empty)."""
+    b = await board(store, per_event=None, per_theme=None)
+    items = (b["efil"].get(event) if event else b["thfil"].get(theme or "")) or []
+    return {"days": NEWS_DAYS, "event": event, "theme": theme, "filings": items[:FEED_MAX], "total": len(items)}

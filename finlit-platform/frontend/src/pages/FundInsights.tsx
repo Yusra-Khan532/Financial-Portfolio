@@ -17,7 +17,7 @@ import "../styles/mf.css";
 import "../styles/mfinsights.css";
 import { ChartZoom } from "../components/ChartZoom";
 
-const LEAD = "Where India's fund money actually sits and where it moved last month — total assets, net flows by scheme category, the equity/debt/hybrid split, and folio growth. Straight from AMFI's monthly category report.";
+const LEAD = "Where India's fund money sits and where it moved last month, from AMFI's monthly report.";
 
 const Head = () => (
   <PageHeader wrap plan="free" title="Fund industry trends" art="chart" links={["/funds", "/fund-score-screener", "/etfs"]} description={LEAD} />

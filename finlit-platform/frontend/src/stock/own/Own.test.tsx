@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 vi.mock("../../components/ChartHelp", () => ({ ChartHelp: () => null }));
 import fixture from "../../lib/__fixtures__/ownershipInsightsReliance.json";
 import type { Ownership } from "../../lib/api";
-import { csvText, seriesFromTable, type OwnInsights } from "../../lib/ownView";
+import { seriesFromTable, type OwnInsights } from "../../lib/ownView";
 import { OwnInsightCards } from "./OwnInsightCards";
 import { OwnFacts } from "./OwnFacts";
 import { OwnCharts } from "./OwnCharts";
@@ -21,14 +21,15 @@ const wrap = (el: React.ReactElement) => render(<MemoryRouter>{el}</MemoryRouter
 afterEach(cleanup);
 
 describe("What changed, in short", () => {
-  it("shows three cards with the tone as icon and word, a title and one number; the full text is for screen readers and tooltips", () => {
+  it("shows three cards with the tone as icon and word, a title and one number; each opens to its full sentence (task #216, README 3.12)", () => {
     const { container } = wrap(<OwnInsightCards ins={full} />);
     const cards = container.querySelectorAll(".ow-icard");
     expect(cards).toHaveLength(3);
     expect(cards[0].textContent).toContain("Worth knowing"); expect(cards[0].textContent).toContain("Indian funds buying what foreign funds sell"); expect(cards[0].textContent).toContain("Indian +1.4 pts, foreign −2.0 pts in a year");
     expect(cards[1].textContent).toContain("Supportive"); expect(cards[1].querySelector(".ow-glyph")?.textContent).toBe("+");
-    expect(cards[0].getAttribute("title")).toBe(ins.cards![0].text);
-    expect(cards[0].querySelector(".sr-only")?.textContent).toBe(ins.cards![0].text);
+    expect(cards[0].tagName).toBe("DETAILS"); expect(cards[0].querySelector("summary .xdd-chev")).toBeTruthy();
+    expect(cards[0].querySelector(".ow-cx")?.textContent).toBe(ins.cards![0].text);
+    expect(cards[0].querySelector("summary")!.textContent).toContain("Indian +1.4 pts, foreign −2.0 pts in a year");   // tone, title and figures in the summary
     expect(container.querySelector(".ow-glyph")?.getAttribute("aria-hidden")).toBe("true");
   });
   it("keeps the rest behind Show more, and Show fewer closes them", () => {
@@ -60,14 +61,17 @@ describe("What changed, in short", () => {
 });
 
 describe("the section", () => {
-  it("draws the five parts in the designed order with the footer", () => {
+  it("draws the parts in the designed order with the footer: owners first, then the tab group (task #216, README 3.12)", () => {
     const { container } = wrap(<OwnershipSection o={o} ins={full} />);
     const t = container.textContent!;
-    const order = ["What changed, in short", "Owners today", "Who bought and who sold", "How the shareholding pattern changed", "Also from the filing", "Largest institutional holders"].map((x) => t.indexOf(x));
+    const order = ["Owners today", "Who bought and who sold", "What changed, in short", "How the shareholding pattern changed", "Also from the filing", "Largest institutional holders"].map((x) => t.indexOf(x));
     expect(order.every((x) => x >= 0)).toBe(true); expect([...order].sort((a, b) => a - b)).toEqual(order);
     expect(t).toContain("pts = percentage points of the company. From quarterly shareholding filings. Information only, not advice.");
     expect(container.querySelector("#ownership")).toBeTruthy();
     expect(container.querySelector(".own-yr2")).toBeTruthy();
+    const tabs = [...container.querySelectorAll('[role="tablist"][aria-label="Ownership"] [role="tab"]')].map((x) => x.textContent);
+    expect(tabs).toEqual(["1What changed", "2Pattern over time", "3Filing facts & top holders"]);
+    expect(container.querySelector(".ow-row")!.compareDocumentPosition(container.querySelector(".ctabs")!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
   it("the donut shows the promoters in the centre, and hovering a name or a slice changes it", () => {
     const { container } = wrap(<OwnershipSection o={o} ins={full} />);
@@ -145,7 +149,7 @@ describe("who bought and who sold, in the page", () => {
 
 describe("the line charts, in the page", () => {
   it("draws four panels (Government is not charted) with now, start and change as page text", () => {
-    const { container } = wrap(<OwnCharts series={S} symbol="RELIANCE" />);
+    const { container } = wrap(<OwnCharts series={S} />);
     const panels = [...container.querySelectorAll(".ow-panel")];
     expect(panels.map((p) => p.getAttribute("data-group"))).toEqual(["promoters", "fii", "dii", "public"]);
     expect(panels[0].textContent).toContain("50.4%"); expect(panels[0].textContent).toContain("now, from 50.6% in Sep 2021"); expect(panels[0].textContent).toContain("▼ −0.2 pts");
@@ -155,14 +159,14 @@ describe("the line charts, in the page", () => {
     expect(container.textContent).toContain("Government holds 0.1%.");
   });
   it("a hollow dot at the start and a filled dot at the end", () => {
-    const { container } = wrap(<OwnCharts series={S} symbol="RELIANCE" />);
+    const { container } = wrap(<OwnCharts series={S} />);
     const p = container.querySelector(".ow-panel")!;
     expect(p.querySelectorAll('[data-dot="start"]')).toHaveLength(1); expect(p.querySelectorAll('[data-dot="end"]')).toHaveLength(1);
     expect((p.querySelector('[data-dot="end"]') as HTMLElement).style.background).not.toBe(""); expect((p.querySelector('[data-dot="start"]') as HTMLElement).style.background).toBe("");
     expect(container.querySelector('[data-dot="start"]')!.className).toBe("ow-start");
   });
   it("1Y, 3Y and 5Y trim the window to 5, 13 and 21 filings", () => {
-    const { container } = wrap(<OwnCharts series={S} symbol="RELIANCE" />);
+    const { container } = wrap(<OwnCharts series={S} />);
     const filings = () => container.querySelector(".ow-panel")!.querySelectorAll(".ow-hit span").length;
     expect(filings()).toBe(21);
     fireEvent.click(screen.getByRole("button", { name: "3Y" })); expect(filings()).toBe(13); expect(container.querySelector(".ow-panel .ow-xl")!.textContent).toBe("Sep 2023");
@@ -171,7 +175,7 @@ describe("the line charts, in the page", () => {
     fireEvent.click(screen.getByRole("button", { name: "5Y" })); expect(filings()).toBe(21);
   });
   it("hovering a quarter shows its value; leaving clears it; the arrow keys work too", () => {
-    const { container } = wrap(<OwnCharts series={S} symbol="RELIANCE" />);
+    const { container } = wrap(<OwnCharts series={S} />);
     const plot = container.querySelector(".ow-panel .ow-plot")!;
     expect(container.querySelector(".ow-tip")).toBeNull();
     fireEvent.mouseEnter(plot.querySelectorAll(".ow-hit span")[19]);
@@ -182,7 +186,7 @@ describe("the line charts, in the page", () => {
     fireEvent.keyDown(plot, { key: "Escape" }); expect(container.querySelector(".ow-tip")).toBeNull();
   });
   it("Show the numbers opens the table for the window, newest first, and hides again", () => {
-    const { container } = wrap(<OwnCharts series={S} symbol="RELIANCE" />);
+    const { container } = wrap(<OwnCharts series={S} />);
     expect(container.querySelector("table")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Show the numbers" }));
     const rows = container.querySelectorAll("tbody tr");
@@ -192,25 +196,20 @@ describe("the line charts, in the page", () => {
     fireEvent.click(screen.getByRole("button", { name: "1Y" })); expect(container.querySelectorAll("tbody tr")).toHaveLength(5);
     fireEvent.click(screen.getByRole("button", { name: "Hide the numbers" })); expect(container.querySelector("table")).toBeNull();
   });
-  it("Download CSV hands the browser the same text the numbers come from", () => {
-    const blobs: Blob[] = [];
-    URL.createObjectURL = vi.fn((b: Blob) => { blobs.push(b); return "blob:x"; }) as never; URL.revokeObjectURL = vi.fn() as never;
-    let name = "";
-    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (this: HTMLAnchorElement) { name = this.download; });
-    wrap(<OwnCharts series={S} symbol="RELIANCE" />);
-    fireEvent.click(screen.getByRole("button", { name: "Download CSV" }));
-    expect(click).toHaveBeenCalled(); expect(name).toBe("RELIANCE_shareholding.csv"); expect(blobs[0].type).toBe("text/csv");
-    return new Promise<void>((done) => { const r = new FileReader(); r.onload = () => { expect(r.result).toBe(csvText(S)); click.mockRestore(); done(); }; r.readAsText(blobs[0]); });
+  it("offers no download (task #216: the report has no downloads)", () => {
+    wrap(<OwnCharts series={S} />);
+    expect(screen.queryByRole("button", { name: /download|csv/i })).toBeNull();
+    expect(screen.getByRole("button", { name: "Show the numbers" })).toBeTruthy();
   });
   it("trimmed windows with a short history: only what exists is offered, and one filing draws nothing but says why", () => {
     const six = { periods: S.periods.slice(-6), values: Object.fromEntries(Object.entries(S.values).map(([k, v]) => [k, v!.slice(-6)])) };
-    const { container } = wrap(<OwnCharts series={six} symbol="X" />);
+    const { container } = wrap(<OwnCharts series={six} />);
     expect(container.querySelector(".ow-panel")!.querySelectorAll(".ow-hit span")).toHaveLength(6);        // 5Y asks for 21, the 6 that exist are shown
     expect((screen.getByRole("button", { name: "1Y" }) as HTMLButtonElement).disabled).toBe(false);
     expect((screen.getByRole("button", { name: "3Y" }) as HTMLButtonElement).disabled).toBe(false);   // offered once, as "all of it"
     expect((screen.getByRole("button", { name: "5Y" }) as HTMLButtonElement).disabled).toBe(true);
     cleanup();
-    const one = wrap(<OwnCharts series={{ periods: ["Sep 2026"], values: { promoters: [50] } }} symbol="X" />);
+    const one = wrap(<OwnCharts series={{ periods: ["Sep 2026"], values: { promoters: [50] } }} />);
     expect(one.container.textContent).toContain("Not enough filings yet to draw a trend");
   });
 });
@@ -219,7 +218,9 @@ describe("Also from the filing and the largest institutional holders", () => {
   it("shows the four facts and the named holders from the stored insights", () => {
     const { container } = wrap(<OwnFacts ins={full} />);
     const facts = [...container.querySelectorAll(".ow-fact")].map((f) => f.textContent);
-    expect(facts).toEqual(["Shareholders50.7 lakh+15% in a year", "Promoter shares pledged0.0%None pledged", "Shares outstanding1,353 croreUnchanged in a year", "Shares under lock-in0.0%No lock-in"]);
+    expect(facts).toEqual(["Shareholdersi50.7 lakh+15% in a year", "Promoter shares pledgedi0.0%None pledged", "Shares outstandingi1,353 croreUnchanged in a year", "Shares under lock-ini0.0%No lock-in"]);
+    // task #216 (README 1.4): the four new i buttons, with the pack's texts
+    expect([...container.querySelectorAll(".ow-fact button.info")].map((b) => b.getAttribute("aria-label"))).toEqual(["What is Shareholders?", "What is Promoter shares pledged?", "What is Shares outstanding?", "What is Shares under lock-in?"]);
     const holders = [...container.querySelectorAll(".ow-holder")].map((h) => h.textContent);
     expect(holders[0]).toBe("Life Insurance Corporation of India6.94% →7.11%"); expect(holders).toHaveLength(4);
     expect(container.textContent).toContain("1% or more · a year ago → now");

@@ -96,3 +96,13 @@ export function nextFreeCell(view: View, max: number): { index: number; layout: 
   const next = layoutAbove(view.layout);
   return next && cellCount(next) <= max ? { index: n, layout: next } : null;
 }
+
+/** Tasks #114 and #163: one measure per chart, however it is added (ticked in the list, dropped on a chart, or sent with a row's Add menu). Chart `i`
+ *  when it is empty or shows only this measure (another company joins the same measure); otherwise the measure gets a chart of its own, the first
+ *  empty one or one more (`own`), and chart `i` stays as it is. Null when the view already holds `max` charts and none is empty. */
+export function placeFor(view: View, i: number, mid: string, max: number): { index: number; layout: string; own: boolean } | null {
+  const ms = new Set((view.cells[i]?.series ?? []).map((s) => s.m));
+  if (!ms.size || (ms.size === 1 && ms.has(mid))) return { index: i, layout: view.layout, own: false };
+  const free = nextFreeCell(view, max);
+  return free ? { ...free, own: true } : null;
+}

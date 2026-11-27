@@ -13,40 +13,40 @@
   --side-ease: cubic-bezier(.2, .7, .2, 1);
   position: sticky; top: 74px; align-self: start; max-height: calc(100dvh - 86px); margin: 22px 0 22px 20px; padding: 0;
   display: flex; flex-direction: column; overflow: hidden;
-  background: var(--s1); border: 1px solid var(--border); border-radius: 12px; box-shadow: none;
+  background: var(--s1); border: 1px solid var(--border); border-radius: var(--r-ctl); box-shadow: none;
 }
 
 /* ---- sticky header: title, fold button, search ---- */
 .side-top { flex: none; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px 8px; padding: 16px 16px 12px; background: var(--s1); border-bottom: 1px solid transparent; transition: border-color .2s, box-shadow .2s; position: relative; z-index: 1; }
 .side-top.is-scrolled { border-bottom-color: var(--border); box-shadow: 0 6px 8px -8px rgba(0, 0, 0, .28); }
-.side-t { display: inline-flex; align-items: center; gap: 8px; min-width: 0; font: 600 12px/1 var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.side-t { display: inline-flex; align-items: center; gap: 8px; min-width: 0; font: 600 var(--fs-12)/1 var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 .side-tb { display: grid; place-items: center; color: var(--muted); } .side-tb svg { width: 18px; height: 18px; }
-.side-toggle { width: 32px; height: 32px; display: grid; place-items: center; padding: 0; border: 1px solid var(--border); border-radius: 12px; background: transparent; color: var(--muted); cursor: pointer; font-size: 14px; transition: background .15s, color .15s, border-color .15s, transform .1s; }
+.side-toggle { width: 32px; height: 32px; display: grid; place-items: center; padding: 0; border: 1px solid var(--border); border-radius: var(--r-ctl); background: transparent; color: var(--muted); cursor: pointer; font-size: var(--fs-14); transition: background .15s, color .15s, border-color .15s, transform .1s; }
 .side-toggle svg { width: 16px; height: 16px; }
 .side-toggle:hover { background: var(--s2); color: var(--text); border-color: var(--border-strong); }
 :root:root .side-toggle.show-sm { display: none; }
 .side-toggle:active { transform: scale(.94); }
-.side-find { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 8px 0 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--s1); color: var(--faint); transition: border-color .15s, box-shadow .15s, background .15s; }
+.side-find { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 8px 0 12px; border: 1px solid var(--border); border-radius: var(--r-ctl); background: var(--s1); color: var(--faint); transition: border-color .15s, box-shadow .15s, background .15s; }
 .side-find:hover { background: var(--s2); }
 .side-find:focus-within { background: var(--s1); border-color: var(--gold); box-shadow: 0 0 0 3px var(--gold-soft); color: var(--muted); }
 .side-find > svg { width: 16px; height: 16px; flex: none; }
-:root:root .side-find input, :root:root .side-find input:focus, :root:root .side-find input:focus-visible { flex: 1; min-width: 0; width: auto; height: 100%; min-height: 0; margin: 0; padding: 0; border: 0; border-radius: 0; box-shadow: none !important; outline: 0 !important; background: transparent !important; color: var(--text); font: 400 14px/1 var(--sans); }
+:root:root .side-find input, :root:root .side-find input:focus, :root:root .side-find input:focus-visible { flex: 1; min-width: 0; width: auto; height: 100%; min-height: 0; margin: 0; padding: 0; border: 0; border-radius: 0; box-shadow: none !important; outline: 0 !important; background: transparent !important; color: var(--text); font: 400 var(--fs-14)/1 var(--sans); }
 :root:root .side-find input::placeholder { color: var(--faint); opacity: 1; }
 .side-find input::-webkit-search-cancel-button { display: none; }
-.side-find kbd { flex: none; padding: 2px 6px; border: 1px solid var(--border); border-radius: 6px; font: 500 11px/1.2 var(--sans); color: var(--faint); background: transparent; }
-.side-clear { flex: none; width: 20px; height: 20px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--faint); font-size: 11px; cursor: pointer; }
+.side-find kbd { flex: none; padding: 2px 6px; border: 1px solid var(--border); border-radius: var(--ui-r-mark); font: 500 var(--fs-12)/1.2 var(--sans); color: var(--faint); background: transparent; }
+.side-clear { flex: none; width: 20px; height: 20px; padding: 0; border: 0; border-radius: var(--ui-r-mark); background: transparent; color: var(--faint); font-size: var(--fs-12); cursor: pointer; }
 .side-clear:hover { background: var(--s3); color: var(--text); }
 
 /* ---- scrolling list with a thin neutral scrollbar ---- */
 .side-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 8px 8px 16px; scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }
 .side-body::-webkit-scrollbar { width: 8px; } .side-body::-webkit-scrollbar-track { background: transparent; }
-.side-body::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 8px; border: 2px solid var(--s1); }
+.side-body::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: var(--r-ctl); border: 2px solid var(--s1); }
 .side nav { display: grid; gap: 4px; }
 .side-none { margin: 8px; font-size: var(--fs-14); line-height: 1.45; color: var(--muted); }
 
 /* ---- group header: line icon, label, quiet count, chevron ---- */
 .side-g { display: block; }
-.side-gb { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 40px; padding: 0 8px; border: 0; border-radius: 12px; background: transparent; color: var(--muted); font: 600 14px/1.2 var(--sans); letter-spacing: 0; text-align: left; text-transform: none; cursor: pointer; transition: background .15s, color .15s, transform .1s; }
+.side-gb { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 40px; padding: 0 8px; border: 0; border-radius: var(--r-ctl); background: transparent; color: var(--muted); font: 600 var(--fs-14)/1.2 var(--sans); letter-spacing: 0; text-align: left; text-transform: none; cursor: pointer; transition: background .15s, color .15s, transform .1s; }
 .side-gb:hover { background: var(--s2); color: var(--text); }
 .side-gb:active { transform: scale(.985); }
 .side-g.has-here > .side-gb { color: var(--text); }
@@ -55,7 +55,7 @@
 .side-gb:hover .side-gbd, .side-g.has-here > .side-gb .side-gbd { color: var(--text); }
 .side-gbd { margin-right: 4px; }
 .side-gname { flex: 1; min-width: 0; }
-.side-gn { flex: none; font: 500 12px/1 var(--sans); font-variant-numeric: tabular-nums; color: var(--faint); }
+.side-gn { flex: none; font: 500 var(--fs-12)/1 var(--sans); font-variant-numeric: tabular-nums; color: var(--faint); }
 .side-gc { flex: none; width: 16px; height: 16px; color: var(--faint); transform: rotate(-90deg); transition: transform .22s var(--side-ease), color .15s; }
 .side-gb[aria-expanded="true"] .side-gc { transform: none; }
 .side-gb:hover .side-gc { color: var(--text); }
@@ -64,7 +64,7 @@
 .side-gi { display: grid; grid-template-rows: 0fr; opacity: 0; visibility: hidden; transition: grid-template-rows .24s var(--side-ease), opacity .18s, visibility 0s .24s; }
 .side-g.is-open > .side-gi { grid-template-rows: 1fr; opacity: 1; visibility: visible; transition-delay: 0s; }
 .side-gin { min-height: 0; overflow: hidden; display: grid; gap: 2px; align-content: start; margin-left: 16px; padding: 2px 0 4px 8px; border-left: 1px solid var(--border); }
-.side-i { position: relative; display: flex; align-items: center; gap: 12px; min-height: 40px; padding: 4px 8px; border-radius: 12px; color: var(--muted); font: 500 14px/1.3 var(--sans); text-decoration: none; transition: background .15s, color .15s, transform .1s; }
+.side-i { position: relative; display: flex; align-items: center; gap: 12px; min-height: 40px; padding: 4px 8px; border-radius: var(--r-ctl); color: var(--muted); font: 500 var(--fs-14)/1.3 var(--sans); text-decoration: none; transition: background .15s, color .15s, transform .1s; }
 .side-i.sub { margin-left: 16px; }
 .side-ic { flex: none; width: 18px; height: 18px; display: grid; place-items: center; color: var(--muted); background: none; border: 0; border-radius: 0; transition: color .15s, transform .18s var(--side-ease); }
 .side-ic svg { width: 18px; height: 18px; }
@@ -75,55 +75,54 @@
 .side-i:active { transform: scale(.985); }
 .side-i.on { background: var(--s2); color: var(--text); font-weight: 600; }
 .side-i.on .side-ic { color: var(--text); }
-.side-i.on::before { content: ""; position: absolute; left: -9px; top: 8px; bottom: 8px; width: 2px; border-radius: 2px; background: var(--gold); }
-.side-b { flex: none; padding: 1px 8px; border: 1px solid var(--border); border-radius: 8px; background: transparent; color: var(--muted); font: 500 12px/1.5 var(--sans); font-variant-numeric: tabular-nums; }
+.side-i.on::before { content: ""; position: absolute; left: -9px; top: 8px; bottom: 8px; width: 2px; border-radius: var(--ui-r-mark); background: var(--gold); }
+.side-b { flex: none; padding: 1px 8px; border: 1px solid var(--border); border-radius: var(--r-ctl); background: transparent; color: var(--muted); font: 500 var(--fs-12)/1.5 var(--sans); font-variant-numeric: tabular-nums; }
 /* "Gold plan" is one small gold dot (its text stays for screen readers through aria-label) */
 .side-l .gtag { flex: none; width: 6px; height: 6px; margin: 0; padding: 0; border-radius: 50%; background: var(--gold); color: transparent; font-size: 0; line-height: 0; vertical-align: baseline; display: inline-block; }
 .side :is(.side-gb, .side-i, .side-toggle, .side-clear):focus-visible { outline: 2px solid var(--gold); outline-offset: -2px; }
 
 /* ---- plan card ---- */
 .side-foot { margin-top: 16px; }
-.side-plan { display: grid; gap: 8px; justify-items: start; padding: 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--s2); }
-.side-plan p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--muted); }
-.side-plan .tier { font-size: 13px; }
-.side-plan .btn { height: 32px; padding: 0 16px; font-size: 13px; border-radius: 12px; }
+.side-plan { display: grid; gap: 8px; justify-items: start; padding: 16px; border: 1px solid var(--border); border-radius: var(--r-ctl); background: var(--s2); }
+.side-plan p { margin: 0; font-size: var(--fs-13); line-height: 1.5; color: var(--muted); }
+.side-plan .tier { font-size: var(--fs-13); }
+.side-plan .btn { height: 32px; padding: 0 16px; font-size: var(--fs-13); border-radius: var(--r-ctl); }
 
 /* ---- tooltip for the folded rail (rendered by AppShell, fixed to the viewport so the scroll area cannot clip it) ---- */
-.side-tip { position: fixed; z-index: var(--z-tip, 260); transform: translateY(-50%); padding: 6px 12px; border: 1px solid var(--border-strong); border-radius: 8px; background: var(--s1); color: var(--text); font: 500 13px/1.2 var(--sans); white-space: nowrap; pointer-events: none; animation: side-tip-in .12s ease-out; }
+.side-tip { position: fixed; z-index: var(--z-tip, 260); transform: translateY(-50%); padding: 6px 12px; border: 1px solid var(--border-strong); border-radius: var(--r-ctl); background: var(--s1); color: var(--text); font: 500 var(--fs-13)/1.2 var(--sans); white-space: nowrap; pointer-events: none; animation: side-tip-in .12s ease-out; }
 @keyframes side-tip-in { from { opacity: 0; transform: translate(-4px, -50%); } }
 
 /* ---- folded rail (desktop), as in the "FinLit final pages" pack (13 Nov 2026): one entry per group, its short name under a 20px icon, the current group on a
    cream tile in bold; the expand button on top. Markup: components/SideRail.tsx. The full menu's own markup is hidden while the rail shows. ---- */
 .side-rail, .side-fly { display: none; }
-@media (min-width: 961px) {
+@media (min-width: 861px) {
   /* The rail stays inside its card on any screen height (a signed-in reader has one more group, Account, that used to hang below the card):
      the card keeps its max height and the rail scrolls inside it. The group menus open in a portal, so nothing is clipped. */
-  .is-collapsed .side { width: 76px; overflow: hidden; }
+  /* task #319 (22 Nov 2026): 76 -> 92 px, so the longest short name in bold (Calculators, Dashboard) sits inside the current group's tile with room on both sides */
+  .is-collapsed .side { width: 92px; overflow: hidden; }
   .is-collapsed .side-top, .is-collapsed .side-body { display: none; }
   .is-collapsed .side-rail { display: flex; flex-direction: column; gap: 2px; padding: 8px 6px; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; }
   .is-collapsed .side-rail::-webkit-scrollbar { display: none; }
-  @media (max-height: 860px) { .is-collapsed .side-rail-g { padding: 6px 2px; gap: 3px; } }   /* a shorter screen: every group still fits without scrolling */
-  .side-rail-x { display: grid; place-items: center; height: 36px; margin-bottom: 4px; padding: 0; border: 1px solid var(--border); border-radius: 10px; background: var(--s1); color: var(--text); cursor: pointer; }
-  :root[data-theme="light"] .side-rail-x { background: #fff; }
+  @media (max-height: 860px) { .is-collapsed .side-rail-g { padding: 6px 4px; gap: 3px; } }   /* a shorter screen: every group still fits without scrolling */
+  .side-rail-x { display: grid; place-items: center; height: 36px; margin-bottom: 4px; padding: 0; border: 1px solid var(--border); border-radius: var(--r-ctl); background: var(--s1); color: var(--text); cursor: pointer; }
   .side-rail-x:hover { border-color: var(--border-strong); background: var(--s2); }
   .side-rail-x svg { width: 16px; height: 16px; }
-  .side-rail-g { all: unset; box-sizing: border-box; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 9px 2px; border-radius: 12px; color: var(--text); font: 500 11px/1.15 var(--sans); text-align: center; }
+  .side-rail-g { all: unset; box-sizing: border-box; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; width: 100%; padding: 9px 4px; border-radius: var(--r-ctl); color: var(--text); font: 500 var(--fs-12)/1.15 var(--sans); text-align: center; white-space: nowrap; }
   .side-rail-g svg { width: 20px; height: 20px; flex: none; }
   .side-rail-g:hover, .side-rail-g[aria-expanded="true"] { background: color-mix(in srgb, var(--s2) 70%, transparent); }
-  .side-rail-g.on { background: #EFE8D7; font-weight: 700; }
-  :root[data-theme="dark"] .side-rail-g.on { background: color-mix(in srgb, var(--gold) 16%, var(--s2)); }
+  .side-rail-g.on { background: var(--s2); font-weight: 700; }   /* task #310 part D: the selected look is the --s2 fill in both themes */
   .side-rail-g:focus-visible, .side-rail-x:focus-visible, .side-fly-i:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
-  .side-fly { display: grid; gap: 2px; position: fixed; z-index: var(--z-tip, 260); width: 260px; max-height: calc(100dvh - 100px); overflow: auto; padding: 10px; border: 1px solid var(--border-strong); border-radius: 12px; background: var(--s1); box-shadow: 0 18px 40px -18px rgba(0, 0, 0, .35); }
-  .side-fly-t { margin: 2px 6px 6px; font: 600 12px/1 var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
-  .side-fly-i { display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 10px; border-radius: 10px; color: var(--text); text-decoration: none; font: 500 14px/1.25 var(--sans); }
+  .side-fly { display: grid; gap: 2px; position: fixed; z-index: var(--z-tip, 260); width: 260px; max-height: calc(100dvh - 100px); overflow: auto; padding: 10px; border: 1px solid var(--border-strong); border-radius: var(--r-ctl); background: var(--s1); box-shadow: 0 18px 40px -18px rgba(0, 0, 0, .35); }
+  .side-fly-t { margin: 2px 6px 6px; font: 600 var(--fs-12)/1 var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .side-fly-i { display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 10px; border-radius: var(--r-ctl); color: var(--text); text-decoration: none; font: 500 var(--fs-14)/1.25 var(--sans); }
   .side-fly-i svg { width: 16px; height: 16px; flex: none; color: var(--muted); }
   .side-fly-i:hover { background: var(--s2); } .side-fly-i.on { background: var(--s2); font-weight: 600; } .side-fly-i.on svg { color: var(--gold); }
   .side-fly-i .gtag { margin-left: auto; }
 }
 
 /* ---- phone / tablet drawer ---- */
-@media (max-width: 960px) {
-  .side { position: fixed; top: 0; bottom: 0; left: 0; width: min(320px, 90vw); max-height: none; margin: 0; border-width: 0 1px 0 0; border-radius: 0 12px 12px 0; transform: translateX(-105%); visibility: hidden; transition: transform .24s var(--side-ease), visibility 0s .24s; }
+@media (max-width: 860px) {
+  .side { position: fixed; top: 0; bottom: 0; left: 0; width: min(320px, 90vw); max-height: none; margin: 0; border-width: 0 1px 0 0; border-radius: 0 var(--r-ctl) var(--r-ctl) 0; transform: translateX(-105%); visibility: hidden; transition: transform .24s var(--side-ease), visibility 0s .24s; }
   .is-open .side { transform: none; visibility: visible; transition-delay: 0s; }
   .side-find kbd { display: none; }
   :root:root .side-toggle.hide-sm { display: none; } :root:root .side-toggle.show-sm { display: grid; }
@@ -137,4 +136,67 @@
   .side-i:hover .side-ic, .side-i:hover .side-l { transform: none; }
 }
 /* "New" on a page launched in the last 30 days (lib/nav.ts isNew; task #136) */
-.side-l .side-new { flex: none; margin-left: 6px; padding: 1px 6px; border-radius: 999px; background: var(--gain-soft, var(--s2)); color: var(--gain, var(--text)); font: 700 11px/1.4 var(--sans); font-style: normal; letter-spacing: .06em; text-transform: uppercase; }
+.side-l .side-new { flex: none; margin-left: 6px; padding: 1px 6px; border-radius: var(--ui-r-pill); background: var(--gain-soft, var(--s2)); color: var(--gain, var(--text)); font: 700 var(--fs-12)/1.4 var(--sans); font-style: normal; letter-spacing: .06em; text-transform: uppercase; }
+
+/* task #282 (the workspace-menu file of 21 Nov): the rail's pop-out repeats the group's line under its heading. */
+.side-fly-s { margin: -2px 12px 8px; font: 400 var(--fs-13)/1.35 var(--sans); color: var(--muted); max-width: 260px; }
+
+/* ---- task #285: an "i" button on every page row (side menu and the folded rail's pop-outs) opens the page's one-line description under the row.
+   The button sits beside the link, not inside it (a button inside a link is not allowed), on the row's right edge; the link keeps room for it. ---- */
+.side-row { position: relative; display: grid; }
+.side-row.has-info > :is(.side-i, .side-fly-i) { padding-right: 36px; }
+.side-info { position: absolute; top: 10px; right: 8px; width: 20px; height: 20px; display: grid; place-items: center; padding: 0; border: 1px solid var(--border-strong, var(--border)); border-radius: 50%; background: var(--s1); color: var(--muted); font: italic 600 var(--fs-12)/1 Georgia, "Times New Roman", serif; cursor: pointer; opacity: .75; transition: color .15s, border-color .15s, background .15s, opacity .15s; }
+.side-row:hover .side-info, .side-info:focus-visible, .side-info[aria-expanded="true"] { opacity: 1; }
+.side-info:hover, .side-info[aria-expanded="true"] { color: var(--text); border-color: var(--gold); background: var(--s2); }
+.side-info:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
+.side-desc { margin: 2px 8px 6px 38px; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--r-ctl); background: var(--s2); color: var(--muted); font: 400 var(--fs-13, 13px)/1.45 var(--sans); animation: side-tip-in .12s ease-out; }
+.side-fly .side-desc { margin-left: 36px; }
+@media (max-width: 860px) { .side-info { top: 12px; width: 24px; height: 24px; font-size: var(--fs-13); } .side-row.has-info > .side-i { padding-right: 40px; } }
+
+/* ---- task #282 rework (the slim side menu file, 21 Nov: "make it slim and less bulky"): each group heading is one line; its line moves behind an i
+   (the #285 note); no page count; Dashboard on one line with its own i; tighter rows on a computer, 44px on touch. One group open at a time (AppShell). ---- */
+.side-gb { display: flex; align-items: center; padding-block: 0; font-weight: 500; color: var(--text); }
+.side-g.is-open .side-gb, .side-g.has-here .side-gb { font-weight: 600; }
+.side-gb .side-gbd, .side-gb .side-gc { margin-top: 0; }
+.side-gn { display: none; }
+.side-g > .side-row > .side-info { right: 32px; }
+.side-g > .side-row.has-info > .side-gb .side-gname { padding-right: 28px; }
+.side-dash-row > .side-info { right: 8px; top: 8px; }
+.side-i { padding-block: 2px; }
+.side-i.side-dash { align-items: center; padding-block: 2px; margin-bottom: 2px; }
+.side-g > .side-desc, .side-dash-row + .side-desc { margin: 0 8px 6px 34px; }
+.side-desc[hidden] { display: none; }
+@media (pointer: fine) {
+  .side-gb { min-height: 40px; }
+  .side-i { min-height: 36px; }
+  /* task #300 (the team, 21 Nov: "the i shall be present all the time"): the i of every page row shows at all times, not only on hover */
+}
+@media (pointer: coarse) {
+  .side-dash-row > .side-info { top: 10px; }
+}
+/* a closed group is its heading only: the page list's padding goes with it (6px a group, the slim file's 480px menu) */
+.side-g:not(.is-open) > .side-gi .side-gin { padding-block: 0; border-left-color: transparent; }
+/* task #300: a page name breaks only between words ("Superinvestor portfolios" read "Superinves / tor" beside its New tag); a tag that does not fit
+   beside the name goes under it instead of squeezing the word */
+.side-lt { min-width: auto; overflow-wrap: break-word; }
+.side-l { flex-wrap: wrap; row-gap: 2px; }
+.side-l .side-new { margin-left: 0; }
+
+/* ---- task #310 part D (04-navigation.md): Help and feedback at the foot of the menu, open and folded; the menu is on screen from 861px ---- */
+.side-help { margin-top: 8px; }
+.side-help-b, .side-help-i { all: unset; box-sizing: border-box; cursor: pointer; display: flex; align-items: center; gap: 12px; width: 100%; min-height: 40px; padding: 4px 8px; border-radius: var(--r-ctl); color: var(--muted); font: 500 var(--fs-14)/1.3 var(--sans); }
+.side-help-b:hover, .side-help-i:hover { background: var(--s2); color: var(--text); }
+.side-help-b .side-gc { width: 16px; height: 16px; flex: none; transform: rotate(-90deg); transition: transform .2s var(--side-ease); }
+.side-help-b[aria-expanded="true"] .side-gc { transform: none; }
+.side-help-a { display: grid; gap: 2px; margin-left: 16px; padding: 2px 0 4px 8px; border-left: 1px solid var(--border); }
+.side-help-a[hidden] { display: none; }
+.side-help-i svg { width: 18px; height: 18px; flex: none; }
+.side :is(.side-help-b, .side-help-i):focus-visible { outline: 2px solid var(--gold); outline-offset: -2px; }
+.side-fly button.side-fly-i { all: unset; box-sizing: border-box; cursor: pointer; display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 10px; border-radius: var(--r-ctl); color: var(--text); font: 500 var(--fs-14)/1.25 var(--sans); }
+.side-fly button.side-fly-i:hover { background: var(--s2); }
+.side-fly button.side-fly-i svg { width: 16px; height: 16px; flex: none; color: var(--muted); }
+@media (min-width: 861px) {
+  .is-collapsed .side-rail-help { margin-top: auto; }
+  :root:root .side-toggle.show-sm { display: none; } :root:root .side-toggle.hide-sm { display: grid; }
+}
+@media (max-width: 860px) { .side-help-b, .side-help-i { min-height: 44px; } }

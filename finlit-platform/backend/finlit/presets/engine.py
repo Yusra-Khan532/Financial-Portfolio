@@ -13,8 +13,8 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 from ..screener.ql import analyze, canonical
 from ..screener.qeval import Evaluator
-from . import derive, expr, themes
-from .registry import Col, DISCLAIMER, IDENTITY_KEYS, REGISTRY_VERSION, STD_ADVANCED, STD_BASIC, STD_RETURNS, Preset, render_card
+from . import derive, expr, listday, themes
+from .registry import Col, DISCLAIMER, IDENTITY_KEYS, REGISTRY_VERSION, STD_ADVANCED, STD_RETURNS, STD_SECTOR, Preset, render_card
 from .seed import THEME
 
 EXPORT_MAX = 2000        # rows kept per screen for paging (25 at a time) and for the CSV export; a screen that passes more says so
@@ -25,6 +25,8 @@ LEADER_FLOOR = 1000.0
 SCORED = ("RATED", "PROVISIONAL")
 CONFIRMED = 20.0            # "Prism-confirmed": both technical views at +20 or more (spec p6)
 NO_CHIPS = "none"           # ?chip=none is the explicit empty set
+SECTOR_ROW_KEYS = ("sr_slug", "sr_corner", "sr_weeks", "sr_pulse_code", "sr_rank", "sr_ranked", "sr_rank_4w", "sr_above50", "sr_rebound", "sr_ag", "sr_up", "sr_lead")
+SETUP_GROUPS = ("setups", "chart-patterns")
 
 
 class Blocked(Exception):
@@ -55,9 +57,13 @@ class Frame:
         self.growth = growth if growth is not None else derive.growth_scores(table)
         self.caps = caps if caps is not None else derive.outlier_caps(table)
         self.latest_q = table.latest_quarter()
+        self.sector_dates: Dict[str, Optional[str]] = {}     # task #243: the dates of the Sector Pulse board and the Rotation map the sector fields come from
         self.history_days = 0       # how many days apart the oldest and newest Prism history rows used by the rating-change fields are (set by build_frame)
         self.rank_scores: Dict[int, float] = {}      # set by run() for a screen that has a rank score
         self.patterns: Optional[dict] = None         # the nightly chart-pattern run (presets/patterns.py), None until one exists
+        # task #394 (developer file 37, F3, F8): every company's close of the list day from the exchange candles (presets/listday.py; set by build_frame)
+        self.market = listday.Market()
+        self.not_traded_off: set = set()             # the companies F8 left off a list in this frame (for the job's result)
         self._r3: Dict[str, float] = {}
         if theme_eval is not None:
             for ind, v in theme_eval.industries.items():
@@ -136,22 +142,11 @@ class Frame:
         if name == "w52_score":                                     # 100 minus the % below the 52-week high (the redesign's price-strength input)
             v = self.get(i, "pct_from_high")
             return None if v is None else max(0.0, 100.0 - v)
-        if name == "profit_plus_balance":                           # the Basic tab's "Profitability + Balance sheet" (both pillars needed)
-            a, b = self.get(i, "pillar_profitability"), self.get(i, "pillar_balance")
-            return None if a is None or b is None else a + b
         if name == "abs_vs_breakout":                               # how far the price is from the level it broke, either way (the Setups screens rank on closeness)
             v = self.get(i, "vs_breakout")
             return None if v is None else abs(v)
-        if name == "quality_fit":
-            return self._fit("pillar_quality")[i]
         if name == "prism_quality_fit":
             return self._fit("prism_quality")[i] if self.has_prism(i) else None
-        if name == "business_watch":                                # how many of the four business scores are in Watch (below 45)
-            vals = [self.get(i, k) for k in ("pillar_quality", "pillar_growth", "pillar_profitability", "pillar_balance")]
-            return float(sum(1 for v in vals if v is not None and v < 45))
-        if name == "balance_weak_ex":                               # Balance sheet below 35, except for insurers and brokers, whose policy reserves and client funding read as debt
-            b = self.get(i, "pillar_balance")
-            return None if b is None else (1.0 if b < 35 and self.industry_of(i) not in ("Insurance", "Capital Markets") else 0.0)
         if name == "abs_b2_level":                                  # the same for the version 2 Breakouts screen
             v = self.get(i, "b2_vs_level")
             return None if v is None else abs(v)
@@ -260,7 +255,8 @@ def prism_rules(fr: Frame, pf: Dict[str, Any]) -> List[Rule]:
         want = pf["status"]
         out.append(Rule(f"Prism rating status is {want.title()}", [fr.pz[i].get("prism_status") == want and fr.pz[i].get("prism_final") is not None for i in range(n)]))
     if pf.get("cap"):
-        out.append(Rule(f"{pf['cap']} cap (market-cap rank {'1 to 100' if pf['cap'] == 'Large' else '101 to 250' if pf['cap'] == 'Mid' else '251 onward'})", [fr.t.cap[i] == pf["cap"] for i in range(n)]))
+        from ..sizes import RANGE
+        out.append(Rule(f"{pf['cap']} cap (market value {RANGE[pf['cap']]})", [fr.t.cap[i] == pf["cap"] for i in range(n)]))   # task #262: the ₹ rule, not ranks
     for key, (field, words) in PRISM_PARAMS.items():
         if key in pf:
             lim = float(pf[key])
@@ -364,10 +360,8 @@ def lender_equivalent(others: Sequence[float], lend: Sequence[float], v: float) 
 
 
 def rank_order_note(preset: Preset) -> Optional[str]:
-    """What a list is ordered by, in plain words (no model detail): the Basic Top 10s by FinLit IQ, the Advanced Highest-rated lists by the Prism rating. A screen ordered by something
+    """What a list is ordered by, in plain words (no model detail): the Highest-rated lists by the Prism rating. A screen ordered by something
     else says nothing here (its own notes and columns carry it)."""
-    if preset.tab == "basic" and preset.top10:
-        return "The 10 highest FinLit IQs first."
     if preset.id.startswith("highest-rated-"):
         return "Ordered by the FinLit Prism rating."
     return None
@@ -407,9 +401,7 @@ def rank_scores_of(fr: Frame, terms: Sequence[Tuple[str, float]], member: Callab
 
 
 def rank_member(preset: Preset) -> Callable[[Frame], Callable[[int], bool]]:
-    """Who counts in the percentile population: the bucket's Prism-rated companies (Advanced tab) or the bucket's companies of Rs 1,000 Cr or more (Basic tab)."""
-    if preset.tab == "basic":
-        return lambda fr: (lambda i: (fr.get(i, "market_cap") or 0) >= LEADER_FLOOR)
+    """Who counts in the percentile population: the bucket's Prism-rated companies."""
     return lambda fr: (lambda i: fr.pz[i].get("prism_status") == "RATED" and fr.pz[i].get("prism_final") is not None)
 
 
@@ -459,7 +451,7 @@ def standard_columns(preset: Preset) -> List[Tuple[str, str, str, str, str]]:
     """The columns every list carries (key, label, format, align, band), then the returns behind their switch. Themes and Top gainers keep their own layouts."""
     if preset.kind in ("themes", "gainers"):
         return []
-    return list(STD_BASIC if preset.tab == "basic" else STD_ADVANCED) + list(STD_RETURNS)
+    return list(STD_ADVANCED) + list(STD_RETURNS) + list(STD_SECTOR)       # task #243: the Sector reading band, behind its switch in Columns
 
 
 def own_columns(preset: Preset) -> list:
@@ -471,7 +463,13 @@ def own_columns(preset: Preset) -> list:
 
 
 def _row(fr: Frame, preset: Preset, i: int, pos: int, extra: Sequence[str] = ()) -> dict:
-    row: Dict[str, Any] = {"symbol": fr.symbols[i], "name": fr.t.name[i], "exchange": fr.listed.get(fr.symbols[i]), "position": pos}
+    row: Dict[str, Any] = {"symbol": fr.symbols[i], "name": fr.t.name[i], "exchange": fr.listed.get(fr.symbols[i]), "position": pos,
+                           # task #243 (pack v4): the open screen's "F&O stocks only" and "Liquid only" filters read these (not shown as columns)
+                           "fno": fr.get(i, "fno"), "turnover20_cr": _fmt(fr.get(i, "turnover20_cr"), "num1")}
+    if preset.tab != "basic":       # task #243 (pack v4): what the Sector reading cells, the industry board and the two sector filters read (not columns of their own)
+        z = fr.pz[i]
+        for k in SECTOR_ROW_KEYS:
+            row[k] = _fmt(z.get(k), "num1") if isinstance(z.get(k), float) else z.get(k)
     cols = list(preset.columns) + [Col(k, l, f, a) for k, l, f, a, _ in standard_columns(preset) if k not in {c.key for c in preset.columns}]
     for c in cols:
         if c.key == "rank":
@@ -484,7 +482,19 @@ def _row(fr: Frame, preset: Preset, i: int, pos: int, extra: Sequence[str] = ())
         else:
             row[c.key] = _fmt(fr.get(i, c.key), c.format)
     row["badges"] = badges(fr, preset, i) + [b for b in extra if b]
+    if "price" in row or "ret_1d" in row:          # F3: the official close of the list day, its day and the day change worked out from the same candles
+        listday.row_price(row, fr.market.closes.get(fr.symbols[i]), fr.as_of.isoformat(), loading=not fr.market.complete)
     return row
+
+
+def traded(fr: Frame, idx: Sequence[int]) -> List[int]:
+    """F8 (developer file 37): the companies of `idx` that traded in the last five sessions; the others are left off and remembered for the job's log."""
+    off = [i for i in idx if fr.market.not_traded(fr.symbols[i])]
+    if not off:
+        return list(idx)
+    fr.not_traded_off.update(fr.symbols[i] for i in off)
+    gone = set(off)
+    return [i for i in idx if i not in gone]
 
 
 def badges(fr: Frame, preset: Preset, i: int) -> List[str]:
@@ -543,6 +553,8 @@ def run(fr: Frame, preset: Preset, requested: Optional[Sequence[str]] = None) ->
     if preset.kind == "quickview":
         raise Blocked(preset)
     active = resolve_chips(preset, requested)
+    if preset.group not in SETUP_GROUPS:
+        ensure_setups(fr)
     cfg = Config(preset, active)
     fr.rank_scores = rank_scores_of(fr, preset.rank_score, rank_member(preset)(fr)) if preset.rank_score else {}
     if preset.kind == "themes":
@@ -552,6 +564,8 @@ def run(fr: Frame, preset: Preset, requested: Optional[Sequence[str]] = None) ->
     rules = build_rules(fr, cfg)
     n = fr.t.n
     idx = [i for i in range(n) if all(r.ok[i] for r in rules)]
+    passed = len(idx)
+    idx = traded(fr, idx)
     if preset.id == "results-standouts" and fr.latest_q is None:
         idx = []      # no reporting quarter can be told: say nothing rather than guess (the Query builder's recent check refuses the same way)
     key = sort_key(fr, cfg.rank)
@@ -563,7 +577,7 @@ def run(fr: Frame, preset: Preset, requested: Optional[Sequence[str]] = None) ->
         soft = [r for r in rules if any(w.lower() in r.label.lower() for w in preset.fill)]
         hard = [r for r in rules if r not in soft]
         have = set(idx)
-        cand = sorted((i for i in range(n) if i not in have and all(r.ok[i] for r in hard)), key=key)
+        cand = sorted(traded(fr, [i for i in range(n) if i not in have and all(r.ok[i] for r in hard)]), key=key)
         taken = apply_sector_cap(fr, listed + cand, preset.sector_cap)
         filled = [i for i in taken if i not in set(listed)][:preset.limit - len(listed)]
     rows = [_row(fr, preset, i, pos) for pos, i in enumerate(listed[:preset.limit], 1)]
@@ -585,6 +599,11 @@ def run(fr: Frame, preset: Preset, requested: Optional[Sequence[str]] = None) ->
                 r["badges"] = r["badges"] + ["Industry limit"]
             rows.append(r)
     out = _base(fr, preset, cfg, active, len(idx), rows)
+    if passed > len(idx):
+        out["notTradedCount"] = passed - len(idx)     # F8: a count; the companies are in the job's log
+    if preset.tab != "basic":       # task #243 (pack v4): which date each kind of data is from, said on the page
+        out["dataDates"] = {"prices": fr.as_of.isoformat(), "setups": (fr.patterns or {}).get("as_of"), "sectors": fr.sector_dates.get("sectors"),
+                            "rotation": fr.sector_dates.get("rotation")}
     note = rank_order_note(preset)
     if note:
         out["rankScoreNote"] = note
@@ -602,8 +621,9 @@ def run(fr: Frame, preset: Preset, requested: Optional[Sequence[str]] = None) ->
     out["ratedCount"] = sum(1 for i in idx if fr.has_prism(i))
     if preset.id == "fno-both-positive":
         out["of"] = {"label": "F&O stocks", "n": sum(1 for i in range(n) if fr.t.cols["fno"][i] == 1.0)}
-    if preset.id == "highest-rated-small":
-        out["of"] = {"label": "rated small caps", "n": sum(1 for i in range(n) if fr.t.cap[i] == "Small" and fr.pz[i].get("prism_status") == "RATED")}
+    if preset.id in ("highest-rated-small", "highest-rated-micro"):
+        sz = preset.prism_filters.get("cap")
+        out["of"] = {"label": f"rated {sz.lower()} caps", "n": sum(1 for i in range(n) if fr.t.cap[i] == sz and fr.pz[i].get("prism_status") == "RATED")}
     if not idx:
         out["closestMisses"] = closest_misses(fr, rules)
         out["emptyText"] = "No company meets every rule today."
@@ -613,28 +633,67 @@ def run(fr: Frame, preset: Preset, requested: Optional[Sequence[str]] = None) ->
     return out
 
 
+def ensure_setups(fr: Frame) -> None:
+    """Task #243 (pack v4): the Sectors screens and the Tailwinds column read which companies are on tonight's Setups and Chart patterns lists (Advanced). Worked out
+    once per frame from the same lists the page shows, so a screen served from a cold cache gives the nightly answer."""
+    if getattr(fr, "setups_marked", False):
+        return
+    fr.setups_marked = True
+    from . import sectorread
+    from .registry import ADVANCED
+    lists: Dict[str, List[str]] = {}
+    for p in ADVANCED:
+        if p.group not in SETUP_GROUPS or p.kind not in ("rules", "pattern"):
+            continue
+        try:
+            body = run(fr, p, [NO_CHIPS])
+        except Exception:
+            continue
+        lists[p.name] = [r["symbol"] for r in body.get("exportRows") or body.get("rows") or []]
+    sectorread.mark_setups(fr, lists)
+
+
 def run_pattern(fr: Frame, preset: Preset, cfg: Config, active: Sequence[str]) -> dict:
-    """A Chart patterns screen: the companies the nightly scan found for this pattern, with the facts it worded and the drawing the chart panel places.
-    Ranked by the page's own score (FinLit IQ on Basic, the Prism score on Advanced), then the larger market cap. The page never sees a rule."""
+    """A Chart patterns screen: the companies the nightly scan found for this pattern, with every figure the engine worded, the four the screen shows as
+    numbered columns, the status, How clean, and the drawing the chart panel places. Ordered by how cleanly the chart meets the pattern (engine 2, task #325),
+    then the larger market cap. The page never sees a rule or the quality number itself."""
     from . import patterns as P
     run = fr.patterns or {}
     hits = (run.get("scans") or {}).get(preset.spec) or {}
     n = fr.t.n
-    in_scope = [i for i in range(n) if fr.symbols[i] in hits and (preset.tab == "basic" or fr.has_prism(i))]
-    key = sort_key(fr, preset.rank)
-    in_scope.sort(key=key)
+    # Task #394 (developer file 37): the list's day is the close the scans ran on (F3); a company whose candles end before it is left off (F4), and so
+    # is a company with no trade in the last five sessions (F8)
+    run_day = str(run.get("as_of") or fr.as_of.isoformat())[:10]
+    found = [i for i in range(n) if fr.symbols[i] in hits and fr.has_prism(i)]
+    stale = [i for i in found if str(hits[fr.symbols[i]].get("last") or run_day)[:10] != run_day]
+    in_scope = traded(fr, [i for i in found if i not in set(stale)])
+    mcap = lambda i: fr.get(i, "market_cap") or 0   # noqa: E731
+    in_scope.sort(key=lambda i: (-(hits[fr.symbols[i]].get("q") or 0), -mcap(i)))
     labels = P.FACT_LABELS[preset.spec]
     rows = []
     for pos, i in enumerate(in_scope, 1):
         row = _row(fr, preset, i, pos)
         h = hits[fr.symbols[i]]
         row["facts"], row["draw"], row["new"] = h.get("facts") or [], h.get("draw") or {}, bool(h.get("new"))
+        if h.get("close") is not None and h.get("last"):        # F3, F5: the row's price and day change are the close the figures are worked out from
+            listday.row_price(row, listday.DayClose(day=h["last"], close=h["close"], prev=h.get("prev"), prev_day=h.get("prevDay")), run_day)
+            row["factsAsOf"] = h["last"]
+        nums = h.get("nums") or {}
         by = {lab: val for lab, val in row["facts"]}
         for j, lab in enumerate(labels, 1):
             if lab:
-                row[f"pf{j}"] = by.get(lab)
+                row[f"pf{j}"] = nums.get(lab, by.get(lab)) if lab in nums else by.get(lab)
+        row["pf_status"], row["pf_clean"] = h.get("status"), h.get("clean")
         rows.append(row)
     out = _base(fr, preset, cfg, active, len(rows), rows[:preset.limit])
+    if run:
+        out["asOf"] = run_day                   # the list is dated by the session whose closes it was built on
+        if rows and all(r.get("factsAsOf") == run_day for r in rows):
+            out["factsAsOf"] = run_day          # one day for every row: "What the chart shows · 23 Nov close"
+    if stale:
+        out["staleCount"] = len(stale)
+    if len(found) - len(stale) > len(in_scope):
+        out["notTradedCount"] = len(found) - len(stale) - len(in_scope)
     out["pageSize"] = PAGE
     out["exportRows"] = rows[:EXPORT_MAX]
     out["newToday"] = sum(1 for r in rows if r["new"])
@@ -650,12 +709,12 @@ def run_pattern(fr: Frame, preset: Preset, cfg: Config, active: Sequence[str]) -
 def leaders_of(fr: Frame, idx: Sequence[int], r3: Optional[float], rank: Optional[Sequence[Tuple[str, str]]] = None) -> List[int]:
     """A sector's leaders: market cap Rs 1,000 Cr or more, within 15% of the 52-week high, 3-month return above the sector's median; rated companies first."""
     pick = []
-    for i in idx:
+    for i in traded(fr, idx):
         mc, below, ret3 = fr.get(i, "market_cap"), fr.get(i, "pct_from_high"), fr.get(i, "ret_3m")
         if mc is None or mc < LEADER_FLOOR or below is None or below > themes.NEAR_HIGH or ret3 is None or r3 is None or ret3 <= r3:
             continue
         pick.append(i)
-    pick.sort(key=sort_key(fr, rank or (("has_prism", "desc"), ("prism_final", "desc"), ("overall", "desc"))))
+    pick.sort(key=sort_key(fr, rank or (("has_prism", "desc"), ("prism_final", "desc"))))
     return pick[:LEADERS]
 
 

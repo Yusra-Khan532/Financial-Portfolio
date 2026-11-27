@@ -72,6 +72,32 @@ def _pct(sorted_xs: List[float], p: float) -> float:
     return sorted_xs[min(len(sorted_xs) - 1, int(p * (len(sorted_xs) - 1)))]
 
 
+# Task #259 (pack 03 §3, SHARED §1): NSE's classification tree. Every screener company is filed under one of NSE's 59 industries; its sector (22) and
+# macro sector (12) follow from the industry. An industry missing from the file takes its macro sector's only sector when it has exactly one.
+_NSE_TREE: Optional[Dict[str, Tuple[str, str]]] = None
+
+
+def nse_tree() -> Dict[str, Tuple[str, str]]:
+    """industry (59) -> (sector (22), macro sector (12)), from data/nse_classification.json."""
+    global _NSE_TREE
+    if _NSE_TREE is None:
+        from pathlib import Path
+        rows = json.loads((Path(__file__).resolve().parents[1] / "data" / "nse_classification.json").read_text())["basic_industries"]
+        _NSE_TREE = {r["industry"]: (r["sector"], r["macro_sector"]) for r in rows}
+    return _NSE_TREE
+
+
+def nse_levels(industry: Optional[str], macro: Optional[str]) -> Tuple[Optional[str], Optional[str]]:
+    """(NSE sector, NSE macro sector) of a company from its NSE industry and stored macro sector; (None, macro) when the sector cannot be told."""
+    tree = nse_tree()
+    if industry in tree:
+        return tree[industry]
+    if macro:
+        only = {s for s, m in tree.values() if m == macro}
+        return (only.pop() if len(only) == 1 else None), macro
+    return None, None
+
+
 def _tidy_sectors(raw: List[Optional[str]]) -> Tuple[List[Optional[str]], Dict[str, str]]:
     """The sector labels with variant spellings merged, and raw spelling -> shown label (a saved filter may still carry a raw spelling)."""
     counts: Dict[str, int] = {}
@@ -168,7 +194,7 @@ class Table:
         self.n_full = sum(self.full)
         self.pos = {s: i for i, s in enumerate(self.symbols)}
         self._fp: Optional[str] = None
-        # size by market value in rupees crore, one scale for the whole site (task 64, fix 2): Large above 50,000 Cr, Mid 10,000 to 50,000 Cr, Small below 10,000 Cr; no size without a market cap
+        # size by market value in rupees crore, one rule for the whole site (finlit/sizes.py, task #262): Large, Mid, Small, Micro; no size without a market cap
         self.cap: List[Optional[str]] = [size_of(self.cols["market_cap"][i]) for i in range(n)]
         # against-the-sector valuation
         by_sector: Dict[str, List[int]] = {}
@@ -210,6 +236,16 @@ class Table:
                 s0, c = seen.get(ind, (sec, 0))
                 seen[ind] = (s0, c + 1)
         self.industries = sorted(((k, v[0], v[1]) for k, v in seen.items()), key=lambda t: t[0])
+        # task #259: NSE's macro sector (12) and sector (22) of each company, from its NSE industry; only companies with an NSE industry have them
+        lv = [nse_levels(ind, sec) if ind else (None, None) for sec, ind in zip(self.sector, self.industry)]
+        self.nsector: List[Optional[str]] = [x[0] for x in lv]
+        self.macro: List[Optional[str]] = [x[1] for x in lv]
+        self.macros = self._facet(self.macro)
+        ns: Dict[str, Tuple[Optional[str], int]] = {}
+        for s, m in zip(self.nsector, self.macro):
+            if s:
+                ns[s] = (m, ns.get(s, (m, 0))[1] + 1)
+        self.nsectors: List[Tuple[str, Optional[str], int]] = sorted(((k, v[0], v[1]) for k, v in ns.items()), key=lambda t: t[0])
         self.stats: Dict[str, dict] = {}
         for k, col in self.cols.items():
             xs = sorted(x for x in col if x == x)
@@ -262,6 +298,10 @@ class Table:
                 idx = [i for i in idx if col[i] == col[i] and (lo is None or col[i] >= lo) and (hi is None or col[i] <= hi)]
         if cats.get("sector"):
             want = {self.sector_alias.get(w, w) for w in cats["sector"]}; idx = [i for i in idx if self.sector[i] in want]
+        if cats.get("macro"):      # task #259: NSE macro sector (12), sector (22); AND across the levels, OR inside one
+            want = set(cats["macro"]); idx = [i for i in idx if self.macro[i] in want]
+        if cats.get("nsector"):
+            want = set(cats["nsector"]); idx = [i for i in idx if self.nsector[i] in want]
         if cats.get("industry"):
             want = {self.industry_alias.get(w, w) for w in cats["industry"]}; idx = [i for i in idx if self.industry[i] in want]
         if cats.get("cap"):
@@ -285,13 +325,14 @@ class Table:
         step named "model": which figures it uses and where it cuts are never told."""
         steps: List[dict] = []
         have: Dict[str, Dict[str, Optional[float]]] = {}
-        stages = [("size", {"cap": cats.get("cap") or []}), ("sector", {"sector": cats.get("sector") or []}), ("industry", {"industry": cats.get("industry") or []}),
+        stages = [("size", {"cap": cats.get("cap") or []}), ("sector", {"sector": cats.get("sector") or []}), ("macro", {"macro": cats.get("macro") or []}),
+                  ("nsector", {"nsector": cats.get("nsector") or []}), ("industry", {"industry": cats.get("industry") or []}),
                   ("index", {"index": cats.get("index") or []}), ("band", {"band": cats.get("band") or []}), ("band", {"pband": cats.get("pband") or []})]
         cur = list(range(self.n))
         for name, c in stages:
             if not any(c.values()):
                 continue
-            nxt = set(self.match({}, {**{k: [] for k in ("sector", "industry", "cap", "band", "pband", "index")}, **c}))
+            nxt = set(self.match({}, {**{k: [] for k in ("sector", "macro", "nsector", "industry", "cap", "band", "pband", "index")}, **c}))
             before = len(cur)
             cur = [i for i in cur if i in nxt]
             steps.append({"key": name, "before": before, "after": len(cur), "missing": 0})
@@ -343,14 +384,7 @@ _lock = asyncio.Lock()
 _lock_loop: Any = None
 _refreshing: Optional[asyncio.Task] = None
 SCORE_COLS = ("symbol", "name", "sector", "macro_sector", "industry", "band", "metrics") + tuple(sorted(set(LEGACY.values())))
-LARGE_MIN_CR, MID_MIN_CR = 50_000.0, 10_000.0
-
-
-def size_of(market_cap: Optional[float]) -> Optional[str]:
-    """Large, Mid or Small by market value in rupees crore (Large above 50,000, Mid 10,000 to 50,000, Small below 10,000); None when there is no market cap."""
-    if market_cap is None or market_cap != market_cap or market_cap <= 0:
-        return None
-    return CAPS[0] if market_cap > LARGE_MIN_CR else CAPS[1] if market_cap >= MID_MIN_CR else CAPS[2]
+from ..sizes import size_of   # task #262: one rule for the whole site (Large > 75,000 Cr, Mid 25,000-75,000, Small 10,000-25,000, Micro < 10,000)
 
 
 QUOTE_COLS = ("price", "change_pct", "market_cap", "high52", "low52", "volume")
@@ -589,6 +623,13 @@ async def _refresh(store) -> None:
             await _sync(store)
         except Exception:
             log.exception("screener table not refreshed; the last one is kept")
+
+
+def nse_pairs(t: "Table") -> Dict[str, Tuple[str, str]]:
+    """symbol -> (NSE sector, NSE industry), as the Stock screener's catalog files them (task #64, N-28 / N-34): a company's sector is its industry's
+    sector. A company with no NSE industry is left out, so its own label ("Auto Components", "Industries") never shows as a sector."""
+    sector_of = {ind: sec for ind, sec, _n in t.industries if sec}
+    return {sym: (sector_of[t.industry[i]], t.industry[i]) for sym, i in t.pos.items() if t.industry[i] in sector_of}
 
 
 async def get_table(store, force: bool = False) -> Table:

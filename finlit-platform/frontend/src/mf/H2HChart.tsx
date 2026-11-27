@@ -5,7 +5,7 @@ import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type P
 import { buildLines, nearestIndex } from "../lib/mf";
 import { dateIN } from "../lib/format";
 import { smoothPath, type RollStats, type Side } from "../lib/mfCompare";
-import { ChartZoom } from "../components/ChartZoom";
+import { ChartZoom, useZoomHeight } from "../components/ChartZoom";
 
 export const SIDE_COLOR: Record<Side, string> = { a: "var(--k1)", b: "var(--k2)", cat: "var(--k3)" };
 export const SIDE_DASH: Record<Side, string> = { a: "", b: "", cat: "2 5" };
@@ -29,12 +29,12 @@ function useWidth(): [React.RefObject<HTMLDivElement | null>, number] {
 
 export function H2HChart({ series, format, label, base, tipFormat }: { series: SideSeries[]; format: (v: number) => string; label: string; base?: number; tipFormat?: (v: number) => string }) {
   const [wrap, W] = useWidth();
-  const H = W < 520 ? 250 : 320;
+  const box = useRef<SVGSVGElement>(null);
+  const [, H] = useZoomHeight<SVGSVGElement>(W < 520 ? 250 : 320, box);   // task #167: in full screen it fills the height too
   const phone = W < 520;
   const pad = { l: phone ? 46 : 58, r: phone ? 30 : 34, t: 14, b: 28 };
   const g = useMemo(() => buildLines(series.map((s) => ({ key: s.side, label: s.label, t: s.t, v: s.v })), W, H, pad), [series, W, H]);   // eslint-disable-line react-hooks/exhaustive-deps
   const [cursor, setCursor] = useState<number | null>(null);
-  const box = useRef<SVGSVGElement>(null);
   const uid = useId().replace(/:/g, "");
   if (!g) return <div className="mf-chart-empty">Not enough NAV history to draw a chart.</div>;
   const fmtTip = tipFormat || format;

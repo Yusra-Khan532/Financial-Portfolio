@@ -154,8 +154,8 @@ def test_cagr_does_not_bridge_missing_years():
     d = {'sales_y': [None,100,110,121,133.1,146.41], 'net_profit_y': [1,2,None,4,5,6]}
     rows = {r['metric']: r for r in score_company(d, 'MFG')['metrics']}
     assert rows['SALES_CAGR']['status'] == 'A'
-    assert rows['SALES_CAGR']['details']['years'] == 3
-    assert rows['SALES_CAGR']['details']['previous'] == 110
+    assert rows['SALES_CAGR']['details']['years'] == 4          # owner, 17 Nov 2026: 5 years, then 4, 3, 2
+    assert rows['SALES_CAGR']['details']['previous'] == 100
     assert rows['PROFIT_CAGR']['status'] == 'A'
     assert rows['PROFIT_CAGR']['details']['years'] == 2
     assert rows['PROFIT_CAGR']['details']['previous'] == 4
@@ -231,6 +231,16 @@ def test_documented_scoring_matches_supplied_owner_code(case,monkeypatch):
     from backend import premium_engine
     # The oracle also predates the owner's requests that PEG is a core factor for banks (October 2026) and for every group (29 October 2026).
     monkeypatch.setattr(premium_engine,'PEG_CORE_GROUPS',('LIGHT','MFG'))
+    # ...and the owner's 17 November 2026 CAGR ladders (5, then 4, 3, 2 years; PEG skips a negative window): the oracle took 5 years, then 3, and the
+    # first growth it could measure, negative or not.
+    monkeypatch.setattr(premium_engine,'CAGR_PREFERRED_YEARS',(5,3))
+    def legacy_ladder(annual):
+        window,years,_=premium_engine.cagr_window(annual)
+        if not years or window[0] is None or window[0]<=0: return None,0,[]
+        return (((window[-1]/window[0])**(1/years)-1)*100 if window[-1]>0 else -100.),years,[]
+    monkeypatch.setattr(premium_engine,'growth_ladder',legacy_ladder)
+    # ...and interest cover left unscored below debt / equity 0.1 (retired by the owner in 3.6.20, task #199)
+    monkeypatch.setattr(premium_engine,'IC_LOW_DEBT_UNSCORED_BELOW',0.1)
     actual=score_company(case['input'],case['group'])
     expected=case['expected']
     assert actual['final']==pytest.approx(expected['final'],abs=1e-6)
@@ -261,6 +271,7 @@ def test_all_seven_historical_reference_symbols_reproduce_the_original_cagr_poli
     # arithmetic and disclosure tests in test_premium_cagr_windows.py.
     monkeypatch.setattr('backend.premium_engine.CAGR_MIN_YEARS',3)
     monkeypatch.setattr('backend.premium_engine.PEG_CORE_GROUPS',('LIGHT','MFG','BANK'))   # and it predates PEG being core for every group (29 October 2026)
+    monkeypatch.setattr('backend.premium_engine.IC_LOW_DEBT_UNSCORED_BELOW',0.1)            # and interest cover being scored below debt / equity 0.1 (3.6.20)
     result=score_company(case['inputs'],case['group'])
     assert result['final']==pytest.approx(case['expectedScore'],abs=1e-8)
     assert result['parts']==pytest.approx(case['expectedParts'],abs=1e-8)

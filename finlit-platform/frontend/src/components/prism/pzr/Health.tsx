@@ -1,11 +1,22 @@
 // Peer and benchmark panel, and the notes at the end of the report: review notes, the data checks recorded while loading and how to read it.
 import { useState, type ReactNode } from "react";
+import { PzHead } from "./Shell";
 import { dateIN, nf } from "../../../lib/format";
 import { isRated, type BenchmarkDetail, type PrismReport } from "../../../lib/prism";
 import { peerRows, type PeerRow } from "../../../lib/prismReport";
 import { ChartTable, ShowTable } from "../PrismCharts";
 
 /** A section that opens and closes; its content stays in the page so a printout always includes it. */
+/** The engine's benchmark note in plain words for members (task #293, fix 8). The engine's status "No peer calculation required, or industry
+ *  universe unavailable or exceeds the on-demand limit" is an internal state, not a sentence for members; the medians note is a sentence and stays;
+ *  any other engine note is not shown. Exported for the tests. */
+export function benchmarkNote(note: string | null | undefined): string | null {
+  if (!note) return null;
+  if (/no peer calculation required|industry universe unavailable|on-demand limit/i.test(note)) return "The sector benchmarks above come from the data provider; FinLit did not work out its own peer average for this company.";
+  if (/^Medians use /.test(note)) return note;
+  return null;
+}
+
 export function Collapse({ title, count, children, defaultOpen = false, id }: { title: string; count?: number; children: ReactNode; defaultOpen?: boolean; id: string }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
@@ -23,7 +34,7 @@ export function benchmarkLine(key: string, b: BenchmarkDetail) {
   const scope = b.scope === "sector" ? "Sector" : b.scope === "own history" ? "Own five-year" : "Industry";
   const what = `${scope} ${ratio} ${b.method === "reported benchmark" ? "benchmark" : "median"}`;
   const value = b.value == null ? "not available" : `${nf(b.value, 2)}×`;
-  const cover = b.positiveCount != null && b.universeCount != null ? ` From ${b.positiveCount} positive multiples; ${b.observedCount ?? "—"} of ${b.universeCount} peer records available${b.partial ? " (partial coverage, not a complete-industry median)" : ""}.` : "";
+  const cover = b.positiveCount != null && b.universeCount != null ? ` From ${b.positiveCount} positive multiples; ${b.observedCount ?? "—"} of ${b.universeCount} peer records available${b.partial ? " (partial coverage, not a complete peer-group median)" : ""}.` : "";
   const extra = b.scope === "sector" ? " The provider does not specify its statement basis, valuation date or aggregation method." : "";
   return { what, value, src: `${b.provider}${b.method ? `, ${b.method}` : ""}${b.asOf ? `, as of ${dateIN(b.asOf)}` : ""}.`, more: cover + extra };
 }
@@ -54,12 +65,12 @@ export function Peers({ report }: { report: PrismReport }) {
   const rows = peerRows(report), [table, setTable] = useState(false);
   const extra = Object.entries(report.benchmark?.metrics || {}).filter(([k]) => !rows.some((r) => k === `industry_median_${r.key}`));
   return (
-    <section className="pzr-sec" aria-labelledby="pzr-h-peer">
-      <header className="pzr-sh"><h3 id="pzr-h-peer">Valuation against the benchmark</h3><p>Price multiples of the company next to the benchmark used in the Valuation part. The line marks the benchmark.</p></header>
+    <section className="pzr-sec pzs" id="valuation" aria-labelledby="pzr-h-peer">
+      <PzHead no="04" id="pzr-h-peer" title="Valuation against the benchmark" desc="Price multiples of the company next to the benchmark used in the Valuation part. The line marks the benchmark." />
       {rows.length ? <ul className="pzr-peers">{rows.map((r) => <PeerBlock key={r.key} row={r} />)}</ul>
         : <p className="pzr-empty">No verified industry or sector valuation benchmarks were available; the valuation factors that need one use group estimates.</p>}
       {extra.length > 0 && <ul className="pzr-bm">{extra.map(([k, b]) => { const l = benchmarkLine(k, b); return <li key={k}><b>{l.what} {l.value}</b><span className="pzr-small">Source: {l.src}{l.more}</span></li>; })}</ul>}
-      {report.benchmark?.note && <p className="pzr-small">{report.benchmark.note}</p>}
+      {benchmarkNote(report.benchmark?.note) && <p className="pzr-small">{benchmarkNote(report.benchmark?.note)}</p>}
       <p className="pzr-small">Own-history comparisons use the company's own multiples over up to five years; the comparison behind each valuation factor is listed with the factor.</p>
       {rows.length > 0 && <><div className="pzr-cfoot"><span /><ShowTable on={table} set={setTable} /></div>
         {table && <ChartTable caption="Company multiple, benchmark and own five-year median" head={["Multiple", "Company", "Benchmark", "Own 5-year median"]} rows={rows.map((r) => [r.label, r.company == null ? "—" : `${nf(r.company, 2)}×`, r.benchmark == null ? "—" : `${nf(r.benchmark, 2)}×`, r.own == null ? "—" : `${nf(r.own, 2)}×`])} />}</>}
@@ -70,7 +81,7 @@ export function Peers({ report }: { report: PrismReport }) {
 /** How to read the report, in words: what the score, the labels and the readings mean. The method itself stays on the server. */
 export const HOW_TO_READ = [
   "The score runs from 0 to 100. Labels, best to worst: Strong, Healthy, Average, Weak, Poor.",
-  "Each part reads its factors against companies in the same industry group. Higher is better for all four; a high Risk score means lower risk.",
+  "Each part reads its factors against the company's peer group (the data provider FinEdge's list of similar companies). Higher is better for all four; a high Risk score means lower risk.",
   "Each factor's reading runs from Very strong to Very weak.",
   "Not rated: too much of the data is missing, or there is too little income history. Provisional: part of the data is missing, and the label is held back.",
   "A missing input may be estimated from industry figures. Estimates are always marked and never shown as strengths or concerns.",
@@ -80,8 +91,8 @@ export const HOW_TO_READ = [
 /** The notes at the end of the report: what the review recorded, what the loader recorded, and how to read the report. */
 export function Notes({ report, notes }: { report: PrismReport; notes: string[] }) {
   return (
-    <section className="pzr-sec" aria-labelledby="pzr-h-notes">
-      <header className="pzr-sh"><h3 id="pzr-h-notes">Notes</h3><p>Review notes, data checks and how to read this report.</p></header>
+    <section className="pzr-sec pzs" id="notes" aria-labelledby="pzr-h-notes">
+      <PzHead no="05" id="pzr-h-notes" title="Notes" desc="Review notes, data checks and how to read this report." />
       <div className="pzr-cols">
         {notes.length > 0 && <Collapse id="pzr-notes" title="Review notes" count={notes.length}><ul className="pzr-notes">{notes.map((n, i) => <li key={i}>{n}</li>)}</ul></Collapse>}
         {report.warnings.length > 0 && <Collapse id="pzr-warn" title="Data checks recorded while loading" count={report.warnings.length}><p className="pzr-small">What the data loader recorded while preparing this calculation, as recorded.</p><ul className="pzr-notes">{report.warnings.map((w, i) => <li key={i}>{w}</li>)}</ul></Collapse>}

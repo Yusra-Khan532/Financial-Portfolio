@@ -12,8 +12,9 @@ import json
 import math
 import logging
 import time
+import asyncio
 import zlib
-from datetime import date, datetime
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
@@ -28,7 +29,7 @@ from .config import Settings, get_settings
 
 log = logging.getLogger("finlit.store")
 MIGRATIONS = Path(__file__).parent / "migrations"
-SEARCH_KEY = "search-index"
+SEARCH_KEY = "search-index:v3"   # v3 (23 Nov 2026, task #336): the list carries each company's NSE industry (`industries`, `ind`); v2 added `bseId`. A new key makes every server build it at once
 STOCK_TTL = 6 * 3600
 SEARCH_TTL = 6 * 3600   # the name list (~350 KB read from Postgres to build); a load or a universe refresh drops it sooner
 QUOTE_SYMBOLS_KEY = "quotes:symbols"   # who the minute-by-minute quote job updates: the list changes when a report is first loaded or pruned, not every minute
@@ -45,6 +46,13 @@ INPUT_CUT_SQL = ("CASE section "
                  "WHEN 'events' THEN jsonb_build_object('actions', j -> 'actions', 'dividendsByFY', j -> 'dividendsByFY')::text "
                  "WHEN 'price' THEN jsonb_build_object('daily', jsonb_build_object('t', j #> '{daily,t}', 'c', j #> '{daily,c}', 'v', j #> '{daily,v}', 'h', j #> '{daily,h}', 'l', j #> '{daily,l}'), 'technical', j -> 'technical')::text "
                  "ELSE body END")
+# Task #283 PR C: the coverage gap between the retired overall score and FinLit Prism, over listed companies (admin data-health only).
+PRISM_GAP_SQL = """WITH iq AS (SELECT DISTINCT symbol FROM scores WHERE model = 'v1' AND overall IS NOT NULL),
+       pz AS (SELECT DISTINCT symbol FROM prism_reports WHERE final IS NOT NULL AND status IS DISTINCT FROM 'NOT RATED')
+SELECT (SELECT count(*) FROM companies) AS listed,
+       (SELECT count(*) FROM companies c JOIN iq ON iq.symbol = c.symbol) AS retired,
+       (SELECT count(*) FROM companies c JOIN pz ON pz.symbol = c.symbol) AS prism,
+       (SELECT count(*) FROM companies c JOIN iq ON iq.symbol = c.symbol WHERE NOT EXISTS (SELECT 1 FROM pz WHERE pz.symbol = c.symbol)) AS gap"""
 VIEWED_KEY = "viewed"   # sorted set: symbol -> last time a member or visitor opened its report (keeps it stored when pruning)
 # What the website lists for every company. The 170 screener numbers (scores.metrics) are left out on purpose: they are ~2 KB a company and only /api/screener/query needs them.
 LIST_COLUMNS = ("symbol, statement, model, overall, band, pillar_quality, pillar_growth, pillar_profitability, pillar_balance, pillar_technical, price, market_cap, "
@@ -77,6 +85,17 @@ ON CONFLICT (symbol, statement, model) DO UPDATE SET
 """
 
 
+# Store.save_sections: refresh the fields of a cached company's hash, never create the hash and never touch its TTL (HSET and HDEL keep it).
+# KEYS[1] the stock hash; ARGV[1] how many of the following ARGV are field/value pairs to set; the ARGV after those are fields to remove.
+REFRESH_IF_CACHED_LUA = """
+if redis.call('EXISTS', KEYS[1]) == 0 then return 0 end
+local n = tonumber(ARGV[1])
+if n > 0 then redis.call('HSET', KEYS[1], unpack(ARGV, 2, n + 1)) end
+if #ARGV > n + 1 then redis.call('HDEL', KEYS[1], unpack(ARGV, n + 2, #ARGV)) end
+return 1
+"""
+
+
 def dumps(value: Any) -> bytes:
     return orjson.dumps(value, option=orjson.OPT_NON_STR_KEYS | orjson.OPT_SERIALIZE_NUMPY)
 
@@ -87,6 +106,11 @@ def etag_for(body: bytes) -> str:
 
 def stock_key(symbol: str, statement: str) -> str:
     return f"stock:{symbol.upper()}:{statement}"
+
+
+def _loggable(text: str) -> str:
+    """A value from a request, safe for one log line: line breaks would let it forge log entries (CodeQL log injection)."""
+    return text.replace("\r", "\\r").replace("\n", "\\n")
 
 
 def inputs_key(symbol: str, statement: str) -> str:
@@ -159,6 +183,24 @@ def code_version() -> str:
     return os.getenv("APP_VERSION") or "unknown"
 
 
+# Each company's ISIN, the same way the search list finds it: Dhan's NSE instrument (the EQ series first), else its BSE instrument, else the fund
+# disclosure files' ISIN -> symbol list.
+COMPANY_ISIN_SQL = """
+    SELECT c.symbol,
+           COALESCE((SELECT n.isin FROM dhan_instruments n WHERE n.exch = 'NSE' AND n.symbol = c.nse_code AND c.nse_code <> '' AND n.isin IS NOT NULL
+                      ORDER BY (n.series = 'EQ') DESC, n.series LIMIT 1),
+                    (SELECT b.isin FROM dhan_instruments b WHERE b.exch = 'BSE' AND b.security_id = c.bse_code AND c.bse_code <> '' AND b.isin IS NOT NULL LIMIT 1),
+                    (SELECT min(d.isin) FROM disclosure_isin d WHERE d.symbol = c.symbol)) AS isin
+    FROM companies c WHERE c.symbol = ANY($1::text[])"""
+
+
+
+# Daily prices (price_daily): the last PRICE_DAYS days are kept, those older than COMPRESS_AFTER days compressed (TimescaleDB). docs/STORAGE.md
+PRICE_DAYS = 500
+COMPRESS_AFTER = 30
+# Exchange candles (daily_candles, finlit/candles.py): kept CANDLE_DAYS days, a little over what any reader asks for (candles.DEFAULT_DAYS = 1150)
+CANDLE_DAYS = 1200
+
 class Store:
     db_tag = ""
 
@@ -202,7 +244,11 @@ class Store:
                     async with conn.transaction():
                         await conn.execute(path.read_text())
                         await conn.execute("INSERT INTO schema_migrations(version) VALUES($1)", path.stem)
+                        applied.add(path.stem)
             self.timescale = await self._enable_timescale(conn)
+        # One-time data changes that need Python, after every SQL file, recorded in schema_migrations by their own version (they never raise)
+        from . import iq_retire
+        await iq_retire.run_once(self.pool, applied)   # task #283 PR D: members' saved items on the retired FinLit IQ, converted to FinLit Prism
 
     async def _enable_timescale(self, conn) -> bool:
         available = await conn.fetchval("SELECT count(*) FROM pg_available_extensions WHERE name = 'timescaledb'")
@@ -211,7 +257,42 @@ class Store:
             return False
         await conn.execute("CREATE EXTENSION IF NOT EXISTS timescaledb")
         await conn.execute("SELECT create_hypertable('price_daily', 'day', if_not_exists => TRUE, migrate_data => TRUE)")
+        await self._compress_prices(conn)
         return True
+
+    async def _compress_prices(self, conn) -> None:
+        """Daily prices older than COMPRESS_AFTER days are kept compressed (TimescaleDB columnstore, one segment per company, newest day first): usually
+        80 to 90% smaller, and every query reads them as before. TimescaleDB's own background job compresses each chunk once it is old enough. Set once,
+        then left alone (idempotent). A failure is logged and the site runs on with uncompressed prices."""
+        try:
+            on = await conn.fetchval("SELECT compression_enabled FROM timescaledb_information.hypertables WHERE hypertable_name = 'price_daily'")
+            if not on:
+                await conn.execute("ALTER TABLE price_daily SET (timescaledb.compress, timescaledb.compress_segmentby = 'symbol', "
+                                   "timescaledb.compress_orderby = 'day DESC')")
+            await conn.execute(f"SELECT add_compression_policy('price_daily', INTERVAL '{COMPRESS_AFTER} days', if_not_exists => TRUE)")  # nosec B608 - a constant
+        except Exception:
+            log.exception("price_daily: compression could not be switched on; prices stay uncompressed")
+
+    async def _drop_old_price_chunks(self, conn, days: int, timeout: float) -> int:
+        """Drops the whole price_daily chunks older than `days` and returns how many rows went (counted first, chunk by chunk). TimescaleDB's own
+        compression job can hold a chunk at that moment: a deadlock or lock wait is tried again twice, then left for the next night (logged)."""
+        for attempt in range(3):
+            try:
+                async with conn.transaction():
+                    chunks = [r["c"] for r in await conn.fetch("SELECT show_chunks('price_daily', older_than => (current_date - $1::int))::text AS c",
+                                                               days, timeout=timeout)]
+                    rows = 0
+                    for c in chunks:
+                        rows += int(await conn.fetchval(f"SELECT count(*) FROM {c}", timeout=timeout))   # nosec B608 - a chunk name from show_chunks
+                    if chunks:
+                        await conn.fetch("SELECT drop_chunks('price_daily', older_than => (current_date - $1::int))", days, timeout=timeout)
+                    return rows
+            except (asyncpg.exceptions.DeadlockDetectedError, asyncpg.exceptions.LockNotAvailableError):
+                if attempt == 2:
+                    log.warning("prune: old price chunks were busy (compression job); left for the next night")
+                    return 0
+                await asyncio.sleep(2 * (attempt + 1))
+        return 0
 
     # ------------------------------------------------------------ writes (worker)
 
@@ -232,6 +313,8 @@ class Store:
             )
             if score_row:
                 await self._upsert_score(conn, {**score_row, "statement": statement})
+                prof = (sections.get("summary") or {}).get("profile") or {}
+                await self._classify(conn, [(symbol, prof.get("subIndustry"), prof.get("industry"), prof.get("sector"), prof.get("macroSector"))])
             if daily and daily.get("t"):
                 await self._upsert_prices(conn, symbol, daily)
             if sections.get("events"):
@@ -241,6 +324,126 @@ class Store:
         await self._cache(symbol, statement, encoded, etags)
         await self._cache_inputs(symbol, statement, sections)
         return etags
+
+    async def save_sections(self, symbol: str, statement: str, sections: Dict[str, Optional[dict]]) -> Dict[str, str]:
+        """Some sections of a stored report only (task #394: the nightly chart job rewrites the price-* sections from daily_candles). Each section is
+        upserted as save_snapshot upserts it; in Redis only a company already cached is refreshed (see below); nothing else of the report is
+        touched: no score row, no prices table, no figure inputs. A section given as None is removed (row and cached copy)."""
+        symbol = symbol.upper()
+        drop = [name for name, body in sections.items() if body is None]
+        encoded = {name: dumps(body) for name, body in sections.items() if body is not None}
+        etags = {name: etag_for(body) for name, body in encoded.items()}
+        if not encoded and not drop:
+            return etags
+        # The row keeps the report's own time (meta.generatedAt, as save_snapshot stores it): the canary reads max(generated_at) as "when the
+        # report's prices were stored", and the stored-sections audit dates a report by it; a price-only rewrite changes neither meaning.
+        def made(body: dict) -> datetime:
+            try:
+                return datetime.fromisoformat(str(body["meta"]["generatedAt"]).replace("Z", "+00:00"))
+            except Exception:
+                return datetime.now(timezone.utc)
+        times = {name: made(body) for name, body in sections.items() if body is not None}
+        async with self.pool.acquire() as conn, conn.transaction():
+            if encoded:
+                await conn.executemany(
+                    """INSERT INTO snapshots(symbol, statement, section, body, etag, generated_at)
+                       VALUES($1, $2, $3, $4, $5, $6)
+                       ON CONFLICT (symbol, statement, section)
+                       DO UPDATE SET body = EXCLUDED.body, etag = EXCLUDED.etag, generated_at = EXCLUDED.generated_at""",
+                    [(symbol, statement, name, body.decode(), etags[name], times[name]) for name, body in encoded.items()],
+                )
+            if drop:
+                await conn.execute("DELETE FROM snapshots WHERE symbol = $1 AND statement = $2 AND section = ANY($3::text[])", symbol, statement, drop)
+        # Redis: only a company that is already cached there is refreshed (the free Redis is small: a stock nobody opens leaves it, STOCK_TTL), so
+        # a nightly rewrite of every report never loads thousands of companies into it. One atomic script: the fields are set (or removed) only if
+        # the company's hash exists, and its TTL is left exactly as it is. An uncached company is read from Postgres when it is next opened.
+        fields: List[Any] = []
+        for name, body in encoded.items():
+            if name != "price":   # the full history is never cached (as _cache)
+                fields += [name, body, f"{name}:etag", etags[name]]
+        try:
+            await self.redis.eval(REFRESH_IF_CACHED_LUA, 1, stock_key(symbol, statement), str(len(fields)), *fields,
+                                  *[k for name in drop for k in (name, f"{name}:etag")])
+        except Exception:
+            log.warning("cached copy of %s %s not refreshed: it is replaced from Postgres when it expires (STOCK_TTL)", symbol, statement)
+        return etags
+
+    # ------------------------------------------------------------ NSE classification (task #192, finlit/taxonomy.py)
+
+    async def _classify(self, conn, items: List[tuple], only_new: bool = False) -> int:
+        """Place each (symbol, basic, industry, sector, macro) in NSE's four levels and store it with the company's ISIN. Only full report builds
+        and classify_all() call this; a quote patch never does. With only_new, a company already placed keeps its place (a score-only save knows
+        less than a full report did)."""
+        from . import taxonomy
+        if not items:
+            return 0
+        syms = [i[0].upper() for i in items]
+        isins = {r["symbol"]: r["isin"] for r in await conn.fetch(COMPANY_ISIN_SQL, syms)}
+        rows = []
+        for sym, basic, industry, sector, macro in items:
+            c = taxonomy.classify(sym, basic, industry, sector, macro)
+            rows.append((sym.upper(), isins.get(sym.upper()), c["macro_sector"], c["sector"], c["industry"], c["basic_industry"], c["source"], c["note"],
+                         taxonomy.VERSION))
+        await conn.executemany(
+            """INSERT INTO company_classification(symbol, isin, macro_sector, sector, industry, basic_industry, source, note, rule_version, updated_at)
+               VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, now())
+               ON CONFLICT (symbol) DO NOTHING""" if only_new else
+            """INSERT INTO company_classification(symbol, isin, macro_sector, sector, industry, basic_industry, source, note, rule_version, updated_at)
+               VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, now())
+               ON CONFLICT (symbol) DO UPDATE SET isin = COALESCE(EXCLUDED.isin, company_classification.isin), macro_sector = EXCLUDED.macro_sector,
+                 sector = EXCLUDED.sector, industry = EXCLUDED.industry, basic_industry = EXCLUDED.basic_industry, source = EXCLUDED.source,
+                 note = EXCLUDED.note, rule_version = EXCLUDED.rule_version, updated_at = now()""", rows)
+        return len(rows)
+
+    async def classify_all(self, force: bool = False) -> Dict[str, int]:
+        """Every listed company not yet placed by the current rules (or all, with force): its FinEdge fields from its stored report, else from its
+        screener row, else from the companies list. Reads stored data only (no provider call); about 6,000 companies take a few seconds."""
+        from . import taxonomy
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(
+                """SELECT c.symbol,
+                          p.prof ->> 'subIndustry' AS basic,
+                          COALESCE(p.prof ->> 'industry', sc.industry, c.industry) AS industry,
+                          COALESCE(p.prof ->> 'sector', sc.sector, c.sector) AS sector,
+                          COALESCE(p.prof ->> 'macroSector', sc.macro_sector) AS macro
+                   FROM companies c
+                   LEFT JOIN LATERAL (SELECT body::jsonb -> 'profile' AS prof FROM snapshots n
+                                      WHERE n.symbol = c.symbol AND n.section = 'summary' ORDER BY n.generated_at DESC LIMIT 1) p ON true
+                   LEFT JOIN LATERAL (SELECT industry, sector, macro_sector FROM scores s WHERE s.symbol = c.symbol
+                                      ORDER BY (s.statement = 'consolidated') DESC LIMIT 1) sc ON true
+                   LEFT JOIN company_classification k ON k.symbol = c.symbol
+                   WHERE $1 OR k.symbol IS NULL OR k.rule_version < $2""", force, taxonomy.VERSION)
+            done = 0
+            for i in range(0, len(rows), 500):
+                async with conn.transaction():
+                    done += await self._classify(conn, [(r["symbol"], r["basic"], r["industry"], r["sector"], r["macro"]) for r in rows[i:i + 500]])
+            by = await conn.fetch("SELECT COALESCE(source, 'not_classified') AS k, count(*) AS n FROM company_classification GROUP BY 1")
+        return {"placed": done, **{r["k"]: r["n"] for r in by}}
+
+    async def classification(self, symbol: str) -> Optional[dict]:
+        async with self.pool.acquire() as conn:
+            r = await conn.fetchrow("SELECT symbol, isin, macro_sector, sector, industry, basic_industry, source, note, updated_at "
+                                    "FROM company_classification WHERE symbol = $1", symbol.upper())
+        return dict(r) if r else None
+
+    async def classifications(self, symbols: List[str]) -> Dict[str, dict]:
+        """NSE's four levels of many companies at once (a watchlist, a portfolio): symbol -> row; a company not placed yet is left out."""
+        syms = sorted({s.upper() for s in symbols if isinstance(s, str) and s})
+        if not syms:
+            return {}
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch("SELECT symbol, isin, macro_sector, sector, industry, basic_industry, source, note "
+                                    "FROM company_classification WHERE symbol = ANY($1::text[])", syms)
+        return {r["symbol"]: dict(r) for r in rows}
+
+    async def classification_counts(self) -> Dict[str, Dict[str, int]]:
+        """Listed companies per name at each level, and how many are not classified at each level."""
+        out: Dict[str, Dict[str, int]] = {}
+        async with self.pool.acquire() as conn:
+            for level in ("macro_sector", "sector", "industry", "basic_industry"):
+                out[level] = {(r["k"] if r["k"] is not None else ""): r["n"] for r in await conn.fetch(
+                    f"SELECT {level} AS k, count(*) AS n FROM company_classification GROUP BY 1")}  # nosec B608 - level is one of four fixed names
+        return out
 
     async def _cache_inputs(self, symbol: str, statement: str, sections: Dict[str, dict]) -> None:
         """A full load rewrites the figures' inputs: keep the new ones for the quote job (a quote patch carries only the summary and leaves them alone)."""
@@ -355,6 +558,7 @@ class Store:
         daily prices). The screener and alerts read the score row; the report itself is built when somebody opens the company."""
         async with self.pool.acquire() as conn, conn.transaction():
             await self._upsert_score(conn, {**score_row, "statement": statement})
+            await self._classify(conn, [(symbol, None, score_row.get("industry"), score_row.get("sector"), score_row.get("macro_sector"))], only_new=True)
 
     async def slim_pending(self, days: int = 7, limit: int = 1500, retry_days: int = 7) -> List[str]:
         """Companies that have no score yet, or one older than `days`, biggest first (never-scored before stale ones). A company whose last
@@ -423,20 +627,60 @@ class Store:
                 "runs24h": {r["status"]: r["n"] for r in runs},
                 "recentProblems": [{"symbol": r["symbol"], "status": r["status"], "at": r["at"].isoformat(), "detail": str(r["errors"])[:200]} for r in failed],
                 "coverage": await self.coverage_health(),
+                "prismGap": await self.prism_gap(),
                 "secondarySource": await _upstox_health(self.redis)}
 
-    async def _upsert_prices(self, conn, symbol: str, daily: dict):
-        rows = [(symbol, date.fromisoformat(t), daily["o"][i], daily["h"][i], daily["l"][i], daily["c"][i], daily["v"][i])
-                for i, t in enumerate(daily["t"])]
+    async def prism_gap(self) -> Optional[dict]:
+        """Task #283 PR C (admin only, the data-health panel): FinLit Prism is FinLit's only company score. `retiredNoPrism`: listed companies that have
+        the retired overall score (its job still writes it, hidden) but no FinLit Prism score (no rating, or "not rated"), so after the switch they read
+        "FinLit Prism: not scored yet". `prismScored`: listed companies with a Prism score. None when a table is missing."""
+        try:
+            async with self.pool.acquire() as conn:
+                r = await conn.fetchrow(PRISM_GAP_SQL)
+        except Exception:
+            return None
+        return {"listed": r["listed"], "retiredScored": r["retired"], "prismScored": r["prism"], "retiredNoPrism": r["gap"]}
+
+    async def _upsert_prices(self, conn, symbol: str, daily: dict) -> int:
+        """Writes the prices (below) in a savepoint of the report's save. TimescaleDB's compression job can hold a chunk at that moment (a deadlock
+        or a lock wait): the write is tried again twice, and then left out, logged, so the report itself is always saved; the next save writes
+        the prices (they are compared row by row, so nothing is lost)."""
+        for attempt in range(3):
+            try:
+                async with conn.transaction():
+                    return await self._write_prices(conn, symbol, daily)
+            except (asyncpg.exceptions.DeadlockDetectedError, asyncpg.exceptions.LockNotAvailableError):
+                if attempt == 2:
+                    log.warning("price_daily: %s's prices were busy (compression job); left for the next save", symbol)
+                    return 0
+                await asyncio.sleep(0.2 * (attempt + 1))
+        return 0
+
+    async def _write_prices(self, conn, symbol: str, daily: dict) -> int:
+        """The company's daily prices into price_daily, which keeps the last PRICE_DAYS days (the nightly prune drops older ones). Only the days inside
+        that window are written, and only the rows that are new or changed: a report save used to write all six years again, every time, rows the prune
+        then deleted that same night, and every day already stored was rewritten unchanged. With the older days compressed (TimescaleDB), rewriting
+        them would unpack and repack them on each save. A split or bonus changes past prices: those rows differ, so they are still written."""
+        since = date.today() - timedelta(days=PRICE_DAYS)
+        rows = [(symbol, d, daily["o"][i], daily["h"][i], daily["l"][i], daily["c"][i], daily["v"][i])
+                for i, t in enumerate(daily["t"]) if (d := date.fromisoformat(t)) >= since]
+        if not rows:
+            return 0
         await conn.execute("CREATE TEMP TABLE IF NOT EXISTS _prices (LIKE price_daily) ON COMMIT DROP")
         await conn.copy_records_to_table("_prices", records=rows)
-        await conn.execute(
-            """INSERT INTO price_daily SELECT * FROM _prices
+        written = await conn.execute(
+            """INSERT INTO price_daily SELECT p.* FROM _prices p
+               LEFT JOIN price_daily d ON d.symbol = p.symbol AND d.day = p.day
+               WHERE d.day IS NULL OR (d.open, d.high, d.low, d.close, d.volume) IS DISTINCT FROM (p.open, p.high, p.low, p.close, p.volume)
                ON CONFLICT (symbol, day) DO UPDATE SET open = EXCLUDED.open, high = EXCLUDED.high,
                low = EXCLUDED.low, close = EXCLUDED.close, volume = EXCLUDED.volume""")
-        # Dates FinEdge no longer reports (bad ticks we dropped) must not linger.
-        await conn.execute("DELETE FROM price_daily WHERE symbol = $1 AND day >= $2 AND NOT (day = ANY($3::date[]))",
-                           symbol, rows[0][1], [r[1] for r in rows])
+        # Dates the provider no longer reports (bad ticks we dropped) must not linger: looked up first, deleted only when there are some (a delete on
+        # compressed days unpacks them even when it finds nothing).
+        gone = await conn.fetch("SELECT day FROM price_daily WHERE symbol = $1 AND day >= $2 AND NOT (day = ANY($3::date[]))",
+                                symbol, rows[0][1], [r[1] for r in rows])
+        if gone:
+            await conn.execute("DELETE FROM price_daily WHERE symbol = $1 AND day = ANY($2::date[])", symbol, [r["day"] for r in gone])
+        return int(written.split()[-1]) + len(gone)   # rows written (new or changed) and removed; 0 when the save changed nothing
 
     async def upsert_companies(self, rows: Iterable[dict]) -> int:
         records = [(str(r["symbol"]).upper(), r.get("name") or r["symbol"], r.get("nse_code"), r.get("bse_code"),
@@ -682,11 +926,24 @@ class Store:
         except Exception:
             pass
 
-    async def prune(self, keep_top: int, keep_viewed_days: int = 21, price_days: int = 500, feed_days: int = 400) -> Dict[str, int]:
+    PRUNE_CHUNK = 25                 # companies per delete: each chunk is its own short transaction
+    PRUNE_ROWS = 20_000              # rows per delete for the age-based clean-ups
+    PRUNE_STMT_S = 120               # time limit of one prune statement (the pool's default is 10 s, made for page requests)
+    PRUNE_BUDGET_S = 20 * 60         # no new batch after this long: the job's limit is 30 minutes; what is left goes the next night
+
+    async def prune(self, keep_top: int, keep_viewed_days: int = 21, price_days: int = 0, feed_days: int = 400,
+                    budget_s: Optional[float] = None) -> Dict[str, int]:
         """Keep the free database inside its storage limit: drop the stored reports and daily prices of companies outside the top `keep_top` that
         nobody opened in `keep_viewed_days` (they are rebuilt in seconds if someone asks again), daily prices older than `price_days`, old feed rows
         and the ingest log. A company's small score row stays (the screeners list and score every company); only scores of companies that left the
-        symbol list go. Returns how many rows went."""
+        symbol list go. Returns how many rows went, and `left` (companies still to drop) when the time budget ran out.
+
+        Deleted in small batches, each committed on its own with its own statement limit (16 to 18 Nov 2026: the reports of every company to drop went
+        in one statement inside one transaction; it hit the pool's 10-second statement limit, rolled back, and every night tried the same, ever larger
+        delete again: 15 failures in a row). The same rows go as before; a stopped run keeps what it removed and the next night continues."""
+        t0 = time.monotonic()
+        budget = self.PRUNE_BUDGET_S if budget_s is None else budget_s
+        over = lambda: time.monotonic() - t0 > budget   # noqa: E731
         cutoff = time.time() - keep_viewed_days * 86400
         try:
             recent = [m.decode() if isinstance(m, bytes) else m for m in await self.redis.zrangebyscore(VIEWED_KEY, cutoff, "+inf")]
@@ -694,32 +951,67 @@ class Store:
         except Exception:
             recent = []
         recent = list({*recent, *await self.pinned_symbols()})   # what members follow or opened lately stays, whatever its rank
-        out: Dict[str, int] = {}
+        out: Dict[str, int] = {"snapshots": 0, "companies": 0}
+        T = self.PRUNE_STMT_S
         async with self.pool.acquire() as conn:
             drop = [r["symbol"] for r in await conn.fetch(
                 f"WITH ranked AS ({self.RANKED}) "  # nosec B608 - fixed SQL
                 "SELECT DISTINCT s.symbol FROM snapshots s LEFT JOIN ranked r ON r.symbol = s.symbol "
-                "WHERE (r.rn IS NULL OR r.rn > $1) AND NOT (s.symbol = ANY($2::text[]))", keep_top, recent)]
-            async with conn.transaction():   # the heavy part goes (report sections, prices); the small score row stays, so the screeners keep every company scored
-                out["snapshots"] = int((await conn.execute("DELETE FROM snapshots WHERE symbol = ANY($1::text[])", drop)).split()[-1])
-                await conn.execute("DELETE FROM price_daily WHERE symbol = ANY($1::text[])", drop)
-            out["companies"] = len(drop)
+                "WHERE (r.rn IS NULL OR r.rn > $1) AND NOT (s.symbol = ANY($2::text[]))", keep_top, recent, timeout=T)]
+            done: List[str] = []
+            for i in range(0, len(drop), self.PRUNE_CHUNK):
+                if over():
+                    break
+                chunk = drop[i:i + self.PRUNE_CHUNK]
+                async with conn.transaction():   # per company the report and its prices go together; the small score row stays, so the screeners keep every company scored
+                    out["snapshots"] += int((await conn.execute("DELETE FROM snapshots WHERE symbol = ANY($1::text[])", chunk, timeout=T)).split()[-1])
+                    await conn.execute("DELETE FROM price_daily WHERE symbol = ANY($1::text[])", chunk, timeout=T)
+                done += chunk
+            out["companies"] = len(done)
+            if len(done) < len(drop):
+                out["left"] = len(drop) - len(done)
+
+            async def batched(table: str, where: str, *args: Any) -> int:
+                """Rows of `table` matching `where`, deleted PRUNE_ROWS at a time (each its own statement and commit) until none is left or time is up."""
+                n = 0
+                while not over():
+                    k = int((await conn.execute(
+                        f"DELETE FROM {table} WHERE ctid IN (SELECT ctid FROM {table} WHERE {where} LIMIT {self.PRUNE_ROWS})",  # nosec B608 - fixed table names and conditions
+                        *args, timeout=T)).split()[-1])
+                    n += k
+                    if k < self.PRUNE_ROWS:
+                        break
+                return n
             # scores of companies that are no longer in the symbol list (delisted or renamed)
-            out["orphan_scores"] = int((await conn.execute(
-                "DELETE FROM scores sc WHERE NOT EXISTS (SELECT 1 FROM companies c WHERE c.symbol = sc.symbol)")).split()[-1])
-            out["price_days"] = int((await conn.execute("DELETE FROM price_daily WHERE day < current_date - $1::int", price_days)).split()[-1])
-            out["feed"] = int((await conn.execute("DELETE FROM feed_items WHERE item_date < current_date - $1::int", feed_days)).split()[-1])
-            out["runs"] = int((await conn.execute("DELETE FROM ingest_runs WHERE started_at < now() - interval '30 days'")).split()[-1])
-            out["history"] = int((await conn.execute("DELETE FROM score_history WHERE day < current_date - 800")).split()[-1])
-            from .mfscore.scorehist import prune as prune_mf_score_history   # FinLit FundPulse history: three years
-            out["mf_score_history"] = await prune_mf_score_history(conn)
-        for sym in drop:
+            out["orphan_scores"] = await batched("scores", "NOT EXISTS (SELECT 1 FROM companies c WHERE c.symbol = scores.symbol)")
+            price_days = price_days or PRICE_DAYS
+            if getattr(self, "timescale", False):   # whole chunks older than the window: instant, and the only way for compressed days
+                out["price_days"] = 0 if over() else await self._drop_old_price_chunks(conn, price_days, T)
+            else:
+                out["price_days"] = await batched("price_daily", "day < current_date - $1::int", price_days)
+            # exchange candles: the readers look back at most candles.DEFAULT_DAYS (1150, the weekly bars of the chart patterns); older ones go
+            out["candle_days"] = await batched("daily_candles", "day < current_date - $1::int", CANDLE_DAYS)
+            out["feed"] = await batched("feed_items", "item_date < current_date - $1::int", feed_days)
+            out["runs"] = await batched("ingest_runs", "started_at < now() - interval '30 days'")
+            out["history"] = await batched("score_history", "day < current_date - 800")
+            from .mfscore.scorehist import prune as prune_mf_score_history   # Mutual Fund Score history: three years
+            out["mf_score_history"] = 0 if over() else await prune_mf_score_history(conn, timeout=T)
+            # accounts that never confirmed their email, older than 7 days and with nothing else on them: they cannot sign in and would hold their
+            # mobile for ever (one account per mobile, migration 138). A few rows a night, so it runs even when the time budget is spent; a failure
+            # here is logged and counted, and never fails the rest of the prune.
+            from .auth.service import prune_unverified_accounts
+            try:
+                out["unverified_accounts"] = await prune_unverified_accounts(conn, timeout=T)
+            except Exception:
+                log.exception("prune: removing never-confirmed accounts failed; the rest of the prune is kept")
+                out["unverified_accounts"], out["unverified_accounts_failed"] = 0, 1
+        for sym in done:
             for st in ("consolidated", "standalone"):
                 try:
                     await self.redis.delete(stock_key(sym, st), inputs_key(sym, st))
                 except Exception:
                     pass
-        if drop:
+        if done:
             await self.invalidate_search()
             await self.redis.delete(QUOTE_SYMBOLS_KEY)
         return out
@@ -731,7 +1023,7 @@ class Store:
         try:
             body, etag = await self.redis.hmget(key, [section, f"{section}:etag"])
         except aioredis.RedisError as exc:   # the cache is busy or down: read the stored copy instead
-            log.warning("redis read failed (%s): reading %s from Postgres", type(exc).__name__, key)
+            log.warning("redis read failed (%s): reading %s from Postgres", type(exc).__name__, _loggable(key))
             body = etag = None
         if body is not None and etag is not None:
             return body, etag.decode()
@@ -748,8 +1040,10 @@ class Store:
                     pipe.hset(key, mapping={section: body, f"{section}:etag": row["etag"].encode()})
                     pipe.expire(key, STOCK_TTL)
                     await pipe.execute()
-            except Exception:
-                pass
+            except aioredis.RedisError:
+                pass             # the cache is busy or down: the page is served from Postgres all the same
+            except Exception:    # never fail a read over the cache, but a fault that is not Redis's must be seen, not swallowed
+                log.exception("cache write-back of %s failed", _loggable(key))
         return body, row["etag"]
 
     async def get_etag(self, symbol: str, statement: str, section: str) -> Optional[str]:
@@ -763,7 +1057,9 @@ class Store:
         """Compact list for client-side search, pre-gzipped once (it is ~600 KB raw for ~5,700 stocks).
         Rows are [symbol, name, bse, ready], biggest company first; the NSE code is sent only when it differs from the symbol.
         Beside the rows, three parallel lists keep the payload small: `sectors` (distinct sector names, most companies first), `sec` (per row: index into
-        `sectors`, -1 when unknown) and `mc` (per row: market value in rupees crore rounded up, 0 when unknown) and `isin` (per row: ISIN, empty when not known)."""
+        `sectors`, -1 when unknown) and `mc` (per row: market value in rupees crore rounded up, 0 when unknown) and `isin` (per row: ISIN, empty when not known)
+        and `bseId` (per row: the BSE scrip ID, such as SPICY for BSE code 540084, from the exchange's scrip master; empty when it is the symbol or NSE
+        code already, or not known). A broker's holdings file names a BSE-only company by that ID, which no other field holds."""
         try:
             cached = await self.redis.hmget(SEARCH_KEY, ["body", "gzip", "etag"])
         except aioredis.RedisError as exc:
@@ -780,7 +1076,9 @@ class Store:
                           COALESCE((SELECT n.isin FROM dhan_instruments n WHERE n.exch = 'NSE' AND n.symbol = c.nse_code AND c.nse_code <> '' AND n.isin IS NOT NULL
                                      ORDER BY (n.series = 'EQ') DESC, n.series LIMIT 1),
                                    (SELECT b.isin FROM dhan_instruments b WHERE b.exch = 'BSE' AND b.security_id = c.bse_code AND c.bse_code <> '' AND b.isin IS NOT NULL LIMIT 1),
-                                   (SELECT min(d.isin) FROM disclosure_isin d WHERE d.symbol = c.symbol)) AS isin
+                                   (SELECT min(d.isin) FROM disclosure_isin d WHERE d.symbol = c.symbol)) AS isin,
+                          (SELECT b.symbol FROM dhan_instruments b WHERE b.exch = 'BSE' AND b.security_id = c.bse_code AND c.bse_code <> ''
+                            ORDER BY b.symbol LIMIT 1) AS bse_id
                    FROM companies c
                    LEFT JOIN listing_quotes l ON l.symbol = c.symbol
                    LEFT JOIN LATERAL (SELECT market_cap FROM scores WHERE symbol = c.symbol AND market_cap IS NOT NULL ORDER BY updated_at DESC LIMIT 1) x ON true
@@ -793,16 +1091,30 @@ class Store:
                 counts[r["sector"]] = counts.get(r["sector"], 0) + 1
         sectors = sorted(counts, key=lambda k: (-counts[k], k))      # code 0 = the sector with most companies
         code = {name: i for i, name in enumerate(sectors)}
-        out, sec, mc, isin = [], [], [], []
+        # task #336: each company's NSE industry (NSE's quote pages, the classification Sector Pulse groups by), as a table of names and a code per row
+        from .taxonomy import quote_pages
+        nse_ind = quote_pages()
+        ind_of = [nse_ind.get(str(r["symbol"]).upper()) or nse_ind.get(str(r["nse_code"] or "").upper()) for r in rows]
+        icount: dict = {}
+        for v in ind_of:
+            if v:
+                icount[v] = icount.get(v, 0) + 1
+        industries = sorted(icount, key=lambda k: (-icount[k], k))
+        icode = {name: i for i, name in enumerate(industries)}
+        ind = [icode.get(v, -1) if v else -1 for v in ind_of]     # -1: industry not known
+        out, sec, mc, isin, bse_id = [], [], [], [], []
         for r in rows:
-            isin.append(r["isin"] or "")      # the current ISIN: the exchanges' (NSE, else BSE), else the funds' disclosure files ("" when none knows it); task #128
+            isin.append(r["isin"] or "")
+            bid = (r["bse_id"] or "").strip().upper()
+            bse_id.append(bid if bid and bid not in (r["symbol"], r["nse_code"], r["bse_code"]) else "")   # only when it adds a name the row lacks      # the current ISIN: the exchanges' (NSE, else BSE), else the funds' disclosure files ("" when none knows it); task #128
             row = [r["symbol"], r["name"], r["bse_code"], int(r["ready"])]
             if r["nse_code"] and r["nse_code"] != r["symbol"]:
                 row.append(r["nse_code"])
             out.append(row)
             sec.append(code.get(r["sector"], -1))                       # -1: sector not known
             mc.append(int(math.ceil(r["mcap"])) if r["mcap"] and r["mcap"] > 0 else 0)   # market value in rupees crore, rounded up (every band edge is a whole number, so the band is unchanged); 0: not known
-        body = dumps({"fields": ["symbol", "name", "bse", "ready", "nse"], "rows": out, "sectors": sectors, "sec": sec, "mc": mc, "isin": isin})
+        body = dumps({"fields": ["symbol", "name", "bse", "ready", "nse"], "rows": out, "sectors": sectors, "sec": sec, "mc": mc, "isin": isin, "bseId": bse_id,
+                      "industries": industries, "ind": ind})
         packed = gzip.compress(body, compresslevel=9, mtime=0)
         etag = etag_for(body)
         try:
@@ -816,13 +1128,15 @@ class Store:
         await self.redis.delete(SEARCH_KEY)
 
     async def peer_rows(self, symbols: List[str], model: str = "v1") -> List[dict]:
-        """Name, sector and (if already scored) score and price for each peer, in the given order."""
+        """Name, NSE industry and basic industry (task #192: the old `sector` field held FinEdge's mixed column, mostly basic industries) and, if
+        already scored, score and price for each peer, in the given order."""
         if not symbols:
             return []
         async with self.pool.acquire() as conn:
             rows = await conn.fetch(
-                """SELECT c.symbol, c.name, c.sector, s.overall, s.band, s.price, s.market_cap, s.pe, s.roe
+                """SELECT c.symbol, c.name, k.industry, k.basic_industry, s.overall, s.band, s.price, s.market_cap, s.pe, s.roe
                    FROM companies c
+                   LEFT JOIN company_classification k ON k.symbol = c.symbol
                    LEFT JOIN LATERAL (SELECT * FROM scores WHERE symbol = c.symbol AND model = $2
                                       ORDER BY updated_at DESC LIMIT 1) s ON true
                    WHERE c.symbol = ANY($1::text[])""", symbols, model)

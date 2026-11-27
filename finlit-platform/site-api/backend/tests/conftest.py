@@ -116,3 +116,12 @@ def asgi_request(app, method, path, payload=None, headers=None):
         except json.JSONDecodeError:
             response_data = {"_non_json": True, "text": response_text}
     return response["status"], response_data
+
+
+@pytest.fixture(autouse=True)
+def _strict_technical_view(request, monkeypatch):
+    """Task #247: a short history is scored by finlit_technicals.young in a separate Python (the research API's, with pandas). Tests are about one
+    path at a time: the strict view unless a test is marked `young`, so the result never depends on whether that Python is installed."""
+    if request.node.get_closest_marker("young") is None:
+        from backend import premium_technical
+        monkeypatch.setattr(premium_technical, "young_assessment", lambda *a, **k: None)

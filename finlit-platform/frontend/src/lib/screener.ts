@@ -12,13 +12,17 @@ export type PrismFields = {
 export type PrismCoverage = { rated: number; provisional: number; not_rated: number; stored: number; total: number; as_of?: string | null; per_night?: number };
 export type Row = PrismFields & {
   symbol: string; name: string | null; sector: string | null; sample?: boolean; scored?: boolean;
+  /** NSE's sector (12) and industry (59), as the Stock screener files a company; null when it is in neither list. */ nse_sector?: string | null; nse_industry?: string | null;
+  /** Task #258 (SHARED §1): NSE's macro sector (12), sector (22) and industry (59) from the stored classification; null when not classified. */ cls_macro?: string | null; cls_sector?: string | null; cls_industry?: string | null;
   overall: number | null; band: string | null;
   pillar_quality: number | null; pillar_growth: number | null; pillar_profitability: number | null; pillar_balance: number | null; pillar_technical: number | null;
   price: number | null; market_cap: number | null; pe: number | null; pb: number | null; roe: number | null; roce: number | null;
   dividend_yield: number | null; debt_to_equity: number | null; sales_cagr: number | null; profit_cagr: number | null;
   operating_margin: number | null; change_pct: number | null; return_1m: number | null; return_1y: number | null;
 };
-export type NumKey = Exclude<keyof Row, "symbol" | "name" | "sector" | "sample" | "band" | "scored" | keyof PrismFields>;
+/** Fields of the retired overall score that the universe still carries until the data change (task #283): never a filter, a column or a quick screen. */
+export type RetiredKey = "overall" | "pillar_quality" | "pillar_growth" | "pillar_profitability" | "pillar_balance" | "pillar_technical";
+export type NumKey = Exclude<keyof Row, "symbol" | "name" | "sector" | "nse_sector" | "nse_industry" | "cls_macro" | "cls_sector" | "cls_industry" | "sample" | "band" | "scored" | RetiredKey | keyof PrismFields>;
 
 export function useUniverse(enabled = true) {
   return useQuery({
@@ -50,12 +54,6 @@ export const METRICS: Record<NumKey, Metric> = {
   sales_cagr: { key: "sales_cagr", label: "Sales growth (5Y a year)", short: "Sales CAGR", unit: "%", better: "higher", say: "How fast sales have grown each year over five years.", digits: 1 },
   profit_cagr: { key: "profit_cagr", label: "Profit growth (5Y a year)", short: "Profit CAGR", unit: "%", better: "higher", say: "How fast profit has grown each year over five years.", digits: 1 },
   debt_to_equity: { key: "debt_to_equity", label: "Debt to equity", short: "Debt/Equity", unit: "x", better: "lower", say: "Rupees owed for every rupee of owners' money.", digits: 2 },
-  overall: { key: "overall", label: "FinLit IQ", short: "Score", unit: "pts", better: "higher", say: "Average of the five FinLit pillars, out of 100.", model: true, digits: 0 },
-  pillar_quality: { key: "pillar_quality", label: "Quality pillar", short: "Quality", unit: "pts", better: "higher", say: "Return on money and how well profit turns into cash.", model: true, digits: 0 },
-  pillar_growth: { key: "pillar_growth", label: "Growth pillar", short: "Growth", unit: "pts", better: "higher", say: "Sales and profit growth over the years.", model: true, digits: 0 },
-  pillar_profitability: { key: "pillar_profitability", label: "Profitability pillar", short: "Profit", unit: "pts", better: "higher", say: "Margins and returns on money.", model: true, digits: 0 },
-  pillar_balance: { key: "pillar_balance", label: "Balance sheet pillar", short: "Balance", unit: "pts", better: "higher", say: "Debt, liquidity and interest cover.", model: true, digits: 0 },
-  pillar_technical: { key: "pillar_technical", label: "Technical pillar", short: "Technical", unit: "pts", better: "higher", say: "Price trend and momentum.", model: true, digits: 0 },
 };
 
 export function fmt(m: Metric, v: number | null | undefined): string {
@@ -70,8 +68,6 @@ export function fmt(m: Metric, v: number | null | undefined): string {
   }
 }
 
-export const BAND_LABEL: Record<string, string> = { strong: "Strong", healthy: "Healthy", mixed: "Mixed", watch: "Watch" };
-
 /* ---------------- filter catalogue ---------------- */
 export type FilterDef = { key: NumKey; group: string; step?: number; hint?: string };
 export type Group = { id: string; label: string; model?: boolean; filters: FilterDef[] };
@@ -82,7 +78,6 @@ export const GROUPS: Group[] = [
   { id: "profit", label: "Profitability", filters: [{ key: "roe", group: "profit", step: 1, hint: "%" }, { key: "roce", group: "profit", step: 1, hint: "%" }, { key: "operating_margin", group: "profit", step: 1, hint: "%" }] },
   { id: "growth", label: "Growth", filters: [{ key: "sales_cagr", group: "growth", step: 1, hint: "%" }, { key: "profit_cagr", group: "growth", step: 1, hint: "%" }] },
   { id: "health", label: "Financial Health", filters: [{ key: "debt_to_equity", group: "health", step: 0.1, hint: "×" }] },
-  { id: "model", label: "FinLit model", model: true, filters: (["overall", "pillar_quality", "pillar_growth", "pillar_profitability", "pillar_balance", "pillar_technical"] as NumKey[]).map((key) => ({ key, group: "model", step: 5, hint: "0–100" })) },
   { id: "sector", label: "Sector", filters: [] },
 ];
 
@@ -114,10 +109,6 @@ export const QUICK: Quick[] = [
   { id: "div", label: "Dividend payers", says: "Dividend yield above 2%", state: q({ dividend_yield: { min: 2 } }) },
   { id: "value", label: "Value picks", says: "P/E under 15× and P/B under 2×", state: q({ pe: { max: 15 }, pb: { max: 2 } }) },
   { id: "roe", label: "High return on equity", says: "ROE above 15%", state: q({ roe: { min: 15 } }) },
-  { id: "strong", label: "FinLit Strong", says: "FinLit IQ of 78 or more", model: true, state: q({ overall: { min: 78 } }) },
-  { id: "compounders", label: "Quality compounders", says: "Quality 70+ and Growth 60+", model: true, state: q({ pillar_quality: { min: 70 }, pillar_growth: { min: 60 } }) },
-  { id: "safe", label: "Safe and profitable", says: "Balance sheet 70+ and Profitability 60+", model: true, state: q({ pillar_balance: { min: 70 }, pillar_profitability: { min: 60 } }) },
-  { id: "oversold", label: "Sound but out of favour", says: "Quality 55+ with Technical 35 or less", model: true, state: q({ pillar_quality: { min: 55 }, pillar_technical: { max: 35 } }) },
 ];
 
 /* ---------------- distribution helpers (how a company sits against every other company) ---------------- */

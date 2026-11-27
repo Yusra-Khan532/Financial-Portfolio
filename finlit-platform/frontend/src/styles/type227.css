@@ -1,0 +1,16 @@
+/* Task #227 (18 Nov 2026, the team's reference pictures): typography and text visibility, the same on every page.
+   The colours live in site-green.css (dark: cream, sage grey, lighter sage on a deep green) and the sizes in typescale.css (no page text under 12px).
+   This file holds the few rules that apply to every page and have no other home:
+   - section and card titles (h3) are serif like the page and section titles (h1, h2; calm.css), at weight 600. :where() keeps this at the lowest
+     weight, so an h3 that sets its own face (the small uppercase labels set in the sans face on purpose) keeps it;
+   - placeholder text in every field reads at the quiet text colour at full strength (browsers dim it by default, to about 2.5:1 on the green);
+   - headings sit a little tighter and wrap in balanced lines (body text keeps the 1.6 line height finlit.css gives it). */
+:where(main) h3 { font: var(--ui-fw-semibold) var(--ui-fs-h3)/var(--lh-16) var(--font-sans); }
+:where(main) :is(h1, h2) { letter-spacing: -.01em; }
+:where(main) :is(h1, h2, h3) { text-wrap: balance; }
+::placeholder { color: var(--faint); opacity: 1; }
+/* Text on a solid gold fill (selected chips, tabs, badges). In light mode the gold is dark (#7A5B16), so the near-black --on-gold read at 2.9:1;
+   cream reads at 6.4:1. The dark blocks that keep a light gold in light mode (bands, the Prism report, the plan and compare cards) keep the dark ink;
+   the hero bands set their own (luxe.css). */
+:root[data-theme="light"] { --on-gold: #FFFDF7; }
+:root[data-theme="light"] :is(.band:not(.hero):not(.plans), .report, .plan, .cmp) { --on-gold: #1A1405; }

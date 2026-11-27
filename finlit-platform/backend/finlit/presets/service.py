@@ -13,7 +13,7 @@ import orjson
 from .. import prism_screen
 from ..prism_candles import expected_session
 from ..screener.data import get_table
-from . import derive, engine, history as hist_mod, industry as ind_mod, patterns as pat_mod, theme_map, themes
+from . import derive, engine, history as hist_mod, industry as ind_mod, listday, patterns as pat_mod, sectorread, theme_map, themes
 from .registry import ALL, REGISTRY_VERSION, Preset
 
 log = logging.getLogger("finlit.presets")
@@ -36,10 +36,30 @@ def nse_industries() -> Dict[str, str]:
     return _NSE
 
 
+async def _record_labels(store, reading) -> Optional[Dict[str, Optional[str]]]:
+    """symbol -> the weekly record's label in words, for the companies of the sector reading; None when the record has no rows yet (the sector
+    build's labels then stay) or cannot be read. Read after the weekly run has committed: the record only ever holds whole runs."""
+    if not reading or not reading.get("by"):
+        return None
+    try:
+        from .. import peerlabels
+        async with store.pool.acquire() as conn:
+            if not await peerlabels.has_rows(conn):
+                return None
+            return await peerlabels.label_words(conn, list(reading["by"]))
+    except Exception:
+        log.warning("the weekly peer-label record was not read for the sector screens; the sector build's labels are used tonight", exc_info=True)
+        return None
+
+
 async def build_frame(store, persist: bool = False, now: Optional[datetime] = None) -> engine.Frame:
     now = now or datetime.now(timezone.utc)
-    as_of = expected_session(now)
+    expected = expected_session(now)
     table = await get_table(store)
+    # Task #394 (developer file 37, F3): the lists are dated by the last trading session in the exchange candles they are built on, never by the
+    # weekday rule alone (24 Nov 2026, Guru Nanak Jayanti, an NSE holiday, was the date of every list); each company's close of that day comes with it
+    market = await listday.load(store, table.symbols, expected)
+    as_of = market.day or expected
     prism = prism_screen.cards(await store.prism_cards(None))
     async with store.pool.acquire() as conn:
         overrides = {r["symbol"]: r["industry"] for r in await conn.fetch("SELECT symbol, industry FROM industry_override")}
@@ -48,6 +68,12 @@ async def build_frame(store, persist: bool = False, now: Optional[datetime] = No
             "SELECT as_of, industry, b50, b200, rs3, in_play FROM industry_breadth_daily WHERE as_of < $1 AND as_of IN "
             "(SELECT DISTINCT as_of FROM industry_breadth_daily WHERE as_of < $1 ORDER BY as_of DESC LIMIT $2)", as_of, themes.KEEP_SESSIONS)]
     history_days = await _rating_changes(store, prism, as_of)
+    await _score_moves(store, prism, as_of)
+    for sym, f in (await _recent_results(store, as_of)).items():
+        prism.setdefault(sym, {}).update(f)
+    reading = sectorread.load()          # task #243 (pack v4): the Sector reading, from the live Sector Pulse and Rotation release (the job runs on weekend nights)
+    sectorread.apply_labels(reading, await _record_labels(store, reading))   # task #409: the peer label from the weekly record, as on every page
+    sectorread.mark(prism, reading)
     clean = ind_mod.derive(zip(table.symbols, table.industry), overrides)
     nse = nse_industries()
     industry = {s: nse[s] for s in table.symbols if s in nse}      # NSE industry, one level (task 64, fix 6); the site's own cleaned label is still stored in industry_clean
@@ -55,7 +81,9 @@ async def build_frame(store, persist: bool = False, now: Optional[datetime] = No
     pos = table.pos
     ev = themes.evaluate(table, themes.by_nse_industry(table, industry), themes.history_from_rows(hist_rows))      # grouped by the 58 NSE industries (fix 6)
     fr = engine.Frame(table, prism, as_of, tags, industry, ev, listed=listed)
+    fr.market = market
     fr.history_days = history_days
+    fr.sector_dates = {"sectors": (reading or {}).get("date"), "rotation": (reading or {}).get("rotationDate")}
     fr.patterns = await pat_mod.load(store)          # the nightly chart-pattern run (None until the first one has been made)
     if persist:
         await _persist(store, fr, clean, ev, pos)
@@ -92,6 +120,83 @@ async def _rating_changes(store, prism: Dict[str, dict], as_of: date) -> int:
         z["prism_band_up"] = 1 if band_of(float(r["f1"])) > band_of(float(r["f0"])) else 0
         span = max(span, int(r["span"]))
     return span
+
+
+# ---- task #243 (pack R5): the score-history screens. Each company's score today against its earliest score on file in the last MOVE_DAYS days, of the SAME scoring
+# model (a new model can move many scores at once; pack R5 "Model changes"). Change = today's score - the score before, on every row.
+MOVE_DAYS = 30
+BAND_NAMES = {4: "Strong", 3: "Healthy", 2: "Average", 1: "Weak", 0: "Poor"}           # Prism ratings (BANDS above)
+# Task #283: FinLit Prism is the only company score; the retired score's moves (the Basic tab's upgrade and downgrade screens) are no longer worked out.
+
+
+def move_fields(prefix: str, now: Optional[float], before: Optional[float], day, band, names) -> Dict[str, object]:
+    """The before / change fields of one company. None when either score is missing: the company then fails the screen's rule, it is never guessed."""
+    if now is None or before is None or now != now or before != before:
+        return {}
+    b0, b1 = band(float(before)), band(float(now))
+    return {f"{prefix}_before": round(float(before), 1), f"{prefix}_before_{'rating' if prefix == 'prism' else 'band'}": names[b0],
+            f"{prefix}_before_day": day.isoformat() if hasattr(day, "isoformat") else str(day), f"{prefix}_change": round(float(now) - float(before), 1),
+            f"{prefix}_band_up": 1.0 if b1 > b0 else 0.0, f"{prefix}_band_down": 1.0 if b1 < b0 else 0.0}
+
+
+async def _score_moves(store, prism: Dict[str, dict], as_of: date) -> None:
+    """Prism: today's score is the card's; the score before is the earliest daily row of the same model_version as the newest row, looking back MOVE_DAYS days."""
+    try:
+        async with store.pool.acquire() as conn:
+            prows = await conn.fetch(
+                """WITH d AS (SELECT DISTINCT ON (symbol, day) symbol, day, final, model_version FROM prism_history WHERE final IS NOT NULL AND day >= $1::date - $2::int
+                              ORDER BY symbol, day, (statement = 'consolidated') DESC),
+                        b AS (SELECT DISTINCT ON (symbol) symbol, day, model_version FROM d ORDER BY symbol, day DESC),
+                        a AS (SELECT DISTINCT ON (d.symbol) d.symbol, d.day, d.final FROM d JOIN b ON b.symbol = d.symbol AND d.model_version IS NOT DISTINCT FROM b.model_version
+                              ORDER BY d.symbol, d.day ASC)
+                   SELECT a.symbol, a.day, a.final FROM a JOIN b USING (symbol) WHERE b.day > a.day""", as_of, MOVE_DAYS)
+    except Exception:
+        log.warning("the Prism history was not read: the before / change fields stay blank", exc_info=True)
+        return
+    for r in prows:
+        z = prism.get(r["symbol"])
+        if z is not None:
+            z.update(move_fields("prism", z.get("prism_final"), r["final"], r["day"], band_of, BAND_NAMES))
+
+
+# ---- task #243 (pack v4): the results screens read the Latest results page (finlit/results.py): the companies that declared, with numbers, in the RESULTS_DAYS days
+# up to the list's date, with that page's verdict (Strong, Good, In line, Weak, Poor, Loss).
+RESULTS_DAYS = 7
+VERDICT_RANK = {"Strong": 5, "Good": 4, "In line": 3, "Weak": 2, "Poor": 1, "Loss": 0}
+
+
+def results_fields(rows: List[dict], as_of: date, days: int = RESULTS_DAYS) -> Dict[str, Dict[str, object]]:
+    """symbol -> res_* fields for the companies that declared from as_of - days to as_of with numbers loaded. A company with no verdict keeps res_rank blank."""
+    lo = as_of.toordinal() - days
+    out: Dict[str, Dict[str, object]] = {}
+    for r in rows:
+        try:
+            d = date.fromisoformat(str(r.get("date"))[:10])
+        except ValueError:
+            continue
+        if not r.get("hasNumbers") or not (lo <= d.toordinal() <= as_of.toordinal()):
+            continue
+        prev = out.get(r["symbol"])
+        if prev is not None and str(prev["res_declared"]) >= d.isoformat():
+            continue
+        v = r.get("verdict")
+        out[r["symbol"]] = {"res_fresh": 1.0, "res_declared": d.isoformat(), "res_declared_n": float(d.toordinal()), "res_verdict": v, "res_rank": VERDICT_RANK.get(v or ""),
+                            "res_sales_yoy": r.get("revenueYoY"), "res_profit_yoy": r.get("profitYoY"), "res_npm_change": r.get("npmChange")}
+    return out
+
+
+async def _recent_results(store, as_of: date) -> Dict[str, Dict[str, object]]:
+    try:
+        from .. import results as res_mod
+        decls = await res_mod.get_declarations(store)
+        keys = [q["key"] for q in res_mod.list_quarters(decls, as_of) if q["declared"] > 0][:2]      # a season can close one quarter while the next starts
+        rows: List[dict] = []
+        for k in keys:
+            rows += (await res_mod.get_entry(store, k)).rows
+        return results_fields(rows, as_of)
+    except Exception:
+        log.warning("latest results not read: the results screens stay empty tonight", exc_info=True)
+        return {}
 
 
 async def _persist(store, fr, clean, ev, pos) -> None:
@@ -254,6 +359,7 @@ async def refresh_presets(store, settings=None) -> dict:
             await pat_mod.save(store, found, previous)
             fr.patterns = found
             pattern_note = {"patternsAsOf": day.isoformat(), "patternsChecked": found["checked"], "patternHits": {k: len(v) for k, v in found["scans"].items()}, "patternsLeftOut": len(found["left_out"]),
+                            "patternsRuleOff": len(found.get("rule_off") or []),
                             "patternsSuspended": found.get("suspended", 0), "patternCoverage": round(cov["ratio"], 4), **topped}
     except Exception as exc:
         log.exception("chart-pattern scans failed; the last saved run stays in use")
@@ -274,7 +380,9 @@ async def refresh_presets(store, settings=None) -> dict:
                 failed.append(f"{p.id}:{type(exc).__name__}")
     history_note: dict = {}
     try:        # its own guard again: the history of the lists never stops the lists
+        dropped = await hist_mod.drop_off_session_lists(store, getattr(fr, "market", None))   # task #394: a list saved for a holiday is never the "Latest"
         history_note = await hist_mod.record(store, fr, kept)
+        history_note.update(dropped)
         history_note.update(await hist_mod.repair_closes(store))
         bench = await hist_mod._bench(store, fr.as_of)
         history_note.update(await hist_mod.gainers(store, fr, bench))
@@ -283,7 +391,9 @@ async def refresh_presets(store, settings=None) -> dict:
         history_note = {"historyError": type(exc).__name__}
     async with store.pool.acquire() as conn:
         await conn.execute("DELETE FROM preset_results WHERE registry <> $1", REGISTRY_VERSION)
-    summary = {"asOf": fr.as_of.isoformat(), "results": done, "failed": failed, "themeTagged": len(fr.tags), "themeLabelsUnmatched": theme_map.unmatched_labels(fr.t.sector_label),
+    if fr.not_traded_off:        # F8: the companies left off a list for no trade in the last five sessions, counted here and named in the log
+        log.info("ready-made lists: %d companies left off for no trade in the last %d sessions: %s", len(fr.not_traded_off), listday.NO_TRADE_SESSIONS, sorted(fr.not_traded_off)[:50])
+    summary = {"asOf": fr.as_of.isoformat(), "listDayFromCandles": fr.market.day is not None, "coverage": fr.market.loaded, "busiest": fr.market.busiest, "notTradedLeftOff": len(fr.not_traded_off), "results": done, "failed": failed, "themeTagged": len(fr.tags), "themeLabelsUnmatched": theme_map.unmatched_labels(fr.t.sector_label),
             "benchReady": bench_ready, "momentum": len(fr.momentum), "growth": len(fr.growth), "inPlay": len(fr.theme_eval.in_play) if fr.theme_eval else 0, **pattern_note, **history_note}
     try:        # the night's summary (counts and notes only) for the self-check page: why a pattern run was held, how many companies were left out, ...
         async with store.pool.acquire() as conn:

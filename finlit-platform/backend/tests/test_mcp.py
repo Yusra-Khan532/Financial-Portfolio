@@ -374,7 +374,8 @@ async def test_price_history_equals_the_price_routes(app):  # noqa: F811
         rows = got["data"]["prices"]
         s = p["series"]
         assert [r["close"] for r in rows] == s["c"][-len(rows):] and [r["date"] for r in rows] == s["t"][-len(rows):] and [r["volume"] for r in rows] == s["v"][-len(rows):]
-        assert rows[-1]["close"] == 1184.0 and got["asOf"] == s["t"][-1] == got["data"]["to"] and got["data"]["interval"] == "daily"
+        # the last official close (28 Sep); the 29 Sep live quote (1,184.00) is never a candle of the stored chart (task #394 F2)
+        assert rows[-1]["close"] == 1198.5 and rows[-1]["date"] == "2026-09-28" and not p["provisionalLastBar"] and got["asOf"] == s["t"][-1] == got["data"]["to"] and got["data"]["interval"] == "daily"
         assert (date.fromisoformat(s["t"][-1]) - date.fromisoformat(rows[0]["date"])).days <= 30
         wk = (await ok(c, "get_price_history", {"symbol": "RELIANCE", "days": 30, "interval": "weekly"}))["data"]["prices"]
         assert len(wk) < len(rows) and wk[-1]["close"] == rows[-1]["close"] and sum(r["volume"] for r in wk) == sum(r["volume"] for r in rows)
@@ -386,24 +387,26 @@ async def test_price_history_equals_the_price_routes(app):  # noqa: F811
 
 
 async def test_score_only_where_the_website_shows_it(app):  # noqa: F811
+    """Task #283 PR C: the score is FinLit Prism, FinLit's only company score (the FinLit IQ is retired): the free showcase company's Prism for a
+    visitor, and for any other company the message that it needs a plan with FinLit Prism. Nothing of the retired score is ever returned."""
+    from test_ask import store_prism
+    await store_prism(app)
     async with app.state.store.pool.acquire() as conn:
         await conn.execute("DELETE FROM snapshots WHERE symbol = 'LOCKEDCO'")
         await conn.execute("INSERT INTO snapshots (symbol, statement, section, body, etag, generated_at) SELECT 'LOCKEDCO', statement, section, body, etag, generated_at FROM snapshots WHERE symbol = 'RELIANCE'")
     try:
         async with new_client(app) as c:
-            s = await site(c, "/api/stocks/RELIANCE")
             sc = (await ok(c, "get_finlit_score", {"symbol": "RELIANCE"}))["data"]
-            assert sc["locked"] is False and sc["score"]["overall"] == s["score"]["overall"] == 51 and sc["score"]["band"] == s["score"]["band"]
-            assert [(p["key"], p["score"]) for p in sc["score"]["pillars"]] == [(p["key"], p["score"]) for p in s["score"]["pillars"]]
+            assert sc["locked"] is False and sc["score"]["name"] == "FinLit Prism" and sc["score"]["final"] == 85.4 and sc["score"]["label"] == "Strong"
             locked = await ok(c, "get_finlit_score", {"symbol": "LOCKEDCO"})
-            site_view = await site(c, "/api/stocks/LOCKEDCO")
-            assert site_view["score"]["overall"] is None and locked["data"]["locked"] is True and locked["data"]["score"] is None
-            assert "Silver" in locked["data"]["message"]
-            text = json.dumps(locked)
-            assert str(s["score"]["overall"]) + "," not in text and "thesis" not in text and "pillars" not in text      # nothing leaks
+            assert locked["data"]["locked"] is True and locked["data"]["score"] is None and "plan with FinLit Prism" in locked["data"]["message"]
+            for out in (sc, locked):
+                text = json.dumps(out)
+                assert "overall" not in text and "pillars" not in text and "thesis" not in text and "FinLit IQ" not in text and "Silver" not in text
     finally:
         async with app.state.store.pool.acquire() as conn:
             await conn.execute("DELETE FROM snapshots WHERE symbol = 'LOCKEDCO'")
+            await conn.execute("DELETE FROM prism_reports WHERE symbol = 'RELIANCE'")
 
 
 async def test_search_stocks(app):  # noqa: F811
@@ -442,7 +445,7 @@ async def test_quarter_results_and_calendar_equal_the_results_route(app, seeded)
         d = got["data"]
         assert d["quarter"] == q and d["total"] == route["total"] and [r["symbol"] for r in d["rows"]] == [r["symbol"] for r in route["rows"]]
         assert [r["date"] for r in d["rows"]] == [r["date"] for r in route["rows"]] and d["summary"]["declared"] == route["summary"]["declared"]
-        assert all(r["revenue"] is None and r["netProfit"] is None for r in d["rows"]) and any("Silver" in n for n in got["notes"])   # withheld, as for a visitor
+        assert all(r["revenue"] is None and r["netProfit"] is None for r in d["rows"]) and any("paid-plan" in n for n in got["notes"])   # withheld, as for a visitor
         assert (await ok(c, "get_quarter_results", {"quarter": q, "limit": 1}))["data"]["returned"] == 1
         one_day = await ok(c, "get_quarter_results", {"date": seeded["when"].isoformat()}) if seeded["when"] <= date.today() else None
         if one_day:

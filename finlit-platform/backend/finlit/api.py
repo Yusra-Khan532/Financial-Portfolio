@@ -19,7 +19,7 @@ from contextlib import asynccontextmanager
 from typing import Optional
 
 import orjson
-from fastapi import FastAPI, Query, Request
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse, Response
@@ -31,6 +31,7 @@ from . import alertapi, commodities, feedback, indices, intraday, leadership_api
 from .aliases import SYMBOL_ALIASES
 from . import results as results_api
 from . import prism_screen
+from . import isin as isin_mod
 from .screener import api as screener_api
 from .screener import qapi as screener_qapi
 from .advanced import api as advanced_api
@@ -45,9 +46,11 @@ from .mfscore import admin as mf_score_admin
 from . import graphviews as graphviews_api
 from . import forum as forum_api
 from . import page_feedback as page_feedback_api
+from . import ai_feedback as ai_feedback_api   # task #366
 from . import dcf as dcf_api
 from . import logos as logos_api
 from . import amfi_import as amfi_import_api
+from . import fund_files as fund_files_api
 from . import search as search_api
 from . import ext_api
 from . import macro as macro_api
@@ -58,7 +61,7 @@ from . import fundjobs, sysctl, wake
 from . import options as options_api
 from .auth import routes as auth_routes
 from .mcp import server as mcp_server
-from .auth.entitlements import has, redact_section, redact_universe, varies_by_plan, sees_all
+from .auth.entitlements import RETIRED_SECTIONS, has, redact_section, redact_universe, strip_retired_score, varies_by_plan, sees_all
 from .auth.mailer import ConsoleMailer, ResendMailer
 from .auth.service import cookie_name, current
 from .modelguard import ModelGuardMiddleware
@@ -67,7 +70,7 @@ from .siteproxy import register_catch_all, register_stock_admin
 from .web import mount_frontend
 from .security import RateLimiter, SecurityHeadersMiddleware, client_ip
 from .finedge import ESSENTIAL_KEYS
-from .snapshot import PRICE_RANGES, SECTIONS, SNAPSHOT_VERSION
+from .snapshot import PRICE_SECTIONS, SECTIONS, SNAPSHOT_VERSION
 from .store import Store, code_version, refused_key
 from .background import etag_matches, spawn
 
@@ -76,12 +79,20 @@ CACHE_STOCK = "public, max-age=60, stale-while-revalidate=600"
 CACHE_INDEX = "public, max-age=300, stale-while-revalidate=86400"
 PUBLIC_SECTIONS = set(SECTIONS) - {"price"}  # full daily history only via ranges
 UNLIMITED_PATHS = ("/api/health", "/api/ping")
+# Task #283 PR C: what a retired route answers (410): FinLit Prism is FinLit's only company score.
+RETIRED_SCORE = {"status": "retired", "detail": "This score has been retired. FinLit Prism is FinLit's only company score.", "see": "/api/prism/history"}
 LIMITED_PREFIX = "/api/"   # website files (scripts, styles, images) are not counted: one page load fetches dozens, and many mobile users share one IP
 MAX_BODY = 64 * 1024  # every request body in this API is small JSON
 UPLOAD_PREFIXES = ("/api/content/admin/upload", "/api/portfolio/admin/upload")  # forwarded to the site backend, which caps files at 15 MB
 MAX_UPLOAD_BODY = 16 * 1024 * 1024
 IMPORT_PREFIX = "/api/me/mf-portfolio/import-"   # a member's fund statement, read in the browser and sent as rows (up to 2,000 of them)
 MAX_IMPORT_BODY = 2 * 1024 * 1024
+# Task #281 round 7: an administrator's file uploads (AMFI's TER workbook, a fund house's monthly portfolio file) are sent as base64 inside JSON. Only a POST
+# that carries a session cookie gets the room; the routes themselves are admin-only (admin_ctx) and check the file's type from its bytes.
+ADMIN_FILE_PREFIXES = ("/api/admin/amfi/", "/api/admin/fund-files")
+MAX_ADMIN_FILE_BODY = 36 * 1024 * 1024
+LOGO_MANUAL_PATH = "/api/logos/admin/manual"
+MAX_LOGO_BODY = 192 * 1024   # logos.ManualLogoIn: a file of at most 128 KB, as base64 in JSON
 CACHE_PRIVATE = "private, no-cache"  # the browser keeps a copy but asks (cheap 304) every time, so a new plan shows at once
 
 
@@ -128,6 +139,10 @@ class BodyLimitMiddleware:
         declared = headers.get(b"content-length")
         upload = scope.get("path", "").startswith(UPLOAD_PREFIXES) and headers.get(b"authorization", b"").strip().lower().startswith(b"bearer ")
         limit = MAX_UPLOAD_BODY if upload else MAX_IMPORT_BODY if scope.get("path", "").startswith(IMPORT_PREFIX) and scope["method"] == "POST" else self.limit   # the large allowance only for a request that carries a CMS token, or a member's fund-statement rows (the route needs a signed-in session and rate limits)
+        if scope["method"] == "POST" and scope.get("path", "").startswith(ADMIN_FILE_PREFIXES) and headers.get(b"cookie"):
+            limit = MAX_ADMIN_FILE_BODY
+        elif scope["method"] == "POST" and scope.get("path", "") == LOGO_MANUAL_PATH and headers.get(b"cookie"):
+            limit = MAX_LOGO_BODY   # an administrator's hand-set logo: a 128 KB image is about 175 KB as base64, over the 64 KB JSON cap
         too_big = JSONResponse({"status": "too_large", "detail": "Request is too large."}, status_code=413,
                                headers={"Cache-Control": "no-store"})
         if declared and declared.isdigit() and int(declared) > limit:
@@ -213,12 +228,33 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
             try:
                 if await leadership_api.public_now(app.state.store):
                     async with app.state.store.pool.acquire() as conn:
-                        lead = {x["symbol"]: x for x in await conn.fetch("SELECT symbol, label, rank, ranked, group_short FROM leadership WHERE label IS NOT NULL")}
+                        lead = {x["symbol"]: dict(x) for x in await conn.fetch(   # task #409: the weekly record's label (written into leadership), never replaced on read
+                        "SELECT symbol, label, raw_label, rel52, rank, ranked, group_short FROM leadership WHERE label IS NOT NULL")}
             except Exception:
                 logging.getLogger("finlit.api").exception("screener universe: leadership labels not read")
+        nse: dict = {}
+        try:      # task #64, 14 Nov N-28 / N-34: NSE's sector and industry for each company (the 12 sectors and 59 industries the Stock screener filters on)
+            from .screener.data import get_table
+            t = await get_table(app.state.store)
+            from .screener.data import nse_pairs
+            nse = nse_pairs(t)
+        except Exception:
+            logging.getLogger("finlit.api").exception("screener universe: NSE sectors not read")
+        cls: dict = {}
+        try:      # task #258 (20 Nov handoff, SHARED §1): NSE's macro sector (12), sector (22) and industry (59) for each company, from the stored classification (task #192)
+            async with app.state.store.pool.acquire() as conn:
+                cls = {x["symbol"]: (x["macro_sector"], x["sector"], x["industry"]) for x in await conn.fetch("SELECT symbol, macro_sector, sector, industry FROM company_classification")}
+        except Exception:
+            logging.getLogger("finlit.api").exception("screener universe: NSE classification not read")
+        isins = await isin_mod.symbol_isins(app)       # task #183: every row carries the company's share ISIN (null when the exchanges' lists do not have it)
         out = []
         for r in rows:
             r = {k: v for k, v in r.items() if k not in ("statement", "model", "updated_at")}
+            r["isin"] = isins.get(r["symbol"])
+            sec, ind = nse.get(r["symbol"], (None, None))
+            r["nse_sector"], r["nse_industry"] = sec or None, ind or None
+            cm, cs, ci = cls.get(r["symbol"], (None, None, None))
+            r["cls_macro"], r["cls_sector"], r["cls_industry"] = cm or None, cs or None, ci or None     # task #258: the three NSE levels (null: not classified)
             r.update(stored.get(r["symbol"]) or prism_screen.blank())
             ld = lead.get(r["symbol"])
             if ld:
@@ -442,9 +478,16 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
 
     if settings.site_api_url:
         register_stock_admin(app, settings.site_api_url)  # must come before the /api/stocks/{symbol}/{section} routes
+    app.include_router(__import__("finlit.ipogmp", fromlist=["router"]).router)   # /api/ipos/gmp-record: GMP against the actual listing (IPO calendar)
+    app.include_router(__import__("finlit.ipoapi", fromlist=["router"]).router)   # /api/ipos/history and /api/ipos/record/{id}: all IPOs and the IPO report
     app.include_router(intraday.router)   # /api/stocks/{symbol}/intraday: also before the /api/stocks/{symbol}/{section} route
     app.include_router(leadership_api.router)   # /api/stocks/{symbol}/leadership and /leadership-history: likewise
     app.include_router(ownership_insights.router)   # /api/stocks/{symbol}/ownership-insights: likewise
+    app.include_router(__import__("finlit.superinvestors", fromlist=["router"]).router)   # /api/superinvestors: named investors of 1% or more, by investor (task #212)
+    app.include_router(__import__("finlit.superinvestors_follow", fromlist=["router"]).router)   # /api/me/superinvestors: follows, alert choices, your stocks they hold (task #289)
+    app.include_router(__import__("finlit.global_markets", fromlist=["router"]).router)   # /api/global-markets: overseas indices, gold, crude, rupee, US yield (task #294)
+    app.include_router(__import__("finlit.docscore.api", fromlist=["router"]).router)   # /api/stocks/{symbol}/filing-scores: the three filings scored (task #266)
+    app.include_router(__import__("finlit.discovery.api", fromlist=["router"]).router)   # /api/discovery: the themes of companies' investor presentations (task #221)
     from .company_brief import api as _cb
     app.include_router(_cb.router)   # /api/stocks/{symbol}/brief: before the generic section route too
     app.include_router(_cb.admin)   # /api/admin/company-brief/*
@@ -489,6 +532,44 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
         body["version"] = os.getenv("APP_VERSION") or "unknown"  # commit the image was built from (Dockerfile ARG GIT_COMMIT)
         return JSONResponse(body, status_code=200 if ok else 503, headers={"Cache-Control": "no-store"})
 
+    # ---- NSE's four classification levels (task #192, finlit/taxonomy.py): public, the same for every visitor
+    @app.get("/api/taxonomy")
+    async def taxonomy_index():
+        from . import taxonomy
+        out = taxonomy.levels_index()
+        try:
+            counts = await app.state.store.classification_counts()
+        except Exception:
+            counts = {}
+        plural = {"macro_sector": "macro_sectors", "sector": "sectors", "industry": "industries", "basic_industry": "basic_industries"}
+        for level, name in plural.items():
+            per = counts.get(level) or {}
+            for row in out[name]:
+                row["companies"] = per.get(row[level], 0)
+            out.setdefault("notClassified", {})[level] = per.get("", 0)
+        out["companies"] = sum((counts.get("macro_sector") or {}).values())
+        out["counts"] = {name: len(out[name]) for name in plural.values()}
+        return JSONResponse(out, headers={"Cache-Control": "public, max-age=600"})
+
+    @app.get("/api/taxonomy/companies")
+    async def taxonomy_companies(symbols: str = Query("", max_length=5000)):
+        """NSE's four levels of up to 200 companies (comma-separated symbols): {"companies": {symbol: row}}; a company not placed yet is left out."""
+        syms = [s.strip().upper() for s in symbols.split(",") if s.strip()]
+        syms = [s for s in dict.fromkeys(syms) if SYMBOL.match(s)][:200]
+        rows = await app.state.store.classifications(syms)
+        return JSONResponse({"companies": rows}, headers={"Cache-Control": "public, max-age=600"})
+
+    @app.get("/api/taxonomy/company/{symbol}")
+    async def taxonomy_company(symbol: str):
+        sym = symbol.strip().upper()
+        if not SYMBOL.match(sym):
+            return JSONResponse({"detail": "Unknown symbol"}, status_code=404)
+        row = await app.state.store.classification(sym)
+        if not row:
+            return JSONResponse({"detail": "Not classified yet", "symbol": sym}, status_code=404, headers={"Cache-Control": "no-store"})
+        row["updated_at"] = row["updated_at"].isoformat() if row.get("updated_at") else None
+        return JSONResponse(row, headers={"Cache-Control": "public, max-age=600"})
+
     @app.get("/api/stocks/search-index")
     async def search_index(request: Request):
         started = time.perf_counter()
@@ -501,8 +582,27 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
         return cached(request, body, etag, CACHE_INDEX, started)
 
     @app.get("/api/stocks/{symbol}/price")
-    async def price(request: Request, symbol: str, range: str = Query("1Y"), statement: str = Query("consolidated")):
-        return await section(request, symbol, f"price-{range.upper()}", statement)
+    async def price(request: Request, symbol: str, range: str = Query("1Y"), statement: str = Query("consolidated"), grain: str = Query("")):
+        name = f"price-{range.upper()}"
+        # task #394 W1: 3Y on daily candles when asked (the chart's D button), built from the company's daily_candles on demand and kept in Redis
+        # for 30 minutes (price_sections.daily_3y; not stored: about 92 KB a report). When the candles do not cover as much as the weekly 3Y, the
+        # stored weekly 3Y is the answer, with no error (it says dailyAvailable false, so the chart keeps D off).
+        if grain.strip().lower() == "daily" and name == "price-3Y":
+            started = time.perf_counter()
+            sym = symbol.strip().upper()
+            if SYMBOL.match(sym) and statement in ("consolidated", "standalone"):
+                weekly = await app.state.store.get_section(sym, statement, name)
+                if weekly is not None:
+                    from . import price_sections
+                    try:
+                        daily = await price_sections.daily_3y(app.state.store, sym, statement, weekly)
+                    except Exception:   # the candles could not be read: the weekly 3Y is served
+                        log.exception("3Y daily chart not built for %s", sym)
+                        daily = None
+                    if daily is not None:
+                        await rebuild_if_old(sym, statement, weekly[0])
+                        return await serve_hit(request, sym, statement, "price-3Y-daily", daily, started)
+        return await section(request, symbol, name, statement)
 
     async def broken(symbol: str, statement: str, body: bytes) -> bool:
         """True for a stored summary that is unusable (no price) or built by older code, and a rebuild has just been queued or is under way.
@@ -540,8 +640,30 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
         except Exception:
             return False
 
+    @app.get("/api/securities/{isin}")
+    async def security_by_isin(request: Request, isin: str):
+        """Task #183 (ISIN as the key): what one ISIN is and, for a listed share, its company and page (same answer as /api/isin/{isin})."""
+        return await isin_mod.security(isin, request)
+
+    async def with_isin(sym: str, hit):
+        """The summary with meta.isin added (the company's current share ISIN from the exchanges' lists), or as it was when none is known."""
+        code = (await isin_mod.symbol_isins(app)).get(sym)
+        if not code:
+            return hit
+        try:
+            body = orjson.loads(hit[0])
+            body.setdefault("meta", {})["isin"] = code
+        except Exception:
+            return hit
+        return orjson.dumps(body), '"' + hashlib.sha1(f"{hit[1]}|{code}".encode()).hexdigest()[:20] + '"'  # nosec B324 - cache validator
+
     @app.get("/api/stocks/{symbol}")
     async def summary(request: Request, symbol: str, statement: str = Query("consolidated")):
+        if isin_mod.looks_like_isin(symbol):      # task #183: an ISIN in the path reads as the company it belongs to
+            a = await isin_mod.security(symbol, request)
+            if not a.get("symbol"):
+                raise HTTPException(status_code=404, detail={"status": "not_found", "detail": a.get("note") or "No listed company has this ISIN."})
+            symbol = a["symbol"]
         if SYMBOL.match(symbol):
             spawn(app.state.store.note_view(symbol))
         sym = symbol.strip().upper()
@@ -571,15 +693,9 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
 
     @app.get("/api/stocks/{symbol}/score-history")
     async def score_history(request: Request, symbol: str, statement: str = Query("consolidated")):
-        """How the FinLit IQ has moved (one point per day it was computed). Silver and above, like the score itself."""
-        symbol = symbol.strip().upper()
-        if not SYMBOL.match(symbol) or statement not in ("consolidated", "standalone"):
-            return JSONResponse({"status": "invalid"}, status_code=400)
-        if symbol not in settings.showcase_symbols and not has((await current(request)).plan, "silver"):
-            return JSONResponse({"status": "plan_required", "plan": "silver", "detail": "Score history is part of the Silver plan."},
-                                status_code=403, headers={"Cache-Control": "no-store"})
-        points = await app.state.store.score_history(symbol, statement)
-        return JSONResponse({"symbol": symbol, "points": points}, headers={"Cache-Control": CACHE_PRIVATE, "Vary": "Cookie"})
+        """Task #283 PR C: the history of the retired overall score is no longer served (its job keeps writing it, hidden, for a rollback).
+        FinLit Prism's own history is /api/prism/history."""
+        return JSONResponse(RETIRED_SCORE, status_code=410, headers={"Cache-Control": "no-store"})
 
     @app.get("/api/stocks/{symbol}/trading")
     async def trading(request: Request, symbol: str):
@@ -612,7 +728,7 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
             return JSONResponse({"status": "invalid_symbol"}, status_code=400)
         if statement not in ("consolidated", "standalone"):
             return JSONResponse({"status": "invalid_statement"}, status_code=400)
-        allowed = PUBLIC_SECTIONS | {f"price-{r}" for r in PRICE_RANGES}
+        allowed = PUBLIC_SECTIONS | set(PRICE_SECTIONS)
         if name not in allowed:
             return JSONResponse({"status": "unknown_section", "sections": sorted(allowed)}, status_code=404)
         hit = await app.state.store.get_section(symbol, statement, name)
@@ -631,10 +747,30 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
             m = re.search(rb'"version"\s*:\s*(\d+)', raw if isinstance(raw, bytes) else raw.encode())
             if m and int(m.group(1)) < SNAPSHOT_VERSION and await app.state.store.redis.set(f"repair:{symbol}:{statement}", 1, nx=True, ex=1800):
                 await app.state.store.enqueue(symbol, statement)
+                return
+            # QA 23 Nov: a chart opened only from a screener kept the candles of the day its report was built (NRL to 20 Nov, Keltech to 18 Nov) while the
+            # list showed the newest close. A report older than a day is refreshed as the full report does it (at most once an hour); the stored one is served now.
+            g = re.search(rb'"generatedAt"\s*:\s*"([^"]+)"', raw if isinstance(raw, bytes) else raw.encode())
+            if g:
+                made = datetime.fromisoformat(g.group(1).decode().replace("Z", "+00:00"))
+                if (datetime.now(made.tzinfo) - made).total_seconds() > 24 * 3600 and await app.state.store.redis.set(f"refresh:{symbol}:{statement}", 1, nx=True, ex=3600):
+                    await app.state.store.enqueue(symbol, statement)
         except Exception:   # nosec B110 - a failed check never stops the chart from being served
             pass
 
+    def without_retired(name: str, hit):
+        """Task #283 PR C: the stored section without the retired FinLit IQ (for every plan); the stored report itself is left as the IQ job wrote it."""
+        try:
+            body = orjson.dumps(strip_retired_score(name, orjson.loads(hit[0])))
+        except Exception:
+            return hit
+        return body, '"' + hashlib.sha1(f"{hit[1]}|noiq".encode()).hexdigest()[:20] + '"'  # nosec B324 - cache validator
+
     async def serve_hit(request: Request, symbol: str, statement: str, name: str, hit, started: float) -> Response:
+        if name == "summary":
+            hit = await with_isin(symbol, hit)        # task #183: the answer carries the company's ISIN (meta.isin)
+        if name in RETIRED_SECTIONS:
+            hit = without_retired(name, hit)
         if not varies_by_plan(name):
             return cached(request, hit[0], hit[1], CACHE_STOCK, started)
         # Plan-dependent: the showcase company is fully open; everything else is trimmed to the caller's plan on the server.
@@ -665,22 +801,14 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
 
     @app.get("/api/screener/top")
     async def top(request: Request, limit: int = Query(50, ge=1, le=200)):
-        if not has((await current(request)).plan, "silver"):
-            return JSONResponse({"status": "plan_required", "plan": "silver", "detail": "The ranked list is part of the Silver plan."},
-                                status_code=403, headers={"Cache-Control": "no-store"})
-        rows = await app.state.store.top_scores(limit=limit)
-        for r in rows:
-            for k, v in list(r.items()):
-                if hasattr(v, "isoformat"):
-                    r[k] = v.isoformat()
-                elif v is not None and not isinstance(v, (int, str, bool, float)):
-                    r[k] = float(v)
-        return JSONResponse({"rows": rows}, headers={"Cache-Control": CACHE_PRIVATE, "Vary": "Cookie"})
+        """Task #283 PR C: the ranked list was the retired overall score's ranking; it is no longer served. FinLit Prism's ranking is the Advanced
+        stock screener (/api/screener/universe, Gold)."""
+        return JSONResponse(RETIRED_SCORE, status_code=410, headers={"Cache-Control": "no-store"})
 
     @app.get("/api/screener/universe")
     async def universe(request: Request):
         """Every scored company in one response; the website filters and compares in the browser.
-        Built once per few minutes and kept in Redis, one copy per access level (model scores are a Silver feature, FinLit Prism a Gold one)."""
+        Built once per few minutes and kept in Redis, one copy per access level (FinLit Prism is a Gold feature; the retired FinLit IQ's fields go to no plan)."""
         started = time.perf_counter()
         ctx = await current(request)
         level = "gold" if has(ctx.plan, "gold") or sees_all(ctx) else "silver" if has(ctx.plan, "silver") else "basic"     # FinLit Prism is a Gold feature
@@ -710,6 +838,7 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
     app.include_router(__import__("finlit.presets.api", fromlist=["gainers_router"]).gainers_router)   # /api/screener/gainers
     app.include_router(__import__("finlit.presets.selfcheck", fromlist=["router"]).router)   # /api/screener/selfcheck: the screen checks, pass or fail only
     app.include_router(__import__("finlit.earnings.api", fromlist=["router"]).router)   # /api/earnings-calls (the list is open; the answers are Gold)
+    app.include_router(__import__("finlit.concall.api", fromlist=["router"]).router)   # /api/concalls: the Concall Monitor (task #278)
     app.include_router(advanced_api.router)
     app.include_router(compare_api.router)
     app.include_router(__import__("finlit.diversification.api", fromlist=["router"]).router)   # POST /api/diversification: the Diversification card (names only)
@@ -725,6 +854,7 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
     app.include_router(ext_api.router)   # /api/ext/company/{symbol}: the browser extension's one lookup
     app.include_router(logos_api.router)
     app.include_router(amfi_import_api.router)
+    app.include_router(fund_files_api.router)
     app.include_router(macro_api.router)
     app.include_router(_mo.admin)   # /api/admin/macro/*
     app.include_router(__import__("finlit.macro_sectors", fromlist=["router"]).router)   # /api/macro/sectors: the macro backdrop per sector (Gold, switched on in the Console)
@@ -734,14 +864,23 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
     app.include_router(flows_api.admin)
     app.include_router(fundjobs.router)
     app.include_router(sysctl.router)   # /api/admin/system: loads switch, restart, status
+    app.include_router(__import__("finlit.lab.access", fromlist=["router"]).router)
+    app.include_router(__import__("finlit.lab.flow", fromlist=["router"]).router)
+    app.include_router(__import__("finlit.lab.global_cues", fromlist=["router"]).router)  # /api/lab/global: Trading Lab > Global cues (docs/GLOBAL-MARKETS.md)
+    app.include_router(__import__("finlit.lab.zones", fromlist=["router"]).router)  # /api/lab/zones/{symbol}: Trading Lab > Stock zones (docs/TRADING-LAB.md)
+    app.include_router(__import__("finlit.lab.journal", fromlist=["router"]).router)  # /api/lab/journal: Trading Lab > Trading journal, private to each member
     app.include_router(__import__("finlit.jobs.status", fromlist=["router"]).router)   # GET /api/jobs/status: public, read-only (every job, every dataset's freshness, the pause)
     app.include_router(__import__("finlit.jobs.admin", fromlist=["router"]).router)    # GET /api/admin/jobs/overview and /runs: the admin console's Jobs section
     app.include_router(__import__("finlit.dbusage", fromlist=["admin"]).admin)   # /api/admin/db-usage: top statements by rows returned
+    app.include_router(__import__("finlit.storage", fromlist=["admin"]).admin)   # /api/admin/storage: disk, database by table, backups, growth
     app.include_router(__import__("finlit.mf_compare", fromlist=["router"]).router)   # head-to-head Fund Compare, /api/mf-compare
     app.include_router(__import__("finlit.etf_vs_index", fromlist=["router"]).router)   # ETF vs index fund on one index, /api/etf-vs-index
     app.include_router(graphviews_api.router)
     app.include_router(forum_api.router)
     app.include_router(page_feedback_api.router)
+    app.include_router(ai_feedback_api.router)   # task #366: thumbs up / down on AI-written text
+    app.include_router(__import__("finlit.monitoring", fromlist=["public"]).public)   # /api/status/public and /api/monitor/ingest (docs/MONITORING.md)
+    app.include_router(__import__("finlit.monitoring", fromlist=["admin"]).admin)    # /api/admin/monitoring
     app.include_router(dcf_api.router)
     app.include_router(__import__("finlit.stress.router", fromlist=["router"]).router)   # /api/stress/*: Stress Lab (Silver page, Gold runs)
     app.include_router(options_api.router)
@@ -755,8 +894,14 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
     app.include_router(__import__("finlit.mfportfolio.api", fromlist=["router"]).router)   # /api/me/mf-portfolio: My mutual funds (before the site-backend catch-all)
     app.include_router(__import__("finlit.myinvest.api", fromlist=["router"]).router)   # POST /api/me/all-investments: All my investments (task #137)
     app.include_router(__import__("finlit.etfportfolio.api", fromlist=["router"]).router)   # /api/me/etf-portfolio: ETF portfolio, task #136 (before the site-backend catch-all)
+    app.include_router(__import__("finlit.calendar_feed", fromlist=["router"]).router)   # /api/me/calendar and /api/calendar/<token>.ics: task #297, Google Calendar
     app.include_router(__import__("finlit.portfolio_overview", fromlist=["router"]).router)   # POST /api/portfolio/overview: Equity portfolio page, before the site-backend catch-all
-    app.include_router(__import__("finlit.portfolio_page.api", fromlist=["router"]).router)   # POST /api/portfolio/page: the new Equity portfolio page figures (names only)
+    app.include_router(__import__("finlit.portfolio_page.api", fromlist=["router"]).router)
+    app.include_router(__import__("finlit.ask.check", fromlist=["admin"]).admin)   # /api/admin/ask-check: the Answer check (Console > FinLit AI)
+    app.include_router(__import__("finlit.ask.api", fromlist=["router"]).router)   # /api/ask: Ask FinLit AI, answered from FinLit's data (before the site-backend catch-all)   # POST /api/portfolio/page: the new Equity portfolio page figures (names only)
+    app.include_router(__import__("finlit.ask.history", fromlist=["router"]).router)   # /api/ask/history: the member's FinLit AI history (task #349 PR 2)
+    app.include_router(__import__("finlit.mailer", fromlist=["router"]).router)   # /api/admin/mail and /api/mail/unsubscribe: mail from contact@ through SES (task #387), before the site-backend catch-all
+    app.include_router(__import__("finlit.scores_export_api", fromlist=["router"]).router)   # /internal/export/scores: the nightly scores export for the owner's archive (task #326), before the website
     if settings.site_api_url:
         register_catch_all(app, settings.site_api_url)  # last: everything the research API does not own
     if settings.frontend_dist:  # one container serves the website and the API (see finlit/web.py)

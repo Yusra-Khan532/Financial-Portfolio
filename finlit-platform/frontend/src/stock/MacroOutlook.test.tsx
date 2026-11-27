@@ -25,21 +25,16 @@ describe("Macro & Sector Outlook section", () => {
   it("shows the backdrop bar: sentiment, sector, score out of 100, the two drivers with signs, and no how-it-works block", async () => {
     wrap();
     const bar = await screen.findByRole("group", { name: "Macro backdrop summary" });
-    expect(within(bar).getByText("Tailwind")).toBeTruthy(); expect(within(bar).getByText("Private banks")).toBeTruthy(); expect(within(bar).getByText("74")).toBeTruthy(); expect(within(bar).getByText("/100")).toBeTruthy();
+    expect(within(bar).getByText("Tailwind")).toBeTruthy(); expect(within(bar).getByText("Outlook group · Private banks")).toBeTruthy();   // FinLit's outlook group, named as such (task #192) expect(within(bar).getByText("74")).toBeTruthy(); expect(within(bar).getByText("/100")).toBeTruthy();
     expect(within(bar).getByText("Credit +")).toBeTruthy(); expect(within(bar).getByText("Deposits +")).toBeTruthy(); expect(screen.queryByText("How it works")).toBeNull(); expect(screen.queryByRole("button", { name: "How it works" })).toBeNull();
-    expect(screen.getByText("Macro and sector outlook")).toBeTruthy();
+    expect(screen.getByText("Economy and sector")).toBeTruthy();   // task #222 (19 Nov pack S2)
   });
-  it("Sector impact keeps only the row marked This company: no other sector, no show-all button, 50 marked on the bar", async () => {
+  it("a one-sector company has no Sector impact panel (task #216: its single row repeats the backdrop, which shows the same reasons)", async () => {
     const { container } = wrap();
-    await screen.findByText("Sector impact");
-    await screen.findByText("This company");
-    const rows = container.querySelectorAll(".mo-t tbody tr");
-    expect(rows.length).toBe(1);
-    expect(container.querySelector("tr.me th")?.textContent).toContain("Private banks");
-    expect(container.querySelector(".mo-t .mo-bar u")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: /Show all|Show fewer/ })).toBeNull();
+    await screen.findByText("Indicator signals");
+    expect(screen.queryByText("Sector impact")).toBeNull(); expect(container.querySelector(".mo-t")).toBeNull();
+    expect(container.querySelector(".mo-bd")?.textContent).toContain("Credit +");   // the reason the panel showed is in the backdrop
     expect(container.textContent).not.toContain("PSU banks");
-    expect(container.querySelector(".mo-t")?.textContent).toContain("Credit +");
     expect(st.calls.some((c) => c.includes("sector-impact"))).toBe(false);          // the 35-sector table is not even requested for a one-sector company
   });
   it("Indicator signals show only the indicators that are a reason in Sector impact, each tied to its reason", async () => {
@@ -69,7 +64,7 @@ describe("Macro & Sector Outlook section", () => {
     const { container } = wrap();
     await screen.findByText("Indicator signals");
     expect(container.querySelectorAll(".mo-tile").length).toBe(0);
-    expect(screen.getByText(/names no dominant driver for this sector right now/)).toBeTruthy();
+    expect(screen.getByText(/names no dominant driver for this outlook group right now/)).toBeTruthy();
   });
   it("an Insufficient Data company shows the missing readings that are the stated reason, with why they are missing", async () => {
     st.company = insufficient;
@@ -86,7 +81,7 @@ describe("Macro & Sector Outlook section", () => {
     const bar = await screen.findByRole("group", { name: "Macro backdrop summary" });
     expect(within(bar).getByText("Insufficient Data")).toBeTruthy(); expect(within(bar).getByText("—")).toBeTruthy();
     expect(screen.getAllByText(/Insufficient Data: missing critical: Brent crude/).length).toBeGreaterThan(0);
-    expect(container.querySelector(".mo-bar-a .mo-bar i")?.getAttribute("style")).toContain("width: 0");
+    expect(container.querySelector(".mo-bd .mo-ring .arc")).toBeNull();   // task #216: the ring draws no arc without a score
   });
   it("shows a stale warning above the score", async () => {
     st.company = { ...ok, stale: { isStale: true, since: "2026-11-01", message: "Not refreshed for 61 hours. Showing the last successful snapshot.", reason: "overdue" } };
@@ -102,11 +97,14 @@ describe("Macro & Sector Outlook section", () => {
     wrap(); await screen.findByRole("group", { name: "Macro backdrop summary" });
     expect(screen.queryByText("How it works")).toBeNull(); expect(screen.queryByText("Formula")).toBeNull();
     expect(st.calls.some((c) => c.includes("methodology"))).toBe(false);
-    expect(screen.getAllByText(/not validated/i).length).toBeGreaterThan(0);
+    // task #311 (company report row 12): one line, no drop-down; still called an estimate because it is not validated; no method detail
+    expect(screen.getByText(/^An early estimate for the company's (main sector|sectors) · /)).toBeTruthy();
+    expect(screen.queryByText("How this reading is made")).toBeNull();
+    expect(document.body.textContent).not.toMatch(/model v\d|coverage \d+%|segment revenue weights|initial assumptions/);
     expect(screen.getByText(/not a company-specific assessment, forecast, or investment recommendation/)).toBeTruthy();
   });
   it("never uses advice wording", async () => {
-    const { container } = wrap(); await screen.findByText("Sector impact");
+    const { container } = wrap(); await screen.findByText("Indicator signals");
     expect(container.textContent).not.toMatch(/\b(buy|sell|hold|reduce|avoid|accumulate|target|best|multibagger|top pick)\b/i);
   });
 });

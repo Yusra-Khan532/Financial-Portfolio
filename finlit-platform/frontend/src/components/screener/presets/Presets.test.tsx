@@ -45,14 +45,14 @@ const Panel = () => { const r = usePresetRoute(); return <PresetPanel route={r} 
 const Page = () => { const r = usePresetRoute(); return r.id ? <PresetPage route={r} basics={<span>basics</span>} /> : <Panel />; };
 const mount = (qs = "") => render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><MemoryRouter initialEntries={["/advanced-score-screener" + qs]}><Page /><Where /></MemoryRouter></QueryClientProvider>);
 const loc = () => screen.getByTestId("loc").textContent || "";
-const rowSyms = () => within(screen.getByRole("table")).getAllByRole("row").slice(1).map((r) => r.querySelector("b")?.textContent);
+const rowSyms = () => [...screen.getByRole("table").querySelectorAll("tbody tr")].map((r) => r.querySelector("b")?.textContent);   // task #243: three heading rows
 
 describe("grouped panel", () => {
-  it("orders the groups as the spec does, Prism basics last, and opens the first group", async () => {
+  it("orders the groups as the spec does, the page's Prism views last, and opens the first group", async () => {
     mount();
     await screen.findByRole("button", { name: /Top rated/ });
     const names = screen.getAllByRole("button", { expanded: undefined }).filter((b) => b.hasAttribute("aria-expanded")).map((b) => b.querySelector(".psx-gt")?.textContent);
-    expect(names).toEqual(["Top rated", "Themes", "Safety", "Ownership", "Prism basics"]);
+    expect(names).toEqual(["Top rated", "Themes", "Safety", "Ownership", "Prism views"]);
     expect(screen.getByRole("button", { name: /Top rated/ }).getAttribute("aria-expanded")).toBe("true");
     expect(screen.getByRole("button", { name: /Safety/ }).getAttribute("aria-expanded")).toBe("false");
     fireEvent.click(screen.getByRole("button", { name: /Safety/ }));
@@ -67,11 +67,11 @@ describe("grouped panel", () => {
     fireEvent.click(card);
     expect(loc()).not.toContain("preset");
   });
-  it("Prism basics is listed once: the server's own Prism basics group is not shown next to the page's list", async () => {
-    listBody = { ...LIST, groups: [...LIST.groups, { id: "prism-basics", name: "Prism basics", presets: [P("pb1", "Prism strong and lower risk", "Prism basics")] }] };
+  it("Prism views is listed once in the panel: the server's own Prism views group is not shown next to the page's list", async () => {
+    listBody = { ...LIST, groups: [...LIST.groups, { id: "prism-basics", name: "Prism views", presets: [P("pb1", "Strong and safe", "Prism views")] }] };
     mount();
     await screen.findByText("Top rated");
-    expect(screen.getAllByText("Prism basics")).toHaveLength(1);
+    expect(screen.getAllByText("Prism views")).toHaveLength(1);
   });
   it("keeps the Prism quick views working when the list is unavailable", async () => {
     listStatus = 500;
@@ -105,11 +105,21 @@ describe("screen view", () => {
     expect(screen.getByText("86 match")).toBeTruthy();
     expect(screen.getByText("showing 3")).toBeTruthy();
     expect(screen.getByText(/as of 31 Oct 2026/)).toBeTruthy();
-    expect(screen.getByText("How this screen works")).toBeTruthy();
+    expect(screen.queryByText(/price and day change: latest/)).toBeNull();          // task #269: said only when the prices are newer than the list
+    fireEvent.click(screen.getByRole("button", { name: "About Highest-rated large caps" }));      // task #325 D2 (file 25, 1 row 8): the description and the rules behind the i
+    expect(document.querySelector(".psx-ip")!.textContent).toBe("What it listsCard textHow this screen worksRule one");
+    expect(screen.queryByRole("button", { name: /How this screen works/ })).toBeNull();
     expect(screen.getByText("A screen narrows a list. It is not a recommendation.")).toBeTruthy();
     expect(screen.getByText("Prism-confirmed")).toBeTruthy();
-    expect(screen.getByRole("link", { name: /AAA/ }).getAttribute("href")).toBe("/stocks/AAA");
+    expect(screen.getAllByRole("link", { name: /AAA/ })[0].getAttribute("href")).toBe("/stocks/AAA");   // the company, then its report
     expect(within(rowOf("BBB")).getAllByLabelText("not available").length).toBe(1);   // a missing value is a dash, not 0
+  });
+  it("a screen whose prices are newer than its list says so: the list's date, and the prices' day (task #269)", async () => {
+    detail.large = [200, { ...DETAIL, priceDay: "2026-11-02" }];
+    mount("?preset=large");
+    await screen.findByRole("table");
+    expect(screen.getByText(/as of 31 Oct 2026/)).toBeTruthy();
+    expect(screen.getByText("price and day change: latest, 2 Nov 2026")).toBeTruthy();
   });
   it("sorts the shown rows client-side, missing values last", async () => {
     mount("?preset=large");
@@ -137,18 +147,20 @@ describe("screen view", () => {
     expect(calls).toContain("/api/screener/presets/large?chip=trend");
   });
   it("a BSE-only company shows its name with the exchange and code, and NSE-listed only leaves it out", async () => {
-    detail.large = [200, { ...DETAIL, rows: [{ symbol: "AAA", name: "Alpha Ltd", exchange: "NSE", badges: [] }, { symbol: "543914", name: "Delta Small Ltd", exchange: "BSE", badges: [] }] }];
+    detail.large = [200, { ...DETAIL, rows: [{ symbol: "AAA", name: "Alpha Ltd", exchange: "NSE", badges: [] }, { symbol: "543914", name: "Delta Small Ltd", exchange: "BSE", badges: [] }],
+      facets: { sizes: { Large: 2 }, sectors: [], strong: 2, anyRating: 2, new: 0, ahead: 0, nse: 1, bse: 1 } }];
     mount("?preset=large");
     await screen.findByRole("table");
     expect(screen.getByText("Delta Small Ltd")).toBeTruthy(); expect(screen.getByText("BSE only, code 543914")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "NSE-listed only" }));
-    expect(rowSyms()).toEqual(["AAA"]);
+    fireEvent.click(screen.getByRole("button", { name: /More filters/ }));                    // task #243 (P4): NSE-listed only sits in More filters and runs on the server
+    fireEvent.click(screen.getByRole("checkbox", { name: /NSE-listed only/ }));
+    await waitFor(() => expect(calls.at(-1)).toContain("nse=1"));
   });
   it("an empty result says so and lists the closest misses with the rule missed", async () => {
     mount("?preset=debt");
     expect(await screen.findByText("No company meets every rule today.")).toBeTruthy();
     expect(screen.getByText(/Debt to equity above 0.1/)).toBeTruthy();
-    expect(screen.getByText("Closest to qualifying")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: /closest to qualifying/i })).toBeTruthy();
     expect(screen.queryByRole("table")).toBeNull();
   });
   it("theme cards filter the table to that theme's leaders", async () => {
@@ -164,7 +176,7 @@ describe("screen view", () => {
   it("an unknown screen id gets a calm message; Clear screen returns to the panel", async () => {
     mount("?preset=nope");
     expect(await screen.findByText("We could not find that screen")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Clear screen" }));
+    fireEvent.click(screen.getByRole("button", { name: "Clear screen ✕" }));
     expect(loc()).toBe("/advanced-score-screener");
     expect(await screen.findByRole("button", { name: /Top rated/ })).toBeTruthy();
   });
@@ -177,11 +189,11 @@ describe("screen view", () => {
     expect(screen.queryByRole("table")).toBeNull();
   });
 });
-const rowOf = (s: string) => screen.getByRole("link", { name: new RegExp(s) }).closest("tr")!;
+const rowOf = (s: string) => screen.getAllByRole("link", { name: new RegExp(s) })[0].closest("tr")!;
 
 describe("lib", () => {
   it("orders groups and drops empty ones", () => {
-    expect(orderGroups([{ id: "x", name: "Zed", presets: [P("a", "A", "Zed") as never] }, { id: "e", name: "Safety", presets: [] }, { id: "t", name: "Trend", presets: [P("b", "B", "Trend") as never] }]).map((g) => g.name)).toEqual(["Trend", "Zed"]);
+    expect(orderGroups([{ id: "x", name: "Zed", presets: [P("a", "A", "Zed") as never] }, { id: "e", name: "Safety", presets: [] }, { id: "t", name: "Momentum", presets: [P("b", "B", "Momentum") as never] }]).map((g) => g.name)).toEqual(["Momentum", "Zed"]);   // task #243: "Trend" reads Momentum
   });
   it("reads and resolves the address", () => {
     const u = readPresetUrl(new URLSearchParams("preset=p&chip=a&sub=ems&trend=1"));
@@ -230,16 +242,6 @@ describe("redesign: list text, notes, theme figures and the Basic tab", () => {
     expect(screen.getByText("Breadth is 38%, below the 40% needed.")).toBeTruthy();
     expect(screen.queryByText("B50")).toBeNull();
   });
-  it("a Basic-tab screen asks for Silver, not Gold, when the plan is short", async () => {
-    detail.large = [403, { detail: { status: "plan_required" } }];
-    st.plan = "basic";
-    const Basic = () => { const r = usePresetRoute("basic"); return r.id ? <PresetPage route={r} /> : <PresetPanel route={r} />; };
-    render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><MemoryRouter initialEntries={["/score-screener?preset=large"]}><Basic /></MemoryRouter></QueryClientProvider>);
-    expect(await screen.findByRole("heading", { name: /This screen is part of Silver/ })).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: /Unlock with Silver/ }));
-    expect(st.upgrade).toHaveBeenCalledWith("silver", expect.any(String));
-    expect(screen.queryByText("Prism basics")).toBeNull();
-  });
 });
 
 
@@ -260,16 +262,16 @@ describe("results page by 25 (issue 30.b)", () => {
     expect(pager.textContent).toMatch(/Showing 1.25 of 60/);
     expect(rowSyms()).toHaveLength(25);
     expect((within(pager).getByRole("button", { name: "Previous 25" }) as HTMLButtonElement).disabled).toBe(true);
-    fireEvent.click(within(pager).getByRole("button", { name: "Show next 25" }));
+    fireEvent.click(within(pager).getByRole("button", { name: "Next 25" }));
     await screen.findByText("Stock 26");
     expect(calls.some((c) => /presets\/large\?offset=25/.test(c) || /offset=25/.test(c))).toBe(true);
     expect(screen.getByRole("navigation", { name: "Pages of this screen" }).textContent).toMatch(/Showing 26.50 of 60/);
-    expect(within(screen.getByRole("table")).getAllByRole("row")[1].querySelector("td")?.textContent).toBe("26");
-    fireEvent.click(screen.getByRole("button", { name: "Show next 10" }));
+    expect(screen.getByRole("table").querySelector("tbody tr td.psx-n")?.textContent).toBe("26");     // the # column (task #243: after the selection box)
+    fireEvent.click(screen.getByRole("button", { name: "Next 25" }));                         // pack P7: "Previous 25 and Next 25"; the last page shows the 10 left
     await screen.findByText("Stock 51");
     const last = screen.getByRole("navigation", { name: "Pages of this screen" });
     expect(last.textContent).toMatch(/Showing 51.60 of 60/);
-    expect((within(last).getByRole("button", { name: /Show next/ }) as HTMLButtonElement).disabled).toBe(true);
+    expect((within(last).getByRole("button", { name: "Next 25" }) as HTMLButtonElement).disabled).toBe(true);
     fireEvent.click(within(last).getByRole("button", { name: "Previous 25" }));
     await screen.findByText("Stock 26");
   });

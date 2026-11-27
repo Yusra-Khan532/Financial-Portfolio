@@ -55,6 +55,7 @@ from .premium import gateway_token
 from .technical_wording import rating_word, relabel_technical
 from .prism_candles import mark_down, supplied_candles
 from .prism_public import public_report, public_summary
+from .prism_view import card_view, freshness_view, page_view
 from . import prism_screen
 from . import prism_benchmarks
 
@@ -89,7 +90,8 @@ HISTORY = ("quarterly", "annual", "latest")   # the parts of calculationTrace th
 # sourceCodeSha256. Each factor's weight IS passed on now (the indicator publishes them; the breakdown table shows weight and points, see
 # docs/technicals/README.md); the older model note said weights are not shown, and removing "weight" here removes the column again.
 TECH_TOP = ("modelVersion", "status", "asOf", "provider", "dailyBars", "usableDailyBars", "fresh", "sharesCr")   # sharesCr: the shares (crore) that chose the benchmark, kept so the daily refresh (prism_technical.py) chooses the same one
-TECH_HORIZON = ("score", "rating", "status", "horizon", "availableCount", "requiredCount", "stageCapped", "uncappedScore", "provisional", "provisionalNote")
+TECH_HORIZON = ("score", "rating", "status", "horizon", "availableCount", "requiredCount", "stageCapped", "uncappedScore", "provisional", "provisionalNote",
+                "historyNote", "youngListing")      # task #247: why a short history is withheld, and a young listing scored as on the chart
 TECH_FACTOR = ("key", "label", "signal", "status", "detail", "weight")
 TECH_SOURCE = ("provider", "asOf", "bars")
 
@@ -107,8 +109,12 @@ CALM = f"{PRISM_NAME} could not finish this calculation just now. Please try aga
 NOT_CONNECTED = f"{PRISM_NAME} is not connected right now. Please try again later."
 
 
+# Report answers are never kept by a shared cache or a CDN (task #220, README 4.4).
+REPORT_CACHE = {"Cache-Control": "private, no-store"}
+
+
 def _reply(body: Dict[str, Any], status: int = 200, retry: Optional[int] = None) -> JSONResponse:
-    headers = {**NO_STORE, "Retry-After": str(retry)} if retry else NO_STORE
+    headers = {**NO_STORE, **REPORT_CACHE, "Retry-After": str(retry)} if retry else {**NO_STORE, **REPORT_CACHE}
     return JSONResponse(body, status_code=status, headers=headers)
 
 
@@ -256,12 +262,11 @@ async def _stored(store, symbol: str, statement: str):
 
 def _shape(row, cached: bool, refreshing: bool = False) -> Dict[str, Any]:
     """The PrismReport of a stored row: the reader view, whether it came from storage, and until when its PDF can be downloaded."""
-    until = row["pdf_until"]
-    live = until is not None and until > datetime.now(timezone.utc)
     report = json.loads(row["report"])
     if isinstance(report.get("technicalAssessment"), dict):       # reports stored before the mapping existed carry the model's raw words
         report["technicalAssessment"] = relabel_technical(report["technicalAssessment"])
-    return {**public_report(report), "cached": cached, "pdfAvailableUntil": until.isoformat() if live else None, "technical": _tech_state(row, refreshing)}
+    # task #220 (README 4.1 to 4.3): what leaves the server is built from the allow-list of what the page renders, rounded as it shows
+    return page_view({**public_report(report), "cached": cached, "technical": _tech_state(row, refreshing)})
 
 
 def _tech_state(row, refreshing: bool = False) -> Dict[str, Any]:
@@ -289,8 +294,25 @@ def _summary(row, refreshing: bool = False) -> Dict[str, Any]:
     parts = None if rating.get("status") == "NOT RATED" else rating.get("parts")   # a company the model did not rate shows no category scores
     return {"id": row["id"], "final": rating.get("final"), "label": rating.get("label"), "status": rating.get("status"),
             "confidence": rating.get("confidence"), "parts": parts, "partWeights": rating.get("partWeights"),
-            "generatedAt": row["generated_at"].isoformat(), "modelVersion": rating.get("modelVersion"), "technical": _tech_state(row, refreshing),
+            "generatedAt": row["generated_at"].isoformat(), "modelVersion": rating.get("modelVersion"),
+            "technical": {**_tech_state(row, refreshing), **_tech_scores(view)},
             "topPros": _lines(view, "pros"), "topCons": _lines(view, "cons")}
+
+
+def _tech_scores(view: Dict[str, Any]) -> Dict[str, Any]:
+    """Task #228 (20 Nov 2026): the short- and long-term technical scores with their reader-safe words, as the company page shows them. The summary
+    carried only the technical view's dates, so FinLit AI (ask/tools._prism_card reads shortTerm and longTerm here) said it "could not read" them."""
+    tech = technical_view(view.get("technicalAssessment"))
+    if not isinstance(tech, dict):
+        return {}
+    out: Dict[str, Any] = {}
+    for key in ("shortTerm", "longTerm"):
+        h = tech.get(key)
+        if isinstance(h, dict):
+            out[key] = {k: h.get(k) for k in ("score", "rating", "provisional", "youngListing") if k in h}
+    if isinstance(tech.get("verdict"), dict):
+        out["alignment"] = tech["verdict"].get("label")
+    return out
 
 
 # Mirrors CLASSIFICATION_VERSION in site-api/backend/premium_classification.py (a test keeps them equal). Bump both when the group rules change
@@ -304,8 +326,50 @@ CLASSIFICATION_VERSION = 3
 # 3.6.16: a consolidated history too short for a 3-year comparison switches the whole report to the standalone statements.
 # 3.6.17: rebuilds reports stored by 3.6.16 when the standalone statements could not be read.
 # 3.6.18: out-of-date consolidated statements switch to standalone; provider failures on the company's own data stop the calculation.
-REQUIRED_MODEL_VERSION = "3.6.18"
+# 3.6.19: CAGR ladders (5, 4, 3, 2 years); PEG growth skips a missing or negative window (owner, 17 November 2026).
+# 3.6.20: interest cover is FinEdge's reported trailing-12-month interest coverage (the company report's figure) and is scored for every
+# non-financial company, low-debt ones included (owner, task #199).
+# 3.6.21: a recently listed company's missing quarters no longer empty its P/E (the latest full year's EPS stands in), its margin change is measured
+# on full years and its largest fall since listing (owner Pranjal, task #318). The NOT RATED reports are rebuilt first (_pending).
+REQUIRED_MODEL_VERSION = "3.6.21"
+# Reports of these older versions stay ON SCREEN (with their date) while they are rebuilt, instead of being hidden: a hidden report makes every page
+# open wait for a live calculation (as after 3.6.16-3.6.18). They are still out of date everywhere else (stale_model): a calculation never reuses
+# one, opening one rebuilds it in the background, and the nightly job rebuilds them. Older versions than these stay hidden.
+SHOWN_WHILE_REBUILDING = ("3.6.18", "3.6.19", "3.6.20")
 CLASSIFICATION_MARK = "model group"      # in the rating's alerts of a report withheld by the classification check, before and after the fix
+# Mirrors REVENUE_VERSION in site-api/backend/premium_model_config.py (a test keeps them equal). Version 2 (17 November 2026): insurers' revenue
+# (premium earned) is read, and a company with no consolidated statements uses its standalone ones. Only the reports that can change are rebuilt
+# (stale_revenue): the model version stays, so every other stored report stays on screen.
+REVENUE_VERSION = 2
+
+
+def stale_revenue(report: Any) -> bool:
+    """True for a stored report calculated before REVENUE_VERSION that the fix can change: an insurer's (any status), or a NOT RATED report on
+    consolidated statements (an empty consolidated history, e.g. SBILIFE, ICICIGI, STARHEALTH). Rebuilt like a stale classification."""
+    if isinstance(report, (str, bytes)):
+        try:
+            report = json.loads(report)
+        except ValueError:
+            return False
+    if not isinstance(report, dict):
+        return False
+    meta, rating = report.get("inputMeta") or {}, report.get("rating") or {}
+    version = meta.get("revenueVersion")
+    if isinstance(version, int) and not isinstance(version, bool) and version >= REVENUE_VERSION:
+        return False
+    basis = report.get("statementType") or meta.get("statementType")
+    return rating.get("group") == "INSURANCE" or (rating.get("status") == "NOT RATED" and basis == "consolidated")
+
+
+def hidden_model(report: Any) -> bool:
+    """True when a stored report is too old to show at all: stale_model() and not one of SHOWN_WHILE_REBUILDING."""
+    if not stale_model(report):
+        return False
+    try:
+        data = json.loads(report) if isinstance(report, (str, bytes)) else report
+    except (ValueError, UnicodeDecodeError):
+        return True
+    return not (isinstance(data, dict) and isinstance(data.get("rating"), dict) and data["rating"].get("modelVersion") in SHOWN_WHILE_REBUILDING)
 
 
 def stale_classification(report: Any) -> bool:
@@ -342,7 +406,14 @@ def stale_model(report: Any) -> bool:
 
 def _fresh(row) -> bool:
     return (row is not None and (datetime.now(timezone.utc) - row["generated_at"]).total_seconds() < REUSE_SECONDS
-            and not stale_model(row["report"]) and not stale_classification(row["report"]))
+            and not stale_model(row["report"]) and not stale_classification(row["report"]) and not stale_revenue(row["report"]))
+
+
+def card_counts(part: Dict[str, Any]) -> bool:
+    """Whether a horizon's score goes on the card (what search, the lists and the screeners read). Task #247 (19 Nov 2026, the team: the search showed
+    '-' for VAML, VOGL, VEDPOWER): a young listing's score is the ST/LT indicator's own score, as on TradingView, so it does; only a partial provisional
+    score (some signals left out of its weights) stays on the company page alone."""
+    return part.get("provisional") is not True or part.get("youngListing") is True
 
 
 def card_of(view: Dict[str, Any]) -> Dict[str, Any]:
@@ -353,7 +424,7 @@ def card_of(view: Dict[str, Any]) -> Dict[str, Any]:
 
     def horizon(key: str) -> Dict[str, Any]:
         part = technical.get(key) if isinstance(technical.get(key), dict) else {}
-        if part.get("provisional") is True:      # a provisional score (a recent listing) is shown on the company page only; the screeners treat it as not available
+        if not card_counts(part):               # a partial provisional score is shown on the company page only; the screeners treat it as not available
             return {"score": None, "rating": None}
         return {"score": part.get("score"), "rating": part.get("rating")}
     return {"parts": None if rating.get("status") == "NOT RATED" else rating.get("parts"), "st": horizon("shortTerm"), "lt": horizon("longTerm"),
@@ -529,6 +600,73 @@ async def _count(request: Request, ctx: Ctx) -> Tuple[Optional[str], Optional[in
     return key, None
 
 
+# Task #220 (Prism report handover, README 4.4): limits on the report feed itself, checked here and never only on the page.
+PLAN_REPORTS = {"gold": 10, "equity_portfolio": 10, "platinum": 20}   # different reports a member may open in an Indian day
+BURST_USER = (8, 60)          # report answers per account per minute (a person reading opens one or two)
+BURST_IP = (20, 60)           # ...and per address, for several accounts behind one script
+RECALC_LIMIT = (3, 600)       # Recalculate presses per account in ten minutes
+SWEEP_SYMBOLS = 8             # different companies in SWEEP_SECONDS that mark an account for review (never blocked automatically)
+SWEEP_SECONDS = 3600
+SWEEP_KEY = "prism:review"    # hash: account -> what was seen, for the administrators
+
+
+def _plan_reports(plan: Optional[str]) -> Optional[int]:
+    return PLAN_REPORTS.get((plan or "").lower())
+
+
+async def _guard(request: Request, ctx: Ctx, symbol: str, statement: str, recalc: bool = False) -> Optional[JSONResponse]:
+    """The server's own limits on full reports: a short burst limit per account and per address, a tighter one on Recalculate, the plan's
+    reports a day (a report opened again the same day does not count again; the free example companies do not count), and a flag for review
+    when an account opens many different companies in a short time. Administrators are not limited. None when the request may go on."""
+    if ctx.role == "admin":
+        return None
+    app = request.app
+    limiter = getattr(app.state, "limiter", None)
+    who = ctx.user_id or "ip:" + ip_of(request)
+    busy = f"Too many {PRISM_NAME} reports were asked for in a short time. Please wait a minute and try again."
+    if limiter is not None:
+        for scope, key, (limit, window) in (("prism-burst-user", who, BURST_USER), ("prism-burst-ip", ip_of(request), BURST_IP)):
+            allowed, wait = await limiter.hit(scope, key, limit, window, fail_open=True)
+            if not allowed:
+                return _reply({"status": "limit", "code": "burst", "detail": busy}, 429, wait or 60)
+        if recalc:
+            allowed, wait = await limiter.hit("prism-recalc", who, *RECALC_LIMIT, fail_open=False)
+            if not allowed:
+                return _reply({"status": "limit", "code": "recalculate", "detail": f"Recalculate was pressed several times in a few minutes. Please try again in {max(1, (wait or 60) // 60)} minutes."}, 429, wait or 60)
+    redis = app.state.store.redis
+    report = f"{symbol}:{statement}"
+    try:
+        allowance = _plan_reports(ctx.plan)
+        if allowance is not None and symbol not in app.state.settings.showcase_symbols:
+            now = datetime.now(timezone.utc)
+            day = f"prism:opened:{who}:{now.astimezone(IST):%Y%m%d}"
+            if not await redis.sismember(day, report):
+                if await redis.scard(day) >= allowance:
+                    return _reply({"status": "limit", "code": "daily",
+                                   "detail": f"You have opened today's {allowance} {PRISM_NAME} reports on your plan. The reports you opened today stay open; new ones open again after midnight (IST)."},
+                                  429, _until_midnight(now))
+                await redis.sadd(day, report)
+                await redis.expire(day, 2 * 86400)
+        await _watch_sweep(redis, who, symbol)
+    except Exception as exc:            # Redis down: the burst limits above still answer; a reader is never refused for our storage
+        log.warning("prism report limits unavailable: %s", type(exc).__name__)
+    return None
+
+
+async def _watch_sweep(redis, who: str, symbol: str) -> None:
+    """Remember the companies an account opened in the last hour; at SWEEP_SYMBOLS or more, record the account for review (and log it once a day)."""
+    now = time.time()
+    key = f"prism:sweep:{who}"
+    await redis.zadd(key, {symbol: now})
+    await redis.zremrangebyscore(key, 0, now - SWEEP_SECONDS)
+    await redis.expire(key, SWEEP_SECONDS + 60)
+    seen = await redis.zcard(key)
+    if seen >= SWEEP_SYMBOLS:
+        await redis.hset(SWEEP_KEY, who, json.dumps({"companies": int(seen), "withinSeconds": SWEEP_SECONDS, "at": datetime.now(timezone.utc).isoformat()}))
+        if await redis.set(f"prism:review-logged:{who}", "1", nx=True, ex=86400):
+            log.warning("prism: account %s opened %d different reports within %d minutes; recorded for review", who, seen, SWEEP_SECONDS // 60)
+
+
 # ------------------------------------------------------------------ routes
 @router.get("/status")
 async def prism_status(request: Request) -> JSONResponse:
@@ -604,16 +742,20 @@ async def latest(request: Request, symbol: str = Query("", max_length=40), state
     wanted = target(symbol, statement)
     if not wanted:
         return _bad("Choose a company symbol and a statement basis (consolidated or standalone).")
-    _, refusal = await _access(request, wanted[0], full=view != "summary")
+    ctx, refusal = await _access(request, wanted[0], full=view != "summary")
     if refusal:
         return refusal
+    if view != "summary":
+        refusal = await _guard(request, ctx, *wanted)
+        if refusal:
+            return refusal
     row = await _stored(request.app.state.store, *wanted)
-    if row is None or stale_model(row["report"]):
+    if row is None or hidden_model(row["report"]):
         return _reply({"status": "none", "detail": f"No current-model {PRISM_NAME} report is available. A fresh calculation is needed."}, 404)
     refreshing = await _refresh_stale_technical(request.app, wanted[0], row)
     from . import scorelive
     fresh = await scorelive.on_open_prism(request.app, wanted[0], wanted[1], row)    # behind a newer quarter or a completed session: recalculated in the background, the stored one shown with its date
-    body = {"summary": {**public_summary(_summary(row, refreshing)), "freshness": fresh}} if view == "summary" else {**_shape(row, cached=True, refreshing=refreshing), "freshness": fresh}
+    body = {"summary": {**card_view(public_summary(_summary(row, refreshing))), "freshness": fresh}} if view == "summary" else {**_shape(row, cached=True, refreshing=refreshing), "freshness": freshness_view(fresh)}
     return _reply(body)
 
 
@@ -652,8 +794,10 @@ def _num(path: str) -> str:
 
 _SCORES_SQL = ("SELECT DISTINCT ON (symbol) symbol, statement, final, label, status, generated_at, "  # nosec B608: built only from constant names, never from a request value
                + ", ".join(f"{_num('rating,parts,' + k)} AS p_{k}" for k in _PARTS) + ", "
-               + ", ".join(f"CASE WHEN report #>> '{{technicalAssessment,{h},provisional}}' = 'true' THEN NULL ELSE {_num('technicalAssessment,' + h + ',score')} END AS {h.lower()}_score, "
-                           f"CASE WHEN report #>> '{{technicalAssessment,{h},provisional}}' = 'true' THEN NULL ELSE report #>> '{{technicalAssessment,{h},rating}}' END AS {h.lower()}_rating"
+               + ", ".join(f"CASE WHEN report #>> '{{technicalAssessment,{h},provisional}}' = 'true' AND report #>> '{{technicalAssessment,{h},youngListing}}' IS DISTINCT FROM 'true' "
+                           f"THEN NULL ELSE {_num('technicalAssessment,' + h + ',score')} END AS {h.lower()}_score, "
+                           f"CASE WHEN report #>> '{{technicalAssessment,{h},provisional}}' = 'true' AND report #>> '{{technicalAssessment,{h},youngListing}}' IS DISTINCT FROM 'true' "
+                           f"THEN NULL ELSE report #>> '{{technicalAssessment,{h},rating}}' END AS {h.lower()}_rating"   # task #247: card_counts
                            for h in ("shortTerm", "longTerm"))
                + ", COALESCE(card->>'technicalBarDate', report #>> '{technicalAssessment,asOf}') AS tech_bar, COALESCE(card->>'technicalAt', report->>'technicalCalculatedAt') AS tech_at"
                + " FROM prism_reports WHERE symbol = ANY($1::text[]) ORDER BY symbol, (statement = 'consolidated') DESC")
@@ -702,6 +846,9 @@ async def create(request: Request) -> JSONResponse:
         return _bad("Choose a company symbol and a statement basis (consolidated or standalone).")
     symbol, statement = wanted
     ctx, refusal = await _access(request, symbol)
+    if refusal:
+        return refusal
+    refusal = await _guard(request, ctx, symbol, statement, recalc=body.get("refresh") is True)
     if refusal:
         return refusal
     if ctx.authed:
@@ -1219,6 +1366,10 @@ STALE_SQL = ("(p.status = 'NOT RATED' AND COALESCE(NULLIF(regexp_replace(COALESC
              "AND ((p.report->'rating'->'alerts')::text ILIKE '%model group%' OR (p.report->'rating'->'notRatedReasons')::text ILIKE '%model group%' "
              "OR (p.report->'rating'->'notRatedReasons')::text ILIKE '%classification%' OR (p.report->'rating'->'alerts')::text ILIKE '%classification%'))")
 STALE_MODEL_SQL = "p.model_version IS DISTINCT FROM $6::text"
+# stale_revenue() in SQL (REVENUE_VERSION is a module constant, never a request value): an insurer's report, or a NOT RATED one on consolidated statements,
+# calculated before revenue names version 2.
+STALE_REVENUE_SQL = ("(COALESCE(NULLIF(regexp_replace(COALESCE(p.report->'inputMeta'->>'revenueVersion', ''), '[^0-9]', '', 'g'), '')::int, 0) < " + str(int(REVENUE_VERSION))
+                     + " AND (p.report->'rating'->>'group' = 'INSURANCE' OR (p.status = 'NOT RATED' AND COALESCE(p.report->>'statementType', p.report->'inputMeta'->>'statementType') = 'consolidated')))")
 STALE_MAX = 300                    # --stale-not-rated recalculates at most this many companies per run (run it again for more)
 STALE_PAUSE = 1.0                  # seconds between two companies of that run, so the data provider is never hammered
 
@@ -1230,8 +1381,9 @@ async def _pending(store, statement: str, days: int, limit: int, skip: list, sta
         rows = await conn.fetch(
             "SELECT s.symbol FROM (SELECT DISTINCT symbol FROM snapshots WHERE section = 'summary') s "  # nosec B608 (only module constants are interpolated; values are bound)
             "LEFT JOIN listing_quotes q ON q.symbol = s.symbol LEFT JOIN prism_reports p ON p.symbol = s.symbol AND p.statement = $1 "
-            f"WHERE {STALE_SQL + ' AND $2::int IS NOT NULL' if stale_only else '(p.symbol IS NULL OR p.generated_at < now() - make_interval(days => $2) OR ' + STALE_MODEL_SQL + ' OR ' + STALE_SQL + ')'} AND NOT (s.symbol = ANY($4::text[])) "
-            f"ORDER BY ({STALE_SQL}) DESC, ({STALE_MODEL_SQL}) DESC, (p.symbol IS NULL) DESC, q.market_cap DESC NULLS LAST, s.symbol LIMIT $3",
+            f"WHERE {'(' + STALE_SQL + ' OR ' + STALE_REVENUE_SQL + ') AND $2::int IS NOT NULL' if stale_only else '(p.symbol IS NULL OR p.generated_at < now() - make_interval(days => $2) OR ' + STALE_MODEL_SQL + ' OR ' + STALE_SQL + ' OR ' + STALE_REVENUE_SQL + ')'} AND NOT (s.symbol = ANY($4::text[])) "
+            f"ORDER BY ({STALE_SQL}) DESC, ({STALE_REVENUE_SQL}) DESC, ({STALE_MODEL_SQL}) DESC, (p.status = 'NOT RATED') IS TRUE DESC, (p.symbol IS NULL) DESC, "
+            "q.market_cap DESC NULLS LAST, s.symbol LIMIT $3",
             statement, days, limit, skip, CLASSIFICATION_VERSION, REQUIRED_MODEL_VERSION)
     return [r["symbol"] for r in rows]
 

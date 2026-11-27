@@ -856,12 +856,18 @@ def _premium_dashboard_inputs_resolved(symbol, statement_type, now, lean=True, s
         # went on: standalone's latest year at least ~a year newer, or its latest quarter at least ~two quarters newer (SBFC).
         stale_year = bool(con_end and sa_end and (sa_end - con_end).days >= 360)
         stale_quarter = bool(cq and sq and (sq - cq).days >= 170)
-        if short or stale_year or stale_quarter:
+        # Empty (revenue names v2, 17 Nov 2026): no consolidated full year at all (the company publishes standalone statements only) while standalone has one. Counted by
+        # reported profit, so it holds whatever the revenue line is called.
+        empty = con_n == 0 and cq is None and sa_n > 0
+        if short or stale_year or stale_quarter or empty:
             annual, quarterly = {}, {}
             yearly = _fetch_stock_fundamentals(symbol, "standalone", "yearly", annual, _lean=lean)
             quarterly_view = _fetch_stock_fundamentals(symbol, "standalone", "quarterly", quarterly, _lean=lean)
             effective = "standalone"
-            if short:
+            if empty:
+                basis_note = ("There are no consolidated statements for this company (it publishes standalone statements only); this report uses the "
+                              f"standalone statements, which cover {sa_n} consecutive year{'s' if sa_n != 1 else ''} to {sa_end.isoformat()}.")
+            elif short:
                 basis_note = (f"The consolidated statements cover only {con_n} recent full year{'s' if con_n != 1 else ''} (to {con_end.isoformat() if con_end else 'no date'}), "
                               f"too few for growth over 3 to 5 years; this report uses the standalone statements, which cover {sa_n} consecutive years to {sa_end.isoformat()}.")
             else:
@@ -880,6 +886,7 @@ def _premium_dashboard_inputs_resolved(symbol, statement_type, now, lean=True, s
         "asset_quality_basis": quarterly.get("assetQualityBasis"),
         "benchmarkObservations": annual.get("benchmarkObservations", []),
         "leverage": annual.get("leverage", {}), "secondaryLeverage": annual.get("secondaryLeverage"),
+        "liquidity": annual.get("liquidity", {}),
         "quote": {symbol: {"current_price": quote_data.get("price"), "tradetime": quote_data.get("timestamp"),
                             "market_cap": quote_data.get("marketCap"), "shares": quote_data.get("shares")}}}
     if basis_note:
@@ -3698,6 +3705,9 @@ def _fetch_stock_fundamentals(query: str, statement_type: str = "consolidated", 
             "revenueFromOperations": ("revenue", 10), "incomeFromOperations": ("revenue", 10),
             "interestEarned": ("revenue", 10), "interestIncome": ("revenue", 10),
             "revenue": ("revenue", 20), "totalRevenue": ("revenue", 20),
+            # Insurers (revenue names v2, 17 Nov 2026): life insurers report net premium income, general and health insurers premium earned. Without these an insurer whose
+            # consolidated statements are empty (SBILIFE, ICICIGI, STARHEALTH) never switched to its standalone ones.
+            "netPremiumIncome": ("revenue", 15), "netPremiumEarned": ("revenue", 15), "premiumEarned": ("revenue", 15), "premiumsEarned": ("revenue", 15),
         }
         requested_income_history = _history_from_period_rows(requested_income_rows, period, revenue_aliases, scale=10_000_000)
         standalone_income_history = _history_from_period_rows(standalone_income_rows, period, revenue_aliases, scale=10_000_000)
@@ -4094,6 +4104,7 @@ def _fetch_stock_fundamentals(query: str, statement_type: str = "consolidated", 
         "benchmarkObservations": benchmark_observations}
     model_inputs["technicalPrices"] = resolved_prices.get("prices", {})
     model_inputs["leverage"] = ratio_payloads[1]
+    model_inputs["liquidity"] = ratio_payloads[2]       # FinEdge "li": interest coverage (TTM first), the company report's figure (task #199)
     model_inputs["secondaryLeverage"] = next((row.get("company_value") for row in upstox_ratio_payload
         if isinstance(row,dict) and re.sub(r'[^a-z]','',str(row.get('name','')).lower())=='financialleverage'),None) if isinstance(upstox_ratio_payload,list) else None
     if lean:
@@ -4311,6 +4322,9 @@ app.include_router(api_router)
 DEFAULT_ALLOWED_HOSTS = [
     "localhost",
     "127.0.0.1",
+    # the jobs container calls this backend at http://app:8001 (deploy/jobs.sh, SITE_API_PEER). Always trusted: on 26 Nov 2026 a production
+    # ALLOWED_HOSTS without it answered every technical refresh "400 Invalid host header" (2,493 of 2,500 failed, the technical views went stale)
+    "app",
     "finlitventures.com",
     "www.finlitventures.com",
 ]

@@ -1,7 +1,7 @@
 /* FinLit type scale (docs/TYPE-SCALE.md). Loaded before the app's own CSS. Sizes in px, line heights to match. */
 :root {
-  --fs-11: 11px;  --lh-11: 16px;   /* eyebrows (uppercase, 0.08em tracking), chart axis ticks, legend keys. Labels only */
-  --fs-12: 12px;  --lh-12: 16px;   /* captions, timestamps, table headers, chips, footnotes */
+  /* no 11px step for page text (task #227: no unnecessarily small labels): eyebrows, chips and legend keys use 12px. Only chart axis text drawn in SVG may be 11px. */
+  --fs-12: 12px;  --lh-12: 16px;   /* the smallest text: eyebrows (uppercase, 0.08em tracking), captions, timestamps, table headers, chips, footnotes */
   --fs-13: 13px;  --lh-13: 18px;   /* secondary text, labels, dense table cells */
   --fs-14: 14px;  --lh-14: 20px;   /* default: card and table text, menus, buttons */
   --fs-16: 16px;  --lh-16: 24px;   /* reading text, key values, every form input */
@@ -13,7 +13,7 @@
   --fs-40: 40px;  --lh-40: 48px;   /* hero numbers (score dial) */
 
   /* names by role, for new code */
-  --fs-label: var(--fs-11);
+  --fs-label: var(--fs-12);
   --fs-caption: var(--fs-12);
   --fs-small: var(--fs-13);
   --fs-body: var(--fs-14);
@@ -38,4 +38,6 @@ select, textarea { font-size: var(--fs-16) !important; }
 /* Browsers size <small>, <sup> and <sub> as "smaller" than their parent (about 10px in 12-13px text); pin them to the scale. Class rules still win. */
 small { font-size: var(--fs-12); }
 sup, sub { font-size: var(--fs-12); }
+/* Task #310 F: <b> and <strong> are "bolder", which reaches 900 inside 600 or 700 text; weights stop at 700 (01-design-rules). Class rules still win. */
+b, strong { font-weight: 700; }
 table, .num, [data-num] { font-variant-numeric: tabular-nums; }

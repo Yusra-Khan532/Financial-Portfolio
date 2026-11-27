@@ -22,17 +22,21 @@ from typing import Any, Dict, List, Literal, Optional
 from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel, Field
 
-from ..auth.routes import NO_STORE, Ctx, fail, secure_ctx
+from ..auth.routes import NO_STORE, Ctx, fail, read_limit, secure_ctx
 from ..auth.service import current
 from ..auth.routes import limits_for
+from ..auth.entitlements import part_of
 from .api import BASIC_ROWS, DEFAULT_COLUMNS
 from .catalog import BY_KEY, CATALOG, GROUP_LABEL, allowed, offered
 from .data import Table, get_table
 from .qaliases import ALIAS, definition, display_names
-from .ql import MAX_CHARS, MAX_CONDITIONS, TIER_NAME, Analysis, Problem, analyze, canonical, count_conditions, fmt_in, metrics_in, reading
+from .ql import MAX_CHARS, MAX_CONDITIONS, Analysis, Problem, analyze, canonical, count_conditions, fmt_in, metrics_in, reading
 from .qeval import data_warnings, run
 
 router = APIRouter(prefix="/api/screener")
+# Per visitor IP / per signed-in member. /ql/run is sent on Run, a sort or a page turn (not while typing: that is /ql/validate); the CSV per 10 minutes.
+RUN_VISITOR, RUN_MEMBER = 30, 90
+EXPORT_VISITOR, EXPORT_MEMBER, EXPORT_WINDOW = 10, 30, 600
 UNIT_LABEL = {"Cr": "₹ crore", "Rs": "₹", "%": "%", "x": "times", "d": "days", "n": "count", "pts": "points", "flag": "yes / no"}
 OPERATORS = [
     {"op": ">", "say": "greater than"}, {"op": ">=", "say": "at least"}, {"op": "<", "say": "less than"}, {"op": "<=", "say": "at most"},
@@ -40,14 +44,14 @@ OPERATORS = [
 ]
 # Starter queries. Every one is checked against the real catalogue by the tests, so none can name a ratio we do not have.
 EXAMPLES = [
-    {"id": "large-profitable", "title": "Large and profitable", "about": "Big companies earning a good return on the owners' money.", "query": "Market cap > 50000 Cr\nROE > 15"},
+    {"id": "large-profitable", "title": "Large and profitable", "about": "Big companies earning a good return on the owners' money.", "query": "Size = large\nROE > 15"},
     {"id": "quality", "title": "Quality compounders", "about": "High return on capital, steady growth, little debt.", "query": "ROCE > 20\nSales growth 5 years > 12\nDebt to equity < 0.5"},
     {"id": "low-debt-growth", "title": "Low debt, growing profit", "about": "Profit compounding for 5 years while borrowing little.", "query": "Debt to equity < 0.3\nProfit growth 5 years > 15\nInterest coverage > 5"},
     {"id": "value", "title": "Value", "about": "Priced low against earnings and book value, with a decent return.", "query": "P/E < 15 AND P/B < 2 AND ROE > 12"},
     {"id": "dividend", "title": "High dividend", "about": "Pays out a good yield without stretching its profit.", "query": "Dividend yield > 3\nDividend payout < 70\nDebt to equity < 1"},
     {"id": "own-history", "title": "Cheaper than its own past", "about": "P/E below its own 5-year average.", "query": "P/E < P/E 5 year average\nROE > 12"},
     {"id": "promoters", "title": "Promoters hold a lot", "about": "High promoter holding and a dividend paid.", "query": "Promoter holding > 60\nPays a dividend = yes"},
-    {"id": "small-clean", "title": "Small and clean", "about": "Small companies with low debt and a high return on capital.", "query": "Market cap < 5000 Cr AND Debt to equity < 0.5 AND ROCE > 18"},
+    {"id": "small-clean", "title": "Micro and clean", "about": "Micro caps (below ₹10,000 Cr) with low debt and a high return on capital.", "query": "Size = micro AND Debt to equity < 0.5 AND ROCE > 18"},   # task #262
     {"id": "either", "title": "Cheap or fast-growing", "about": "Shows OR with brackets: either a low P/E or fast sales growth, with low debt.", "query": "(P/E < 12 OR Sales growth 3 years > 25)\nDebt to equity < 1"},
 ]
 
@@ -125,20 +129,20 @@ def _prepare(t: Table, body: RunIn, plan: str):
     for k in body.columns:
         if k not in BY_KEY:
             errors.append(_problem("unknown_column", f"We don't have a column called '{k}'."))
-        elif BY_KEY[k].group == "model" and not offered(plan, "model"):   # one score per plan (task #100): Gold shows FinLit Prism, never the FinLit IQ
-            errors.append(_problem("plan_score", f"The column {BY_KEY[k].label} is not part of your plan's score. Use FinLit Prism instead."))
+        elif BY_KEY[k].group == "model" and not offered(plan, "model"):   # task #283: the retired score is offered to no plan
+            errors.append(_problem("plan_score", "That column is not offered: queries use the FinLit Prism score and its parts."))
         elif not allowed(plan, BY_KEY[k].tier):
-            tier = TIER_NAME[BY_KEY[k].tier]
-            errors.append({**_problem("plan_locked", f"The column {BY_KEY[k].label} is part of the {tier} plan."), "plan": BY_KEY[k].tier})
+            tier = part_of(BY_KEY[k].tier)
+            errors.append({**_problem("plan_locked", f"The column {BY_KEY[k].label} is part of {tier}."), "plan": BY_KEY[k].tier})
         elif k not in cols:
             cols.append(k)
     sort = body.sort or Sort()
     if sort.key not in ("name", "symbol") and sort.key not in BY_KEY:
         errors.append(_problem("unknown_sort", "We can't sort by that."))
     elif sort.key in BY_KEY and BY_KEY[sort.key].group == "model" and not offered(plan, "model"):
-        errors.append(_problem("plan_score", f"Sorting by {BY_KEY[sort.key].label} is not part of your plan's score. Use FinLit Prism instead."))
+        errors.append(_problem("plan_score", "That sort is not offered: queries use the FinLit Prism score and its parts."))
     elif sort.key in BY_KEY and not allowed(plan, BY_KEY[sort.key].tier):
-        errors.append({**_problem("plan_locked", f"Sorting by {BY_KEY[sort.key].label} is part of the {TIER_NAME[BY_KEY[sort.key].tier]} plan."), "plan": BY_KEY[sort.key].tier})
+        errors.append({**_problem("plan_locked", f"Sorting by {BY_KEY[sort.key].label} is part of {part_of(BY_KEY[sort.key].tier)}."), "plan": BY_KEY[sort.key].tier})
     if body.recent and t.latest_quarter() is None:
         errors.append(_problem("recent_unavailable", "We can't tell which quarter is the latest yet, so 'only recent results' is off for now."))
     return a, cols, sort, errors, warnings
@@ -169,7 +173,9 @@ def _execute(t: Table, body: RunIn, plan: str) -> Dict[str, Any]:
 
 @router.post("/ql/run")
 async def run_query(request: Request, body: RunIn):
-    plan = plan_of(await current(request))
+    ctx = await current(request)
+    await read_limit(request, ctx, "ql_run", RUN_VISITOR, RUN_MEMBER)
+    plan = plan_of(ctx)
     t = await _table(request)
     return _json(await asyncio.to_thread(_execute, t, body, plan))
 
@@ -180,9 +186,11 @@ def _cell(v: Any) -> Any:
 
 @router.post("/ql/export")
 async def export(request: Request, body: RunIn):
-    plan = plan_of(await current(request))
+    ctx = await current(request)
+    await read_limit(request, ctx, "ql_export", EXPORT_VISITOR, EXPORT_MEMBER, EXPORT_WINDOW)
+    plan = plan_of(ctx)
     if not allowed(plan, "silver"):
-        raise fail(403, "plan_required", "Downloading results is part of the Silver plan.", plan="silver")
+        raise fail(403, "plan_required", "Downloading results is part of every paid plan.", plan="silver")
     t = await _table(request)
     a, cols, sort, errors, _ = _prepare(t, body, plan)
     if errors or not a.ok:
@@ -231,6 +239,8 @@ async def ratios(request: Request):
         _ratios_cache.clear()
         items = []
         for m in CATALOG:
+            if m.group == "model":      # task #283: the retired score is no ratio a query can use, so it is never suggested
+                continue
             items.append({**_metric_info(m.key, plan), "group": m.group, "groupLabel": GROUP_LABEL[m.group], "better": m.better, "names": display_names(m.key),
                           "definition": definition(m.key), "example": _example(m.key, t), "stats": ({k: t.stats[m.key][k] for k in ("min", "p10", "p50", "p90", "max")} if m.key in t.stats else None)})
         q = t.latest_quarter()
@@ -289,7 +299,7 @@ def _check_columns(cols: List[str], plan: str) -> List[str]:
         if k not in BY_KEY:
             raise fail(422, "bad_column", f"We don't have a column called '{k}'.")
         if not allowed(plan, BY_KEY[k].tier):
-            raise fail(403, "plan_required", f"The column {BY_KEY[k].label} is part of the {TIER_NAME[BY_KEY[k].tier]} plan.", plan=BY_KEY[k].tier)
+            raise fail(403, "plan_required", f"The column {BY_KEY[k].label} is part of {part_of(BY_KEY[k].tier)}.", plan=BY_KEY[k].tier)
         if k not in out:
             out.append(k)
     return out
@@ -334,13 +344,14 @@ def _count_one(t: Table, plan: str, query: str, recent: bool) -> Dict[str, Any]:
 def _view(r, count: Optional[Dict[str, Any]] = None, stale: bool = False) -> Dict[str, Any]:
     out = {"id": str(r["id"]), "name": r["name"], "query": r["query"], "note": r["note"], "columns": _parse_json(r["columns"], []), "sort": _parse_json(r["sort"], None),
            "recent": r["recent"], "createdAt": r["created_at"].isoformat(), "updatedAt": r["updated_at"].isoformat(),
-           "count": r["last_count"], "countedAt": r["counted_at"].isoformat() if r["counted_at"] else None, "status": "ok", "stale": True}
+           "count": r["last_count"], "countedAt": r["counted_at"].isoformat() if r["counted_at"] else None, "status": "ok", "stale": True,
+           "converted": _parse_json(r["converted"], None)}   # task #283 PR D: what the one-time conversion from the retired FinLit IQ changed ({on, was, text})
     if count is not None and not stale:
         out.update({"count": count["count"], "status": count["status"], "leftOut": count.get("leftOut"), "stale": False})
     return out
 
 
-COLS = "id, name, query, note, columns, sort, recent, last_count, counted_at, created_at, updated_at"
+COLS = "id, name, query, note, columns, sort, recent, last_count, counted_at, created_at, updated_at, converted"
 
 
 async def _owned(conn, ctx: Ctx, basket_id: str):

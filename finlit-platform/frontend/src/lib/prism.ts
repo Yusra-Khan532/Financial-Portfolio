@@ -1,10 +1,11 @@
 // FinLit Prism: the Gold plan's advanced financial-health rating (engine 3.6.10, merged from Yusra-Khan532/financial-portfolio).
-// The research API (/api/prism/*) checks the plan, keeps the signed snapshot and serves the PDF; the browser only ever sees a PrismReport.
+// The research API (/api/prism/*) checks the plan and keeps the signed snapshot; the browser only ever sees a PrismReport (task #220: built from
+// an allow-list of what the page shows). There is no PDF and no download anywhere in the report.
 // Shapes follow site-api/backend/premium_engine.py (rating), premium_presentation.py (review) and premium_completeness.py (completeness).
 // Contract: docs/prism/CONTRACT.md.
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { API_BASE, ApiError, apiGet, apiSend, apiUrl, errorBody } from "./api";
+import { ApiError, apiGet, apiSend } from "./api";
 import { MINUS, nf } from "./format";
 import { FUND_PART_NAME } from "./prismNames";
 
@@ -38,6 +39,8 @@ export type PrismMetric = {
   status: FactorState; statusLabel: string; weight?: number; share?: number;
   details: {
     basis?: string; note?: string | null; current?: number | null; previous?: number | null; years?: number; availableYears?: number;
+    /** The streak factor's sentence, written on the server (task #220: the counts behind it are not sent). */
+    streakText?: string;
     good?: number; slips?: number; judged?: number; medianYoY?: number | null; lossFill?: boolean; latestLoss?: boolean;
     operatingLoss?: boolean; opMarginNow?: number; growthUsed?: number; growthRaw?: number; growthBasis?: string; growthKind?: string; [k: string]: unknown;
   };
@@ -50,12 +53,14 @@ export type PrismLoss = {
   tier: string | null; cap?: number | null; rawFundamental?: number | null;
 };
 export type PrismRating = {
-  modelVersion?: string; baselineVersion?: string; fillVersion?: string; group: ModelGroup | string;
+  modelVersion?: string; baselineVersion?: string; fillVersion?: string;
+  /** The peer group code; no longer sent (task #220). `incomeNote` carries the one sentence the page needed it for. */
+  group?: ModelGroup | string; incomeNote?: string | null;
   final: number | null; label: PrismLabel; status: PrismStatusWord;
   /** Internal category scores; they can exist for NOT RATED, which never shows them. */
-  parts: Record<PartKey, number | null>; partWeights?: Record<PartKey, number>; coverage: Record<PartKey, number>;
+  parts: Record<PartKey, number | null>; partWeights?: Record<PartKey, number>; coverage?: Record<PartKey, number>;
   /** Weighted overall coverage, 0-1. Completeness of the inputs, not a probability. */
-  confidence: number; judgedQuarters: number; dataIntegrityStatus: "PASS" | "REVIEW REQUIRED";
+  confidence: number; judgedQuarters?: number; dataIntegrityStatus: "PASS" | "REVIEW REQUIRED";
   metrics: PrismMetric[]; loss?: PrismLoss; lossCapped?: boolean; valuationCapped?: boolean;
   adjustments?: { metric: string; part: PartKey }[];
   alerts?: string[]; headline?: string;
@@ -97,7 +102,7 @@ export type TechnicalStamp = { asOf: string | null; calculatedAt: string | null;
 export type PrismReport = {
   id: string; createdAt: string; completedAt: string; statementType: Statement; state?: string;
   company: { symbol: string; name: string; industry?: string | null; sector?: string | null; description?: string | null };
-  rating: PrismRating; inputMeta: PrismInputMeta; warnings: string[]; sources: unknown[]; trends: Trend[];
+  rating: PrismRating; inputMeta?: PrismInputMeta; warnings: string[]; sources?: unknown[]; trends: Trend[];
   benchmark: PrismBenchmark; review?: PrismReview; financialHistory?: PrismHistory;
   /** The technical (short-term / long-term) assessment: additive and independent of `rating`. Absent from older reports; read it with parseTechnical (lib/prismTechnical.ts). */
   technicalAssessment?: unknown;
@@ -107,7 +112,7 @@ export type PrismReport = {
   /** True when served from storage instead of a fresh calculation. */
   cached: boolean;
   /** When the PDF of this calculation stops being downloadable (the signed snapshot lives 30 minutes); null once it has. */
-  pdfAvailableUntil: string | null;
+  pdfAvailableUntil?: string | null;
 };
 export type PrismServiceStatus = { name: string; available: boolean; reason: string | null; modelVersion: string | null };
 
@@ -167,10 +172,14 @@ export function notRatedLede(rating: Pick<PrismRating, "status" | "notRatedReaso
 }
 /** The completeness line. A high figure beside a withheld rating must never read as a contradiction: when a check other than the data coverage
  * withheld the rating, say so next to the figure and do not tick it. */
-export function inputsLine(rating: Pick<PrismRating, "status" | "confidence" | "notRatedReasons">): { text: string; ok: boolean; note: string | null } {
-  const text = `${pctWhole(rating.confidence)} of inputs available`;
+// Task #311 (developer file 21): the card says nothing when every figure is there; below that, "Some figures are missing" and the glossary link.
+// The percentage and how gaps are handled stay off the page (how FinLit builds its score is not shown).
+export const MISSING_WORDS = "Some figures are missing";
+export const allFiguresIn = (confidence: number | null | undefined) => confidence != null && Math.round(confidence * 100) >= 100;
+export function inputsLine(rating: Pick<PrismRating, "status" | "confidence" | "notRatedReasons">): { text: string; ok: boolean; note: string | null } | null {
+  if (allFiguresIn(rating.confidence)) return null;
   const withheldElsewhere = completenessNote(rating) != null;
-  return { text, ok: !withheldElsewhere, note: withheldElsewhere ? "Inputs are not the cause: a separate check withheld the rating." : null };
+  return { text: MISSING_WORDS, ok: !withheldElsewhere, note: withheldElsewhere ? "Missing figures are not the cause: a separate check withheld the rating." : null };
 }
 export const STATE_WORD: Record<FactorState, string> = {
   A: "Reported or calculated", Z: "Loss rule applied", S: "Industry benchmark in place of own history",
@@ -195,11 +204,17 @@ export function standing(row: Pick<PrismMetric, "status" | "reading" | "points">
 export const isRated = (r: Pick<PrismRating, "status">) => r.status !== "NOT RATED";
 /** The model calls this line "Sales" for every company (site-api premium_data.revenue). What it is differs by sector, so a neutral note says so. */
 export const incomeWord = (_group?: string) => "Sales";
+/** The note under the history tables: sent by the server since task #220 (`rating.incomeNote`); worked out from an older report's group code. */
+export const reportIncomeNote = (r: Pick<PrismRating, "incomeNote" | "group">): string | null => r.incomeNote !== undefined ? r.incomeNote : incomeNote(r.group ?? "");
 export const incomeNote = (group: string): string | null =>
   group === "BANK" || group === "NBFC" ? "For banks and NBFCs the model's sales line is net interest income: interest earned less interest paid."
   : group === "INSURANCE" ? "For insurers the model's sales line is net premium earned." : null;
 export const statementWord = (s?: string | null) => (s === "standalone" ? "Standalone" : "Consolidated");
 export const score1 = (v: number | null | undefined) => (v == null ? "—" : (v < 0 ? MINUS : "") + nf(v, 1));
+/** Task #311 (developer file 21, Prism page row 1): "How it works" in plain words, with the member's own daily allowance when the plan has one. */
+export function howPrismWorks(perDay: number | null | undefined): string {
+  return `Choose a company to open its rating. A new rating can take up to half a minute.${perDay ? ` You can open ${perDay} a day.` : ""}`;
+}
 export const pctWhole = (v: number | null | undefined) => (v == null ? "—" : `${Math.round(v * 100)}%`);
 
 /** A factor's value with its unit, in the site's style (real minus, ×, ₹ Cr). */
@@ -221,6 +236,7 @@ const crore = (v: number | null | undefined) => (v == null ? "—" : "₹" + (v 
 export function factorDetail(row: PrismMetric, group: string): string | null {
   const d = row.details || {};
   const income = row.metric.startsWith("SALES") ? incomeWord(group).toLowerCase() : "net profit";
+  if (row.metric.endsWith("_STREAK") && typeof d.streakText === "string") return d.streakText;
   if (row.metric.endsWith("_STREAK") && d.judged != null) {
     if (!d.judged) return "No comparable quarters yet.";
     const good = d.good ?? 0;
@@ -368,7 +384,9 @@ export const transient = (e: { status?: number } | null | undefined) => !e?.stat
 /** 2.5 s, 5 s, 10 s, then every 15 s. */
 export const backoff = (failures: number, intervalMs = 2500) => Math.min(intervalMs * 2 ** failures, 15000);
 
-export type Problem = { kind: "locked" | "missing" | "limit" | "unavailable" | "invalid" | "expired" | "offline" | "other"; title: string; text: string; retryAt?: Date };
+export type Problem = { kind: "locked" | "missing" | "limit" | "unavailable" | "invalid" | "expired" | "offline" | "other"; title: string; text: string; retryAt?: Date;
+  /** The visitor is not signed in: the page offers to sign in or sign up (free) and come back here, not "Try again" (task #207). */
+  signIn?: boolean };
 const waitWords = (s: number) => (s < 60 ? "less than a minute" : s < 5400 ? `about ${Math.round(s / 60)} minute${Math.round(s / 60) === 1 ? "" : "s"}` : `about ${Math.round(s / 3600)} hours`);
 const clock = (d: Date) => d.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" });
 /** What to tell the member for a failed Prism request, in words. */
@@ -376,10 +394,10 @@ export function prismProblem(err: unknown, now = Date.now()): Problem {
   const e = err instanceof ApiError ? err : null;
   const status = e?.status ?? 0;
   const detail = e?.body.detail;
-  if (status === 401) return { kind: "locked", title: `Sign in to open ${PRISM_NAME}`, text: "The full report opens for signed-in members. Signing up is free; Gold opens every company." };
+  if (status === 401) return { kind: "locked", title: `Sign in to open ${PRISM_NAME}`, text: "The full report opens for signed-in members. Signing up is free; Gold opens every company.", signIn: true };
   if (status === 403) return { kind: "locked", title: `${PRISM_NAME} is part of Gold`, text: "Sign in with a Gold plan to open and calculate Prism ratings." };
   if (status === 404) return { kind: "missing", title: "We could not find this company", text: "Check the symbol, or choose the company from the search box." };
-  if (status === 410) return { kind: "expired", title: "This PDF is not available", text: "The PDF of this report could not be found. Recalculate to create a fresh report, then download it." };
+  if (status === 410) return { kind: "expired", title: "This report has been replaced", text: "A newer calculation replaced this report. Recalculate or open the company again to see the latest one." };
   if (status === 422) return { kind: "invalid", title: "That request was not accepted", text: detail || "Choose a listed company and a statement basis, then try again." };
   if (status === 429 && e?.body.status === "busy") {
     const secs = e.body.retryAfter || 30;
@@ -389,38 +407,16 @@ export function prismProblem(err: unknown, now = Date.now()): Problem {
     const secs = e?.body.retryAfter || 0;
     const at = secs ? new Date(now + secs * 1000) : undefined;
     const when = at ? ` You can try again in ${waitWords(secs)}, at ${clock(at)} IST.` : " Please try again a little later.";
-    return { kind: "limit", title: "Calculation limit reached", text: (detail ? detail.replace(/\.?$/, ".") : "Each member can calculate 20 Prism ratings a day, and only two run at once.") + when, retryAt: at };
+    // task #220: the server says which limit was reached (today's reports, too many at once, Recalculate) in `code`
+    const code = (e?.body as { code?: string } | undefined)?.code;
+    const title = code === "daily" ? "Today's reports are used" : code === "burst" ? "Too many reports at once" : code === "recalculate" ? "Recalculate limit reached" : "Calculation limit reached";
+    return { kind: "limit", title, text: (detail ? detail.replace(/\.?$/, ".") : "Each member can calculate 20 Prism ratings a day, and only two run at once.") + when, retryAt: at };
   }
   if (status >= 500) return { kind: "unavailable", title: `${PRISM_NAME} is not available right now`, text: "The rating service or a data provider did not answer. Please try again in a few minutes." };
   if (!status) return { kind: "offline", title: "The connection was interrupted", text: "We could not reach FinLit. Check your connection and try again." };
   return { kind: "other", title: "Something went wrong", text: detail || "Please try again." };
 }
 
-/* ------------------------------------------------------------------ the PDF of exactly this calculation */
-export const prismPdfUrl = (id: string) => `/api/prism/reports/${encodeURIComponent(id)}/pdf`;
-/** The PDF stays downloadable while the signed snapshot lives (30 minutes); afterwards the page offers a recalculation. */
-export const pdfOpen = (r: Pick<PrismReport, "pdfAvailableUntil">, now = Date.now()) => !!r.pdfAvailableUntil && Date.parse(r.pdfAvailableUntil) > now;
-export const pdfName = (r: Pick<PrismReport, "company" | "statementType" | "createdAt">) =>
-  `FinLit-Prism-${r.company.symbol}-${r.statementType}-${r.createdAt.slice(0, 10)}.pdf`.replace(/[^\w.-]+/g, "-");
-
-/** Fetch the PDF and save it. A 410 (snapshot gone) or any other refusal is thrown as an ApiError for the page to explain. */
-export async function downloadPrismPdf(r: PrismReport): Promise<void> {
-  const res = await fetch(apiUrl(prismPdfUrl(r.id)), { headers: { Accept: "application/pdf" }, credentials: API_BASE ? "include" : "same-origin", cache: "no-store" });
-  if (!res.ok) {
-    let body: ApiError["body"] = {};
-    try { body = errorBody(await res.json()); } catch { /* not JSON */ }
-    throw new ApiError(res.status, body);
-  }
-  const href = URL.createObjectURL(await res.blob());
-  const a = document.createElement("a");
-  try {
-    a.href = href; a.download = pdfName(r); a.rel = "noreferrer";
-    document.body.appendChild(a); a.click();
-  } finally {            // whatever happens, the link is removed and the object URL is released
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(href), 30_000);
-  }
-}
 
 /* ------------------------------------------------------------------ data hooks */
 const SYMBOL = /^[A-Z0-9&_.-]{1,24}$/;

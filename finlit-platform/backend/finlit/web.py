@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Optional
 
 from fastapi import FastAPI, Request
-from fastapi.responses import FileResponse, JSONResponse, Response
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
 
 from . import seo
 
@@ -149,6 +149,9 @@ def mount_frontend(app: FastAPI, dist: Path) -> bool:
             return JSONResponse({"status": "not_found"}, status_code=404, headers={"Cache-Control": "no-store"})
         if path.endswith(".map"):           # source maps are never served, even if a build leaves one behind: they carry the unminified code (task #79)
             return Response("not found", status_code=404, media_type="text/plain", headers={"Cache-Control": "no-store"})
+        moved = seo.redirect_for(path, request.url.query)
+        if moved is not None:               # an address that moved for good (seo.REDIRECTS, task #283): a 301, the query string dropped (kept for seo.KEEP_QUERY, task #329)
+            return RedirectResponse(moved, status_code=301, headers={"Cache-Control": "public, max-age=86400", **SITE_HEADERS})
         target = (root / path).resolve()
         if path and target.is_file() and root in target.parents:
             rel = target.relative_to(root).as_posix()

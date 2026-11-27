@@ -7,30 +7,34 @@ import { useMacro } from "../../lib/macro";
 import { rateTiles } from "../../lib/dashMacro";
 import { inflationCard } from "../../lib/dashPack";
 import { DashCards } from "./DashCards";
-import { dayMonth, monthYear, pickIndices } from "../../lib/dashboard";
+import { dayMonth, monthYear, pickIndices, type IndexCard } from "../../lib/dashboard";
 import { MINUS, dateIN, nf } from "../../lib/format";
 import { niceTicks } from "../../lib/etf";
 import { RANGES, lastN, useLevels } from "../../lib/markets";
 import { useGold } from "../../lib/premium";
-import { Card, Seg, tone, useWidth } from "./parts";
-import { ChartZoom } from "../../components/ChartZoom";
+import { Card, tone, useWidth } from "./parts";
+import { Dd, SegDd, useExpanded } from "./dx";
 
 const sgn = (v: number | null | undefined, d = 2) => (v == null ? MINUS : (v > 0 ? "+" : v < 0 ? MINUS : "") + nf(Math.abs(v), d) + "%");
 const pts = (v: number | null | undefined) => (v == null ? "" : ` (${v > 0 ? "+" : v < 0 ? MINUS : ""}${nf(Math.abs(v))})`);
-const CHARTS = [["NIF50", "Nifty 50"], ["SNSXSENSEX", "Sensex"]] as const;
 
-function IndexChart({ items }: { items: { code: string; close: number | null; changePct: number | null }[] }) {
+/** Task #316: the chart's Chart dropdown lists the six index cards above it (India VIX is a volatility reading, not charted), each with its level and the day's move.
+ *  "Enlarge chart" is replaced by the card's own expand button: in the expanded view the chart takes the panel's width and is taller. */
+function IndexChart({ items, cards }: { items: { code: string; close: number | null; changePct: number | null }[]; cards: IndexCard[] }) {
   const [code, setCode] = useState<string>("NIF50"), [range, setRange] = useState<(typeof RANGES)[number][0]>("6M");
   const q = useLevels(code, range === "5Y" ? 5 : 1);
   const [box, W] = useWidth<HTMLDivElement>();
   const [hv, setHv] = useState<number | null>(null);
   const n = RANGES.find((r) => r[0] === range)![1], live = items.find((r) => r.code === code);
   const rows = useMemo(() => lastN(q.data?.rows || [], n), [q.data, n]);
-  const H = 240, L = 56, R = 12, T = 14, B = 28;
+  const H = useExpanded() ? 400 : 240;
+  const charts = cards.filter((c) => c.row?.code).map((c) => ({ v: c.row!.code, label: c.label, small: <>{nf(c.row!.close as number)} · <span className={tone(c.row!.changePct)}>{sgn(c.row!.changePct)}</span></> }));
+  const name = charts.find((c) => c.v === code)?.label ?? (code === "NIF50" ? "Nifty 50" : code);
+  const L = 56, R = 12, T = 14, B = 28;
   const controls = (
     <div className="dsh-chart-c">
-      <Seg label="Index" value={code} options={CHARTS} onChange={(c) => { setCode(c); setHv(null); }} />
-      <Seg label="Range" value={range} options={RANGES.map(([k]) => [k, k] as const)} onChange={(k) => { setRange(k); setHv(null); }} />
+      {charts.length > 0 && <Dd k="Chart" value={code} options={charts} onChange={(c) => { setCode(c); setHv(null); }} />}
+      <SegDd k="Period" label="Period" value={range} options={RANGES.map(([k]) => ({ v: k, label: k }))} onChange={(k) => { setRange(k); setHv(null); }} />
     </div>
   );
   if (q.isError) return <div className="dsh-chart">{controls}<p className="dsh-note">Daily closes for this index are not available right now.</p></div>;
@@ -49,11 +53,10 @@ function IndexChart({ items }: { items: { code: string; close: number | null; ch
   const key = (e: React.KeyboardEvent) => { if (e.key === "ArrowLeft" || e.key === "ArrowRight") { e.preventDefault(); setHv((h) => Math.max(0, Math.min(rows.length - 1, (h ?? rows.length - 1) + (e.key === "ArrowRight" ? 1 : -1)))); } else if (e.key === "Escape") setHv(null); };
   return (
     <div className="dsh-chart" ref={box}>
-      <ChartZoom label={"Index closing levels"} className="cz-r">
       {controls}
       <div className="dsh-chart-s"><b>{nf(live?.close ?? last)}</b><span className={tone(day)}>{sgn(day)} today</span><em>{range} {sgn(chg(last, v[0]))} · daily closes, {label(rows[0].d)} to {label(rows[rows.length - 1].d)}</em></div>
       <div className="dsh-chart-b">
-        <svg viewBox={`0 0 ${W} ${H}`} role="img" tabIndex={0} aria-label={`${CHARTS.find((c) => c[0] === code)![1]} daily closing level, ${range}. Use the left and right arrow keys to read each day.`} onPointerMove={move} onPointerLeave={() => setHv(null)} onKeyDown={key}>
+        <svg viewBox={`0 0 ${W} ${H}`} role="img" tabIndex={0} aria-label={`${name} daily closing level, ${range}. Use the left and right arrow keys to read each day.`} onPointerMove={move} onPointerLeave={() => setHv(null)} onKeyDown={key}>
           <defs><linearGradient id="dshfill" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopColor={color} stopOpacity=".18" /><stop offset="1" stopColor={color} stopOpacity="0" /></linearGradient></defs>
           {ticks.map((t) => <g key={t} className="grid"><line x1={L} x2={W - R} y1={Y(t)} y2={Y(t)} /><text x={L - 8} y={Y(t) + 4} textAnchor="end">{nf(t, 0)}</text></g>)}
           {xs.map((i) => <text key={i} className="xt" x={X(i)} y={H - 8} textAnchor={i === 0 ? "start" : i === rows.length - 1 ? "end" : "middle"}>{label(rows[i].d)}</text>)}
@@ -62,7 +65,6 @@ function IndexChart({ items }: { items: { code: string; close: number | null; ch
         </svg>
         {cur && hv != null && <div className="dsh-tip" style={{ left: `${Math.min(86, Math.max(14, (X(hv) / W) * 100))}%` }} role="status"><b>{`${dayMonth(cur.d, true)}`}</b><span>Close {nf(cur.c)}</span>{prev && <span className={tone(chg(cur.c, prev.c))}>Day {sgn(chg(cur.c, prev.c))}</span>}</div>}
       </div>
-      </ChartZoom>
     </div>
   );
 }
@@ -83,15 +85,15 @@ export function MarketToday() {
       <div className={"c " + tone(ch)}>{ch == null ? MINUS : (ch > 0 ? "▲ " : ch < 0 ? "▼ " : "") + sgn(ch)}<span className="p">{pts(r.points)}</span></div><div className="pe">{r.pe != null ? `P/E ${nf(r.pe, 1)}` : "P/E —"}</div></Link>;
   };
   return (
-    <Card id="market" title="Market today" sub={status} right={gold && d ? <Link className="dsh-link" to="/premium/markets#indices">All {d.items.length} indices →</Link> : undefined}>
-      {!d ? <div className="dsh-ixs">{Array.from({ length: 7 }, (_, i) => <div key={i} className="skeleton" style={{ height: 92, borderRadius: 12 }} />)}</div> : idx.isError ? <p className="dsh-note">Index levels are not available right now.</p> : <>
+    <Card id="market" title="Market today" sub={status} page={gold && d ? { to: "/premium/markets#indices", label: `All ${d.items.length} indices →` } : undefined} right={gold && d ? <Link className="dsh-link" to="/premium/markets#indices">All {d.items.length} indices →</Link> : undefined}>
+      {!d ? <div className="dsh-ixs">{Array.from({ length: 7 }, (_, i) => <div key={i} className="skeleton" style={{ height: 92, borderRadius: "var(--r-ctl)" }} />)}</div> : idx.isError ? <p className="dsh-note">Index levels are not available right now.</p> : <>
         <div className="dsh-ixs" aria-label="Index levels">{main.map(tile)}
           {vix.row ? <div className="dsh-ix vix"><div className="n">India VIX</div><div className="v">{nf(vix.row.close as number)}</div><div className={"c " + tone(vix.row.changePct)}>{vix.row.changePct == null ? MINUS : (vix.row.changePct > 0 ? "▲ " : "▼ ") + sgn(vix.row.changePct)}<span className="p">{pts(vix.row.points)}</span></div><div className="pe">Volatility</div></div> : tile(vix)}</div>
       </>}
       <div className="dsh-mt-split">
-        {d && !idx.isError ? <div className="dsh-hide-phone"><IndexChart items={d.items} /></div> : <div />}
+        {d && !idx.isError ? <div className="dsh-hide-phone"><IndexChart items={d.items} cards={main} /></div> : <div />}
         <div className="dsh-rates"><div className="dsh-rates-h">Prices and rates that move company profits</div>
-          {macro.isLoading ? <div className="dsh-rates-g">{Array.from({ length: 6 }, (_, i) => <div key={i} className="skeleton" style={{ height: 68, borderRadius: 12 }} />)}</div> :
+          {macro.isLoading ? <div className="dsh-rates-g">{Array.from({ length: 6 }, (_, i) => <div key={i} className="skeleton" style={{ height: 68, borderRadius: "var(--r-ctl)" }} />)}</div> :
             <div className="dsh-rates-g">{tiles.map((t) => <div key={t.key} className="dsh-rate"><div className="n">{t.name}</div><div className="v">{t.value ?? "—"}</div><div className={"nt " + (t.tone ?? "")}>{t.note}</div></div>)}</div>}
           {infl && <div className="sp dsh-cards"><DashCards items={[infl]} scope="market" /></div>}
           <p className="dsh-foot">Sources: U.S. EIA (Brent), FBIL (USD/INR), RBI (repo), MoSPI (CPI, WPI). Brent is compared with its average over the last four finished quarters, the period behind companies' latest results.</p></div>

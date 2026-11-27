@@ -40,7 +40,7 @@ async def create_admin(email: str, password: str) -> str:
             async with store.pool.acquire() as conn:
                 await conn.execute(
                     "INSERT INTO users (email, name, password_hash, bootstrap_pw_hash, role, plan, email_verified_at) "
-                    "VALUES ($1, 'Administrator', $2, $3, 'admin', 'gold', now()) ON CONFLICT (lower(email)) DO NOTHING", e, pw, await crypto.hash_password(password))
+                    "VALUES ($1, 'Administrator', $2, $3, 'admin', 'platinum', now()) ON CONFLICT (lower(email)) DO NOTHING", e, pw, await crypto.hash_password(password))
             outcome = "created"
         elif u["bootstrap_pw_hash"] and await crypto.verify_password(u["bootstrap_pw_hash"], password):
             outcome = "unchanged"
@@ -64,7 +64,7 @@ async def create_admin(email: str, password: str) -> str:
             outcome = "password_set"
         # Always: the account is an active, confirmed administrator on the top plan (a role or plan changed by mistake is put back).
         async with store.pool.acquire() as conn:
-            await conn.execute("UPDATE users SET role = 'admin', plan = 'gold', status = 'active', email_verified_at = COALESCE(email_verified_at, now()) "
+            await conn.execute("UPDATE users SET role = 'admin', plan = 'platinum', status = 'active', email_verified_at = COALESCE(email_verified_at, now()) "
                                "WHERE lower(email) = $1", e)
         print({"created": f"Administrator created: {e}. Sign in, then set up the authenticator app when asked.",
                "unchanged": f"Administrator ready: {e} (ADMIN_PASSWORD unchanged since the last start; the current password is kept).",
@@ -115,7 +115,7 @@ def main() -> None:
     a.add_argument("--email", required=True)
     m = sub.add_parser("create-member")
     m.add_argument("--email", required=True)
-    m.add_argument("--plan", choices=["basic", "silver", "gold"], default="basic")
+    m.add_argument("--plan", choices=["free", "mfetf", "equity", "combined", "gold", "platinum"], default="free")   # task #410: the new plans
     m.add_argument("--name", default="Demo member")
     r = sub.add_parser("reset-mfa")
     r.add_argument("--email", required=True)

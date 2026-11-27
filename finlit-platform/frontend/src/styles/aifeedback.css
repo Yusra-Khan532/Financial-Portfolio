@@ -1,0 +1,12 @@
+/* Task #366: the Copy / thumbs up / thumbs down row under AI-written text: three quiet 32px icon buttons (44px on a phone), a pressed thumb filled. */
+.aifb { display: flex; align-items: center; flex-wrap: wrap; gap: 2px; margin: 8px 0 0; }
+.aifb-b { all: unset; box-sizing: border-box; display: inline-grid; place-items: center; width: 32px; height: 32px; border-radius: var(--r-ctl); color: var(--muted); cursor: pointer;
+  transition: background-color .16s ease, color .16s ease; }
+.aifb-b svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.aifb-b:hover { background: var(--s2); color: var(--text); }
+.aifb-b:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
+.aifb-b[aria-pressed="true"] { color: var(--text); }
+.aifb-b[aria-pressed="true"] svg { fill: currentColor; fill-opacity: .18; }
+.aifb-note { margin-left: 6px; font-size: var(--fs-12); color: var(--muted); }
+@media (max-width: 720px) { .aifb-b { width: 44px; height: 44px; } }
+@media (prefers-reduced-motion: reduce) { .aifb-b { transition: none; } }

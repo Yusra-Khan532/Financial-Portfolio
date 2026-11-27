@@ -42,7 +42,7 @@ export function MiniBars({ labels, series, mode = "single", fmt, height = 150, h
   const chart = (
     <div className={"mb" + (fit ? " fit" : "")} ref={box} onMouseLeave={() => setHv(null)}>
       <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={summary ?? `${series.map((s) => s.label).join(", ")} by period`}>
-        {ticks.map((t, i) => <g key={i}><line x1={pl} x2={W - pr} y1={Y(t)} y2={Y(t)} stroke="var(--border)" strokeWidth={t === 0 ? 1.2 : 1} /><text x={pl - 6} y={Y(t) + 3.5} textAnchor="end" fontSize={fs} fill="var(--faint)" fontFamily="IBM Plex Mono, monospace">{fmt(t)}</text></g>)}
+        {ticks.map((t, i) => <g key={i}><line x1={pl} x2={W - pr} y1={Y(t)} y2={Y(t)} stroke="var(--border)" strokeWidth={t === 0 ? 1.2 : 1} /><text x={pl - 6} y={Y(t) + 3.5} textAnchor="end" fontSize={fs} fill="var(--faint)" fontFamily="Inter Variable, Inter, monospace">{fmt(t)}</text></g>)}
         {labels.map((l, i) => {
           const on = hv === i || (hv == null && (highlight == null || highlight === i)) || !dim, op = on ? 1 : fit ? 0.62 : 0.38;
           let acc = 0, accN = 0;
@@ -64,7 +64,7 @@ export function MiniBars({ labels, series, mode = "single", fmt, height = 150, h
         {labels.map((l, i) => ((n - 1 - i) % every === 0) && <text key={"l" + i} x={fit && X(i) + (l.length > 6 ? 17 : 11) > W ? W - 1 : X(i)} y={H - (fit ? 8 : 7)} textAnchor={fit && X(i) + (l.length > 6 ? 17 : 11) > W ? "end" : "middle"} fontSize={fs} fill="var(--faint)">{l.replace(/^(\w{3}) (\d{2})(\d{2})$/, "$1 '$3")}</text>)}
         {fit && tag && mode === "single" && highlight != null && series[0]?.values[highlight] != null && hv == null && (() => {
           const v = series[0].values[highlight] as number, t = fmt(v), tw = t.length * 6.8 + 14, cx = Math.min(W - 2 - tw / 2, Math.max(pl + tw / 2, X(highlight))), ty = (v >= 0 ? Y(v) : y0) - 21;
-          return <g pointerEvents="none"><rect x={cx - tw / 2} y={Math.max(1, ty)} width={tw} height={18} rx={6} fill={`color-mix(in srgb, ${series[0].color} 24%, var(--bg-surface))`} stroke={series[0].color} strokeWidth={1} /><text x={cx} y={Math.max(1, ty) + 12.5} textAnchor="middle" fontSize={11} fontWeight={600} fill="var(--text-primary)" fontFamily="IBM Plex Mono, monospace">{t}</text></g>;
+          return <g pointerEvents="none"><rect x={cx - tw / 2} y={Math.max(1, ty)} width={tw} height={18} rx={6} fill={`color-mix(in srgb, ${series[0].color} 24%, var(--bg-surface))`} stroke={series[0].color} strokeWidth={1} /><text x={cx} y={Math.max(1, ty) + 12.5} textAnchor="middle" fontSize={11} fontWeight={600} fill="var(--text-primary)" fontFamily="Inter Variable, Inter, monospace">{t}</text></g>;
         })()}
       </svg>
       {hv != null && (

@@ -99,12 +99,13 @@ export function FilterMenu({ name, value, options, open, onOpen, onPick, note, k
 export function useRowFilter<T>(items: readonly T[], size: (t: T) => Sized) {
   const [filter, setFilter] = useState<StockFilter>(NO_FILTER);
   const facets = useMemo(() => facetsOf(items.map(size)), [items]);   // eslint-disable-line react-hooks/exhaustive-deps
-  const rows = useMemo(() => (filterOn(filter) ? items.filter((t) => { const z = size(t); return passesValues(z.sector, z.cap, filter); }) : items), [items, filter]);   // eslint-disable-line react-hooks/exhaustive-deps
+  const rows = useMemo(() => (filterOn(filter) ? items.filter((t) => { const z = size(t); return passesValues(z.sector, z.cap, filter, z.industry); }) : items), [items, filter]);   // eslint-disable-line react-hooks/exhaustive-deps
   return { filter, setFilter, facets, rows, on: filterOn(filter), count: rows.length };
 }
 
 const capOptions = (f: Facets) => f.caps.map((o) => ({ id: o.id as string, label: o.label, hint: o.range, n: o.n }));
 const sectorOptions = (f: Facets) => f.sectors.map((o) => ({ id: o.name, label: o.name, n: o.n }));
+const industryOptions = (f: Facets) => f.industries.map((o) => ({ id: o.name, label: o.name, n: o.n }));
 const nIN = (n: number) => n.toLocaleString("en-IN");
 const unknownNote = (n: number, what: string, pick: string) => (n ? `${nIN(n)} companies with no ${what} on file are left out while ${pick} is chosen.` : undefined);
 
@@ -113,13 +114,13 @@ type Props = {
   variant?: "bar" | "panel";
   /** how many companies pass the filter right now (the panel shows it); omit to hide the line */
   count?: number;
-  menu?: "sector" | "cap" | null; onMenu?: (m: "sector" | "cap" | null) => void;   // bar only: lets the host open a list from a shortcut
+  menu?: "sector" | "cap" | "industry" | null; onMenu?: (m: "sector" | "cap" | "industry" | null) => void;   // bar only: lets the host open a list from a shortcut
   onDone?: () => void;                                                              // after a choice: the host puts the focus back in its search box
   className?: string;
 };
 
 export function SearchFilters({ facets, value, onChange, variant = "bar", count, menu, onMenu, onDone, className }: Props) {
-  const [own, setOwn] = useState<"sector" | "cap" | null>(null);
+  const [own, setOwn] = useState<"sector" | "cap" | "industry" | null>(null);
   const cur = menu !== undefined ? menu : own, setMenu = onMenu ?? setOwn;
   const [panel, setPanel] = useState(false);
   const wrap = useRef<HTMLDivElement>(null), btn = useRef<HTMLButtonElement>(null);
@@ -130,13 +131,14 @@ export function SearchFilters({ facets, value, onChange, variant = "bar", count,
     return () => document.removeEventListener("mousedown", away);
   }, [panel]);
   if (!facets.sectors.length && !facets.caps.some((c) => c.n > 0)) return null;     // no data to filter by (an older server)
-  const on = filterOn(value), active = (value.sector ? 1 : 0) + (value.cap ? 1 : 0);
+  const on = filterOn(value), active = (value.sector ? 1 : 0) + (value.cap ? 1 : 0) + (value.industry ? 1 : 0);
+  const hasInd = facets.industries.length > 0;   // task #336: Industry shows where the data carries it (the search index does; screener rows may not)
   const clear = () => { onChange(NO_FILTER); onDone?.(); };
 
   if (variant === "panel") {
     return (
       <div className={`sf-panelwrap ${className || ""}`} ref={wrap} onKeyDown={(e) => { if (e.key === "Escape" && panel) { e.preventDefault(); e.stopPropagation(); setPanel(false); btn.current?.focus(); } }}>
-        <button ref={btn} type="button" className={`sf-btn${on ? " on" : ""}`} aria-haspopup="dialog" aria-expanded={panel} aria-label={on ? `Filters: ${active} active. ${filterParts(value).join(", ")}` : "Filters: none active"} title={on ? `${filterParts(value).join(" · ")}. Click to change.` : "Filter companies by sector or market cap"} onClick={() => setPanel((p) => !p)}>
+        <button ref={btn} type="button" className={`sf-btn${on ? " on" : ""}`} aria-haspopup="dialog" aria-expanded={panel} aria-label={on ? `Filters: ${active} active. ${filterParts(value).join(", ")}` : "Filters: none active"} title={on ? `${filterParts(value).join(" · ")}. Click to change.` : hasInd ? "Filter companies by sector, industry or market cap" : "Filter companies by sector or market cap"} onClick={() => setPanel((p) => !p)}>
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M7 12h10M10 18h4" /></svg><span>Filters</span>{on && <em>{active}</em>}
         </button>
         {panel && (
@@ -146,6 +148,11 @@ export function SearchFilters({ facets, value, onChange, variant = "bar", count,
                 <option value="">Any sector</option>
                 {facets.sectors.map((o) => <option key={o.name} value={o.name}>{o.name} ({nIN(o.n)})</option>)}
               </select></label>
+            {hasInd && <label>Industry
+              <select value={value.industry ?? ""} onChange={(e) => onChange({ ...value, industry: e.target.value || null })}>
+                <option value="">Any industry</option>
+                {facets.industries.map((o) => <option key={o.name} value={o.name}>{o.name} ({nIN(o.n)})</option>)}
+              </select></label>}
             <label>Market cap
               <select value={value.cap ?? ""} onChange={(e) => onChange({ ...value, cap: (e.target.value || null) as StockFilter["cap"] })}>
                 <option value="">Any size</option>
@@ -153,7 +160,7 @@ export function SearchFilters({ facets, value, onChange, variant = "bar", count,
               </select></label>
             {on && <p className="sf-count" data-testid="sf-active-list">On now: {filterParts(value).join(" · ")}</p>}
             {on && count != null && <p className="sf-count" role="status">{nIN(count)} {filterNoun(value, count)}</p>}
-            <p className="sf-fn">{[unknownNote(value.sector ? facets.unknown.sector : 0, "sector", "a sector"), unknownNote(value.cap ? facets.unknown.cap : 0, "market value", "a band")].filter(Boolean).join(" ") || "Companies with no sector or market value on file are left out only while that filter is chosen."}</p>
+            <p className="sf-fn">{[unknownNote(value.sector ? facets.unknown.sector : 0, "sector", "a sector"), unknownNote(value.industry ? facets.unknown.industry : 0, "industry", "an industry"), unknownNote(value.cap ? facets.unknown.cap : 0, "market value", "a band")].filter(Boolean).join(" ") || (hasInd ? "Companies with no sector, industry or market value on file are left out only while that filter is chosen." : "Companies with no sector or market value on file are left out only while that filter is chosen.")}</p>
             <div className="sf-acts">{on && <button type="button" onClick={clear}>Clear filters</button>}<button type="button" className="sf-done" onClick={() => { setPanel(false); btn.current?.focus(); }}>Done</button></div>
           </div>
         )}
@@ -165,6 +172,9 @@ export function SearchFilters({ facets, value, onChange, variant = "bar", count,
       <FilterMenu name="Sector" clearLabel="Clear sector" value={value.sector} open={cur === "sector"} onOpen={(v) => setMenu(v ? "sector" : null)} keyHint="Alt+S"
         options={sectorOptions(facets)} note={unknownNote(facets.unknown.sector, "sector", "a sector")}
         onPick={(v) => { onChange({ ...value, sector: v }); onDone?.(); }} />
+      {hasInd && <FilterMenu name="Industry" clearLabel="Clear industry" value={value.industry ?? null} open={cur === "industry"} onOpen={(v) => setMenu(v ? "industry" : null)}
+        options={industryOptions(facets)} note={unknownNote(facets.unknown.industry, "industry", "an industry")}
+        onPick={(v) => { onChange({ ...value, industry: v }); onDone?.(); }} />}
       <FilterMenu name="Market cap" clearLabel="Clear market cap" value={value.cap} open={cur === "cap"} onOpen={(v) => setMenu(v ? "cap" : null)} keyHint="Alt+M"
         options={capOptions(facets)} note={unknownNote(facets.unknown.cap, "market value", "a band")}
         onPick={(v) => { onChange({ ...value, cap: v as StockFilter["cap"] }); onDone?.(); }} />
@@ -193,7 +203,7 @@ export function HiddenRows({ hidden, filter, onChange }: { hidden: readonly Hidd
       {hidden.map((h) => (
         <li key={h.symbol} className="sf-hid">
           <span className="sf-hid-t"><b title={codeNote(h)}>{titleOf(h)}</b>{subOf(h) && <small>{subOf(h)}</small>}<em>{h.why}</em></span>
-          <button type="button" onClick={() => onChange(relaxed(filter, h.keys))} aria-label={`Show ${h.name}: remove ${h.keys.map((k) => (k === "sector" ? "sector" : "market cap")).join(" and ")} filter`}>Show it</button>
+          <button type="button" onClick={() => onChange(relaxed(filter, h.keys))} aria-label={`Show ${h.name}: remove ${h.keys.map((k) => (k === "sector" ? "sector" : k === "industry" ? "industry" : "market cap")).join(" and ")} filter`}>Show it</button>
         </li>
       ))}
     </ul>
@@ -203,14 +213,15 @@ export function HiddenRows({ hidden, filter, onChange }: { hidden: readonly Hidd
 /** Shown by a picker in place of its "no match" line while a filter is on: says plainly what is empty, shows the matches the filter hides, and offers the way out. */
 export function FilterNote({ filter, q, onChange, hidden }: { filter: StockFilter; q?: string; onChange: (f: StockFilter) => void; hidden?: readonly HiddenHit[] }) {
   const noun = filterNoun(filter);
-  const both = !!filter.sector && !!filter.cap;
+  const both = [filter.sector, filter.cap, filter.industry].filter(Boolean).length > 1;
   return (
     <div className="sf-empty" role="status">
       <p>{q ? `No ${noun} match “${q}”.` : `No ${noun} in the list.`}{hidden?.length ? "" : q ? " Try fewer filters, or check the spelling." : ""}</p>
       <HiddenRows hidden={hidden || []} filter={filter} onChange={onChange} />
       <p className="sf-relax">
-        {both && <button type="button" onClick={() => onChange({ ...filter, sector: null })}>Any sector</button>}
-        {both && <button type="button" onClick={() => onChange({ ...filter, cap: null })}>Any size</button>}
+        {both && filter.sector && <button type="button" onClick={() => onChange({ ...filter, sector: null })}>Any sector</button>}
+        {both && filter.industry && <button type="button" onClick={() => onChange({ ...filter, industry: null })}>Any industry</button>}
+        {both && filter.cap && <button type="button" onClick={() => onChange({ ...filter, cap: null })}>Any size</button>}
         <button type="button" onClick={() => onChange(NO_FILTER)}>Clear filters</button>
       </p>
     </div>

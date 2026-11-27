@@ -41,6 +41,7 @@ from urllib.parse import quote as urlquote
 
 import httpx
 from fastapi import APIRouter, Request, Response
+from fastapi.responses import RedirectResponse
 
 from .auth.routes import fail
 from .dhan import DhanClient, DhanError
@@ -690,7 +691,9 @@ async def refresh(store, settings, *, transport: Optional[httpx.AsyncBaseTranspo
             pending = await conn.fetchval("SELECT count(*) FROM etf_funds WHERE active AND (fetched_at IS NULL OR fetched_at < $1)", cutoff)
         if stored_active and not pending:
             await client.aclose()
-            return {"status": "ok", "reason": "every ETF already has the latest close: nothing to fetch", "fetched": 0}
+            out = {"status": "ok", "reason": "every ETF already has the latest close: nothing to fetch", "fetched": 0}
+            out.update(await _nav_pass(store, transport))           # task #390 (C2): AMFI's evening NAV still comes in
+            return out
     http = httpx.AsyncClient(transport=transport, timeout=60, follow_redirects=True)
     try:
         async with _Lease(store.pool) as lease:
@@ -834,6 +837,9 @@ async def refresh(store, settings, *, transport: Optional[httpx.AsyncBaseTranspo
                 stats["updated"] += 1
             if answered_empty:
                 await conn.execute("UPDATE etf_funds SET fetched_at = $2 WHERE symbol = ANY($1::text[])", answered_empty, now)
+            if resume and amfi:                                    # task #390 (C2): the ETFs this pass skipped still get AMFI's newer NAV
+                done_now = {i["trading_symbol"] for i in todo}
+                summary["nav_updated"] = await _fresher_nav(conn, {i["trading_symbol"]: i["isin"] for i in insts if i["trading_symbol"] not in done_now}, amfi)
             # ETFs that left the list are marked inactive (never deleted), and only because the list passed the size check above
             await conn.execute("UPDATE etf_funds SET active = false, updated_at = now() WHERE active AND NOT (symbol = ANY($1::text[]))", [i["trading_symbol"] for i in insts])
             hot = await rank_hot(conn)
@@ -902,6 +908,53 @@ async def _upsert_meta(conn, insts: List[dict], amfi: Dict[str, dict]) -> None:
              category = CASE WHEN EXCLUDED.scheme_name IS NULL AND etf_funds.scheme_name IS NOT NULL THEN etf_funds.category ELSE EXCLUDED.category END,
              asset_class = CASE WHEN EXCLUDED.scheme_name IS NULL AND etf_funds.scheme_name IS NOT NULL THEN etf_funds.asset_class ELSE EXCLUDED.asset_class END,
              active = true, updated_at = now()""", rows)
+
+
+async def _nav_pass(store, transport: Optional[httpx.AsyncBaseTransport] = None) -> dict:
+    """Task #390 (C2): a resumed run with every close already fetched used to stop before reading AMFI, so a NAV published after the first pass
+    (AMFI's file fills in until late evening) waited a whole day or more. Read AMFI's file and store each active ETF's newer NAV (_fresher_nav).
+    A failed AMFI call keeps every stored NAV and says why."""
+    try:
+        async with httpx.AsyncClient(transport=transport, timeout=60, follow_redirects=True) as http:
+            r = await http.get(AMFI_URL)
+        if r.status_code != 200:
+            return {"amfi": f"HTTP {r.status_code}: NAV kept as stored", "nav_updated": 0}
+        async with store.pool.acquire() as conn:
+            isin_of = {x["symbol"]: x["isin"] for x in await conn.fetch("SELECT symbol, isin FROM etf_funds WHERE active")}
+            amfi = parse_amfi(r.content.decode("utf-8", "replace"), isin_of.values())
+            n = await _fresher_nav(conn, isin_of, amfi)
+            if n:
+                await publish(store, conn)
+        return {"amfi_matched": len(amfi), "nav_updated": n}
+    except httpx.HTTPError as exc:
+        return {"amfi": f"{type(exc).__name__}: NAV kept as stored", "nav_updated": 0}
+
+
+async def _fresher_nav(conn, isin_of: Dict[str, str], amfi: Dict[str, dict]) -> int:
+    """Task #390 (developer file 39, C2): a resumed run skips the ETFs already fetched after the close, so an evening NAV that AMFI published after
+    the first pass never reached them (on 26 Nov every ETF still read the NAV of 23 Nov while AMFI's file held 25 Nov). For each skipped ETF whose
+    AMFI NAV is newer than the stored one: store it, and the premium against the ETF's own close on that day (stored history when held, else the
+    last stored close), or the reason there is none. Never an older NAV, never a price."""
+    if not isin_of:
+        return 0
+    rows = await conn.fetch("""SELECT f.symbol, f.price, f.price_date, f.nav_date, f.reasons, h.dates, h.closes FROM etf_funds f
+                               LEFT JOIN etf_history h ON h.symbol = f.symbol WHERE f.symbol = ANY($1::text[])""", list(isin_of))
+    n = 0
+    for r in rows:
+        a = amfi.get(isin_of[r["symbol"]])
+        if not a or (r["nav_date"] and a["date"] <= r["nav_date"]):
+            continue
+        ds, cs = (list(r["dates"]), list(r["closes"])) if r["dates"] else ([r["price_date"]], [r["price"]]) if r["price_date"] and r["price"] else ([], [])
+        prem, why = premium_of(ds, cs, a["nav"], a["date"])
+        reasons = _jsond(r["reasons"])
+        if why:
+            reasons["nav_premium"] = why
+        else:
+            reasons.pop("nav_premium", None)
+        await conn.execute("UPDATE etf_funds SET nav=$2, nav_date=$3, nav_premium=$4, reasons=$5::jsonb, updated_at=now() WHERE symbol=$1",
+                           r["symbol"], a["nav"], a["date"], prem, json.dumps(reasons))
+        n += 1
+    return n
 
 
 async def _write_row(conn, sym, ds, cs, vs, m, nav, nav_date, prem, fetched_at: Optional[datetime] = None) -> None:
@@ -1023,6 +1076,21 @@ LIST_FIELDS = {"name": "display_name", "price": "price", "change": "change_pct",
 FILTER_KEYS = {k: v for k, v in LIST_FIELDS.items() if k not in ("name", "price", "change", "turnover", "from52", "ter")}
 TER_SECONDS = 1800           # the expense ratios change once a day at most (AMFI's TER file, the fund houses' own pages)
 SYMBOL_RE = re.compile(r"^[A-Z0-9&_.\-]{1,24}$")
+ISIN_RE = re.compile(r"^IN[A-Z0-9]{9}[0-9]$")
+
+
+async def _by_isin(request: Request, symbol: str, suffix: str = "") -> Optional[Response]:
+    """Task #183 (COMMON-RULES 9): /api/etf/{ISIN} works. An ETF's ISIN answers with a redirect to its symbol's URL (one cached copy per ETF); an ISIN
+    that is not an ETF we list is a 404. Anything else is left to the route."""
+    t = symbol.strip().upper()
+    if not ISIN_RE.match(t):
+        return None
+    by = (await _load(request.app))["by"]
+    hit = next((s for s, r in by.items() if (r.get("isin") or "").upper() == t), None)
+    if hit is None:
+        raise fail(404, "unknown_etf", "No ETF with that ISIN.")
+    q = f"?{request.url.query}" if request.url.query else ""
+    return RedirectResponse(f"/api/etf/{hit}{suffix}{q}", status_code=307, headers={"Cache-Control": f"public, max-age={CACHE_SECONDS}"})
 
 
 def _round(v: Optional[float], d: int = 2) -> Optional[float]:
@@ -1250,7 +1318,7 @@ async def list_etfs(request: Request, q: str = "", category: str = "", asset: st
     q = q.strip()[:60]
     cats = _csv(category, [*CATEGORIES, "none"])
     assets = _csv(asset, GROUPS)
-    sort = sort if sort in LIST_FIELDS else "turnover"       # no order by FundPulse: the score is not given for exchange-traded funds
+    sort = sort if sort in LIST_FIELDS else "turnover"       # no order by Mutual Fund Score: the score is not given for exchange-traded funds
     desc = (order or ("asc" if sort == "name" else "desc")).lower() != "asc"
     limit, offset = max(1, min(limit, 100)), max(0, min(offset, 5000))
     ranges = {k: (_bound(qp.get(k + "Min")), _bound(qp.get(k + "Max"))) for k in FILTER_KEYS}
@@ -1440,6 +1508,9 @@ async def compare(request: Request, symbols: str = "", range: str = "1Y"):
 
 @router.get("/{symbol}")
 async def detail(request: Request, symbol: str, range: str = "1Y"):
+    moved = await _by_isin(request, symbol, "")
+    if moved is not None:
+        return moved
     sym, rng = symbol.upper(), range.upper()
     if not SYMBOL_RE.match(sym):
         raise fail(404, "unknown_etf", "No ETF with that symbol.")
@@ -1508,6 +1579,9 @@ async def _disclosure(name: str, app, isin: str) -> Tuple[Any, Optional[str]]:
 
 @router.get("/{symbol}/portfolio")
 async def portfolio(request: Request, symbol: str):
+    moved = await _by_isin(request, symbol, "/portfolio")
+    if moved is not None:
+        return moved
     sym = symbol.upper()
     r = (await _load(request.app))["by"].get(sym) if SYMBOL_RE.match(sym) else None
     if not r:
@@ -1521,6 +1595,9 @@ async def portfolio(request: Request, symbol: str):
 
 @router.get("/{symbol}/facts")
 async def facts(request: Request, symbol: str):
+    moved = await _by_isin(request, symbol, "/facts")
+    if moved is not None:
+        return moved
     sym = symbol.upper()
     r = (await _load(request.app))["by"].get(sym) if SYMBOL_RE.match(sym) else None
     if not r:

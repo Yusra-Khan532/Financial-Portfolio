@@ -1,4 +1,5 @@
 // The state history behind two Sector Pulse charts (9 Nov 2026 pages update): every group's state on each of the last six months of sessions, and the insight cards, both written by the server.
+import { showQuery, type Show } from "./sectors";
 import { useQuery } from "@tanstack/react-query";
 import { ApiError, apiGet } from "./api";
 
@@ -14,4 +15,4 @@ export type SectorHistory = {
   insights: { mood: PulseInsight[]; strip: PulseInsight[] };
   changed_this_week: { name: string; slug: string; last: string | null; now: string | null }[];
 };
-export const useSectorHistory = () => useQuery<SectorHistory, ApiError>({ queryKey: ["sectors", "history"], queryFn: () => apiGet<SectorHistory>("/api/sector-history"), staleTime: 5 * 60_000, retry: false });
+export const useSectorHistory = (show: Show = "industries", enabled = true) => useQuery<SectorHistory, ApiError>({ queryKey: ["sectors", "history", show], queryFn: () => apiGet<SectorHistory>("/api/sector-history" + showQuery(show)), staleTime: 5 * 60_000, retry: false, enabled });

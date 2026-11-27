@@ -34,12 +34,12 @@ beforeEach(() => { st.calls = []; });
 afterEach(cleanup);
 
 describe("Mutual Fund Screener page", () => {
-  it("asks the server once for the counts and once for the list, with the defaults spelled out", async () => {
+  it("asks the server once for the counts and once for the list, with no choice spelled out (every option, both statuses)", async () => {
     mount();
     await screen.findByText("Alpha Mid Cap Fund");
     const f = st.calls.filter((c) => c.startsWith("/api/mf/filters")), l = st.calls.filter((c) => c.startsWith("/api/mf?"));
     expect(f).toHaveLength(1); expect(l).toHaveLength(1);
-    expect(f[0]).toContain("screen=true"); expect(f[0]).toContain("plans=Direct"); expect(f[0]).toContain("options=Growth"); expect(l[0]).toContain("extra=true");
+    expect(f[0]).toContain("screen=true"); expect(f[0]).not.toContain("plans="); expect(f[0]).toContain("option=All"); expect(f[0]).toContain("status=both"); expect(l[0]).toContain("extra=true");   // task #369: nothing preselected
   });
   it("ticking a sub-category edits the address and asks again", async () => {
     mount();
@@ -49,21 +49,23 @@ describe("Mutual Fund Screener page", () => {
     await waitFor(() => expect(st.calls.some((c) => c.includes("subs=mid-cap"))).toBe(true));
     expect(screen.getByRole("button", { name: /Remove filter: Mid Cap/ })).toBeTruthy();
   });
-  it("a preset sets filters and shows as on; the score preset is disabled", async () => {
+  it("a preset sets filters and shows as on; the score preset works for Gold (task #350)", async () => {
     mount();
     await screen.findByText("Alpha Mid Cap Fund");
     const p = screen.getByRole("button", { name: /Defence and aerospace funds/ });
     fireEvent.click(p);
     await waitFor(() => expect(screen.getByTestId("loc").textContent).toContain("tags=defence"));
     expect(screen.getByRole("button", { name: /Defence and aerospace funds/ }).getAttribute("aria-pressed")).toBe("true");
-    expect((screen.getByRole("button", { name: /FundPulse 65\+/ }) as HTMLButtonElement).disabled).toBe(true);
+    const sp = screen.getByRole("button", { name: /Mutual Fund Score 65\+/ }) as HTMLButtonElement;
+    expect(sp.disabled).toBe(false); fireEvent.click(sp);
+    await waitFor(() => expect(screen.getByTestId("loc").textContent).toContain("sc=total%3A65%3A"));
   });
-  it("shows the no-data count and the groups that need a data source, disabled and explained", async () => {
+  it("shows the no-data count; the 'Data quality and lists' group and its 'Needs a data source' list are gone (task #368)", async () => {
     mount("/funds/screener?rng=ter:0:1");
     await screen.findByText("Alpha Mid Cap Fund");
     expect(screen.getAllByText(/of/).length).toBeGreaterThan(0);
-    expect(document.body.textContent).toMatch(/Needs a data source/);
-    expect(document.body.textContent).toMatch(/Risk-o-meter/);
+    expect(document.body.textContent).not.toMatch(/Needs a data source/);
+    expect(document.body.textContent).not.toMatch(/Data quality and lists/);
   });
   it("uses no advice wording and keeps the disclaimer", async () => {
     mount();

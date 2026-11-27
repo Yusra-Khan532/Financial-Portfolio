@@ -30,7 +30,7 @@ from typing import Dict, List, Mapping, Optional, Tuple
 from .seed import slug
 from .theme_map import SUBTHEMES as THEME_SUBS
 
-REGISTRY_VERSION = 15      # 15: no "breakout" (the group is New highs, task #64 14 Nov N-12), "parts" not "pillars", the screen-score line without how it is built (N-36); 14: Prism basics served, Sector themes on the NSE industries, plain order notes, lender cut-off at or above; 13: Top gainers; 12: the Chart patterns group (11 scans, both tabs); 11: fixes 9 to 14 (each input ranked once, every company that passes, Quality for lenders, FinLit IQ on Basic); 10: the Breakouts group on the version 2 rules (task #64); 9: sizes by rupee market cap, a Rs 1,000 Cr floor on every Advanced list, Sector themes on NSE industries, full ratings only by default on Rating upgrades; 7: the Setups group (pre-breakout; breakout then pulled back); 6: caps, tags and sector themes read the Sector LABEL (not the macro sector or the Industry); the two valuation views split at 50; the screens page by 25
+REGISTRY_VERSION = 17      # 17: task #283 (the Basic tab, built on the retired FinLit IQ, removed; Sector themes ranks unrated companies by market cap, not by the IQ); 16: task #243 round 3a (13 new screens; F&O and liquidity on every row); 15: no "breakout" (the group is New highs, task #64 14 Nov N-12), "parts" not "pillars", the screen-score line without how it is built (N-36); 14: Prism basics served, Sector themes on the NSE industries, plain order notes, lender cut-off at or above; 13: Top gainers; 12: the Chart patterns group (11 scans, both tabs); 11: fixes 9 to 14 (each input ranked once, every company that passes, Quality for lenders, FinLit IQ on Basic); 10: the Breakouts group on the version 2 rules (task #64); 9: sizes by rupee market cap, a Rs 1,000 Cr floor on every Advanced list, Sector themes on NSE industries, full ratings only by default on Rating upgrades; 7: the Setups group (pre-breakout; breakout then pulled back); 6: caps, tags and sector themes read the Sector LABEL (not the macro sector or the Industry); the two valuation views split at 50; the screens page by 25
 DISCLAIMER = "A screen narrows a list. It is not a recommendation."
 BANNED_WORDS = ("best", "buy", "multibagger", "sell", "top pick", "undervalued gem")   # in names and card text, never (spec p2: names describe, never advise)
 MCAP1000 = ("market_cap >= 1000", "Market cap Rs 1,000 Cr or more")
@@ -79,21 +79,31 @@ class Preset:
     blocked_reason: Optional[str] = None
     badges: Tuple[str, ...] = ("provisional",)
     spec: str = ""            # where in the spec pdf
-    tab: str = "advanced"     # advanced (Gold: Prism fields) | basic (Silver: FinLit score fields)
+    tab: str = "advanced"     # the one tab: FinLit Prism (task #283 retired the Basic tab, built on the FinLit IQ)
     # a weighted rank score (redesign pdf, "Top 10"): ((field, weight), ...). Each input is turned into its percentile among the company's own size bucket
-    # (the bucket's Prism-rated companies on the Advanced tab; the bucket's companies of Rs 1,000 Cr or more on the Basic tab); the score is 100 x the weighted sum.
+    # (the bucket's Prism-rated companies); the score is 100 x the weighted sum.
     rank_score: Tuple[Tuple[str, float], ...] = ()
     sector_cap: int = 0       # at most this many companies from one Sector label in the list (0 = no cap)
     fill: Tuple[str, ...] = ()   # rule labels a company may fail and still fill a short list (badged "Trend not confirmed")
     list_text: str = ""       # what the card says about its list when it shows fewer than all that pass, e.g. "Top 10"
+    # Task #243 (pack v4, i notes): "What it shows" and the three "How to use it" points beside the screen's name, and the notes line under the toolbar.
+    # Both come from plain.json, like the card text. `added` is the day the screen first ran: the card carries a NEW tag for NEW_DAYS after it.
+    about: Tuple[str, Tuple[str, ...]] = ()
+    notes: Tuple[str, ...] = ()
+    added: str = ""
 
     @property
     def status(self) -> str:
         return "blocked" if self.kind == "blocked" else "live"
 
 
-GROUPS: List[Tuple[str, str]] = [("top-rated", "Top rated"), ("trend", "Trend"), ("setups", "New highs"), ("chart-patterns", "Chart patterns"), ("top-gainers", "Top gainers"), ("growth", "Growth"), ("themes", "Themes"), ("value-income", "Value and income"),
-                                 ("safety", "Safety"), ("ownership", "Ownership"), ("prism-basics", "Prism basics")]
+# Task #243 (screeners update pack v4, R2): the featured groups first (Top rated · Momentum · Growth · Themes, and Sectors on Advanced), then the rest
+# (Prism views · Setups · Chart patterns · Top gainers · Value and income · Safety · Ownership). "Trend" reads Momentum and "New highs" reads Setups
+# (pack L14: the group holds the three setups; "Near a 52-week high" sits under Momentum). The ids stay, so stored lists and links keep working.
+GROUPS: List[Tuple[str, str]] = [("top-rated", "Top rated"), ("trend", "Momentum"), ("growth", "Growth"), ("themes", "Themes"), ("sectors", "Sectors"),
+                                 ("prism-basics", "Prism views"), ("setups", "Setups"), ("chart-patterns", "Chart patterns"), ("top-gainers", "Top gainers"),
+                                 ("value-income", "Value and income"), ("safety", "Safety"), ("ownership", "Ownership")]
+FEATURED_GROUPS = ("top-rated", "trend", "growth", "themes", "sectors")
 
 # ------------------------------------------------------------------------------------------------------------------------------ columns
 RANK = Col("rank", "#", "text", "right")
@@ -112,7 +122,6 @@ LTS = Col("prism_lt_score", "Long-term view score", "score")
 R1Y = Col("ret_1y", "1-year return", "pct")
 MCAP = Col("market_cap", "Market cap (Rs Cr)", "cr")
 SECTOR = Col("sector", "Sector", "text", "left")
-FINLIT = Col("overall", "FinLit IQ", "score")
 
 
 R3M = Col("ret_3m", "3-month return", "pct")
@@ -129,7 +138,7 @@ PROVISIONAL = Chip("include-provisional", "Include provisional", "Also lists com
                    _m(prism_set={"status": None}), ("Provisional ratings are included, with a Provisional badge.",))
 TURNING_UP = Chip("turning-up", "Turning up", "Keeps only names where the short-term technical view is no longer negative: the price has stopped falling.", False,
                   _m(derived_add=(("prism_st_score >= 0", "Short-term technical view 0 or more"),)), ("Turning up: the short-term technical view must be 0 or more.",))
-ALL_CAPS = Chip("all-caps", "All caps", "Also lists small caps (the default is large and mid caps).", False, _m(derived_drop=("is_large_mid = 1",)), ("All caps: small caps are included.",))
+ALL_CAPS = Chip("all-caps", "All caps", "Also lists small and micro caps (the default is large and mid caps).", False, _m(derived_drop=("is_large_mid = 1",)), ("All caps: small and micro caps are included.",))   # task #262: four sizes
 FAST_G = Chip("fast-growers", "Fast growers", "Asks for stronger growth and profitability.", False, _m(prism_set={"zfmin": 85}), ("Fast growers: Prism Growth & Profitability 85 or more.",))
 SHOW_ALL_THEME = Chip("show-all-theme", "Show all theme members", "Drops the Growth & Profitability and Risk gates: every theme member of Rs 1,000 Cr or more is listed.", False,
                       _m(derived_drop=("has_prism = 0 or (prism_fundamental >= 50 and prism_risk >= 40)",)), ("Every theme member of Rs 1,000 Cr or more is listed, whatever its Growth & Profitability and Risk.",))
@@ -141,14 +150,33 @@ TOP_RANK = (("prism_final", 0.55), ("prism_lt_score", 0.40), ("prism_st_score", 
 TOP_ORDER = (("rank_score", "desc"), ("prism_quality", "desc"), ("prism_final", "desc"), ("market_cap", "desc"))   # fix 12: exact ties go to the larger market cap
 
 
+def size_range(bucket: str) -> str:
+    """Task #258 (Advanced SPEC §5): the market-value range of a size, e.g. "above ₹75,000 Cr", from the site's one ₹ rule (finlit/sizes.py, task #262)."""
+    from ..sizes import LARGE_ABOVE, MID_FROM, SMALL_FROM
+    cr = lambda v: f"{v:,.0f}"
+    return {"Large": f"above ₹{cr(LARGE_ABOVE)} Cr", "Mid": f"₹{cr(MID_FROM)}–{cr(LARGE_ABOVE)} Cr", "Small": f"₹{cr(SMALL_FROM)}–{cr(MID_FROM)} Cr",
+            "Micro": f"below ₹{cr(SMALL_FROM)} Cr"}[bucket]
+
+
+def _size_words(bucket: str) -> str:
+    """The size sentence of a size screen, on the site's one ₹ rule (finlit/sizes.py, task #262; the old text named market-cap ranks)."""
+    return f"Only {bucket.lower()} caps: a market value {size_range(bucket)}, as the site sizes every company."
+
+
+def has_size(bucket: str) -> bool:
+    """True when the site's sizes include this bucket (all four since task #262)."""
+    from ..screener.catalog import CAPS
+    return bucket in CAPS
+
+
 def _top(n: int, bucket: str, label: str) -> Preset:
     filters = {"cap": bucket, "rated": 1, "status": "RATED", "zmin": 65, "zqmin": 50, "zrmin": 50}      # fix 12: Healthy or Strong only; one Risk minimum for every size
-    how = [f"Only {label} caps: companies ranked {'1 to 100' if bucket == 'Large' else '101 to 250' if bucket == 'Mid' else '251 onward'} by market cap, as the site buckets them.",
+    how = [f"Only {label} caps: a market value {size_range(bucket)}, as the site sizes companies.",
            "Only companies with a full Prism rating (Provisional ratings appear only with the Include provisional chip, with their badge). Market cap Rs 1,000 Cr or more.",
            "Healthy or Strong on Prism, with sound quality and risk, a firm long-term trend and a price not far below its 52-week high.",
            "The strongest ten come first, at most three from one Sector label, then every other company that passes, ranked by the same score.",
            "If fewer than 10 pass, the list is filled with the next names that fail only the trend or the 52-week gate, badged Trend not confirmed."]
-    return Preset(f"highest-rated-{label}", f"Highest-rated {label} caps", "top-rated", f"{label.title()} caps with a strong Prism rating and a firm long-term trend. The 10 strongest come first, then every other company that passes.", "rules",
+    return Preset(f"highest-rated-{label}", f"Highest-rated {label} caps", "top-rated", f"{label.title()} caps ({size_range(bucket)}) with a strong Prism rating and a firm long-term trend. The 10 strongest come first, then every other company that passes.", "rules",
                   _m(**filters), "Below 52-week high <= 30", (("prism_lt_score > -20", "Long-term technical view above -20"), RUN_GUARD, MCAP1000), TOP_ORDER, 10, TOP_COLS, (PROVISIONAL,), tuple(how), True, None, ("provisional",),
                   f"p4 (Top 10, {label})", "advanced", TOP_RANK, 3, ("technical view", "52-week high"))
 
@@ -159,6 +187,8 @@ PRESETS: List[Preset] = [
     _top(1, "Large", "large"),
     _top(2, "Mid", "mid"),
     _top(3, "Small", "small"),
+    # task #258 (SPEC §5): "Highest-rated micro caps" joins Top rated once the data has a Micro size (task #262); hidden, never an empty card, until then
+    *([_top(4, "Micro", "micro")] if has_size("Micro") else []),
 
     Preset("momentum-leaders", "Momentum leaders", "trend", "Rated stocks in an uptrend near their 52-week high, ranked by 3-, 6- and 12-month returns against the market.", "rules",
            _m(zmin=50, rated=1, lt=20),
@@ -177,7 +207,7 @@ PRESETS: List[Preset] = [
            ("Rated or provisional by Prism with a score of 50 or more.", "No more than 5% below the 52-week high.", "Short-term technical view +20 or more.", "Ranked by the short-term view."),
            False, None, ("provisional",), "p10 (At a 52-week high)"),
 
-    Preset("both-views-positive", "Positive on both technical views", "trend", "Large and mid caps whose short-term and long-term technical views are both positive.", "rules",
+    Preset("both-views-positive", "Uptrend on both views: large and mid caps", "trend", "Large and mid caps whose short-term and long-term technical views are both positive.", "rules",
            _m(rated=1, st=20, lt=20), "", (("is_large_mid = 1", "Large or mid cap"),), (("prism_final", "desc"),), 25,
            with_status((STOCK, PRISM, STS, LTS, ST, LT, R6M, W52, SECTOR, MCAP)), (ALL_CAPS,),
            ("Rated or provisional by Prism.", "Short-term and long-term technical views both +20 or more.", "Large and mid caps by default; the All caps chip adds small caps.", "Ranked by Prism score."),
@@ -200,11 +230,11 @@ PRESETS: List[Preset] = [
            False, None, ("provisional", "unrated"), "p6-9 (Emerging tech)", "advanced", TOP_RANK),
 
     Preset("sector-themes", "Sector themes in play", "themes", "Sectors where more stocks sit near their 52-week high than in the market as a whole, and the companies leading them.", "themes",
-           _m(), "", (), (("has_prism", "desc"), ("prism_final", "desc"), ("overall", "desc")), 25,
+           _m(), "", (), (("has_prism", "desc"), ("prism_final", "desc")), 25,
            with_status((STOCK, SECTOR, PRISM, STS, LTS, R3M, Col("vs_industry_3m", "3-month return against the sector median (points)", "num1"), W52, MCAP)), (SMALL_GROUPS,),
            ("Every night each sector (by its Sector label) is scored on breadth, the share of its stocks within 15% of their 52-week high, and its median 3-month return against the whole market; stocks of Rs 1,000 Cr or more.",
             "In play: breadth at least 40% and 15 points above the market's, and median 3-month return at least 5 points above the market's.",
-            "Leaders (up to 5 per sector): market cap Rs 1,000 Cr or more, within 15% of their 52-week high, 3-month return above the sector median; rated companies first by Prism score, then unrated by FinLit IQ.",
+            "Leaders (up to 5 per sector): market cap Rs 1,000 Cr or more, within 15% of their 52-week high, 3-month return above the sector median; rated companies first by Prism score, then the unrated ones by market cap.",
             "Generic labels (Capital Goods, Financial Services, Services, FMCG, Healthcare, Information Technology) and groups under 8 companies are left out of theme status.",
             "With fewer than 3 sectors in play, the 3 with the highest relative 3-month return among those with breadth above the market are shown as Closest to qualifying."),
            False, None, ("provisional",), "p12 (Sector themes in play)"),
@@ -220,10 +250,10 @@ PRESETS: List[Preset] = [
            ("Prism Quality 75 or more, Growth & Profitability 65 or more, Risk 50 or more.", "At least 25% below the 52-week high.", "Both technical views are shown; the Turning up chip keeps names whose short-term view is 0 or more.", "Ranked by Prism score."),
            False, None, ("provisional",), "p12 (Quality off its highs)"),
 
-    Preset("value-with-quality", "Value with quality", "value-income", "Cheaper-valued companies that also score well on quality, risk and growth & profitability.", "rules",
+    Preset("value-with-quality", "Value with quality", "value-income", "Companies with a lower valuation that also score well on quality, risk and growth & profitability.", "rules",
            _m(rated=1, zvmin=75, zqmin=60, zrmin=60, zfmin=50), "", (), (("prism_valuation", "desc"), ("prism_final", "desc")), 25,
            with_status((STOCK, VAL, QUAL, RISK, FUND, PRISM, STS, LTS, R6M, SECTOR, MCAP)), (),
-           ("Prism Valuation 75 or more, Quality 60 or more, Risk 60 or more, Growth & Profitability 50 or more.", "Ranked by Valuation, highest first (a higher Valuation score means cheaper)."),
+           ("Prism Valuation 75 or more, Quality 60 or more, Risk 60 or more, Growth & Profitability 50 or more.", "Ranked by Valuation, highest first (a higher Valuation score means a lower valuation)."),
            False, None, ("provisional",), "p13 (Value with quality)"),
 
     Preset("low-risk-compounders", "Low-risk compounders", "safety", "Companies that score high on risk, quality and growth & profitability together.", "rules",
@@ -317,188 +347,144 @@ SETUPS_ADV: List[Preset] = [
             "Now pulled back: 2% to 12% below the highest close since, back near the level it broke and its 20-day average, RSI between 40 and 65, and a long-term technical view of +20 or more.", S_NOTE),
            False, None, ("provisional",), "setup scans", "advanced", (("-abs_b2_level", 0.4), ("prism_lt_score", 0.6))),
     Preset("setup-ema9-consolidation", "Consolidating above the 9 EMA", "setups", "Stocks in an uptrend, holding a tight range just above their 9-day average.", "rules", _m(rated=1), "",
-           E9_RULES + (MCAP1000, ("prism_st_score >= 20", "Short-term technical view +20 or more")),
+           E9_RULES + (MCAP1000, ("prism_st_score >= 20", "Short-term technical view +20 or more"),
+                       ("prism_lt_score > -20", "Long-term technical view not a downtrend")),     # task #325 (file 25, 2.2): 24% of the list was in a long-term downtrend
            (("rank_score", "desc"), ("prism_st_score", "desc")), 25, with_status((STOCK, S_V9, S_R4, S_TURN, S_E20, S_RSI, STS, LTS, PRISM, SECTOR, MCAP)), (),
            ("Rated or provisional by Prism (a Provisional rating is badged); a full year of prices; market cap Rs 1,000 Cr or more.", "In an uptrend: price above its 50-day average, with the 9-day above the 20-day above the 50-day.",
             "Holding just above the 9-day average: four closes above it, within 3% of it now, a touch of it in the last four sessions, and a range of 6% or less.", S_NOTE),
            False, None, ("provisional",), "setup scans", "advanced", (("-range_4d", 0.5), ("prism_st_score", 0.5))),
 ]
 # ------------------------------------------------------------------------------------------------------------------------------ Chart patterns (task #64, both tabs)
-# Eleven scans on daily candles, run nightly (presets/patterns.py). The rules live only in finlit/pattern_scans.py; the page shows what a scan found, in words.
-from .patterns import FACT_LABELS as _FACTS, NAMES as _PNAMES, SCAN_IDS as _SCANS, TEXTS as _PTEXTS   # noqa: E402
+# Twelve scans on daily candles, run nightly (presets/patterns.py): engine 2 (task #325, finlit/pattern_engine.py). The rules live only there; the page shows what a scan found.
+from .patterns import FACT_FORMAT as _FFMT, FACT_LABELS as _FACTS, HOW as _PHOW, NAMES as _PNAMES, SCAN_IDS as _SCANS, TEXTS as _PTEXTS   # noqa: E402
 
 
 def _pcols(scan: str) -> Tuple[Col, ...]:
-    return tuple(Col(f"pf{j}", lab, "text", "left") for j, lab in enumerate(_FACTS[scan], 1) if lab)
+    """Task #325 (file 26): the screen's four figures as numbers (they sort as numbers), then Status and How clean."""
+    fig = tuple(Col(f"pf{j}", lab, _FFMT.get(lab, "text"), "left" if _FFMT.get(lab, "text") in ("text", "date") else "right") for j, lab in enumerate(_FACTS[scan], 1) if lab)
+    return fig + (Col("pf_status", "Status", "text", "left"), Col("pf_clean", "How clean", "text", "left"))
 
 
 PATTERNS_ADV: List[Preset] = [
-    Preset(f"pattern-{k}", _PNAMES[k], "chart-patterns", _PTEXTS[k], "pattern", _m(), "", (), (("prism_final", "desc"),), 25,
-           with_status((STOCK, PRISM, STS, LTS) + _pcols(k) + (SECTOR, MCAP)), (), (), False, None, ("provisional",), k, "advanced")
+    Preset(f"pattern-{k}", _PNAMES[k], "chart-patterns", _PTEXTS[k], "pattern", _m(), "", (), (("pattern_q", "desc"),), 25,
+           with_status((STOCK, PRISM, STS, LTS) + _pcols(k) + (SECTOR, MCAP)), (), tuple(_PHOW[k]), False, None, ("provisional",), k, "advanced")
     for k in _SCANS]
 PRESETS = PRESETS[:-2] + SETUPS_ADV + PATTERNS_ADV + PRESETS[-2:]
 
-# the Prism basics (the page's own quick views, frontend/src/lib/scoreScreen.ts PRISM_PRESETS): served like every other screen, so each has history, As on and a place in Top gainers (task 64, SC-10)
+# Prism views (14 Nov N-35: the group after Top rated on the Advanced strip; the mock-up's names and order). Formerly "Prism basics" (the page's own quick views, frontend/src/lib/scoreScreen.ts PRISM_PRESETS): served like every other screen, so each has history, As on and a place in Top gainers (task 64, SC-10)
 _BASICS_COLS = with_status((RANK, STOCK, SECTOR, PRISM, PLABEL, FUND, VAL, QUAL, RISK, STS, LTS, MCAP))
 _BASICS_ORDER = (("prism_final", "desc"), ("market_cap", "desc"))
 QUICK_VIEWS: List[Preset] = [
-    Preset("strongsafe", "Prism strong and lower risk", "prism-basics", "A Prism score of 80 or more (Strong) and Prism Risk 65 or more (a higher Risk score means lower risk).", "rules", _m(zmin=80, zrmin=65, rated=1), "", (), _BASICS_ORDER, 25, _BASICS_COLS),
-    Preset("fairvalue", "Strong Growth & Profitability at a fair valuation", "prism-basics", "Prism Growth & Profitability 65 or more and Prism Valuation 50 or more.", "rules", _m(zfmin=65, zvmin=50, rated=1), "", (), _BASICS_ORDER, 25, _BASICS_COLS),
-    Preset("bothtech", "Uptrend on both technical views", "prism-basics", "Prism's short-term and long-term technical views are both in an uptrend (+20 or more).", "rules", _m(st=20, lt=20), "", (), _BASICS_ORDER, 25, _BASICS_COLS),
-    Preset("weakvalue", "Growth & Profitability strong but valuation weak", "prism-basics", "Prism Growth & Profitability 65 or more but Prism Valuation below 50.", "rules", _m(zfmin=65, zvbelow=50, rated=1), "", (), _BASICS_ORDER, 25, _BASICS_COLS),
+    Preset("strongsafe", "Strong and safe", "prism-basics", "Strong on FinLit Prism, with a Risk part that reads lower risk.", "rules", _m(zmin=80, zrmin=65, rated=1), "", (), _BASICS_ORDER, 25, _BASICS_COLS),
+    Preset("fairvalue", "Growth at a reasonable valuation", "prism-basics", "Strong Growth & Profitability, with a fair valuation.", "rules", _m(zfmin=65, zvmin=50, rated=1), "", (), _BASICS_ORDER, 25, _BASICS_COLS),
+    Preset("weakvalue", "Growth with a stretched valuation", "prism-basics", "Strong Growth & Profitability, with a weak valuation.", "rules", _m(zfmin=65, zvbelow=50, rated=1), "", (), _BASICS_ORDER, 25, _BASICS_COLS),
+    Preset("bothtech", "Uptrend on both views", "prism-basics", "Both of Prism's technical views, short term and long term, in an uptrend.", "rules", _m(st=20, lt=20), "", (), _BASICS_ORDER, 25, _BASICS_COLS),
 ]
 
 
-# ------------------------------------------------------------------------------------------------------------------------------ the Basic tab (Silver)
-# Built only from what the Basic score screener shows: the FinLit IQ, its pillars (Quality, Growth, Profitability, Balance sheet, Technical), the Growth & Profitability
-# score (the average of the four business pillars, needs 3 of 4), market cap, Sector, 52-week and return fields. Every rule is a "derived" rule with a plain-words label.
-BASIC_GROUP = {"top": "top-rated", "trend": "trend", "setups": "setups", "patterns": "chart-patterns", "gainers": "top-gainers", "growth": "growth", "themes": "themes", "value": "value-income", "safety": "safety"}
-B_TECH = Col("pillar_technical", "Technical", "score")
-B_QUAL = Col("pillar_quality", "Quality", "score")
-B_GROW = Col("pillar_growth", "Growth", "score")
-B_PROF = Col("pillar_profitability", "Profitability", "score")
-B_BAL = Col("pillar_balance", "Balance sheet", "score")
-B_MOM = Col("momentum_score", "Momentum score", "score")
-B_PB = Col("profit_plus_balance", "Profitability + Balance sheet", "score")
-# The standard columns of every list on both pages (the 11 Nov design, file 01 and 02): Company | Price & size | FinLit IQ (Basic) or FinLit Prism (Advanced) | Technical | [Returns, behind a switch].
+# ------------------------------------------------------------------------------------------------------------------------------ the Basic tab (retired)
+# Task #283 (21 Nov 2026): FinLit IQ is retired and FinLit Prism is FinLit's only company score. The Basic tab's screens were built on the IQ and its pillars
+# and served only the retired Basic stock screener (/score-screener, which now opens the Advanced one), so they are gone; each had a Prism twin on the
+# Advanced tab (Highest-rated by size, Momentum leaders, Near a 52-week high, Strong results, Dividend payers, Rating upgrades and downgrades, ...).
+# The standard columns of every list (the 11 Nov design, file 01 and 02): Company | Price & size | FinLit Prism | Technical views | [Returns, behind a switch].
 # A screen adds only its own "This screen" columns after them. (key, label, format, align, band)
 STD_PRICE = (("price", "LTP (Rs)", "num2", "right", "Price & size"), ("ret_1d", "Day change", "pct", "right", "Price & size"), ("market_cap", "Market cap (Rs Cr)", "cr", "right", "Price & size"))
-STD_BASIC = STD_PRICE + (("overall", "FinLit IQ", "score", "right", "FinLit IQ"), ("pillar_quality", "Quality", "score", "right", "FinLit IQ"), ("pillar_growth", "Growth", "score", "right", "FinLit IQ"),
-                         ("pillar_profitability", "Profitability", "score", "right", "FinLit IQ"), ("pillar_balance", "Balance sheet", "score", "right", "FinLit IQ"), ("pillar_technical", "Technical", "score", "right", "Technical"))
 STD_ADVANCED = STD_PRICE + (("prism_final", "Prism", "score", "right", "FinLit Prism"), ("prism_fundamental", "Growth & Profitability", "score", "right", "FinLit Prism"), ("prism_valuation", "Valuation", "score", "right", "FinLit Prism"),
                             ("prism_quality", "Quality", "score", "right", "FinLit Prism"), ("prism_risk", "Risk", "score", "right", "FinLit Prism"),
                             ("prism_st_score", "Short term", "score", "right", "Technical views"), ("prism_lt_score", "Long term", "score", "right", "Technical views"))
 STD_RETURNS = (("ret_3m", "3-month return", "pct", "right", "Returns"), ("ret_6m", "6-month return", "pct", "right", "Returns"), ("ret_1y", "1-year return", "pct", "right", "Returns"),
                ("pct_from_high", "Down from 52-week high", "pct_down", "right", "Returns"))
+# Task #243 (pack v4, section 3): Columns ▾ → Sector reading on every Advanced screen (off by default; the Sectors screens open with it on). Words to read, each sorts.
+STD_SECTOR = (("sr_industry", "Industry", "text", "left", "Sector reading"), ("sr_rotation", "Rotation", "text", "left", "Sector reading"),
+              ("sr_pulse", "Pulse", "text", "left", "Sector reading"), ("sr_peer", "Vs peers", "text", "left", "Sector reading"),
+              ("sr_tailwinds", "Tailwinds", "text", "right", "Sector reading"))
 IDENTITY_KEYS = ("rank", "name", "sector")
-B_BASE = (RANK, STOCK, FINLIT, B_TECH)
-B_TAIL = (R3M, R6M, R1Y, W52, SECTOR, MCAP)
-B_RANK_SCORE = (("overall", 1.0),)                                              # fix 13: FinLit IQ itself; it counts each of its five scores once
-B_TOP_ORDER = (("rank_score", "desc"), ("pillar_technical", "desc"), ("market_cap", "desc"))   # ties: Technical, then the larger market cap
-B_FULL = (("missing(ret_1y) = 0", "A full year of prices"), RUN_GUARD)           # fix 14: every screen that reads the price needs a full year and a 1-year return of 300% or less
-Q_FIT = lambda n, w: (f"quality_fit >= {n}", f"Quality {w} (a bank or finance company against other lenders)")   # noqa: E731
-IQ_HEALTHY = ("overall >= 62", "FinLit IQ Healthy or Strong")
-IQ_STRONG = ("overall >= 78", "FinLit IQ Strong")
-MC1000 = ("market_cap >= 1000", "Market cap Rs 1,000 Cr or more")
-MC2000 = ("market_cap >= 2000", "Market cap Rs 2,000 Cr or more")
-B_NOTE = "A company with a blank score drops out of any rule that uses that score."
+
+# ------------------------------------------------------------------------------------------------------------------------------ new screens (task #243, pack v3 R5 and v4)
+# "Sound" = a Healthy or Strong Prism rating (score 65 or more). The fields res_* and prism_before* / prism_change are put on each company by presets/service.py
+# (build_frame) from the Latest results page and the Prism history; a company without them fails the rule (unknown fails), it is never guessed.
+NEW_DAY = "2026-11-19"                      # the day these screens first ran: the cards carry a NEW tag for NEW_DAYS (presets/api.py)
+C_SALES = Col("q_sales_yoy", "Sales vs a year ago", "pct")
+C_PROFIT = Col("q_profit_yoy", "Profit vs a year ago", "pct")
+C_DY = Col("dividend_yield", "Dividend yield (%)", "num2")
+C_DYRS = Col("div_years", "Years paid (of last 6)", "text")
+C_FII = Col("own_fii_chg_1q", "Foreign institutions (points)", "num2")
+C_DII = Col("own_dii_chg_1q", "Domestic institutions (points)", "num2")
+C_PC = Col("own_promoters_chg_1q", "Promoter stake change (points)", "num2")
+C_PS = Col("own_promoters", "Promoter stake (%)", "num1")
+C_RD = Col("res_declared", "Declared", "date")
+C_RV = Col("res_verdict", "Result", "text", "left")
+C_RS = Col("res_sales_yoy", "Sales vs a year ago", "pct")
+C_RP = Col("res_profit_yoy", "Profit vs a year ago", "pct")
+C_RN = Col("res_npm_change", "Net margin change (points)", "num1")
+C_PB, C_PBR, C_PBD, C_PCH = (Col("prism_before", "Prism before", "score"), Col("prism_before_rating", "Rating before", "text", "left"),
+                             Col("prism_before_day", "Scored on", "date"), Col("prism_change", "Change", "num1"))
+R_STRONG_RES = (("q_sales_yoy >= 20", "Sales growth against the same quarter last year 20% or more"), ("q_profit_yoy >= 25", "Profit growth against the same quarter last year 25% or more"))
+R_DIVIDEND = (("dividend_yield >= 2", "Dividend yield 2% or more"), ("div_years >= 5", "A dividend in at least 5 of the last 6 years"))
+R_INST = (("own_fii_chg_1q >= 0.5", "Foreign institutions up 0.5 point or more last quarter"), ("own_dii_chg_1q >= 0.5", "Domestic institutions up 0.5 point or more last quarter"),
+          ("own_promoters_chg_1y >= -1", "Promoters down no more than 1 point in a year"))
+R_PROMOTER = (("own_promoters_chg_1q >= 0.5", "Promoter holding up 0.5 point or more last quarter"),
+              ("own_promoters_chg_1q <= 10", "A rise of no more than 10 points (larger jumps come from mergers or reclassification)"))
+R_FRESH = (("res_fresh = 1", "Results declared in the last week, with numbers loaded"), ("res_rank >= 5", "The Latest results page reads the quarter as Strong"))
+R_WEAK = (("res_fresh = 1", "Results declared in the last week, with numbers loaded"), ("res_rank <= 1", "The Latest results page reads the quarter as Poor or Loss"))
+SOUND_ADV = _m(rated=1, zmin=65)
 
 
-def _bal(minimum: int, blank: str = "any") -> Tuple[str, str]:
-    """Balance sheet at `minimum` or more; a blank is allowed (blank = any company) or only for banks (blank = bank)."""
-    if blank == "bank":
-        return (f"pillar_balance >= {minimum} or (coalesce(pillar_balance, -1) = -1 and is_bank = 1)", f"Balance sheet {minimum} or more (blank allowed for banks)")
-    return (f"coalesce(pillar_balance, 100) >= {minimum}", f"Balance sheet {minimum} or more (blank allowed)")
+def _new(pid: str, name: str, group: str, tab: str, rules, rank, cols, pf: Optional[Mapping] = None) -> Preset:
+    cols = (RANK, STOCK) + tuple(cols) + (SECTOR, MCAP)
+    return Preset(pid, name, group, "", "rules", pf if pf is not None else _m(), "", tuple(rules), tuple(rank), 25, with_status(cols), (), (), False, None,
+                  ("provisional",), "pack v4 (task #243)", tab, added=NEW_DAY)
 
 
-def _bt(bucket: str, label: str) -> Preset:
-    small = bucket == "Small"
-    rules = (IQ_HEALTHY, ("pillar_technical >= 45", "Technical out of Watch"), Q_FIT(45, "out of Watch"), _bal(62 if small else 45, "bank"), ("pct_from_high <= 30", "No more than 30% below the 52-week high"),
-             MC1000) + B_FULL
-    how = (f"Only {label} caps: companies ranked {'1 to 100' if bucket == 'Large' else '101 to 250' if bucket == 'Mid' else '251 onward'} by market cap, as the site buckets them. Market cap Rs 1,000 Cr or more.",
-           "FinLit IQ Healthy or Strong, Technical and Quality out of Watch, a Balance sheet " + ("Healthy" if small else "out of Watch") + " (a blank is allowed for banks), no more than 30% below the 52-week high and a full year of prices.",
-           f"The {label} caps with the highest FinLit IQ come first, at most three from one Sector label, then every other company that passes, in FinLit IQ order.", B_NOTE)
-    return Preset(f"basic-top-{label}", f"Top 10 {label} caps", BASIC_GROUP["top"], f"{label.title()} caps with a strong FinLit IQ. The 10 highest come first, then every other company that passes.", "rules",
-                  _m(cap=bucket), "", rules, B_TOP_ORDER, 10, B_BASE + (B_QUAL, B_BAL, R3M, R6M, W52, SECTOR, MCAP), (), how, True, None, (), f"p5 (Top 10, {label}, Basic)", "basic", B_RANK_SCORE, 3)
-
-
-def _bp(pid, name, group, text, rules, rank, cols, how, **kw) -> Preset:
-    return Preset(pid, name, BASIC_GROUP[group], text, "rules", _m(), "", tuple(rules), tuple(rank), 25, tuple(cols), (), tuple(how) + (B_NOTE,), False, None, (), kw.pop("spec", "p15-17"), "basic", **kw)
-
-
-B_THEME_RULES = (MC1000, ("pillar_growth >= 62", "Growth Healthy or Strong"), _bal(45))
-BASIC: List[Preset] = [
-    _bt("Large", "large"), _bt("Mid", "mid"), _bt("Small", "small"),
-    _bp("basic-strong-both", "Strong on both", "top", "FinLit IQ and Technical both Strong.",
-        (IQ_STRONG, ("pillar_technical >= 78", "Technical Strong"), MC1000) + B_FULL, (("overall", "desc"),),
-        B_BASE + B_TAIL, ("FinLit IQ Strong and Technical Strong, with a full year of prices.", "Market cap Rs 1,000 Cr or more.", "Ranked by FinLit IQ.")),
-    _bp("basic-strong-business-lagging", "Strong business, price lagging", "value", "Quality, Growth, Profitability and Balance sheet all Healthy or Strong while the Technical score is in Watch.",
-        (Q_FIT(62, "Healthy or Strong"), ("pillar_growth >= 62", "Growth Healthy or Strong"), ("pillar_profitability >= 62", "Profitability Healthy or Strong"), _bal(62, "bank"),
-         ("pillar_technical < 45", "Technical in Watch"), MC1000) + B_FULL, (("overall", "desc"),),
-        (RANK, STOCK, FINLIT, B_QUAL, B_GROW, B_PROF, B_BAL, B_TECH, W52, R3M, R6M, R1Y, SECTOR, MCAP),
-        ("The four business scores Healthy or Strong and Technical in Watch: a strong business whose price has not followed.", "Market cap Rs 1,000 Cr or more; a full year of prices.", "Ranked by FinLit IQ; the % below the 52-week high is shown.")),
-    _bp("basic-strong-trend-weaker-business", "Strong trend, weaker business", "safety", "A caution view: Technical Strong while two or more of the four business scores are in Watch.",
-        (("pillar_technical >= 78", "Technical Strong"), ("business_watch >= 2", "Two or more business scores in Watch"), MC1000) + B_FULL, (("pillar_technical", "desc"), ("overall", "desc")),
-        (RANK, STOCK, B_TECH, B_QUAL, B_GROW, B_PROF, B_BAL, FINLIT, W52, R3M, R6M, R1Y, SECTOR, MCAP),
-        ("Technical Strong and two or more of Quality, Growth, Profitability and Balance sheet in Watch: the price is strong but the business scores are weak. This is a caution view, not a signal.", "Market cap Rs 1,000 Cr or more; a full year of prices.", "Ranked by Technical.")),
-    _bp("basic-strong-all-four", "Strong on all four parts", "top", "Quality, Growth, Profitability and Balance sheet all Strong. Banks and finance companies are judged on their other scores.",
-        (Q_FIT(78, "Strong"), ("pillar_growth >= 78", "Growth Strong"), ("pillar_profitability >= 78", "Profitability Strong"), _bal(78, "bank"), MC1000),
-        (("overall", "desc"),), (RANK, STOCK, FINLIT, B_QUAL, B_GROW, B_PROF, B_BAL, B_TECH, W52, SECTOR, MCAP),
-        ("Quality, Growth, Profitability and Balance sheet all Strong. A bank or finance company has no Balance sheet score, so it is judged on the other three, with Quality against other lenders.", "Market cap Rs 1,000 Cr or more.", "Ranked by FinLit IQ.")),
-    _bp("basic-growth-leaders", "Growth leaders", "growth", "High growth with real profitability, a sound balance sheet and a price that is not falling apart.",
-        (("pillar_growth >= 78", "Growth Strong"), ("pillar_profitability >= 62", "Profitability Healthy or Strong"), _bal(45), ("pillar_technical >= 45", "Technical out of Watch"), MC1000) + B_FULL,
-        (("pillar_growth", "desc"), ("overall", "desc")), (RANK, STOCK, B_GROW, B_PROF, B_BAL, B_TECH, FINLIT, R6M, W52, SECTOR, MCAP),
-        ("Growth Strong, Profitability Healthy or Strong, Balance sheet and Technical out of Watch (a blank Balance sheet is allowed), and a full year of prices.", "Market cap Rs 1,000 Cr or more.", "Ranked by Growth, then FinLit IQ.")),
-    _bp("basic-profitable-debt-light", "Profitable and debt-light", "safety", "Profitability and Balance sheet both Strong. Not for banks and finance companies, which have no Balance sheet score.",
-        (("pillar_profitability >= 78", "Profitability Strong"), ("pillar_balance >= 78", "Balance sheet Strong"), MC1000), (("overall", "desc"),),
-        (RANK, STOCK, FINLIT, B_PROF, B_BAL, B_TECH, W52, SECTOR, MCAP),
-        ("Profitability Strong and Balance sheet Strong.", "Market cap Rs 1,000 Cr or more.", "Ranked by FinLit IQ.")),
-    _bp("basic-quality-compounders", "Quality compounders", "growth", "Top Quality with healthy growth, profitability and balance sheet.",
-        (Q_FIT(78, "Strong"), ("pillar_growth >= 62", "Growth Healthy or Strong"), ("pillar_profitability >= 62", "Profitability Healthy or Strong"), _bal(62), MC1000),
-        (("overall", "desc"),), (RANK, STOCK, B_QUAL, B_GROW, B_PROF, B_BAL, FINLIT, B_TECH, SECTOR, MCAP),
-        ("Quality Strong (a bank or finance company against other lenders); Growth, Profitability and Balance sheet Healthy or Strong (a blank Balance sheet is allowed).", "Market cap Rs 1,000 Cr or more.", "Ranked by FinLit IQ.")),
-    _bp("basic-momentum-leaders", "Momentum leaders", "trend", "Strong Technical score, within 15% of the 52-week high, with 3- and 6-month returns up.",
-        (("pillar_technical >= 78", "Technical Strong"), IQ_HEALTHY, ("pct_from_high <= 15", "No more than 15% below the 52-week high"),
-         ("ret_3m > 0", "3-month return above 0"), ("ret_6m > 0", "6-month return above 0"), MC2000) + B_FULL, (("momentum_score", "desc"), ("pillar_technical", "desc")),
-        (RANK, STOCK, B_MOM, R3M, R6M, R1Y, W52, B_TECH, FINLIT, SECTOR, MCAP),
-        ("Technical Strong, FinLit IQ Healthy or Strong, no more than 15% below the 52-week high, 3-month and 6-month returns both positive, a full year of prices.", "Market cap Rs 2,000 Cr or more (the fastest movers below that are thinly traded).",
-         "Ranked by the momentum score: 3-, 6- and 12-month returns against stocks of Rs 1,000 Cr or more.")),
-    _bp("basic-near-high", "Near 52-week high", "trend", "Within 5% of the 52-week high with a FinLit IQ that is Healthy or Strong.",
-        (("pct_from_high <= 5", "No more than 5% below the 52-week high"), IQ_HEALTHY, MC2000) + B_FULL,
-        (("pillar_technical", "desc"), ("momentum_score", "desc")), (RANK, STOCK, W52, B_TECH, B_MOM, FINLIT, R3M, R6M, SECTOR, MCAP),
-        ("No more than 5% below the 52-week high, FinLit IQ Healthy or Strong, and a full year of prices.", "Market cap Rs 2,000 Cr or more.", "Ranked by Technical, then momentum score.")),
-    _bp("basic-quality-off-highs", "Quality off its highs", "value", "The Quality compounders that are 25% or more below the 52-week high.",
-        (Q_FIT(78, "Strong"), ("pillar_growth >= 62", "Growth Healthy or Strong"), ("pillar_profitability >= 62", "Profitability Healthy or Strong"), _bal(62), ("pct_from_high >= 25", "At least 25% below the 52-week high"), MC1000) + B_FULL,
-        (("overall", "desc"),), (RANK, STOCK, B_QUAL, B_GROW, B_PROF, B_BAL, W52, B_TECH, FINLIT, R6M, SECTOR, MCAP),
-        ("Quality Strong; Growth, Profitability and Balance sheet Healthy or Strong; at least 25% below the 52-week high; a full year of prices.", "Market cap Rs 1,000 Cr or more.", "Ranked by FinLit IQ.")),
-    Preset("basic-emerging-tech", "Emerging tech", BASIC_GROUP["themes"], "Companies in new-technology businesses (electronics, defence and shipbuilding, software and data, digital platforms, fintech, EVs, clean energy), still growing.",
-           "tags", _m(), "", B_THEME_RULES, (("rank_score", "desc"), ("overall", "desc")), 25,
-           (RANK, STOCK, SUBT, FINLIT, B_TECH, B_GROW, B_BAL, R6M, W52, SECTOR, MCAP), SUB_CHIPS,
-           ("Companies in a sub-theme: every company whose Sector label belongs to it (for example Aerospace & Defense, Ship Building, Explosives, Consumer Electronics, E-Retail, Exchange and Data Platform) joined with a short named list that the research team reviews every quarter. The sub-theme is shown as a column.",
-            "Market cap Rs 1,000 Cr or more, Growth Healthy or Strong, Balance sheet out of Watch (a blank is allowed).",
-            "Ranked by FinLit IQ.", B_NOTE),
-           False, None, (), "p6-9 (Emerging tech, Basic)", "basic", B_RANK_SCORE),
-    Preset("basic-sector-themes", "Sector themes in play", BASIC_GROUP["themes"], "Sectors where more stocks sit near their 52-week high than in the market as a whole, and the companies leading them.", "themes",
-           _m(), "", (), (("rank_score", "desc"), ("overall", "desc")), 25, (RANK, STOCK, SECTOR, FINLIT, B_TECH, R3M, Col("vs_industry_3m", "3-month return against the sector median (points)", "num1"), W52, MCAP),
-           (SMALL_GROUPS,),
-           ("Every night each sector (by its Sector label) is scored on breadth, the share of its stocks within 15% of their 52-week high, and its median 3-month return against the whole market; stocks of Rs 1,000 Cr or more.",
-            "In play: breadth at least 40% and 15 points above the market's, and median 3-month return at least 5 points above the market's.",
-            "Leaders (up to 5 per sector): market cap Rs 1,000 Cr or more, within 15% of their 52-week high, 3-month return above the sector median; ranked by FinLit IQ.",
-            "Generic labels (Capital Goods, Financial Services, Services, FMCG, Healthcare, Information Technology) and groups under 8 companies are left out of theme status."),
-           False, None, (), "p12 (Sector themes, Basic)", "basic", B_RANK_SCORE),
-    _bp("basic-caution-list", "Caution list", "safety", "Companies with more warning signs than usual. Read the company page before acting.",
-        (("overall < 45 or balance_weak_ex = 1 or (pct_from_high >= 40 and pillar_technical <= 25)", "FinLit IQ below 45, or Balance sheet below 35 (not for insurers and brokers), or 40% or more below the high with Technical 25 or less"), MC1000),
-        (("overall", "asc"),), (RANK, STOCK, FINLIT, B_BAL, B_TECH, W52, R6M, SECTOR, MCAP),
-        ("FinLit IQ below 45 (Watch), or Balance sheet below 35 (not tested for insurers and capital-markets companies), or 40% or more below the 52-week high with Technical 25 or less.", "Market cap Rs 1,000 Cr or more.", "Ranked by FinLit IQ, lowest first. This is a caution list, not a recommendation.")),
+NEW_ADV: List[Preset] = [
+    _new("strong-results", "Strong results, sound rating", "growth", "advanced", R_STRONG_RES + (MCAP1000,), (("q_profit_yoy", "desc"), ("prism_final", "desc")), (C_SALES, C_PROFIT), SOUND_ADV),
+    _new("dividend-payers", "Dividend payers, sound rating", "value-income", "advanced", R_DIVIDEND + (MCAP1000,), (("dividend_yield", "desc"), ("prism_final", "desc")), (C_DY, C_DYRS), SOUND_ADV),
+    _new("turnarounds", "Turnarounds", "value-income", "advanced", (("prism_lt_score < 20", "Long-term technical pillar Sideways or lower (a company with no long-term view is left out)"), MCAP1000),
+         (("prism_st_score", "desc"), ("prism_final", "desc")), (W52,), _m(rated=1, zmin=65, st=20)),
+    _new("rating-downgrades", "Rating downgrades", "safety", "advanced", (("prism_band_down = 1 or prism_change <= -10", "Prism rating down a band, or score down 10 points or more"), MCAP1000),
+         (("prism_change", "asc"), ("prism_final", "desc")), (C_PB, C_PBR, C_PBD, C_PCH), _m(rated=1)),
+    _new("institutions-buying", "Institutions buying, sound rating", "ownership", "advanced", R_INST + (MCAP1000,), (("inst_chg_1q", "desc"), ("prism_final", "desc")), (C_FII, C_DII), SOUND_ADV),
+    _new("promoter-buying", "Promoter buying, sound rating", "ownership", "advanced", R_PROMOTER + (MCAP1000,), (("own_promoters_chg_1q", "desc"), ("prism_final", "desc")), (C_PC, C_PS), SOUND_ADV),
+    _new("fresh-results", "Fresh results: strong quarter, sound rating", "growth", "advanced", R_FRESH + (MCAP1000,), (("res_declared_n", "desc"), ("res_profit_yoy", "desc")),
+         (C_RD, C_RV, C_RS, C_RP, C_RN), SOUND_ADV),
+    _new("weak-results", "Weak results, sound rating", "safety", "advanced", R_WEAK + (MCAP1000,), (("res_profit_yoy", "asc"), ("res_declared_n", "desc")),
+         (C_RD, C_RV, C_RS, C_RP, C_RN), SOUND_ADV),
 ]
+PRESETS = PRESETS + NEW_ADV
 
-BASIC += [
-    Preset("basic-setup-pre-breakout", "Just under the 52-week high", BASIC_GROUP["setups"], "Stocks in an uptrend resting just under their 52-week high, with price swings no wider than before.", "rules", _m(), "",
-           (MC2000,) + PB_RULES + (("pillar_technical >= 60", "Technical 60 or more"),), (("rank_score", "desc"), ("pillar_technical", "desc")), 25,
-           (RANK, STOCK, S_HIGH, S_DSH, S_R10, S_ATR, S_V10, S_RSI, B_TECH, FINLIT, SECTOR, MCAP), (),
-           ("Market cap Rs 2,000 Cr or more; a full year of prices; in an uptrend: price above its 50- and 200-day averages, with the 50-day above the 200-day.",
-            "Resting under the high: 1.5% to 8% below the 52-week high, a closing high at least 15 sessions old.",
-            "Quiet: a 10-session range of 10% or less, price swings not widening, RSI between 45 and 68, and a Technical score of 60 or more.", S_NOTE, B_NOTE),
-           False, None, (), "setup scans", "basic", (("-pct_from_high", 0.4), ("-range_10d", 0.3), ("pillar_technical", 0.3))),
-    Preset("basic-setup-breakout-pullback", "Closed above the 52-week high, then eased back", BASIC_GROUP["setups"], "Stocks that closed above their 52-week high in the last five weeks and have eased back towards that level.", "rules", _m(), "",
-           (MC2000,) + BR_RULES + (("pillar_technical >= 55", "Technical 55 or more"),), (("rank_score", "desc"), ("pillar_technical", "desc")), 25,
-           (RANK, STOCK, S_B2AGE, S_B2LEV, S_B2VS, S_B2PULL, S_B2VOL, S_E20, S_RSI, B_TECH, FINLIT, SECTOR, MCAP), (),
-           ("Market cap Rs 2,000 Cr or more; a full year of prices; price above its 50-day average.",
-            "A recent close above its range: the close rose above a 52-week closing high that was at least 10 sessions old, 3 to 25 sessions ago.",
-            "Now pulled back: 2% to 12% below the highest close since, back near the level it broke and its 20-day average, RSI between 40 and 65, and a Technical score of 55 or more.", S_NOTE, B_NOTE),
-           False, None, (), "setup scans", "basic", (("-abs_b2_level", 0.4), ("pillar_technical", 0.6))),
-    Preset("basic-setup-ema9-consolidation", "Consolidating above the 9 EMA", BASIC_GROUP["setups"], "Stocks in an uptrend, holding a tight range just above their 9-day average.", "rules", _m(), "",
-           (MC1000,) + E9_RULES + (("pillar_technical >= 60", "Technical 60 or more"),), (("rank_score", "desc"), ("pillar_technical", "desc")), 25,
-           (RANK, STOCK, S_V9, S_R4, S_TURN, S_E20, S_RSI, B_TECH, FINLIT, SECTOR, MCAP), (),
-           ("Market cap Rs 1,000 Cr or more; a full year of prices; in an uptrend: price above its 50-day average, with the 9-day above the 20-day above the 50-day.",
-            "Holding just above the 9-day average: four closes above it, within 3% of it now, a touch of it in the last four sessions, and a range of 6% or less, with a Technical score of 60 or more.", S_NOTE, B_NOTE),
-           False, None, (), "setup scans", "basic", (("-range_4d", 0.5), ("pillar_technical", 0.5))),
+# ------------------------------------------------------------------------------------------------------------------------------ Sectors (task #243, pack v4, Advanced only)
+# Built on the site's own Sector Rotation corners, Sector Pulse states and leader flags, and the peer labels, as the live sector release holds them (presets/sectorread.py
+# puts the sr_* fields on each company). A company outside every counted group has no reading and fails these rules: it is never guessed.
+C_SFLAG = Col("sr_flag", "Leader flag", "text", "left")
+C_SQ = Col("sr_q6m_name", "Place in its industry by 6-month return", "text", "left")
+C_SR4 = Col("sr_rank_4w", "Industry ranks climbed in 4 weeks", "num1")
+C_SSET = Col("sr_setups", "List it is on", "text", "left")
+R_SEC_LEADING = ("sr_ag = 1 or sr_up = 1", "Industry Ahead and gaining on Sector Rotation, or Bouncing back, Bouncing back after a crash or Rising together on Sector Pulse")
+R_SEC_LEADER = ("sr_lead = 1", "Peer label Leader")
+SECTOR_ADV: List[Preset] = [
+    _new("sector-leaders-leading", "Leaders in leading sectors", "sectors", "advanced",
+         (("sr_ag = 1", "Industry Ahead and gaining on Sector Rotation"), R_SEC_LEADER, ("prism_lt_score >= 20", "Long-term technical pillar +20 or more")),
+         (("sr_tailwinds", "desc"), ("prism_lt_score", "desc")), (), _m()),
+    _new("sector-rebound-leaders", "Rebound leaders", "sectors", "advanced",
+         (("sr_thrust = 1", "Industry Bouncing back or Bouncing back after a crash on Sector Pulse"), ("sr_q6m = 1", "Top quarter of its industry by 6-month return"),
+          ("prism_st_score >= 20", "Short-term technical pillar +20 or more")),
+         (("prism_st_score", "desc"), ("sr_tailwinds", "desc")), (C_SQ,), _m()),
+    _new("sector-early-leaders", "Early leaders in weak sectors", "sectors", "advanced",
+         (("sr_flagged = 1", "A Sector Pulse leader flag: a 52-week closing high while its industry is still well below its own high (Full flag or Early flag)"),),
+         (("sr_tailwinds", "desc"), ("prism_st_score", "desc")), (C_SFLAG,), _m()),
+    _new("sector-setups-behind", "Setups with the sector behind them", "sectors", "advanced",
+         (("sr_on_setup = 1", "On one of the 3 Setups or 11 Chart patterns lists tonight"), R_SEC_LEADING),
+         (("sr_tailwinds", "desc"), ("prism_st_score", "desc")), (C_SSET,), _m()),
+    _new("sector-turning-up", "Leaders in sectors turning up", "sectors", "advanced",
+         (("sr_bg = 1", "Industry Behind but gaining on Sector Rotation"), R_SEC_LEADER, ("prism_st_score >= 20", "Short-term technical pillar +20 or more")),
+         (("sr_rank_4w", "desc"), ("prism_st_score", "desc")), (C_SR4,), _m()),
+    _new("sector-results-leading", "Strong results in leading sectors", "sectors", "advanced",
+         (("res_fresh = 1", "Results declared in the last week, with numbers loaded"), ("res_rank >= 4", "The Latest results page reads the quarter as Strong or Good"),
+          R_SEC_LEADER, R_SEC_LEADING),
+         (("res_rank", "desc"), ("res_profit_yoy", "desc")), (C_RD, C_RV, C_RS, C_RP, C_RN), _m()),
 ]
-
-BASIC += [
-    Preset(f"basic-pattern-{k}", _PNAMES[k], BASIC_GROUP["patterns"], _PTEXTS[k], "pattern", _m(), "", (), (("overall", "desc"),), 25,
-           (RANK, STOCK, FINLIT, B_TECH) + _pcols(k) + (SECTOR, MCAP), (), (), False, None, (), k, "basic")
-    for k in _SCANS]
+SECTOR_IDS = tuple(p.id for p in SECTOR_ADV)
+PRESETS = PRESETS + SECTOR_ADV
 
 # Top gainers (Today, This week, This month): companies our screens listed, ranked by the rise since the day they joined. Stored nightly (presets/history.py).
 GAIN_WIN = (("day", "Today", "Companies that joined a screen of this page at the previous close, ranked by how far the price has risen since."),
@@ -507,13 +493,9 @@ GAIN_WIN = (("day", "Today", "Companies that joined a screen of this page at the
 GAIN_COLS = (Col("joined", "Joined", "text", "left"), Col("screen", "Screen it came from", "text", "left"), Col("closeJoined", "Close when it joined", "num1"), Col("since", "Since it joined", "pct"),
              Col("bench", "NIFTY 500, same days", "pct"), Col("highest", "Highest close since", "pct"), Col("stillOn", "Still on it", "text", "left"))
 GAINERS: List[Preset] = [
-    Preset(f"{'basic-' if tab == 'basic' else ''}gainers-{w}", f"Top gainers: {name}", "top-gainers", text, "gainers", _m(), "", (), (), 20, (RANK, STOCK) + GAIN_COLS + (SECTOR, MCAP), (), (), False, None, (), "top gainers", tab)
-    for tab in ("basic", "advanced") for w, name, text in GAIN_WIN]
-PRESETS = PRESETS + [p for p in GAINERS if p.tab == "advanced"]
-BASIC = BASIC + [p for p in GAINERS if p.tab == "basic"]
-
-ADVANCED: List[Preset] = list(PRESETS)
-PRESETS = PRESETS + BASIC
+    Preset(f"gainers-{w}", f"Top gainers: {name}", "top-gainers", text, "gainers", _m(), "", (), (), 20, (RANK, STOCK) + GAIN_COLS + (SECTOR, MCAP), (), (), False, None, (), "top gainers", "advanced")
+    for w, name, text in GAIN_WIN]
+PRESETS = PRESETS + GAINERS
 
 # fix 11 (no model rules on the page): the card text and the "How this screen works" lines come from plain.json (the handover's data/screens.json): words only, never a
 # weight, a cut-off or a formula. A screen without plain lines shows its card text only. The rule lists above stay on the server, in the presets job.
@@ -524,20 +506,27 @@ _PLAIN: Dict[str, dict] = _json.loads((_Path(__file__).with_name("plain.json")).
 
 
 def _plain(p: Preset) -> Preset:
-    if p.kind == "pattern":          # the page words, without the look-back lengths the pack's texts printed (the handover drops them)
-        return _replace(p, how_it_works=())
+    if p.kind == "pattern":          # task #325 (developer file 26): engine 2's card line and How this screen works, from the pack's pattern-text.json, word for word
+        return p                     # (file 25, 2.1 row 1: these screens opened an empty How this screen works)
     w = _PLAIN.get(p.id)
     if w is None:
         return _replace(p, how_it_works=())
-    return _replace(p, card_text=w["text"], how_it_works=tuple(w.get("how") or ()))
+    ab = w.get("about") or {}
+    about = (ab["shows"], tuple(ab["use"])) if ab.get("shows") and ab.get("use") else ()
+    text, how = w["text"], tuple(w.get("how") or ())
+    if "{range}" in text or any("{range}" in h for h in how):      # task #258 (SPEC §5): a size screen names its range, from the site's size lines
+        rng = size_range(str(p.prism_filters.get("cap") or ""))
+        text, how = text.replace("{range}", rng), tuple(h.replace("{range}", rng) for h in how)
+    return _replace(p, card_text=text, how_it_works=how, about=about, notes=tuple(w.get("notes") or ()))
 
 
 PRESETS = [_plain(p) for p in PRESETS]
-BASIC = [_plain(p) for p in BASIC]
 QUICK_VIEWS = [_plain(p) for p in QUICK_VIEWS]
-ADVANCED = [p for p in PRESETS if p.tab != "basic"]
+ADVANCED: List[Preset] = list(PRESETS)
 ALL: List[Preset] = PRESETS + QUICK_VIEWS
 BY_ID: Dict[str, Preset] = {p.id: p for p in ALL}
+NEW_ADV = [BY_ID[p.id] for p in NEW_ADV]     # with their plain words
+SECTOR_ADV = [BY_ID[p.id] for p in SECTOR_ADV]     # task #243 round 3b: with their plain words
 
 
 def render_card(p: Preset, n: Optional[int] = None) -> str:

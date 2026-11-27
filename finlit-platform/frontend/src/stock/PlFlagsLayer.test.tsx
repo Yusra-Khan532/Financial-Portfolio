@@ -58,14 +58,22 @@ describe("earnings popup, Kotak", () => {
 });
 
 import { isAway } from "./PlFlagsLayer";
-describe("the alert belongs to its section", () => {
+// founder, 24 Nov 2026: a pop-up from the moment the reader reaches section 05 until the whole of section 05 has been scrolled past
+// (top: the results bar just above section 05; bottom: the bottom of section 05; vh: the screen's height)
+describe("the alert belongs to section 05, from its start to its end", () => {
   const vh = 800;
-  it("is shown while the reader is on its section", () => { expect(isAway(100, 500, 1200, vh)).toBe(false); });
-  it("goes away when the next section passes the middle of the screen", () => { expect(isAway(-300, 100, 300, vh)).toBe(true); expect(isAway(-300, 100, null, vh)).toBe(false); });
-  it("goes away when the results are far above, or when the reader has gone back up to an earlier section", () => {
-    expect(isAway(-1500, -700, 2000, vh)).toBe(true);
-    expect(isAway(900, 1200, 2500, vh)).toBe(true);
+  it("is shown once section 05 has come up into the top 70% of the screen, and while the reader is inside it", () => {
+    expect(isAway(500, 1900, vh)).toBe(false);          // the section's start is in view
+    expect(isAway(-900, 600, vh)).toBe(false);          // the middle of a long section 05
+    expect(isAway(700, 2000, vh)).toBe(true);           // only just below the fold: not reached yet
   });
+  it("goes once the whole of section 05 has been scrolled past", () => {
+    expect(isAway(-1400, 200, vh)).toBe(false);         // its last part still on screen
+    expect(isAway(-1500, 150, vh)).toBe(true);          // its end has gone up under the page header
+    expect(isAway(-3000, -1300, vh)).toBe(true);        // far below it
+  });
+  it("goes when the reader scrolls back up above section 05", () => { expect(isAway(600, 2000, vh)).toBe(true); });
+  it("a section folded shut on a phone measures 0 and 0: away", () => { expect(isAway(0, 0, vh)).toBe(true); });
 });
 
 
@@ -101,7 +109,7 @@ describe("compact popup", () => {
   it("the edge tab sits on the right edge, rounded on its left side; no blur on the card", () => {
     const css = readFileSync(new URL("../styles/plflags.css", import.meta.url), "utf8");
     const edge = css.match(/^\.plf-edge\s*\{[^}]*\}/m)![0];
-    expect(edge).toMatch(/right:\s*0/); expect(edge).not.toMatch(/left:\s*0/); expect(edge).toMatch(/border-radius:\s*12px 0 0 12px/);
+    expect(edge).toMatch(/right:\s*0/); expect(edge).not.toMatch(/left:\s*0/); expect(edge).toMatch(/border-radius:\s*var\(--r-ctl\) 0 0 var\(--r-ctl\)/);
     expect(css).not.toMatch(/backdrop-filter:\s*blur/);
   });
 });

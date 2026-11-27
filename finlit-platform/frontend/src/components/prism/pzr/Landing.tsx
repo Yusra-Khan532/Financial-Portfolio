@@ -1,8 +1,9 @@
 // /prism landing: company search with suggestions, recent companies with their last stored score, sector chips and a short
 // explanation of what Prism is. Also the company picker used on the report page.
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { Icon } from "../../../lib/icons";
+import { useAuth } from "../../../lib/auth";
 import { ActiveFilters, FilterNote, HiddenRows, SearchFilters, useIndexFilter } from "../../SearchFilters";
 import { useSlashFocus } from "../../../lib/premium";
 import { useQuotesFor, useSearchIndex, type SearchRow } from "../../../lib/api";
@@ -10,12 +11,25 @@ import { quoteMap } from "../../../lib/globalSearch";
 import { Logo } from "../../search/parts";
 import { indexFacets, sectorAt } from "../../../lib/searchFilters";
 import {
-  PRISM_NAME, PRISM_NOTE, cleanSymbol, labelTone, partInfo, partsOf, pctWhole, readPrismRecent, score1, statementWord, useStoredSummary,
+  PRISM_NAME, PRISM_NOTE, cleanSymbol, howPrismWorks, labelTone, partInfo, partsOf, pctWhole, readPrismRecent, score1, statementWord, useStoredSummary,
   type Statement,
 } from "../../../lib/prism";
 import { partVar } from "../../../lib/prismReport";
+import { coTitle, subLine, titleOf } from "../../../lib/companyLabel";
 
 /** The prism mark: white light entering a glass prism and leaving as four bands, one per part. */
+/** True on a phone-width window (560px or less), following resizes; false where the browser cannot tell. Task #293. */
+function useNarrow(): boolean {
+  const q = "(max-width: 560px)";
+  const [on, setOn] = useState(() => { try { return matchMedia(q).matches; } catch { return false; } });
+  useEffect(() => {
+    let m: MediaQueryList;
+    try { m = matchMedia(q); } catch { return; }
+    const f = () => setOn(m.matches); m.addEventListener?.("change", f); return () => m.removeEventListener?.("change", f);
+  }, []);
+  return on;
+}
+
 export function PrismMark({ size = 220 }: { size?: number }) {
   const parts = ["fundamental", "valuation", "quality", "risk"];
   return (
@@ -42,6 +56,7 @@ export function Picker({ statement, big = false }: { statement: Statement; setSt
   const [text, setText] = useState(""), [open, setOpen] = useState(false), [cur, setCur] = useState(0);
   const box = useRef<HTMLInputElement>(null);
   useSlashFocus(box);
+  const narrow = useNarrow();   // task #293 (5): on a phone the box is too narrow for the long placeholder, so it is shortened there
   const hits = useMemo(() => sf.search(text, 8).map((r) => ({ symbol: r[0], name: r[1] })), [sf.search, text]);   // name, symbol, BSE/NSE code or ISIN; no text with a filter on: the largest companies that pass
   const hidden = useMemo(() => sf.hidden(text, 3), [sf.hidden, text]);                                             // matches that only the filter leaves out
   const typed = text.trim();
@@ -52,12 +67,12 @@ export function Picker({ statement, big = false }: { statement: Statement; setSt
       <div className="pm-search pzr-search sf-host">
         <Icon name="search" />
         <input ref={box} value={text} role="combobox" aria-expanded={open && hits.length > 0} aria-controls="pz-sug" aria-autocomplete="list" aria-label="Choose a company"
-          placeholder="Company name or symbol, for example TCS" autoComplete="off" onChange={(e) => { setText(e.target.value); setOpen(true); setCur(0); }}
+          placeholder={narrow ? "Company name or symbol" : "Company name or symbol, for example TCS"} autoComplete="off" onChange={(e) => { setText(e.target.value); setOpen(true); setCur(0); }}
           onBlur={() => setTimeout(() => setOpen(false), 150)} onFocus={() => setOpen(true)}
           onKeyDown={(e) => { if (e.key === "ArrowDown") { e.preventDefault(); setCur((c) => Math.min(hits.length - 1, c + 1)); } else if (e.key === "ArrowUp") { e.preventDefault(); setCur((c) => Math.max(0, c - 1)); } else if (e.key === "Enter") { e.preventDefault(); submit(); } else if (e.key === "Escape") setOpen(false); }} />
         <SearchFilters variant="panel" className="sf-inline" facets={sf.facets} value={sf.filter} onChange={sf.setFilter} count={sf.count} />
         {open && (hits.length > 0 || (typed && sf.data)) && <div className="pm-sug" id="pz-sug" role="listbox">
-          {hits.map((h, i) => <button key={h.symbol} type="button" role="option" aria-selected={i === cur} className={i === cur ? "on" : ""} onMouseDown={(e) => e.preventDefault()} onClick={() => go(h.symbol)}><b>{h.symbol}</b><small>{h.name}</small></button>)}
+          {hits.map((h, i) => <button key={h.symbol} type="button" role="option" aria-selected={i === cur} className={i === cur ? "on" : ""} onMouseDown={(e) => e.preventDefault()} onClick={() => go(h.symbol)}><b title={coTitle(h)}>{titleOf(h)}</b><small>{subLine(h, h.name)}</small></button>)}
           {typed && <div onMouseDown={(e) => e.preventDefault()}>
             {sf.on && !hits.length && <FilterNote filter={sf.filter} q={typed} onChange={sf.setFilter} hidden={hidden} />}
             {sf.on && hits.length > 0 && <HiddenRows hidden={hidden} filter={sf.filter} onChange={sf.setFilter} />}
@@ -122,7 +137,7 @@ export function Browse({ statement, open, onOpen }: { statement: Statement; open
   );
 }
 
-const WHAT = ["A score out of 100 and a label from Strong to Poor, or Not rated when the evidence is thin", "Four parts: Growth & Profitability, Valuation, Quality and Risk, each with what supports it and what weighs on it", "Every factor with its value and its reading, from Very strong to Very weak, and which inputs are missing", "A PDF of the report, prepared for you"];
+const WHAT = ["A score out of 100 and a label from Strong to Poor, or Not rated when the evidence is thin", "Four parts: Growth & Profitability, Valuation, Quality and Risk, each with what supports it and what weighs on it", "Every factor with its value and its reading, from Very strong to Very weak"];
 export const PRISM_WHAT = WHAT;
 
 /** Six of the most searched companies, one tap each: straight to that company's Prism page, no typing. */
@@ -149,6 +164,7 @@ export function QuickSelect({ statement, onViewAll }: { statement: Statement; on
 }
 
 export function LandingBody({ statement, setStatement }: { statement: Statement; setStatement: (s: Statement) => void }) {
+  const { prismReportsPerDay } = useAuth();
   const recent = readPrismRecent();
   const [browse, setBrowse] = useState(false);
   const viewAll = () => { setBrowse(true); setTimeout(() => document.getElementById("pzr-browse")?.scrollIntoView?.({ behavior: "smooth", block: "start" }), 60); };
@@ -161,7 +177,7 @@ export function LandingBody({ statement, setStatement }: { statement: Statement;
       </section>
       {recent.length > 0 && (
         <section className="pzr-sec" aria-label="Recently opened">
-          <header className="pzr-sh"><h3>Recently opened</h3><p>The last score stored for each company. Opening one never starts a calculation.</p></header>
+          <header className="pzr-sh"><h3>Recently opened</h3><p>The latest rating for each company.</p></header>
           <ul className="pzr-recent">{recent.slice(0, 6).map((x) => <RecentCard key={x} symbol={x} />)}</ul>
         </section>
       )}
@@ -170,12 +186,12 @@ export function LandingBody({ statement, setStatement }: { statement: Statement;
         <div className="pzr-what-art"><PrismMark /></div>
         <div className="pzr-what-t">
           <h3>What you get</h3>
-          <p>A company's financial health, split into four parts the way a prism splits light, each read against its own industry group.</p>
+          <p>A company's financial health, split into four parts the way a prism splits light, each read against its own peer group (FinEdge's list of similar companies).</p>
           <ul>{WHAT.map((w) => <li key={w}><Icon name="check" />{w}</li>)}</ul>
         </div>
         <div className="pzr-what-h">
           <h3>How it works</h3>
-          <p>Choose a company. If a rating was calculated recently it opens at once; otherwise Prism starts calculating it from the latest filings and prices, which usually takes under half a minute, and shows it here when it is ready. Each member can calculate 20 a day.</p>
+          <p>{howPrismWorks(prismReportsPerDay)}</p>
           <p className="pzr-note">{PRISM_NOTE}</p>
         </div>
       </section>

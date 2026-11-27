@@ -2,19 +2,22 @@
 // the columns of each tab for each plan, sorting and filtering values, formatting, summary figures and the CSV. No React here (the table is
 // components/PortfolioTabs.tsx). Information only, not investment advice: scores are descriptive, never a recommendation.
 import { useQuery } from "@tanstack/react-query";
-import { apiSend, type ApiError } from "./api";
+import { apiSend, type ApiError, busyRetry } from "./api";
 import { MINUS, csvText, nf, capSize } from "./format";
 import { marketCapText, scoreBand, type ScoreBand } from "./scoreBands";
 import { LABEL_WORD, PRISM_PARTS, type PrismLabel } from "./scorePrism";
+import { sortLabel } from "./companyLabel";
 
+/** Task #283: FinLit Prism is FinLit's only company score. "prism": a plan with Prism (Gold, administrators). "finlit": a plan without it (Silver): the page
+ *  lists the shares with no company score (no score column, no parts, no band filter). Basic sees none (the page is gated). */
 export type Model = "finlit" | "prism";
 export type PlanName = "basic" | "silver" | "gold";
-/** The score model a plan sees on this page: Silver the basic FinLit IQ, Gold only FinLit Prism. Basic sees none (the page is gated). */
+/** The score model a plan sees on this page: Gold FinLit Prism; Silver no company score ("finlit"); Basic none (the page is gated). */
 export const modelFor = (plan: PlanName, admin = false): Model | null => (plan === "gold" || admin ? "prism" : plan === "silver" ? "finlit" : null);
 
 export const MODEL_BANNER: Record<Model, string> = {
   prism: "Scores on this page use FinLit Prism, our advanced model: four financial-health parts (Growth & Profitability, Valuation, Quality, Risk) and two technical views (short and long term). Higher is better for the four parts; a high Risk score means lower risk.",
-  finlit: "Scores on this page use the FinLit IQ (our basic model). Gold shows FinLit Prism, the advanced model.",
+  finlit: "FinLit Prism, FinLit's only company score, comes with Gold: on this plan your shares are listed without a score. See plans.",
 };
 
 // ---------------------------------------------------------------------------------------------------- API shape (POST /api/portfolio/overview)
@@ -25,7 +28,9 @@ export type PrismBlock = {
   parts: { fundamental: number | null; valuation: number | null; quality: number | null; risk: number | null } | null;
   shortTerm: { score: number; word: string } | null; longTerm: { score: number; word: string } | null; at: string | null; reason: string | null;
 };
-export type FinlitBlock = { overall: number | null; band: string | null; word: string | null; pillars: Record<"quality" | "growth" | "profitability" | "balance" | "technical", number | null> };
+export type FinlitBlock = { overall: number | null; band: string | null; word: string | null; pillars: Record<"quality" | "growth" | "profitability" | "balance" | "technical", number | null>;
+  /** Task #183: each part's word of the retired overall score, as the server still sends it; not shown since task #283. */
+  pillarWords?: Partial<Record<"quality" | "growth" | "profitability" | "balance" | "technical", string | null>> };
 export type StatementCol = { available: boolean; why?: string; period: string | null; periodEnd: string | null } & Partial<Record<"revenue" | "other_income" | "operating_profit" | "finance_costs" | "net_profit" | "eps" | "tax_ratio", Fig>>;
 export type Ready = {
   symbol: string; status: "ready"; name: string | null; sector: string | null; industry: string | null; isBank: boolean; basis: "consolidated" | "standalone" | null; reportAt: string | null;
@@ -40,21 +45,32 @@ export type Overview = { model: Model; plan: PlanName; count: number; holdings: 
 
 export const isReady = (h: OverviewHolding | undefined): h is Ready => h?.status === "ready";
 
+/** Developer file 27: the price and today's change of a share from the first answer that has it ready with a price. The figures that cover every
+ *  portfolio (Your portfolios, the picker, the sticky switch) read the selected portfolio's answer and then the all-accounts one, so each portfolio's value
+ *  is its own shares at their own prices, whichever portfolio is open. */
+export function pricesFrom(...answers: Map<string, OverviewHolding>[]) {
+  const at = (sym: string): Ready | null => { for (const m of answers) { const o = m.get(sym); if (isReady(o) && o.price != null) return o; } return null; };
+  return { priceOf: (sym: string) => at(sym)?.price ?? null, changeOf: (sym: string) => at(sym)?.changePct ?? null };
+}
+
 /** One call for the whole list (the server accepts up to 500). Asks again every 20 s while some company is still being prepared. */
 export function useOverview(symbols: string[], enabled: boolean) {
   const key = symbols.join(",");
   return useQuery<Overview, ApiError>({
     queryKey: ["portfolio-overview", key],
     queryFn: () => apiSend<Overview>("POST", "/api/portfolio/overview", { symbols }),
-    enabled: enabled && symbols.length > 0, retry: false, staleTime: 60_000,
+    enabled: enabled && symbols.length > 0, ...busyRetry, staleTime: 60_000,
     refetchInterval: (q) => (q.state.data?.holdings.some((h) => h.status === "preparing") ? 20_000 : false),
   });
 }
 
 // ---------------------------------------------------------------------------------------------------- tab state (address: ?tab=ratios&period=quarter)
 
-export type Tab = "overview" | "ratios" | "financials";
-export const TABS: { id: Tab; label: string }[] = [{ id: "overview", label: "Overview" }, { id: "ratios", label: "Ratios" }, { id: "financials", label: "Financials" }];
+/** Task #183: Overview is one flat list; By sector and By company size group the same columns; Ratios and Financials are unchanged. */
+export type Tab = "overview" | "sector" | "size" | "ratios" | "financials";
+export const TABS: { id: Tab; label: string }[] = [{ id: "overview", label: "Overview" }, { id: "sector", label: "By sector" }, { id: "size", label: "By company size" }, { id: "ratios", label: "Ratios" }, { id: "financials", label: "Financials" }];
+/** The views that show the Overview columns (score, parts, peers). */
+export const isOverviewLike = (t: Tab) => t === "overview" || t === "sector" || t === "size";
 export const parseTab = (v: string | null | undefined): Tab => (TABS.some((t) => t.id === v) ? (v as Tab) : "overview");
 export type Period = "year" | "quarter";
 export const parsePeriod = (v: string | null | undefined): Period => (v === "quarter" ? "quarter" : "year");
@@ -107,21 +123,19 @@ export function scoreOf(h: OverviewHolding | undefined, model: Model): { value: 
     const p = h.prism, v = p && p.state !== "not_rated" ? p.final : null;
     return { value: v, word: v == null ? null : LABEL_WORD[p!.label as PrismLabel] ?? p!.label, band: scoreBand(v) };
   }
-  const v = h.finlit?.overall ?? null;
-  return { value: v, word: v == null ? null : h.finlit?.word ?? null, band: scoreBand(v) };
+  return { value: null, word: null, band: "na" };   // task #283: no company score on a plan without FinLit Prism
 }
 /** Why a holding has no score of the plan's model, in plain words (null when it has one). */
 export function scoreWhy(h: OverviewHolding | undefined, model: Model): string | null {
   if (!h) return "Scores are loading.";
   if (!isReady(h)) return h.reason;
-  if (scoreOf(h, model).value != null) return null;
-  if (model === "finlit") return "FinLit has no overall score for this company yet: its report did not have enough figures to score.";
+  if (model === "finlit" || scoreOf(h, model).value != null) return null;   // task #283: a plan without FinLit Prism shows no score, so nothing to explain
   const p = h.prism;
   if (!p || p.state === "none") return "Not rated yet. Open its Prism page to rate it now (about 30 seconds).";
   return p.reason || "Prism could not rate this company: its filed history or data is not enough for a rating.";
 }
 
-export const FINLIT_PILLARS = [["quality", "Quality"], ["growth", "Growth"], ["profitability", "Profit."], ["balance", "Balance"], ["technical", "Technical"]] as const;
+export const FINLIT_PILLARS = [["quality", "Quality"], ["growth", "Growth"], ["profitability", "Profitability"], ["balance", "Balance sheet"], ["technical", "Technical"]] as const;
 export const PRISM_FOUR = PRISM_PARTS.map((p) => ({ key: p.col.replace("prism_", "") as "fundamental" | "valuation" | "quality" | "risk", label: p.label, say: p.say }));
 export const PRISM_TECH = [["shortTerm", "Short term", "Prism's short term (5 to 20 sessions) price-trend reading, from −100 to +100"], ["longTerm", "Long term", "Prism's long term (6 to 18 months) price-trend reading, from −100 to +100"]] as const;
 
@@ -137,12 +151,13 @@ const statementOf = (h: Ready, p: Period) => h.financials[p];
 const stmt = (k: "revenue" | "other_income" | "operating_profit" | "finance_costs" | "net_profit" | "eps" | "tax_ratio", p: Period) => (h: Ready) => csvFig(statementOf(h, p)[k]);
 
 const shareCols: Col[] = [
-  { id: "share", label: "Share", hint: "Name, symbol and sector", sort: (h) => h.symbol, csv: (h) => h.symbol },
+  { id: "share", label: "Share", hint: "Name, symbol and sector", sort: (h) => sortLabel(h), csv: (h) => h.symbol },
 ];
-const scoreCol = (model: Model): Col => ({
-  id: "score", label: model === "prism" ? "Prism score" : "FinLit IQ", num: true, hint: model === "prism" ? "FinLit Prism, 0 to 100" : "FinLit IQ, 0 to 100",
+/** The Prism score column, for a plan with Prism; none otherwise (task #283). */
+const scoreCol = (model: Model): Col[] => (model === "prism" ? [{
+  id: "score", label: "Prism score", num: true, hint: "FinLit Prism, 0 to 100",
   sort: (h) => scoreOf(h, model).value, csv: (h) => scoreOf(h, model).value,
-});
+}] : []);
 const priceCols: Col[] = [
   { id: "price", label: "Latest price", num: true, sort: (h) => h.price, csv: (h) => h.price },
   { id: "change", label: "Today (%)", num: true, hint: "Change since the previous close", sort: (h) => h.changePct, csv: (h) => h.changePct },
@@ -150,21 +165,21 @@ const priceCols: Col[] = [
 const capCol: Col = { id: "cap", label: "Market cap", num: true, hint: "Market value in rupees crore, and the size word (the site's own bands)", sort: (h) => h.marketCapCr, csv: (h) => h.marketCapCr };
 
 export function columnsFor(tab: Tab, model: Model, period: Period = "year"): Col[] {
-  if (tab === "overview") {
+  if (isOverviewLike(tab)) {
     const score = model === "prism"
       ? [...PRISM_FOUR.map((p): Col => ({ id: "p_" + p.key, label: p.label, num: true, hint: p.say, sort: (h) => h.prism?.parts?.[p.key] ?? null, csv: (h) => h.prism?.parts?.[p.key] ?? null })),
          ...PRISM_TECH.map(([k, label, hint]): Col => ({ id: "t_" + k, label, num: true, hint, sort: (h) => h.prism?.[k]?.score ?? null, csv: (h) => h.prism?.[k]?.score ?? null }))]
-      : FINLIT_PILLARS.map(([k, label]): Col => ({ id: "f_" + k, label, num: true, hint: `${label} pillar, 0 to 100`, sort: (h) => h.finlit?.pillars[k] ?? null, csv: (h) => h.finlit?.pillars[k] ?? null }));
-    return [...shareCols, ...priceCols, capCol, scoreCol(model), ...score];
+      : [];
+    return [...shareCols, ...priceCols, capCol, ...scoreCol(model), ...score];
   }
   if (tab === "ratios") {
     const r = (k: keyof Ready["ratios"], label: string, hint: string): Col => ({ id: k, label, num: true, hint, sort: (h) => h.ratios[k].value, csv: (h) => csvFig(h.ratios[k]) });
-    return [...shareCols, scoreCol(model), ...priceCols, capCol,
+    return [...shareCols, ...scoreCol(model), ...priceCols, capCol,
       r("dividend_yield", "Dividend yield (%)", "Dividends of the last 12 months over the price"), r("pe", "P/E", "Price to earnings, as the stock page shows it"),
       r("roe", "ROE (%)", "Return on equity"), r("debt_to_equity", "Debt to equity (x)", "Borrowings to shareholders' equity. Not shown for banks and lenders"), r("pb", "P/BV (x)", "Price to book value")];
   }
   const word = period === "year" ? "year" : "quarter";
-  return [...shareCols, scoreCol(model), ...priceCols,
+  return [...shareCols, ...scoreCol(model), ...priceCols,
     { id: "yearEnd", label: period === "year" ? "Year end" : "Quarter end", hint: `The latest full ${word} in the stored statements, and whether it is the consolidated or standalone statement`, sort: (h) => statementOf(h, period).periodEnd, csv: (h) => monthYear(statementOf(h, period).periodEnd) },
     { id: "basis", label: "Statement", hint: "Consolidated or standalone: the basis this company's report uses", sort: (h) => h.basis, csv: (h) => (h.basis ? BASIS_WORD[h.basis] : null) },
     { id: "revenue", label: "Net sales / revenue (₹ Cr)", num: true, hint: "Revenue from operations. For banks and lenders: interest earned and fees", sort: (h) => statementOf(h, period).revenue?.value ?? null, csv: stmt("revenue", period) },
@@ -230,7 +245,7 @@ export function summarize(lines: Line[], model: Model): Summary {
   const ready = lines.map((l) => l.ov).filter(isReady);
   const defs: { label: string; get: (h: Ready) => number | null | undefined }[] = model === "prism"
     ? PRISM_FOUR.map((p) => ({ label: p.label, get: (h) => h.prism?.parts?.[p.key] }))
-    : FINLIT_PILLARS.map(([k, label]) => ({ label, get: (h) => h.finlit?.pillars[k] }));
+    : [];
   const parts = defs.flatMap((d) => { const v = ready.map(d.get).filter((x): x is number => x != null); return v.length ? [{ label: d.label, value: v.reduce((a, b) => a + b, 0) / v.length }] : []; });
   return {
     shares: lines.length, scored: scores.length, preparing: lines.filter((l) => !l.ov || l.ov.status === "preparing").length, unknown: lines.filter((l) => l.ov?.status === "unknown").length,

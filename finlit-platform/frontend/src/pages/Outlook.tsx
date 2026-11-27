@@ -29,7 +29,7 @@ export function OutlookIndexPage() {
   return (
     <>
       <PageHeader wrap plan="gold" title="Profit and revenue forecasting" art="chart" links={["/research", "/compare", "/dcf"]}
-        description={<>Pick a listed company to see its <b>reported revenue and net profit by year</b>, and an estimate for the next 1, 3 or 5 years worked out from its own growth and its sector's. Estimates from past results, not a prediction or advice.</>} />
+        description="Revenue and profit by year, with a 1-, 3- or 5-year estimate from past growth; not a prediction." />
       <div className="wrap ol"><OutlookPicker intro /></div>
     </>
   );

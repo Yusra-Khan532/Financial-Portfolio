@@ -23,6 +23,15 @@ class ScreenError(ValueError):
 
 MAX_LIST = 80          # entries in any one repeated parameter
 MAX_RANGES = 40
+
+# Task #350 (23 Nov 2026, the team's Mutual Fund Screener prompt): the FinLit Mutual Fund Score as filters, the total and each of its four parts, each on
+# its own and all together (AND). sc=field:from:below. A range is "from" (inclusive) up to "below" (not included), and a "below" of 100 includes 100, so the
+# band presets meet without a gap or an overlap (Poor < 35, Weak 35-50, Average 50-65, Healthy 65-80, Strong 80+). The total takes any figures; a part
+# takes only its band edges (0, 50, 70, 100: Weak < 50, Fair 50-70, Strong 70+), as the Fund score screener does, because exact part ranges tried one
+# after another would give away a part's figure, which the site never shows. The score is Gold only: the list and the counts check the plan (finlit/mf.py)
+# and are never kept in a shared cache while a score filter is on. The figures are read from mf_scores exactly as the "score" sort reads them.
+SCORE_COLS = {"total": "final", "perf": "perf", "risk": "risk", "cost": "cost", "quality": "quality"}
+PART_EDGES = (0.0, 50.0, 70.0, 100.0)
 BIG = 1e9
 
 
@@ -176,6 +185,7 @@ class Screen:
     key: list                      # the request normalised, for the cache key
     subs: List[str] = field(default_factory=list)
     ranges: Dict[str, Tuple[Optional[float], Optional[float]]] = field(default_factory=dict)
+    scores: Dict[str, Tuple[Optional[float], Optional[float]]] = field(default_factory=dict)   # task #350: sc=field:from:below (Gold only, see SCORE_COLS)
 
 
 def where(preds: Sequence[Pred], exclude: Sequence[str] = ()) -> Tuple[str, List[Any]]:
@@ -501,7 +511,42 @@ def parse(params: Any, ctx: Ctx) -> Screen:
         cs = {"lt1": "x_cf_share < 1", "1to5": "(x_cf_share >= 1 AND x_cf_share <= 5)", "gt5": "x_cf_share > 5"}
         add("csize", lambda a: "(" + " OR ".join(cs[c] for c in csize) + ")")
     key.append(["csize", sorted(csize)])
-    return Screen(preds=preds, family=family, key=key, subs=subs, ranges=ranges)
+    # ---- task #350: the Mutual Fund Score and its four parts, sc=field:from:below (see SCORE_COLS)
+    scores: Dict[str, Tuple[Optional[float], Optional[float]]] = {}
+    raw_sc = params.getlist("sc")
+    if len(raw_sc) > len(SCORE_COLS):
+        raise ScreenError(f"At most {len(SCORE_COLS)} score ranges.")
+    for raw in raw_sc:
+        bits = raw.split(":")
+        if len(bits) != 3 or bits[0] not in SCORE_COLS:
+            raise ScreenError("sc is total, perf, risk, cost or quality, then :from:below.")
+        f = bits[0]
+        if f in scores:
+            raise ScreenError(f"sc for {f} given twice.")
+        lo, hi = _num(bits[1], f"from of {f}"), _num(bits[2], f"below of {f}")
+        if lo is None and hi is None:
+            continue
+        for v in (lo, hi):
+            if v is not None and not 0 <= v <= 100:
+                raise ScreenError("A score is from 0 to 100.")
+            if v is not None and f != "total" and v not in PART_EDGES:
+                raise ScreenError("A part of the score is filtered by its bands only: 0, 50, 70 or 100.")
+        if lo is not None and hi is not None and lo >= hi:
+            raise ScreenError(f"from of {f} is not below its below.")
+        scores[f] = (lo, hi)
+    for f, (lo, hi) in sorted(scores.items()):
+        e = f"(SELECT sc.{SCORE_COLS[f]} FROM mf_scores sc WHERE sc.key = 'mf:' || mf_schemes.code::text)"   # nosec B608 - fixed column names only
+
+        def mk_sc(e=e, lo=lo, hi=hi):
+            def sql(a: Arg) -> str:
+                c = [f"{e} >= {a(lo)}"] if lo is not None else []
+                if hi is not None:
+                    c.append(f"{e} <= {a(hi)}" if hi >= 100 else f"{e} < {a(hi)}")
+                return "(" + " AND ".join(c) + ")"
+            return sql
+        add("sc:" + f, mk_sc())
+    key.append(["sc", sorted((f, lo, hi) for f, (lo, hi) in scores.items())])
+    return Screen(preds=preds, family=family, key=key, subs=subs, ranges=ranges, scores=scores)
 
 
 # ====================================================================================== sub-category maps

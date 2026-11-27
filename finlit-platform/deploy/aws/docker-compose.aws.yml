@@ -47,6 +47,11 @@ services:
     volumes: &app_volumes
       - ${NSE_DATA_DIR:-/opt/finlit/data/nse}:/data/nse
       - ${SECTORS_DATA_DIR:-/opt/finlit/data/sectors}:/data/sectors
+      # Task #326: the nightly scores export (one file a market day, the newest 120 kept), written by the jobs container and served by the app at
+      # /internal/export/scores. A named volume: Docker creates it on the first start owned by user finlit (the image makes /data/exports), and no deploy removes it.
+      - scores_export:/data/exports
+      # Console > Storage (finlit/storage.py): the nightly database backups, READ-ONLY, so the console can show how many there are and how much they take.
+      - backups:/backups:ro
     depends_on:
       db: {condition: service_healthy}
       redis: {condition: service_healthy}
@@ -71,7 +76,11 @@ services:
   jobs:
     image: finlit-app:current
     env_file: ${ENV_FILE:-../../.env.aws}
-    environment: *app_env
+    environment:
+      <<: *app_env
+      # the site backend in the app container, for EVERY process here, not only the supervisor jobs.sh starts: on 26 Nov 2026 a command run by hand
+      # (docker exec finlit-jobs-1 python -m finlit.worker ...) had no SITE_API_URL, fell back to 127.0.0.1:8001 and failed with ConnectError
+      SITE_API_URL: "http://app:8001"
     command: ["sh", "-c", "if [ -x ./jobs.sh ]; then exec ./jobs.sh; fi; echo 'this image runs its jobs in the app container'; exec sleep infinity"]
     volumes: *app_volumes
     depends_on:
@@ -190,7 +199,48 @@ services:
     restart: unless-stopped
     logging: *logging
 
+  # Uptime checker (docs/MONITORING.md): asks the public site every minute and emails on a failure and on recovery (SMTP_* in .env.aws).
+  # Private network only, no ports: the site reads it as http://gatus:8080 for /status and the admin console. About 20-40 MB.
+  gatus:
+    image: twinproduction/gatus:v5.12.1
+    environment:
+      GATUS_CONFIG_PATH: /config/config.yaml
+      PUBLIC_SITE_URL: ${PUBLIC_SITE_URL:-https://finlitventures.com}
+      # Alert email through Resend's SMTP (owner's choice, 24 Nov 2026). Security checkup (24 Nov): this third-party image should not hold the
+      # site's main mail key, so it uses ALERT_RESEND_API_KEY (a separate Resend key with sending access only) when set, else the main key as before.
+      SMTP_HOST: smtp.resend.com
+      SMTP_PORT: "465"                # implicit TLS
+      SMTP_USERNAME: resend
+      SMTP_PASSWORD: ${ALERT_RESEND_API_KEY:-${RESEND_API_KEY:-}}
+      ALERT_EMAIL_FROM: FinLit Alerts <alerts@finlitventures.com>
+      ALERT_EMAIL_TO: ${ALERT_EMAIL_TO:-finlit.start@gmail.com}
+    volumes:
+      - ./gatus:/config:ro
+      - gatus_data:/data
+    expose: ["8080"]
+    mem_limit: 96m
+    security_opt: ["no-new-privileges:true"]
+    restart: unless-stopped
+    logging: *logging
+
+  # Uptime Kuma (docs/MONITORING.md): a second monitor with its own dashboard, status pages and many alert channels. Off unless the owner switches
+  # it on (COMPOSE_PROFILES=kuma in .env.aws), because this server has 2 GB. Private network only; its web page is reached through Caddy with a
+  # password (deploy/aws/uptime-kuma/uptime.caddy.example) or an SSH tunnel, never published directly.
+  uptime-kuma:
+    image: louislam/uptime-kuma:1.23.16
+    profiles: ["kuma"]
+    volumes:
+      - uptime_kuma:/app/data
+    expose: ["3001"]
+    mem_limit: 256m
+    security_opt: ["no-new-privileges:true"]
+    restart: unless-stopped
+    logging: *logging
+
 volumes:
+  gatus_data:
+  uptime_kuma:
+  scores_export:
   pgdata:
   caddy_data:
   caddy_config:

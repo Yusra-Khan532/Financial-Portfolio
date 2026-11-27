@@ -126,7 +126,7 @@ def derive_fourth_quarters(result, events):
         ('otherIncome', ('otherIncome',)), ('ebitda', ('ebitda','EBITDA')),
         ('netInterestIncome', ('netInterestIncome','netInterestRevenue','netInterestEarnings')),
         ('interestEarned', ('interestEarned','interestIncome')),
-        ('netPremiumIncome', ('netPremiumIncome','netPremiumEarned','netPremium','netEarnedPremium')),
+        ('netPremiumIncome', ('netPremiumIncome','netPremiumEarned','netPremium','netEarnedPremium','premiumEarned','premiumsEarned')),
     )
     annuals = items(result.get('annual') or result.get('annual_for_quarter_recovery'), 'financials', 'data')
     for annual in annuals:
@@ -237,7 +237,7 @@ def derive_finedge(raw):
                 ('financeCosts',INTEREST_COST_FIELDS),
                 ('interestEarned',('interestEarned','interestIncome')),
                 ('netInterestIncome',('netInterestIncome','netInterestRevenue','netInterestEarnings')),
-                ('netPremiumIncome',('netPremiumIncome','netPremiumEarned','netPremium','netEarnedPremium'))):
+                ('netPremiumIncome',('netPremiumIncome','netPremiumEarned','netPremium','netEarnedPremium','premiumEarned','premiumsEarned'))):
                 values = [first(quarters[day],*aliases) for day in dates]
                 if first(row,*aliases) is None and all(v is not None for v in values):
                     row[target] = sum(values)

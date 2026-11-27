@@ -15,3 +15,33 @@ export const exchangeOf = (r: Co): "NSE" | "BSE" | null => (r.exchange === "NSE"
 export const isBseOnly = (r: Co): boolean => exchangeOf(r) === "BSE";
 /** The small tag for a BSE-only company: the exchange and its scrip code (the code is the symbol for such a company). Null for an NSE-listed one. */
 export const exchangeTag = (r: Co): string | null => (isBseOnly(r) ? (isBseCode(r.symbol) ? `BSE only, code ${r.symbol}` : "BSE only") : null);
+
+// Task #246 (name first, 19 Nov 2026): the one way every list, table, chip and card labels a company. For a BSE-only company (its symbol is a BSE code) the NAME
+// leads and the code moves to the small line as "BSE 526433"; an NSE symbol is unchanged. Links stay /stocks/<symbol>.
+/** The company name without a trailing "Limited" / "Ltd" / "Ltd.": for chips and tight single-line labels. */
+export const shortName = (name: string | null | undefined): string => String(name ?? "").replace(/\s+(Limited|Ltd\.?)$/i, "").trim();
+/** Cut to `max` characters with "…" at the end (the cut never ends on a space). */
+export const clip = (s: string, max: number): string => (s.length > max ? s.slice(0, max - 1).trimEnd() + "…" : s);
+export type CoLabel = { main: string; code: string | null; title: string };
+/** The parts of a company label: `main` (what the bold label shows), `code` ("BSE 526433" for a BSE-only company with a name, else null) and `title` (the hover text). */
+export function coLabel(r: Co): CoLabel {
+  if (isBseCode(r.symbol) && r.name) return { main: r.name, code: `BSE ${r.symbol}`, title: `${r.name} · BSE ${r.symbol}` };
+  if (isBseCode(r.symbol)) return { main: r.symbol, code: null, title: codeNote(r)! };
+  return { main: r.symbol, code: null, title: r.name || r.symbol };
+}
+/** A single-line label (a chip, a chart label, a tight cell): the short name, cut to `max`, for a BSE-only company with a name; the symbol otherwise. */
+export const shortLabel = (r: Co, max = 22): string => (isBseCode(r.symbol) && r.name ? clip(shortName(r.name), max) : r.symbol);
+/** The small line under a label: "BSE 526433" then what the line showed before (`sub`), never repeating the name. NSE: `sub` unchanged. */
+export function subLine(r: Co, sub?: string | null): string | null {
+  const l = coLabel(r), parts: string[] = [];
+  if (l.code) parts.push(l.code);
+  const s = (sub ?? "").trim();
+  if (s && !(l.code && r.name && s === r.name.trim())) parts.push(s);
+  return parts.length ? parts.join(" · ") : null;
+}
+/** The hover text for a label: the full name and code (or why the name is missing) for a BSE code; undefined for an NSE symbol, so its markup is unchanged. */
+export const coTitle = (r: Co): string | undefined => (isBseCode(r.symbol) ? coLabel(r).title : undefined);
+/** The symbol as a small tag beside a name that already leads: "BSE 526433" for a BSE code, the NSE symbol unchanged. */
+export const codeText = (symbol: string): string => (isBseCode(symbol) ? `BSE ${symbol}` : symbol);
+/** Sort key for a company column: the label that is shown. */
+export const sortLabel = (r: Co): string => coLabel(r).main.toLowerCase();

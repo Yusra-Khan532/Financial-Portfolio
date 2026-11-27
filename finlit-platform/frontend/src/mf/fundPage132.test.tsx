@@ -35,7 +35,7 @@ describe("at a glance and the section links", () => {
     render(<MemoryRouter><FundGlance d={D} facts={FACTS} factsLoading={false} /></MemoryRouter>);
     const cells = [...document.querySelectorAll(".fd-cell")].map((c) => c.textContent);
     expect(cells).toEqual([
-      "FundPulse60.3Average · 14 of 36 in Flexi Cap (Direct plan)", "5 years a year+11.54%NAV, Direct · Growth", "1 year+0.27%NAV change",
+      "Mutual Fund Score60.3Average · 14 of 36 in Flexi Cap (Direct plan)", "5 years a year+11.54%NAV, Direct · Growth", "1 year+0.27%NAV change",
       "Expense ratio0.68%a year, Direct · Regular 1.29%", "Fund size₹1,47,064 CrVery large · 30 Sept 2026", "Largest fall−17.75%Nov 2021 to Jun 2022",
     ]);
   });
@@ -44,7 +44,7 @@ describe("at a glance and the section links", () => {
     const d = { ...D, returns: { ...D.returns, "5y": ret(null, "Less than 5 years of NAV history") } } as FundDetail;
     render(<MemoryRouter><FundGlance d={d} facts={undefined} factsLoading /></MemoryRouter>);
     const t = (i: number) => document.querySelectorAll(".fd-cell")[i].textContent;
-    expect(t(0)).toBe("FundPulseLockedPart of a paid plan · See plans");
+    expect(t(0)).toBe("Mutual Fund ScoreLockedPart of a paid plan · See plans");
     expect(t(1)).toBe("5 years a year—Less than 5 years of NAV history");
     expect(t(3)).toBe("Expense ratio—Loading…");
   });
@@ -52,7 +52,7 @@ describe("at a glance and the section links", () => {
   it("links every section that is on the page, in the page's order", () => {
     render(<FundSectionNav present={["fd-returns", "fd-score", "fd-chart", "fd-facts", "fd-risk", "fd-holdings", "fd-about"]} />);
     expect(screen.getAllByRole("link").map((a) => [a.textContent, a.getAttribute("href")])).toEqual([
-      ["Returns", "#fd-returns"], ["FundPulse", "#fd-score"], ["NAV chart", "#fd-chart"], ["Fund facts", "#fd-facts"], ["Risk", "#fd-risk"], ["What it invests in", "#fd-holdings"], ["About the data", "#fd-about"],
+      ["Returns", "#fd-returns"], ["Mutual Fund Score", "#fd-score"], ["NAV chart", "#fd-chart"], ["Fund facts", "#fd-facts"], ["Risk", "#fd-risk"], ["What it invests in", "#fd-holdings"], ["About the data", "#fd-about"],
     ]);
   });
 });
@@ -69,10 +69,10 @@ describe("fund facts: what we do not have sits in one box", () => {
 });
 
 describe("what it invests in: bars, the full list, and the four counts", () => {
-  const h = (name: string, pct: number, extra: Partial<Holding> = {}): Holding => ({ name, isin: null, sector: "Banks", assetClass: "equity", pct, qty: null, valueLakh: null, stockSymbol: null, prevPct: null, change: null, ...extra });
+  const h = (name: string, pct: number, extra: Partial<Holding> = {}): Holding => ({ name, isin: null, industry: "Banks", assetClass: "equity", pct, qty: null, valueLakh: null, stockSymbol: null, prevPct: null, change: null, ...extra });
   const holdings = [...Array.from({ length: 12 }, (_, i) => h(`Big ${i + 1}`, 12 - i * 0.5, i === 0 ? { prevPct: null } : i < 4 ? { prevPct: 1 } : { prevPct: 20 })), ...Array.from({ length: 5 }, (_, i) => h(`Small ${i + 1}`, 0.4, { prevPct: 0.4 }))];
   const P: Portfolio = { asOf: "2026-10-31", previousAsOf: "2026-09-30", source: "PPFAS", sourceUrl: null, holdings, exited: [{ name: "Gone Ltd", pct: null, prevPct: 2 }],
-    summary: { count: holdings.length, top10Pct: 90, assetSplit: { equity: 90, debt: 5, cash: 5, other: null }, sectors: [{ sector: "Banks", pct: 100 }] } };
+    summary: { count: holdings.length, top10Pct: 90, assetSplit: { equity: 90, debt: 5, cash: 5, other: null }, industries: [{ industry: "Banks", pct: 100 }] } };
   it("draws the 10 largest as bars, no donut, and opens every holding with one click", () => {
     render(<MemoryRouter><HoldingsSection portfolio={P} layout="bars" fundPage /></MemoryRouter>);
     expect(document.querySelector(".hd-donut")).toBeNull();

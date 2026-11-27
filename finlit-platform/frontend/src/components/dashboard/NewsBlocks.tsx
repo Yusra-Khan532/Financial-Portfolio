@@ -1,5 +1,6 @@
-// Blocks 8 to 12: Results today, Filings and news, IPOs open now, Alerts and saved screens, Term of the day.
-import { useEffect, useState } from "react";
+// Blocks 8 to 12: Results today, Filings and news, IPOs open now, Alerts and saved screens, Term of the day (with Your bookmark, task #315).
+import { SentimentChip } from "../SentimentChip";   // task #365
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router";
 import { useFeed, who } from "../../lib/feed";
 import { useIpos } from "../../lib/ipo";
@@ -9,33 +10,37 @@ import { encodeState, toBody, useScreen, type PState } from "../../lib/proscreen
 import { dedupeFilings, filingLine, filingTag, istToday, resultLines, shortDay, titleCase } from "../../lib/dashboard";
 import { nf } from "../../lib/format";
 import { CoLogo } from "../CoLogo";
-import { Card, Rows, ScopeSeg, ShowMoreButton, useScope, useShowMore } from "./parts";
+import { Card, Rows, ShowMoreButton, useScope, useShowMore } from "./parts";
+import { buttonClass } from "../ui";
+import { usePrefs } from "../../lib/prefs";
+import { removeBookmark } from "../../lib/wordOfDay";
+import "../../styles/word-of-day.css";
 
 export function ResultsToday({ symbols }: { symbols: string[] }) {
-  const [scope, setScope] = useScope("resultstoday", symbols.length > 0);
+  const [scope] = useScope("resultstoday", symbols.length > 0);   // task #316: chosen with the From dropdown in the section heading
   const q = useFeed("result", { symbols: scope === "mine" ? symbols : [], limit: 100, upcoming: true });
   const today = istToday(), end = new Date(Date.parse(today + "T00:00:00Z") + 7 * 864e5).toISOString().slice(0, 10);
   const lines = resultLines((q.data || []).filter((i) => i.date >= today && i.date <= end)).slice(0, 20);
   const more = useShowMore(lines, 5, scope);
   return (
-    <Card id="resultstoday" title="Results today" sub="Filed or due today, and the next few days" right={<ScopeSeg label="Results" scope={scope} onChange={setScope} hasStocks={symbols.length > 0} />}>
+    <Card id="resultstoday" title="Results today" sub="Filed or due today, and the next few days">
       {q.isLoading ? <Rows n={4} h={46} /> : q.isError ? <p className="dsh-note">Results are not available right now.</p> : !lines.length ? <p className="dsh-note">{scope === "mine" ? "No results due for your stocks this week." : "No company has filed or announced a results date for this week yet."}</p> :
         <><div className="dsh-lines" id="dsh-results-list">{more.visible.map((l) => <Link key={l.key} to={l.symbol ? `/stocks/${l.symbol}` : "/results"} className="dsh-line2"><span><b>{who(l)}</b><span>{l.text}</span></span><em>{shortDay(l.date, today)}</em></Link>)}</div>
           <ShowMoreButton more={more} noun="result" controls="dsh-results-list" /></>}
-      <Link className="dsh-link foot" to="/results">Results calendar →</Link>
+      <Link className="dsh-link foot" to="/results">Results →</Link>
     </Card>
   );
 }
 
 export function Filings({ symbols }: { symbols: string[] }) {
-  const [scope, setScope] = useScope("filings", symbols.length > 0);
+  const [scope] = useScope("filings", symbols.length > 0);
   const q = useFeed("news", { symbols: scope === "mine" ? symbols : [], limit: 40 });
   const today = istToday(), items = dedupeFilings(q.data || []).slice(0, 20);
   const more = useShowMore(items, 5, scope);
   return (
-    <Card id="filings" title="Filings and news" sub="Exchange filings, newest first" right={<ScopeSeg label="Filings" scope={scope} onChange={setScope} hasStocks={symbols.length > 0} />}>
+    <Card id="filings" title="Filings and news" sub="Exchange filings, newest first">
       {q.isLoading ? <Rows n={5} h={46} /> : q.isError ? <p className="dsh-note">Filings are not available right now.</p> : !items.length ? <p className="dsh-note">{scope === "mine" ? "No new filings for your stocks." : "No new exchange filings yet."}</p> :
-        <><div className="dsh-lines" id="dsh-filings-list">{more.visible.map((x) => <Link key={x.id} to="/news" className="dsh-line2 f" title={filingLine(x)}><span className="hd">{x.symbol && !/^\d+$/.test(x.symbol) && <CoLogo symbol={x.symbol} name={x.company || x.symbol} size={22} />}<b>{who(x) || "Market"}</b><i className="dsh-tag">{filingTag(x)}</i><em>{shortDay(x.date, today)}</em></span><span className="tx dsh-1line">{filingLine(x)}</span></Link>)}</div>
+        <><div className="dsh-lines" id="dsh-filings-list">{more.visible.map((x) => <Link key={x.id} to="/news" className="dsh-line2 f" title={filingLine(x)}><span className="hd">{x.symbol && !/^\d+$/.test(x.symbol) && <CoLogo symbol={x.symbol} name={x.company || x.symbol} size={22} />}<b>{who(x) || "Market"}</b><i className="dsh-tag">{filingTag(x)}</i><SentimentChip s={x.sentiment} word={false} /><em>{shortDay(x.date, today)}</em></span><span className="tx dsh-1line">{filingLine(x)}</span></Link>)}</div>
           <ShowMoreButton more={more} noun="filing" controls="dsh-filings-list" /></>}
       <Link className="dsh-link foot" to="/news">All news and filings →</Link>
     </Card>
@@ -51,10 +56,17 @@ export function Ipos() {
     const when = i.status === "open" ? (i.closeDate ? `closes ${shortDay(i.closeDate, today)}` : "") : `opens ${shortDay(i.openDate, today)}`;
     return [band, when].filter(Boolean).join(" · ") || "Details soon";
   };
+  // task #195: with no IPO (or no IPO data), the card is a one-line strip
+  if (!q.isLoading && (q.isError || !list.length)) return (
+    <section className="dsh-card dsh-strip dsh-strip1" aria-labelledby="dsh-ipos">
+      <h2 id="dsh-ipos" className="t">IPOs open now</h2>
+      <p className="m">{q.isError ? "IPO details are not available right now." : "No IPO is open or announced right now."}</p>
+      <Link className="dsh-btn" to="/ipo">IPO calendar →</Link>
+    </section>
+  );
   return (
     <Card id="ipos" title="IPOs open now">
-      {q.isLoading ? <Rows n={2} h={44} /> : q.isError ? <p className="dsh-note">IPO details are not available right now.</p> : !list.length ? <p className="dsh-note">No IPO is open or announced right now.</p> :
-        <div className="dsh-lines">{list.map((i) => <Link key={i.id} to="/ipo" className="dsh-ipo"><b>{titleCase(i.name)}</b><span>{detail(i)}</span></Link>)}</div>}
+      {q.isLoading ? <Rows n={2} h={44} /> : <div className="dsh-lines">{list.map((i) => <Link key={i.id} to="/ipo" className="dsh-ipo"><b>{titleCase(i.name)}</b><span>{detail(i)}</span></Link>)}</div>}
       <Link className="dsh-link foot" to="/ipo">IPO calendar →</Link>
     </Card>
   );
@@ -68,9 +80,9 @@ export function AlertsScreens() {
   const { alerts } = useAlerts(), saved = useSavedScreens();
   const live = alerts.filter((a) => a.status !== "done" || a.lastFiredAt).sort((a, b) => Number(!!b.met) - Number(!!a.met)).slice(0, 4);
   return (
-    <Card id="alerts" title="Alerts and saved screens">
+    <Card id="alerts" title="Alerts and saved screens" className="dsh-tool">
       {!live.length && !saved.length ? <><p className="dsh-p">No alerts or saved screens yet. Get told when a price, score or filing crosses your line.</p>
-        <div className="dsh-btns"><Link className="dsh-btn dark" to="/alerts">Create an alert</Link><Link className="dsh-btn" to="/screener">Open screener</Link></div></> : <>
+        <div className="dsh-btns"><Link className={buttonClass("primary", "md")} to="/alerts">Create an alert</Link><Link className={buttonClass("secondary", "md")} to="/screener">Open screener</Link></div></> : <>
         {live.length > 0 && <><div className="dsh-lh first">Alerts</div><div className="dsh-lines">{live.map((a) => <Link key={a.id} to="/alerts" className="dsh-ipo"><b>{a.symbol} <i className={"dsh-tag" + (a.met ? " on" : "")}>{a.met ? "Triggered" : a.status === "paused" ? "Paused" : "Active"}</i></b><span>{a.label}</span></Link>)}</div></>}
         {saved.length > 0 && <><div className="dsh-lh">Saved screens</div><div className="dsh-lines">{saved.slice(0, 4).map((s) => {
           const st = s.state as unknown as PState & { sort?: string; dir?: "asc" | "desc" }, pro = !!st && typeof st === "object" && !!st.ranges;
@@ -81,11 +93,32 @@ export function AlertsScreens() {
 }
 
 export function Learn() {
-  const [t, setT] = useState<{ term: string; topic: string; meaning: string; id: string } | null>(null);
-  useEffect(() => { import("../../lib/glossary").then((g) => setT(g.termOfTheDay())); }, []);
+  const [g, setG] = useState<typeof import("../../lib/glossary") | null>(null);
+  useEffect(() => { import("../../lib/glossary").then(setG); }, []);
+  const t = g?.termOfTheDay() ?? null;   // task #315: the same word as the header's Word of the Day (India calendar day, no repeats in a cycle)
   return (
-    <section className="dsh-card dsh-term" aria-labelledby="dsh-learn">
-      {!t ? <Rows n={3} h={28} /> : <><div className="dsh-kicker">Term of the day · {t.topic}</div><h2 id="dsh-learn">{t.term}</h2><p className="dsh-p">{t.meaning}</p><Link className="dsh-link" to={"/glossary#" + t.id}>Open the glossary →</Link></>}
+    <section className="dsh-card dsh-term dsh-tool" aria-labelledby="dsh-learn">
+      {!t ? <Rows n={3} h={28} /> : <><div className="dsh-kicker">Term of the day · {t.topic}</div><h2 id="dsh-learn">{t.term}</h2><p className="dsh-p">{t.meaning}</p><Link className="dsh-link foot" to={"/glossary#" + t.id}>Open the glossary →</Link>
+        <YourBookmarks terms={g!.TERMS} /></>}
     </section>
+  );
+}
+
+type BmTerm = { id: string; term: string; topic: string };
+/** Task #315 (the team: "inside learn name it 'your bookmark'"): the words bookmarked from Word of the Day, newest first; the first 5, then "Show all N". */
+export function YourBookmarks({ terms }: { terms: readonly BmTerm[] }) {
+  const p = usePrefs();
+  const byId = useMemo(() => new Map(terms.map((x) => [x.id, x])), [terms]);
+  const list = p.wordBookmarks.map((id) => byId.get(id)).filter((x): x is BmTerm => !!x);
+  const more = useShowMore(list, 5);
+  return (
+    <div className="wod-bms" role="region" aria-labelledby="dsh-learn-bm">
+      <h3 id="dsh-learn-bm" className="wod-bms-h">Your bookmark</h3>
+      {!list.length ? <p className="wod-bms-e">No bookmarks yet. Open Word of the Day in the top bar and choose Bookmark this word.</p> : <>
+        <ul className="wod-bms-l" id="dsh-learn-bm-list">{more.visible.map((x) => (
+          <li key={x.id} className="wod-bms-i"><span className="wod-bms-t"><Link to={"/glossary#" + x.id}>{x.term}</Link><small>{x.topic}</small></span>
+            <button type="button" className="wod-bms-x" onClick={() => removeBookmark(x.id)} aria-label={`Remove ${x.term} from your bookmarks`}>Remove</button></li>))}</ul>
+        <ShowMoreButton more={more} noun="bookmark" total={list.length} controls="dsh-learn-bm-list" /></>}
+    </div>
   );
 }

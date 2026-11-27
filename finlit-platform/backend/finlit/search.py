@@ -1,11 +1,12 @@
-"""Data for the site-wide search box beyond names: today's price and change, the score and band, and the logo of every company,
-plus the fund-house logos for fund and ETF results.
+"""Data for the site-wide search box beyond names: today's price and change and the logo of every company, plus the fund-house logos for fund
+and ETF results.
 
 The name list itself stays `/api/stocks/search-index` (public, cached for long, read by several tools). This payload is separate because
-it changes every minute in market hours and because scores are a Silver feature: a Basic visitor gets "locked" instead of a score
-(the free showcase company stays open), so the response is private and varies by cookie, built once per access level and kept in Redis.
+it changes every minute in market hours. It is built once per access level and kept in Redis (private, varies by cookie).
 
-Rows: [symbol, price, change %, price date (YYYY-MM-DD, India), score or null, band key or null or "locked", logo path or null].
+Rows: [symbol, price, change %, price date (YYYY-MM-DD, India), score, band, logo path or null]. Task #283 PR C (21 Nov 2026): the score and band
+were the retired FinLit IQ's; they are always null now (the positions stay so older readers of the rows keep working). FinLit Prism, FinLit's only
+company score, is read by the search box from /api/prism/scores on a plan that has it.
 Price and change come from the company's stored report when that is fresher (updated every minute in market hours), otherwise from the
 nightly market-wide listing; the date always travels with the price, so an old close is never shown as today's move.
 """
@@ -26,26 +27,28 @@ from fastapi.responses import Response
 from .auth.entitlements import has
 from .auth.service import current
 from .background import etag_matches
+from . import livequote
+from .dhan import plausible
 from .logos import AMC_SITES, amc_logos, logo_path
 from .store import dumps, etag_for
 
 router = APIRouter(prefix="/api/search")
 IST = timezone(timedelta(hours=5, minutes=30))
-TTL = 120
+TTL = 60     # task #338: the latest prices (livequote) change every minute in market hours; was 120
 CACHE = "private, no-cache"
 
 QUOTES_SQL = """
-SELECT c.symbol, s.overall, s.band, s.price AS sp, s.change_pct AS sc, s.updated_at AS su,
-       q.price AS qp, q.change_pct AS qc, coalesce(q.traded_at, q.updated_at) AS qt, g.sha8
+SELECT c.symbol, s.price AS sp, s.change_pct AS sc, s.updated_at AS su,
+       q.price AS qp, q.change_pct AS qc, coalesce(q.traded_at, q.updated_at) AS qt, g.sha8, g.width AS lw, g.height AS lh, g.status AS ls
 FROM companies c
-LEFT JOIN LATERAL (SELECT overall, band, price, change_pct, updated_at FROM scores
+LEFT JOIN LATERAL (SELECT price, change_pct, updated_at FROM scores
                    WHERE symbol = c.symbol AND model = 'v1' ORDER BY (statement = 'consolidated') DESC, updated_at DESC LIMIT 1) s ON true
 LEFT JOIN listing_quotes q ON q.symbol = c.symbol
 LEFT JOIN logos g ON g.owner_kind = 'stock' AND g.owner_key = c.symbol AND g.status IN ('ok', 'manual') AND g.sha8 IS NOT NULL
 """
 # The rows behind both levels, kept in Redis: a rebuild reads only the companies whose score or listing row changed since the last one (about 5,800 rows
 # of ~80 bytes is half a megabyte, and the minute-by-minute prices would otherwise make every two-minute rebuild read all of it).
-RAW_KEY = "search-quotes:raw"
+RAW_KEY = "search-quotes:raw:v2"   # v2 (25 Nov 2026): rows carry the logo's size and status
 FULL_EVERY = 6 * 3600     # all rows again (also catches companies that left or joined and a changed logo)
 MARGIN = 120
 PROBE_SQL = ("SELECT (SELECT count(*) FROM scores WHERE model = 'v1') AS sn, (SELECT max(changed_at) FROM scores WHERE model = 'v1') AS sa, "
@@ -66,23 +69,35 @@ def session_of(at: datetime) -> date:
     return d
 
 
-def quote_rows(rows, level: str, showcase: set) -> list:
-    """The compact rows above. Basic: scores are blanked to "locked" except for the showcase companies."""
+SHARP_PX = 96   # owner, 25 Nov 2026: logos looked blurry. A company header draws a logo at about 56px (112 real pixels on a phone); a 16-48px favicon
+               # blown up to that is a blur. With a Logo.dev key set, such a small icon is left out and the page draws Logo.dev's 128px image instead.
+
+
+def sharp_logo(r) -> Optional[str]:
+    """Our own logo's path, unless a Logo.dev key is on and it is a small favicon (a hand-set logo is always kept)."""
+    path = logo_path(r.get("sha8"))
+    if path and r.get("_cdn") and r.get("ls") != "manual" and r.get("lw") and r.get("lh") and min(r["lw"], r["lh"]) < SHARP_PX:
+        return None
+    return path
+
+
+def quote_rows(rows, level: str, showcase: set, cdn: bool = False) -> list:
+    """The compact rows above. The score and band positions are always null: they held the retired FinLit IQ (task #283 PR C)."""
     out = []
     for r in rows:
         # The report's price is a snapshot from whenever it was loaded; the listing row is refreshed after each close. The report wins only when it is from a LATER
         # trading day than the listing row (its write time is not comparable with a trade time: a Saturday write must not beat Friday's closing quote).
         use_report = r["sp"] is not None and (r["qp"] is None or r["qt"] is None or (r["su"] is not None and session_of(r["su"]) > r["qt"].astimezone(IST).date()))
         price, chg, at = (r["sp"], r["sc"], r["su"]) if use_report else (r["qp"], r["qc"], r["qt"])
-        score, band = r["overall"], r["band"]
-        if score is not None and not has(level, "silver") and r["symbol"] not in showcase:
-            score, band = None, "locked"
-        logo = logo_path(r["sha8"])
-        if price is None and score is None and band is None and logo is None:
+        score, band = None, None
+        logo = sharp_logo({**r, "_cdn": cdn}) if cdn else logo_path(r["sha8"])
+        if price is None and logo is None:
             continue                                   # nothing to add to the name list
         when = None if not at or price is None else (session_of(at) if use_report else at.astimezone(IST).date())   # a score row's time is when it was written, not when it traded
-        out.append([r["symbol"], _num(price), _num(chg), when.isoformat() if when else None,
-                    score, band, logo])
+        row = [r["symbol"], _num(price), _num(chg), when.isoformat() if when else None, score, band, logo]
+        if cdn and logo is None and r.get("sha8"):
+            row.append(logo_path(r["sha8"]))   # the small own logo, kept as the page's backup when Logo.dev has no image for this company
+        out.append(row)
     return out
 
 
@@ -135,13 +150,53 @@ async def _raw_rows(store) -> list:
     return state["rows"]
 
 
+def with_latest(rows: list, latest: dict) -> list:
+    """Task #338: each row's price replaced by the company's latest quote (livequote) when that is from the same trading day or later and
+    passes the plausibility check, so the watchlist, the search list and the company page show one price for the same moment."""
+    for r in rows:
+        q = latest.get(r[0])
+        if not q or not q.get("price") or not q.get("asOf"):
+            continue
+        try:
+            day = datetime.fromisoformat(q["asOf"]).astimezone(IST).date()
+        except (TypeError, ValueError):
+            continue
+        if r[3] and day.isoformat() < r[3]:
+            continue
+        if r[1] and not plausible(q, {"price": r[1]}):   # a wrong company match: the row keeps its own price
+            continue
+        r[1], r[2], r[3] = _num(q["price"]), _num(q.get("changePct")), day.isoformat()
+    return rows
+
+
+# Companies whose Logo.dev image is wrong or poor, from a by-eye review of the 400 largest companies (owner, 25 Nov 2026: "the TCS logo is the
+# Tata logo"). Logo.dev maps them to a parent or group brand, or serves a blurred or cropped image. They keep their own logo, else the initials
+# tile, until a correct official logo is set by hand (Console > Data health), which always wins. Add a symbol here when a review finds another.
+LOGO_CDN_SKIP = (
+    "TCS", "TATATECH", "TATAINVEST", "LTTS", "M&M", "M&MFIN", "JIOFIN", "GILLETTE",            # a parent or group brand, not the company's own
+    "EICHERMOT", "ADANIGREEN", "ATGL", "MAHABANK", "BEL", "CHOLAHLDNG", "EIHOTEL", "INOXINDIA", "CRAFTSMAN", "LODHA",   # blurred, cropped or unclear
+    # One identical image served for unrelated companies (scan of all 5,760, 25 Nov 2026): a placeholder, not their logo. Shared images within one
+    # group (JSW, Adani, Tata Motors, Kirloskar, Godrej, Welspun, Rane, Ujjivan, SKF, Sanofi...) are that group's real brand and are kept.
+    "BFINVEST", "IWEL", "KCK", "STEELCITY", "EROSMEDIA", "ESSENTIA", "FOCUS", "HEXATRADEX", "LORDSCHLO", "MCCHRLS-B", "MEGAFLEX",
+    "AHLWEST", "JAICORPLTD", "SILINV", "SAB", "STLSTRINF", "AHLEAST", "SPLIL", "BIOFILCHEM", "NARMADA", "CRESTO",
+)
+
+
+def logo_cdn_key(key: str) -> Optional[str]:
+    """Only a Logo.dev PUBLISHABLE key goes to the page; a secret key (sk_...) or anything else is never sent."""
+    key = (key or "").strip()
+    return key if key.startswith("pk_") and key[3:].replace("_", "").replace("-", "").isalnum() and len(key) <= 80 else None
+
+
 async def build(app, level: str):
     store = app.state.store
     rows = [_hydrate(r) for r in await _raw_rows(store)]
     amc = await amc_logos(store)
-    body = dumps({"fields": ["symbol", "price", "changePct", "priceDate", "score", "band", "logo"],
-                  "rows": quote_rows(rows, level, set(app.state.settings.showcase_symbols)),
+    body = dumps({"fields": ["symbol", "price", "changePct", "priceDate", "score", "band", "logo", "logoBackup"],
+                  "rows": with_latest(quote_rows(rows, level, set(app.state.settings.showcase_symbols), cdn=bool(logo_cdn_key(app.state.settings.logo_dev_key))), await livequote.read(store.redis)),
                   "amcLogos": {k: logo_path(v) for k, v in amc.items() if k in AMC_SITES},
+                  "logoCdn": logo_cdn_key(app.state.settings.logo_dev_key),
+                  "logoCdnSkip": list(LOGO_CDN_SKIP),
                   "level": level, "builtAt": int(time.time())})
     packed = gzip.compress(body, compresslevel=6, mtime=0)
     etag = etag_for(body)
@@ -183,7 +238,9 @@ async def quotes(request: Request):
         body, packed, etag = hit[0], hit[1], hit[2].decode()
     wanted = wanted_symbols(request.query_params.get("symbols"))
     if wanted is not None:   # ?symbols=A,B: only those rows (the dashboard follows a handful of stocks, not 5,000); a filtered copy is built per request from the saved one
-        body = dumps(_only(orjson.loads(body), wanted))
+        doc = _only(orjson.loads(body), wanted)
+        doc["rows"] = with_latest(doc["rows"], await livequote.read(store.redis, sorted(wanted)))   # a handful of rows: the latest prices of this moment
+        body = dumps(doc)
         packed, etag = gzip.compress(body, compresslevel=6, mtime=0), etag_for(body)
     headers = {"ETag": etag, "Cache-Control": CACHE, "Vary": "Cookie, Accept-Encoding"}
     if etag_matches(request.headers.get("if-none-match"), etag):
@@ -191,3 +248,17 @@ async def quotes(request: Request):
     if "gzip" in (request.headers.get("accept-encoding") or ""):
         return Response(content=packed, media_type="application/json", headers={**headers, "Content-Encoding": "gzip"})
     return Response(content=body, media_type="application/json", headers=headers)
+
+
+LIVE_CACHE = "public, max-age=15"
+
+
+@router.get("/live")
+async def live(request: Request):
+    """Task #338: the latest quote of each company in ?symbols=A,B (at most MAX_SYMBOLS), the same prices the watchlist and search list show.
+    The company page asks again every 30 seconds in market hours and lays the quote over its report's price when it is newer; the trade time
+    (asOf) is shown beside the price. {"quotes": {symbol: {price, change, changePct, previousClose, open, high, low, volume, upperCircuit,
+    lowerCircuit, asOf}}}; a company with no latest quote is left out (the page keeps the report's price)."""
+    wanted = wanted_symbols(request.query_params.get("symbols")) or set()
+    body = dumps({"quotes": await livequote.read(request.app.state.store.redis, sorted(wanted)) if wanted else {}})
+    return Response(content=body, media_type="application/json", headers={"Cache-Control": LIVE_CACHE})

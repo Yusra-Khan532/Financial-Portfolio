@@ -40,13 +40,17 @@ class Page:
 
 
 PUBLIC: Dict[str, Page] = {
-    "": Page("Indian Stock Analysis and Scores for Every Company | FinLit", "Financial statements, ratios, peers, ownership and filings for every listed Indian company, with a 0 to 100 FinLit IQ that shows its working. Start free.",
+    "": Page("Indian Stock Analysis and Scores for Every Company | FinLit", "Financial statements, ratios, peers, ownership and filings for every listed Indian company, with a 0 to 100 FinLit Prism score that shows its working.",
              "Every listed Indian stock, scored and explained", "FinLit reads company filings and prices and describes each listed Indian company's financial health with a 0 to 100 score that shows its working. Free to start; information only, not investment advice."),
     "companies": Page("All Listed Indian Companies, A to Z | FinLit", "Browse every listed Indian company from A to Z with its sector, and open its financial statements, ratios, peers and ownership. Free to start.",
                       "Listed Indian companies, A to Z", "Every listed Indian company in one alphabetical directory. Pick a letter, then open a company to see its statements, ratios, growth, peers and ownership.", "Companies"),
     "research": Page("Stock Research: Company Reports for Indian Stocks | FinLit", "Browse research on listed Indian companies: statements, ratios, peers, ownership and a plain-English reading of each company's financial health.", "Stock research", "Company reports for listed Indian stocks, built from filings and prices.", "Research"),
+    # task #260: the page's address is /discover (its views and pages under it); /discovery redirects there and is kept out of the index (PRIVATE)
+    "discover": Page("Discover: Indian Companies by What They Build | FinLit", "Listed Indian companies grouped by the themes their own investor presentations talk about: AI, defence, solar, batteries, data centres, EVs and more.",
+                     "Discover", "Companies grouped by what they are building: the theme their newest investor presentation talks about most, the stage their own words show, recent exchange filings, NSE sectors and industries, Sector Rotation and Sector Pulse. A keyword mention by itself is not proof of a material business. Information only, not investment advice.", "Discover"),
+    "superinvestors": Page("Superinvestor Portfolios: Named Investors' Stocks | FinLit", "See what named investors own in listed Indian companies: every stake of 1% or more from company filings, its value today, sector split and the year's changes.",
+                           "Superinvestor portfolios", "What named investors own, from the companies' own shareholding filings: every public shareholder named with 1% or more in at least two listed companies, with the value of each stake today and what changed over the year. Information only, not investment advice.", "Superinvestor portfolios"),
     "screener": Page("Stock Screener India: Filter Stocks by Ratio | FinLit", "Screen listed Indian stocks by more than 170 ratios and scores, save your screens and see why each company passes. Free to start.", "Stock screener for Indian stocks", "Filter every listed Indian company by ratios, growth, size and score.", "Stock screener"),
-    "score-screener": Page("Stock Score Screener: Financial Health Scores | FinLit", "Filter Indian stocks by their FinLit IQ score and the pillars behind it: quality, growth, profitability, balance sheet and technical.", "Stock score screener", "Filter listed Indian companies by FinLit IQ and its pillars.", "Score screener"),
     "compare": Page("Compare Stocks India: Side-by-Side Analysis | FinLit", "Compare listed Indian companies side by side on financials, ratios, growth and FinLit scores to see how they differ.", "Compare stocks", "Put two or more listed Indian companies side by side.", "Compare stocks"),
     "prism": Page("FinLit Prism: Financial Health Rating for Stocks | FinLit", "FinLit Prism rates a company's financial health in four parts from its filings, with the working shown. Information only, not advice.", "FinLit Prism", "A four-part financial health rating for listed companies, from their filings.", "FinLit Prism"),
     "sip-calculator": Page("SIP Calculator: Plan SIP Returns and Step-Up SIPs | FinLit", "Work out what a monthly SIP could grow to, with step-ups, a goal and inflation. A free calculator with clear working. Not a forecast.", "SIP calculator", "Estimate what a monthly SIP could grow to under the rate and years you enter.", "SIP calculator"),
@@ -55,26 +59,34 @@ PUBLIC: Dict[str, Page] = {
     "macro": Page("India Macro Indicators: CPI, GDP, Repo Rate Data | FinLit", "India's inflation, growth, interest rates, reserves and more in one place, from MoSPI and RBI releases, with plain-English readings.", "India macro indicators", "Inflation, growth, interest rates and reserves from official releases.", "Macro"),
     "fii-dii": Page("FII and DII Data: Daily Institutional Flows | FinLit", "Daily FII and DII buying and selling in Indian equities, with trends over time and what the flows describe. Information only.", "FII and DII activity", "Daily institutional flows in Indian equities.", "FII and DII"),
     "sectors": Page("Sector Performance India: Sector Pulse and Rotation | FinLit", "See which Indian sectors are strengthening or weakening, how breadth is changing and which companies lead each sector.", "Indian sectors", "Sector states, breadth and leaders across Indian markets.", "Sectors"),
-    "ipo": Page("IPO Calendar India: Upcoming and Recent IPOs | FinLit", "Upcoming and recent Indian IPOs with dates, price bands and issue size, in one calendar. Information only, not advice.", "IPO calendar", "Upcoming and recent Indian IPOs.", "IPO calendar"),
+    # task #329 (developer file 29): one page, IPOs, in place of the IPO calendar and All IPOs; /ipo/all redirects to /ipo?view=all (KEEP_QUERY)
+    "ipo": Page("IPOs India: Upcoming IPOs and Every IPO since 2020 | FinLit", "Open, upcoming and recently listed Indian IPOs, and every mainboard and SME IPO since 2020 with listing, subscription and GMP. Information only.", "IPOs",
+                "Open and upcoming Indian IPOs, and every IPO since 2020 with listing and subscription figures.", "IPOs"),
+    # the phone app (docs/MOBILE-APP.md, 25 Nov 2026): the Markets tab's first page, and every tool by group
+    "markets": Page("Markets Today: Nifty 50, Sectors, FII and DII | FinLit", "The Nifty 50 with its returns, India's main indices, sector mood, FII and DII money, IPOs and results this week, the latest filings and world markets.",
+                    "Markets today", "The day's market on one page: indices, sector mood, institutional flows, IPOs, results, filings and world markets. Information only, not investment advice.", "Markets today"),
+    "tools": Page("All FinLit Tools: Screeners, Reports and Calculators | FinLit", "Every FinLit tool in one place: stock and fund screeners, company reports, FinLit Prism, charts, comparisons, and the valuation and SIP calculators.",
+                  "All tools", "Every screener, report, chart and calculator on FinLit, grouped by what it is for.", "All tools"),
+    "status": Page("Is FinLit Up? Live Status of the Website and Data | FinLit", "Whether FinLit's website and its main data pages are answering right now, checked every minute, with each check's recent record of good answers.", "FinLit status", "Live checks of the website and its main data pages, run every minute.", "Status"),
+    "concalls": Page("Concall Monitor: Earnings Call Recordings and Transcripts | FinLit", "Indian companies' earnings calls from their own exchange filings: the date and time, the recording, the transcript and the investor presentation.", "Concall Monitor", "Earnings call recordings, transcripts and investor presentations, from the companies' own filings.", "Concall Monitor"),
     "results": Page("Quarterly Results Calendar: Company Results India | FinLit", "Which Indian companies report results and when, with the numbers once they are out and how they compare with the year before.", "Quarterly results", "Company results calendar and the numbers as they arrive.", "Results"),
-    "funds": Page("Mutual Fund Screener India: Compare Fund Returns | FinLit", "Search and compare Indian mutual funds on returns, cost, size and risk, with FinLit FundPulse. Information only.", "Mutual funds", "Search and compare Indian mutual funds.", "Funds"),
-    "fund-score-screener": Page("FinLit FundPulse: Filter Funds by Score | FinLit", "Filter Indian mutual funds by FinLit FundPulse and the four parts behind it: performance, risk, cost and quality.", "Fund score screener", "Filter mutual funds by FinLit FundPulse and its four parts.", "Fund score screener"),
+    "funds": Page("Mutual Fund Screener India: Compare Fund Returns | FinLit", "Search and compare Indian mutual funds on returns, cost, size and risk, with Mutual Fund Score. Information only.", "Mutual funds", "Search and compare Indian mutual funds.", "Funds"),
+    "fund-score-screener": Page("Mutual Fund Score: Filter Funds by Score | FinLit", "Filter Indian mutual funds by Mutual Fund Score and the four parts behind it: performance, risk, cost and quality.", "Fund score screener", "Filter mutual funds by Mutual Fund Score and its four parts.", "Fund score screener"),
     "etfs": Page("ETF List India: Compare ETFs and Index Funds | FinLit", "Indian ETFs and index funds with tracking difference, cost and size, and how each compares with its index.", "ETFs", "Indian ETFs with tracking, cost and size.", "ETFs"),
-    "commodities": Page("Commodity Prices India: Gold, Silver, Crude | FinLit", "Gold, silver, crude oil and other commodity prices and trends relevant to Indian markets. Information only.", "Commodities", "Commodity prices and trends.", "Commodities"),
     "news": Page("Market News: Indian Stocks and Economy | FinLit", "Market news for Indian stocks and the economy, collected in one place with links to the original sources.", "Market news", "Market news with links to the sources.", "News"),
     "documents": Page("Company Documents: Annual Reports and Filings | FinLit", "Annual reports, presentations and filings of listed Indian companies, collected in one place.", "Company documents", "Annual reports, presentations and filings.", "Documents"),
     "glossary": Page("Investing Glossary: 450 Terms in Plain English | FinLit", "450 investing and finance terms explained in plain English, each with why it matters, how to use it and the formula where there is one.", "Investing glossary", "443 investing terms in plain English, from A to Z, with formulas.", "Glossary"),
     "blog": Page("Investing Insights and Explainers | FinLit Blog", "Research notes and explainers on Indian stocks, funds and financial ratios, written to inform and not to advise.", "FinLit blog", "Research notes and explainers.", "Blog"),
     "faq": Page("FinLit FAQs: Scores, Data, Plans and Privacy | FinLit", "Answers to common questions about how FinLit scores companies, where the data comes from, plans and how your data is handled.", "Frequently asked questions", "Answers about scores, data, plans and privacy.", "FAQ"),
-    "plans": Page("FinLit Plans and Pricing: Free, Silver and Gold | FinLit", "Compare FinLit plans: what is free, what Silver adds and what Gold adds, with every feature listed.", "Plans and pricing", "What each FinLit plan includes.", "Plans"),
-    "pricing": Page("FinLit Plans and Pricing: Free, Silver and Gold | FinLit", "Compare FinLit plans: what is free, what Silver adds and what Gold adds, with every feature listed.", "Plans and pricing", "What each FinLit plan includes.", "Plans"),
+    "plans": Page("FinLit Plans and Pricing: Free to Platinum | FinLit", "Compare FinLit plans: what is free and what Mutual Fund + ETF, Equity Portfolio, Gold and Platinum add, with every feature listed.", "Plans and pricing", "What each FinLit plan includes.", "Plans"),
+    "pricing": Page("FinLit Plans and Pricing: Free to Platinum | FinLit", "Compare FinLit plans: what is free and what Mutual Fund + ETF, Equity Portfolio, Gold and Platinum add, with every feature listed.", "Plans and pricing", "What each FinLit plan includes.", "Plans"),
     "services": Page("Portfolio Review and Financial Planning Services | FinLit", "Portfolio reviews and financial planning conversations with the FinLit team. Information and education, not investment advice.", "Services", "Portfolio reviews and planning conversations.", "Services"),
     "about": Page("About FinLit Ventures: Who We Are and Why | FinLit", "FinLit Ventures builds free, plain-English financial research for Indian investors. Who we are, what we publish and how we work.", "About FinLit Ventures", "Who we are and what we publish.", "About"),
     "why-we-exist": Page("Why FinLit Exists: Financial Research in Plain English", "Why FinLit Ventures was started: to make company filings and prices readable for everyone, with the working shown.", "Why we exist", "Why FinLit was started.", "Why we exist"),
     "contact": Page("Contact FinLit Ventures: Questions and Support", "Contact the FinLit Ventures team with questions about the site, the data, your account or the portfolio review and planning services.", "Contact us", "Reach the FinLit team.", "Contact"),
     "mcp": Page("Connect AI Assistants to FinLit Data | FinLit", "Free, read-only FinLit data for Claude, ChatGPT and Cursor through MCP, with what each tool returns.", "Connect AI assistants", "Read-only FinLit data for AI assistants.", "AI assistants"),
-    "browser-extension": Page("FinLit Browser Extension: Select Any Term or Company", "Select a financial term or a listed company on any web page to see its meaning or FinLit IQ score in a small card. Free for Chrome and Edge.", "Browser extension", "Select a financial term or company on any page and see what it means.", "Browser extension"),
-    "methodology/mf-score": Page("How the FinLit FundPulse Works | FinLit", "What FinLit FundPulse describes, which parts it has and how to read it. Information only, not a recommendation.", "FinLit FundPulse: how to read it", "What FinLit FundPulse describes and how to read it.", "Fund score method"),
+    "browser-extension": Page("FinLit Browser Extension: Select Any Term or Company", "Select a financial term or a listed company on any web page to see its meaning or FinLit Prism score in a small card. Free for Chrome and Edge.", "Browser extension", "Select a financial term or company on any page and see what it means.", "Browser extension"),
+    "methodology/mf-score": Page("What the Mutual Fund Score Means | FinLit", "What Mutual Fund Score describes, which parts it has and how to read it. Information only, not a recommendation.", "Mutual Fund Score: how to read it", "What Mutual Fund Score describes and how to read it.", "Fund score method"),
     "leadership-label": Page("What the FinLit Leadership Labels Mean | FinLit", "What each leadership label on a company page means and how to read it. Describes price strength; not a recommendation.", "What the leadership labels mean", "The meaning of each label.", "Leadership labels"),
     "learn/sector-signals": Page("How to Read Sector Pulse: States and Breadth | FinLit", "A step-by-step guide to the sector states, the breadth bars and the leader flags on the FinLit sector pages, and what each one describes.", "How to use Sector Pulse", "Reading the states, breadth bars and leader flags.", "Sector Pulse guide"),
     "learn/sector-rotation": Page("How to Read Sector Rotation: Four Corners | FinLit", "A step-by-step guide to the four corners of the sector rotation chart and the rotation rank, and what each position describes.", "How to use Sector Rotation", "Reading the four corners and the rotation rank.", "Sector Rotation guide"),
@@ -84,11 +96,45 @@ PUBLIC: Dict[str, Page] = {
 }
 
 # Pages a visitor reaches only after signing in, or that have no content of their own: kept out of search results.
-PRIVATE = ("account", "dashboard", "console", "admin", "login", "verify-email", "forgot-password", "reset-password", "watchlist", "holdings", "mf-portfolio", "etf-portfolio", "my-investments", "alerts", "baskets",
+PRIVATE = ("account", "dashboard", "console", "admin", "login", "verify-email", "unsubscribe", "forgot-password", "reset-password", "watchlist", "holdings", "mf-portfolio", "etf-portfolio", "my-investments", "alerts", "baskets",
            "query-builder", "premium", "portfolio", "feedback", "forum", "graphs", "advanced-score-screener", "outlook", "results/quarter", "funds/screener", "funds/compare",
-           "funds/insights", "etfs/compare", "etfs/compare-index-funds", "sectors/rotation", "sectors/capital-goods", "research/stress-lab", "reverse-valuation")
+           "funds/insights", "etfs/compare", "etfs/compare-index-funds", "sectors/rotation", "sectors/capital-goods", "research/stress-lab", "reverse-valuation",
+           "discovery",      # task #260: the old address of Discover, now a redirect to /discover
+           "lab", "lab/flow")   # Trading Lab and its Order Flow page: open only to members an administrator names (docs/TRADING-LAB.md), never indexed
 # Addresses that carry a value in the last part and are answered with a generic head (their content is checked in the app).
-PARAM_PREFIXES = ("funds", "etfs", "prism", "sectors", "blog", "legal", "outlook", "premium/report", "graphs/advanced", "account", "forum", "research/stress-lab")
+PARAM_PREFIXES = ("ipo", "funds", "etfs", "prism", "sectors", "blog", "legal", "outlook", "premium/report", "graphs/advanced", "account", "forum", "research/stress-lab", "superinvestors", "superinvestors/name")   # superinvestors/name: one filed name as written (task #289)
+
+
+# Addresses that moved for good: answered with a 301 to the new address before anything else (web.py), and never listed in the sitemap. The query string is
+# dropped: an old link's parameters belonged to the page that is gone. Task #283 (21 Nov 2026): FinLit IQ is retired and FinLit Prism is FinLit's only company
+# score, so the Basic stock screener (built on the IQ) opens the Advanced stock screener; the IQ's glossary entry (its old id and the address people type)
+# opens FinLit Prism's, and the entries of the IQ's five pillars and its rating words (Mixed, Watch) open the glossary.
+REDIRECTS: Dict[str, str] = {
+    "score-screener": "/advanced-score-screener",
+    "glossary/finlit-iq": "/glossary/finlit-prism",
+    "glossary/finlit-score": "/glossary/finlit-prism",
+    "glossary/pillars-quality-growth-profitability-balance-sheet-technical": "/glossary",
+    "glossary/score-bands-strong-healthy-mixed-watch": "/glossary",
+    # task #317 (developer file 23, 22 Nov 2026): two pages taken off the site
+    "commodities": "/macro",                 # Commodity prices -> India economy (free; it still shows crude and the rupee)
+    "premium/fundamentals": "/research",     # Company financials -> the Company report (section 06 carries a company's financials)
+}
+
+
+# Addresses that moved for good and keep their query string: the old page's parameters still mean the same thing at the new address.
+# Task #329 (developer file 29, 23 Nov 2026): All IPOs (/ipo/all) is the second view of the one IPOs page; its filters carry over.
+KEEP_QUERY: Dict[str, str] = {
+    "ipo/all": "/ipo?view=all",
+}
+
+
+def redirect_for(path: str, query: str = "") -> Optional[str]:
+    """The new address of a path that moved for good (REDIRECTS, the query string dropped; KEEP_QUERY, the query string kept), or None."""
+    p = clean(path)
+    if p in KEEP_QUERY:
+        rest = "&".join(x for x in query.split("&") if x and not x.startswith("view="))
+        return KEEP_QUERY[p] + ("&" + rest if rest else "")
+    return REDIRECTS.get(p)
 
 
 def clean(path: str) -> str:
@@ -103,7 +149,7 @@ def is_private(path: str) -> bool:
 def is_known(path: str) -> Optional[bool]:
     """True: a real address; False: not one; None: depends on a database lookup (a company or a glossary term)."""
     p = clean(path)
-    if p in PUBLIC or is_private(p):
+    if p in PUBLIC or is_private(p) or p in REDIRECTS or p in KEEP_QUERY:
         return True
     if p.startswith("stocks/") and p.count("/") == 1 or p.startswith("glossary/") and p.count("/") == 1:
         return None
@@ -111,6 +157,8 @@ def is_known(path: str) -> Optional[bool]:
         return None
     if p.startswith("companies/"):
         return None if p.count("/") == 1 and p.split("/")[1] in DIR_LETTERS else False
+    if p.startswith("discover/") and 1 <= p.count("/") <= 3:     # task #260: /discover/themes/<slug>, /discover/sectors/<macro>/<sector> ...
+        return True
     return any(p.startswith(x + "/") and p.count("/") == x.count("/") + 1 for x in PARAM_PREFIXES)
 
 
@@ -382,7 +430,8 @@ def sitemap_xml(base: str, companies: List[Tuple[str, Optional[date]]], today: d
     for lt in letters:
         add(f"companies/{lt}", today, "weekly", "0.6")
     for tid in TERMS:
-        add(f"glossary/{tid}", None, "yearly", "0.5")
+        if f"glossary/{tid}" not in REDIRECTS:
+            add(f"glossary/{tid}", None, "yearly", "0.5")
     for sym, updated in companies:
         if SYMBOL.match(sym):
             add(f"stocks/{sym}", updated, "weekly", "0.6")

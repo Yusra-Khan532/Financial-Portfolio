@@ -61,8 +61,8 @@ describe("section 06: consolidated / standalone switch", () => {
     expect(heads()).not.toContain("FY19");
     // balance sheet, cash flow and quarterly all follow the chosen basis
     fireEvent.click(btn("Quarterly")); expect(screen.getAllByRole("columnheader").length).toBeGreaterThan(2);
-    fireEvent.click(btn("Balance sheet")); expect(heads()).not.toContain("FY19");
-    fireEvent.click(btn("Cash flow")); expect(heads()).not.toContain("FY19");
+    fireEvent.click(screen.getByRole("tab", { name: /Balance sheet/ })); expect(heads()).not.toContain("FY19");   // task #216: the statement switch is a tab group
+    fireEvent.click(screen.getByRole("tab", { name: /Cash flow/ })); expect(heads()).not.toContain("FY19");
     // back to standalone: shown at once, no new request
     const before = asked.length;
     fireEvent.click(btn("Standalone"));

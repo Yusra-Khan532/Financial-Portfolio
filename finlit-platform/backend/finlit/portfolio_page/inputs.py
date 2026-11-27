@@ -18,7 +18,7 @@ import pandas as pd
 from . import metrics
 
 HISTORY_WEEKS = metrics.WEEKS + 1          # 105 closes give the 104 weekly returns
-SIZE_CODE = {"Large": "L", "Mid": "M", "Small": "S"}
+SIZE_CODE = {"Large": "L", "Mid": "M", "Small": "S", "Micro": "X"}   # task #262: four sizes on the site's ₹ rule
 
 
 def iso_key(d: str) -> str:
@@ -39,13 +39,17 @@ def week_closes(dates: Sequence[str], closes: Sequence[float]) -> "pd.Series":
 
 
 def size_code(band: Optional[str]) -> str:
-    """AMFI size band ('Large', 'Mid', 'Small') as the engine's code; 'U' when the company's market-value rank is not known."""
+    """The site's size ('Large', 'Mid', 'Small', 'Micro'; finlit/sizes.py) as the engine's code; 'U' when the company's market value is not known."""
     return SIZE_CODE.get(band or "", "U")
 
 
-def build_meta(symbols: Iterable[str], facts: Dict[str, dict], sector_of: Dict[str, str]) -> Dict[str, dict]:
-    """The engine's meta for the listed companies the site knows (the order of `symbols` is kept). A company with no Sector label gets none: the engine
-    names it and counts it as a sector of its own."""
+def build_meta(symbols: Iterable[str], facts: Dict[str, dict], sector_of: Dict[str, str], classes: Optional[Dict[str, dict]] = None) -> Dict[str, dict]:
+    """The engine's meta for the listed companies the site knows (the order of `symbols` is kept).
+
+    Task #183 (pack 01-equity-portfolio, A4/A5; task #192 handed it over): the engine's "sector" is NSE's macro sector (12), from the stored classification
+    (company_classification), so the spread score counts macro sectors, not the screener's mixed column. `nse` carries the three levels for the page
+    (macro sector, sector, industry). A company NSE's lists do not place keeps the old label, so it is still counted, as a sector of its own; with no label at
+    all it gets none and the engine names it and counts it as one."""
     from ..diversification import calc
     out: Dict[str, dict] = {}
     for s in symbols:
@@ -53,8 +57,11 @@ def build_meta(symbols: Iterable[str], facts: Dict[str, dict], sector_of: Dict[s
         if not f:
             continue
         label = (f.get("sector") or "").strip()
-        out[s] = {"name": f.get("name") or s, "sector": sector_of.get(label, label) or None, "size": size_code(calc.size_band(f.get("rank"))),
-                  "mcap_cr": float(f["mcap"]) if f.get("mcap") else None}
+        c = (classes or {}).get(s.upper()) or {}
+        macro = c.get("macro_sector")
+        out[s] = {"name": f.get("name") or s, "sector": macro or sector_of.get(label, label) or None, "size": size_code(calc.size_band(f.get("mcap"))),
+                  "mcap_cr": float(f["mcap"]) if f.get("mcap") else None,
+                  "nse": {"macro_sector": macro, "sector": c.get("sector"), "industry": c.get("industry")}}
     return out
 
 

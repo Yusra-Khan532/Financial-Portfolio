@@ -263,7 +263,7 @@ def clean(df: pd.DataFrame) -> pd.DataFrame:
 def week_start(idx: pd.DatetimeIndex) -> pd.DatetimeIndex:
     """Monday of each date's week (TradingView's weekly bars run Monday to Sunday)."""
     idx = pd.DatetimeIndex(idx).normalize()
-    return idx - pd.to_timedelta(idx.weekday, unit="D")
+    return idx - pd.to_timedelta(idx.day_of_week, unit="D")
 
 
 def weekly(df: pd.DataFrame) -> pd.DataFrame:

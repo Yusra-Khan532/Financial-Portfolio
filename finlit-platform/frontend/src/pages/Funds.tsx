@@ -3,23 +3,24 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import { Icon } from "../lib/icons";
+import { buttonClass } from "../components/ui";
 import { useUI } from "../lib/ui";
 import { visits } from "../lib/recentVisits";
 import { useDocTitle } from "../lib/title";
 import { dateIN, nf } from "../lib/format";
 import {
-  AUM_BUCKETS, CHECKS, EMPTY_QUERY, RETURN_LABELS, TRAY_MAX, catNames, categoryShort, compareUrl, effectiveQuery, navFull, navText, parseIds, parseQuery, pctText, queryToParams, readCols, rememberName, rowSortValue, subCats, tone, trayName,
+  AUM_BUCKETS, CHECKS, EMPTY_QUERY, PAGE_DEFAULTS, GROWTH_RETURNS_LABEL, RETURN_LABELS, TRAY_MAX, catNames, growthFigure, categoryShort, compareUrl, effectiveQuery, navFull, navText, parseIds, parseQuery, pctText, queryToParams, readCols, rememberName, rowSortValue, subCats, tone, trayName,
   useFundCompare, useFundDetail, useFundFacts, useFundFilters, useFundList, useFundPortfolio, useHotList, useTray, writeCols,
-  type ColId, type CompareFund, type FundDetail, type FundRow, type ListQuery, type RangeKey, type SortKey,
+  tabDefaults, type ColId, type CompareFund, type FundDetail, type FundRow, type ListQuery, type RangeKey, type SortKey,
 } from "../lib/mf";
 import { keyLabel, selectionTitle, tabLabel } from "../lib/mfCategories";
 import { ColumnPicker, Controls, Pager } from "../mf/Controls";
-import { CategoryCards, CategoryPicker } from "../mf/Dashboard";
+import { CategoryPicker, cardOn } from "../mf/Dashboard";
 import { FundChart, SERIES_STYLE } from "../mf/FundChart";
 import { FundTable } from "../mf/FundTable";
 import { LoadingNotice, SortPills, SummaryCards } from "../mf/Summary";
 import { summarise } from "../lib/mfSummary";
-import { Fig, Foot, GTerm, PlanChip } from "../mf/Bits";
+import { Fig, Foot, GTerm, PlanChip, planLabel } from "../mf/Bits";
 import { FactsCard } from "../mf/Facts";
 import { FundGlance, FundSectionNav } from "../mf/FundGlance";
 import { ReturnsBlock } from "../mf/Returns";
@@ -30,12 +31,33 @@ import { MF_METHOD_URL, MF_SCORE_COMPLIANCE } from "../lib/mfScore";
 import { ScoreCompare } from "../mf/ScoreCompare";
 import { FundHeadToHead } from "./FundHeadToHead";
 import "../styles/mf.css";
+import "../styles/task354.css";   // task #354: the Hide filters outline
+import "../styles/prism-card.css";   // the (i) beside Volatility (task #311)
+import { InfoTip } from "../stock/PrismCardView";
 import "../styles/etfvs.css";
+import "../styles/mf341.css";   // task #341: the page refinement (after mf.css and etfvs.css)
+import "../styles/task355.css";   // task #355: the folded Show filters handle
+import "../styles/task363.css";   // task #363: the folded Show filters fits its words
+import "../styles/task374.css";   // task #374: the Ready list caption in line with Columns
+import "../styles/task376.css";   // task #376: How to read this table as a drop-down at the top; Reset filters beside Hide filters
 import { ChartZoom } from "../components/ChartZoom";
+import { useFundWishlist, useWishRows, WISH_MAX } from "../lib/fundWishlist";   // task #375: the Wishlist tab and the star on each scheme
+import "../styles/task375.css";
+/** Task #311 (developer file 21, fund page row 1): the formula is off the page; one plain sentence behind the (i). */
+const VOL_TIP = "How much the NAV moves from day to day, shown as a yearly figure.";
 
-const HEAD = (title: string, lead: string, stats?: PageHeaderProps["stats"]) => (
+/** Task #345 (23 Nov 2026, the team): on the list page "Fund industry trends" (it was a card under the categories) and "Import my funds" are the first two
+ *  buttons, each with a gold edge and a crown; the Fund score screener card went too (the header's "Fund Screener" opens the same page). */
+const GOLD_LEAD = (
+  <>
+    <Link className={buttonClass("secondary", "sm", "ph-lk ph-gold")} to="/funds/insights" title="Where the industry's money sits and moves, month by month: assets, net flows and folios by fund category."><Icon name="crown" className="ph-crown" />Fund industry trends <span aria-hidden="true">→</span></Link>
+    <Link className={buttonClass("secondary", "sm", "ph-lk ph-gold")} to="/mf-portfolio?tab=import"><Icon name="crown" className="ph-crown" />Import my funds <span aria-hidden="true">→</span></Link>
+  </>
+);
+const HEAD = (title: string, lead: string, stats?: PageHeaderProps["stats"], gold = false) => (
   <PageHeader wrap plan="free" title={title} description={lead} stats={stats} art="funds" links={[{ to: "/fund-score-screener", primary: true }, "/funds/compare", "/etfs"]}
-    actions={<Link className="btn" to="/mf-portfolio?tab=import">Import my funds <span aria-hidden="true">→</span></Link>} />
+    lead={gold ? GOLD_LEAD : undefined}
+    actions={gold ? undefined : <Link className="btn" to="/mf-portfolio?tab=import">Import my funds <span aria-hidden="true">→</span></Link>} />
 );
 const Problem = ({ title, text, retry }: { title: string; text: string; retry?: () => void }) => (
   <div className="wrap state" role="alert"><h2>{title}</h2><p>{text}</p>{retry && <button className="btn" onClick={retry}>Try again</button>} <Link className="btn" to="/funds">Back to all schemes</Link></div>
@@ -58,34 +80,45 @@ function historyLoading(items: FundRow[]): boolean {
 function NoteCard({ title, short, children }: { title: string; short: React.ReactNode; children: React.ReactNode }) {
   return (
     <li className="mf-note-card">
-      <h3>{title}</h3>
+      <h4>{title}</h4>
       <p>{short}</p>
       <details><summary>Read more</summary><div className="mf-note-full">{children}</div></details>
     </li>
   );
 }
 
-function Legend({ hidden, facts }: { hidden: number | null; facts?: { source?: string | null; excludedAmcs?: string[] | null } | null }) {
+function Legend({ stopped, facts }: { stopped: number | null; facts?: { source?: string | null; excludedAmcs?: string[] | null } | null }) {
+  // task #376: shown inside the "How to read this table" drop-down at the top of the page, whose summary is its heading (mf-howto-t)
   return (
-    <section className="mf-legend" aria-labelledby="mf-legend-h">
-      <h2 id="mf-legend-h">How to read this table</h2>
-      <ul className="mf-note-cards">
-        <NoteCard title="Returns" short={<>1 year is the total change in NAV; 3 and 5 years are yearly rates. SIP returns assume the same amount invested at each month-end.</>}>
+    <section className="mf-legend" aria-labelledby="mf-howto-t">
+      {/* task #341 (prompt section 15): the same nine cards and their full text, in three groups */}
+      <div className="mf-note-groups">
+        <section className="mf-note-group" aria-labelledby="mf-ng-1"><h3 className="mf-ng-h" id="mf-ng-1"><i aria-hidden="true">1</i>Understanding returns</h3>
+        <ul className="mf-note-cards">
+          <NoteCard title="Returns" short={<>1 year is the total change in NAV; 3 and 5 years are yearly rates. SIP returns assume the same amount invested at each month-end.</>}>
           <p><b>1 year</b> is the total change in NAV over the year; <b>3 years</b> and <b>5 years</b> are yearly rates (<GTerm id="cagr-compound-annual-growth-rate">CAGR</GTerm>), not totals.
             <b> SIP returns</b> are the yearly rate (XIRR) of putting the same amount in every month for the last 3 or 5 years: one instalment at the last NAV of each month, everything valued at the latest NAV. A scheme without a month-end NAV for every one of those months shows a dash.
             Returns are worked out for <GTerm id="growth-option">Growth</GTerm> options only (<GTerm id="idcw-income-distribution-cum-capital-withdrawal">IDCW</GTerm> payouts change the NAV). Compare <GTerm id="direct-plan">Direct</GTerm> with Direct and <GTerm id="regular-plan">Regular</GTerm> with Regular.</p>
         </NoteCard>
-        <NoteCard title="Fund size and expense ratio" short="Fund size is assets under management from AMFI. Expense ratio is the plan's yearly cost from AMFI's TER file.">
-          <p><b>Fund size</b> is AMFI's average assets under management for the latest quarter, all plans of the scheme together (where AMFI lists none, the fund house's month-end net assets; the tooltip says which). <b>Expense ratio</b> is the plan's own total expense ratio from AMFI's latest file, percent a year.</p>
-        </NoteCard>
-        <NoteCard title="FinLit FundPulse" short="The fund's score, 0 to 100, from its NAV history, costs and holdings. It describes the past; it is not a forecast.">
-          <p><b>FundPulse</b> (Gold) is the FinLit FundPulse, 0 to 100, with its label. {MF_SCORE_COMPLIANCE} <Link to={MF_METHOD_URL}>How it works</Link>.</p>
-        </NoteCard>
-        <NoteCard title="Return and cost bands" short="The small word under a return or an expense ratio places it in a band. Compare a fund with its own category.">
+          <NoteCard title="Return and cost bands" short="The small word under a return or an expense ratio places it in a band. Compare a fund with its own category.">
           <p><b>Return and cost bands.</b> The small word under a return places it in a band: for 1 year, Negative, 0–8%, 8–15% or Above 15%; for 3 and 5 years (yearly rates), Below 8%, 8–12%, 12–15% or Above 15%. Under an expense ratio it says Low, Moderate or High against the median of the same category and plan (20% or more under or over it).
             These are screening bands, not performance standards: equity, debt and hybrid funds need different yardsticks, so compare a fund with its own category. Funds younger than the period show <b>Insufficient history</b> rather than being left out. A fund's benchmark return is not shown yet because AMFI does not put it in the NAV files.</p>
         </NoteCard>
-        <NoteCard title="Fund size bands" short="Very large, Large, Medium, Small and Very small, by assets under management. Size is not a measure of quality.">
+          <NoteCard title="ELSS" short="ELSS units are locked in for three years. The 80C tax deduction applies under the old tax regime only.">
+          <p>ELSS: up to ₹1.5 lakh a year put into ELSS can be deducted under Section 80C in the old tax regime; at the 30% slab plus 4% cess that saves up to ₹46,800 of tax. The new tax regime has no 80C deduction. ELSS units are locked in for three years.</p>
+        </NoteCard>
+        </ul></section>
+        <section className="mf-note-group" aria-labelledby="mf-ng-2"><h3 className="mf-ng-h" id="mf-ng-2"><i aria-hidden="true">2</i>Understanding Mutual Fund Scores</h3>
+        <ul className="mf-note-cards">
+          <NoteCard title="Mutual Fund Score" short="The fund's score, 0 to 100, from its NAV history, costs and holdings. It describes the past; it is not a forecast.">
+          <p><b>Mutual Fund Score</b> (Gold) rates each fund from 0 to 100, with its label. {MF_SCORE_COMPLIANCE} <Link to={MF_METHOD_URL}>What the score means</Link>.</p>
+        </NoteCard>
+          <NoteCard title="The 5-check checklist" short="Five plain checks against funds of the same category and plan. Each filled mark is one check passed.">
+          <p>Five plain checks, each against the active Growth options of the same category and plan:</p>
+          <ol>{CHECKS.map((c) => <li key={c.key}><b>{c.label}</b>: {c.rule}.</li>)}</ol>
+          <p>“3/5” means three checks passed out of five that could be worked out. A check counts only when the scheme has the figure and at least 3 schemes of its category have it too. It sums up past figures; it is not a rating, a ranking or a recommendation, and no star ratings are shown. A dash (—) anywhere means no figure; hover or tap it for the reason.</p>
+        </NoteCard>
+          <NoteCard title="Fund size bands" short="Very large, Large, Medium, Small and Very small, by assets under management. Size is not a measure of quality.">
           <div className="mf-bands">
             <p>The word under the fund size is only a way to read scale: a very small fund can be young or niche, a very large one is harder to move quickly. Size is not a measure of quality.</p>
             <table><caption className="sr-only">Fund size bands in rupees crore</caption>
@@ -93,22 +126,21 @@ function Legend({ hidden, facts }: { hidden: number | null; facts?: { source?: s
               <tbody>{AUM_BUCKETS.map((b, i) => <tr key={b.label}><td>{b.range}</td><td><span className={"mf-size s" + (i + 1)}><i aria-hidden="true" />{b.label}</span></td></tr>)}</tbody></table>
           </div>
         </NoteCard>
-        <NoteCard title="The 5-check checklist" short="Five plain checks against funds of the same category and plan. Each filled mark is one check passed.">
-          <p>Five plain checks, each against the active Growth options of the same category and plan:</p>
-          <ol>{CHECKS.map((c) => <li key={c.key}><b>{c.label}</b>: {c.rule}.</li>)}</ol>
-          <p>“3/5” means three checks passed out of five that could be worked out. A check counts only when the scheme has the figure and at least 3 schemes of its category have it too. It sums up past figures; it is not a rating, a ranking or a recommendation, and no star ratings are shown. A dash (—) anywhere means no figure; hover or tap it for the reason.</p>
+        </ul></section>
+        <section className="mf-note-group" aria-labelledby="mf-ng-3"><h3 className="mf-ng-h" id="mf-ng-3"><i aria-hidden="true">3</i>Fund data and methodology</h3>
+        <ul className="mf-note-cards">
+          <NoteCard title="Fund size and expense ratio" short="Fund size is assets under management from AMFI. Expense ratio is the plan's yearly cost from AMFI's TER file.">
+          <p><b>Fund size</b> is AMFI's average assets under management for the latest quarter, all plans of the scheme together (where AMFI lists none, the fund house's month-end net assets; the tooltip says which). <b>Expense ratio</b> is the plan's own total expense ratio from AMFI's latest file, percent a year.</p>
         </NoteCard>
-        <NoteCard title="ELSS" short="ELSS units are locked in for three years. The 80C tax deduction applies under the old tax regime only.">
-          <p>ELSS: up to ₹1.5 lakh a year put into ELSS can be deducted under Section 80C in the old tax regime; at the 30% slab plus 4% cess that saves up to ₹46,800 of tax. The new tax regime has no 80C deduction. ELSS units are locked in for three years.</p>
+          <NoteCard title="Older schemes" short={stopped ? <>{stopped.toLocaleString("en-IN")} schemes on record have stopped publishing NAVs. They are listed too; choose Status “Still publishing” to leave them out.</> : <>Schemes that stopped publishing NAVs are listed too; choose Status “Still publishing” to leave them out.</>}>
+          <p>A scheme that has stopped publishing NAVs (merged, wound up or closed) stays on record, and the list shows it with every other scheme, as no filter is chosen when the page opens. It carries a “Stopped publishing” tag and no returns, and with the list in fund size order it comes after the schemes still running. Choose Status “Still publishing” above the table to list only schemes still running, or “Stopped” to list only the others.</p>
         </NoteCard>
-        <NoteCard title="Older schemes" short={hidden ? <>{hidden.toLocaleString("en-IN")} schemes that stopped publishing NAVs are hidden. Tick “Include schemes that stopped publishing NAVs” to see them.</> : <>Schemes that stopped publishing NAVs are hidden unless you tick “Include schemes that stopped publishing NAVs”.</>}>
-          <p>A scheme that has stopped publishing NAVs (merged, wound up or closed) stays on record but is hidden from the list by default, so the figures shown are for schemes still running. Tick “Include schemes that stopped publishing NAVs” above the table to see them too; they carry a “Stopped publishing” tag and no returns.</p>
-        </NoteCard>
-        <NoteCard title="Source" short="AMFI NAV and TER files. Some fund houses are not listed yet.">
+          <NoteCard title="Source" short="AMFI NAV and TER files. Some fund houses are not listed yet.">
           <p>Source: {facts?.source || "AMFI (Association of Mutual Funds in India), official NAV files"}; expense ratios from AMFI's TER file; fund size from AMFI's quarterly AUM report or the fund house's month-end portfolio file.</p>
           {facts?.excludedAmcs && facts.excludedAmcs.length > 0 && <p>Some fund houses are not listed here: {facts.excludedAmcs.join(", ")}.</p>}
         </NoteCard>
-      </ul>
+        </ul></section>
+      </div>
     </section>
   );
 }
@@ -142,11 +174,12 @@ export function FundListPage() {
   const filt = useFundFilters();
   const subs = useMemo(() => (q.tab === "all" ? [] : subCats(filt.data?.categories, q.tab, q)), [filt.data, q]);
   const names = useMemo(() => (q.tab === "all" || q.cats === null ? null : filt.data ? catNames(filt.data.categories, q.tab, q.cats) : undefined), [filt.data, q.tab, q.cats]);
-  const ready = q.view === "ready";
-  const list = useFundList(eq, names, !ready);
+  const ready = q.view === "ready", wishing = q.view === "wish";
+  const list = useFundList(eq, names, !ready && !wishing);
   const year = (filt.data?.dataDate || list.data?.dataDate || new Date().toISOString()).slice(0, 4);
   const chosen = q.tab === "all" ? [] : (q.cats ?? []).map(keyLabel).sort((a, b) => a.localeCompare(b));
   const title = `${selectionTitle(q.tab, chosen, q.cats === null)} mutual funds ${year}`;
+  // task #352 (team, 23 Nov 2026): the heading is just "Mutual Funds"; the browser tab title keeps the chosen categories and the year for search results
   useDocTitle(title, "Compare all mutual funds in the chosen categories based on latest returns, historic returns, SIP returns, latest NAV, checklist and more. Information only.");
 
   const set = (patch: Partial<ListQuery>) => setSp(queryToParams({ ...q, page: 1, ...patch }), { replace: !("page" in patch) });
@@ -155,63 +188,119 @@ export function FundListPage() {
   const onSort = (s: SortKey) => set(eq.sort === s ? { sort: s, dir: eq.dir === "asc" ? "desc" : "asc" } : { sort: s, dir: s === "name" || s === "amc" || s === "category" ? "asc" : "desc" });
   // Task #130 C-9: up to 4 funds; a fifth replaces the oldest. The names on the compare bar come from the rows they were ticked on.
   const pick = (code: number, name?: string) => { if (name) rememberName(code, name); const replacing = tray.length >= TRAY_MAX && !tray.includes(code); toggle(code); if (replacing) toast(`Up to ${TRAY_MAX} funds at a time: the first one chosen was replaced.`); };
-  // Task #130 C-4: "See these funds by FundPulse" switches the tab and sub-category below to that category, orders it by FundPulse and scrolls to the list.
+  // Task #130 C-4: "See these funds by Mutual Fund Score" switches the tab and sub-category below to that category, orders it by Mutual Fund Score and scrolls to the list.
   const showByScore = (c: { tab: ListQuery["tab"]; key: string }) => {
     set({ tab: c.tab, cats: [c.key], view: "", ...(canScore ? { sort: "score" as SortKey, dir: "desc" as const } : {}) });
     requestAnimationFrame(() => document.getElementById("mf-list")?.scrollIntoView({ behavior: "smooth", block: "start" }));
   };
   const hot = useHotList(ready);
+  // task #375: the member's wishlist (mutual funds and ETFs, by scheme code) and the star's messages
+  const wish = useFundWishlist();
+  const wishRows = useWishRows(wish.codes, wishing);
+  const onWish = (code: number, name: string) => {
+    const r = wish.toggle(code);
+    toast(r === "added" ? `${name} is in your wishlist (Wishlist tab).` : r === "removed" ? `${name} is out of your wishlist.`
+      : r === "full" ? `Your wishlist keeps up to ${WISH_MAX} schemes. Remove one to add another.` : "Sign in to keep a wishlist: it is free, and it follows you to every device.");
+  };
+  const wishProp = { has: wish.has, toggle: onWish };
+  useEffect(() => { if (wish.failed) toast("Your wishlist could not be saved just now. Please try again."); }, [wish.failed]);   // eslint-disable-line react-hooks/exhaustive-deps
+  // task #347: the filter panel's open or folded state, remembered in this browser; with nothing saved it starts open on a desktop and folded on a phone
+  // (where it would sit above the list and push it down)
+  const [fOpen, setFOpen] = useState(() => { let v: string | null = null; try { v = localStorage.getItem("finlit-mf-filters"); } catch { /* */ }
+    return v ? v !== "closed" : !(typeof window !== "undefined" && window.matchMedia?.("(max-width: 760px)").matches); });
+  const setF = (v: boolean) => { setFOpen(v); try { localStorage.setItem("finlit-mf-filters", v ? "open" : "closed"); } catch { /* private window: not remembered */ } };
+  // task #376: the filters are at their start when nothing differs from the page's defaults (the address carries only what differs)
+  //   the order, the page size and the Chosen/Ready view are not filters: they stay as they are
+  const keep = { view: q.view, sort: q.sort, dir: q.dir, size: q.size };
+  const atStart = queryToParams({ ...q, page: 1, view: "", sort: "", dir: "asc", size: 50 }).toString() === "" && !text.trim();
+  const resetAll = () => { setText(""); setSp(queryToParams({ ...PAGE_DEFAULTS, ...keep }), { replace: false }); };
   const none = q.tab !== "all" && q.cats !== null && q.cats.length === 0;
-  const d = ready || none ? undefined : list.data;
+  const d = ready || wishing || none ? undefined : list.data;
   const hotRows = useMemo(() => {
     const rows = hot.data?.items || [];
     if (!q.sort) return rows;
     const key = q.sort, sgn = q.dir === "desc" ? -1 : 1;
     return [...rows].sort((a, b) => { const x = rowSortValue(a, key), y = rowSortValue(b, key); return x == null ? 1 : y == null ? -1 : (x < y ? -1 : x > y ? 1 : 0) * sgn; });
   }, [hot.data, q.sort, q.dir]);
-  const facts = (ready ? hot.data : d) || filt.data;
+  const wishSorted = useMemo(() => {   // task #375: the kept order (newest first) unless a column is sorted
+    const rows = wishRows.data?.items || [];
+    if (!q.sort) return rows;
+    const key = q.sort, sgn = q.dir === "desc" ? -1 : 1;
+    return [...rows].sort((a, b) => { const x = rowSortValue(a, key), y = rowSortValue(b, key); return x == null ? 1 : y == null ? -1 : (x < y ? -1 : x > y ? 1 : 0) * sgn; });
+  }, [wishRows.data, q.sort, q.dir]);
+  const facts = (ready ? hot.data : wishing ? wishRows.data : d) || filt.data;
   const t = filt.data?.totals;
 
   return (
     <>
-      {HEAD(title, "Compare all mutual funds in the chosen categories based on latest returns, historic returns, SIP returns, latest NAV, checklist and more.", [{ icon: "layers", value: t ? t.active.toLocaleString("en-IN") : null, label: "Active schemes" }, { icon: "line", value: t ? t.withHistory.toLocaleString("en-IN") : null, label: "With return history" }])}
-      <div className="wrap mf">
-        <CategoryCards q={q} onPick={(c) => set({ tab: c.tab, cats: [c.key], view: "" })} onScore={showByScore} />
-        <Link className="evi-promo" to="/funds/insights">
-          <span className="evi-promo-ic" aria-hidden="true"><Icon name="line" /></span>
-          <span className="evi-promo-t"><b>Fund industry trends <span className="evi-badge">Industry</span></b>
-            <small>Where the industry's money sits and moves, month by month: assets, net flows and folios by fund category.</small></span>
-          <span className="evi-promo-go" aria-hidden="true">Open →</span>
-        </Link>
-        <Link className="evi-promo" to="/fund-score-screener">
-          <span className="evi-promo-ic" aria-hidden="true"><Icon name="quality" /></span>
-          <span className="evi-promo-t"><b>Fund score screener</b>
-            <small>Every scored fund with its FundPulse and four parts: filter by category, cost, size and age, see category leaderboards and compare.</small></span>
-          <span className="evi-promo-go" aria-hidden="true">Open →</span>
-        </Link>
-        <CategoryPicker q={q} subs={subs} loading={filt.isLoading} onTab={(tab) => set({ tab, cats: null })} onCats={(cats) => set({ cats })} />
-        <Controls q={q} text={text} onText={setText} set={set} filters={filt.data} loading={list.isFetching} />
-
+      {HEAD("Mutual Funds", "Funds in your chosen categories by returns, SIP returns, latest NAV, checklist and more.", [{ icon: "layers", value: t ? t.active.toLocaleString("en-IN") : null, label: "Active schemes" }, { icon: "line", value: t ? t.withHistory.toLocaleString("en-IN") : null, label: "With return history" }], true)}
+      <div className="wrap mf mf-list">
+        {/* Task #347 (23 Nov 2026, the team): the categories and the filters are one filter panel on the left of the table, "Hide filters" folds it to a
+            narrow "Show filters" handle in the same place (never on the table), and it has the search box at the top. The choice is remembered here. */}
+        {/* Task #376 (team, 24 Nov 2026): "How to read this table" is a drop-down, closed at first, at the top of the page above the filters and the table
+            (where the team's arrow points); it was a long open section under the table. */}
+        <details className="mf-howto">
+          <summary><span className="mf-howto-tx"><b id="mf-howto-t">How to read this table</b><small>What each column means and where the figures come from</small></span>
+            <span className="mf-howto-show" aria-hidden="true"><span className="mf-howto-s">Show</span><span className="mf-howto-h">Hide</span><i className="mf-howto-chev" /></span></summary>
+          <Legend stopped={t ? t.schemes - t.active : null} facts={facts} />
+        </details>
+        <div className={"mf-layout" + (fOpen ? "" : " closed")}>
+          <aside className="mf-side" aria-label="Filters">
+            {fOpen ? (<>
+              <div className="mf-side-h"><h2>Filters</h2>
+                {/* task #376: Reset filters beside Hide filters, the pair the same size; it goes back to the page's start (every scheme, no filter) */}
+                <span className="mf-side-acts">
+                  <button type="button" className="btn sm mf-resetf" disabled={atStart} title={atStart ? "No filter is set" : "Clear every filter and the search"} onClick={resetAll}>Reset filters</button>
+                  <button type="button" className="btn sm mf-hidef" aria-expanded="true" aria-controls="mf-side-b" onClick={() => setF(false)}>Hide filters</button></span></div>
+              <div id="mf-side-b" className="mf-side-b">
+                <Controls part="search" q={q} text={text} onText={setText} set={set} filters={filt.data} loading={list.isFetching} />
+        <CategoryPicker side q={q} subs={subs} loading={filt.isLoading} onTab={(tab) => set({ tab, cats: null, ...tabDefaults(tab) })} onCats={(cats) => set({ cats })}
+          frequent={{ onPick: (c) => set(cardOn(q, c) ? { cats: null, view: "" } : { tab: c.tab, cats: [c.key], view: "" }), onScore: showByScore }} />{/* task #344: the six frequently visited categories in the box (was "Six categories most people start with"); task #340: pressed again clears */}
+                <Controls part="rest" q={q} text={text} onText={setText} set={set} filters={filt.data} loading={list.isFetching} />
+              </div></>)
+              : <button type="button" className="mf-showf" aria-expanded="false" aria-controls="mf-side-b" onClick={() => setF(true)}><Icon name="panel" /><span>Show filters</span></button>}
+          </aside>
+          <div className="mf-main">
         <div className="mf-bar" id="mf-list">
           <div className="seg" role="group" aria-label="Which schemes to show">
-            <button aria-pressed={!ready} onClick={() => set({ view: "" })}>Chosen categories</button>
+            <button aria-pressed={!ready && !wishing} onClick={() => set({ view: "" })}>Chosen categories</button>
             <button aria-pressed={ready} onClick={() => set({ view: "ready" })}>Ready list ({hot.data?.items.length ?? 100})</button>
+            <button aria-pressed={wishing} onClick={() => set({ view: "wish" })}><svg className="mf-wish-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.6l2.6 5.3 5.8.8-4.2 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.2-4.1 5.8-.8z" /></svg>Wishlist{wish.signedIn ? ` (${wish.codes.length})` : ""}</button>
           </div>
           <p className="mf-count" role="status" aria-live="polite">
-            {ready ? (hot.data ? <>The <b>{hot.data.items.length}</b> schemes kept ready for instant opening, from every category.</> : "Loading…")
+            {wishing ? (!wish.signedIn ? "Your wishlist: the mutual funds and ETFs you keep, for a signed-in member." : wish.loading ? "Loading your wishlist…"
+              : <>Your wishlist: <b>{wish.codes.length}</b> scheme{wish.codes.length === 1 ? "" : "s"} you keep (mutual funds and ETFs), newest first. Press the star on any scheme to add or remove it.</>)
+              : ready ? (hot.data ? <>The <b>{hot.data.items.length}</b> schemes kept ready for instant opening, from every category.</> : "Loading…")
               : none ? "No category ticked."
-                : d ? <>Showing <b>{d.total.toLocaleString("en-IN")}</b> scheme{d.total === 1 ? "" : "s"}{q.tab === "all" ? "" : " in the chosen categories"}{d.total === 0 ? " (none match)" : ""}</> : "Loading schemes…"}
-            {!ready && t && !q.stopped && <span className="faint"> · {(t.schemes - t.active).toLocaleString("en-IN")} older schemes have stopped publishing and are hidden</span>}
+                : d ? <>Showing <b>{d.total.toLocaleString("en-IN")}</b> scheme{d.total === 1 ? "" : "s"}{q.tab === "all" ? (q.plan === "" && q.option === "All" ? " · every plan and option" : "") : " in the chosen categories"}{d.total === 0 ? " (none match)" : ""}</> : "Loading schemes…"}
+            {/* task #369: every scheme is listed on arrival; on "All funds" with no plan, option or status chosen the two parts add up to the total shown */}
+            {!ready && !wishing && d && t && q.tab === "all" && !q.status && d.total === t.schemes &&
+              <span className="faint"> ({t.active.toLocaleString("en-IN")} still publishing a NAV, {(t.schemes - t.active).toLocaleString("en-IN")} stopped)</span>}
+            {!ready && !wishing && t && q.tab === "all" && q.status === "active" && <span className="faint"> · {(t.schemes - t.active).toLocaleString("en-IN")} schemes that stopped publishing are left out by the Status filter</span>}
             {facts?.dataDate && <span className="faint"> · NAVs up to {dateIN(facts.dataDate)}</span>}
           </p>
-          <ColumnPicker cols={cols} onChange={(c) => { setCols(c); writeCols(c); }} />
         </div>
 
-        {ready ? (
+        {wishing ? (
+          !wish.signedIn ? <div className="pm-empty mf-empty mf-wishempty"><b>Keep the funds you follow in one place.</b><p>Sign in to add any mutual fund or ETF to your wishlist with the star beside its name. It is free, and it is kept with your account, on every device.</p>
+            <Link className="btn primary" to={`/login?next=${encodeURIComponent("/funds?view=wish")}`}>Sign in</Link> <Link className="btn" to={`/login?mode=signup&next=${encodeURIComponent("/funds?view=wish")}`}>Create a free account</Link></div>
+          : wish.loading || (wish.codes.length > 0 && !wishRows.data && !wishRows.isError) ? <div className="card" aria-busy="true"><div className="skeleton" style={{ height: 240 }} /></div>
+          : wish.codes.length === 0 ? <div className="pm-empty mf-empty mf-wishempty"><b>Your wishlist is empty.</b><p>Press the star beside any scheme in “Chosen categories” or the “Ready list”, or on a fund's own page, to keep it here. Mutual funds and ETFs both go in.</p>
+            <button className="btn" onClick={() => set({ view: "" })}>Browse the schemes</button></div>
+          : wishRows.isError ? <Problem title="Your wishlist could not be shown right now" text="It is saved; please try again in a moment." retry={() => wishRows.refetch()} />
+          : (
+            <div className="card mf-tablecard">
+              <div className="mf-tbar"><ColumnPicker cols={cols} onChange={(c) => { setCols(c); writeCols(c); }} /></div>
+              {wishSorted.length < wish.codes.length && <p className="faint mf-fine mf-pad">{wish.codes.length - wishSorted.length} kept scheme{wish.codes.length - wishSorted.length === 1 ? " is" : "s are"} no longer in AMFI's list and cannot be shown.</p>}
+              <FundTable rows={wishSorted} cols={cols} q={q} onSort={onSort} picked={tray} onPick={pick} peers={wishRows.data?.peers} wish={wishProp} />
+              <CompareBar tray={tray} onClear={clear} onOpen={() => nav(compareUrl(tray))} />
+            </div>)
+        ) : ready ? (
           !hot.data ? <div className="card" aria-busy="true"><div className="skeleton" style={{ height: 420 }} /></div> : (
             <div className="card mf-tablecard">
-              <p className="faint mf-fine mf-pad">{hot.data.basis}</p>
-              <FundTable rows={hotRows} cols={cols} q={q} onSort={onSort} picked={tray} onPick={pick} />
+              <div className="mf-tbar">{/* task #346: the Columns button inside the table, beside its enlarge button */}<ColumnPicker cols={cols} onChange={(c) => { setCols(c); writeCols(c); }} /></div>
+              <p className="faint mf-fine mf-tbar-cap">{hot.data.basis}</p>{/* task #374: on the same line as Columns and the enlarge button */}
+              <FundTable rows={hotRows} cols={cols} q={q} onSort={onSort} picked={tray} onPick={pick} wish={wishProp} />
               <CompareBar tray={tray} onClear={clear} onOpen={() => nav(compareUrl(tray))} />
             </div>)
         ) : none ? (
@@ -221,7 +310,7 @@ export function FundListPage() {
           <div className="card" aria-busy="true"><div className="skeleton" style={{ height: 420 }} /></div>
         ) : d.total === 0 ? (
           <div className="pm-empty mf-empty"><b>No schemes match.</b><p>Try fewer filters or a shorter search. Spaces and small typos do not matter.{q.tab !== "all" && " The search covers the chosen categories only."}</p>
-            {q.tab !== "all" && q.q && <button className="btn primary" onClick={() => set({ tab: "all", cats: null })}>Search every category</button>}{" "}
+            {q.tab !== "all" && q.q && <button className="btn primary" onClick={() => set({ tab: "all", cats: null, ...tabDefaults("all") })}>Search every category</button>}{" "}
             <button className="btn" onClick={() => { setText(""); setSp(new URLSearchParams(), { replace: true }); }}>Clear search and filters</button></div>
         ) : (
           <>
@@ -230,14 +319,16 @@ export function FundListPage() {
           {historyLoading(d.items) && <p className="mf-note" role="status"><Icon name="info" /><span><b>Return history is still loading.</b> None of the funds on this page has its 1, 3 or 5 year return yet because the NAV history from AMFI is loaded one fund house at a time. The figures appear as each house finishes; nothing here is missing for good.</span></p>}
           <SortPills q={eq} onSort={(sort, dir) => set({ sort: sort as SortKey, dir })} />
           <div className="card mf-tablecard">
-            <FundTable rows={d.items} cols={cols} q={eq} onSort={onSort} picked={tray} onPick={pick} peers={d.peers} />
+            <div className="mf-tbar">{/* task #346: the Columns button inside the table, beside its enlarge button */}<ColumnPicker cols={cols} onChange={(c) => { setCols(c); writeCols(c); }} /></div>
+            <FundTable rows={d.items} cols={cols} q={eq} onSort={onSort} picked={tray} onPick={pick} peers={d.peers} wish={wishProp} />
             <CompareBar tray={tray} onClear={clear} onOpen={() => nav(compareUrl(tray))} />
             <Pager q={q} pages={d.pages} total={d.total} onPage={(p) => { set({ page: p }); window.scrollTo({ top: 0 }); }} onSize={(n) => set({ size: n })} />
           </div>
           </>
         )}
-        <Legend hidden={t && !q.stopped ? t.schemes - t.active : null} facts={facts} />
-        <Foot facts={facts} />
+          </div>
+        </div>
+        <Foot facts={facts} fold />{/* task #377: the box named Disclaimer, a drop-down closed at first */}
       </div>
 
 
@@ -253,9 +344,9 @@ function Risk({ d }: { d: FundDetail }) {
     <div className="card mf-card">
       <div className="card-h"><h3><span className="ci"><Icon name="gauge" /></span>Risk, from the NAV history</h3></div>
       <div className="mf-risk">
-        <div><span className="label"><GTerm id="volatility">Volatility</GTerm> · 1 year</span><b>{vol1y.value == null ? <Fig v={null} why={vol1y.why} /> : pctText(vol1y.value, 2, false)}</b>
+        <div><span className="label"><GTerm id="volatility">Volatility</GTerm> · 1 year<InfoTip text={VOL_TIP} /></span><b>{vol1y.value == null ? <Fig v={null} why={vol1y.why} /> : pctText(vol1y.value, 2, false)}</b>
           <p className="muted">{vol1y.value == null ? vol1y.why : "How much the NAV swings, as a yearly figure. A fund at 14% typically moves about 14% either side of its average yearly path; one at 1% barely moves. It says how bumpy the ride was, not which way the NAV went."}</p></div>
-        <div><span className="label"><GTerm id="volatility">Volatility</GTerm> · 3 years</span><b>{vol3y.value == null ? <Fig v={null} why={vol3y.why} /> : pctText(vol3y.value, 2, false)}</b>
+        <div><span className="label"><GTerm id="volatility">Volatility</GTerm> · 3 years<InfoTip text={VOL_TIP} /></span><b>{vol3y.value == null ? <Fig v={null} why={vol3y.why} /> : pctText(vol3y.value, 2, false)}</b>
           <p className="muted">{vol3y.value == null ? vol3y.why : "The same measure over three years, so one calm or wild year counts for less."}</p></div>
         <div><span className="label"><GTerm id="drawdown">Largest fall</GTerm> (maximum drawdown)</span><b>{m.value == null ? <Fig v={null} why={m.why} /> : <span className={tone(m.value)}>{pctText(m.value, 2, false)}</span>}</b>
           <p className="muted">{m.value == null ? m.why : m.peak && m.trough && m.value < 0 ? `The deepest fall from a NAV high (${dateIN(m.peak)}) to a later low (${dateIN(m.trough)}) since ${dateIN(m.since || m.peak)}. It shows how deep the worst stretch was, not what comes next.` : "The NAV never fell below an earlier high in the history on file."}</p></div>
@@ -263,7 +354,6 @@ function Risk({ d }: { d: FundDetail }) {
       <h4 className="mf-h4">Other periods</h4>
       <ul className="mf-other">{OTHER_PERIODS.map(({ k, label }) => { const r = d.returns[k]; return (
         <li key={k}><span>{label}</span><b><Fig v={r.value} why={r.why} /></b><small className="muted">{r.value == null ? r.why : r.kind === "cagr" ? "per year" : "total change"}</small></li>); })}</ul>
-      <p className="faint mf-fine">Volatility is the standard deviation of daily NAV changes (weekend NAVs left out) times the square root of 252. Both measures use only the NAV history on file for this scheme.</p>
     </div>
   );
 }
@@ -299,6 +389,7 @@ export function FundDetailPage() {
   const { toast } = useUI();
   const [tray, toggle] = useTray();
   const facts = useFundFacts(code), portfolio = useFundPortfolio(code);
+  const wish = useFundWishlist();   // task #375: add this scheme (a mutual fund or an ETF) to the wishlist on the Mutual Funds page
   useDocTitle(d ? d.name : "Mutual fund", d ? `${d.name}: NAV, returns and risk from AMFI data. Information only.` : undefined);
   useEffect(() => { if (d?.code) visits.add({ k: "mf", id: String(d.code), name: d.name.replace(/\s*[-–(]\s*(direct|regular)\b.*$/i, ""), sub: d.amc }); }, [d?.code]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -314,13 +405,13 @@ export function FundDetailPage() {
       <header className="mf-head">
         <div>
           <span className="eyebrow">{d.categoryGroup}</span>
-          <h1>{d.name}</h1>
+          <h1 className="ui-title">{d.name}</h1>
           <ul className="mf-chips" aria-label="About this scheme">
             <li><Link className="chip gold" to={`/funds?amc=${encodeURIComponent(d.amc)}`}>{d.amc}</Link></li>
             <li><Link className="chip ghost" to={`/funds?category=${encodeURIComponent(d.category)}`}>{categoryShort(d.category)}</Link></li>
-            <li><span className="chip ghost"><GTerm id={d.plan === "Regular" ? "regular-plan" : "direct-plan"}>{d.plan === "Unspecified" ? "Plan not stated" : d.plan + " plan"}</GTerm></span></li>
-            <li><span className="chip ghost"><GTerm id={d.optionClass === "IDCW" ? "idcw-income-distribution-cum-capital-withdrawal" : "growth-option"}>{d.option}</GTerm></span></li>
-            <li><span className="chip ghost"><GTerm id="open-ended-and-closed-ended-funds">{d.schemeType}</GTerm></span></li>
+            <li><GTerm box="chip ghost" id={d.plan === "Regular" ? "regular-plan" : "direct-plan"}>{d.plan === "Unspecified" ? planLabel(d.plan, d.category) : d.plan + " plan"}</GTerm></li>
+            <li><GTerm box="chip ghost" id={d.optionClass === "IDCW" ? "idcw-income-distribution-cum-capital-withdrawal" : "growth-option"}>{d.option}</GTerm></li>
+            <li><GTerm box="chip ghost" id="open-ended-and-closed-ended-funds">{d.schemeType}</GTerm></li>
           </ul>
           <p className="faint mf-ids">{d.isin ? <><GTerm id="isin">ISIN</GTerm> {d.isin} · </> : null}AMFI scheme code {d.code}{d.isinReinvest ? <> · reinvestment ISIN {d.isinReinvest}</> : null}</p>
         </div>
@@ -332,6 +423,11 @@ export function FundDetailPage() {
           <div className="mf-acts">
             <button className={"btn" + (inTray ? " on" : "")} aria-pressed={inTray} onClick={() => { if (!toggle(d.code)) toast(`You can compare up to ${TRAY_MAX} schemes at a time.`); }}><Icon name="compare" />{inTray ? "Chosen to compare" : "Add to compare"}</button>
             {tray.length >= 2 && <button className="btn primary" onClick={() => nav(compareUrl(tray))}>Compare {tray.length}</button>}
+            <button className={"btn mf-wishbtn" + (wish.has(d.code) ? " on" : "")} aria-pressed={wish.has(d.code)} onClick={() => {
+              const r = wish.toggle(d.code);
+              toast(r === "added" ? "In your wishlist: see it under Mutual Funds, Wishlist." : r === "removed" ? "Out of your wishlist." : r === "full" ? `Your wishlist keeps up to ${WISH_MAX} schemes. Remove one to add another.` : "Sign in to keep a wishlist: it is free, and it follows you to every device.");
+            }}><Icon name="star" />{wish.has(d.code) ? "In your wishlist" : "Add to wishlist"}</button>
+            {wish.has(d.code) && <Link className="mf-wishlink" to="/funds?view=wish">Open wishlist →</Link>}
           </div>
         </div>
       </header>
@@ -361,7 +457,7 @@ export function FundDetailPage() {
             <thead><tr><th scope="col">Plan and option</th><th scope="col">NAV</th><th scope="col">NAV date</th><th scope="col"><span className="sr-only">Compare</span></th></tr></thead>
             <tbody>{d.family.map((f) => (
               <tr key={f.code}>
-                <th scope="row"><Link to={`/funds/${f.code}`}>{f.name}</Link><small><PlanChip plan={f.plan} option={f.option} />{!f.active && <span className="chip ghost">Stopped publishing</span>}</small></th>
+                <th scope="row"><Link to={`/funds/${f.code}`}>{f.name}</Link><small><PlanChip plan={f.plan} option={f.option} category={d.category} />{!f.active && <span className="chip ghost">Stopped publishing</span>}</small></th>
                 <td className="num">{navText(f.nav)}</td><td className="num">{f.navDate ? dateIN(f.navDate) : "—"}</td>
                 <td className="num"><Link className="mf-linkbtn" to={compareUrl([d.code, f.code])}>Compare with this</Link></td>
               </tr>))}</tbody>
@@ -392,7 +488,7 @@ function Picker({ ids, onAdd }: { ids: number[]; onAdd: (code: number) => void }
   const [text, setText] = useState("");
   const [debounced, setDebounced] = useState("");
   useEffect(() => { const t = window.setTimeout(() => setDebounced(text.trim()), 300); return () => window.clearTimeout(t); }, [text]);
-  const res = useFundList({ ...EMPTY_QUERY, q: debounced.length >= 2 ? debounced : "", size: 25, option: "Growth" });
+  const res = useFundList({ ...EMPTY_QUERY, q: debounced.length >= 2 ? debounced : "", size: 25, option: "Growth", status: "active" });   // the compare picker: Growth options still publishing, as before
   const show = debounced.length >= 2 ? (res.data?.items || []) : [];
   return (
     <div className="mf-picker">
@@ -401,11 +497,19 @@ function Picker({ ids, onAdd }: { ids: number[]; onAdd: (code: number) => void }
       {ids.length >= TRAY_MAX && <p className="faint">You are comparing the most schemes this page can show ({TRAY_MAX}). Remove one to add another.</p>}
       {show.length > 0 && (
         <ul className="mf-results" aria-label="Matching schemes">{show.map((r) => (
-          <li key={r.code}><span><b>{r.name}</b><small>{shortAmc(r.amc)} · <PlanChip plan={r.plan} option={r.option} /></small></span>
+          <li key={r.code}><span><b>{r.name}</b><small>{shortAmc(r.amc)} · <PlanChip plan={r.plan} option={r.option} category={r.category} /></small></span>
             <button className="btn" disabled={ids.includes(r.code)} onClick={() => { onAdd(r.code); setText(""); }}>{ids.includes(r.code) ? "Added" : "Add"}</button></li>))}</ul>)}
       {debounced.length >= 2 && !res.isFetching && !show.length && <p className="muted">No Growth-option scheme matches “{debounced}”. Returns are compared for Growth options.</p>}
     </div>
   );
+}
+
+/** Task #281: an IDCW option compared shows its same-plan Growth option's return, labelled as that option's (before payouts), never as its own. */
+function GrowthFig({ f, k }: { f: CompareFund; k: "r1y" | "r5y" }) {
+  const g = f.growthReturns;
+  if (!g || g[k] == null) return null;
+  return <span className="mf-grf" title={`${GROWTH_RETURNS_LABEL}: ${g.name} (${f.plan}, Growth). This option's own NAV change is not shown because payouts would make it wrong.`}>
+    <Fig v={g[k]} d={2} /><small className="mf-gr">{GROWTH_RETURNS_LABEL}</small></span>;
 }
 
 function CompareTable({ funds }: { funds: CompareFund[] }) {
@@ -418,12 +522,12 @@ function CompareTable({ funds }: { funds: CompareFund[] }) {
   };
   const rows: { label: React.ReactNode; cell: (f: CompareFund) => React.ReactNode; head?: boolean }[] = [
     { label: "Fund house", cell: (f) => shortAmc(f.amc) }, { label: "Category", cell: (f) => categoryShort(f.category) },
-    { label: "Plan and option", cell: (f) => <PlanChip plan={f.plan} option={f.option} /> },
+    { label: "Plan and option", cell: (f) => <PlanChip plan={f.plan} option={f.option} category={f.category} /> },
     { label: <GTerm id="net-asset-value-nav">Latest NAV</GTerm>, cell: (f) => <>{navText(f.nav)}<small className="muted"> {f.navDate ? dateIN(f.navDate, { day: "numeric", month: "short" }) : ""}</small></> },
     { label: "Returns", head: true, cell: () => null },
     { label: RETURN_LABELS.d1, cell: (f) => val(f.change?.pct ?? null, f.active ? "The previous NAV is not on file yet." : "Stopped publishing NAVs.", shortName(f) + ", 1 day") },
-    { label: RETURN_LABELS.y1, cell: (f) => val(f.returns["1y"].value, f.returns["1y"].why, shortName(f) + ", 1 year") },
-    { label: RETURN_LABELS.y5, cell: (f) => val(f.returns["5y"].value, f.returns["5y"].why, shortName(f) + ", 5 year") },
+    { label: RETURN_LABELS.y1, cell: (f) => f.returns["1y"].value == null && growthFigure(f, "r1y") != null ? <GrowthFig f={f} k="r1y" /> : val(f.returns["1y"].value, f.returns["1y"].why, shortName(f) + ", 1 year") },
+    { label: RETURN_LABELS.y5, cell: (f) => f.returns["5y"].value == null && growthFigure(f, "r5y") != null ? <GrowthFig f={f} k="r5y" /> : val(f.returns["5y"].value, f.returns["5y"].why, shortName(f) + ", 5 year") },
     { label: "Risk", head: true, cell: () => null },
     { label: <><GTerm id="volatility">Volatility</GTerm> 1 year</>, cell: (f) => val(f.risk.vol1y.value, f.risk.vol1y.why, shortName(f) + ", volatility 1 year", { plain: true, plus: false }) },
     { label: <><GTerm id="volatility">Volatility</GTerm> 3 years</>, cell: (f) => val(f.risk.vol3y.value, f.risk.vol3y.why, shortName(f) + ", volatility 3 years", { plain: true, plus: false }) },

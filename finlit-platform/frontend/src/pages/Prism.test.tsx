@@ -9,19 +9,19 @@ import technicalBuilt from "../lib/__fixtures__/prismTechnicalBuilt.json";
 import { score1, type PrismReport } from "../lib/prism";
 import { parseTechnical, ratingWord } from "../lib/prismTechnical";
 
-const state = vi.hoisted(() => ({ latest: null as unknown, gold: true, admin: true, calc: { phase: "idle" } as unknown }));
+const state = vi.hoisted(() => ({ perDay: 10 as number | null, latest: null as unknown, gold: true, admin: true, calc: { phase: "idle" } as unknown, ready: true, showcase: [] as string[], error: null as unknown }));
 vi.mock("../lib/prism", async (orig) => {
   const m = await orig<typeof import("../lib/prism")>();
   return {
     ...m,
-    useLatestPrism: () => ({ data: state.latest, isLoading: false, isError: false, refetch: () => undefined }),
+    useLatestPrism: () => ({ data: state.latest, isLoading: false, isError: !!state.error, error: state.error, refetch: () => undefined }),
     useGeneratePrism: () => ({ mutate: () => undefined, isPending: false, isError: false }),
     usePrismCalculation: () => ({ calc: state.calc, start: () => Promise.resolve() }),
     usePrismStatus: () => ({ data: { name: "FinLit Prism", available: true, reason: null, modelVersion: "3.6.10" } }),
   };
 });
 vi.mock("../lib/premium", () => ({ useGold: () => state.gold, useSlashFocus: () => undefined, pushRecent: () => undefined, readRecent: () => [] }));
-vi.mock("../lib/auth", () => ({ useAuth: () => ({ showcase: [], isAdmin: state.admin }) }));
+vi.mock("../lib/auth", () => ({ useAuth: () => ({ showcase: state.showcase, isAdmin: state.admin, ready: state.ready, prismReportsPerDay: state.perDay }) }));
 vi.mock("../lib/api", async (orig) => ({ ...(await orig<typeof import("../lib/api")>()), useSearchIndex: () => ({ data: undefined }), useQuotesFor: () => ({ data: undefined }) }));
 vi.mock("../lib/screener", () => ({ useUniverse: () => ({ data: undefined, isLoading: false, isError: false }) }));
 vi.mock("../lib/ui", () => ({ useUI: () => ({ has: () => state.gold, upgrade: () => undefined }), TIER: { gold: { n: "Gold", ic: "crown", tc: "--t-gold" } } }));
@@ -44,11 +44,13 @@ describe("Prism report", () => {
     expect(html).toMatch(/pzr-lab average/);
     expect(t).toContain("Average");
     expect(t).toContain("Rated");
-    expect(t).toContain("100% of inputs available");
+    expect(t).not.toContain("inputs available");          // task #311: nothing at 100%
+    expect(t).not.toContain("Some figures are missing");
     expect(t).not.toContain("Model 3.");
     for (const name of ["Growth & Profitability", "Valuation", "Quality", "Risk"]) expect(t).toContain(name);
     expect(t).not.toContain("% of the overall score");
-    expect(t).toContain("Technical indicators assess price trend and momentum separately and are not included in this score");
+    expect(t).not.toContain("Technical indicators assess price trend and momentum separately");   // task #311: the grey note is gone
+    expect(t).toContain("Price trend and momentum, shown separately from the score.");
     expect(t).not.toContain("Data completeness and freshness");
     for (const k of ["Growth & Profitability", "Valuation", "Quality", "Risk"]) expect(html).toContain(`aria-label="${k.replace("&", "&amp;")} factors"`);
     for (const w of ["Strengths", "Concerns", "Estimated or missing", "Reading", "Strongest first"]) expect(t).toContain(w);
@@ -68,7 +70,7 @@ describe("Prism report", () => {
     expect(html).not.toContain("is the sum of");
     expect(html).toContain("Growth &amp; Profitability 69 of 100: Healthy.");
     expect(html).not.toContain("Counts for");
-    expect(html).toMatch(/aria-label="FinLit Prism rating: Average, 54\.5 out of 100, rated\. 100% of inputs available\./);
+    expect(html).toMatch(/aria-label="FinLit Prism rating: Average, 54\.5 out of 100, rated\."/);
   });
   it("does not leak internals", () => {
     for (const w of ["calculationTrace", "inputHash", "snapshotReceipt", R.id]) expect(html).not.toContain(w);
@@ -152,9 +154,10 @@ describe("Prism page", () => {
   it("shows the stored report with its actions", () => {
     state.latest = R; state.gold = true;
     const t = text(page("/prism/EXAMPLE"));
-    expect(t).toContain("Download report (PDF)");
+    expect(t).not.toMatch(/PDF|download/i);   // task #220: no PDF and no download anywhere in the report
     expect(t).toContain("Recalculate");
-    expect(t).not.toContain("Statement basis"); expect(t).not.toContain("Standalone");
+    const rep = t.split("Questions about this page")[0];      // task #220: the page's questions now sit inside it; they mention the search's basis choice
+    expect(rep).not.toContain("Statement basis"); expect(rep).not.toContain("Standalone");
     state.admin = false;
     expect(text(page("/prism/EXAMPLE"))).not.toContain("Download report (PDF)");      // administrators only, for now
     state.admin = true;
@@ -172,7 +175,21 @@ describe("Prism page", () => {
     const t = text(page("/prism"));
     expect(t).toContain("Choose a company");
     expect(t).toContain("Browse companies");
-    expect(t).toContain("20 a day");
+    // task #311: the member's own allowance, never a fixed 20 for everyone; how a rating is calculated is not shown
+    expect(t).toContain("Choose a company to open its rating. A new rating can take up to half a minute. You can open 10 a day.");
+    expect(t).not.toMatch(/starts calculating|Each member can calculate|never starts a calculation|which inputs are missing/);
+    state.perDay = 20;
+    expect(text(page("/prism"))).toContain("You can open 20 a day.");
+    state.perDay = null;
+    const t2 = text(page("/prism"));
+    expect(t2).toContain("A new rating can take up to half a minute.");
+    expect(t2).not.toContain("a day.");
+    state.perDay = 10;
+  });
+  it("task #311: the recent ratings list says only what it is (shown when the member has opened one)", async () => {
+    const src = (await import("node:fs")).readFileSync(new URL("../components/prism/pzr/Landing.tsx", import.meta.url), "utf8");
+    expect(src).toContain("<p>The latest rating for each company.</p>");
+    expect(src).not.toContain("Opening one never starts a calculation");
   });
   it("offers quick select companies under the search box: six one-tap links to their Prism pages and a View all companies button", () => {
     state.gold = true;
@@ -211,7 +228,8 @@ describe("Prism report top: the card pair (fundamental analysis and technical an
     expect(t).toContain("Cumulative fundamental score"); expect(t).toContain(score1(R.rating.final)); expect(t).toContain("Average");
     expect(t).toContain("Technical short term"); expect(t).toContain("Technical long term");
     expect(t).toContain(th.shortTerm.horizon!); expect(t).toContain(th.longTerm.horizon!);
-    expect(t).toContain("Technical analysis is not included in the financial-health score");
+    expect(t).not.toContain("Technical analysis is not included in the financial-health score");   // task #311
+    expect(t).toContain("Price trend and momentum, shown separately from the score.");
     expect(t).toContain(ratingWord(th.shortTerm.rating, th.shortTerm.score).word);
     expect(html).toContain(`aria-label="FinLit Prism rating: Average, ${score1(R.rating.final)} out of 100`);
   });
@@ -261,5 +279,27 @@ describe("Prism page header names the basis the report really uses (model 3.6.16
     expect(text(page("/prism/NESTLEIND"))).toContain("NESTLEIND · Consolidated statements.");
     state.latest = null;
     expect(text(page("/prism/NESTLEIND"))).toContain("NESTLEIND · Consolidated statements.");
+  });
+});
+
+describe("task #207: the showcase company's report, never the fictional sample", () => {
+  it("while the account check has not answered, the page waits (a skeleton), it never flashes the fictional example", () => {
+    state.gold = false; state.ready = false;
+    const t = text(page("/prism/RELIANCE"));
+    expect(t).not.toContain("Example only: a fictional company");
+    expect(t).not.toContain("Example Components");
+    state.ready = true; state.gold = true;
+  });
+  it("a visitor (not signed in) on the showcase report is offered Sign in (free) and a free account, both coming back to that report, not Try again", async () => {
+    const { ApiError } = await import("../lib/api");
+    state.gold = false; state.showcase = ["RELIANCE"]; state.latest = null;
+    state.error = new ApiError(401, { status: "sign_in_required", detail: "Sign in to open the FinLit Prism report. It is free." });
+    const html = page("/prism/RELIANCE");
+    expect(text(html)).toContain("Sign in to open FinLit Prism");
+    expect(html).toContain('href="/login?next=%2Fprism%2FRELIANCE"');
+    expect(html).toContain('href="/login?mode=signup&amp;next=%2Fprism%2FRELIANCE"');
+    expect(text(html)).not.toContain("Try again");
+    expect(text(html)).not.toContain("Example Components");
+    state.error = null; state.showcase = []; state.gold = true;
   });
 });

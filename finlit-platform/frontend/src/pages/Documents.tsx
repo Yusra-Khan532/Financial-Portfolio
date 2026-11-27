@@ -1,11 +1,13 @@
 import { PageHeader } from "../components/PageHeader";
 import { CoLogo } from "../components/CoLogo";
+import { SentimentChip } from "../components/SentimentChip";
 import { useMemo, useState } from "react";
 import { Link } from "react-router";
 import { Icon } from "../lib/icons";
 import { useDocTitle } from "../lib/title";
 import { dayLabel, docType, useFeed } from "../lib/feed";
 import { useWatchlist } from "../lib/watchlist";
+import { coTitle, subLine, titleOf } from "../lib/companyLabel";
 
 const TYPES = ["All", "Annual report", "Investor presentation", "Call transcript", "Offer document", "Results filing", "Other filing"];
 const COLOUR: Record<string, string> = { "Annual report": "var(--k1)", "Investor presentation": "var(--k2)", "Call transcript": "var(--k3)", "Offer document": "var(--k7)", "Results filing": "var(--k5)", "Other filing": "var(--k4)" };
@@ -25,15 +27,15 @@ export function DocumentsPage() {
   return (
     <div className="wrap ipo">
       <PageHeader plan="free" title="Documents" art="report" links={["/news", "/results", "/research"]} actions={<label className="sw"><input type="checkbox" checked={onlyMine} onChange={(e) => setOnlyMine(e.target.checked)} /><span aria-hidden="true" /><b>Only my watchlist{mine.length ? ` (${mine.length})` : ""}</b></label>}
-        description={<>Annual reports, presentations, transcripts and results filings, <b>linked straight to the exchange</b>. Open any file in a new tab.</>} />
+        description="Annual reports, presentations, transcripts and results filings, linked to the exchange." />
       <div className="ipo-bar2"><input className="cs-in" aria-label="Search documents" placeholder="Search company or title" value={q} onChange={(e) => setQ(e.target.value)} style={{ minWidth: 260 }} />
         <div className="fchips" role="group" aria-label="Type">{TYPES.map((t) => <button key={t} className={"chip-b" + (type === t ? " on" : "")} aria-pressed={type === t} onClick={() => setType(t)}>{t}</button>)}</div></div>
       {loading && <div className="skeleton" style={{ height: 220 }} />}
       {!loading && !shown.length && <div className="card dw-empty"><span className="dw-ei"><Icon name="book" /></span><b>No documents yet</b><p>Filings appear as companies are loaded.</p></div>}
       <div className="doc-grid">{shown.map((i) => { const t = docType(i); return (
-        <article key={i.id} className="card doc-c" style={{ "--tc": COLOUR[t] } as React.CSSProperties}>
-          <span className="doc-t"><i />{t}</span><h3>{i.link ? <a href={i.link} target="_blank" rel="noopener noreferrer">{i.title}</a> : i.title}</h3>
-          <p>{i.symbol ? <Link to={`/stocks/${i.symbol}`}><CoLogo symbol={i.symbol} name={i.company} size={20} inline /><b>{i.symbol}</b></Link> : null}{i.company ? ` ${i.company}` : ""} · {dayLabel(i.date)}</p></article>); })}</div>
+        <article key={i.id} className="card ui-card ui-card--sm doc-c" style={{ "--tc": COLOUR[t] } as React.CSSProperties}>
+          <span className="doc-th"><span className="doc-t"><i />{t}</span><SentimentChip s={i.sentiment} /></span><h3>{i.link ? <a href={i.link} target="_blank" rel="noopener noreferrer">{i.title}</a> : i.title}</h3>
+          <p>{i.symbol ? <Link to={`/stocks/${i.symbol}`}><CoLogo symbol={i.symbol} name={i.company} size={20} inline /><b title={coTitle({ symbol: i.symbol, name: i.company })}>{titleOf({ symbol: i.symbol, name: i.company })}</b></Link> : null}{i.symbol && i.company ? ((s) => (s ? ` ${s}` : ""))(subLine({ symbol: i.symbol, name: i.company }, i.company)) : i.company ? ` ${i.company}` : ""} · {dayLabel(i.date)}</p></article>); })}</div>
     </div>
   );
 }

@@ -1,0 +1,7 @@
+{"days": 90, "events": ["order", "capacity", "partnership", "mna", "fundraise", "rating", "management", "legal"], "sample": "Sample filings for the demo (not real filings)",
+ "companies": [
+  {"s": "HDFCBANK", "n": "HDFC Bank", "ev": {"rating": {"n": 2, "d": "2026-11-14", "t": "Credit rating reaffirmed (sample)", "l": null, "dates": ["2026-11-14", "2026-10-02"]}, "management": {"n": 1, "d": "2026-10-21", "t": "Appointment of an independent director (sample)", "l": null, "dates": ["2026-10-21"]}}},
+  {"s": "RELIANCE", "n": "Reliance Industries", "ev": {"capacity": {"n": 1, "d": "2026-11-05", "t": "Commissioning of a new unit (sample)", "l": null, "dates": ["2026-11-05"]}, "fundraise": {"n": 3, "d": "2026-10-28", "t": "Allotment of debentures (sample)", "l": null, "dates": ["2026-10-28", "2026-09-30", "2026-09-02"]}}},
+  {"s": "INFY", "n": "Infosys", "ev": {"order": {"n": 1, "d": "2026-11-18", "t": "Multi-year deal with a European client (sample)", "l": null, "dates": ["2026-11-18"]}}}
+ ],
+ "notPlaced": []}

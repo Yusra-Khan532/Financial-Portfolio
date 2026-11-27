@@ -1,0 +1,41 @@
+/* Task #390 reopened (developer file 39 v4, Part D; SHARED.md SP1, SP3, SP6, SP7 and SP8, the ETF parts): one spacing system for the ETF portfolio, as on
+   the Equity (spacing388.css) and MF (spacing389.css) pages. 18 px between any two boxes top to bottom; 28 px above the view cards (18 clear above their
+   10 px crowns); 12 px side by side (chip rows stay 8). Scoped to the ETF page only (.wrap.efp): the MF page has its own file.
+   Tokens: --pf-gap, --pf-gap-x, --pf-crown (set on this wrap only). */
+.wrap.efp { --pf-gap: 18px; --pf-gap-x: 12px; --pf-crown: 10px; }
+
+/* SP1 (left by #389: the ETF width on a direct visit). The `.pfx` full-width rule (portfolio/pf.css) only reaches the page once the Equity portfolio has
+   been opened in the visit (it is bundled with that page); on a direct visit the ETF page kept the site's 1,260 px. */
+.wrap.efp, .wrap.efp .gate, .wrap.efp .gate > div { min-width: 0; max-width: 100%; }
+
+/* SP3 (D1). Block flow, so the margins merge: each box sets the gap under it.
+   Was 22, 14, 14, 12, 18 and 14 px from the top card down through the bars, sections, Key figures and Next. */
+.wrap.efp .ptk-head { margin-bottom: var(--pf-gap); }
+.wrap.efp .px-strip { margin-top: calc(var(--pf-gap) + var(--pf-crown)); margin-bottom: var(--pf-gap); }
+.wrap.efp .px-since { margin: 0 0 var(--pf-gap); }
+.wrap.efp .ptk-bar { margin-bottom: var(--pf-gap); }
+.wrap.efp .px-asof { margin: 0 0 var(--pf-gap); }
+.wrap.efp .ptk-hz { margin-bottom: var(--pf-gap); }
+.wrap.efp .ptk-next { margin: 0 0 var(--pf-gap); }
+/* D2 / E1: the shared bottom (portfolio/shared/shared.css .pgb) sits 18 px under the last box, inside the page column, full width */
+.wrap.efp > .pgb { margin-top: var(--pf-gap); }
+
+/* SP6 (D3). The view cards line up: top-aligned content and the same 16 px top padding on every card, as on equity (each card centred its content, so
+   "What's inside" sat 9 px higher than "Your ETFs" and "Risk analytics", all three lower than "What your ETFs cost"). Desktop only.
+   D6: stacked cards (one or two columns) get the same 18 px clear above each crown (the cards stood 14 px apart on a phone). */
+@media (min-width: 761px) {
+  .wrap.efp .px-c.px-vw { display: flex; flex-direction: column; justify-content: flex-start; align-items: stretch; text-align: left; }
+  .wrap.efp .px-c { padding-top: 16px; }
+}
+@media (max-width: 1100px) { .wrap.efp .px-strip { row-gap: calc(var(--pf-gap) + var(--pf-crown)); } }
+
+/* SP7 (D4). 12 px between boxes side by side: the two boxes in the top card (14), the risk tiles and cards (10), the shared-stock cards (10), the
+   market-fall boxes (14) */
+.wrap.efp :is(.ptk-top2, .mfm-cards, .eqr-tiles, .eqr-cards, .eqr-b3, .eqr-f4, .eq-lc, .fx, .ptk-kf) { gap: var(--pf-gap-x); }
+
+/* SP8 (D5). 18 px under the What's inside sub-tabs (16) */
+.wrap.efp .mfm-subtabs { margin-bottom: var(--pf-gap); }
+
+/* C4: the basis line under the cost and the view cards, a full row of the strip, 8 px under the cards at every width */
+.wrap.efp .etp-basis { grid-column: 1 / -1; margin: -4px 0 0; font-size: var(--fs-12, 12px); color: var(--sp-mute); }
+@media (max-width: 1100px) { .wrap.efp .etp-basis { margin-top: calc(8px - var(--pf-gap) - var(--pf-crown)); } }

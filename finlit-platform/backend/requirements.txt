@@ -1,7 +1,7 @@
 # Direct runtime dependencies (exact pins). CI runs pip-audit on these on every push,
 # and Dependabot proposes updates weekly.
-fastapi==0.143.2
-starlette==1.8.0
+fastapi==0.162.0
+starlette==1.10.0
 uvicorn[standard]==0.54.0
 httpx==0.28.1
 asyncpg==0.32.0
@@ -14,6 +14,9 @@ openpyxl==3.1.5
 defusedxml==0.7.1
 # Earnings-call summaries (finlit/earnings): reads the text of a transcript PDF the exchanges publish. Pure Python, no system library.
 pypdf==6.21.4
+# HDFC's monthly factsheet PDF, uploaded by an administrator (finlit/fund_files.py, task #281 round 7): the reader (disclosure_parsers/houses_e.py) needs
+# each character's position and font, which pypdf does not give. pdfplumber is MIT licensed (with pdfminer.six, MIT, and pypdfium2, Apache-2.0/BSD-3).
+pdfplumber==0.11.10
 # Sector pages (docs/SECTORS.md): the finlit_technicals package (backend/finlit_technicals) needs numpy and pandas. They are imported only by the nightly
 # `refresh-sectors` job process, never by the website process.
 numpy==2.5.4
@@ -21,3 +24,7 @@ pandas==3.1.0
 # Diversification card (docs/DIVERSIFICATION.md): scipy and scikit-learn, imported only when a request needs them
 scipy==1.18.1
 scikit-learn==1.9.1
+anthropic==2.10.0        # Ask FinLit AI (finlit/ask): the official SDK, async streaming with tools
+# News sentiment (task #365, finlit/sentiment.py): the int8 ONNX model and its tokenizer, read without PyTorch (the model is exported at image build)
+onnxruntime==1.20.1
+tokenizers==0.20.3

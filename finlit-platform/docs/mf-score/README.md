@@ -23,7 +23,7 @@ Measured on synthetic data: 5,120 funds (16 groups, both plans) score in 2.3 s o
 ## Plan gating
 
 Gold (and admin) see the score (founder decision: a Gold feature). Basic, Silver and visitors get a locked answer: no value, no pillar, no breakdown, no rank, no list order (`/api/mf/scores` lists return nothing,
-`?codes=` returns null fields, `/api/mf?sort=score` answers 403). Responses are `private, no-store`. Optional open schemes: env `MF_SCORE_SHOWCASE=120465,...` (the site has no fund showcase list, default none).
+`?codes=` returns null fields, `/api/mf?sort=score` answers 403). Responses are `private, no-store`. Optional open schemes: env `MF_SCORE_SHOWCASE=120465,...` (default none), plus the landing page's sample fund (task #239, 19 Nov 2026): `MF_LANDING_FUND` (default 122639, Parag Parikh Flexi Cap Fund, Direct, Growth; `off` shows none) is open on its own page, and `GET /api/mf/score-showcase` sends its card figures to every visitor (score, label, the four parts' figures and words, name, plan, category, run date; never the measures or reasons; `public, max-age=300`; 404 with the reason when it has no rated score).
 
 ## Decisions where the draft is silent (all "designer decision pending confirmation")
 

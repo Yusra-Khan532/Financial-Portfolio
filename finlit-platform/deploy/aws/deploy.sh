@@ -66,8 +66,12 @@ public_ip() {
   printf '%s' "$ip"
 }
 
+domains() {  # DOMAIN may list several hosts for Caddy ("finlitventures.com, www.finlitventures.com, app.finlitventures.com"): one per line
+  envval DOMAIN | tr ', ' '\n\n' | sed '/^$/d'
+}
+
 site_url() {
-  local d; d="$(envval DOMAIN)"
+  local d; d="$(domains | head -n 1)"
   if [ -n "$d" ]; then printf 'https://%s' "$d"; else printf 'http://%s' "$(public_ip)"; fi
 }
 
@@ -115,6 +119,13 @@ git_sync() {
     mkdir -p "$SRC"
     env "${env_git[@]}" git clone --depth 1 --branch "$REPO_BRANCH" "$REPO_URL" "$SRC" || die "git clone failed (network, wrong branch, or a private repository without GIT_TOKEN)."
   fi
+  # auto-deploy.sh deploys the branch's newest GREEN commit, which can be a little behind the branch's head (27 Nov 2026): DEPLOY_SHA names it exactly.
+  if [ -n "${DEPLOY_SHA:-}" ] && [ "$(git -C "$SRC" rev-parse HEAD)" != "$DEPLOY_SHA" ]; then
+    printf '%s' "$DEPLOY_SHA" | grep -Eq '^[0-9a-f]{40}$' || die "DEPLOY_SHA '$DEPLOY_SHA' is not a full commit id."
+    say "Fetching commit $DEPLOY_SHA (the newest one with green checks)"
+    env "${env_git[@]}" git -C "$SRC" fetch --depth 1 origin "$DEPLOY_SHA" || die "git fetch of commit $DEPLOY_SHA failed."
+    git -C "$SRC" reset --hard "$DEPLOY_SHA" >/dev/null
+  fi
   [ -f "$PROJ/Dockerfile" ] || die "$PROJ/Dockerfile not found. Is REPO_SUBDIR ('$REPO_SUBDIR') the folder that holds the Dockerfile?"
   [ -f "$PROJ/deploy/aws/docker-compose.aws.yml" ] || die "deploy/aws/docker-compose.aws.yml is missing in $PROJ: is the branch up to date?"
   info "code is at commit $(git -C "$SRC" rev-parse --short HEAD): $(git -C "$SRC" log -1 --format=%s | cut -c1-70)"
@@ -144,10 +155,12 @@ wait_healthy() {  # wait_healthy -> 0 when /api/ping and then /api/health answer
   done
   info "/api/health is ok"
   # the same through the front door (Caddy)
-  local d code; d="$(envval DOMAIN)"
-  if [ -n "$d" ]; then
-    code="$(curl -ks -o /dev/null -w '%{http_code}' -m 10 --resolve "$d:443:127.0.0.1" "https://$d/api/ping" || true)"
-    [ "$code" = 200 ] && info "https://$d answers" || info "https://$d does not answer yet (HTTP $code): the certificate can take a minute, and the DNS A record must point at this server. Check: bash $0 logs caddy"
+  local d code hosts; hosts="$(domains)"
+  if [ -n "$hosts" ]; then
+    for d in $hosts; do   # each host Caddy serves, asked on this server (not through the internet or Cloudflare)
+      code="$(curl -ks -o /dev/null -w '%{http_code}' -m 10 --resolve "$d:443:127.0.0.1" "https://$d/api/ping" || true)"
+      [ "$code" = 200 ] && info "https://$d answers" || info "https://$d does not answer yet (HTTP $code): the certificate can take a minute. Check: bash $0 logs caddy"
+    done
   else
     code="$(curl -s -o /dev/null -w '%{http_code}' -m 10 http://127.0.0.1:${FRONT_HTTP_PORT:-80}/api/ping || true)"
     [ "$code" = 200 ] && info "the front door (Caddy, port 80) answers" || { echo "Caddy does not answer on port 80 (HTTP $code)" >&2; return 1; }
@@ -162,12 +175,12 @@ disk_pct() { df --output=pcent / | tail -n 1 | tr -dc '0-9'; }
 
 # Free what is safe to free (task: the "disk is almost full" alert kept coming back on days with many automatic deploys, because each build adds image layers and
 # build cache and the old rule kept a whole day of cache). Never touches the running containers, the database volume, the backups volume or the two images a rollback needs.
-#   - the build cache is capped by size (BUILD_CACHE_KEEP, default 2gb), not by age
+#   - the build cache is capped by size (BUILD_CACHE_KEEP, default 512mb: the image is built on GitHub and pulled, so the server seldom builds), not by age
 #   - every finlit-app image other than current, previous and pending is removed, then dangling images, stopped containers and unused networks
 #   - the journal is cut to 200 MB and the package cache is emptied, when those exist
 cmd_clean() {
   local before after keep id tag
-  before="$(disk_pct)"; keep="${BUILD_CACHE_KEEP:-2gb}"
+  before="$(disk_pct)"; keep="${BUILD_CACHE_KEEP:-512mb}"
   info "disk ${before:-?}% full before cleaning"
   docker builder prune -af --keep-storage "$keep" >/dev/null 2>&1 || docker builder prune -af >/dev/null 2>&1 || true
   for id in $(docker images "$IMAGE" -q 2>/dev/null | sort -u); do
@@ -200,17 +213,47 @@ disk_guard() {  # before a deploy: from 75% clean what is safe to clean and say 
   [ "${pct:-0}" -lt 97 ] || die "the disk is ${pct}% full: a deploy now could stop the database. Free space first (docker system df; bash $0 backups)."
 }
 
+# The image GitHub builds for every commit on main (.github/workflows/platform-image.yml; the repository is public, so the image is too and needs no login).
+# Building on this 2 GB server took up to 2 GB for the website bundle alone, next to the live site and the jobs: every deploy pushed the server into
+# swap and slowed the site for many minutes (17 Nov 2026). Waits while GitHub is still building this commit; when the image does not come (the build
+# failed, GitHub cannot be reached, FINLIT_PULL_IMAGE=0 in the env file), the server builds it itself exactly as before.
+PREBUILT_REPO_DEFAULT="ghcr.io/yusra-khan532/finlit-app"
+pull_prebuilt() {
+  local full="$1" repo want wait_s waited=0
+  want="${FINLIT_PULL_IMAGE:-$(envval FINLIT_PULL_IMAGE)}"
+  [ "$want" != "0" ] || return 1
+  repo="${FINLIT_IMAGE_REPO:-$(envval FINLIT_IMAGE_REPO)}"; repo="${repo:-$PREBUILT_REPO_DEFAULT}"
+  wait_s="${PREBUILT_WAIT_SECONDS:-1200}"
+  [ -n "$full" ] || return 1
+  info "looking for the prebuilt image $repo:$full (waiting up to $((wait_s / 60)) minutes while GitHub builds it)"
+  while :; do
+    if docker pull -q "$repo:$full" >/dev/null 2>&1; then
+      [ "$(docker image inspect -f '{{index .Config.Labels "finlit.commit"}}' "$repo:$full" 2>/dev/null)" = "$(git -C "$SRC" rev-parse --short=7 HEAD)" ] || {
+        info "the prebuilt image is not labelled with this commit; building here instead"; docker rmi "$repo:$full" >/dev/null 2>&1 || true; return 1; }
+      docker tag "$repo:$full" "$IMAGE:current" || { info "the prebuilt image could not be tagged; building here instead"; return 1; }
+      docker rmi "$repo:$full" >/dev/null 2>&1 || true     # only the extra name goes: finlit-app:current keeps the image
+      return 0
+    fi
+    [ "$waited" -lt "$wait_s" ] || { info "no prebuilt image for this commit after $((wait_s / 60)) minutes; building here instead"; return 1; }
+    sleep 30; waited=$((waited + 30))
+  done
+}
+
 cmd_deploy() {
   need_docker
   mkdir -p "$STATE"
   git_sync
   check_env
   local commit old_id new_id
-  commit="$(git -C "$SRC" rev-parse --short HEAD)"; export GIT_COMMIT="$commit"
+  commit="$(git -C "$SRC" rev-parse --short=7 HEAD)"; export GIT_COMMIT="$commit"   # 7 characters, as the GitHub build labels it
   old_id="$(image_id "$IMAGE:current")"
   [ -z "$old_id" ] || docker tag "$IMAGE:current" "$IMAGE:pending"   # a second name keeps the old build alive while the new one replaces "current"
-  say "Building the image (first time 6-12 minutes on this small server; later builds reuse the cache)"
-  dc build app
+  if pull_prebuilt "$(git -C "$SRC" rev-parse HEAD)"; then
+    say "Using the image GitHub built for commit $commit (no build on this server)"
+  else
+    say "Building the image (first time 6-12 minutes on this small server; later builds reuse the cache)"
+    dc build app
+  fi
   new_id="$(image_id "$IMAGE:current")"
   if [ -n "$old_id" ]; then
     if [ "$old_id" != "$new_id" ]; then
@@ -223,6 +266,10 @@ cmd_deploy() {
   say "Starting the website (the jobs container is moved separately, below)"
   # Everything except `jobs`: a website deploy never stops a running job (founder, 14 Nov 2026). An older layout's single app container is replaced here.
   dc up -d --remove-orphans db redis app caddy backup
+  # Monitoring (docs/MONITORING.md): the uptime checker always; Uptime Kuma only when the env file has COMPOSE_PROFILES=kuma. A monitor that
+  # cannot start never stops the deploy: the site is already up at this point.
+  dc up -d --no-deps gatus || echo "note: the uptime checker (gatus) did not start; the site is not affected" >&2
+  if grep -qE '^COMPOSE_PROFILES=.*kuma' "$ENV_FILE" 2>/dev/null; then dc up -d --no-deps uptime-kuma || echo "note: uptime-kuma did not start" >&2; fi
   echo "$commit" > "$STATE/current_commit"
   # Caddyfile and backup.sh are single files mounted into containers; git replaces files with new ones, so a running container would keep
   # reading the old copy. When either changed since the last deploy, recreate those two containers (a second of downtime for the front door).
@@ -239,7 +286,7 @@ cmd_deploy() {
   fi
   cmd_jobs || info "WARNING: the jobs container could not be moved to the new code now; auto-deploy tries again at its next check (bash $0 jobs)"
   docker image prune -f >/dev/null 2>&1 || true
-  docker builder prune -af --keep-storage "${BUILD_CACHE_KEEP:-2gb}" >/dev/null 2>&1 || true   # the cache is capped by size: many automatic deploys in one day fill the disk otherwise
+  docker builder prune -af --keep-storage "${BUILD_CACHE_KEEP:-512mb}" >/dev/null 2>&1 || true   # the cache is capped by size: many automatic deploys in one day fill the disk otherwise
   say "Done: FinLit is running (commit $commit)"
   info "Open:        $(site_url)"
   info "Check it:    cd $PROJ && bash scripts/smoke.sh $(site_url)"

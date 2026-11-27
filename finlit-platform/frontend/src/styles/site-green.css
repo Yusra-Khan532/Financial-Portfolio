@@ -1,18 +1,30 @@
-/* Task #161 (15 Nov 2026): the landing page's deep green (task #150) is the dark-mode background of the whole site, end to end: the workspace, every
-   tool and every page sit on the same green, held still while the page scrolls, and the cards, menus and bars are a lighter shade of the same green
-   so nothing reads as the old near-black. Light mode is unchanged. Loaded after the theme layers (finlit.css, luxe.css, design-system.css, calm.css), so these tokens win; overlay.css, which only reads them, stays last. */
+/* Task #161 (15 Nov 2026): one green is the dark-mode background of the whole site, end to end: the workspace, every tool and every page sit on the same
+   green, held still while the page scrolls, and the cards, menus and bars are a lighter shade of the same green. Light mode is unchanged.
+   Task #206 (18 Nov 2026, the founder's choice): that green is now the sage of the team's photo, #5D997F (hue 154, saturation 24%), instead of the deep
+   green-black #0C2619. The photo's own colour is too light to carry text (white on it is 3.1:1, the muted grey 1.5:1), so the page and the cards use
+   darker steps of the same sage, chosen so every dark-mode text colour stays readable (WCAG AA, at least 4.5:1, on the lightest surface; checked in
+   site-green.test.ts), and the photo's exact colour is the glow at the top of the page and the control borders, where no text sits.
+   Task #227 (18 Nov 2026, the team's reference pictures): the same sage hue, taken down to a deep dark green (page #173125, cards #0D1B15, as deep as the
+   pictures), with subtle green borders; and the text colours dark mode really uses (--text / --muted / --faint, set by finlit.css with more weight than
+   design-system.css) become warm cream, sage grey and a lighter sage. Before, they stayed the old blue-greys #B1B2B8 and #8F919B, and #8F919B read at
+   3.4:1 on the green cards. Every text colour is at least 6.5:1 on every surface (site-green.test.ts).
+   Loaded after the theme layers (finlit.css, luxe.css, design-system.css, calm.css), so these tokens win; overlay.css, which only reads them, stays last. */
 :root[data-theme="dark"] {
-  --bg-page: #0C2619; --bg-surface: #10301F; --bg-subtle: #143826; --bg-elevated: #19422E; --bg-selected: #1F4D37;
-  --border-subtle: #2B5A43; --border-control: #5E8A72;
-  --action-on-primary: #0C2619; --action-disabled-bg: #1F4D37;
-  --bg: #0C2619; --s1: #10301F; --s2: #143826; --s3: #19422E; --border: #24503A; --border-strong: #3F6E56;   /* luxe.css sets these for every non-light theme, with the same weight */
-  --header: #0C2619;
-  --rep-a: #12341F; --rep-b: #0C2619; --rep-border: #2B5A43; --band-a: #12341F; --band-b: #0A2116; --foot-a: #0E2B1C; --foot-b: #0A2116; --pop-bg: #16402C; --tape-bg: #081B11;
-  --glow: radial-gradient(110% 120% at 80% 0%, #1B4A34, rgba(12, 38, 25, 0) 72%);
+  --sage: #5D997F;   /* the photo (task #206): the glow at the top and the control borders */
+  --bg-page: #173125; --bg-surface: #0D1B15; --bg-subtle: #14241D; --bg-elevated: #1C3128; --bg-selected: #20372D;
+  --border-subtle: #254135; --border-control: #5D997F;
+  --action-on-primary: #0D1B15; --action-disabled-bg: #20372D;
+  --bg: #173125; --s1: #0D1B15; --s2: #14241D; --s3: #1C3128; --border: #254135; --border-strong: #39604F;   /* luxe.css sets these for every non-light theme, with the same weight */
+  --header: #173125;
+  /* task #227: text. Cream for primary text, sage grey for descriptions, a lighter sage for the quietest labels; design-system names follow */
+  --text: #F3EEE2; --muted: #C3D0C7; --faint: #A6B8AD;
+  --text-primary: #F3EEE2; --text-body: #DCE4DE; --text-secondary: #C3D0C7; --text-muted: #A6B8AD; --text-disabled: #7E9187;
+  --rep-a: #12241C; --rep-b: #0D1B15; --rep-border: #254135; --band-a: #14281F; --band-b: #0D1B15; --foot-a: #12241C; --foot-b: #0A1510; --pop-bg: #152820; --tape-bg: #0A1510;
+  --glow: radial-gradient(110% 120% at 80% 0%, rgba(93, 153, 127, .30), rgba(23, 49, 37, 0) 72%);
   --page-glow: var(--glow);
 }
-:root[data-theme="dark"] body { background: #0C2619 radial-gradient(110% 120% at 80% 0%, #1B4A34, #0C2619 72%) fixed; background-color: #0C2619; }
-/* The few dark blocks with their own near-black colours: the Prism cards (company page and Prism report) and the dashboard's market summary. */
-:root[data-theme="dark"] :is(.report.dk-card, .pzr-cardtop .pcx-body) { --dk-a: #15382A; --dk-b: #10301F; --dk-border: #2B5A43; --dk-sep: #10301F; --dk-tick-off: #4F7A63;
-  --dk-disc-1: #245A42; --dk-disc-2: #1A4532; --dk-disc-3: #123423; }
-:root[data-theme="dark"] .dsh-mr-sum { background: #10301F; }
+:root[data-theme="dark"] body { background: #173125 radial-gradient(110% 120% at 80% 0%, rgba(93, 153, 127, .30), #173125 72%) fixed; background-color: #173125; }
+/* The few dark blocks with their own colours: the Prism cards (company page and Prism report) and the dashboard's market summary. */
+:root[data-theme="dark"] :is(.report.dk-card, .pzr-cardtop .pcx-body) { --dk-a: #14241D; --dk-b: #0D1B15; --dk-border: #254135; --dk-sep: #0D1B15; --dk-tick-off: #5D997F;
+  --dk-disc-1: #39604F; --dk-disc-2: #2B4A3D; --dk-disc-3: #20372D; }
+:root[data-theme="dark"] .dsh-mr-sum { background: #0D1B15; }

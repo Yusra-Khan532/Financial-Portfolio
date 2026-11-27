@@ -134,7 +134,7 @@
    "KINGFA": {
     "name": "Kingfa Science & Technology (India) Ltd",
     "sector": "Capital Goods",
-    "size": "S",
+    "size": "X",
     "mcap_cr": 8125,
     "prism": {
      "final": 68,
@@ -147,7 +147,7 @@
    "TIPSMUSIC": {
     "name": "Tips Music Ltd",
     "sector": "Media, Entertainment & Publication",
-    "size": "S",
+    "size": "X",
     "mcap_cr": 9747,
     "prism": {
      "final": 77,
@@ -569,16 +569,19 @@
   "size_weight": {
    "eq": {
     "L": 74.97,
-    "S": 24.99
+    "S": 8.33,
+    "X": 16.66
    },
    "mc": {
     "L": 99.56,
-    "S": 0.43
+    "S": 0.19,
+    "X": 0.24
    }
   },
   "size_count": {
    "L": 9,
-   "S": 3
+   "X": 2,
+   "S": 1
   },
   "share_weight": {
    "eq": {
@@ -769,7 +772,7 @@
     "rule": "K1",
     "section": "risk",
     "priority": 72,
-    "text": "SKYGOLD is 8.3% of the amount but 20.8% of the risk.",
+    "text": "SKYGOLD is 8.3% of the list and carries 20.8% of the risk.",
     "mode": "eq"
    },
    {
@@ -807,7 +810,7 @@
      "rule": "K1",
      "section": "risk",
      "priority": 72,
-     "text": "SKYGOLD is 8.3% of the amount but 20.8% of the risk.",
+     "text": "SKYGOLD is 8.3% of the list and carries 20.8% of the risk.",
      "mode": "eq"
     },
     {

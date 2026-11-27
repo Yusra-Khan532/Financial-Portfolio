@@ -4,52 +4,54 @@
   --gx-muted:#6b6962; --gx-grid:#e1e0d9; --gx-axis:#b5b3a8; --gx-gain:#006300; --gx-loss:#c43a39; --gx-pos:#2a78d6; --gx-neg:#e34948; --gx-mid:#f0efec; }
 .gx { display: grid; grid-template-columns: 320px minmax(0,1fr); gap: 20px; padding-top: 18px; padding-bottom: 40px; align-items: start; }
 .gx .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
-.gx-panel { position: sticky; top: 76px; background: var(--s1); border: 1px solid var(--border); border-radius: 12px; padding: 14px; max-height: calc(100vh - 96px); overflow: auto; }
-.gx-panel h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); margin: 10px 0 8px; }
+.gx-panel { position: sticky; top: 76px; background: var(--s1); border: 1px solid var(--border); border-radius: var(--r-ctl); padding: 14px; max-height: calc(100vh - 96px); overflow: auto; }
+.gx-panel h2 { font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif); color: var(--muted); margin: 10px 0 8px; }
 .gx-toggle { display: none; width: 100%; }
-.gx input[type=search], .gx input:not([type]), .gx select { background: var(--s2); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 7px 9px; font: inherit; font-size: 13px; max-width: 100%; }
+.gx input[type=search], .gx input:not([type]), .gx select { background: var(--s2); color: var(--text); border: 1px solid var(--border); border-radius: var(--r-ctl); padding: 7px 9px; font: inherit; font-size: var(--fs-13); max-width: 100%; }
 .gx-q, .gx-search input { width: 100%; box-sizing: border-box; }
-.gx-search { position: relative; } .gx-search ul { position: absolute; z-index: 5; left: 0; right: 0; margin: 2px 0 0; padding: 4px; list-style: none; background: var(--s2); border: 1px solid var(--border-strong); border-radius: 8px; }
-.gx-search li button { width: 100%; text-align: left; background: none; border: 0; color: var(--text); padding: 7px; border-radius: 6px; cursor: pointer; } .gx-search li button:hover, .gx-search li button:focus-visible { background: var(--s3); }
+.gx-search { position: relative; } .gx-search ul { position: absolute; z-index: 5; left: 0; right: 0; margin: 2px 0 0; padding: 4px; list-style: none; background: var(--s2); border: 1px solid var(--border-strong); border-radius: var(--r-ctl); }
+.gx-search li button { width: 100%; text-align: left; background: none; border: 0; color: var(--text); padding: 7px; border-radius: var(--r-ctl); cursor: pointer; } .gx-search li button:hover, .gx-search li button:focus-visible { background: var(--s3); }
 .gx-chips, .gx-legend { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
-.gx-chip { display: inline-flex; align-items: center; gap: 6px; background: var(--s2); border: 1px solid var(--border); border-radius: 999px; padding: 3px 4px 3px 10px; font-size: var(--fs-13); color: var(--text); }
-.gx-chip i { width: 14px; height: 3px; border-radius: 2px; } .gx-chip small, .gx-chip em { color: var(--muted); font-style: normal; font-size: 11px; }
-.gx-chip button { background: none; border: 0; color: var(--muted); cursor: pointer; font-size: var(--fs-16); line-height: 1; padding: 2px 6px; border-radius: 999px; } .gx-chip button:hover { color: var(--text); }
-.gx-chip .gx-mini { font-size: 11px; border: 1px solid var(--border); }
-.gx-seg { display: inline-flex; flex-wrap: wrap; gap: 2px; background: var(--s2); border: 1px solid var(--border); border-radius: 9px; padding: 2px; margin-bottom: 8px; }
-.gx-seg button { background: none; border: 0; color: var(--muted); padding: 5px 10px; border-radius: 7px; font: inherit; font-size: var(--fs-13); font-weight: 600; cursor: pointer; display: inline-flex; gap: 4px; align-items: center; }
-.gx-seg button[aria-pressed=true], .gx-seg button[aria-selected=true] { background: var(--gold-soft); color: var(--gold); } .gx-seg button:disabled { opacity: .4; cursor: not-allowed; }
-.gx-groups { display: flex; flex-wrap: wrap; gap: 5px; margin: 8px 0; } .gx-groups button { background: var(--s2); border: 1px solid var(--border); color: var(--muted); border-radius: 999px; padding: 3px 9px; font-size: 12px; cursor: pointer; } .gx-groups button[aria-pressed=true] { color: var(--gold); border-color: var(--gold); }
-.gx-list { list-style: none; margin: 0; padding: 0; } .gx-list li { display: flex; align-items: center; gap: 8px; padding: 6px 4px; border-bottom: 1px solid var(--border); font-size: 13px; cursor: grab; }
-.gx-list li label { display: flex; gap: 8px; align-items: center; flex: 1; cursor: pointer; } .gx-list li > span { flex: 1; } .gx-list small { color: var(--faint); font-size: 11px; white-space: nowrap; } .gx-list .grip { flex: none; color: var(--faint); }
-.gx-hint { font-size: 12px; margin: 4px 0; }
+.gx-chip { display: inline-flex; align-items: center; gap: 6px; background: var(--s2); border: 1px solid var(--border); border-radius: var(--ui-r-pill); padding: 3px 4px 3px 10px; font-size: var(--fs-13); color: var(--text); }
+.gx-chip i { width: 14px; height: 3px; border-radius: var(--ui-r-pill); } .gx-chip small, .gx-chip em { color: var(--muted); font-style: normal; font-size: var(--fs-12); }
+.gx-chip button { background: none; border: 0; color: var(--muted); cursor: pointer; font-size: var(--fs-16); line-height: 1; padding: 2px 6px; border-radius: var(--ui-r-pill); } .gx-chip button:hover { color: var(--text); }
+.gx-chip .gx-mini { font-size: var(--fs-12); border: 1px solid var(--border); }
+.gx-seg { display: inline-flex; flex-wrap: wrap; gap: 2px; background: var(--s2); border: 1px solid var(--border); border-radius: var(--r-ctl); padding: 2px; margin-bottom: 8px; }
+.gx-seg button { background: none; border: 0; color: var(--muted); padding: 5px 10px; border-radius: var(--r-ctl); font: inherit; font-size: var(--fs-13); font-weight: 600; cursor: pointer; display: inline-flex; gap: 4px; align-items: center; }
+.gx-seg button[aria-pressed=true], .gx-seg button[aria-selected=true] { background: var(--ui-on-bg); color: var(--ui-on-fg); } .gx-seg button:disabled { opacity: .4; cursor: not-allowed; }
+.gx-groups { display: flex; flex-wrap: wrap; gap: 5px; margin: 8px 0; } .gx-groups button { background: var(--s2); border: 1px solid var(--border); color: var(--muted); border-radius: var(--ui-r-pill); padding: 3px 9px; font-size: var(--fs-12); cursor: pointer; } .gx-groups button[aria-pressed=true] { color: var(--ui-on-fg); border-color: var(--ui-on-bg); background: var(--ui-on-bg); }
+.gx-list { list-style: none; margin: 0; padding: 0; } .gx-list li { display: flex; align-items: center; gap: 8px; padding: 6px 4px; border-bottom: 1px solid var(--border); font-size: var(--fs-13); cursor: grab; }
+.gx-list li label { display: flex; gap: 8px; align-items: center; flex: 1; cursor: pointer; } .gx-list li > span { flex: 1; } .gx-list small { color: var(--faint); font-size: var(--fs-12); white-space: nowrap; } .gx-list .grip { flex: none; color: var(--faint); }
+.gx-hint { font-size: var(--fs-12); margin: 4px 0; }
 .gx-bar { display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: center; margin-bottom: 4px; } .gx-bar .btn { padding: 0 12px; font-size: var(--fs-13); min-height: 34px; height: 34px; width: auto; flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px; line-height: 1; }
 .gx-views input, .gx-views select, .gx-bar select { min-height: 34px; height: 34px; font-size: var(--fs-13); } .gx-views input { width: 200px; max-width: 100%; }
-.gx-views { margin-bottom: 14px; font-size: 12px; }
+.gx-views { margin-bottom: 14px; font-size: var(--fs-12); }
 .gx-grid { display: grid; grid-template-columns: repeat(var(--cols), minmax(0,1fr)); gap: 14px; }
-.gx-cell { background: var(--s1); border: 1px solid var(--border); border-radius: 12px; padding: 12px; min-width: 0; display: flex; flex-direction: column; } .gx-cell.on { border-color: var(--gold); }
-.gx-cell header { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; } .gx-cell h3 { flex: 1; min-width: 0; margin: 0; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.gx-cell header select { max-width: 46%; } .gx-x { background: none; border: 0; color: var(--muted); font-size: 18px; cursor: pointer; }
-.gx-xy { display: flex; gap: 8px; flex-wrap: wrap; font-size: 12px; margin-bottom: 6px; } .gx-xy select { max-width: 100%; }
-.gx-body { min-height: 120px; position: relative; } .gx-plot { position: relative; } .gx-plot svg { display: block; max-width: 100%; } .gx-plot svg:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; border-radius: 6px; }
-.gx-tip { position: absolute; z-index: 4; pointer-events: none; background: var(--s3); color: var(--text); border: 1px solid var(--border-strong); border-radius: 8px; padding: 7px 9px; font-size: 12px; min-width: 130px; box-shadow: 0 6px 20px rgba(0,0,0,.25); }
-.gx-tip b { display: block; margin-bottom: 3px; } .gx-tip div { display: flex; gap: 6px; align-items: center; } .gx-tip i { width: 10px; height: 3px; border-radius: 2px; flex: none; } .gx-tip strong { font-weight: 700; } .gx-tip span { color: var(--muted); }
-.gx-empty, .gx-note { display: grid; gap: 6px; justify-items: center; text-align: center; padding: 28px 12px; border: 1px dashed var(--border-strong); border-radius: 10px; color: var(--muted); font-size: 13px; } .gx-note b { color: var(--text); }
-.gx-r { font-size: var(--fs-13); color: var(--muted); margin: 8px 0 0; line-height: 1.45; } .gx-r b { color: var(--text); } .gx-hov { font-size: 12px; color: var(--muted); margin: 6px 0 0; }
+.gx-cell { background: var(--s1); border: 1px solid var(--border); border-radius: var(--r-ctl); padding: 12px; min-width: 0; display: flex; flex-direction: column; } .gx-cell.on { border-color: var(--gold); }
+.gx-cell header { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; } .gx-cell h3 { flex: 1; min-width: 0; margin: 0; font: var(--ui-fw-semibold) var(--ui-fs-h3)/var(--lh-16) var(--font-sans); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gx-cell header select { max-width: 46%; } .gx-x { background: none; border: 0; color: var(--muted); font-size: var(--fs-18); cursor: pointer; }
+.gx-xy { display: flex; gap: 8px; flex-wrap: wrap; font-size: var(--fs-12); margin-bottom: 6px; } .gx-xy select { max-width: 100%; }
+.gx-body { min-height: 120px; position: relative; } .gx-plot { position: relative; } .gx-plot svg { display: block; max-width: 100%; } .gx-plot svg:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; border-radius: var(--ui-r-mark); }
+.gx-tip { position: absolute; z-index: 4; pointer-events: none; background: var(--s3); color: var(--text); border: 1px solid var(--border-strong); border-radius: var(--r-ctl); padding: 7px 9px; font-size: var(--fs-12); min-width: 130px; box-shadow: 0 6px 20px rgba(0,0,0,.25); }
+.gx-tip b { display: block; margin-bottom: 3px; } .gx-tip div { display: flex; gap: 6px; align-items: center; } .gx-tip i { width: 10px; height: 3px; border-radius: var(--ui-r-pill); flex: none; } .gx-tip strong { font-weight: 700; } .gx-tip span { color: var(--muted); }
+.gx-empty, .gx-note { display: grid; gap: 6px; justify-items: center; text-align: center; padding: 28px 12px; border: 1px dashed var(--border-strong); border-radius: var(--r-ctl); color: var(--muted); font-size: var(--fs-13); } .gx-note b { color: var(--text); }
+.gx-r { font-size: var(--fs-13); color: var(--muted); margin: 8px 0 0; line-height: 1.45; } .gx-r b { color: var(--text); } .gx-hov { font-size: var(--fs-12); color: var(--muted); margin: 6px 0 0; }
 .gx-add { display: flex; gap: 6px; margin-top: 10px; } .gx-add select { flex: 1; min-width: 0; } .gx-add .btn { padding: 6px 12px; font-size: var(--fs-13); }
-.gx-pie { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; } .gx-pie ul { list-style: none; margin: 0; padding: 0; font-size: var(--fs-13); flex: 1; min-width: 150px; } .gx-pie li { display: flex; gap: 8px; align-items: baseline; padding: 3px 0; flex-wrap: wrap; } .gx-pie li.on { font-weight: 700; } .gx-pie li i { width: 10px; height: 10px; border-radius: 2px; flex: none; } .gx-pie li span { flex: 1; } .gx-pie small { width: 100%; color: var(--faint); }
-.gx-foot { font-size: 12px; margin-top: 14px; }
+.gx-pie { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; } .gx-pie ul { list-style: none; margin: 0; padding: 0; font-size: var(--fs-13); flex: 1; min-width: 150px; } .gx-pie li { display: flex; gap: 8px; align-items: baseline; padding: 3px 0; flex-wrap: wrap; } .gx-pie li.on { font-weight: 700; } .gx-pie li i { width: 10px; height: 10px; border-radius: var(--ui-r-mark); flex: none; } .gx-pie li span { flex: 1; } .gx-pie small { width: 100%; color: var(--faint); }
+.gx-foot { font-size: var(--fs-12); margin-top: 14px; }
 @media (max-width: 1100px) { .gx-grid { --cols: 2 !important; } }
 @media (max-width: 900px) { .gx { grid-template-columns: minmax(0,1fr); } .gx-panel { position: static; max-height: none; } .gx-toggle { display: block; } }
 @media (max-width: 640px) { .gx-grid { grid-template-columns: minmax(0,1fr); } .gx-cell header select { max-width: 52%; } }
 .gx-yr { display: inline-flex; align-items: center; gap: 6px; margin: 0 0 8px 8px; font-size: var(--fs-13); font-weight: 600; color: var(--muted); }
-.gx-yr select { background: var(--s2); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 5px 8px; font: inherit; }
+.gx-yr select { background: var(--s2); color: var(--text); border: 1px solid var(--border); border-radius: var(--r-ctl); padding: 5px 8px; font: inherit; }
 
+/* task #163: a row's Add menu keeps its size; its options now name what each chart shows ("Chart 2 · Revenue"), which must not widen the closed box */
+.gx-list li select { flex: none; width: 104px; }
 .gx-list li.off { opacity: .55; cursor: default; } .gx-list li.off label { cursor: not-allowed; }
 .pagehead .gx-adv { margin-top: 10px; font-size: var(--fs-16); } .gx-adv a { color: var(--gold); font-weight: 600; }
 /* Chart builder: enlarge one chart over the page, "+ Add chart", and the plain-words reading under each chart */
 .gx-zoom { display: inline-flex; align-items: center; justify-content: center; padding: 2px 4px; }
-.gx-addchart { white-space: nowrap; } .gx-addchart span { font-weight: 700; font-size: 16px; line-height: 1; margin-right: 2px; }
+.gx-addchart { white-space: nowrap; } .gx-addchart span { font-weight: 700; font-size: var(--fs-16); line-height: 1; margin-right: 2px; }
 .gx-backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, .55); z-index: 60; }
 .gx-cell.gx-zoomed { position: fixed; z-index: var(--z-modal, 310); inset: 4vh 3vw; overflow: auto; box-shadow: 0 24px 80px rgba(0, 0, 0, .45); padding: 18px; }
 .gx-cell .cinf { margin-top: 12px; }
@@ -59,16 +61,19 @@
    and the "What does the chart say?" box is one line high with the same size on every chart and sits at the bottom of its card,
    so the boxes line up across a row however many legend lines or notes a chart has. */
 .gx-cell header select { height: 38px; box-sizing: border-box; }
-.gx-cell header .gx-x { flex: none; display: inline-grid; place-items: center; width: 38px; height: 38px; padding: 0; box-sizing: border-box; border: 1px solid var(--border-strong); border-radius: 10px; background: var(--s2); color: var(--muted); font-size: 20px; line-height: 1; }
+.gx-cell header .gx-x { flex: none; display: inline-grid; place-items: center; width: 38px; height: 38px; padding: 0; box-sizing: border-box; border: 1px solid var(--border-strong); border-radius: var(--r-ctl); background: var(--s2); color: var(--muted); font-size: var(--fs-20); line-height: 1; }
 .gx-cell header .gx-x:hover, .gx-cell header .gx-x:focus-visible { color: var(--gold); border-color: var(--gold); }
 .gx-cell header .gx-zoom svg { width: 18px; height: 18px; }
 .gx-cell .gx-body, .gx-cell .gx-r { flex: none; }
 .gx-cell .csay { margin: auto 0 0; }
+/* Task #225: each chart keeps its own height. The grid used to stretch every card in a row to the tallest one, so opening one chart's
+   "What does the chart say?" grew its neighbours too and pushed their closed panels down, leaving a gap. Each panel's open state is its own (<details>). */
+.gx-grid { align-items: start; }
 .gx-cell .gx-body { margin-bottom: 12px; }
 .gx-cell .csay > summary { min-height: 56px; }
 .gx-cell .csay-t small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .gx-cell .csay-t { min-width: 0; }
-.gx-count { font: 600 13px var(--sans); color: var(--muted); font-variant-numeric: tabular-nums; } .gx-max { font-size: 13px; color: var(--warn); }
+.gx-count { font: 600 var(--fs-13) var(--sans); color: var(--muted); font-variant-numeric: tabular-nums; } .gx-max { font-size: var(--fs-13); color: var(--warn); }
 /* Task #124: the chart's pencil sits with its other top-right controls; the badge counts its drawings */
 .gx-cell header .gx-draw { position: relative; } .gx-cell header .gx-draw svg { width: 17px; height: 17px; }
 .gx-cell header .gx-draw.on { color: var(--gold); border-color: var(--gold); background: color-mix(in srgb, var(--gold) 14%, var(--s2)); }
@@ -89,7 +94,7 @@
 .gx-edge { display: none; }
 @media (min-width: 901px) {
   .gx-panel { position: sticky; }
-  .gx-edge { display: inline-grid; place-items: center; position: absolute; top: 10px; right: 10px; z-index: 2; width: 32px; height: 32px; padding: 0; border: 1px solid var(--border-strong); border-radius: 8px;
+  .gx-edge { display: inline-grid; place-items: center; position: absolute; top: 10px; right: 10px; z-index: 2; width: 32px; height: 32px; padding: 0; border: 1px solid var(--border-strong); border-radius: var(--r-ctl);
     background: var(--s2); color: var(--muted); font: 600 var(--fs-20, 20px)/1 var(--sans); cursor: pointer; }
   .gx-edge:hover, .gx-edge:focus-visible { color: var(--gold); border-color: var(--gold); }
   .gx-panel:not(.gx-shut) > div > h2:first-child { padding-right: 40px; }

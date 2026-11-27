@@ -6,7 +6,7 @@ import type { PageObject } from "./types";
 const page = s12.page as unknown as PageObject;
 
 describe("number text", () => {
-  it("formats correlations the way the grid shows them", () => { expect(short2(0.78)).toBe(".78"); expect(short2(-0.01)).toBe("−.01"); expect(two(0.5)).toBe("0.50"); });
+  it("formats correlations the way the grid shows them", () => { expect(short2(0.78)).toBe("0.78"); expect(short2(-0.01)).toBe("−0.01"); expect(short2(0.05)).toBe("0.05"); expect(two(0.5)).toBe("0.50"); });
   it("never writes 62th", () => { expect([53, 62, 11, 12, 13, 21, 22, 23, 101, 112].map(ordinal)).toEqual(["53rd", "62nd", "11th", "12th", "13th", "21st", "22nd", "23rd", "101st", "112th"]); });
   it("says under 0.1% for a tiny share, never 0.0%", () => { expect(pct(0.04)).toBe("under 0.1%"); expect(pct(33.333)).toBe("33.3%"); });
   it("steps the heat at the design's six edges", () => { expect([0.04, 0.05, 0.2, 0.35, 0.5, 0.65].map(heatStep)).toEqual([0, 1, 2, 3, 4, 5]); });
@@ -15,7 +15,7 @@ describe("number text", () => {
 describe("the sample list", () => {
   it("names the sizes from the page's own counts, the absent ones last", () => {
     const metas = Object.values(s12.inputs.meta) as never[];
-    expect(sizeLine(page, metas)).toBe("7 sectors · 9 large caps, 3 small caps, no mid caps");
+    expect(sizeLine(page, metas)).toBe("7 sectors · 9 large caps, 3 small caps, no mid caps, no micro caps");
     expect(sizeLine(page, metas, true)).toBe("7 sectors · 9 large, 3 small");
   });
   it("lists sectors largest first and keeps the list's own order for ties", () => {

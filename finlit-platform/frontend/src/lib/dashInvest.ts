@@ -3,9 +3,10 @@
 // otherwise A to Z. Pure functions, so the order and the readings are tested. Descriptive only.
 
 export type InvKind = "share" | "mf" | "etf" | "watch";
-export const KIND_TAG: Record<InvKind, string> = { share: "Share", mf: "Mutual fund", etf: "ETF", watch: "Watchlist" };
+export const KIND_TAG: Record<InvKind, string> = { share: "Equity", mf: "Mutual fund", etf: "ETF", watch: "Watchlist" };
 
 export type InvRow = {
+  /** task #248: the chosen portfolios that hold it ("held in Dhan"), when the kind has two or more */ acct?: string[];
   key: string; kind: InvKind; name: string; sub: string; href: string; alertHref: string;
   symbol?: string; code?: number;
   price: number | null; priceWhy?: string;
@@ -32,26 +33,59 @@ export function investRows(parts: { shares: InvRow[]; funds: InvRow[]; etfs: Inv
 /** "Health 60 · Average" for a fund; the reason (locked on Silver, not scored yet) when there is no figure. */
 export function healthText(h: InvRow["health"]): { text: string; band: "g" | "o" | "r" | "n"; title?: string } {
   if (!h) return { text: "—", band: "n" };
-  if (h.locked) return { text: "FundPulse: Gold", band: "n", title: "The FinLit FundPulse is part of the Gold plan" };
-  if (h.score == null) return { text: "Not scored yet", band: "n", title: h.why ?? "This fund has no FundPulse yet" };
+  if (h.locked) return { text: "Mutual Fund Score: Gold", band: "n", title: "The Mutual Fund Score is part of the Gold plan" };
+  if (h.score == null) return { text: "Not scored yet", band: "n", title: h.why ?? "This fund has no Mutual Fund Score yet" };
   const l = (h.label || "").toLowerCase();
   const band = /strong|healthy/.test(l) ? "g" : /average/.test(l) ? "o" : /weak|poor/.test(l) ? "r" : "n";
   return { text: `Health ${Math.round(h.score)}${h.label ? " · " + h.label : ""}`, band };
 }
 
-/** "0.12% below NAV" / "0.18% above NAV" / "At NAV" for an ETF. */
+/** "−0.13% vs NAV" / "+0.03% vs NAV" for an ETF: its last close against the NAV of the same day (task #223, dashboard pack of 18 Nov, D1). */
 export function navText(p: number | null | undefined): string {
   if (p == null) return "—";
-  if (Math.abs(p) < 0.005) return "At NAV";
-  return `${Math.abs(p).toFixed(2)}% ${p < 0 ? "below" : "above"} NAV`;
+  const r = Math.round(p * 100) / 100;
+  return `${r > 0 ? "+" : r < 0 ? "\u2212" : ""}${Math.abs(r).toFixed(2)}% vs NAV`;
+}
+
+/** QA 24 Nov: one rule for every kind of holding: "held" only with a quantity (or units) above 0; a name with no buys is "in portfolio". */
+export const heldWord = (qty: number | null | undefined): "held" | "in portfolio" => (qty != null && qty > 0 ? "held" : "in portfolio");
+
+/** Task #223 (D1): the ETF portfolio's ETFs as rows of "Your investments today", with the figures the ETF portfolio page shows. */
+export function etfRows(items: { symbol: string; name: string | null; gone: boolean; price?: number | null; changePct?: number | null; ret1y?: number | null; ret1yWhy?: string | null;
+  premium?: number | null; premiumWhy?: string | null; priceDate?: string | null; value?: number | null; qty?: number | null }[]): InvRow[] {
+  return items.filter((e) => !e.gone).map((e) => ({
+    key: "etf:" + e.symbol, kind: "etf" as const, symbol: e.symbol, name: e.name || e.symbol, sub: [e.name || "", heldWord(e.qty)].filter(Boolean).join(" · "),
+    href: `/etfs/${encodeURIComponent(e.symbol)}`, alertHref: "/alerts",
+    price: e.price ?? null, priceWhy: e.price == null ? "No traded price held yet" : undefined,
+    day: e.changePct ?? null, y1: e.ret1y ?? null, y1Why: e.ret1y == null ? e.ret1yWhy ?? "Listed less than a year, or no price a year ago" : undefined,
+    premium: e.premium ?? null, value: e.value ?? null,
+  }));
 }
 
 /** The line under the heading: "4 on your watchlist · 14 shares · 3 mutual funds · prices and NAVs of 13 Nov". */
-export function investSub(n: { watch: number; shares: number; funds: number; etfs: number }, when: string | null): string {
-  const parts = [`${n.watch} on your watchlist`, `${n.shares} ${n.shares === 1 ? "share" : "shares"}`];
-  if (n.funds) parts.push(`${n.funds} mutual ${n.funds === 1 ? "fund" : "funds"}`);
-  if (n.etfs) parts.push(`${n.etfs} ${n.etfs === 1 ? "ETF" : "ETFs"}`);
-  if (when) parts.push(n.funds ? `prices and NAVs of ${when}` : `prices of ${when}`);
+/** Task #195: the rows by the size of the last day's move, largest first (a rise or a fall); rows with no move yet go last, in their earlier order. */
+export function byMove<T extends { day: number | null }>(rows: readonly T[]): T[] {
+  return rows.map((r, i) => ({ r, i })).sort((a, b) => (b.r.day == null ? -1 : Math.abs(b.r.day)) - (a.r.day == null ? -1 : Math.abs(a.r.day)) || a.i - b.i).map((x) => x.r);
+}
+/** Task #316: the Sort dropdown of "Your investments today". Rows without the figure a sort reads go last, in the order of the biggest move. */
+export type InvSort = "move" | "gain" | "fall" | "reading" | "az";
+export const INV_SORT_LABEL: Record<InvSort, string> = { move: "Biggest move first", gain: "Biggest gain first", fall: "Biggest fall first", reading: "FinLit reading", az: "A–Z" };
+export function sortInv<T extends { day: number | null; name?: string | null; symbol?: string | null }>(rows: readonly T[], how: InvSort, reading?: (r: T) => number | null | undefined): T[] {
+  const base = byMove(rows);
+  if (how === "move") return base;
+  const pos = new Map(base.map((r, i) => [r, i]));
+  const key = (r: T): number | string | null => how === "gain" ? r.day : how === "fall" ? (r.day == null ? null : -r.day) : how === "reading" ? (reading?.(r) ?? null) : (r.name || r.symbol || "");
+  return [...base].sort((a, b) => {
+    const ka = key(a), kb = key(b);
+    if (ka == null || kb == null) return ka == null && kb == null ? pos.get(a)! - pos.get(b)! : ka == null ? 1 : -1;
+    if (typeof ka === "string") return ka.localeCompare(kb as string, "en", { sensitivity: "base" }) || pos.get(a)! - pos.get(b)!;
+    return (kb as number) - ka || pos.get(a)! - pos.get(b)!;
+  });
+}
+/** The card's sub-line (task #195): "18 investments · biggest moves on Friday first · prices and NAVs of 13 Nov". */
+export function investLine(n: number, noun: [string, string], day: string, when: string | null, navs: boolean): string {
+  const parts = [`${n} ${n === 1 ? noun[0] : noun[1]}`, `biggest moves ${day === "Today" ? "today" : `on ${day}`} first`];
+  if (when) parts.push(navs ? `prices and NAVs of ${when}` : `prices of ${when}`);
   return parts.join(" · ");
 }
 

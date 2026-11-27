@@ -7,7 +7,8 @@ import { useDocTitle } from "../lib/title";
 import "../styles/sectors.css";
 
 const TITLE = "How to use Sector Pulse";
-const DESC = "Sector Pulse shows, for every NSE industry, whether most of its stocks are rising together or only a few. This page explains what each reading means and how to use it.";
+const DESC = "Sector Pulse shows, for every NSE industry, whether most of its stocks are rising together or only a few. This page explains what each reading means and how to use it.";   // the page's search description
+const HEAD_DESC = "What each Sector Pulse reading means for an NSE industry, and how to use it.";   // the header's one line (founder, 22 Nov 2026)
 const STATES: [string, string][] = [
   ["Washout", "The industry has been sold broadly. No broad rebound yet."],
   ["Thrust C", "Most stocks turned up together after a sell-off."],
@@ -21,11 +22,11 @@ export function LearnSectorSignalsPage() {
   useDocTitle(TITLE, DESC);
   return (
     <div className="wrap sx" data-testid="learn-signals">
-      <PageHeader eyebrow="Learn · Sector Pulse" title={TITLE} description={DESC} links={["/sectors"]} learn={false} />
+      <PageHeader titleVariant="read" eyebrow="Learn · Sector Pulse" title={TITLE} description={HEAD_DESC} links={["/sectors"]} learn={false} />
       <div className="sx-learn">
         <section className="sx-card sx-sec" aria-labelledby="ls-what">
           <h2 id="ls-what">What Sector Pulse shows</h2>
-          <p>Each evening, Sector Pulse checks every NSE industry and asks one question: are most of its stocks rising together, or only a few? It counts only liquid, established stocks, so a handful of thinly traded names cannot swing the answer. Small industries are read together with the other small industries of their NSE sector.</p>
+          <p>Every weekend, on the week up to Friday's close, Sector Pulse checks every NSE industry with enough actively traded stocks, and reads the small industries of one NSE sector together as a sector group. It asks one question of each: are most of its stocks rising together, or only a few? It counts only liquid, established stocks, so a handful of thinly traded names cannot swing the answer. Small industries are read together with the other small industries of their NSE sector.</p>
         </section>
         <section className="sx-card sx-sec" aria-labelledby="ls-four">
           <h2 id="ls-four">The four things to read</h2>
@@ -33,11 +34,11 @@ export function LearnSectorSignalsPage() {
           <p>A coloured label shows where the industry is in its cycle.</p>
           <dl className="sx-states">{STATES.map(([n, t]) => <div key={n}><dt><StateChip state={n} /></dt><dd>{t}</dd></div>)}</dl>
           <h3>2. The three bars</h3>
-          <p>The share of the industry's stocks above their 9, 20 and 50-day averages: the short, medium and longer trend. Long bars mean most stocks are rising together; short bars mean most are falling.</p>
+          <p>How many of the industry's stocks are rising over the short, medium and longer term. Long bars mean most stocks are rising together; short bars mean most are falling.</p>
           <h3>3. The market backdrop</h3>
-          <p>The Nifty 50 against its 200-day average, at the top of the page. Industry rebounds have behaved differently in weak and strong markets, so read every state with it.</p>
+          <p>Whether the market as a whole is in an uptrend, at the top of the page. Industry rebounds have behaved differently in weak and strong markets, so read every state with it.</p>
           <h3>4. Leader flags</h3>
-          <p>A flag marks a stock that closed at a 52-week high while its industry is still well below its own high. A full flag means the industry is further down; an early flag, less far. A flag is about the share price only: read it with the company's business scores.</p>
+          <p>A flag marks a stock at a new high while its industry is still well below its own. A flag is about the share price only: read it with the company's business scores.</p>
         </section>
         <section className="sx-card sx-sec" aria-labelledby="ls-ind">
           <h2 id="ls-ind">On an industry page</h2>

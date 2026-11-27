@@ -2,10 +2,11 @@
 // "gold") to check it. The choice is kept in this browser. While a plan is previewed every API request carries the "view as" header and the server serves it
 // as that plan (backend auth.service.admin_view); the server ignores the header for anyone who is not an administrator. Plain module: no React, so the API
 // client can read it.
-export type AdminView = "all" | "basic" | "silver" | "gold";
+export type AdminView = "all" | "free" | "mfetf" | "equity" | "combined" | "gold" | "platinum";   // task #410: the new plans
 export const VIEW_AS_HEADER = "X-FinLit-View-As";
 const KEY = "finlit-admin-view";
-const ok = (v: unknown): v is AdminView => v === "all" || v === "basic" || v === "silver" || v === "gold";
+const VIEWS = ["all", "free", "mfetf", "equity", "combined", "gold", "platinum"];
+const ok = (v: unknown): v is AdminView => VIEWS.includes(String(v));   // an old "basic" or "silver" choice reads as "all" (it named a plan that is gone)
 let current: AdminView = (() => { try { const v = localStorage.getItem(KEY); return ok(v) ? v : "all"; } catch { return "all"; } })();
 
 export const getAdminView = (): AdminView => current;
@@ -17,7 +18,7 @@ export function setAdminView(v: AdminView): void {
   try { if (v === "all") localStorage.removeItem(KEY); else localStorage.setItem(KEY, v); } catch { /* private mode */ }
 }
 
-/** True while an administrator sees every plan's features: the score helpers (lib/planScore) then add the FinLit IQ beside FinLit Prism. Set by lib/auth. */
+/** True while an administrator sees every plan's features: the score helpers (lib/planScore) show FinLit Prism to them (task #283: the retired score is no longer shown beside it). Set by lib/auth. */
 let all = false;
 export const seesAllNow = (): boolean => all;
 export function setSeesAllNow(v: boolean): void { all = v; }

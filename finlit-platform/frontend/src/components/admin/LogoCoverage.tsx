@@ -4,15 +4,16 @@ import { useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError, apiGet, apiSend } from "../../lib/api";
 import { useUI } from "../../lib/ui";
+import { coTitle, subLine, titleOf } from "../../lib/companyLabel";
 
 type Missing = { items: { symbol: string; name: string; marketCapCr: number | null; status: string; reason: string }[]; companies: number; withLogo: number; top500WithLogo: number; top500: number };
-const MAX_BYTES = 64 * 1024;
+const MAX_BYTES = 128 * 1024;
 const msg = (e: unknown) => (e instanceof ApiError ? e.body.detail || e.body.status || "Failed" : "Could not reach the server.");
 
-/** The file as base64 (the part after the comma of a data URL); refused here when it is over the server's 64 KB limit, so the person gets the reason at once. */
+/** The file as base64 (the part after the comma of a data URL); refused here when it is over the server's 128 KB limit, so the person gets the reason at once. */
 export function readImage(f: File): Promise<string> {
   return new Promise((resolve, reject) => {
-    if (f.size > MAX_BYTES) { reject(new Error(`This file is ${Math.ceil(f.size / 1024)} KB. A logo can be at most 64 KB.`)); return; }
+    if (f.size > MAX_BYTES) { reject(new Error(`This file is ${Math.ceil(f.size / 1024)} KB. A logo can be at most 128 KB.`)); return; }
     const r = new FileReader();
     r.onerror = () => reject(new Error("The file could not be read."));
     r.onload = () => resolve(String(r.result).split(",")[1] || "");
@@ -31,7 +32,7 @@ function Row({ r, onDone }: { r: Missing["items"][number]; onDone: () => void })
   });
   return (
     <tr>
-      <td><b>{r.symbol}</b><br /><small className="muted">{r.name}</small></td>
+      <td><b title={coTitle(r)}>{titleOf(r)}</b><br /><small className="muted">{subLine(r, r.name)}</small></td>
       <td className="num">{r.marketCapCr == null ? "—" : r.marketCapCr.toLocaleString("en-IN")}</td>
       <td><small>{r.reason}</small>{err && <div className="formerr" role="alert">{err}</div>}</td>
       <td>
@@ -40,6 +41,37 @@ function Row({ r, onDone }: { r: Missing["items"][number]; onDone: () => void })
           onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; setErr(""); if (f) send.mutate(f); }} />
       </td>
     </tr>
+  );
+}
+
+type LinkResult = { symbol: string; ok: boolean; path?: string; why?: string };
+/** "SYMBOL link" lines (a symbol, a space or tab or comma, then an https link), as a browser assistant or a person pastes them. */
+export function parseLinks(text: string): { symbol: string; url: string }[] {
+  return text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean).map((l) => /^([A-Za-z0-9&._-]{1,24})[\s,;|]+(https?:\/\/\S+)$/.exec(l))
+    .filter((m): m is RegExpExecArray => !!m).map((m) => ({ symbol: m[1].toUpperCase(), url: m[2] }));
+}
+
+/** Owner, 25 Nov 2026: set many official logos at once from their links. The server downloads each with the nightly job's rules. */
+function FromLinks({ onDone }: { onDone: () => void }) {
+  const [text, setText] = useState("");
+  const items = parseLinks(text);
+  const send = useMutation({
+    mutationFn: () => apiSend<{ results: LinkResult[]; set: number }>("POST", "/api/logos/admin/from-links", { items: items.slice(0, 60) }),
+    onSuccess: () => onDone(),
+  });
+  return (
+    <div className="lg-links">
+      <label htmlFor="lg-links-box"><b>Set logos from links</b> · one per line: the NSE symbol, a space, then the link to the official logo image (PNG, JPEG or WebP; not SVG). Up to 60 at a time.</label>
+      <textarea id="lg-links-box" rows={6} value={text} onChange={(e) => setText(e.target.value)} placeholder={"TCS https://www.tcs.com/…/tcs-logo.png\nLTTS https://www.ltts.com/…/logo.png"} spellCheck={false} />
+      <div><button type="button" className="btn primary" disabled={!items.length || send.isPending} onClick={() => send.mutate()}>{send.isPending ? "Setting…" : `Set ${items.length || ""} logo${items.length === 1 ? "" : "s"}`}</button>
+        {send.isError && <span className="formerr"> {msg(send.error)}</span>}</div>
+      {send.data && (
+        <ul className="lg-res" aria-label="Results">
+          <li><b>{send.data.set} of {send.data.results.length} set.</b></li>
+          {send.data.results.map((r, i) => <li key={i} className={r.ok ? "ok" : "no"}>{r.symbol}: {r.ok ? "set" : r.why}</li>)}
+        </ul>
+      )}
+    </div>
   );
 }
 
@@ -53,7 +85,8 @@ export function LogoCoverage() {
       {q.isError ? <div className="formerr">{msg(q.error)}</div> : !d ? <div className="skeleton" style={{ height: 60 }} /> : (
         <>
           <p className="muted">{d.withLogo.toLocaleString("en-IN")} of {d.companies.toLocaleString("en-IN")} companies have a logo. Of the {d.top500} largest, {d.top500WithLogo} do. The others show their initials.
-            Logos come from each company's own website; a site that blocks automated requests or has no usable icon stays blank. Add an official image (PNG, JPEG, WebP, GIF or ICO, square-ish, at most 64 KB) for the largest ones first.</p>
+            Logos come from each company's own website; a site that blocks automated requests or has no usable icon stays blank. Add an official image (PNG, JPEG, WebP, GIF or ICO, square or a wordmark up to 4:1, at most 128 KB) for the largest ones first. A logo set here always wins over every other source.</p>
+          <FromLinks onDone={() => qc.invalidateQueries({ queryKey: ["admin-logos"] })} />
           {d.items.length === 0 ? <p className="muted">Every company has a logo.</p> : (
             <div className="tw"><table className="qtt"><thead><tr><th>Company</th><th>Market cap (₹ Cr)</th><th>Why there is no logo</th><th /></tr></thead>
               <tbody>{d.items.map((r) => <Row key={r.symbol} r={r} onDone={() => qc.invalidateQueries({ queryKey: ["admin-logos"] })} />)}</tbody></table></div>

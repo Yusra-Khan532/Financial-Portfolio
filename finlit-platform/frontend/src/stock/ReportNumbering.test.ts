@@ -12,9 +12,9 @@ const numbered = () => {
 };
 
 describe("company report numbering", () => {
-  it("has the sections 01 to 18, each number once, in one unbroken run", () => {
+  it("has the sections 01 to 19, each number once, in one unbroken run (task #222, 19 Nov: 18 News and filings, 19 Community)", () => {
     const nums = [...new Set(numbered().map(([n]) => n))].sort((a, b) => a - b);
-    expect(nums).toEqual(Array.from({ length: 18 }, (_, i) => i + 1));
+    expect(nums).toEqual(Array.from({ length: 19 }, (_, i) => i + 1));
   });
   it("no longer has the Historical trend section or its menu entry", () => {
     expect(numbered().some(([, t]) => /Historical trend/i.test(t))).toBe(false);
@@ -23,9 +23,9 @@ describe("company report numbering", () => {
   });
   it("every main section has its number, in the order of the page", () => {
     const m = new Map(numbered().map(([n, t]) => [t.split(" · ")[0], n]));
-    const want: [string, number][] = [["Company overview", 1], ["Macro and sector outlook", 2], ["What's going well and what to watch", 3], ["Price & technicals", 4], ["Latest quarter", 5], ["Financials", 6], ["Trends", 7],
-      ["Chart lab", 8], ["Ratios", 9], ["DuPont analysis", 10], ["Earnings & cash quality", 11], ["Ownership", 12], ["Peers", 13], ["Gold insights", 14],
-      ["Segments", 15], ["Dividends & events", 16], ["Pros, cons & Prism history", 17], ["Community", 18]];
+    const want: [string, number][] = [["Company overview", 1], ["Economy and sector", 2], ["What's going well and what to watch", 3], ["Price & technicals", 4], ["Latest quarter", 5], ["Financials", 6], ["Trends", 7],
+      ["Chart lab", 8], ["Ratios", 9], ["DuPont analysis", 10], ["Earnings & cash quality", 11], ["Ownership", 12], ["Peers", 13], ["Sector, peers and risk", 14], ["Gold insights", 15],
+      ["Segments", 16], ["Dividends", 17], ["News and filings", 18], ["Community", 19]];   // task #222 (19 Nov pack S1, S2)   // task #216: Where it stands is 14; live 17 "Pros, cons & Prism history" is gone
     for (const [t, n] of want) expect(m.get(t), t).toBe(n);
   });
   it("Where it stands replaces Sector & peers and Leadership, after Peers and before Gold insights, in the report and in the section bar", () => {
@@ -37,12 +37,18 @@ describe("company report numbering", () => {
     expect(page.indexOf("<WhereStands")).toBeGreaterThan(page.indexOf("<PeersSection"));
     expect(page.indexOf("<WhereStands")).toBeLessThan(page.indexOf("<InsightsSection"));
   });
-  it("Community discussions is the last section of the report, after Pros & cons (task #113), in the page and in the section bar", () => {
+  it("Community discussions is the last section of the report (task #113), after Dividends & events, in the page and in the section bar", () => {
     const page = readFileSync(join(__dirname, "StockPage.tsx"), "utf8");
     const at = (tag: string) => page.indexOf(tag);
-    expect(at("<CommunitySection symbol")).toBeGreaterThan(at("<MethodSection"));
-    for (const tag of ["<BusinessSection", "<PriceSection", "<DividendsSection", "<MethodSection"]) expect(at(tag), tag).toBeLessThan(at("<CommunitySection symbol"));
+    for (const tag of ["<BusinessSection", "<PriceSection", "<DividendsSection"]) expect(at(tag), tag).toBeLessThan(at("<CommunitySection symbol"));
     const ids = NAV.map(([id]) => id);
-    expect(ids[ids.length - 1]).toBe("community"); expect(ids[ids.length - 2]).toBe("method");
+    expect(ids[ids.length - 1]).toBe("community");
+  });
+  it("live section 17 \"Pros, cons & Prism history\" is gone from the page and the section bar; its chart sits under the Prism card (task #216)", () => {
+    expect(readFileSync(join(__dirname, "StockPage.tsx"), "utf8")).not.toContain("<MethodSection");
+    expect(readFileSync(join(__dirname, "Sections2.tsx"), "utf8")).not.toContain("Pros, cons & Prism history");
+    expect(NAV.some(([id]) => id === "method")).toBe(false);
+    const hero = readFileSync(join(__dirname, "Hero.tsx"), "utf8");
+    expect(hero.indexOf("<ScoreMovesCard")).toBeGreaterThan(hero.indexOf("<PrismCompare"));
   });
 });

@@ -31,11 +31,14 @@ import {
 } from "../lib/advanced";
 import type { ChartHelpEntry } from "../lib/chartHelp";
 import "../styles/advcharts.css";
+import { codeText } from "../lib/companyLabel";
+import { isOldSizeUniverse } from "../lib/advanced";
+import { SizeNote } from "../components/SizeNote";
 
 const PRIORITY_1 = ["1.2", "1.9", "1.13", "1.19", "1.17"];   // section 1 "Priority checks", in the doc's order
 const COLORS = ["var(--k1)", "var(--k2)", "var(--k3)", "var(--k4)", "var(--k5)", "var(--k7)"];
 const MODE_LABEL: Record<Mode, string> = { cross: "Across companies", history: "Company history", tech: "Company time series" };
-const TIER_NAME: Record<Tier, string> = { basic: "Basic", silver: "Silver", gold: "Gold" };
+const TIER_NAME: Record<Tier, string> = { basic: "Free", silver: "Paid plans", gold: "Gold" };   // task #410
 const nextPlan = (p: Plan): Plan => (p === "basic" ? "silver" : "gold");
 const allowed = (plan: Plan, t: Tier | undefined) => RANK[plan] >= RANK[(t ?? "silver") as Plan];
 const pairLabel = (p: { xLabel: string; yLabel: string }) => `${p.xLabel} vs ${p.yLabel}`;
@@ -454,7 +457,7 @@ function Companies({ st, set, lim, plan, upgrade, status, mode, single }: { st: 
         aria-activedescendant={open && hits[act] ? `${id}-o${act}` : undefined}
         onChange={(e) => { setQ(e.target.value); setOpen(true); setAct(0); }} onFocus={() => setOpen(true)} onBlur={() => setTimeout(() => setOpen(false), 150)}
         onKeyDown={(e) => { if (e.key === "ArrowDown") { e.preventDefault(); setAct((a) => Math.min(hits.length - 1, a + 1)); } else if (e.key === "ArrowUp") { e.preventDefault(); setAct((a) => Math.max(0, a - 1)); } else if (e.key === "Enter" && hits[act]) { e.preventDefault(); add(hits[act].symbol); } else if (e.key === "Escape") { setQ(""); setOpen(false); } }} />
-      {open && (q.trim() || sf.on) && <ul id={`${id}-l`} role="listbox" aria-label="Companies">{hits.map((h, i) => <li key={h.symbol} id={`${id}-o${i}`} role="option" aria-selected={i === act} onMouseDown={(e) => { e.preventDefault(); add(h.symbol); }}>{h.name} <small>{h.symbol}</small></li>)}
+      {open && (q.trim() || sf.on) && <ul id={`${id}-l`} role="listbox" aria-label="Companies">{hits.map((h, i) => <li key={h.symbol} id={`${id}-o${i}`} role="option" aria-selected={i === act} onMouseDown={(e) => { e.preventDefault(); add(h.symbol); }}>{h.name} <small>{codeText(h.symbol)}</small></li>)}
         {!hits.length && <li className="faint" role="option" aria-selected={false} aria-disabled="true">{idx.isPending ? "Loading the company list…" : sf.on ? <FilterNote filter={sf.filter} q={q.trim()} onChange={sf.setFilter} hidden={sf.hidden(q)} /> : "No company matches."}</li>}</ul>}
       <SearchFilters variant="panel" className="sf-corner" facets={sf.facets} value={sf.filter} onChange={sf.setFilter} count={sf.count} />
       {!single && st.companies.length >= lim && <p className="faint adv-limit">Your plan shows {lim} companies per chart. <button className="adv-link" onClick={() => upgrade(nextPlan(plan), `Comparing more than ${lim} companies`)}>More with {plan === "basic" ? "Silver" : "Gold"}</button></p>}
@@ -467,10 +470,11 @@ const shapeIcon = (i: number) => ["M7,2a5,5 0 1,0 0.01,0Z", "M2.5,2.5h9v9h-9Z", 
 function Filters({ st, set, pair, resp }: { st: AdvState; set: (p: Partial<AdvState>) => void; pair: CatPair | null; resp?: CrossResp }) {
   const f = useFacets();
   const u = st.universe;
+  const [sp] = useSearchParams(), [oldSize] = useState(() => isOldSizeUniverse(sp.get("u")));   // task #262: an old link's Small now reads Micro
   const forced = pair?.lenders === "excluded" || resp?.lenders?.forced;
   const setU = (patch: Partial<AdvState["universe"]>) => set({ universe: { ...u, ...patch } });
   const multi = (label: string, opts: { v: string; l: string }[], val: string[], on: (v: string[]) => void) => <div className="adv-field"><label>{label}
-    <select multiple size={Math.min(6, Math.max(3, opts.length))} value={val} onChange={(e) => on([...e.target.selectedOptions].map((o) => o.value))}>{opts.map((o) => <option key={o.v} value={o.v}>{o.l}</option>)}</select></label></div>;
+    <select multiple size={Math.min(6, Math.max(3, opts.length))} value={val} onChange={(e) => on([...e.target.selectedOptions].map((o) => o.value))}>{opts.map((o) => <option key={o.v} value={o.v} title={o.l}>{o.l}</option>)}</select></label></div>;
   const active = u.sector.length + u.industry.length + u.index.length + u.cap.length + (u.mcapMin != null ? 1 : 0) + (u.mcapMax != null ? 1 : 0) + (u.lenders !== "auto" ? 1 : 0) + (u.sameFy ? 1 : 0) + (st.trim ? 1 : 0);
   const industries = (f.data?.industries ?? []).filter((i) => !u.sector.length || (i.sector && u.sector.includes(i.sector)));
   return <details className="adv-filters"><summary>Which companies{active ? ` (${active} filter${active === 1 ? "" : "s"} on)` : ""}</summary>
@@ -479,7 +483,7 @@ function Filters({ st, set, pair, resp }: { st: AdvState; set: (p: Partial<AdvSt
       {multi("Sector", (f.data?.sectors ?? []).map((s) => ({ v: s.name, l: `${s.name} (${s.n})` })), u.sector, (v) => setU({ sector: v }))}
       {multi("Industry", industries.map((s) => ({ v: s.name, l: `${s.name} (${s.n})` })), u.industry, (v) => setU({ industry: v }))}
       {multi("Index", (f.data?.indices ?? []).map((s) => ({ v: s.code, l: `${s.label} (${s.n})` })), u.index, (v) => setU({ index: v }))}
-      <fieldset className="adv-field"><legend>Size (SEBI band)</legend>{["Large", "Mid", "Small"].map((c) => <label key={c} className="adv-check"><input type="checkbox" checked={u.cap.includes(c)} onChange={(e) => setU({ cap: e.target.checked ? [...u.cap, c] : u.cap.filter((x) => x !== c) })} /> {c} cap</label>)}</fieldset>
+      <fieldset className="adv-field"><legend>Size (FinLit's ₹ bands)</legend>{["Large", "Mid", "Small", "Micro"].map((c) => <label key={c} className="adv-check"><input type="checkbox" checked={u.cap.includes(c)} onChange={(e) => setU({ cap: e.target.checked ? [...u.cap, c] : u.cap.filter((x) => x !== c) })} /> {c} cap</label>)}<SizeNote link={oldSize} /></fieldset>
       <div className="adv-field"><label>Market cap from (₹ Cr)<input type="number" min={0} inputMode="decimal" value={u.mcapMin ?? ""} onChange={(e) => setU({ mcapMin: e.target.value === "" ? null : Math.max(0, +e.target.value) })} /></label>
         <label>to (₹ Cr)<input type="number" min={0} inputMode="decimal" value={u.mcapMax ?? ""} onChange={(e) => setU({ mcapMax: e.target.value === "" ? null : Math.max(0, +e.target.value) })} /></label></div>
       <div className="adv-field"><label>Banks and lenders
@@ -487,7 +491,7 @@ function Filters({ st, set, pair, resp }: { st: AdvState; set: (p: Partial<AdvSt
           <option value="auto">As suits the chart</option><option value="exclude">Leave them out</option><option value="include">Include them</option><option value="only">Only lenders</option></select></label>
         {forced && <small className="faint">Always left out here: these ratios do not apply to lenders.</small>}</div>
       <div className="adv-field">
-        <label className="adv-check"><input type="checkbox" checked={u.sameFy} onChange={(e) => setU({ sameFy: e.target.checked })} /> Same financial year only{resp?.fyBreakdown?.length ? <span className="faint"> ({resp.fyBreakdown.map((b) => `${b.fy}: ${b.n}`).join(", ")})</span> : null}</label>
+        <label className="adv-check"><input type="checkbox" checked={u.sameFy} onChange={(e) => setU({ sameFy: e.target.checked })} /> <span>Same financial year only{resp?.fyBreakdown?.length ? <span className="faint"> ({resp.fyBreakdown.map((b) => `${b.fy}: ${b.n}`).join(", ")})</span> : null}</span></label>
         <label className="adv-check"><input type="checkbox" checked={st.trim} onChange={(e) => set({ trim: e.target.checked })} /> Leave out the most extreme 1% at each end (names listed under “left out”)</label>
       </div>
     </div>

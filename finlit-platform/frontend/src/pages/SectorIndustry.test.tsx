@@ -40,7 +40,7 @@ describe("an industry page (pack 07)", () => {
   });
   it("shows the sections in the pack's order and never advises", () => {
     at();
-    const want = ["What is happening in Finance", "Where Finance is in the cycle", "A year of Finance", "Against other industries", "The 67 counted stocks, strongest 6 months first"], got = h2(), idx = want.map((t) => got.indexOf(t));
+    const want = ["What is happening in Finance", "Where Finance is in the cycle", "A year of Finance", "Against other groups", "The 67 counted stocks, strongest 6 months first"], got = h2(), idx = want.map((t) => got.indexOf(t));
     expect(idx.every((v, i) => v >= 0 && (i === 0 || v > idx[i - 1]))).toBe(true);
     expect(document.body.textContent).toContain("Finance bounced back after a crash on 5 Nov.");
     expect(document.body.textContent).toContain("FINANCE IS HERE");
@@ -50,7 +50,7 @@ describe("an industry page (pack 07)", () => {
   });
   it("for Basic the stock list and the not-counted names are locked in words; the counts stay", () => {
     at();
-    expect(screen.getByText("The stocks of each industry are part of the Silver plan")).toBeTruthy();
+    expect(screen.getByText("The stocks of each industry are part of every paid plan")).toBeTruthy();
     expect(document.body.textContent).toContain("Not counted: 105 Finance stocks");
   });
   it("Add to watch saves the industry for its alerts, and again removes it", () => {
@@ -77,5 +77,20 @@ describe("an industry page (pack 07)", () => {
     st.page = new ApiError(404, { detail: "There is no industry with this address." } as never);
     at();
     expect(screen.getByText("No such industry")).toBeTruthy();
+  });
+});
+
+describe("a sector's page in the Sectors view (task #192, S1: ?show=sectors)", () => {
+  const atSector = () => render(<QueryClientProvider client={new QueryClient()}><MemoryRouter initialEntries={["/sectors/financial-services?show=sectors"]}><Routes><Route path="/sectors/:slug" element={<SectorIndustryPage />} /></Routes></MemoryRouter></QueryClientProvider>);
+  it("is named a sector, keeps the view on its links and offers no industry alerts", () => {
+    st.page = { ...(page as object), name: "Financial Services", slug: "financial-services", kind: "sector", sector: "Financial Services", industries: ["Banks", "Finance", "Capital Markets", "Insurance"] };
+    atSector();
+    expect(screen.getByRole("heading", { level: 1, name: "Financial Services" })).toBeTruthy();
+    expect(document.querySelector(".ip-head .sp-meta")?.textContent).toMatch(/^One of NSE's 22 sectors, 4 industries ·/);
+    expect(within(screen.getByRole("navigation", { name: "Breadcrumb" })).getByRole("link", { name: "Sector Pulse" }).getAttribute("href")).toBe("/sectors?show=sectors");
+    expect(screen.queryByRole("button", { name: /Add to watch|Watching/ })).toBeNull();            // the weekly alerts follow industry groups
+    const text = (document.body.textContent ?? "").replace(/average (industry|group)/gi, "").replace(/\d+ industries ·/, "");
+    expect(text.match(/\bindustr(y|ies)\b/gi) ?? []).toEqual([]);
+    expect(document.querySelector(".sp-disclaimer")?.textContent).toMatch(/^Describes price data for NSE sectors;/);
   });
 });

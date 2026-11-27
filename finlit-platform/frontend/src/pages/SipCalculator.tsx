@@ -3,7 +3,7 @@
 // an equity capital-gains estimate, a fund's real past return as the assumption, and a link that reopens the same plan.
 // All arithmetic lives in lib/sip.ts (pure and tested); this page only collects inputs and draws. Information only, not advice.
 import { PageHeader } from "../components/PageHeader";
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useDocTitle } from "../lib/title";
@@ -13,10 +13,10 @@ import { niceTicks } from "../lib/etf";
 import { mfGet, type FundList, type FundRow } from "../lib/mf";
 import {
   EQUITY_TAX_2024, LIMITS, delayCost, duration, equityTax, fromQuery, gainsOvertake, milestones, monthsToTarget, project, realValue,
-  requiredMonthly, rupees, short, toInput, toQuery, type SipState, type TaxRules,
+  requiredMonthly, rupees, short, money, times, toInput, toQuery, type SipState, type TaxRules,
 } from "../lib/sip";
 import "../styles/sip.css";
-import { ChartZoom } from "../components/ChartZoom";
+import { ChartZoom, useZoomHeight } from "../components/ChartZoom";
 
 const reduced = () => typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
@@ -41,51 +41,41 @@ function useGlide(target: number, ms = 450): number {
 }
 
 // ------------------------------------------------------------------------------------------------------------- inputs
-/** Slider positions mapped to values on a scale that is fine where people choose (small SIPs) and coarse at the top. */
-type Scale = { at: number; step: number }[];
-const MONTHLY_SCALE: Scale = [{ at: 100, step: 100 }, { at: 10_000, step: 500 }, { at: 100_000, step: 5_000 }, { at: 1_000_000, step: 0 }];
-function scaleSteps(sc: Scale): number[] {
-  const out: number[] = [];
-  for (let k = 0; k < sc.length - 1; k++) for (let v = sc[k].at; v < sc[k + 1].at; v += sc[k].step) out.push(v);
-  out.push(sc[sc.length - 1].at);
-  return out;
-}
-const MONTHLY_STOPS = scaleSteps(MONTHLY_SCALE);
-const nearestStop = (stops: number[], v: number) => { let best = 0; for (let k = 1; k < stops.length; k++) if (Math.abs(stops[k] - v) < Math.abs(stops[best] - v)) best = k; return best; };
-
-function Field({ label, value, onChange, min, max, step, prefix, suffix, stops, hint, marks, digits = 0 }: {
-  label: string; value: number; onChange: (v: number) => void; min: number; max: number; step?: number; prefix?: string; suffix?: string;
-  stops?: number[]; hint?: string; marks?: string[]; digits?: number;
+/** task #399: a typed input with its label and unit; no slider, so any amount inside the wide limits can be entered. A value outside them is not
+ *  changed silently: the box keeps what was typed, says the range, and the calculation keeps the last valid value. */
+function Field({ label, value, onChange, min, max, prefix, suffix, hint, digits = 0 }: {
+  label: string; value: number; onChange: (v: number) => void; min: number; max: number; prefix?: string; suffix?: string; hint?: string; digits?: number;
 }) {
   const id = useId();
   const [text, setText] = useState(nf(value, digits));
   const [editing, setEditing] = useState(false);
-  useEffect(() => { if (!editing) setText(value.toLocaleString("en-IN", { maximumFractionDigits: digits })); }, [value, editing, digits]);
-  const pos = stops ? nearestStop(stops, value) : value;
-  const lo = stops ? 0 : min, hi = stops ? stops.length - 1 : max;
-  const fill = hi > lo ? ((Math.min(Math.max(pos, lo), hi) - lo) / (hi - lo)) * 100 : 0;
-  const commit = (s: string) => {
-    const v = Number(s.replace(/[,\s₹%]/g, ""));
-    if (Number.isFinite(v)) onChange(Math.min(max, Math.max(min, Math.round(v * 10 ** digits) / 10 ** digits)));
+  const [err, setErr] = useState<string | null>(null);
+  useEffect(() => { if (!editing && !err) setText(value.toLocaleString("en-IN", { maximumFractionDigits: digits })); }, [value, editing, digits, err]);
+  const show = (x: number) => `${prefix === "₹" ? "₹" : ""}${x.toLocaleString("en-IN")}${suffix ? (suffix === "%" ? "%" : " " + (x === 1 && suffix === "years" ? "year" : suffix)) : ""}`;
+  const commit = (raw: string) => {
     setEditing(false);
+    const t = raw.replace(/[,\s₹%]/g, "");
+    const v = Number(t);
+    if (!t || !Number.isFinite(v)) { setErr(`Enter a number from ${show(min)} to ${show(max)}.`); return; }
+    if (v < min || v > max) { setErr(`Enter a number from ${show(min)} to ${show(max)}; ${show(value)} is used until then.`); return; }
+    setErr(null);
+    onChange(Math.round(v * 10 ** digits) / 10 ** digits);
   };
+  const describedBy = [hint ? id + "h" : "", err ? id + "e" : ""].filter(Boolean).join(" ") || undefined;
   return (
     <div className="sip-f">
       <div className="sip-f-h">
         <label htmlFor={id}>{label}</label>
-        <span className="sip-box">
+        <span className={"sip-box" + (err ? " bad" : "")}>
           {prefix && <i>{prefix}</i>}
-          <input id={id} inputMode="decimal" value={text} aria-describedby={hint ? id + "h" : undefined}
+          <input id={id} inputMode="decimal" value={text} aria-describedby={describedBy} aria-invalid={err ? true : undefined}
             onFocus={(e) => { setEditing(true); e.currentTarget.select(); }} onChange={(e) => setText(e.target.value)} onBlur={(e) => commit(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") commit((e.target as HTMLInputElement).value); }} />
           {suffix && <i>{suffix}</i>}
         </span>
       </div>
-      <input type="range" className="sip-range" aria-label={label} min={lo} max={hi} step={stops ? 1 : step ?? 1} value={Math.min(Math.max(pos, lo), hi)}
-        style={{ "--fill": `${fill}%` } as React.CSSProperties}
-        aria-valuetext={`${prefix || ""}${value.toLocaleString("en-IN")}${suffix ? " " + suffix : ""}`}
-        onChange={(e) => onChange(stops ? stops[Number(e.target.value)] : Number(e.target.value))} />
-      {marks && <div className="sip-marks" aria-hidden="true">{marks.map((m) => <span key={m}>{m}</span>)}</div>}
+      <p className="sip-range-note">{show(min)} to {show(max)}</p>
+      {err && <p className="sip-err" id={id + "e"} role="alert">{err}</p>}
       {hint && <p className="sip-hint" id={id + "h"}>{hint}</p>}
     </div>
   );
@@ -100,20 +90,25 @@ function Seg<T extends string>({ value, options, onChange, label }: { value: T; 
 }
 
 // ------------------------------------------------------------------------------------------------------------- donut
+/** task #399: the ring's figure steps down in size as it gets longer, so "₹1,08,737.43 L Cr" still sits inside the ring. */
+const ringSize = (t: string) => (t.length > 13 ? "xs" : t.length > 9 ? "s" : undefined);
 function Donut({ invested, gain, value }: { invested: number; gain: number; value: number }) {
   const r = 70, c = 2 * Math.PI * r, total = Math.max(1, invested + Math.max(0, gain));
   const inv = (invested / total) * c;
   const shown = useGlide(value);
+  const [dref, zh] = useZoomHeight<HTMLDivElement>(0);   // task #167: in the enlarged dialog the ring grows to the room there is, centred, its figures scaled with it
+  const [size, setSize] = useState(240);   // the ring's drawn width: the room's height, or less on a narrow screen
+  useLayoutEffect(() => { const w = dref.current?.clientWidth; if (w && Math.abs(w - size) > 1) setSize(w); });
   return (
     <ChartZoom label={"Invested amount and wealth gained"}>
-    <div className="sip-donut">
+    <div className={"sip-donut" + (zh > 240 ? " fit" : "")} ref={dref} style={zh > 240 ? { width: `min(${zh}px, 100%)`, transform: `translateY(${Math.max(0, Math.floor((zh - size) / 2))}px)`,   /* centred in a tall dialog; a transform, so the room it is measured from does not change */ ["--sd" as string]: size / 240 } : undefined}>
       <svg viewBox="0 0 180 180" role="img" aria-label={`Invested ${rupees(invested)}, gained ${rupees(gain)}`}>
         <defs><linearGradient id="sipGain" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="var(--gold-2)" /><stop offset="1" stopColor="var(--gold-deep)" /></linearGradient></defs>
         <circle cx="90" cy="90" r={r} className="sip-d-bg" />
         <circle cx="90" cy="90" r={r} className="sip-d-gain" strokeDasharray={`${c} ${c}`} />
         <circle cx="90" cy="90" r={r} className="sip-d-inv" strokeDasharray={`${inv} ${c}`} />
       </svg>
-      <div className="sip-d-c"><span>Expected amount</span><b>{short(shown)}</b><small>{(invested ? value / invested : 0).toFixed(2)}× what you put in</small></div>
+      <div className="sip-d-c" title={`Expected amount ${rupees(value)}`}><span>Expected amount</span><b className={ringSize(short(value))}>{short(shown)}</b><small>{times(invested ? value / invested : 0)} what you put in</small></div>
     </div>
     </ChartZoom>
   );
@@ -135,7 +130,8 @@ function GrowthChart({ s, band }: { s: SipState; band: Band }) {
     return () => ro.disconnect();
   }, []);
   // drawn at the size it is shown, so labels stay readable on a phone instead of shrinking with the picture
-  const W = width, H = width < 600 ? 250 : 320, L = width < 600 ? 50 : 64, R = 14, T = 24, B = 30;
+  const [, H] = useZoomHeight<SVGSVGElement>(width < 600 ? 250 : 320, svg);   // task #167: in full screen it fills the height too
+  const W = width, L = width < 600 ? 50 : 64, R = 14, T = 24, B = 30;
   const n = r.n || 1;
   const top = Math.max(r.value, band ? band.hi[band.hi.length - 1] : 0, 1);
   const ticks = niceTicks(0, top, 5);
@@ -239,14 +235,14 @@ export function SipCalculator() {
   return (
     <div className="sip-page">
       <PageHeader wrap plan="free" title="SIP calculator" art="calculator" links={["/mf-portfolio", "/funds", "/eps-calculator"]}
-        description={<>Estimate what a <b>monthly investment</b> could grow to, see every year of it, plan for a goal, and check what waiting or tax does to it. Every figure is worked out the same way as the formula shown below.</>} />
+        description="What a monthly investment could grow to, year by year, with goals, delay and tax." />
 
       <div className="wrap sip-wrap">
         <section className="sip-card sip-main" aria-label="Calculator">
           <div className="sip-in">
-            <Field label="Monthly investment" value={s.monthly} onChange={(v) => set("monthly", v)} min={LIMITS.monthlyMin} max={LIMITS.monthlyMax} prefix="₹" stops={MONTHLY_STOPS} marks={["₹100", "₹10k", "₹1 L", "₹10 L"]} />
-            <Field label="Investment period" value={s.years} onChange={(v) => set("years", Math.round(v))} min={1} max={LIMITS.yearsMax} suffix="years" marks={["1", "10", "20", "30", "40", "50"]} />
-            <Field label="Expected annual return" value={s.annualReturn} onChange={(v) => set("annualReturn", v)} min={0} max={LIMITS.returnMax} step={0.5} suffix="%" digits={2} marks={["0%", "10%", "20%", "30%"]}
+            <Field label="Monthly investment" value={s.monthly} onChange={(v) => set("monthly", v)} min={LIMITS.monthlyMin} max={LIMITS.monthlyMax} prefix="₹" />
+            <Field label="Investment period" value={s.years} onChange={(v) => set("years", Math.round(v))} min={1} max={LIMITS.yearsMax} suffix="years" />
+            <Field label="Expected annual return" value={s.annualReturn} onChange={(v) => set("annualReturn", v)} min={LIMITS.returnMin} max={LIMITS.returnMax} suffix="%" digits={2}
               hint="Not a promise: markets do not grow by the same amount every year." />
             <FundPicker onPick={(rate, label) => { set("annualReturn", Math.round(rate * 100) / 100); toast(`Using ${label}`); }} />
             <button type="button" className="sip-more" aria-expanded={more} onClick={() => setMore((v) => !v)}>{more ? "Fewer options" : "More options: step-up, one-time amount, timing"} <span aria-hidden="true">{more ? "−" : "+"}</span></button>
@@ -255,10 +251,10 @@ export function SipCalculator() {
                 <div className="sip-opt">
                   <span className="sip-ol">Raise the SIP every year</span>
                   <Seg label="Step-up" value={s.stepKind} onChange={(v) => set("stepKind", v)} options={[["none", "No"], ["pct", "By %"], ["amount", "By ₹"]]} />
-                  {s.stepKind !== "none" && <Field label={s.stepKind === "pct" ? "Yearly step-up" : "Yearly step-up amount"} value={s.stepValue} onChange={(v) => set("stepValue", v)} min={0} max={s.stepKind === "pct" ? 50 : 100000}
-                    step={s.stepKind === "pct" ? 1 : 500} prefix={s.stepKind === "amount" ? "₹" : undefined} suffix={s.stepKind === "pct" ? "%" : undefined} />}
+                  {s.stepKind !== "none" && <Field label={s.stepKind === "pct" ? "Yearly step-up" : "Yearly step-up amount"} value={s.stepValue} onChange={(v) => set("stepValue", v)} min={0} max={s.stepKind === "pct" ? LIMITS.stepPctMax : LIMITS.stepAmountMax}
+                    prefix={s.stepKind === "amount" ? "₹" : undefined} suffix={s.stepKind === "pct" ? "%" : undefined} />}
                 </div>
-                <Field label="One-time amount at the start" value={s.lumpSum} onChange={(v) => set("lumpSum", v)} min={0} max={LIMITS.lumpMax} prefix="₹" stops={[0, ...MONTHLY_STOPS.map((x) => x * 10)]} hint="Optional: money you already have to invest on day one." />
+                <Field label="One-time amount at the start" value={s.lumpSum} onChange={(v) => set("lumpSum", v)} min={0} max={LIMITS.lumpMax} prefix="₹" hint="Optional: money you already have to invest on day one." />
                 <div className="sip-opt"><span className="sip-ol">Each instalment is paid</span>
                   <Seg label="Instalment timing" value={s.timing} onChange={(v) => set("timing", v)} options={[["end", "End of month"], ["start", "Start of month"]]} />
                   <p className="sip-hint">The formula sheet uses the end of the month. Paying at the start gives every instalment one more month of growth; many apps use it, which is why their figures run a little higher.</p></div>
@@ -273,12 +269,12 @@ export function SipCalculator() {
             <ul className="sip-legend"><li><i className="inv" />Invested</li><li><i className="gain" />Wealth gained</li></ul></div>
 
           <div className="sip-out">
-            <div className="sip-kv"><span>Invested amount</span><b>{rupees(invested)}</b></div>
-            <div className="sip-kv gain"><span>Wealth gained</span><b>{rupees(gain)}</b></div>
-            <div className="sip-big"><span>Expected amount</span><b>{rupees(value)}</b><small>after {duration(r.n)}{s.lumpSum ? `, including ${rupees(r.lumpValue)} from the one-time amount` : ""}</small></div>
+            <div className="sip-kv"><span>Invested amount</span><b title={rupees(invested)}>{money(invested)}</b></div>
+            <div className="sip-kv gain"><span>Wealth gained</span><b title={rupees(gain)}>{money(gain)}</b></div>
+            <div className="sip-big"><span>Expected amount</span><b title={rupees(value)}>{money(value)}</b><small>after {duration(r.n)}{s.lumpSum ? `, including ${money(r.lumpValue)} from the one-time amount` : ""}</small></div>
             <div className="sip-real">
-              <div><span>In today's money</span><b>{rupees(real)}</b></div>
-              <label>at <input type="number" min={0} max={20} step={0.5} value={s.inflation} onChange={(e) => set("inflation", Math.min(20, Math.max(0, Number(e.target.value) || 0)))} aria-label="Inflation a year in per cent" />% inflation a year</label>
+              <div><span>In today's money</span><b title={rupees(real)}>{money(real)}</b></div>
+              <label>at <input type="number" min={0} max={LIMITS.inflationMax} step={0.5} value={s.inflation} onChange={(e) => { const v = Number(e.target.value); if (e.target.value !== "" && Number.isFinite(v) && v >= 0 && v <= LIMITS.inflationMax) set("inflation", v); }} aria-label={`Inflation a year in per cent, 0 to ${LIMITS.inflationMax}`} />% inflation a year</label>
             </div>
             <div className="sip-acts">
               <Link className="btn primary" to="/funds">Find funds to compare</Link>
@@ -354,7 +350,7 @@ function GoalPlanner({ s }: { s: SipState }) {
   return (
     <div className="sip-goal">
       <div className="sip-goal-in">
-        <Field label="Your goal" value={goal} onChange={setGoal} min={10_000} max={1_000_000_000} prefix="₹" stops={[...scaleSteps([{ at: 100_000, step: 100_000 }, { at: 10_000_000, step: 500_000 }, { at: 100_000_000, step: 5_000_000 }, { at: 1_000_000_000, step: 0 }])]} />
+        <Field label="Your goal" value={goal} onChange={setGoal} min={LIMITS.goalMin} max={LIMITS.goalMax} prefix="₹" />
         <div className="sip-chips">{presets.map((p) => <button key={p} type="button" className={goal === p ? "on" : ""} onClick={() => setGoal(p)}>{short(p)}</button>)}</div>
         <label className="sip-tog"><input type="checkbox" checked={today} onChange={(e) => setToday(e.target.checked)} /><span />The goal is in today's money (grow it by {s.inflation}% inflation a year)</label>
       </div>

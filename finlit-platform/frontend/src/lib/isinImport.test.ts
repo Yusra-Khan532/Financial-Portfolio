@@ -46,7 +46,8 @@ describe("the ISIN itself", () => {
 describe("reading a broker file keeps each line's ISIN beside its name", () => {
   it("a file with an ISIN column and a name column (the bug: the ISIN was thrown away)", () => {
     const grid = gridFromText("Company Name,ISIN,Qty,Avg price\nATLANTA LIMITED,INE285H01022,100,12.5\nDR. LAL PATHLABS LIMITED,INE600L01024,5,2400\nTotal,,105,\n");
-    expect(entriesFromGrid(grid)).toEqual([{ name: "ATLANTA LIMITED", isin: "INE285H01022" }, { name: "DR. LAL PATHLABS LIMITED", isin: "INE600L01024" }]);
+    // task #323: each line also brings its quantity and average buy price from the file's Qty and Avg price columns
+    expect(entriesFromGrid(grid)).toEqual([{ name: "ATLANTA LIMITED", isin: "INE285H01022", qty: 100, avg: 12.5, avgHow: "column", lines: 1 }, { name: "DR. LAL PATHLABS LIMITED", isin: "INE600L01024", qty: 5, avg: 2400, avgHow: "column", lines: 1 }]);
   });
   it("an ISIN-only column, a pasted list of ISINs and ISINs on one line", () => {
     expect(entriesFrom("ISIN\nINE002A01018\nINE040A01034\n")).toEqual([{ name: "", isin: "INE002A01018" }, { name: "", isin: "INE040A01034" }]);
@@ -139,6 +140,33 @@ describe("PDF statements: the ISIN on the line decides", () => {
     const f = findHoldingsInRows(rows, ROWS, answers([FUND]));
     expect(f.found.map((x) => [x.symbol, x.how])).toEqual([["ATLANTAA", "isin"], ["LALPATHLAB", "isin"]]);
     expect(f.found.every(isSure)).toBe(true);
-    expect(f.missing.join(" ")).toMatch(/NIPPON INDIA ETF NIFTY BEES \(INF204KB14I2\): An exchange-traded fund/);
+    // task #323 (file 21, part 8): an ETF line is kept, with its units, for the ETF portfolio, instead of being listed as not added
+    expect(f.missing.join(" ")).not.toMatch(/NIPPON INDIA ETF NIFTY BEES/);
+    expect(f.funds).toEqual([{ isin: FUND.isin, input: "NIPPON INDIA ETF NIFTY BEES", qty: 10 }]);
+  });
+});
+
+describe("task #183: a file's lines without an ISIN are offered to confirm, never added on their own", () => {
+  it("from a file, the ISIN lines are added and the name-only lines wait for the member", () => {
+    const r = matchEntries([{ name: "x", isin: "INE002A01018" }, { name: "HDFC Bank Ltd" }], ROWS, answers(), true);
+    expect(r.found.map((f) => f.symbol)).toEqual(["RELIANCE"]);
+    expect(r.check).toHaveLength(1);
+    expect(r.check[0]).toMatchObject({ symbol: "HDFCBANK" });
+    expect(r.check[0].note).toMatch(/^No ISIN on this line, so it is matched by its name: please check/);
+  });
+  it("a line that is exactly a listed company's symbol or code is added at once (a broker's holdings report: 42 shares waited under Please check, 22 Nov 2026)", () => {
+    const r = matchEntries([{ name: "HDFCBANK" }, { name: "500325" }, { name: "HDFC Bank Ltd" }], ROWS, answers(), true);
+    expect(r.found.map((f) => [f.input, f.symbol, f.code])).toEqual([["HDFCBANK", "HDFCBANK", true], ["500325", "RELIANCE", true]]);
+    expect(r.check.map((c) => c.input)).toEqual(["HDFC Bank Ltd"]);     // a name still waits for the member
+  });
+  it("a share typed by name in the add box is the member's own choice and is added at once", () => {
+    expect(matchEntries([{ name: "HDFC Bank Ltd" }], ROWS, answers()).found.map((f) => f.symbol)).toEqual(["HDFCBANK"]);
+  });
+  it("a renamed share is found by its ISIN whatever the file calls it (ZOMATO is ETERNAL, Tata Motors' old share is TMPV)", () => {
+    const rows: SearchRow[] = [["ETERNAL", "ETERNAL Ltd", "543320", 1], ["TMPV", "Tata Motors Passenger Vehicles Ltd", "500570", 1], ["TMCV", "Tata Motors Ltd", null, 1]];
+    const idx: SearchIndex = { fields: ["symbol", "name", "bse", "ready", "nse"], rows, isin: ["INE758T01015", "INE155A01022", "INE1TAE01010"] };
+    const r = matchEntries([{ name: "ZOMATO LIMITED", isin: "INE758T01015" }, { name: "TATA MOTORS LIMITED", isin: "INE155A01022" }], rows, localAnswers(["INE758T01015", "INE155A01022"], idx), true);
+    expect(r.found.map((f) => [f.symbol, f.isin])).toEqual([["ETERNAL", "INE758T01015"], ["TMPV", "INE155A01022"]]);
+    expect(r.check).toEqual([]);
   });
 });

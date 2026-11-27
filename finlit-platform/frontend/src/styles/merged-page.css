@@ -1,0 +1,43 @@
+/* Merged pages (developer files 28 and 29): one Results page in place of the Results calendar and Latest results (task #330). The header with the quarter
+   picker and calendar buttons on the right, six tiles in one row with "3 more figures" under them, and the view bar that stays under the site header. */
+.mg-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px 24px; align-items: end; }
+.mg-head .mg-side { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
+.mg-head .rs-qsel { margin: 0; }
+.mg-head .cs { margin: 0; justify-content: flex-end; }
+.mg-head .cs .cs-note { display: none; }
+.mg-head > .cs-panel { grid-column: 1 / -1; }
+.mg-tiles { grid-template-columns: repeat(6, minmax(0, 1fr)) !important; }
+.mg-note { margin: 8px 0 0; }
+.mg-tabs { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin: 20px 0 16px; padding: 10px 14px; border: 1px solid var(--border-strong); border-left: 5px solid var(--text); border-radius: var(--r-ctl); background: var(--s1); box-shadow: 0 6px 18px -12px color-mix(in srgb, var(--text) 35%, transparent); position: sticky; top: 70px; z-index: 30; }
+.mg-tabs-ic { flex: none; width: 34px; height: 34px; border-radius: var(--r-ctl); background: var(--s2); border: 1px solid var(--border); display: grid; place-items: center; color: var(--text); }
+.mg-tabs-ic svg { width: 16px; height: 16px; }
+.mg-tabs-k { font: 700 var(--fs-14)/1.2 var(--sans); color: var(--text); margin-right: 6px; white-space: nowrap; }
+.mg-tabs-k small { display: block; font: 400 var(--fs-12)/1.3 var(--sans); color: var(--muted); }
+.mg-tabs button { display: inline-flex; align-items: center; gap: 9px; min-height: 44px; padding: 0 16px 0 8px; border: 1.5px solid var(--border-strong); border-radius: var(--r-ctl); background: var(--bg); color: var(--text); cursor: pointer; font: 600 var(--fs-16)/1 var(--sans); white-space: nowrap; }
+.mg-tabs button i { flex: none; width: 26px; height: 26px; border-radius: 50%; background: var(--s2); border: 1px solid var(--border); display: grid; place-items: center; font: 700 var(--fs-12)/1 var(--sans); font-style: normal; color: var(--muted); }
+.mg-tabs button .n { font: 500 var(--fs-12)/1 var(--sans); color: var(--muted); }
+.mg-tabs button:hover { border-color: var(--text); background: var(--s2); }
+.mg-tabs button.on { background: var(--text); border-color: var(--text); color: var(--bg); }
+.mg-tabs button.on i { background: var(--bg); color: var(--text); border-color: var(--bg); }
+.mg-tabs button.on .n { color: inherit; opacity: .78; }
+.mg-tabs button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.mg-tabs-d { font: 400 var(--fs-13)/1.4 var(--sans); color: var(--muted); margin-left: 6px; min-width: 0; }
+.mg-tabs-d b { color: var(--text); font-weight: 600; }
+.mg-pane[hidden] { display: none !important; }
+.mg-more { margin: 10px 0 0; border: 1px solid var(--border); border-radius: var(--r-ctl); background: var(--s1); }
+.mg-more > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 14px; font: 600 var(--fs-13)/1.2 var(--sans); }
+.mg-more > summary::-webkit-details-marker { display: none; }
+.mg-more > summary small { font: 400 var(--fs-13)/1.3 var(--sans); color: var(--muted); }
+.mg-more > summary .cv { margin-left: auto; font-size: var(--fs-12); }
+.mg-more[open] > summary .cv { transform: rotate(180deg); }
+.mg-more-g { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; padding: 4px 12px 12px; }
+/* one box shape for the three views (the calendar and industry sections were 22px, the cards 18px) */
+.mg-pane > .sp-sec { border-radius: var(--r-card); padding: 22px 24px; }
+.mg-tiles .dtl-panel, .mg-more .dtl-panel { z-index: 35; }
+@media (max-width: 1100px) { .mg-tiles { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; } }
+@media (max-width: 760px) {
+  .mg-head { grid-template-columns: 1fr; } .mg-head .mg-side { align-items: flex-start; }
+  .mg-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  .mg-tabs { position: static; padding: 10px; } .mg-tabs-d { flex: 0 0 100%; margin: 0; } .mg-tabs button { flex: 1 1 100%; }
+  .mg-more-g { grid-template-columns: 1fr; }
+}

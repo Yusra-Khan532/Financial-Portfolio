@@ -12,12 +12,12 @@ try:
     from .financial_records import CR, num, items, first, field_date
     from .premium_classification import resolve_group, profile_from, label_text, unmapped_reason, CLASSIFICATION_VERSION
     from .financial_fields import INTEREST_COST_FIELDS
-    from .premium_model_config import QUARTERS_STORED, CAGR_MAX_YEARS
+    from .premium_model_config import QUARTERS_STORED, CAGR_MAX_YEARS, REVENUE_VERSION, SHORT_FALL_MIN_SESSIONS
 except ImportError:
     from financial_records import CR, num, items, first, field_date
     from premium_classification import resolve_group, profile_from, label_text, unmapped_reason, CLASSIFICATION_VERSION
     from financial_fields import INTEREST_COST_FIELDS
-    from premium_model_config import QUARTERS_STORED, CAGR_MAX_YEARS
+    from premium_model_config import QUARTERS_STORED, CAGR_MAX_YEARS, REVENUE_VERSION, SHORT_FALL_MIN_SESSIONS
 
 
 PROFIT_FIELDS = ("profitAttributableToOwnersOfParent", "profitOrLossAttributableToOwners", "profitLossAttributableToOwnersOfParent", "profitOrLossAttributableToOwnersOfParent",
@@ -116,6 +116,8 @@ def adapt_inputs(raw, symbol, as_of, statement_type):
         name = next((key for key in names if num(source.get(key)) is not None), None)
         if name: provenance.setdefault(target, set()).add(name)
         return num(source[name]) / scale if name else None
+    insurer_premiums = group == "INSURANCE" and any(num(r.get(k)) is not None for r in list(qmap.values()) + list(amap.values())
+                                                    for k in ("netPremiumEarned", "netPremiumIncome", "netPremium", "netEarnedPremium", "premiumEarned", "premiumsEarned"))
     def revenue(row):
         if group in ("BANK", "NBFC"):
             value = record(row, "sales", ("netInterestIncome", "netInterestRevenue", "netInterestEarnings"))
@@ -125,7 +127,12 @@ def adapt_inputs(raw, symbol, as_of, statement_type):
                 return earned - paid if earned is not None and paid is not None else None
             return value
         if group == "INSURANCE":
-            return record(row, "sales", ("netPremiumEarned", "netPremiumIncome", "netPremium", "netEarnedPremium"))
+            # Life insurers report net premium income; general and health insurers report premium earned (net), e.g. ICICIGI, NIACL, STARHEALTH (revenue names v2).
+            premium = record(row, "sales", ("netPremiumEarned", "netPremiumIncome", "netPremium", "netEarnedPremium", "premiumEarned", "premiumsEarned"))
+            if premium is not None or insurer_premiums:
+                return premium
+            # An insurance-group company that reports no premium line at all (a claims administrator such as MEDIASSIST) earns fees: its revenue
+            # from operations is its sales. An underwriter always reports premiums, so one company never mixes the two lines.
         return record(row, "sales", ("netSales", "sales", "revenueFromOperations", "incomeFromOperations", "revenue", "totalRevenue"))
     def profit(row):
         # Owner-attributable earnings take precedence over total group profit.
@@ -170,6 +177,9 @@ def adapt_inputs(raw, symbol, as_of, statement_type):
         "sales_y": [revenue(amap.get(key, {})) for key in ykeys],
         "net_profit_y": [profit(amap.get(key, {})) for key in ykeys],
         "eps_y": [eps(amap.get(key, {})) for key in ykeys],
+        # 3.6.21 (task #318): yearly EBITDA beside yearly sales, so the operating margin change can be measured on full years when the quarters cannot
+        # be compared (a recent listing, or a gap in the quarterly record).
+        "operating_profit_y": [ebitda(amap.get(key, {})) for key in ykeys],
         "operating_cash_flow_y": [], "eps_fy": eps(current_a),
         "annual_net_worth": None, "annual_total_assets": None,
         "net_worth": net_worth(current_b),
@@ -263,6 +273,19 @@ def adapt_inputs(raw, symbol, as_of, statement_type):
         d['financial_leverage_source'] = 'FinEdge reported financial leverage' if reported is not None else 'Calculated from total assets and equity on the same balance-sheet date' if computed is not None else 'Upstox reported financial leverage' if d['financial_leverage'] is not None else None
         if d['financial_leverage_source']:
             provenance['financial_leverage'] = {d['financial_leverage_source']}
+    # Interest cover (3.6.20, task #199): FinEdge's reported interest coverage, the company report's figure (section 9): the trailing-12-month row
+    # first, else the latest dated year. Non-financial groups only (lenders use their own (PBT + interest) / interest in place of capital adequacy).
+    d["interest_cover_reported"], d["interest_cover_source"] = None, None
+    if group not in ("BANK", "NBFC", "INSURANCE"):
+        li_rows = [row for row in items(raw.get("liquidity"), "ratios", "data") if isinstance(row, dict) and first(row, "interestCoverage") is not None]
+        ttm = next((row for row in li_rows if str(row.get("header") or "").strip().upper() == "TTM"), None)
+        yearly_rows = sorted((row for row in li_rows if row is not ttm and field_date(row) and field_date(row) <= as_of), key=field_date, reverse=True)
+        pick = ttm or (yearly_rows[0] if yearly_rows else None)
+        if pick is not None:
+            d["interest_cover_reported"] = first(pick, "interestCoverage")
+            d["interest_cover_source"] = ("FinEdge reported interest coverage (trailing 12 months)" if pick is ttm
+                                          else f"FinEdge reported interest coverage (year to {field_date(pick).isoformat()})")
+            provenance["interest_cover"] = {d["interest_cover_source"]}
     summary = dated(items(raw.get("summary"), "summary"))
     distribution = dated(items(raw.get("distribution"), "distributions"))
     declaration = dated(items(raw.get("declaration"), "declaration"))
@@ -333,12 +356,21 @@ def adapt_inputs(raw, symbol, as_of, statement_type):
                           "sessions": len(prices), "invalidCloseLast250": sum(close is None for _, close, _ in prices[-250:]), "missingVolumeLast60": sum(volume is None for _, _, volume in prices[-60:])}
     d["volatility_pct"] = statistics.stdev(returns) * math.sqrt(250) * 100 if len(returns) >= 60 else None
     incomplete_prices = any(close is None for _, close, _ in prices[-250:])
+    d["biggest_fall_sessions"] = None
     if len(prices) >= 250 and not incomplete_prices:
         peak, fall = prices[-250][1], 0.
         for _, close, _ in prices[-250:]:
             peak = max(peak, close)
             fall = max(fall, (1 - close / peak) * 100)
         d["biggest_fall_pct"] = fall
+    elif SHORT_FALL_MIN_SESSIONS <= len(prices) < 250 and all(close is not None for _, close, _ in prices):
+        # 3.6.21 (task #318): a company listed less than a year ago has no 250-session window; its largest fall is measured over every session since
+        # listing (at least SHORT_FALL_MIN_SESSIONS of them, all complete), and the engine counts it in proportion to the sessions it covers.
+        peak, fall = prices[0][1], 0.
+        for _, close, _ in prices:
+            peak = max(peak, close)
+            fall = max(fall, (1 - close / peak) * 100)
+        d["biggest_fall_pct"], d["biggest_fall_sessions"] = fall, len(prices)
     else: d["biggest_fall_pct"] = None
     last60 = prices[-60:]
     d["trading_value_cr"] = statistics.mean(close * volume for _, close, volume in last60) / CR if len(last60) == 60 and all(close is not None and volume is not None and volume >= 0 for _, close, volume in last60) else None
@@ -404,7 +436,7 @@ def adapt_inputs(raw, symbol, as_of, statement_type):
     d["rating_blockers"], d["rating_cautions"] = blockers, cautions
     warnings.extend(blockers + cautions)
     chronology = {"quarterly": [f"{key // 4}-{(key % 4) * 3 + 3:02d}" for key in qkeys], "annual": [str(year) for year in ykeys]}
-    meta = {"groupDefaulted": defaulted, "classificationVersion": CLASSIFICATION_VERSION, "groupLabel": label_text(profile), "statementType": statement_type, "quarterlyAsOf": end_q.isoformat() if end_q else None,
+    meta = {"groupDefaulted": defaulted, "classificationVersion": CLASSIFICATION_VERSION, "revenueVersion": REVENUE_VERSION, "groupLabel": label_text(profile), "statementType": statement_type, "quarterlyAsOf": end_q.isoformat() if end_q else None,
             "annualAsOf": max(a).isoformat() if a else None, "balanceAsOf": max(b).isoformat() if b else None,
             "ownershipAsOf": own_date.isoformat() if own_date else None, "priceAsOf": quote_date,
             "assetQualityStatementType": raw.get("asset_quality_basis", statement_type),

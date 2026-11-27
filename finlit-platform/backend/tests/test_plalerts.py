@@ -18,7 +18,7 @@ def body(ends, rev, np_, yearly=None):
 def test_message_is_plain_and_not_advice():
     f = {"case": 3, "title": "Revenue rose while profit fell", "period": "Mar 2026", "text": "Revenue grew 10.0% while net profit fell 10.0%. Compared with Mar 2025.", "why": "Costs may be rising.", "scope": "quarterly"}
     title, text = pa.message("ABC", f)
-    assert title == "ABC – Revenue rose while profit fell in the latest quarter (Mar 2026)"
+    assert title == "ABC – Revenue rose while profit fell in the Mar quarter (Mar 2026, the latest quarter)"   # task #312
     assert "worth a closer look" in text and "not investment advice" in text
     assert pa.kind_of(f) == "pl_flag_3" and pa.link_for("ABC", f) == "/stocks/ABC#quarter"
     assert pa.link_for("ABC", {**f, "scope": "annual"}) == "/stocks/ABC#financials"
@@ -86,11 +86,11 @@ def test_quarter_and_year_are_tested_separately_and_named():
     v = period_views(b["yearly"]["pl"], b["quarterly"]["pl"])
     assert v["annual"]["growth"] == {"revenue": 6.3, "profit": -12.8, "operating": None} and v["annual"]["against"] == "FY25"
     title, text = pa.message("KOTAKBANK", fl[0], v)
-    assert title == "KOTAKBANK – Revenue rose while profit fell in the latest quarter (Sep 2026)"
+    assert title == "KOTAKBANK – Revenue rose while profit fell in the Sep quarter (Sep 2026, the latest quarter)"   # task #312: the period in the title
     assert "Latest quarter, Sep 2026 against Sep 2025: revenue +10.0%, net profit −20.0%." in text
     assert "Latest year, FY26 against FY25: revenue +6.3%, net profit −12.8%." in text and "not investment advice" in text
     ann = {**fl[0], "scope": "annual", "period": "FY26"}
-    assert pa.message("X", ann)[0].endswith("in the latest year (FY26)")
+    assert pa.message("X", ann)[0].endswith("in FY26 (the latest year)")
 
 
 def test_a_quarter_missing_never_shifts_the_comparison():

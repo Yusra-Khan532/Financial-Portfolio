@@ -7,8 +7,10 @@ import { UpdateBanner } from "./components/UpdateBanner";
 import { AppShell } from "./components/AppShell";
 import { SearchPalette } from "./components/SearchPalette";
 import { Home } from "./pages/Home";
+const MarketsToday = lazy(() => import("./pages/MarketsToday").then((m) => ({ default: m.MarketsToday })));
+const AllToolsPage = lazy(() => import("./pages/AllTools").then((m) => ({ default: m.AllToolsPage })));
 const Research = lazy(() => import("./pages/Research").then((m) => ({ default: m.Research })));
-const PlansPage = lazy(() => import("./pages/Plans").then((m) => ({ default: m.PlansPage })));
+const PlansPage = lazy(() => import("./pages/Plans").then((m) => ({ default: m.PlansPage })));   // task #295: the landing page no longer holds the plans band, so /plans loads on its own
 const Services = lazy(() => import("./pages/Services").then((m) => ({ default: m.Services })));
 const About = lazy(() => import("./pages/About").then((m) => ({ default: m.About })));
 const Why = lazy(() => import("./pages/Why").then((m) => ({ default: m.Why })));
@@ -16,6 +18,7 @@ const Contact = lazy(() => import("./pages/Contact").then((m) => ({ default: m.C
 const FaqsPage = lazy(() => import("./pages/Faqs").then((m) => ({ default: m.FaqsPage })));
 import { Legal, NotFound } from "./pages/Legal";
 const Login = lazy(() => import("./pages/Login").then((m) => ({ default: m.Login })));
+const Unsubscribe = lazy(() => import("./pages/Unsubscribe").then((m) => ({ default: m.Unsubscribe })));
 import { ForgotPassword, ResetPassword, VerifyEmail } from "./pages/AccountFlows";
 
 // Heavier pages load on demand so the first visit stays small and fast.
@@ -30,12 +33,9 @@ const BlogPost = lazy(() => import("./pages/Blog").then((m) => ({ default: m.Blo
 const Screener = lazy(() => import("./pages/Screener").then((m) => ({ default: m.Screener })));
 const PremiumHub = lazy(() => import("./pages/Premium").then((m) => ({ default: m.PremiumHub })));
 const MarketsPage = lazy(() => import("./pages/Markets").then((m) => ({ default: m.MarketsPage })));
-const FundamentalsPage = lazy(() => import("./pages/Fundamentals").then((m) => ({ default: m.FundamentalsPage })));
 const PremiumReportPage = lazy(() => import("./pages/PremiumReport").then((m) => ({ default: m.PremiumReportPage })));
 const PrismPage = lazy(() => import("./pages/Prism").then((m) => ({ default: m.PrismPage })));
 const QueryBuilder = lazy(() => import("./pages/QueryBuilder").then((m) => ({ default: m.QueryBuilder })));
-const BasketsPage = lazy(() => import("./pages/Baskets").then((m) => ({ default: m.BasketsPage })));
-const ScoreScreener = lazy(() => import("./pages/ScoreScreener").then((m) => ({ default: m.ScoreScreener })));
 const AdvancedScoreScreener = lazy(() => import("./pages/AdvancedScoreScreener").then((m) => ({ default: m.AdvancedScoreScreener })));
 const Compare = lazy(() => import("./pages/Compare").then((m) => ({ default: m.Compare })));
 const GraphStudio = lazy(() => import("./pages/GraphStudio").then((m) => ({ default: m.GraphStudio })));
@@ -43,6 +43,8 @@ const AdvancedCharts = lazy(() => import("./pages/AdvancedCharts").then((m) => (
 const FeedbackPage = lazy(() => import("./pages/Feedback").then((m) => ({ default: m.FeedbackPage })));
 const LeadershipLabelPage = lazy(() => import("./pages/LeadershipLabel").then((m) => ({ default: m.LeadershipLabelPage })));
 const ConnectAIPage = lazy(() => import("./pages/ConnectAI").then((m) => ({ default: m.ConnectAIPage })));
+const TradingLabPage = lazy(() => import("./pages/TradingLab").then((m) => ({ default: m.TradingLabPage })));
+const OrderFlowPage = lazy(() => import("./pages/OrderFlow").then((m) => ({ default: m.OrderFlowPage })));
 const BrowserExtensionPage = lazy(() => import("./pages/BrowserExtension").then((m) => ({ default: m.BrowserExtensionPage })));
 const CompaniesPage = lazy(() => import("./pages/Companies").then((m) => ({ default: m.CompaniesPage })));
 const GlossaryPage = lazy(() => import("./pages/Glossary").then((m) => ({ default: m.GlossaryPage })));
@@ -55,9 +57,12 @@ const LearnSectorSignalsPage = lazy(() => import("./pages/LearnSectorSignals").t
 const MacroPage = lazy(() => import("./pages/Macro").then((m) => ({ default: m.MacroPage })));
 const FiiDiiPage = lazy(() => import("./pages/FiiDii").then((m) => ({ default: m.FiiDiiPage })));
 const SipCalculator = lazy(() => import("./pages/SipCalculator").then((m) => ({ default: m.SipCalculator })));
-const OptionChainPage = lazy(() => import("./pages/OptionChain").then((m) => ({ default: m.OptionChainPage })));
-const CommoditiesPage = lazy(() => import("./pages/Commodities").then((m) => ({ default: m.CommoditiesPage })));
 const StressLabPage = lazy(() => import("./pages/StressLab").then((m) => ({ default: m.StressLabPage })));
+const SuperinvestorsPage = lazy(() => import("./pages/Superinvestors").then((m) => ({ default: m.SuperinvestorsPage })));
+const DiscoveryPage = lazy(() => import("./pages/Discovery").then((m) => ({ default: m.DiscoveryPage })));   // task #241
+const DiscoveryRedirect = lazy(() => import("./pages/Discovery").then((m) => ({ default: m.DiscoveryRedirect })));   // task #260: /discovery -> /discover
+const SuperinvestorPage = lazy(() => import("./pages/Superinvestors").then((m) => ({ default: m.SuperinvestorPage })));
+const SuperinvestorNamePage = lazy(() => import("./pages/Superinvestors").then((m) => ({ default: m.SuperinvestorNamePage })));
 const StressLabIndexPage = lazy(() => import("./pages/StressLab").then((m) => ({ default: m.StressLabIndexPage })));
 const OutlookPage = lazy(() => import("./pages/Outlook").then((m) => ({ default: m.OutlookPage })));
 const OutlookIndexPage = lazy(() => import("./pages/Outlook").then((m) => ({ default: m.OutlookIndexPage })));
@@ -67,6 +72,10 @@ const Account = lazy(() => import("./pages/Account").then((m) => ({ default: m.A
 const Dashboard = lazy(() => import("./pages/Dashboard").then((m) => ({ default: m.Dashboard })));
 const Console = lazy(() => import("./pages/Console").then((m) => ({ default: m.Console })));
 const IpoPage = lazy(() => import("./pages/Ipo").then((m) => ({ default: m.IpoPage })));
+const IpoAllRedirect = lazy(() => import("./pages/IpoHistory").then((m) => ({ default: m.IpoAllRedirect })));   // task #329: /ipo/all -> /ipo?view=all
+const IpoReportPage = lazy(() => import("./pages/IpoReport").then((m) => ({ default: m.IpoReportPage })));
+const StatusPage = lazy(() => import("./pages/Status").then((m) => ({ default: m.StatusPage })));
+const ConcallMonitorPage = lazy(() => import("./pages/ConcallMonitor").then((m) => ({ default: m.ConcallMonitorPage })));
 const ResultsPage = lazy(() => import("./pages/Results").then((m) => ({ default: m.ResultsPage })));
 const QuarterResultsPage = lazy(() => import("./pages/QuarterResults").then((m) => ({ default: m.QuarterResultsPage })));
 const NewsPage = lazy(() => import("./pages/News").then((m) => ({ default: m.NewsPage })));
@@ -99,19 +108,24 @@ export default function App() {
     <Suspense fallback={<Fallback />}>
       <Routes>
         <Route element={<Layout />}>
-          <Route index element={<Home />} />
+          <Route index element={<Home />} />   {/* the landing page first, on a phone too (owner, 25 Nov 2026); Markets today is the Markets tab */}
           <Route element={<AppShell />}>
             <Route path="research" element={<><Research onSearch={() => setSearch(true)} /><SearchPalette open={search} onClose={() => setSearch(false)} /></>} />
             <Route path="dashboard" element={<Dashboard />} />
+            <Route path="markets" element={<MarketsToday />} />
+            <Route path="tools" element={<AllToolsPage />} />
             <Route path="screener" element={<Screener />} />
             <Route path="query-builder" element={<QueryBuilder />} />
-            <Route path="baskets" element={<BasketsPage />} />
-            <Route path="score-screener" element={<ScoreScreener />} />
+            <Route path="baskets" element={<Navigate to="/query-builder?view=baskets" replace />} />{/* founder, 25 Nov 2026: My baskets is on the Query builder page */}
+            {/* task #283: the Basic stock screener is retired with its score; an old link (any query string) opens the Advanced stock screener. The server answers 301 too (finlit/seo.py REDIRECTS). */}
+            <Route path="score-screener" element={<Navigate to="/advanced-score-screener" replace />} />
             <Route path="advanced-score-screener" element={<AdvancedScoreScreener />} />
             <Route path="premium" element={<PremiumHub />} />
             <Route path="premium/markets" element={<MarketsPage />} />
-            <Route path="premium/fundamentals" element={<FundamentalsPage />} />
-            <Route path="premium/options" element={<OptionChainPage />} />
+            {/* Task #317 (developer file 23): Company financials is off the site; its old address goes to the Company report (a 301 on the server). */}
+            <Route path="premium/fundamentals" element={<Navigate to="/research" replace />} />
+            {/* Option chain: off for now (task #213); old links land on the Gold dashboards. The page (pages/OptionChain.tsx), /api/options and the option lot-size job stay, so it can come back by restoring this route and its nav entry. */}
+            <Route path="premium/options" element={<Navigate to="/premium" replace />} />
             <Route path="premium/report" element={<PremiumReportPage />} />
             <Route path="premium/report/:symbol" element={<PremiumReportPage />} />
             <Route path="prism" element={<PrismPage />} />
@@ -124,7 +138,8 @@ export default function App() {
             <Route path="etfs/compare" element={<EtfComparePage />} />
             <Route path="etfs/compare-index-funds" element={<EtfVsIndexPage />} />
             <Route path="etfs/:symbol" element={<EtfDetailPage />} />
-            <Route path="commodities" element={<CommoditiesPage />} />
+            {/* Task #317 (developer file 23): Commodity prices is off the site; its old address goes to India economy (a 301 on the server). */}
+            <Route path="commodities" element={<Navigate to="/macro" replace />} />
             <Route path="fund-score-screener" element={<FundScoreScreener />} />
             <Route path="methodology/mf-score" element={<MfScoreMethod />} />
             <Route path="funds" element={<FundListPage />} />
@@ -138,6 +153,11 @@ export default function App() {
             <Route path="outlook" element={<OutlookIndexPage />} />
             <Route path="outlook/:symbol" element={<OutlookPage />} />
             <Route path="research/stress-lab" element={<StressLabIndexPage />} />
+            <Route path="superinvestors" element={<SuperinvestorsPage />} />
+            <Route path="discover/*" element={<DiscoveryPage />} />
+            <Route path="discovery" element={<DiscoveryRedirect />} />
+            <Route path="superinvestors/name/:key" element={<SuperinvestorNamePage />} />
+            <Route path="superinvestors/:key" element={<SuperinvestorPage />} />
             <Route path="research/stress-lab/:symbol" element={<StressLabPage />} />
             <Route path="eps-calculator" element={<EpsCalculatorPage />} />
             <Route path="sip-calculator" element={<SipCalculator />} />
@@ -148,6 +168,10 @@ export default function App() {
             <Route path="alerts" element={<AlertsPage />} />
             <Route path="forum/*" element={<ForumPage />} />
             <Route path="ipo" element={<IpoPage />} />
+            <Route path="ipo/all" element={<IpoAllRedirect />} />
+            <Route path="ipo/:id" element={<IpoReportPage />} />
+            <Route path="status" element={<StatusPage />} />
+            <Route path="concalls" element={<ConcallMonitorPage />} />
             <Route path="macro" element={<MacroPage />} />
             <Route path="sectors" element={<SectorPulsePage />} />
             <Route path="sectors/rotation" element={<SectorRotationPage />} />
@@ -168,8 +192,11 @@ export default function App() {
             <Route path="account" element={<Account />} />
             <Route path="account/:tab" element={<Account />} />
             <Route path="console" element={<Console />} />
+            <Route path="lab" element={<TradingLabPage />} />   {/* Trading Lab: admin-granted access (docs/TRADING-LAB.md) */}
+            <Route path="lab/flow" element={<OrderFlowPage />} />   {/* Trading Lab > Order Flow (docs/TRADING-LAB.md) */}
+            {/* task #310 part D (04-navigation.md): the company report has the same left menu as every other tool page */}
+            <Route path="stocks/:symbol" element={<StockPage />} />
           </Route>
-          <Route path="stocks/:symbol" element={<StockPage />} />
           <Route path="plans" element={<PlansPage />} />
           <Route path="pricing" element={<Navigate to="/plans" replace />} />
           <Route path="faq" element={<FaqsPage />} />
@@ -185,6 +212,7 @@ export default function App() {
           <Route path="blog/:slug" element={<BlogPost />} />
           <Route path="legal/:doc" element={<Legal />} />
           <Route path="login" element={<Login />} />
+          <Route path="unsubscribe" element={<Unsubscribe />} />
           <Route path="verify-email" element={<VerifyEmail />} />
           <Route path="forgot-password" element={<ForgotPassword />} />
           <Route path="reset-password" element={<ResetPassword />} />

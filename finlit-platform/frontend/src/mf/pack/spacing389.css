@@ -1,0 +1,36 @@
+/* Task #389 reopened (developer file 40 v4, Part D; SHARED.md SP1, SP3, SP6 and SP7, the MF parts): one spacing system for the MF portfolio, as on the
+   Equity page (spacing388.css). 18 px between any two boxes top to bottom; 28 px above the view cards (18 clear above their 10 px crowns); 12 px side by
+   side (chip rows stay 8). Scoped to the MF page only: the ETF page shares its classes (.wrap.mfp.efp) and follows in file 39, hence :not(.efp).
+   Tokens: --pf-gap, --pf-gap-x, --pf-crown (set on this wrap only). */
+.wrap.mfp:not(.efp) { --pf-gap: 18px; --pf-gap-x: 12px; --pf-crown: 10px; }
+
+/* SP1 (D1). The same page width as Equity, with funds and without: the wrap carries `pfx` (markup), and the width rule is here too, because the `.pfx`
+   full-width rule (portfolio/pf.css) only reaches the page once the Equity portfolio has been opened in the visit (it is bundled with that page); on a
+   direct visit the MF page kept the site's 1,260 px (1,220 px top card at a 1,510 px window, 69 px in on each side). */
+.wrap.mfp:not(.efp), .wrap.mfp:not(.efp) .gate, .wrap.mfp:not(.efp) .gate > div { min-width: 0; max-width: 100%; }
+
+/* SP3 (D2 and the page with funds). Block flow, so the margins merge: each box sets the gap under it.
+   Was: 16 under the top card (also above "Add your first fund"), 22 above the view cards, 14 / -4 around the Score parts and Since your last visit
+   (10 px), 16 under it, 14 under the section bar, 4 / 12 around "Data as of", 16 under the Mix sub-tabs, 4 / 14 around the Next card. */
+.wrap.mfp:not(.efp) .ptk-head { margin-bottom: var(--pf-gap); }
+.wrap.mfp:not(.efp) .px-strip { margin-top: calc(var(--pf-gap) + var(--pf-crown)); margin-bottom: var(--pf-gap); }
+.wrap.mfp:not(.efp) .px-parts, .wrap.mfp:not(.efp) .px-since { margin: 0 0 var(--pf-gap); }
+.wrap.mfp:not(.efp) .ptk-bar { margin-bottom: var(--pf-gap); }
+.wrap.mfp:not(.efp) .px-asof { margin: 0 0 var(--pf-gap); }
+.wrap.mfp:not(.efp) .ptk-hz { margin-bottom: var(--pf-gap); }
+.wrap.mfp:not(.efp) .mfm-subtabs { margin-bottom: var(--pf-gap); }
+.wrap.mfp:not(.efp) .ptk-next { margin: 0 0 var(--pf-gap); }
+/* D3 / E1: the shared bottom (portfolio/shared/shared.css .pgb) sits 18 px under the last box, inside the page column */
+.wrap.mfp:not(.efp) > .pgb { margin-top: var(--pf-gap); }
+
+/* SP6. The view cards line up: top-aligned content and the same top padding on every card (each card centred its content, so the titles stepped up and
+   down across the row). Desktop only: on a phone they are one-line rows. Stacked cards (one or two columns) get the same 18 px clear above each crown. */
+@media (min-width: 761px) {
+  .wrap.mfp:not(.efp) .px-c.px-vw { display: flex; flex-direction: column; justify-content: flex-start; align-items: stretch; text-align: left; }
+  .wrap.mfp:not(.efp) .px-c { padding-top: 16px; }
+}
+@media (max-width: 1100px) { .wrap.mfp:not(.efp) .px-strip { row-gap: calc(var(--pf-gap) + var(--pf-crown)); } }
+
+/* SP7. 12 px between boxes side by side: the two boxes in the top card (14), the shared-stock cards (10), the risk tiles and cards (10), the market-fall
+   boxes (14) */
+.wrap.mfp:not(.efp) :is(.ptk-top2, .mfm-cards, .eqr-tiles, .eqr-cards, .eqr-b3, .eqr-f4, .eq-lc, .fx, .ptk-kf) { gap: var(--pf-gap-x); }

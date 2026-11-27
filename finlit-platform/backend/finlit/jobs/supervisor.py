@@ -21,7 +21,7 @@ from .deploy_gate import LONG_CLASSES, hold_reason, read_hold
 from .due import DEGRADED_RETRY_MIN, HELD_RETRY_MIN, YIELD_RETRY_MIN, Ctx, JobState, Verdict, evaluate, retry_delay_min, sla_status
 from .reasons import PARTIAL_EXIT, explain, failed_steps
 from .registry import Job, JobsConfig, disabled_reason
-from .schedule import fmt_ist
+from .schedule import fmt_ist, ist, shift_start
 
 log = logging.getLogger("finlit.jobs")
 TERM_GRACE_S = 20.0
@@ -73,6 +73,13 @@ class Plan:
     start: List[Job] = field(default_factory=list)
     blocked: Dict[str, str] = field(default_factory=dict)
     deploy_hold: Optional[str] = None      # a new version waits for the running long job: no new long job starts (deploy_gate.py)
+    first: Optional[str] = None            # the job that has the long-job lane to itself now (Job.first_in: the sector job on weekend nights)
+
+
+# The owner's written exception (21 Nov 2026): "Saturday night till Sunday morning the sector job is given priority; other jobs can be stopped at that
+# time." On 21 Nov its build was 3 of 4 parts done when its 90-minute slice ended, then it went to the back of the queue and score took the long-job
+# lane for the rest of the night. Now, inside its hours and while it is due or running, it goes first and other long jobs wait or are paused.
+PAUSED_FOR = "paused for "
 
 
 class Supervisor:
@@ -182,7 +189,12 @@ class Supervisor:
         for name in [r.job.name for r in self.running.values()] + [j.name for j in plan.start]:
             if job.name in self.jobs[name].prerequisites:
                 return f"waiting for {name} to finish first (it reads this job's output)"
-        if plan.deploy_hold and job.cls in LONG_CLASSES:
+        if plan.first and plan.first != job.name and job.cls in LONG_CLASSES:
+            return f"waiting: the {plan.first} job has this time to itself (owner, 21 Nov 2026); this one starts when it has finished"
+        if plan.deploy_hold and job.cls in LONG_CLASSES and not job.deploy_hold_exempt:
+            # 27 Nov 2026: the night of 26 Nov brought deploy after deploy and the hold kept every bulk job waiting, so the ready-made lists (about 80 s,
+            # database only) did not run all night and still said 23 Nov on the 27th. A job marked deploy_hold_exempt is short and re-run by its probe if a
+            # restart cuts it, so it goes on; the long ones still wait, as the gate intends (deploy_gate.py)
             return plan.deploy_hold           # the running long job finishes, the deploy goes in the gap, then this one starts on the new version
         if job.cls == "bulk" or job.group == "funds":
             since = (now - self.started_at).total_seconds()
@@ -214,6 +226,8 @@ class Supervisor:
         by a restart) or it is still inside its SLA. Light, audit and on-demand jobs keep their place."""
         if job.cls != "bulk" or st is None:
             return False
+        if job.first_in is not None and job.first_in.ok(ist(now)):
+            return False          # its own hours: it continues at once instead of going to the back of the queue
         if job.resumable and st.last_status in ("timeout", "killed"):
             return True
         return not sla_status(job, st, now).breached
@@ -226,7 +240,12 @@ class Supervisor:
         st = plan.states.get(job.name) or JobState(job=job.name, first_seen_at=now)
         ps = plan.states.get(p)
         if ps and ps.last_success_at and (st.last_success_at is None or ps.last_success_at > st.last_success_at):
-            return False          # newer input is already there: use it now; the next round of `p` is picked up next time
+            # newer input is already there: use it now; the next round of `p` is picked up next time. A nightly_inputs job (score-mf) inside the night
+            # shift counts only TONIGHT's run of `p`: last night's run is always newer than last night's score, so the score ran before the night's
+            # NAVs, facts and portfolios every night and scored a day-old picture (task #281, 20 Nov 2026).
+            start = shift_start(now) if job.nightly_inputs else None
+            if start is None or ps.last_success_at >= start:
+                return False
         if sla_status(job, st, now).breached:
             return False          # past its promise: run on what is there rather than wait for ever
         return True
@@ -251,6 +270,8 @@ class Supervisor:
         verdicts = {n: evaluate(j, states.get(n) or JobState(job=n, first_seen_at=now), ctx) for n, j in self.jobs.items()}
         plan = Plan(ctx=ctx, states=states, verdicts=verdicts)
         plan.deploy_hold = await self._deploy_hold(now)
+        plan.first = next((n for n, j in self.jobs.items() if j.first_in is not None and j.first_in.ok(ist(now))
+                           and (n in self.running or verdicts[n].due)), None)
         snap = self.resources.snapshot()
         reserved = {"mb": 0.0}
         for n, v in verdicts.items():
@@ -267,7 +288,7 @@ class Supervisor:
         # better priority, so the night of 12 Nov 2026 it took every slot and presets (the screen lists and their history) never ran (task #64, D-1).
         yields = {p for n, j in self.jobs.items() if verdicts[n].due for p in j.prerequisites
                   if p in self.jobs and verdicts[p].due and not self._waits_for_due(j, p, plan, now)}
-        for job in sorted(self.order, key=lambda j: (last[j.name], j.name in yields, j.priority, self._due_since.get(j.name, 0.0), j.name)):
+        for job in sorted(self.order, key=lambda j: (j.name != plan.first, last[j.name], j.name in yields, j.priority, self._due_since.get(j.name, 0.0), j.name)):
             if not verdicts[job.name].due:
                 continue
             why = self._blocker(job, plan, snap.free_mb, snap.load_per_cpu, reserved, now)
@@ -281,6 +302,10 @@ class Supervisor:
     async def decide(self) -> Plan:
         plan = await self.plan()
         now = self.clock.now()
+        if plan.first:
+            for r in list(self.running.values()):
+                if r.job.name != plan.first and r.job.cls in LONG_CLASSES and r.term_at is None:
+                    self._terminate(r, "killed", f"{PAUSED_FOR}the {plan.first} job (owner, 21 Nov 2026); it continues when that has finished")
         for job in plan.start:
             await self._start(job, plan.states.get(job.name) or JobState(job=job.name, first_seen_at=now), plan.verdicts[job.name], now)
         await self._persist(plan, now)
@@ -424,6 +449,10 @@ class Supervisor:
             st.retry_at = now + timedelta(minutes=DEGRADED_RETRY_MIN)
             st.state, st.state_reason = "degraded", (reason or "an optional step did not work")[:300]
             await self._clear_alerts(job.name)
+            return
+        if status == "killed" and reason and reason.startswith(PAUSED_FOR):
+            st.retry_at = now + timedelta(minutes=YIELD_RETRY_MIN)    # paused for the job that has the time to itself: not a failure, it continues afterwards
+            st.state, st.state_reason = "waiting", reason[:300]
             return
         if status == "timeout" and job.resumable and reason and reason.startswith("ran longer"):
             st.retry_at = now + timedelta(minutes=YIELD_RETRY_MIN)    # a resumable job yields at its time cap and continues: not a failure

@@ -14,7 +14,7 @@ GROUPS = [("inflation", "Inflation"), ("monetary", "Monetary Policy"), ("credit"
 MOSPI, RBI, FBIL = ("MoSPI", "https://esankhyiki.mospi.gov.in"), ("RBI", "https://www.rbi.org.in"), ("RBI / FBIL", "https://www.fbil.org.in")
 EIA = ("U.S. EIA", "https://www.eia.gov/dnav/pet/hist/RBRTED.htm")
 WB = ("World Bank Commodity Price Data (Pink Sheet), CC BY 4.0", "https://www.worldbank.org/en/research/commodity-markets")
-COMM = ("Commodity price snapshots (metals.dev / MetalpriceAPI via the commodity worker)", "https://www.finlitventures.com/commodities")
+COMM = ("Commodity price snapshots (metals.dev / MetalpriceAPI via the commodity worker)", "https://www.finlitventures.com/macro")
 
 
 def thr(neutral: float, scale: float) -> Dict[str, Any]:
@@ -163,6 +163,20 @@ LABEL_RULES: List[Tuple] = [
     *_exact("sector", "sugar", "sugar", "sugar and ethanol"),
     *_exact("sector", "fertilisers", "fertilizers", "fertilisers", "fertilizers and agrochemicals", "fertilizers and pesticides", "nitrogenous fertilizers", "phosphatic fertilizers", "other fertilizers"),
     *_exact("sector", "diversified", "diversified", "trading and distributors", "diversified commercial services", "conglomerates", "trading", "commercial services and supplies", "trading and distribution", "multi sector"),
+    # NSE "Industry" labels that matched no rule (owner, 25 Nov 2026: Adani Enterprises showed "Macro outlook not available"; a check of all
+    # 5,782 labelled companies found 15 industry labels with no rule, and tractor/truck makers sent to Infrastructure by the word "construction")
+    *_exact("sector", "metals_mining", "ferrous metals", "non ferrous metals", "metals and minerals trading", "consumable fuels", "trading minerals", p=5),
+    *_exact("sector", "capital_goods", "industrial manufacturing", "engineering services", p=5),
+    *_exact("sector", "consumer_durables", "retailing", p=5),
+    *_exact("sector", "fmcg", "personal products", "cigarettes and tobacco products", p=5),
+    *_exact("sector", "hotels_qsr", "other consumer services", p=5),
+    *_exact("sector", "nbfc", "capital markets", "financial technology fintech", p=5),
+    *_exact("sector", "it_services", "it hardware", p=5),
+    *_exact("sector", "power_transmission", "gas", p=5),
+    *_exact("sector", "power_generation", "other utilities", p=5),
+    *_exact("sector", "hospitals", "healthcare equipment and supplies", p=5),
+    *_exact("sector", "media_entertainment", "printing and publication", p=5),
+    *_exact("sector", "autos", "agricultural commercial and construction vehicles", p=5),
     # wording rules on either label, used when no exact rule matched
     *_has("sector", "psu_banks", "public sector bank"), *_has("sector", "private_banks", "bank"),
     *_has("sector", "housing_finance", "housing finance"), *_has("sector", "nbfc", "nbfc", "non banking", "finance"), *_has("sector", "insurance", "insurance"),

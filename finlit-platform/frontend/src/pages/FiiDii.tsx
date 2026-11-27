@@ -11,7 +11,7 @@ import { useUI } from "../lib/ui";
 import { MINUS, dateIN, nf } from "../lib/format";
 import { useFlows, type Flows, type FlowDay, type Period, type Side, type Streak } from "../lib/flows";
 import {
-  RANGES, absorption, ageLabel, availability, combined, diiFeedText, windowText, commonSpan, corrWords, cumulative, diiGap, diiState, filterDays, grp, indexCorrelation, inr, isRange, level, monthGrid,
+  RANGES, absorption, longDay, togetherWords, ageLabel, availability, combined, diiFeedText, windowText, commonSpan, corrWords, cumulative, diiGap, diiState, filterDays, grp, indexCorrelation, inr, isRange, level, monthGrid,
   movingAverage, netOf, percentileOf, perDay, rangeRows, sinceMonths, sortDays, splitOf, summarize, toCsv, topRuns, totalSince, type RangeKey, type SideKey, type SortKey,
 } from "../lib/flowsMath";
 import { BarChart, CAL_LEGEND, CalendarHeat, LineChart } from "../components/FlowsCharts";
@@ -113,8 +113,8 @@ function Activities({ f, st, range, setRange, view, setView }: Ctx) {
         {st !== "none" && gapDays > 0 && both && <span className="fl-sum-b"><em>Where DII exists, {short(both.from)} to {short(both.to)} ({both.n} sessions):</em> FII <b className={tone(both.fii)}>{inr(both.fii, { sign: true })}</b> · DII <b className={tone(both.dii)}>{inr(both.dii, { sign: true })}</b> · Overall <b className={tone(both.overall)}>{inr(both.overall, { sign: true })}</b></span>}
         {view === "bars" && <span><i className="fl-dv" style={{ width: 18, height: 4, background: "var(--gold)", marginLeft: 0, marginRight: 6 }} />20-session average of the net</span>}
       </p>
-      <p className="fl-foot">{view === "cum" ? "Each line is a running total of daily net flow from the first session in the range, so it starts at zero. A rising line means net buying over the period; a falling line, net selling. On the axis, k is thousand crore and L is lakh crore (₹1,00,000 crore)." : "Green bars are net buying days and red bars net selling days. The gold line is the average of the latest 20 sessions, which smooths daily noise."}{st === "partial" && gapDays > 0 && (() => { const un = rows.filter((d) => d.dii?.net == null && diiGap(d.d, from) === "unpublished").length, miss = gapDays - un;
-          return ` DII and Overall are counted only on sessions that have both FII and DII, so those two lines start where DII starts${both ? ` (${short(both.from)})` : ""}.` + (un ? ` ${f.coverage.diiReason ?? `The official DII report begins ${from ? short(from) : "later"}; earlier days are not published.`}` : "") + (miss ? ` ${miss} session${miss === 1 ? " has" : "s have"} no DII figure although the report exists; ${miss === 1 ? "it adds" : "they add"} nothing to those lines.` : ""); })()}</p>
+      {/* task #311 (developer file 21, row 1): what the lines mean and where DII starts; how the running totals are counted is not shown */}
+      <p className="fl-foot">{view === "cum" ? "A rising line means net buying over the period; a falling line, net selling. k is thousand crore and L is lakh crore." : "Green bars are net buying days and red bars net selling days. The gold line is the average of the latest 20 sessions, which smooths daily noise."}{st === "partial" && from ? ` DII starts on ${longDay(from)}.` : ""}</p>
     </section>
   );
 }
@@ -147,7 +147,7 @@ function VsIndex({ f, st, range }: Ctx) {
       {idx && ipts.length > 1 && <>
         <LineChart height={280} label={`${s === "fii" ? "FII" : "DII"} cumulative net flow in rupees crore against the ${name}, over the selected range`}
           series={[{ key: "f", label: `${s === "fii" ? "FII" : "DII"} cumulative flow`, color: s === "fii" ? "var(--k1)" : "var(--k3)", pts: cum }, { key: "i", label: name, color: "var(--gold)", pts: ipts, axis: "r", fmt: (v) => nf(v, 0), dashed: true }]} />
-        <p className="fl-foot">Left axis: running total of the flow since the start of the range (₹ crore). Right axis (dashed): the index close. The range follows the buttons on the main chart.{ir != null && <> Over this range the daily flow and the index's daily move have had <b>{corrWords(ir)}</b> ({ir.toFixed(2).replace("-", MINUS)}).</>}</p></>}
+        <p className="fl-foot">Left axis: total flow since the start of the range (₹ crore). Right axis (dashed): the index close.{ir != null && <> Over this range, {togetherWords(ir)}.</>}</p></>}
       {c && <div className="fl-cards" style={{ marginTop: 14 }}><Gauge label="FII flow vs index" r={c.fiiVsIndex} days={c.days} />{st === "none" ? <div className="fl-card"><span className="k">DII flow vs index</span><p style={{ marginTop: 8 }}>{NO_DII}</p></div> : <Gauge label="DII flow vs index" r={c.diiVsIndex} days={c.days} />}</div>}
     </section>
   );
@@ -176,7 +176,7 @@ function Calendars({ f, st, day, setDay }: Ctx) {
   return (
     <section className="fl-panel" aria-labelledby="flCal" id="calendar">
       <div className="fl-ph"><h2 id="flCal">Daily flow calendar · {yr.length ? (partYear ? "since " : "from ") + short(yr[0].d) : "last year"}</h2></div>
-      {from && <p className="fl-note">FII and DII are both shown from {short(from)}, the first day NSDL's DII report exists, so the two sides always cover the same days.</p>}
+      {from && <p className="fl-note">Both are shown from {longDay(from)}.</p>}
       {st === "partial" && <p className="fl-note" id="flCalFeed"><b>{diiFeedText(f.coverage.diiFrom ?? availability(yr).dii?.from)}</b></p>}
       <p className="fl-note">One square per trading day. Deeper green is bigger net buying, deeper red bigger net selling; the scale is set by that side's own 92nd-percentile day, so a few extreme days do not wash out the rest. Select any day to read its figures.</p>
       <div className="fl-cals">
@@ -414,8 +414,8 @@ export function FiiDiiPage() {
   const summary = useMemo(() => (f ? summarize(f) : []), [f]);
   return (
     <div className="fl-page">
-      <PageHeader wrap plan="free" title="FII & DII flows today" art="chart" links={["/macro", "/commodities", "/premium/markets"]}
-        description={<>How much foreign institutions (FII/FPI) and domestic institutions (DII) <b>bought and sold</b> in the Indian stock market on the latest trading day, how long each has been buying or selling, and the history behind it. Net flow is simply what they bought minus what they sold.</>}>
+      <PageHeader wrap plan="free" title="FII & DII flows today" art="chart" links={["/macro", "/premium/markets"]}
+        description="Net buying (bought minus sold) by FIIs and DIIs on the latest day, with streaks and history.">
         <div className="fl-chips">
           {mood && <span className={"fl-chip " + (out ? "out" : inn ? "in" : "")}>{out ? "▼" : inn ? "▲" : "●"} {mood}</span>}
           {f?.latest && <span className="fl-chip">Last updated {ageLabel(f.latest.d, f.today)} · {dateIN(f.latest.d)}</span>}

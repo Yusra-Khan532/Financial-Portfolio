@@ -4,10 +4,12 @@ import { placeFloating, type Placement } from "../lib/floating";
 import { Link, useNavigate } from "react-router";
 import { Icon } from "../lib/icons";
 import { HScroll } from "../components/HScroll";
+import { DropChev } from "../components/DropChev";
 import {
   LABEL_WORD, groupSourceLine, monthYear, pts, sectorBench, tone, useLeadership,
   type Direction, type LeadLabel, type LeadershipOn,
 } from "../lib/leadership";
+import { codeText } from "../lib/companyLabel";
 
 /** Leader / In line / Laggard. Describes past relative price performance only; never a recommendation. */
 export const LEAD_NOTE = "Describes past performance; not a recommendation.";
@@ -31,16 +33,17 @@ function LeadTip({ text }: { text: string }) {
   const tip = useRef<HTMLSpanElement>(null);
   const leave = useRef(0);
   // Portalled and fixed: it can never be clipped or re-themed by the hero it sits in, and it is placed beside/above/below
-  // the (i) so that it does not cover the Set alert / Watchlist / Download buttons.
+  // the (i) so that it does not cover the Set alert / Watchlist / Value (DCF) / Share buttons.
   useLayoutEffect(() => { if (open && btn.current && tip.current) setPos(placeFloating(btn.current, tip.current)); else setPos(null); }, [open, text]);
   useEffect(() => {
     if (!open) return;
     const away = (e: MouseEvent) => { const t = e.target as Node; if (!box.current?.contains(t) && !tip.current?.contains(t)) setOpen(false); };
     const esc = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
     const shut = () => setOpen(false);
+    const scrolled = (e: Event) => { if (!tip.current?.contains(e.target as Node)) setOpen(false); };   // scrolling the tip itself keeps it open (task #204)
     document.addEventListener("mousedown", away); document.addEventListener("keydown", esc);
-    addEventListener("scroll", shut, true); addEventListener("resize", shut);
-    return () => { document.removeEventListener("mousedown", away); document.removeEventListener("keydown", esc); removeEventListener("scroll", shut, true); removeEventListener("resize", shut); };
+    addEventListener("scroll", scrolled, true); addEventListener("resize", shut);
+    return () => { document.removeEventListener("mousedown", away); document.removeEventListener("keydown", esc); removeEventListener("scroll", scrolled, true); removeEventListener("resize", shut); };
   }, [open]);
   useEffect(() => () => clearTimeout(leave.current), []);
   const hold = () => { clearTimeout(leave.current); setOpen(true); };
@@ -50,7 +53,7 @@ function LeadTip({ text }: { text: string }) {
       <button ref={btn} type="button" className="info" aria-label="What does this label mean?" aria-expanded={open} onClick={() => setOpen((o) => !o)} onFocus={hold}>i</button>
       {open && createPortal(
         <span ref={tip} className="ld-tip" role="tooltip" onMouseEnter={hold} onMouseLeave={release}
-          style={{ position: "fixed", left: pos?.left ?? 0, top: pos?.top ?? 0, maxHeight: pos?.maxH, overflowY: "auto", visibility: pos ? "visible" : "hidden" }}>
+          style={{ position: "fixed", left: pos?.left ?? 0, top: pos?.top ?? 0, maxHeight: pos?.maxH, overflowY: "auto", overscrollBehavior: "contain", visibility: pos ? "visible" : "hidden" }}>
           {text} <Link to={EXPLAINER} onClick={() => setOpen(false)}>What the labels mean →</Link>
         </span>, document.body)}
     </span>
@@ -95,22 +98,59 @@ export function LeadLine({ symbol, jump }: { symbol: string; jump: (id: string) 
 type Row = { symbol: string; name: string; rank: number | null; label: LeadLabel | null; thisWeek: LeadLabel | null; direction: Direction; rel52: number | null; rel13: number | null; rel52Market: number | null };
 type SortKey = "rank" | "name" | "rel52" | "rel13" | "rel52Market";
 
-/** Above the table: the status sentence, this week's own answer when it differs, what the figures are measured against, how long the label has stood, and the peer group. */
+/** Above the table (task #216, README 3.13): the label chip alone on its line; drop-down 1, "Rank, gaps and this week's reading" (the rank line with the gaps and
+ *  the direction, and this week's note); drop-down 2, "How this label works", with its facts: what the figures are measured against, the slots, how long the
+ *  label has stood, the last 52 weekly checks and the peer group. */
 export function RankingStatus({ lead }: { lead: LeadershipOn }) {
-  const d = lead.display, g = lead.peerGroup, r = lead.runs52, slots = g.leaderSlots;
+  const d = lead.display, g = lead.peerGroup, r = lead.runs52, slots = g.leaderSlots, p = d.parts;
   const peerAvg = lead.benchmarks.sector.kind === "peer_average";
+  const facts: React.ReactNode[] = [
+    <>The 12-month and 3-month figures are against <b>{sectorBench(lead)}</b>{peerAvg ? ", because there is no matching sector index" : ""}{lead.benchmarks.market ? <>; the market figure is against <b>{lead.benchmarks.market.name}</b></> : ""}.</>,
+    ...(slots != null && slots > 0 ? [<>The top {slots} of {g.ranked} can be Leaders (12-month figure above 0) and the bottom {slots} Laggards (below 0); the rest are In line.</>] : []),
+    ...(lead.labelSince ? [<>This label has stood since {new Date(lead.labelSince + "T00:00:00Z").toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })}.</>] : []),
+    ...(r && r.total > 0 ? [<>Over the last 52 weeks ({r.total} {r.total === 1 ? "check" : "checks"}): Leader {r.leader} · In line {r.in_line} · Laggard {r.laggard}.</>] : []),
+    <>{groupSourceLine(lead)}</>,
+  ];
+  const rankLine = [p?.rank || d.line, p ? `${p.sector.pts} pts vs ${p.sector.name}` : null, p?.market ? `${p.market.pts} pts vs ${p.market.name} (12 months)` : null, p?.direction ? dirWord(p.direction) : null].filter(Boolean).join(" · ");
   return (
     <div className="ld-status">
-      <p className="ld-sline"><LeadChip label={lead.label} /><span>{d.line}</span></p>
-      {d.pending && <p className="ld-pend" role="note">{d.pending}</p>}
-      <ul className="ld-facts">
-        <li>The 12-month and 3-month figures are against <b>{sectorBench(lead)}</b>{peerAvg ? ", because there is no matching sector index" : ""}{lead.benchmarks.market ? <>; the market figure is against <b>{lead.benchmarks.market.name}</b></> : ""}.</li>
-        {slots != null && slots > 0 && <li>The top {slots} of {g.ranked} can be Leaders (12-month figure above 0) and the bottom {slots} Laggards (below 0); the rest are In line.</li>}
-        {lead.labelSince && <li>This label has stood since {new Date(lead.labelSince + "T00:00:00Z").toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })}.</li>}
-        {r && r.total > 0 && <li>Over the last 52 weeks ({r.total} {r.total === 1 ? "check" : "checks"}): Leader {r.leader} · In line {r.in_line} · Laggard {r.laggard}.</li>}
-        <li>{groupSourceLine(lead)}</li>
-      </ul>
+      <p className="ld-sline"><LeadChip label={lead.label} /></p>
+      <details className="xdd notes ld-dd"><summary>Rank, gaps and this week's reading<DropChev /></summary>
+        <p className="ld-rline">{rankLine}</p>
+        {d.pending && <p className="ld-pend" role="note">{d.pending}</p>}
+      </details>
+      <details className="xdd notes ld-dd"><summary>How this label works · {facts.length} facts<DropChev /></summary>
+        <ul className="ld-facts">{facts.map((f, i) => <li key={i}>{f}</li>)}</ul>
+      </details>
     </div>
+  );
+}
+
+const LABEL_DEF: Record<LeadLabel, string> = {
+  leader: "A Leader is among the top of its peer group by the 12-month price move against the sector, with that move above 0.",
+  in_line: "In line: neither among the top nor among the bottom of its peer group by the 12-month price move against the sector.",
+  laggard: "A Laggard is among the bottom of its peer group by the 12-month price move against the sector, with that move below 0.",
+};
+/** A status chip in the ranking table that opens its details (task #216, README 3.13); on phones the details open as a sheet at the bottom of the screen. */
+function ChipDetails({ row, lead, own }: { row: Row; lead: LeadershipOn; own: boolean }) {
+  const r = lead.runs52;
+  return (
+    <details className="ld-cd">
+      <summary aria-label={`${LABEL_WORD[row.label!]}: show the details`}><span className={"ld-chip " + row.label}><i className="ld-dot" aria-hidden="true" />{LABEL_WORD[row.label!]}</span></summary>
+      <div className="ld-cd-p" role="group" aria-label={`${row.name}: ${LABEL_WORD[row.label!]}`}>
+        <p><b>{LABEL_WORD[row.label!]}.</b> {LABEL_DEF[row.label!]}</p>
+        <ul>
+          <li>12 months vs {sectorBench(lead)}: <b>{pts(row.rel52)} pts</b></li>
+          <li>3 months vs {sectorBench(lead)}: <b>{pts(row.rel13)} pts</b></li>
+          {lead.benchmarks.market && <li>12 months vs {lead.benchmarks.market.name}: <b>{pts(row.rel52Market)} pts</b></li>}
+        </ul>
+        {row.thisWeek && <p>This week's reading: {LABEL_WORD[row.thisWeek]}.</p>}
+        {row.direction === "gaining" && <p>Gaining over the last 3 months.</p>}
+        {own && lead.labelSince && <p>This label has stood since {new Date(lead.labelSince + "T00:00:00Z").toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })}.</p>}
+        {own && r && r.total > 0 && <p>Last {r.total} weekly checks: Leader {r.leader} · In line {r.in_line} · Laggard {r.laggard}.</p>}
+        <p className="ld-cd-n">Labels change only when two weekly runs agree. Describes the past; not a recommendation.</p>
+      </div>
+    </details>
   );
 }
 
@@ -149,8 +189,8 @@ export function PeerRanking({ lead, self, extras }: { lead: LeadershipOn; self: 
             {shown.map((r) => (
               <tr key={r.symbol} className={(r.symbol === self ? "me " : "") + (r.label ? "" : "none")} onClick={() => r.symbol !== self && nav(`/stocks/${r.symbol}`)} aria-current={r.symbol === self ? "true" : undefined}>
                 <td className="n">{r.rank ?? "—"}</td>
-                <th scope="row" className="nm">{r.symbol === self ? <b>{r.name}<span className="you"> · this company</span></b> : <Link to={`/stocks/${r.symbol}`} onClick={(e) => e.stopPropagation()}>{r.name}</Link>}<span className="tk">{r.symbol}</span></th>
-                <td>{r.label ? <><LeadChip label={r.label} />{r.direction && <span className={"ld-dir ld-dsm " + r.direction} title={dirWord(r.direction)}>{r.direction === "gaining" ? "▲" : "▼"}<span className="sr-only"> {dirWord(r.direction)}</span></span>}{r.thisWeek && <span className="ld-tw">This week: {LABEL_WORD[r.thisWeek]}</span>}</> : <span className="ld-nh">Not enough history</span>}</td>
+                <th scope="row" className="nm">{r.symbol === self ? <b>{r.name}<span className="you"> · this company</span></b> : <Link to={`/stocks/${r.symbol}`} onClick={(e) => e.stopPropagation()}>{r.name}</Link>}<span className="tk">{codeText(r.symbol)}</span></th>
+                <td onClick={(e) => e.stopPropagation()}>{r.label ? <><ChipDetails row={r} lead={lead} own={r.symbol === self} />{r.direction && <span className={"ld-dir ld-dsm " + r.direction} title={dirWord(r.direction)}>{r.direction === "gaining" ? "▲" : "▼"}<span className="sr-only"> {dirWord(r.direction)}</span></span>}{r.thisWeek && <span className="ld-tw">This week: {LABEL_WORD[r.thisWeek]}</span>}</> : <span className="ld-nh">Not enough history</span>}</td>
                 <td className="r"><Pt v={r.rel52} /></td><td className="r"><Pt v={r.rel13} /></td><td className="r"><Pt v={r.rel52Market} /></td>
               </tr>
             ))}
@@ -159,9 +199,9 @@ export function PeerRanking({ lead, self, extras }: { lead: LeadershipOn; self: 
       </HScroll>
       {rows.length > LIMIT && <button type="button" className="btn ld-more" onClick={() => setAll((a) => !a)}>{all ? "Show fewer" : `Show all ${rows.length} companies`}</button>}
       {(lead.notRanked?.length ?? 0) > 0 && (
-        <details className="ld-nr">
-          <summary>Not ranked this week ({lead.notRanked!.length})</summary>
-          <ul>{lead.notRanked!.map((n) => <li key={n.symbol}><b>{n.name === n.symbol ? n.symbol : n.name}</b>{n.name !== n.symbol && <span className="tk">{n.symbol}</span>}<span className="why">{n.text}</span></li>)}</ul>
+        <details className="ld-nr xdd">
+          <summary>Not ranked this week ({lead.notRanked!.length})<DropChev /></summary>
+          <ul>{lead.notRanked!.map((n) => <li key={n.symbol}><b>{n.name === n.symbol ? n.symbol : n.name}</b>{n.name !== n.symbol && <span className="tk">{codeText(n.symbol)}</span>}<span className="why">{n.text}</span></li>)}</ul>
         </details>
       )}
       <p className="ld-foot">{LEAD_NOTE} <Link to={EXPLAINER}>What the labels mean →</Link></p>

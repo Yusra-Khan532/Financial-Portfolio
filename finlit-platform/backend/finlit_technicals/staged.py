@@ -7,7 +7,9 @@
     score    once per part: the same per-stock work as batch.run (score, peer label, the stock inside its industry), for the part's stocks only. Each part builds
              the whole-market universe itself, so every stock is judged against the full market whichever part it is in; the parts run one after the other
     merge    the stages that need every group and every stock's peer label: the board (counts, ordering, "too few stocks" lists), the industry pages, the rotation
-             files and the rotation fields of every stock file and summary line (rotation ranks every group against the others), _summary.json
+             files and the rotation fields of every stock file and summary line (rotation ranks every group against the others), _summary.json,
+             and the Sectors view (by-sector/: the same board, pages and rotation with one group per NSE sector, task #192)
+    levels   adds by-sector/ to a release built before it existed (add_levels; the sector job calls it when the NSE files are unchanged)
 
 Nothing is approximated: every stage calls the functions batch.run calls, on the same inputs, and the files written are byte for byte those of batch.run
 (finlit_technicals/tests/test_staged_equals_single_run.py proves it against a frozen copy of the v2.0.1 code). A stage that dies (killed for memory, say)
@@ -109,7 +111,7 @@ def stage_score(nse: str, work: str, out: str, part: int) -> None:
 
 
 def stage_merge(nse: str, work: str, out: str, t0: float) -> None:
-    from .batch import add_rotation, build_rotation, write_sector_files, write_summary
+    from .batch import add_rotation, build_rotation, write_level_files, write_sector_files, write_summary
     plan = json.loads(Path(work, "plan.json").read_text())
     _, eng = _open(nse)
     lines: List[Any] = [None] * len(plan["symbols"])
@@ -136,9 +138,52 @@ def stage_merge(nse: str, work: str, out: str, t0: float) -> None:
     rot, rot_rows = build_rotation(eng)            # needs every group, so it is worked out here, not in the score parts
     add_rotation(out_p, lines, rot_rows)
     write_sector_files(eng, out_p, labels, homes, rot=rot, rot_rows=rot_rows)
+    try:
+        lv = write_level_files(eng, out_p, labels, rot)
+        print(f"merge: sectors view: {lv['groups']} sectors with a reading, {lv['too_small']} too small", flush=True)
+    except Exception as e:  # noqa: BLE001 - the Sectors view is extra; the industry release stands without it
+        print(f"merge: sectors view not written ({type(e).__name__}: {e})"[:300], flush=True)
     write_summary(out_p, lines, t0)
     Path(work, "summary.pkl").write_bytes(pickle.dumps(lines, protocol=4))
     print(f"merge: board and {len(eng._res)} industry pages written", flush=True)
+
+
+def stage_levels(nse: str, out: str) -> None:
+    """Adds the Sectors view (batch.LEVELS_DIR) to a release built before it existed (task #192, 22 Nov 2026), from the same NSE files: the industry
+    rotation is worked out again for its yardstick, the peer labels are read from the release's own stock files. Written beside the release and moved in
+    whole, so the release never holds half a Sectors view."""
+    from .batch import LEVELS_DIR, build_rotation, write_level_files
+    out_p = Path(out)
+    board = json.loads((out_p / "sectors" / "_board.json").read_text(encoding="utf-8"))
+    _, eng = _open(nse)
+    eng._build()
+    day = str(eng.panel.dates[-1].date())
+    if day != str(board.get("date"))[:10]:
+        raise RuntimeError(f"the NSE files end on {day} but the release holds {board.get('date')}: a full build is needed, not an addition")
+    labels: Dict[str, str] = {}
+    for f in out_p.glob("*.json"):
+        if f.name.startswith("_"):
+            continue
+        try:
+            lab = (json.loads(f.read_text(encoding="utf-8")).get("peers") or {}).get("label")
+        except (OSError, ValueError):
+            continue
+        if lab:
+            labels[f.stem] = lab
+    rot, _ = build_rotation(eng)
+    tmp = out_p / ".levels-work"
+    shutil.rmtree(tmp, ignore_errors=True)
+    lv = write_level_files(eng, tmp, labels, rot)
+    shutil.rmtree(out_p / LEVELS_DIR, ignore_errors=True)
+    os.replace(tmp / LEVELS_DIR, out_p / LEVELS_DIR)
+    shutil.rmtree(tmp, ignore_errors=True)
+    print(f"levels: sectors view added for {day}: {lv['groups']} sectors with a reading, {lv['too_small']} too small, rotation {'yes' if lv['rotation'] else 'no'}", flush=True)
+
+
+def add_levels(nse: str | Path, release: str | Path) -> tuple:
+    """Runs the levels stage in a child process (after the panel stage, which is skipped when the panel is current). Returns (peak MB, seconds)."""
+    _stage("panel", ["--nse", str(nse)])
+    return _stage("levels", ["--nse", str(nse), "--out", str(release)])
 
 
 # ------------------------------------------------------------------------------------------------ the runner (in the job process)
@@ -252,7 +297,7 @@ def run_staged(nse: str | Path, out: str | Path, symbols: Optional[List[str]] = 
 
 def main(argv: Optional[List[str]] = None) -> int:
     ap = argparse.ArgumentParser(prog="python -m finlit_technicals.staged")
-    ap.add_argument("stage", choices=["panel", "prepare", "score", "merge"])
+    ap.add_argument("stage", choices=["panel", "prepare", "score", "merge", "levels"])
     ap.add_argument("--nse", required=True)
     ap.add_argument("--work")
     ap.add_argument("--out")
@@ -267,6 +312,8 @@ def main(argv: Optional[List[str]] = None) -> int:
         stage_prepare(a.nse, a.work, a.parts, a.symbols_file)
     elif a.stage == "score":
         stage_score(a.nse, a.work, a.out, a.part)
+    elif a.stage == "levels":
+        stage_levels(a.nse, a.out)
     else:
         stage_merge(a.nse, a.work, a.out, a.t0)
     print(f"{PEAK} {peak_mb()}", flush=True)

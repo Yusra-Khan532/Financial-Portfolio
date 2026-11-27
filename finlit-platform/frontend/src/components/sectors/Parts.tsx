@@ -11,9 +11,9 @@ export function StateChip({ state, big, extra, word }: { state: string | null | 
 }
 
 /** A figure the plan does not include: said in words, with the plan that opens it. Never an empty cell. */
-export function LockedBlock({ plan, title, children }: { plan: Plan; title: string; children?: ReactNode }) {
+export function LockedBlock({ plan, title, children, name }: { plan: Plan; title: string; children?: ReactNode; name?: string }) {
   const { upgrade } = useUI();
-  const t = TIER[plan];
+  const t = { ...TIER[plan], n: name ?? TIER[plan].n };   // `name`: the plan's name as the page words it (task #333: Silver is retired, the sector pages say Platinum)
   return (
     <div className="sx-lock" role="note">
       <b><Icon name="lock" /> {title}</b>

@@ -1,0 +1,222 @@
+"""Task #272 (Watchlists and Alerts, 20 Nov pack): list alerts on the filings Discover sorts, the bell's two formats, the tax / customs / court guard,
+the member's last visit per page and GET /api/discovery/changes."""
+
+from datetime import date, timedelta
+
+import pytest
+
+from finlit import alertengine as eng
+from finlit import filingalerts as fa
+from test_auth import app, signed_in  # noqa: F401  (fixtures and helpers)
+from test_integration import ingested, store  # noqa: F401  (fixtures)
+
+pytestmark = pytest.mark.integration
+LISTS = {"lists": [{"id": "main", "name": "My watchlist", "symbols": ["RELIANCE", "WHEELS"]}, {"id": "b2", "name": "Banks", "symbols": ["HDFCBANK"]}], "meta": {}}
+
+
+async def run(app):
+    return await eng.evaluate(app.state.store.pool, app.state.mailer, "http://test", "daily")
+
+
+async def seed(app, start=1000):
+    async with app.state.store.pool.acquire() as conn:
+        await conn.execute("DELETE FROM discovery_signals")
+        await conn.execute("INSERT INTO discovery_companies (symbol, company, doc_link, status, primary_bucket) VALUES ('RELIANCE', 'Reliance Industries', "
+                           "'https://nsearchives.nseindia.com/x.pdf', 'ok', 'Corporate Catalysts & Growth Signals') ON CONFLICT (symbol) DO UPDATE SET primary_bucket = EXCLUDED.primary_bucket")
+        await conn.execute("INSERT INTO discovery_signals (feed_id, symbol, item_date, event, title, link) VALUES ($1, 'RELIANCE', current_date - 3, 'rating', 'Credit Rating', "
+                           "'https://nsearchives.nseindia.com/r.pdf')", start)
+
+
+async def add_signal(app, fid, sym, event, title, days_ago=0):
+    async with app.state.store.pool.acquire() as conn:
+        await conn.execute("INSERT INTO discovery_signals (feed_id, symbol, item_date, event, title, link) VALUES ($1, $2, current_date - $3::int, $4, $5, "
+                           "'https://nsearchives.nseindia.com/f.pdf')", fid, sym, days_ago, event, title)
+
+
+def test_tax_customs_and_court_orders_are_never_order_wins_or_capacity():
+    for t in ("Order passed by the GST authority demanding Rs 2 crore", "Receipt of order from Customs department", "Income Tax assessment order received",
+              "Order of the Hon'ble High Court in a writ petition", "NCLT order on the scheme", "Penalty order under SEBI rules", "Show cause notice received"):
+        assert fa.blocked("order", t) and fa.blocked("capacity", t), t
+    assert not fa.blocked("order", "Receipt of order worth Rs 450 crore from NHAI for a highway project")
+    assert not fa.blocked("capacity", "Commissioning of 2 GW module line at Mundra")
+    assert not fa.blocked("legal", "Income Tax assessment order received")    # a legal / regulatory alert is about exactly such orders
+
+
+def test_lists_resolve_equity_accounts_watchlists_and_mine():
+    pf = {"holdings": [{"symbol": "TCS"}, {"symbol": "INFY", "pf": "z2"}], "portfolios": [{"id": "z1", "name": "Zerodha"}, {"id": "z2", "name": "Groww"}]}
+    ls = {x["ref"]: x for x in fa.lists_of(LISTS, pf)}
+    assert ls["equity"]["symbols"] == ["TCS", "INFY"] and ls["equity:z1"]["symbols"] == ["TCS"] and ls["equity:z2"]["symbols"] == ["INFY"]
+    assert ls["watch:main"]["symbols"] == ["RELIANCE", "WHEELS"] and ls["watch:b2"]["label"] == "Watchlist · Banks"
+    assert ls["mine"]["symbols"] == ["TCS", "INFY", "RELIANCE", "WHEELS", "HDFCBANK"]
+    assert "equity:z1" not in {x["ref"] for x in fa.lists_of(LISTS, {"holdings": [{"symbol": "TCS"}]})}   # one account: no per-account line
+
+
+def test_bell_words_for_one_filing_and_one_summary_a_day():
+    t, b, link = fa.bell_one({"symbol": "WELCORP", "name": "Welspun Corp", "event": "order", "title": "Order worth Rs 1,200 crore", "item_date": date(2026, 11, 19)},
+                             "On your watchlist · my watchlist")
+    assert t == "Order win · Welspun Corp" and "Order worth Rs 1,200 crore (19 Nov)" in b and b.endswith("sent on the evening of the day it is filed")
+    assert link == "/discover/changes/order?q=Welspun%20Corp"
+    t, b, link = fa.bell_summary([{"symbol": "TECHM", "name": "Tech Mahindra", "event": "fundraise", "item_date": date(2026, 11, 19)},
+                                  {"symbol": "ZENSARTECH", "name": "Zensar Technologies", "event": "management", "item_date": date(2026, 11, 15)}],
+                                 date(2026, 11, 12), "/holdings#what-changed")
+    assert t == "2 filings at your companies since 12 Nov" and b == "Tech Mahindra: fund raising (19 Nov) · Zensar Technologies: management (15 Nov)"
+
+
+async def test_a_list_alert_is_one_alert_fires_per_filing_and_skips_a_tax_order(app):
+    c = await signed_in(app, "lists@example.com", plan="gold")
+    assert (await c.put("/api/me/watchlist", json=LISTS)).status_code == 200
+    await seed(app)
+    lists = (await c.get("/api/alerts/lists")).json()
+    assert {"ref": "watch:main", "label": "Watchlist · My watchlist", "count": 2} in lists["lists"] and lists["kinds"]["order"] == "Order win"
+    r = await c.post("/api/alerts", json={"metric": "discover_filing", "op": "event", "list": "watch:main", "kinds": ["order", "capacity"], "channels": ["app"]})
+    assert r.status_code == 201, r.text
+    a = r.json()
+    assert a["list"] == "watch:main" and a["kinds"] == ["order", "capacity"] and a["symbol"] == "" and a["repeat"] == "every"
+    assert (await c.post("/api/alerts", json={"metric": "discover_filing", "op": "event", "list": "watch:main", "kinds": ["capacity", "order"]})).status_code == 409
+    assert (await c.post("/api/alerts", json={"metric": "discover_filing", "op": "event", "list": "watch:nope", "kinds": ["order"]})).status_code == 404
+    assert (await c.post("/api/alerts", json={"metric": "price", "op": "above", "value": 10, "list": "watch:main"})).status_code == 422
+    assert (await c.post("/api/alerts", json={"metric": "discover_filing", "op": "event", "list": "watch:main", "kinds": []})).status_code == 422
+    assert len((await c.get("/api/alerts")).json()["alerts"]) == 1                      # one alert for the whole list
+    assert await run(app) == 0                                                          # the old credit rating does not count
+    await add_signal(app, 1001, "RELIANCE", "order", "Receipt of order worth Rs 450 crore from NHAI")
+    await add_signal(app, 1002, "RELIANCE", "order", "Order passed by the GST authority demanding Rs 2 crore")   # a tax order sorted as an order win
+    await add_signal(app, 1003, "RELIANCE", "management", "Appointment of a director")                      # a kind not picked
+    await add_signal(app, 1004, "HDFCBANK", "order", "Order worth Rs 10 crore")                             # a company on another list
+    assert await run(app) == 1
+    n = (await c.get("/api/notifications")).json()["notifications"]
+    assert len(n) == 1 and n[0]["title"] == "Order win · Reliance Industries" and "NHAI" in n[0]["body"] and "GST" not in n[0]["body"]
+    assert n[0]["link"] == "/discover/changes/order?q=Reliance%20Industries" and n[0]["body"].startswith("On your watchlist · my watchlist")
+    assert await run(app) == 0                                                          # nothing new
+    await c.aclose()
+
+
+async def test_one_summary_a_day_lists_both_filings_in_one_bell_item(app):
+    c = await signed_in(app, "digest@example.com", plan="gold")
+    assert (await c.put("/api/me/watchlist", json=LISTS)).status_code == 200
+    await seed(app, 2000)
+    r = await c.post("/api/alerts", json={"metric": "discover_filing", "op": "event", "list": "mine", "kinds": ["fundraise", "management"], "digest": True})
+    assert r.status_code == 201 and r.json()["digest"] is True
+    await add_signal(app, 2001, "RELIANCE", "fundraise", "Allotment of shares")
+    await add_signal(app, 2002, "HDFCBANK", "management", "Change in Management")
+    assert await run(app) == 1
+    n = (await c.get("/api/notifications")).json()["notifications"]
+    assert len(n) == 1 and n[0]["title"].startswith("2 filings at your companies since ") and n[0]["link"] == "/watchlist#what-changed"
+    assert ": fund raising (" in n[0]["body"] and ": management (" in n[0]["body"]
+    await add_signal(app, 2003, "RELIANCE", "fundraise", "Allotment of debentures")
+    assert await run(app) == 0                                                          # one summary a day: the next waits for tomorrow
+    await c.aclose()
+
+
+async def test_a_list_alert_counts_as_one_of_the_plan_and_needs_silver(app):
+    basic = await signed_in(app, "basicl@example.com")
+    await basic.put("/api/me/watchlist", json=LISTS)
+    r = await basic.post("/api/alerts", json={"metric": "discover_filing", "op": "event", "list": "watch:main", "kinds": ["order"]})
+    assert r.status_code == 403 and r.json()["detail"]["status"] == "plan_required"
+    await basic.aclose()
+
+
+async def test_last_visit_per_page_rolls_only_after_30_minutes(app):
+    c = await signed_in(app, "visit@example.com", plan="silver")
+    assert (await c.post("/api/visits/watchlist")).json() == {"previous": None}
+    assert (await c.post("/api/visits/watchlist")).json() == {"previous": None}       # a reload keeps what is new
+    async with app.state.store.pool.acquire() as conn:
+        await conn.execute("UPDATE page_visits SET seen_at = now() - interval '8 days' WHERE page = 'watchlist'")
+    prev = (await c.post("/api/visits/watchlist")).json()["previous"]
+    assert prev and date.fromisoformat(prev[:10]) <= date.today() - timedelta(days=7)
+    assert (await c.post("/api/visits/holdings")).json() == {"previous": None}         # per page
+    assert (await c.post("/api/visits/Bad_Page")).status_code == 422
+    await c.aclose()
+
+
+async def test_changes_read_names_unplaced_companies_and_counts_each_kind(app):
+    await seed(app, 3000)
+    await add_signal(app, 3001, "RELIANCE", "rating", "Credit Rating revised", 10)
+    await add_signal(app, 3002, "RELIANCE", "fundraise", "Allotment of NCDs", 20)
+    await add_signal(app, 3003, "RELIANCE", "order", "Old order", 200)                  # outside the 90 days
+    from test_auth import new_client
+    c = new_client(app)
+    r = await c.get("/api/discovery/changes?symbols=RELIANCE,WHEELS")
+    assert r.status_code == 200 and r.headers["cache-control"] == "private, max-age=300"
+    d = r.json()
+    co = d["companies"][0]
+    assert co["s"] == "RELIANCE" and co["n"] == "Reliance Industries" and set(co["ev"]) == {"rating", "fundraise"}
+    assert co["ev"]["rating"]["n"] == 2 and co["ev"]["rating"]["t"] == "Credit Rating" and co["ev"]["rating"]["l"].startswith("https://nsearchives")
+    assert d["notPlaced"] == [{"s": "WHEELS", "n": "WHEELS"}] or d["notPlaced"][0]["s"] == "WHEELS"
+    assert (await c.get("/api/discovery/changes?symbols=bad sym")).status_code == 400
+    await c.aclose()
+
+
+async def test_276_the_etf_list_is_the_companies_inside_the_members_etfs_and_its_alert_fires(app):
+    """Task #276: "Alert me" on the ETF portfolio's What changed sets one list alert on the companies that make up 0.3% or more of the member's ETFs
+    (each ETF's latest monthly file, weighted as the page weights them). SILVERBEES holds no company; its silver row (stored as cash) is not a company."""
+    import json as _json
+    c = await signed_in(app, "etflist@example.com", plan="gold")
+    uid = (await c.get("/api/auth/me")).json()["user"]["id"]
+    hold = {"INF204KB1V68": [["Welspun Corp Ltd", "INE191B01025", "Industrial Products", "e", 0.72, 1, 1], ["Tiny Ltd", "INE000T01011", "Finance", "e", 0.5, 1, 1],
+                             ["Triparty Repo", None, None, "c", 0.2, None, None]],
+            "INF204KC1402": [["Triparty Repo", None, None, "c", 0.23, None, None], ["Nippon India Silver ETF", "INF204KC1402", None, "c", 100.0, None, None]]}
+    async with app.state.store.pool.acquire() as conn:
+        for i, (sym, isin) in enumerate((("MID150X", "INF204KB1V68"), ("SILVERX", "INF204KC1402"))):
+            await conn.execute("INSERT INTO etf_funds (symbol, isin, instrument_key, exchange_name, display_name, price) VALUES ($1, $2, 'NSE_EQ|' || $2, $1, $1, 100) "
+                               "ON CONFLICT (symbol) DO NOTHING", sym, isin)
+            await conn.execute("INSERT INTO mf_schemes (code, name, amc, scheme_type, category, plan, option_class, family, isin) VALUES ($1, $2, 'Nippon', 'Open Ended', "
+                               "'Other Scheme - Other ETFs', 'Regular', 'Growth', $3, $4) ON CONFLICT (code) DO NOTHING", 990000 + i, sym, f"fam-{sym}", isin)
+            await conn.execute("INSERT INTO disclosure_portfolios (fkey, as_of, amc, scheme_name, source, source_url, pct_total, n, holdings) VALUES "
+                               "($1, '2026-10-31', 'Nippon', $2, 'test', 'https://example.test', 100, 3, $3::jsonb) ON CONFLICT DO NOTHING", f"fam-{sym}", sym, _json.dumps(hold[isin]))
+            await conn.execute("INSERT INTO etf_holdings (user_id, symbol, isin) VALUES ($1::uuid, $2, $3)", uid, sym, isin)
+        for sym, isin, name in (("WELCORP", "INE191B01025", "Welspun Corp Ltd"), ("TINYCO", "INE000T01011", "Tiny Ltd")):
+            await conn.execute("INSERT INTO companies (symbol, name) VALUES ($1, $2) ON CONFLICT (symbol) DO NOTHING", sym, name)
+            await conn.execute("INSERT INTO disclosure_isin (isin, symbol) VALUES ($1, $2) ON CONFLICT DO NOTHING", isin, sym)
+        lst = await fa.etf_list(conn, uid)
+    # equal weights (no units): Welspun 0.72% x 1/2 = 0.36% stays; Tiny 0.5% x 1/2 = 0.25% is under 0.3%
+    assert lst == {"ref": "etf", "label": "ETF portfolio · companies inside your ETFs", "symbols": ["WELCORP"]}
+    lists = (await c.get("/api/alerts/lists")).json()["lists"]
+    assert {"ref": "etf", "label": "ETF portfolio · companies inside your ETFs", "count": 1} in lists and lists[-1]["ref"] == "mine"
+    r = await c.post("/api/alerts", json={"metric": "discover_filing", "op": "event", "list": "etf", "kinds": ["order"], "channels": ["app"]})
+    assert r.status_code == 201, r.text
+    assert fa.list_page("etf") == "/etf-portfolio#what-changed"
+    async with app.state.store.pool.acquire() as conn:
+        top = await fa.newest_signal(conn)                                        # the alert counts only filings after this one
+    await add_signal(app, top + 1, "WELCORP", "order", "Receipt of order worth Rs 300 crore for line pipes")
+    await add_signal(app, top + 2, "TINYCO", "order", "Order worth Rs 5 crore")                                   # under 0.3% of the ETFs
+    assert await run(app) == 1
+    n = (await c.get("/api/notifications")).json()["notifications"]
+    assert len(n) == 1 and "line pipes" in n[0]["body"] and n[0]["body"].startswith("On your etf portfolio · companies inside your etfs")
+    await c.aclose()
+
+
+async def test_275_the_mf_list_is_the_companies_inside_the_members_funds_and_its_alert_fires(app):
+    """Task #275 (change 19): "Alert me" on the MF portfolio's What changed sets one list alert on the companies that make up 0.3% or more of the member's
+    funds (each fund's latest monthly file through its family, each fund counting the same). Cash rows and companies under 0.3% are left out."""
+    import json as _json
+    c = await signed_in(app, "mflist@example.com", plan="gold")
+    uid = (await c.get("/api/auth/me")).json()["user"]["id"]
+    hold = {"fam-FMCGX": [["ITC Ltd", "INE154A01025", "Diversified FMCG", "e", 19.2, 1, 1], ["Small Ltd", "INE000S01011", "Food Products", "e", 0.4, 1, 1],
+                          ["Triparty Repo", None, None, "c", 3.0, None, None]],
+            "fam-LIQX": [["Treasury Bill", "IN002026X123", None, "d", 60.0, None, None]]}
+    async with app.state.store.pool.acquire() as conn:
+        for code, fam in ((991001, "fam-FMCGX"), (991002, "fam-LIQX")):
+            await conn.execute("INSERT INTO mf_schemes (code, name, amc, scheme_type, category, plan, option_class, family, isin) VALUES ($1, $2, 'ICICI', 'Open Ended', "
+                               "'Equity Scheme - Sectoral/ Thematic', 'Regular', 'Growth', $2, $3) ON CONFLICT (code) DO NOTHING", code, fam, f"INF{code}XX0")
+            await conn.execute("INSERT INTO disclosure_portfolios (fkey, as_of, amc, scheme_name, source, source_url, pct_total, n, holdings) VALUES "
+                               "($1, '2026-10-31', 'ICICI', $1, 'test', 'https://example.test', 100, 3, $2::jsonb) ON CONFLICT DO NOTHING", fam, _json.dumps(hold[fam]))
+            await conn.execute("INSERT INTO mf_holdings (user_id, code) VALUES ($1::uuid, $2)", uid, code)
+        for sym, isin, name in (("ITCX", "INE154A01025", "ITC Ltd"), ("SMALLX", "INE000S01011", "Small Ltd")):
+            await conn.execute("INSERT INTO companies (symbol, name) VALUES ($1, $2) ON CONFLICT (symbol) DO NOTHING", sym, name)
+            await conn.execute("INSERT INTO disclosure_isin (isin, symbol) VALUES ($1, $2) ON CONFLICT DO NOTHING", isin, sym)
+        lst = await fa.mf_list(conn, uid)
+    # two funds, each counting the same: ITC 19.2% x 1/2 = 9.6% stays; Small 0.4% x 1/2 = 0.2% is under 0.3%; the liquid fund holds no company
+    assert lst == {"ref": "mf", "label": "MF portfolio · companies inside your funds", "symbols": ["ITCX"]}
+    lists = (await c.get("/api/alerts/lists")).json()["lists"]
+    assert {"ref": "mf", "label": "MF portfolio · companies inside your funds", "count": 1} in lists and lists[-1]["ref"] == "mine"
+    r = await c.post("/api/alerts", json={"metric": "discover_filing", "op": "event", "list": "mf", "kinds": ["order", "fundraise"], "channels": ["app"]})
+    assert r.status_code == 201, r.text
+    assert fa.list_page("mf") == "/mf-portfolio#what-changed"
+    async with app.state.store.pool.acquire() as conn:
+        top = await fa.newest_signal(conn)
+    await add_signal(app, top + 1, "ITCX", "order", "Receipt of order worth Rs 120 crore")
+    await add_signal(app, top + 2, "SMALLX", "order", "Order worth Rs 2 crore")                                    # under 0.3% of the funds
+    assert await run(app) == 1
+    n = (await c.get("/api/notifications")).json()["notifications"]
+    assert len(n) == 1 and "Rs 120 crore" in n[0]["body"] and n[0]["body"].startswith("On your mf portfolio · companies inside your funds")
+    await c.aclose()

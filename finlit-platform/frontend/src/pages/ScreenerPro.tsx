@@ -14,8 +14,10 @@ import { ratioSentence } from "../components/screener/CustomRatio";
 import { RatioDrawer, type Draft } from "../components/screener/RatioDrawer";
 import { EXAMPLES as RATIO_EXAMPLES, valueText } from "../lib/customRatio";
 import { apiSend } from "../lib/api";
-import { decodeRatios, encodeRatios, loadRatios, saveRatios, loadSavedRatios, storeSavedRatios, ratioLabel, type CustomRatio, activeCount, cellTone, chipColumn, colourColumns, colourNote, dataLine, decodeState, emptyReason, encodeState, firstPeriod, fmtMetric, loadCols, norm, stack, standardColumns, storeCols, tableColumns, toBody, useCatalog, useReady, useScreen, type Catalog, type MetricInfo, type PState, type Range, type ReadyScreen } from "../lib/proscreen";
+import { decodeRatios, encodeRatios, loadRatios, saveRatios, loadSavedRatios, storeSavedRatios, ratioLabel, type CustomRatio, activeCount, linkLevels, takenOffLine, cellTone, chipColumn, colourColumns, colourNote, dataLine, decodeState, emptyReason, encodeState, firstPeriod, fmtMetric, loadCols, norm, stack, standardColumns, storeCols, tableColumns, toBody, useCatalog, useReady, useScreen, type Catalog, type MetricInfo, type PState, type Range, type ReadyScreen } from "../lib/proscreen";
 import { screens, useSavedScreens, type SavedScreen } from "../lib/screens";
+import { CAP_BUCKETS } from "../lib/capBuckets";
+import { SizeNote } from "../components/SizeNote";
 import { useDocTitle } from "../lib/title";
 import { TIER, useUI, type Plan } from "../lib/ui";
 import { techBandOf, trendWord } from "../lib/scoreScreen";
@@ -24,21 +26,45 @@ import { Safe3D } from "../three/Safe3D";
 import { supports3d, whenIdle } from "../three/support";
 import { rankMetrics } from "../lib/metricSearch";
 import { CheckRow, SearchBox } from "../components/screener/FilterGroup";
-import { Donut, SectorBars } from "../components/screener/PageParts";
-import { FindStocksTabs } from "../components/screener/FindStocksTabs";
+import { ScreenerHead, STOCK_DESC } from "../components/screener/ScreenerHead";
 import { ChartPanel, type PanelRow } from "../components/screener/ChartPanel";
-import { ReadyScreens } from "../components/screener/ReadyScreens";
+import { PanelTabs, ReadyOn, ReadyScreens, type PanelTab } from "../components/screener/ReadyScreens";
 import { RuleCard, startRange } from "../components/screener/RuleCard";
 import { RulePicker } from "../components/screener/RulePicker";
+import { RuleTopics } from "../components/screener/RuleTopics";
+import "../styles/task364.css";   // task #364: the Score and Filters panel
+import "../styles/task383.css";   // task #383: Show filters / Hide filters and the table's scroller, as on the Mutual Fund Screener
+import "../styles/task384.css";   // task #384: the filter panel's scrollbar, the divider's button, the results header row
 import { RuleFigures } from "../components/screener/RuleFigures";
 import { parseRules } from "../lib/typeRules";
 import "../styles/fgx.css";
 import "../styles/stockscreener.css";
 import "../styles/tools.css";
+import "../styles/task364b.css";   // task #364 PR B: the results table
+import "../styles/task364c.css";   // task #364 PR C: page width, lower section, the phone drawer
 import { SIDE, SplitDivider, useSideWidth } from "../components/SplitDivider";
 import { CoLogo } from "../components/CoLogo";
+import { PLAN_FOR_SCREENER } from "../lib/planGates";
 
 const Cloud3D = lazy(() => import("../three/Cloud3D"));
+
+/** Task #229 (18 Nov 2026, the team: "add a meaning to this, use a box"): what the 3D picture under the results shows and how to read it. */
+export function CubeMeaning({ n, axes }: { n: number; axes: [string, string, string] }) {
+  return (
+    <aside className="scr-3d-m" aria-label="What this picture shows">
+      <h4>What this picture shows</h4>
+      <p>Each dot is one company of this page: the {n} with all three figures.</p>
+      <dl>
+        <div><dt>Up</dt><dd>{axes[1]}: lowest at the bottom, highest at the top</dd></div>
+        <div><dt>Across</dt><dd>{axes[0]}: lowest on the left, highest on the right</dd></div>
+        <div><dt>Depth</dt><dd>{axes[2]}: lowest at the back, highest at the front</dd></div>
+      </dl>
+      <p>The three directions are the first three number columns of the table, each from the lowest to the highest value on this page, so the picture changes with the page and the columns shown.</p>
+      <p>Move the pointer over the box to turn it. Point at a dot to see the company and its three figures; click it to open the company's report.</p>
+      <p className="faint">It shows where the companies sit against each other; it is not a ranking.</p>
+    </aside>
+  );
+}
 
 export const PAGE = 25;
 const MAX_COLS = 12;
@@ -50,17 +76,27 @@ const useDebounced = <T,>(v: T, ms: number) => { const [d, setD] = useState(v); 
 
 /** Short column names and the unit line under them (file 04 §5). */
 const SHORT: Record<string, string> = { price: "LTP", market_cap: "Market cap", pe: "P/E", pb: "P/B", roe: "ROE", roce: "ROCE", sales_cagr_3y: "Sales growth 3Y", profit_cagr_3y: "Profit growth 3Y",
-  debt_to_equity: "Debt to equity", ret_1y: "1 year", overall: "FinLit IQ", dividend_yield: "Dividend yield", pct_from_high: "Below 52W high" };
+  debt_to_equity: "Debt to equity", ret_1y: "1 year", dividend_yield: "Dividend yield", pct_from_high: "Below 52W high" };
 const UNIT_LINE: Record<string, string> = { "%": "%", x: "×", Cr: "₹ Cr", Rs: "₹", d: "days", pts: "points", flag: "yes / no", n: "" };
 /** Task #141: the two technical views (Gold) run from −100 to +100; the pill is green for an uptrend, red for a downtrend, plain for sideways (same edges as the Prism card). */
 const TECH_COLS = ["prism_st_score", "prism_lt_score"];
-const TECH_HEAD: Record<string, string> = { prism_st_score: "Short\u2011term technical", prism_lt_score: "Long\u2011term technical" };   // non-breaking hyphen: the head never splits "Long-" / "term"
+const TECH_HEAD: Record<string, string> = { prism_st_score: "Short term", prism_lt_score: "Long term" };   // task #243 (pack T1): the group heading names the technical pillars   // non-breaking hyphen: the head never splits "Long-" / "term"
 const TECH_PILL: Record<string, string> = { pos: "healthy", neutral: "", neg: "watch" };
-const unitLine = (k: string, m: MetricInfo | undefined) => (k === "price" ? "₹ · 1 day" : TECH_COLS.includes(k) ? "−100 to +100" : m ? UNIT_LINE[m.unit] ?? "" : "");
-const BAND_WORD: Record<string, string> = { strong: "Strong", healthy: "Healthy", mixed: "Mixed", watch: "Watch", average: "Average", weak: "Weak", poor: "Poor" };
-/** A Prism rating word on the chip colours the FinLit IQ chip already uses (green, amber, red). */
+const unitLine = (k: string, m: MetricInfo | undefined) => (k === "price" ? "₹ · 1 day" : k === "prism_st_score" ? "weeks" : k === "prism_lt_score" ? "months" : k === "market_cap" ? "₹ Cr" : m ? UNIT_LINE[m.unit] ?? "" : "");
+/** Task #243 (pack T1): the standard columns in named groups, each a run of neighbouring columns of one kind (Market cap, the Prism score,
+ *  the two technical pillars, anything else). */
+type Band = { kind: "size" | "score" | "tech" | "other"; n: number };
+const kindOf = (k: string): Band["kind"] => (k === "market_cap" ? "size" : TECH_COLS.includes(k) ? "tech" : k === "prism_final" ? "score" : "other");
+export function bandsOf(keys: string[]): Band[] {
+  const out: Band[] = [];
+  for (const k of keys) { const kind = kindOf(k), last = out[out.length - 1]; if (last && last.kind === kind) last.n++; else out.push({ kind, n: 1 }); }
+  return out;
+}
+const BAND_WORD: Record<string, string> = { strong: "Strong", healthy: "Healthy", average: "Average", weak: "Weak", poor: "Poor" };   // FinLit Prism's words (task #283)
+/** A Prism rating word on the site's three chip colours (green, amber, red). */
 const PRISM_CLASS: Record<string, string> = { strong: "strong", healthy: "healthy", average: "mixed", weak: "watch", poor: "watch" };
-const STEP_NAME: Record<string, string> = { size: "Size", sector: "Sector", industry: "Sector", index: "Index", band: "rating", model: "the ready-made screens on the plan's score" };
+// the industry step is named by its values, NSE's 59 industries (task #64, from #192); "sector" is the old filter of an older link (the company's own label)
+const STEP_NAME: Record<string, string> = { size: "Size", sector: "Sector", macro: "Macro sector", nsector: "Sector", industry: "Industry", index: "Index", band: "rating", model: "the ready-made screens on the plan's score" };
 
 function Checks({ items, picked, toggle, search }: { items: { key: string; label: string; n: number }[]; picked: string[]; toggle: (k: string) => void; search?: boolean }) {
   const [q, setQ] = useState(""), [all, setAll] = useState(false);
@@ -77,17 +113,21 @@ function Checks({ items, picked, toggle, search }: { items: { key: string; label
 }
 
 /** A list filter folded behind one line ("All sectors ▾"), so the panel stays short. */
-function Fold({ id, title, summary, open, setOpen, children }: { id: string; title: string; summary: string; open: boolean; setOpen: (o: boolean) => void; children: React.ReactNode }) {
+function Fold({ id, title, summary, open, setOpen, children, named }: { id: string; title: string; summary: string; open: boolean; setOpen: (o: boolean) => void; children: React.ReactNode; named?: boolean }) {
   return (
     <div className="ssw-fold" data-facet={id}>
-      <button type="button" className="ssw-sel" aria-expanded={open} aria-controls={`ssw-f-${id}`} onClick={() => setOpen(!open)}><span className="sr">{title}: </span>{summary}<i aria-hidden="true">▾</i></button>
+      {/* the title is said once: a summary that already starts with it ("Index: any") is not read as "Index: Index: any". `named` (task #259, pack 03 §3): the
+          list's name is shown beside its value ("Macro sector  All 12"), as the mockup draws the three linked lists */}
+      <button type="button" className="ssw-sel" aria-expanded={open} aria-controls={`ssw-f-${id}`} aria-label={named ? `${title}: ${summary}` : undefined} onClick={() => setOpen(!open)}>{named
+        ? <span className="ssw-fl" aria-hidden="true"><span className="ssw-ft">{title}</span> <span className="ssw-fv">{summary}</span></span>
+        : <>{!summary.startsWith(`${title}:`) && <span className="sr">{title}: </span>}{summary}</>}<i aria-hidden="true">▾</i></button>
       {open && <div id={`ssw-f-${id}`} role="group" aria-label={title}>{children}</div>}
     </div>
   );
 }
 
 export function ScreenerPro() {
-  const { isAdmin, user } = useAuth();
+  const { user } = useAuth();
   useDocTitle("Stock screener", "Filter every listed Indian company by size, valuation, growth, debt, ownership and price trend. Start from a ready-made screen or add your own rules; the list updates as you go.");
   const { upgrade, toast, plan: uiPlan } = useUI();
   const nav = useNavigate();
@@ -101,10 +141,12 @@ export function ScreenerPro() {
   const [q, setQ] = useState(""), [pg, setPg] = useState({ k: "", p: 0 });
   const [order, setOrder] = useState<string[]>([]);          // the rule cards, in the order they were added (task #75: any number at once)
   const [hot, setHot] = useState<string | null>(null);
+  const [find, setFind] = useState("");   // task #364: the search over every filter in the Score and Filters panel
   const [picker, setPicker] = useState<false | { group?: string; q?: string }>(false), [colMenu, setColMenu] = useState(false), [colFind, setColFind] = useState("");
   const [saveOpen, setSaveOpen] = useState<null | "save" | "tell">(null), [saveName, setSaveName] = useState("");
   const [from, setFrom] = useState<string | null>(null);     // the ready-made screen the rules started from
   const [folds, setFolds] = useState<Record<string, boolean>>({});
+  const [ptab, setPtab] = useState<PanelTab>("rules");   // task #243 (pack S): the left panel's three tabs, Your rules open on load
   // Your rules can be minimized (task #140): on a phone it starts closed; on a wide screen it starts open unless the reader minimized it last time (kept in this browser).
   const [rulesOpen, setRulesOpenState] = useState(() => !narrow() && !rulesMinStored());
   const setRulesOpen = (open: boolean) => {
@@ -115,13 +157,19 @@ export function ScreenerPro() {
   // narrower or wider, drag it far left (or double-click it) to minimize the panel, which the Your rules bar then brings back. The width is remembered.
   const [sideW, setSideW] = useSideWidth("pro");
   const resizeRules = (w: number, snap = false) => { if (w < (snap ? SIDE.min / 2 : 1)) { setRulesOpen(false); return; } setSideW(w); };
+  // task #364 PR C: on a phone the open panel is a full-height drawer, so the page behind it does not scroll
+  useEffect(() => {
+    if (!rulesOpen || !window.matchMedia?.("(max-width: 720px)").matches) return;
+    const was = document.body.style.overflow; document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = was; };
+  }, [rulesOpen]);
   const minimizeRules = () => {
     setRulesOpen(false);
     requestAnimationFrame(() => document.querySelector<HTMLElement>(".ssw-rtoggle")?.focus({ preventScroll: true }));
     if (narrow()) requestAnimationFrame(() => document.querySelector(".ssw-res")?.scrollIntoView({ block: "start" }));
   };
   const saved = useSavedScreens();
-  // One score per plan (tasks #64 P-1 and #100): the server sends Gold the FinLit Prism group, columns and rating words, and every other plan the FinLit IQ's.
+  // One company score (task #283): the server sends Gold the FinLit Prism group, columns and rating words; below Gold the Prism words come locked and no score group.
   const data = cat.data;
   const prismOnly = data?.bandModel === "prism";
   const plan: Plan = data?.plan ?? "basic";
@@ -186,6 +234,14 @@ export function ScreenerPro() {
   const setRange = (k: string, r: Range) => setF((s) => { const ranges = { ...s.ranges }; if (r.min == null && r.max == null) delete ranges[k]; else ranges[k] = r;
     const took = F.setBy[k] && !(s.mine ?? []).includes(k); return { ...s, ranges, ...(took ? { mine: [...(s.mine ?? []), k] } : {}) }; });
   const toggle = (key: "sectors" | "industries" | "indices" | "caps" | "bands", v: string) => setF((s) => ({ ...s, [key]: s[key].includes(v) ? s[key].filter((x) => x !== v) : [...s[key], v] }));
+  // task #259 (pack 03 §3): Macro sector, Sector and Industry are linked: a pick that no longer fits the other lists is taken off, with a short message
+  const pickLevel = (key: "macros" | "nsectors" | "industries", v: string) => {
+    const cur = key === "industries" ? f.industries : f[key] ?? [];
+    const next = { macros: f.macros ?? [], nsectors: f.nsectors ?? [], industries: f.industries, [key]: cur.includes(v) ? cur.filter((x) => x !== v) : [...cur, v] };
+    const linked = linkLevels(next, cat.data);
+    setF((s) => ({ ...s, macros: linked.macros, nsectors: linked.nsectors, industries: linked.industries }));
+    if (linked.removed.length) toast(takenOffLine(linked.removed));
+  };
   const removeRule = (k: string) => { const m = byKey.get(k); (m?.variants ? Object.values(m.variants) : [k]).forEach((x) => setRange(x, {})); setOrder((o) => o.filter((x) => x !== k)); };
   const addRule = (m: MetricInfo) => {
     setOrder((o) => (o.includes(m.key) ? o : [...o, m.key]));
@@ -201,6 +257,8 @@ export function ScreenerPro() {
     setF(norm({})); setOrder([]); setFrom(null); setQ("");
     if (ratios.some((r) => r.op !== "none")) setRatios(ratios.map((r) => (r.op === "none" ? r : { ...r, op: "none" as const })));
   };
+  // task #402: the filter list's checkbox: its column, with every company's figure (no range); unticking takes the rule and its column off
+  const showRule = (m: MetricInfo) => { setOrder((o) => (o.includes(m.key) ? o : [...o, m.key])); toast(`${m.label} is shown as a column with every company's figure. Open its arrow to set a range.`); };
   // "Added · Edit" in the filter list (task #144): close the list, open the rules panel, bring that rule's card into view and put the cursor in its From box
   const goToRule = (m: MetricInfo) => {
     setPicker(false); setRulesOpen(true);
@@ -228,12 +286,14 @@ export function ScreenerPro() {
     ...Object.entries(F.ranges as Record<string, Range>).map(([k, r]) => ({ label: rangeText(byKey.get(k), k, r), clear: () => setRange(k, {}),
       title: F.setBy[k] ? `Set by ${F.setBy[k].join(" and ")}${F.setBy[k].length > 1 || f.ranges[k] ? " (the stricter range)" : ""}. Change it and it becomes your own.` : undefined })),
     ...ratios.map((r) => ({ label: r.op === "none" || valueText(r) === "Column" ? `${r.name} (column)` : `${r.name} ${valueText(r)}`, title: ratioSentence(r, byKey), clear: () => setRatios(ratios.filter((x) => x.id !== r.id)) })),
+    ...(f.macros ?? []).map((s) => ({ label: `Macro sector: ${s}`, clear: () => pickLevel("macros", s) })), ...(f.nsectors ?? []).map((s) => ({ label: `Sector: ${s}`, clear: () => pickLevel("nsectors", s) })),
     ...f.sectors.map((s) => ({ label: s, clear: () => toggle("sectors", s) })), ...f.industries.map((s) => ({ label: s, clear: () => toggle("industries", s) })),
     ...f.indices.map((s) => ({ label: data?.indices.find((i) => i.code === s)?.label || s, clear: () => toggle("indices", s) })), ...F.caps.map((s) => ({ label: `${s} cap`, clear: () => toggle("caps", s) })),
-    ...F.bands.map((s) => ({ label: `${prismOnly ? "Prism" : "FinLit IQ"} rating: ${BAND_WORD[s] ?? s}`, clear: () => toggle("bands", s) })),
+    ...F.bands.map((s) => ({ label: `Prism rating: ${BAND_WORD[s] ?? s}`, clear: () => toggle("bands", s) })),
   ];
 
-  const nOn = chips.filter((c) => !c.label.endsWith(" (column)")).length + (q.trim() ? 1 : 0);   // what Clear all takes away; a ratio shown as a column is not a filter
+  const nFiltersOn = chips.filter((c) => !c.label.endsWith(" (column)")).length;   // task #383: the filters on, counted on the folded Show filters (the search is not a filter)
+  const nOn = nFiltersOn + (q.trim() ? 1 : 0);   // what Clear all takes away; a ratio shown as a column is not a filter
 
   // a ready-made screen turns on or off; several can be on, and each adds its filters to the reader's and to the other screens' (task #64 P-4)
   const toggleScreen = (s: ReadyScreen) => {
@@ -245,8 +305,8 @@ export function ScreenerPro() {
     toast(was ? `${s.label} turned off: only its own filters went.` : n > 1 || nActive ? `${s.label} added its filters to yours (${n} ${n === 1 ? "screen" : "screens"} on). Turn it off to take away only its own.` : `${s.label} is on. Its filters are under Your rules; add your own on top.`);
   };
   const allOff = () => { setF((x) => ({ ...x, on: [] })); setPg({ k: "", p: 0 }); toast("All ready-made screens are off. Your own rules stay."); };
-  const openSaved = (s: SavedScreen) => { const n = norm(s.state as Partial<PState>); setF(n); setOrder(Object.keys(n.ranges).map(baseOf)); if (n.sort) setSort({ key: n.sort, dir: n.dir || "desc" }); if (n.cols?.length) pickCols(n.cols); setFrom(s.name); toast(`Opened “${s.name}”.`); };
-  // Save screen keeps it quiet; "Tell me when a company joins" saves it with messages on: after each close the member gets a message (the site's inbox and e-mail)
+  const openSaved = (s: SavedScreen) => { const n = norm(s.state as Partial<PState>); setF(n); setPtab("rules");   /* task #243: its rules show in Your rules */ setOrder(Object.keys(n.ranges).map(baseOf)); if (n.sort) setSort({ key: n.sort, dir: n.dir || "desc" }); if (n.cols?.length) pickCols(n.cols); setFrom(s.name); toast(`Opened “${s.name}”.`); };
+  // Save screen keeps it quiet; "Tell me when a company joins" saves it with messages on: after each close the member gets a message (the site's inbox; no e-mail since 19 Nov 2026)
   // naming the companies that joined or left it (file 04 §9). Messages need an account, so a visitor is asked to sign in first.
   const save = () => {
     const n = saveName.trim(); if (!n || !nActive) { toast("Add a rule and a name first."); return; }
@@ -280,14 +340,22 @@ export function ScreenerPro() {
   // the one Sector filter (task #74): the industry list, named Sector; a sector picked from an older link stays part of it
   const industryNames = useMemo(() => new Set((data?.industries || []).map((x) => x.name)), [data]);
   const legacySectors = useMemo(() => f.sectors.filter((s) => !industryNames.has(s)), [f.sectors, industryNames]);
-  const sectorItems = useMemo(() => [...legacySectors.map((s) => ({ key: s, label: s, n: data?.sectors.find((x) => x.name === s)?.n ?? 0 })), ...(data?.industries || []).map((x) => ({ key: x.name, label: x.name, n: x.n }))], [legacySectors, data]);
-  const toggleSector = (k: string) => toggle(f.sectors.includes(k) ? "sectors" : "industries", k);
+  const toggleSector = (k: string) => (f.sectors.includes(k) ? toggle("sectors", k) : pickLevel("industries", k));
   const nSector = f.industries.length + f.sectors.length;
+  // task #259: the Sector list follows the macro sectors picked, the Industry list both; each option's count follows the other filters set (SHARED §1)
+  const facets = res.data?.facets;
+  const countOf = (level: "macro" | "nsector" | "industry", name: string, n: number) => (facets ? facets[level][name] ?? 0 : n);
+  const pickedMacros = f.macros ?? [], pickedNs = f.nsectors ?? [];
+  const macroItems = useMemo(() => (data?.macros ?? []).map((x) => ({ key: x.name, label: x.name, n: countOf("macro", x.name, x.n) })), [data, facets]); // eslint-disable-line react-hooks/exhaustive-deps
+  const nsItems = useMemo(() => (data?.nseSectors ?? []).filter((x) => !pickedMacros.length || pickedMacros.includes(x.macro ?? "")).map((x) => ({ key: x.name, label: x.name, n: countOf("nsector", x.name, x.n) })), [data, facets, pickedMacros.join("|")]); // eslint-disable-line react-hooks/exhaustive-deps
+  const industryItems = useMemo(() => [...legacySectors.map((s) => ({ key: s, label: s, n: data?.sectors.find((x) => x.name === s)?.n ?? 0 })),
+    ...(data?.industries || []).filter((x) => (!pickedMacros.length || pickedMacros.includes(x.sector ?? "")) && (!pickedNs.length || pickedNs.includes(x.nseSector ?? ""))).map((x) => ({ key: x.name, label: x.name, n: countOf("industry", x.name, x.n) }))],
+  [legacySectors, data, facets, pickedMacros.join("|"), pickedNs.join("|")]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const funnel = res.data?.funnel ?? [];
   const stepOf = (k: string) => funnel.find((s) => s.key === k);
   const tight = funnel.find((s) => s.after === 0);
-  const removeStep = (k: string) => { if (k === "size") setF((s) => ({ ...s, caps: [] })); else if (k === "sector" || k === "industry") setF((s) => ({ ...s, sectors: [], industries: [] })); else if (k === "index") setF((s) => ({ ...s, indices: [] })); else if (k === "band") setF((s) => ({ ...s, bands: [] })); else if (k === "model") setF((s) => ({ ...s, model: undefined })); else removeRule(baseOf(k)); };
+  const removeStep = (k: string) => { if (k === "size") setF((s) => ({ ...s, caps: [] })); else if (k === "sector" || k === "industry") setF((s) => ({ ...s, sectors: [], industries: [] })); else if (k === "macro") setF((s) => ({ ...s, macros: [] })); else if (k === "nsector") setF((s) => ({ ...s, nsectors: [] })); else if (k === "index") setF((s) => ({ ...s, indices: [] })); else if (k === "band") setF((s) => ({ ...s, bands: [] })); else if (k === "model") setF((s) => ({ ...s, model: undefined })); else removeRule(baseOf(k)); };
   const stepName = (k: string) => STEP_NAME[k] ?? ratios.find((r) => r.id === k)?.name ?? byKey.get(k)?.label ?? k;
 
   const panelRow = (r: (typeof rows)[number]): PanelRow => ({ symbol: r.symbol, name: r.name, sector: r.sector, price: r.v.price ?? null });
@@ -313,22 +381,27 @@ export function ScreenerPro() {
   return (
     <>
       <div className="wrap ssw" style={{ paddingTop: 22 }}>
-        <section className="card ssw-head">
-          <div className="ssw-h1row"><h1 title="Filter every listed company by size, valuation, growth, debt, ownership and price trend. Start from a ready-made screen or add your own rules; the list updates as you go.">Stock screener</h1>
-            {asOfLine && <span className="ssw-asof">{asOfLine}</span>}</div>
-          <FindStocksTabs bare />
-        </section>
+        {/* task #243 (pack H): the site's page header with the four screener boxes */}
+        <ScreenerHead title="Stock screener" desc={STOCK_DESC} date={asOfLine} />
 
-        <ReadyScreens plan={plan} prism={prismOnly} on={f.on ?? []} total={res.data ? total : null} onToggle={toggleScreen} onAllOff={allOff} saved={saved} onOpenSaved={openSaved} onDeleteSaved={(n) => { screens.remove(n); toast(`Deleted “${n}”.`); }} ask={ask}
-          onNotify={user ? (n, on) => { screens.setNotify(n, on); toast(on ? `Messages on for “${n}”: after each close we name the companies that join or leave it.` : `Messages off for “${n}”.`); } : undefined} />
 
         <button type="button" className={"btn ssw-rtoggle" + (rulesOpen ? "" : " min")} aria-expanded={rulesOpen} aria-controls="ssw-rules" onClick={() => setRulesOpen(!rulesOpen)}>
-          Your rules{nActive + nWaiting ? ` (${nActive + nWaiting})` : ""} · {res.data ? `${nf(total, 0)} companies` : "…"} <i aria-hidden="true">{rulesOpen ? "▴" : "▾"}</i></button>
+          <span className="ssw-rt-ico" aria-hidden="true"><Icon name="layers" /></span><b>Score and Filters</b>{nActive + nWaiting ? ` (${nActive + nWaiting})` : ""}{onScreens.length ? ` · ${onScreens.length} ${onScreens.length === 1 ? "screen" : "screens"} on` : ""} · {res.data ? `${nf(total, 0)} companies` : "…"} <i aria-hidden="true">{rulesOpen ? "▴" : "▾"}</i></button>
 
         <div className={"ssw-work" + (rulesOpen ? "" : " rules-min")} style={{ "--side-w": `${sideW || SIDE.def}px` } as React.CSSProperties}>
-          <aside id="ssw-rules" className={"card ssw-rules" + (rulesOpen ? " open" : "")} aria-label="Your rules">
-            <div className="ssw-rh"><h2>Your rules</h2>{(nActive > 0 || rules.length > 0) && <button type="button" className="lnk" onClick={clearAll}>Clear all</button>}
-              <button type="button" className="ssw-rmin" onClick={minimizeRules} aria-controls="ssw-rules" aria-expanded={rulesOpen} aria-label="Minimize Your rules" title="Minimize Your rules (your rules stay on)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg></button></div>
+          {/* task #383: hidden filters leave a slim vertical "Show filters" on the left (wide screens), as on the Mutual Fund Screener; the table takes the width */}
+          {!rulesOpen && <button type="button" className="ssw-showf" onClick={() => setRulesOpen(true)} aria-expanded="false" aria-controls="ssw-rules"><Icon name="panel" /><span>Show filters</span>{nFiltersOn > 0 && <b aria-label={`${nFiltersOn} on`}>{nFiltersOn}</b>}</button>}
+          <aside id="ssw-rules" className={"card ssw-rules" + (rulesOpen ? " open" : "")} aria-label="Score and Filters">
+            {/* task #243 (pack S, v3): a calm header row (the label and the minimise button), then the three tabs on their own row */}
+            {/* task #383: on a wide screen "Hide filters", as on the Mutual Fund Screener; on a phone the drawer keeps its × */}
+            <div className="ssw-rh xsp-rh"><h2>Score and Filters</h2>
+              <button type="button" className="btn sm ssw-hidef" onClick={minimizeRules} aria-controls="ssw-rules" aria-expanded={rulesOpen} title="Hide the filters (your rules stay on)">Hide filters</button>
+              <button type="button" className="ssw-rmin" onClick={minimizeRules} aria-controls="ssw-rules" aria-expanded={rulesOpen} aria-label="Minimize Score and Filters" title="Minimize Score and Filters (your rules stay on)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg></button></div>
+            <SizeNote link={!!init.current.moved} saved={saved.some((x) => !!x.sizesMoved)} />
+            <PanelTabs tab={ptab} setTab={setPtab} nOn={onScreens.length} nReady={ready.data?.screens.length ?? null} />
+            <div role="tabpanel" id="xsp-p-rules" aria-labelledby="xsp-t-rules" hidden={ptab !== "rules"} className="xsp-panel">
+            {(nActive > 0 || rules.length > 0) && <p className="xsp-clear"><button type="button" className="lnk" onClick={clearAll}>Clear all</button></p>}
+            <ReadyOn screens={onScreens} onOff={(id) => { const x = onScreens.find((o) => o.id === id); if (x) toggleScreen(x); }} />
             {nWaiting > 0 && <p className="ssw-wait" role="status">{nWaiting} {nWaiting === 1 ? "rule has" : "rules have"} no range yet: set one on {nWaiting === 1 ? "its card" : "their cards"} to narrow the list.</p>}
             {nActive === 0 || !funnel.length
               ? <p className="ssw-funnel-0">All {listed} companies. Each rule narrows the list; this line then shows how many are left after each one.</p>
@@ -336,29 +409,33 @@ export function ScreenerPro() {
             {cat.isError && <div className="state"><p>The filters are not available right now. Please try again in a moment.</p><button className="btn" onClick={() => cat.refetch()}>Try again</button></div>}
             {cat.isLoading && <div className="skeleton" style={{ height: 320 }} />}
             {data && <>
-              <div className="ssw-sec"><h3>Size</h3>
-                <div className="ssw-chips" role="group" aria-label="Company size">{data.caps.map((c) => <button key={c.name} type="button" className="ssw-chip" aria-pressed={F.caps.includes(c.name)} onClick={() => toggle("caps", c.name)}>{c.name} <span>{nf(c.n, 0)}</span></button>)}</div>
-                <p className="ssw-note">Large above ₹50,000 Cr · Mid ₹10,000–50,000 Cr · Small below ₹10,000 Cr</p></div>
-              <div className="ssw-sec"><h3>Sector and index</h3>
-                <Fold id="industry" title="Sector" summary={nSector ? `Sector: ${nSector} picked` : "All sectors"} open={folds.industry ?? nSector > 0} setOpen={(o) => setFolds((x) => ({ ...x, industry: o }))}>
-                  <Checks search items={sectorItems} picked={[...f.industries, ...f.sectors]} toggle={toggleSector} /></Fold>
+              {/* task #364: the search over every filter, near the top; it narrows the topic groups below at once (Enter opens the full list) */}
+              <label className="ssw-size-q srt-find"><Icon name="search" /><span className="sr">Search every filter</span><input type="search" placeholder="Search filters, e.g. debt, ROE, promoter" value={find}
+                onChange={(e) => setFind(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); setPicker({ q: find }); } }} /></label>
+              <p className="srt-grp">Start here</p>
+              <div className="ssw-sec ssw-start"><h3>Market cap</h3>
+                <div className="ssw-chips" role="group" aria-label="Market cap">{data.caps.map((c) => <button key={c.name} type="button" className="ssw-chip" aria-pressed={F.caps.includes(c.name)} onClick={() => toggle("caps", c.name)}><b>{c.name}</b> <span>{nf(c.n, 0)}</span></button>)}</div>
+                <p className="ssw-note">{CAP_BUCKETS.map((b) => `${b.short} ${b.range.replace(/^(Above|Below)/, (w) => w.toLowerCase())}`).join(" · ")}</p></div>
+              <div className="ssw-sec ssw-start"><h3 className="sr">Sector, industry and index</h3>
+                {!!data.macros?.length && <Fold id="macro" named title="Macro sector" summary={pickedMacros.length ? `${pickedMacros.length} picked` : `All ${data.macros?.length ?? 12}`} open={folds.macro ?? pickedMacros.length > 0} setOpen={(o) => setFolds((x) => ({ ...x, macro: o }))}>
+                  <Checks items={macroItems} picked={pickedMacros} toggle={(k) => pickLevel("macros", k)} /></Fold>}
+                {!!data.nseSectors?.length && <Fold id="nsector" named title="Sector" summary={pickedNs.length ? `${pickedNs.length} picked` : `All ${pickedMacros.length ? nsItems.length : data.nseSectors?.length ?? 22}`} open={folds.nsector ?? pickedNs.length > 0} setOpen={(o) => setFolds((x) => ({ ...x, nsector: o }))}>
+                  <Checks search items={nsItems} picked={pickedNs} toggle={(k) => pickLevel("nsectors", k)} /></Fold>}
+                <Fold id="industry" named title="Industry" summary={nSector ? `${nSector} picked` : `All ${pickedMacros.length || pickedNs.length ? industryItems.length : data.industries.length}`} open={folds.industry ?? nSector > 0} setOpen={(o) => setFolds((x) => ({ ...x, industry: o }))}>
+                  <Checks search items={industryItems} picked={[...f.industries, ...f.sectors]} toggle={toggleSector} /></Fold>
                 {data.indices.length > 0 && <Fold id="index" title="Index" summary={f.indices.length ? `Index: ${f.indices.map((c) => data.indices.find((i) => i.code === c)?.label ?? c).join(", ")}` : `Index: any (${data.indices.length} lists)`} open={folds.index ?? f.indices.length > 0} setOpen={(o) => setFolds((x) => ({ ...x, index: o }))}>
                   <Checks items={data.indices.map((x) => ({ key: x.code, label: x.label, n: x.n }))} picked={f.indices} toggle={(k) => toggle("indices", k)} /></Fold>}</div>
-              <div className="ssw-sec"><h3>Rules on numbers</h3>
-                <div className="ssw-size" role="group" aria-label="Every filter, by group">
-                  <p className="ssw-size-n"><b>{nf(nFilters, 0)} filters</b> in {numGroups.length} groups</p>
-                  <label className="ssw-size-q"><Icon name="search" /><span className="sr">Search the filters</span><input type="search" placeholder="Search filters, e.g. debt, ROE, promoter" value=""
-                    onChange={(e) => setPicker({ q: e.target.value })} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); setPicker({}); } }} /></label>
-                  <ul className="ssw-groups">{numGroups.map((g) => { const on = g.metrics.filter((m) => rules.includes(m.key) || F.ranges[m.key]).length;
-                    return <li key={g.id}><button type="button" onClick={() => setPicker({ group: g.id })} aria-label={`${g.label}: ${g.n} filters${on ? `, ${on} on` : ""}`}>
-                      <span>{g.label}</span>{on > 0 && <em>{on} on</em>}<small>{g.n}</small></button></li>; })}
-                    <li>{crGold ? <button type="button" onClick={() => openRatio()}><span>Custom ratio</span><small>{ratios.length ? `${ratios.length} on` : "build"}</small></button>
-                      : <Link to="/plans#gold" className="ssw-crlock-li" aria-label="Custom ratio: comes with Gold and Platinum. See what Gold adds"><span>Custom ratio</span><small><Icon name="lock" /></small></Link>}</li></ul>
-                </div>
-                {onScreens.filter((x) => !x.state).map((x) => <div key={x.id} className="ssr-rule ssr-model" role="group" aria-label={`Screen on the ${prismOnly ? "FinLit Prism" : "FinLit IQ"}: ${x.label}`}><div className="ssr-rt"><b>{x.label}</b>
+              {/* task #364: quick shortlist: the ready-made screens and the member's saved screens, one tap from here */}
+              <p className="srt-grp">Quick shortlist</p>
+              <div className="srt-quick">
+                <button type="button" className="srt-qrow" onClick={() => setPtab("ready")}><span><b>Ready-made screens</b><small>{ready.data ? `${ready.data.screens.length} screens · pick one to apply` : "Pick one to apply"}{onScreens.length ? ` · ${onScreens.length} on` : ""}</small></span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg></button>
+                <button type="button" className="srt-qrow" onClick={() => setPtab("ready")}><span><b>Saved screens</b><small>{saved.length ? `${saved.length} saved` : "None saved yet"}</small></span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg></button>
+              </div>
+              <div className="ssw-sec ssw-rulesec"><h3 className="sr">Rules on numbers</h3>
+                {onScreens.filter((x) => !x.state).map((x) => <div key={x.id} className="ssr-rule ssr-model" role="group" aria-label={`Screen on FinLit Prism: ${x.label}`}><div className="ssr-rt"><b>{x.label}</b>
                   <button type="button" className="ssr-x" aria-label={`Turn off ${x.label}`} onClick={() => toggleScreen(x)}>×</button></div>
                   <p className="ssr-say">{x.says}. Its cut-offs stay on the server.</p></div>)}
-                {stepOf("model") && <p className="ssr-cnt">The screens on the {prismOnly ? "FinLit Prism" : "FinLit IQ"} keep <b>{nf(stepOf("model")!.after, 0)}</b> of {nf(stepOf("model")!.before, 0)}</p>}
+                {stepOf("model") && <p className="ssr-cnt">The screens on FinLit Prism keep <b>{nf(stepOf("model")!.after, 0)}</b> of {nf(stepOf("model")!.before, 0)}</p>}
                 {rules.map((k) => { const m = byKey.get(k); if (!m) return null; const rk = ruleKey(m), cur = byKey.get(rk) ?? m;
                   return <RuleCard key={k} m={m} cur={cur} r={F.ranges[rk] || {}} set={(r) => setRange(rk, r)} remove={() => removeRule(k)} ask={ask} hot={hot === k}
                     period={periodOf(m)} setPeriod={(p) => setPeriod((x) => ({ ...x, [m.key]: p }))} count={stepOf(rk)} />; })}
@@ -366,18 +443,32 @@ export function ScreenerPro() {
                   <button type="button" className="lnk" onClick={() => openRatio(r)}>Change</button><button type="button" className="ssr-x" aria-label={`Remove ${r.name}`} onClick={() => setRatios(ratios.filter((x) => x.id !== r.id))}>×</button></div>
                   <p className="ssr-say">{byKey.get(r.num)?.label ?? r.num} ÷ {byKey.get(r.den)?.label ?? r.den} · {valueText(r)}</p>
                   {stepOf(r.id) && <p className="ssr-cnt">keeps <b>{nf(stepOf(r.id)!.after, 0)}</b> of {nf(stepOf(r.id)!.before, 0)}</p>}</div>)}
-                <button type="button" className="btn ssw-add" onClick={() => setPicker({})}>+ Add a rule</button>
+                <p className="srt-total"><b>{nf(nFilters, 0)} filters</b> in {numGroups.length} groups</p>
+                <RuleTopics groups={numGroups} q={find} has={(k) => rules.includes(k) || !!F.ranges[k]} show={showRule} hide={(m) => removeRule(m.key)} ask={ask}
+                  range={(m) => { const rk = ruleKey(m), cur = byKey.get(rk) ?? m;
+                    return <RuleCard m={m} cur={cur} r={F.ranges[rk] || {}} set={(r) => setRange(rk, r)} remove={() => removeRule(m.key)} ask={ask}
+                      period={periodOf(m)} setPeriod={(p) => setPeriod((x) => ({ ...x, [m.key]: p }))} count={stepOf(rk)} />; }} />
+                <button type="button" className="btn ssw-add" onClick={() => setPicker({ q: find })}>+ Add a rule</button>
                 <form className="ssw-typed" onSubmit={(e) => { e.preventDefault(); const r = parseRules(typed, (k) => byKey.has(k)); setTypedErr(r.errors); const ok = Object.entries(r.ranges).filter(([k]) => !byKey.get(k)?.locked);
                   const lockedOnes = Object.keys(r.ranges).filter((k) => byKey.get(k)?.locked); if (lockedOnes.length) setTypedErr((x) => [...x, `${lockedOnes.map((k) => byKey.get(k)!.label).join(", ")}: part of a higher plan.`]);
                   if (ok.length) { setF((o) => ({ ...o, ranges: { ...o.ranges, ...Object.fromEntries(ok) } })); setOrder((o) => [...o, ...ok.map(([k]) => baseOf(k)).filter((k) => !o.includes(k))]); setPg({ k: "", p: 0 }); if (!r.errors.length && !lockedOnes.length) setTyped(""); } }}>
                   <label className="sr" htmlFor="ssw-type">Type rules</label>
                   <input id="ssw-type" value={typed} onChange={(e) => setTyped(e.target.value)} placeholder="Or type: pe < 20 and roe > 15" aria-describedby="ssw-type-h" autoComplete="off" />
-                  <p id="ssw-type-h">Names or short forms (pe, pb, roe, roce, debt, yield, mcap, price, sales3y, profit3y, 1d, 1m, 3m, 6m, 1y, high, {prismOnly ? "prism" : "iq"}) with &lt; or &gt;. Press Enter. For “or” and brackets use the <Link to="/query-builder">Query builder</Link>.</p>
+                  <p id="ssw-type-h">Names or short forms (pe, pb, roe, roce, debt, yield, mcap, price, sales3y, profit3y, 1d, 1m, 3m, 6m, 1y, high{prismOnly ? ", prism" : ""}) with &lt; or &gt;. Press Enter. For “or” and brackets use the <Link to="/query-builder">Query builder</Link>.</p>
                   {typedErr.map((m) => <p key={m} className="ssw-err" role="alert">{m}</p>)}
                 </form>
+              </div>
+            </>}
+            </div>
+            <div role="tabpanel" id="xsp-p-ready" aria-labelledby="xsp-t-ready" hidden={ptab !== "ready"} className="xsp-panel">
+              <ReadyScreens plan={plan} prism={prismOnly} on={f.on ?? []} total={res.data ? total : null} onToggle={toggleScreen} onAllOff={allOff} saved={saved} onOpenSaved={openSaved} onDeleteSaved={(n) => { screens.remove(n); toast(`Deleted “${n}”.`); }} ask={ask}
+          onNotify={user ? (n, on) => { screens.setNotify(n, on); toast(on ? `Messages on for “${n}”: after each close we name the companies that join or leave it.` : `Messages off for “${n}”.`); } : undefined} />
+            </div>
+            <div role="tabpanel" id="xsp-p-ratio" aria-labelledby="xsp-t-ratio" hidden={ptab !== "ratio"} className="xsp-panel xsp-ratio">
+              <p className="xsp-ratio-in">Make your own figure. Divide one figure by another, such as cash by market cap. It becomes a column you can sort, and a filter when you set a condition. Up to 3 at a time.</p>
                 {crGold ? <div className="ssw-rl" role="group" aria-label="Custom ratio">
                   <b>Custom ratio</b>
-                  <small>Divide one figure by another and filter on the result.</small>
+                  <small>Divide one figure by another, such as cash by market cap. It becomes a column, and a filter if you set a condition. Up to 3 at a time.</small>
                   {ratios.length > 0 && <ul className="ssw-rlon">{ratios.map((r) => <li key={r.id}><button type="button" onClick={() => openRatio(r)} aria-label={`Change ${r.name}`}><span><b>{r.name}</b><small>{byKey.get(r.num)?.label ?? r.num} ÷ {byKey.get(r.den)?.label ?? r.den}</small></span><em>{valueText(r)}</em></button></li>)}</ul>}
                   <button type="button" className="btn primary ssw-rb" onClick={() => openRatio()} disabled={ratios.length >= 3} title={ratios.length >= 3 ? "You have 3 ratios on, the most at one time. Remove one to add another." : undefined}><Icon name="percent" />+ Build a ratio</button>
                   {ratios.length === 0 && <div className="ssw-rlex"><small>Examples</small>{RATIO_EXAMPLES.filter((x) => byKey.has(x.num) && byKey.has(x.den)).map((x) => <button key={x.name} type="button" className="lnk" onClick={() => openRatio({ name: x.name, num: x.num, den: x.den, show: x.show, op: "gt" })}>{x.name}</button>)}</div>}
@@ -388,8 +479,7 @@ export function ScreenerPro() {
                   <small>Divide one figure by another, such as cash by market cap or borrowings by market cap, and screen on the result. Custom ratios come with Gold and Platinum.</small>
                   <Link to="/plans#gold" className="btn ssw-rb">See what Gold adds</Link>
                 </div>}
-              </div>
-            </>}
+            </div>
             <button type="button" className="btn primary ssw-rdone" onClick={minimizeRules}>Show {res.data ? `${nf(total, 0)} companies` : "the results"}</button>
           </aside>
           {rulesOpen && <SplitDivider width={sideW || SIDE.def} set={resizeRules} />}
@@ -402,7 +492,7 @@ export function ScreenerPro() {
                 <span className="ssw-pop"><button type="button" className="btn" aria-expanded={saveOpen === "save"} onClick={() => openSave("save")} disabled={!nActive} title={nActive ? undefined : "Add a rule first"}><Icon name="star" />Save screen</button>
                   <button type="button" className="btn" aria-expanded={saveOpen === "tell"} onClick={() => openSave("tell")} disabled={!nActive} title={nActive ? undefined : "Add a rule first"}><Icon name="bell" />Tell me when a company joins</button>
                   {saveOpen && <span className="ssw-popb" role="group" aria-label={saveOpen === "tell" ? "Tell me when a company joins" : "Save screen"}>
-                    {saveOpen === "tell" && <small className="ssw-popn">After each close you get a message in the site's inbox and by e-mail naming the companies that joined or left this screen. Messages only; turn them off under My screens.</small>}
+                    {saveOpen === "tell" && <small className="ssw-popn">After each close you get a message in the site's inbox (the bell) naming the companies that joined or left this screen. Messages only; turn them off under My screens.</small>}
                     <input value={saveName} onChange={(e) => setSaveName(e.target.value)} placeholder="Name this screen" aria-label="Screen name" maxLength={40} autoFocus onKeyDown={(e) => { if (e.key === "Enter") save(); if (e.key === "Escape") setSaveOpen(null); }} />
                     <button type="button" className="btn primary" onClick={save}>{saveOpen === "tell" ? "Save and tell me" : "Save"}</button></span>}</span>
               </div>
@@ -420,16 +510,17 @@ export function ScreenerPro() {
                   <button className="alx-link" onClick={() => pickCols(null)}>Back to the standard set</button></div>}</span>
             </div>
             {res.isError && err?.status !== 403 ? <div className="state"><h2>The screener is unavailable right now</h2><p>Please try again in a moment.</p><button className="btn" onClick={() => res.refetch()}>Try again</button></div>
-              : res.isError ? <div className="state"><h2>That rule is part of a higher plan</h2><p>{err?.body?.detail}</p><button className="btn primary" onClick={() => ask((err?.body?.plan as Plan) || "silver", err?.body?.detail || "")}>See the plan</button></div>
+              : res.isError ? <div className="state"><h2>That rule is part of a higher plan</h2><p>{err?.body?.detail}</p><button className="btn primary" onClick={() => ask((err?.body?.plan as Plan) || PLAN_FOR_SCREENER, err?.body?.detail || "")}>See the plan</button></div>
               : !res.data ? <div className="skeleton" style={{ height: 380 }} aria-busy="true" /> : (
                 <>
                   {total === 0 && tight && <div className="ssw-zero" role="status"><b>No company passes every rule.</b> {stepName(tight.key)} is the tightest: it leaves none of the {nf(tight.before, 0)} companies before it.
                     <button type="button" className="btn" onClick={() => removeStep(tight.key)}>Remove {stepName(tight.key)}</button></div>}
-                  <TableZoom label="Stock screener results"><HScroll className={"scr-tw ssw-tw" + (res.isFetching ? " is-busy" : "")} label="results table" tall controls={false}><table className="scr-t ssw-t">
+                  <TableZoom label="Stock screener results"><HScroll className={"scr-tw ssw-tw" + (res.isFetching ? " is-busy" : "")} label="results table" tall><table className="scr-t ssw-t">
                     <thead>
-                      <tr className="ssw-band"><th className="stick">Company</th>{stdCount > 0 && <th colSpan={stdCount}>{stdCount} {stdCount === 1 ? "column" : "columns"}</th>}{ruleCount > 0 && <th colSpan={ruleCount} className="rb">Your rules</th>}{ratios.length > 0 && <th colSpan={ratios.length} className="cr-th">Custom ratios</th>}<th aria-label="Report" /></tr>
-                      <tr className="ssw-hd"><th className="stick" aria-sort={sort.key === "name" ? (sort.dir === "asc" ? "ascending" : "descending") : undefined}><button onClick={() => sortBy("name")}>Company <span className="ar">{sort.key === "name" ? (sort.dir === "asc" ? "▲" : "▼") : "▾"}</span></button><small>Industry · size</small></th>
-                        {shown.map((k) => { const m = byKey.get(k), isRule = !base.includes(k); return <th key={k} className={isRule ? "rb" : ""} aria-sort={sort.key === k ? (sort.dir === "asc" ? "ascending" : "descending") : undefined}>
+                      <tr className="ssw-band"><th className="stick">Company</th>{bandsOf(shown.filter((k) => base.includes(k))).map((b, i) => <th key={i} colSpan={b.n} className={"xst-b-" + b.kind}>{
+                        b.kind === "size" ? "Market cap" : b.kind === "tech" ? <>{prismOnly ? "FinLit Prism · " : ""}{b.n} technical {b.n === 1 ? "pillar" : "pillars"}<small>−100 to +100</small></> : b.kind === "score" ? "FinLit Prism" : `${b.n} ${b.n === 1 ? "column" : "columns"}`}</th>)}{ruleCount > 0 && <th colSpan={ruleCount} className="rb">Your rules</th>}{ratios.length > 0 && <th colSpan={ratios.length} className="cr-th">Custom ratios</th>}<th aria-label="Report" /></tr>
+                      <tr className="ssw-hd"><th className="stick" aria-sort={sort.key === "name" ? (sort.dir === "asc" ? "ascending" : "descending") : undefined}><button onClick={() => sortBy("name")}>Company <span className="ar">{sort.key === "name" ? (sort.dir === "asc" ? "▲" : "▼") : "▾"}</span></button><small>Name · size</small></th>
+                        {shown.map((k) => { const m = byKey.get(k), isRule = !base.includes(k); return <th key={k} className={isRule ? "rb" : "xst-c-" + kindOf(k)} aria-sort={sort.key === k ? (sort.dir === "asc" ? "ascending" : "descending") : undefined}>
                           <button onClick={() => sortBy(k)} title={m?.say} aria-label={`Sort by ${m?.label}`}>{SHORT[k] ?? TECH_HEAD[k] ?? m?.label} <span className="ar">{sort.key === k ? (sort.dir === "asc" ? "▲" : "▼") : "▾"}</span></button><small>{unitLine(k, m)}</small></th>; })}
                         {ratios.map((r) => <th key={r.id} className="cr-th"><button onClick={() => sortBy(r.id)} title={`${byKey.get(r.num)?.label ?? r.num} ÷ ${byKey.get(r.den)?.label ?? r.den}`} aria-label={`Sort by ${ratioLabel(r)}`}>{ratioLabel(r)} <span className="ar">{sort.key === r.id ? (sort.dir === "asc" ? "▲" : "▼") : "▾"}</span></button></th>)}
                         <th className="ssw-rep"><span className="sr">Report</span></th></tr></thead>
@@ -439,9 +530,8 @@ export function ScreenerPro() {
                         {shown.map((k) => { const m = byKey.get(k), v = r.v[k], isRule = !base.includes(k);
                           if (k === "price") { const d = r.v.ret_1d; return <td key={k} className={isRule ? "rb" : ""}>{v == null ? "–" : fmtMetric(m!, v)}{d != null && <small className={"ssw-ch " + (d > 0 ? "up" : d < 0 ? "dn" : "")}>{(d > 0 ? "+" : d < 0 ? "−" : "") + nf(Math.abs(d), 1)}%</small>}</td>; }
                           if (k === "prism_final") return <td key={k} className={"ssw-iq" + (isRule ? " rb" : "")}>{v == null ? "–" : <><span className={"ssw-sc " + (PRISM_CLASS[r.pband ?? ""] ?? "")}>{Math.round(v)}</span>{r.pband && <small>{BAND_WORD[r.pband] ?? r.pband}</small>}</>}</td>;
-                          if (TECH_COLS.includes(k)) { const w = trendWord(v), b = techBandOf(v); return <td key={k} className={"ssw-iq" + (isRule ? " rb" : "")} title={v == null ? "No short or long price-trend reading yet for this company." : `${w} (${v > 0 ? "+" : v < 0 ? "−" : ""}${nf(Math.abs(v), 0)} on a scale of −100 to +100), from the latest prices`}>{v == null || !w || !b ? "–" : <><span className={"ssw-sc " + TECH_PILL[b]}>{(v > 0 ? "+" : v < 0 ? "−" : "") + nf(Math.abs(v), 0)}</span><small>{w}</small></>}</td>; }
-                          if (k === "overall") return <td key={k} className={"ssw-iq" + (isRule ? " rb" : "")}>{v == null ? "–" : <><span className={"ssw-sc " + (r.band ?? "")}>{Math.round(v)}</span>{r.band && <small>{BAND_WORD[r.band] ?? r.band}</small>}</>}</td>;
-                          return <td key={k} className={[tone(k, v), isRule ? "rb" : ""].filter(Boolean).join(" ")} title={v == null ? emptyReason(k, r.full) : undefined}>{v == null || !m ? "–" : fmtMetric(m, v)}</td>; })}
+                          if (TECH_COLS.includes(k)) { const w = trendWord(v), b = techBandOf(v); return <td key={k} className={"ssw-iq" + (isRule ? " rb" : " xst-c-tech")} title={v == null ? "No short or long price-trend reading yet for this company." : `${w} (${v > 0 ? "+" : v < 0 ? "−" : ""}${nf(Math.abs(v), 0)} on a scale of −100 to +100), from the latest prices`}>{v == null || !w || !b ? "–" : <><span className={"ssw-sc " + TECH_PILL[b]}>{(v > 0 ? "+" : v < 0 ? "−" : "") + nf(Math.abs(v), 0)}</span><small>{w}</small></>}</td>; }
+                          return <td key={k} className={[tone(k, v), isRule ? "rb" : "xst-c-" + kindOf(k)].filter(Boolean).join(" ")} title={v == null ? emptyReason(k, r.full) : undefined}>{v == null || !m ? "–" : fmtMetric(m, v)}</td>; })}
                         {ratios.map((r2) => { const v = r.r?.[r2.id]; return <td key={r2.id} className="cr-td" title={v == null ? "No value: a figure is missing, or the bottom figure is zero or less" : undefined}>{v == null ? "–" : `${nf(v, Math.abs(v) >= 100 ? 1 : 2)}${r2.show === "pct" ? "%" : "×"}`}</td>; })}
                         <td className="ssw-rep"><Link to={`/stocks/${encodeURIComponent(r.symbol)}`} aria-label={`Open the report of ${r.name || r.symbol}`} title="Open the company report"><Icon name="notes" /></Link></td>
                       </tr>))}
@@ -449,24 +539,22 @@ export function ScreenerPro() {
                     </tbody></table></HScroll></TableZoom>
                   {res.data.capped ? (
                     <div className="pl-cap"><Icon name="lock" /><span><b>Showing the first {res.data.limit} of {nf(total, 0)} matches.</b> Silver shows every match and unlocks every filter.</span>
-                      <button className="btn primary" onClick={() => ask("silver", "See every match and use every filter with Silver.")}>Unlock with Silver</button></div>
+                      <button className="btn primary" onClick={() => ask(PLAN_FOR_SCREENER, "See every match and use every filter on a paid plan.")}>Unlock with Silver</button></div>
                   ) : total > PAGE && (
                     <div className="pm-pager ssw-pager"><span>Showing {nf(page * PAGE + 1, 0)}–{nf(Math.min(total, page * PAGE + PAGE), 0)} of {nf(total, 0)}</span><button className="btn" disabled={page === 0} onClick={() => setPage(page - 1)}>‹ Previous</button><button className="btn" disabled={(page + 1) * PAGE >= total} onClick={() => setPage(page + 1)}>Next {PAGE} ›</button></div>)}
-                  {webgl && cloud && <Safe3D><Suspense fallback={null}><Cloud3D points={cloud.pts} axes={cloud.axes} onPick={(id) => nav(`/stocks/${id}`)}
-                    label={`The ${cloud.pts.length} companies on this page as points in 3D, spread by ${cloud.axes.join(", ")}. The table above lists the same numbers.`} /></Suspense></Safe3D>}
+                  {webgl && cloud && <div className="scr-3d">
+                    <Safe3D><Suspense fallback={null}><Cloud3D points={cloud.pts} axes={cloud.axes} onPick={(id) => nav(`/stocks/${id}`)}
+                      label={`The ${cloud.pts.length} companies on this page as points in 3D, spread by ${cloud.axes.join(", ")}. The table above lists the same numbers.`} /></Suspense></Safe3D>
+                    <CubeMeaning n={cloud.pts.length} axes={cloud.axes} />
+                  </div>}
                 </>)}
             {coloured.length > 0 && <Plain>{colourNote(coloured, "all")}</Plain>}
-            <p className="ssw-legend">{ruleCount > 0 && <><span className="ssw-lg rb" /> Your rules: the columns your rules use · </>}– means no figure yet · the {prismOnly ? "Prism" : "FinLit IQ"} chip is coloured by its rating word. FinLit scores describe a company's financial health and its price trend. They are not advice to buy, sell or hold any share.</p>
+            <p className="ssw-legend">{ruleCount > 0 && <><span className="ssw-lg rb" /> Your rules: the columns your rules use · </>}– means no figure yet · the Prism chip is coloured by its rating word. FinLit scores describe a company's financial health and its price trend. They are not advice to buy, sell or hold any share.</p>
           </section>
         </div>
-        {data && data.withReport < data.total && <p className="faint scr-foot">All {nf(data.total, 0)} listed companies are here with their price and market cap. Ratios, growth and statements show a dash until a company's report is loaded ({nf(data.withReport, 0)} are today); a rule leaves out the companies without that figure.</p>}
+        {data && data.withReport < data.total && <p className="faint scr-foot">All {nf(data.total, 0)} listed companies, with price and market cap. {nf(data.total - data.withReport, 0)} {data.total - data.withReport === 1 ? "has" : "have"} no ratios yet, so a rule on a ratio leaves {data.total - data.withReport === 1 ? "it" : "them"} out.</p>}
         <p id="scr-about" className="faint scr-foot">A screen narrows a long list; it does not say what to buy. Open a company's report to see why a number looks the way it does. Index lists come from NSE Indices. General information, not investment advice.</p>
-        {isAdmin && data && data.total > 0 && (
-          <div className="fgx-two">
-            <Donut part={data.withReport} total={data.total} partLabel="Report loaded" restLabel="Price and market cap only" title={`${nf(data.total - data.withReport, 0)} of ${nf(data.total, 0)} companies have no full report loaded yet.`}
-              note="Ratios, growth and statements show a dash until a company's report is loaded." />
-            <SectorBars title="Listed companies by sector (Top 5)" rows={[...data.industries].sort((a, b) => b.n - a.n).slice(0, 5).map((x) => ({ label: x.name, n: x.n, pct: (x.n / data.total) * 100 }))} />
-          </div>)}
+        {/* task #364: the coverage ring and "Listed companies by sector (Top 5)" cards are gone, by the team's picture "what not to add" */}
       </div>
       {rd && data && crGold && <RatioDrawer groups={data.groups} byKey={byKey} start={rd.start} ratiosOn={ratios.length} firstSymbols={rows.map((r) => r.symbol)} countWith={countWith} currentTotal={res.data ? total : null}
         onAdd={addRatio} onSave={saveRatio} onClose={() => setRd(null)} onUseFilter={(m) => { setRd(null); addRule(m); }} />}

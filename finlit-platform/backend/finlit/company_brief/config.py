@@ -17,7 +17,7 @@ MAX_ATTEMPTS = 3                  # a company whose output keeps failing the gat
 RETRY_AFTER_HOURS = 24
 MAX_LOOKUPS_PER_RUN = 150          # annual-report lookups (NSE, then BSE) in one run: cheap, no model call
 TOP_COMPANIES = 6000              # the whole listed market, in order, over as many nights as the cap needs. BRIEF_TOP_COMPANIES
-PROMPT_VERSION = "brief-1"
+PROMPT_VERSION = "brief-2"            # task #328: rule 7 names a side the company does not report
 
 
 def _int(env: Mapping[str, str], name: str, default: int) -> int:
@@ -37,3 +37,12 @@ def llm_per_minute(env: Mapping[str, str] = os.environ) -> int:
 
 def llm_per_day(env: Mapping[str, str] = os.environ) -> int:
     return _int(env, "BRIEF_LLM_PER_DAY", LLM_REQUESTS_PER_DAY)
+
+
+THINKING = "low"   # task #328: the writer's thinking before it answers. A thinking model spends MAX_TOKENS_OUT on thinking AND the answer, so with a long annual
+                   # report the JSON was cut off (finishReason MAX_TOKENS). BRIEF_THINKING: minimal | low | medium | high | off (the model's own default)
+
+
+def thinking(env: Mapping[str, str] = os.environ) -> str:
+    v = str(env.get("BRIEF_THINKING", THINKING) or "").strip().lower()
+    return "" if v in ("off", "none", "default") else v

@@ -1,4 +1,4 @@
-// /fund-score-screener (Gold): every scored fund with the FinLit FundPulse, its four parts and the facts beside them; filters, quick views,
+// /fund-score-screener (Gold): every scored fund with the Mutual Fund Score, its four parts and the facts beside them; filters, quick views,
 // sorting, CSV, compare tick-boxes, and a category leaderboard tab. Plans below Gold get the upgrade page and no request is made for any score.
 import { viewAsHeader } from "../lib/adminView";
 import { useEffect, useState } from "react";
@@ -9,7 +9,7 @@ import { useDocTitle } from "../lib/title";
 import { useUI } from "../lib/ui";
 import { apiUrl } from "../lib/api";
 import { nf } from "../lib/format";
-import { MF_METHOD_URL, MF_SCORE_COMPLIANCE, MF_SCORE_NAME, bandOf, scoreText, wordBand, wordPos } from "../lib/mfScore";
+import { MF_METHOD_URL, MF_SCORE_COMPLIANCE, MF_SCORE_NAME, MF_SCORE_NOTE, bandOf, scoreText, wordBand, wordPos } from "../lib/mfScore";
 import { bandVar } from "../lib/scoreBands";
 import {
   LABELS, PAGE, PILLARS, VIEWS, activeView, chips, clearChip, csvUrl, emptyQuery, paramsToQuery, queryToParams, useFacets, useLeaderboard, useScreener,
@@ -24,12 +24,12 @@ import "../styles/scorescreen.css";
 import "../styles/mf.css";
 import "../styles/mfup.css";
 
-const POINTS = ["The FinLit FundPulse of every scored fund, with its four parts", "Filters by category, plan, score, each part, cost, size and age", "Category leaderboards, compare and a CSV download"];
+const POINTS = ["The Mutual Fund Score of every scored fund, with its four parts", "Filters by category, plan, score, each part, cost, size and age", "Category leaderboards, compare and a CSV download"];
 const MAX_COMPARE = 4;
 
 export function FundScoreScreenerPage() {
   const { has } = useUI();
-  useDocTitle("Fund score screener", "Every scored mutual fund with the FinLit FundPulse, its four parts, cost, size and returns. Gold plan.");
+  useDocTitle("Fund score screener", "Every scored mutual fund with the Mutual Fund Score, its four parts, cost, size and returns. Gold plan.");
   return has("gold") ? <Screener /> : <Upgrade />;
 }
 
@@ -37,8 +37,8 @@ function Upgrade() {
   return (
     <div className="wrap mf mfu-page">
       <p className="mf-back"><Link to="/funds">← All mutual fund schemes</Link></p>
-      <PageHeader plan="gold" title="Fund score screener" art="funds" learn={{ to: MF_METHOD_URL, label: "How the score works" }} links={["/funds", "/funds/compare", "/etfs"]}
-        description={<>The <b>{MF_SCORE_NAME}</b> of every scored fund, its four parts (Performance, Risk, Cost, Quality), category leaderboards, filters and a CSV download. It is part of the Gold plan.</>} />
+      <PageHeader plan="gold" title="Fund score screener" art="funds" learn={{ to: MF_METHOD_URL, label: "What the score means" }} links={["/funds", "/funds/compare", "/etfs"]}
+        description={<>Every scored fund's {MF_SCORE_NAME}, with its four parts.</>} meta={MF_SCORE_NOTE} />
       <Gate tier="gold" title="Fund score screener" points={POINTS}>
         <section className="card mf-card" aria-label="Example of the fund score screener">
           <p className="faint">Layout only. Example rows with no real fund or figure.</p>
@@ -46,7 +46,7 @@ function Upgrade() {
             <tbody>{["A", "B", "C"].map((n) => <tr key={n}><th scope="row">Example fund {n}</th><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>)}</tbody></table></div>
         </section>
       </Gate>
-      <p className="faint mf-fine">{MF_SCORE_COMPLIANCE} <Link to={MF_METHOD_URL}>How it works</Link></p>
+      <p className="faint mf-fine">{MF_SCORE_COMPLIANCE} <Link to={MF_METHOD_URL}>What the score means</Link></p>
     </div>
   );
 }
@@ -78,7 +78,7 @@ function ScorePanel({ q, set }: { q: SQuery; set: (p: Partial<SQuery>) => void }
   return (
     <FilterGroup id="score" title="Score & analytics filters" icon="gauge" active={active} hint={`Filter funds by the overall ${MF_SCORE_NAME} and by each of its four parts.`}>
       <div className="fss-sec">
-        <h4 className="fss-h"><Icon name="gauge" />Overall FundPulse</h4>
+        <h4 className="fss-h"><Icon name="gauge" />Overall Mutual Fund Score</h4>
         <RangeRow label="Total Score" group="Total Score, exact range" min={d.min} max={d.max} onChange={(end, v) => setD((o) => ({ ...o, [end]: v }))} />
       </div>
       <div className="fss-sec">
@@ -135,9 +135,9 @@ function Screener() {
   return (
     <div className="wrap mf mfu-page scr-wrap">
       <p className="mf-back"><Link to="/funds">← All mutual fund schemes</Link></p>
-      <TitleCard tier="gold" title="Fund score screener" learnTo={MF_METHOD_URL} learnLabel="How the score works" art="funds" links={["/funds", "/funds/compare", "/etfs"]}
+      <TitleCard tier="gold" title="Fund score screener" learnTo={MF_METHOD_URL} learnLabel="What the score means" art="funds" links={["/funds", "/funds/compare", "/etfs"]}
         stats={[{ icon: "layers", value: facets.data ? cats.length : null, label: "Categories" }, { icon: "calendar", value: list.data?.runDate, label: "Scores worked out" }]}
-        sub={<>The <b>{MF_SCORE_NAME}</b> of every scored fund, with its four parts. {MF_SCORE_COMPLIANCE}</>} />
+        sub={<>Every scored fund's {MF_SCORE_NAME}, with its four parts.</>} meta={MF_SCORE_NOTE} />
       <div className="seg" role="tablist" aria-label="View">
         <button role="tab" aria-selected={q.tab === "table"} onClick={() => set({ tab: "table" })}>All funds</button>
         <button role="tab" aria-selected={q.tab === "board"} onClick={() => set({ tab: "board", subs: q.subs.slice(0, 1) })}>Category leaderboard</button>
@@ -150,7 +150,7 @@ function Screener() {
         ]} active={filterCount} filtersOpen={filtersOpen} onFilters={() => (narrow() ? setDrawer(true) : setCollapsed((c) => !c))} />
         <Toolbar q={q.q} setQ={(v) => set({ q: v })} searchLabel="Search in results by fund name" buttons={[
           { id: "category", label: "Category", active: q.subs.length, onClick: () => showPanel("category") },
-          { id: "plan", label: "Plan", active: q.plan !== "Direct" ? 1 : 0, onClick: () => showPanel("plan") },
+          { id: "plan", label: "Plan", active: q.plan !== "all" ? 1 : 0, onClick: () => showPanel("plan") },
           { id: "scores", label: "Score filters", active: nz(q.min, q.max) + PARTS.reduce((n, k) => n + nz(q[k][0], q[k][1]), 0), onClick: () => showPanel("score") }]}
           sort={<label className="fgx-sort"><span className="sr-only">Sort by</span><select aria-label="Sort by" value={sortVal} onChange={(e) => { const [k, d] = e.target.value.split(":"); set({ sort: k, dir: d as "asc" | "desc" }); }}>
             {!SORTS.some(([k, d]) => `${k}:${d}` === sortVal) && <option value={sortVal}>Sorted by column</option>}
@@ -167,7 +167,7 @@ function Screener() {
               <FilterGroup id="search" title="Search fund" defaultOpen active={nz(q.q)}>
                 <SearchBox value={q.q} onChange={(v) => set({ q: v })} placeholder="Part of a fund name" label="Fund name" />
               </FilterGroup>
-              <FilterGroup id="plan" title="Plan" defaultOpen active={q.plan !== "Direct" ? 1 : 0}>
+              <FilterGroup id="plan" title="Plan" defaultOpen active={q.plan !== "all" ? 1 : 0}>
                 <div role="group" aria-label="Plan" style={{ display: "grid", gap: 8 }}>{PLANS.map(([v, l]) => <QuickRow key={v} label={l} on={q.plan === v} onClick={() => set({ plan: v })} />)}</div>
               </FilterGroup>
               <FilterGroup id="category" title="Category" defaultOpen active={q.subs.length}>
@@ -204,7 +204,7 @@ function Screener() {
             </div>
             {active.length > 0 && <div className="scr-chips mfu-active" aria-label="Active filters">{active.map((c) => <button key={c.id} type="button" className="fchip" onClick={() => setSp(queryToParams(clearChip(q, c.id)))}>{c.text} <span aria-hidden="true">×</span><span className="sr-only">remove</span></button>)}<button type="button" className="alx-link" onClick={clearAll}>Clear all</button></div>}
             <HScroll className="scr-tw" label="results table"><table className="mf-table mfu-table scr-t sx-t">
-              <caption className="sr-only">Funds with their FundPulse</caption>
+              <caption className="sr-only">Funds with their Mutual Fund Score</caption>
               <thead><tr><th scope="col"><span className="sr-only">Compare</span></th><th scope="col" className="sx-n">#</th>{th("name", "Fund", false)}{th("final", "Score")}{th("perf", "Performance")}{th("risk", "Risk")}{th("cost", "Cost")}{th("quality", "Quality")}{th("category", "Category", false)}{th("plan", "Plan", false)}{th("aum", "AUM ₹ Cr")}{th("age", "Age")}{th("ter", "Expense %")}{th("r1y", "1Y %")}{th("r3y", "3Y %")}{th("r5y", "5Y %")}<th scope="col"><span className="sr-only">Open</span></th></tr></thead>
               <tbody>{(list.data?.items || []).map((it, i) => (
                 <tr key={it.key} className={picked.includes(it.key) ? "sx-sel" : ""}>

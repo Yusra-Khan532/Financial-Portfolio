@@ -14,6 +14,20 @@
 - **Left out on purpose (owner's decisions, October 2026):** HDFC (its service answers only requests carrying hdfcfund.com as Origin) and Kotak (captcha
   and bot check). Edelweiss and Navi are behind bot protection; Union's site is unreachable from the sandbox; Carnelian publishes no portfolio file yet.
   No adapter spoofs a header or goes around a challenge; keep it that way.
+- **Task #281 round 4a (20 Nov 2026), checked again from a fresh address with the job's own agent:**
+  - HDFC: www.hdfcfund.com 403 'Access Denied'; the monthly factsheet PDF on files.hdfcfund.com (it prints every scheme's full portfolio) also answers
+    the job's agent with 403. A reader for that factsheet is built and tested (`disclosure_parsers/houses_e.py`: September 2026, all 53 scheme
+    portfolios parse, match AMFI's list and add up to their own Grand Totals; HDFC Flexi Cap Fund 85 rows = 100.00) but is **not in the nightly list**.
+    **Owner's decision:** whether the job may read that factsheet with the browser-form agent the other fund-house readers send (no Origin, cookie or
+    challenge involved); if yes, add `HDFC` to `ADAPTERS` in houses_e.py, send `fetch_headers` for it and add `pdfplumber` to backend/requirements.txt.
+  - Kotak: every page answers with a Radware captcha. Its per-scheme factsheet PDFs (`kotakmf.com/factsheet/<month folder>/kotak/Download_pdf/...`)
+    answer the job's agent and print the full portfolio, but their names can be found only by guessing (folder spelt differently each month: July_2026,
+    August_2026, sept_2026; October not found; about half of the scheme names guessed from AMFI's list hit). **Owner's decision** before any reader.
+  - Edelweiss: every page and file (factsheets too) answers 403 'Access Denied'. No free route found.
+  - Carnelian: its monthly portfolio file appeared in October 2026 (the lister's pattern is fixed in round 4b); Carnelian Small Cap Fund and Choice
+    Large & Mid Cap Fund (launched 16 and 20 Oct 2026) publish no monthly file yet.
+  - Any house: a file with a sheet that matched no scheme (or failed the checks) is now read again each night until every sheet is stored
+    (`portfolios._file_done`); before, it was marked done at the first reading and a scheme not yet in AMFI's list then never got its holdings.
 - **Expense ratio (TER) from the fund houses' own pages (step `ter` of `refresh-portfolios`, `finlit/disclosure_parsers/ter.py`, Oct 2026):** AMFI's TER feed
   (`refresh-facts` step_ter, `mf_ter`) is empty because AMFI does not answer our AWS (Sydney) address range. SEBI makes every fund house publish scheme-wise,
   plan-wise TER daily, so the nightly job reads those pages and stores one family-keyed fact `ter` = `{regular, direct}` (percent a year, total TER) with the
@@ -49,7 +63,7 @@
 - AMFI's portal sometimes drops a TLS connection mid-download (seen on about 1 in 10 requests from the sandbox); `mf._retry` retries, and a month that still fails is simply asked again on the next run.
 
 ## Live state (22 October 2026, read this first)
-- **How to see what the boot/nightly steps did:** open `https://finlit-arug.onrender.com/api/mf/status` (no login). It shows, for `refresh-etf`, `refresh-mf`, `backfill-mf` and `refresh-facts`, when they last ran, their status and counts. Render's logs are not reachable from outside.
+- **How to see what the boot/nightly steps did:** open `https://finlitventures.com/api/mf/status` (no login). It shows, for `refresh-etf`, `refresh-mf`, `backfill-mf` and `refresh-facts`, when they last ran, their status and counts. Render's logs are not reachable from outside.
 - **Funds are loaded:** 8,247 active schemes after the exclusions; Growth plans are the default view; best-known fund houses first (`MF_FEATURED_AMCS` in `config.py`). IDCW pages link to the Growth option of the same fund.
 - **ETFs are loaded:** the 22 Oct refresh ended `ok`. All 355 ETFs have a price; 274 have a 1-year and 95 a 5-year return. Every blank has its reason: listed less than 1 / 5 years (75 / 252), liquid ETFs whose price does not move (6), or a price break in the provider's history (9 ETFs; see below).
 - **ETF price breaks are NOT splits:** checked against Upstox's raw candles: LIQUID1 x32, ABSLLIQUID x260, GOLDETF x4.5, MOLOWVOL x7, MIDSELIETF two instruments interleaved under one ISIN, and MOM30IETF's "x10" predates its own August 2022 launch. The older history under those ISINs is another security, so withholding the figures is correct. Do not add split adjustment without a corporate-action source.

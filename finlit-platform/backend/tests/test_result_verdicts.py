@@ -35,12 +35,12 @@ def test_the_balance_of_three_checks_gives_the_pack_verdicts(monkeypatch):
     assert all(r["industry"] == "Pharma & Biotech" for r in rows)
 
 
-def test_a_company_with_no_nse_industry_is_judged_in_its_broad_group_and_one_figure_is_not_enough(monkeypatch):
+def test_a_company_with_no_nse_industry_is_named_by_its_known_level_and_one_figure_is_not_enough(monkeypatch):
     monkeypatch.setattr(rv, "_classes", lambda: {})
     rows = peers("Q", "Information Technology") + [row("526433", "Information Technology", 30.0, 30.0, -2.0), row("ONE", "Information Technology", 30.0, None, None)]
     rv.add_verdicts(rows)
     r = {x["symbol"]: x for x in rows}
-    assert r["526433"]["industry"] == "Information Technology (broad group)" and r["526433"]["verdict"] == "Good"
+    assert r["526433"]["industry"] == "Sector: Information Technology" and r["526433"]["verdict"] == "Good"   # the level that is known, labelled (task #192)
     assert r["ONE"]["verdict"] is None
 
 
@@ -70,7 +70,7 @@ def test_small_nse_industries_are_read_as_their_sector_pulse_group(monkeypatch):
     monkeypatch.setattr(rv, "_sector_groups", lambda: ({"IT - Software": "IT - Software"}, {"Fast Moving Consumer Goods": "Fast Moving Consumer Goods"}))
     assert rv.industry_of("GILLETTE", "FMCG")[0] == "Fast Moving Consumer Goods"
     assert rv.industry_of("INFY", "Information Technology")[0] == "IT - Software"
-    assert rv.industry_of("526433", "Information Technology")[0] == "Information Technology (broad group)"
+    assert rv.industry_of("526433", "Information Technology")[0] == "Sector: Information Technology"
 
 
 def test_an_industry_is_ahead_of_or_behind_the_typical_listed_company(monkeypatch):
@@ -81,3 +81,38 @@ def test_an_industry_is_ahead_of_or_behind_the_typical_listed_company(monkeypatc
     assert ind["Fast"]["market"] == {"medianRevenueYoY": 12.0, "medianProfitYoY": 8.0, "medianNpmChange": 0.0}
     assert (ind["Fast"]["vsMarket"], ind["Slow"]["vsMarket"], ind["Mid"]["vsMarket"]) == ("Ahead", "Behind", "In line")
     assert ind["Fast"]["revenueUpShare"] == 100.0 and ind["Slow"]["profitUpShare"] == 0.0 and ind["Fast"]["marginUpShare"] == 100.0
+
+
+def test_task_192_no_broad_group_label_and_the_stored_classification_places_a_company_missing_from_nse_quote_pages(monkeypatch):
+    """The calendar showed "DVR (broad group)" and "Industrials (broad group)": the provider's own field. Now NSE's levels, each labelled."""
+    monkeypatch.setattr(rv, "_classes", lambda: {})
+    assert rv.industry_of("DVRCO", "DVR") == (None, None)                                  # no NSE level at all: no industry, never "DVR (broad group)"
+    assert rv.industry_of("X", "Industrials") == ("Macro sector: Industrials", "Macro sector: Industrials")
+    stored = {"macro_sector": "Industrials", "sector": "Capital Goods", "industry": "Industrial Manufacturing", "basic_industry": None}
+    assert rv.industry_of("HAPPY", "Auto Components", stored) == ("Industrial Manufacturing", "Macro sector: Industrials")
+    from finlit import sector_data
+    monkeypatch.setattr(sector_data, "live_release", lambda: "test")                      # keep this board (no release on a test machine)
+    rv._BOARD.update(rel="test", ind={"Oil": "Oil Gas & Consumable Fuels"}, sec={"Oil Gas & Consumable Fuels": "Oil Gas & Consumable Fuels"})
+    oil = {"macro_sector": "Energy", "sector": "Oil, Gas & Consumable Fuels", "industry": "Oil", "basic_industry": None}
+    assert rv.industry_of("ONGC", None, oil)[0] == "Oil Gas & Consumable Fuels"           # Sector Pulse's group, found whatever the commas
+    rows = [row("A", "Industrials", 10.0, 10.0, 0.0), row("B", "DVR", 10.0, 10.0, 0.0)]
+    rv.add_verdicts(rows)
+    assert not any(str(r["industry"] or "").endswith("(broad group)") for r in rows)
+    assert [x["name"] for x in rv.industries(rows)] == []                                  # a labelled higher level is never listed as an industry
+
+
+def test_task_194_one_industry_is_one_row_whatever_the_commas(monkeypatch):
+    """Latest results listed "Paper Forest & Jute Products" (24 companies) and "Paper, Forest & Jute Products" (33) as two groups: Sector Pulse's file writes NSE's
+    names without commas, the stored classification with them. With no Sector Pulse group for the industry, both now read as NSE's spelling, and count as one."""
+    monkeypatch.setattr(rv, "_classes", lambda: {"PAPER1": ("Paper Forest & Jute Products", "Forest Materials")})
+    monkeypatch.setattr(rv, "_sector_groups", lambda: ({}, {}))
+    stored = {"macro_sector": "Commodities", "sector": "Forest Materials", "industry": "Paper, Forest & Jute Products", "basic_industry": None}
+    assert rv.industry_of("PAPER1", None)[0] == "Paper, Forest & Jute Products"
+    assert rv.industry_of("PAPER2", None, stored)[0] == "Paper, Forest & Jute Products"
+    rows = [row(f"P{i}", None, 10.0, 10.0, 0.0) for i in range(6)]
+    monkeypatch.setattr(rv, "_classes", lambda: {**{f"P{i}": ("Paper Forest & Jute Products", "Forest Materials") for i in range(3)}})
+    classes = {f"P{i}": stored for i in range(3, 6)}
+    rv.add_verdicts(rows, classes)
+    names = [x["name"] for x in rv.industries(rows)]
+    assert names == ["Paper, Forest & Jute Products"]
+    assert rv.nse_spelling("Something else") == "Something else"

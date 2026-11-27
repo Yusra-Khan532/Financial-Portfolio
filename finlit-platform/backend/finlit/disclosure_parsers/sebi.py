@@ -127,6 +127,7 @@ GRAND_ROW = re.compile(r"^\W*(grand\s*total|total\s*net\s*assets|net\s*assets\b|
 RATING_LIKE = re.compile(r"\b(aaa|aa\+?|aa-|a1\+|a1|a\+|sovereign|unrated|crisil|icra|care|ind\s?a|fitch|brickwork|acuite|nil)\b|^[ab]{1,3}[+-]?$", re.I)
 
 
+METAL_NAME = re.compile(r"\b(gold|silver)\b", re.I)     # task #277: a line of gold or silver held as the metal
 NA_TEXT = re.compile(r"^\s*(n\.?\s*a\.?|not applicable|-+)\s*$", re.I)
 OTHER_LABELS = frozenset(["foreign security", "foreign securities", "mutual funds", "mutual fund", "commodity", "commodities", "reit", "invit", "reits", "invits", "etf", "overseas etf",
                           "units of mutual fund", "foreign mutual fund", "overseas mutual fund", "gold", "silver", "others", "other"])
@@ -375,10 +376,17 @@ def parse_rows(rows: Iterable[List], source_name: str, source_url: str, as_of_hi
             continue      # the NAV table under the total
         if isin_raw and not re.match(r"^[A-Z]{2}[A-Z0-9]{10}$", isin_raw):
             isin_raw = ""
+        if isin_raw and CASH_NAME.search(name) and (not isin_ok(isin_raw) or not isin_raw.startswith("IN")):
+            # ICICI writes its own repo deal number ('GSECREPO1183') in the ISIN column of a reverse-repo line: not an ISIN, even when its last
+            # character happens to pass the check digit ('GSECREPO1186'); an Indian money-market ISIN starts 'IN' (task #281)
+            isin_raw = ""
         isin = isin_raw or None          # kept as published; the validator checks the check digit and storage drops a failing one
         cls = cur
         if CASH_NAME.search(name) and not isin_raw:
             cls = "cash"
+        elif METAL_NAME.search(name) and not isin_raw.startswith("INE"):
+            cls = "other"         # task #277 (fix 2): gold or silver held as the metal (a bar, or the scheme's own metal line, as Nippon's silver ETF files it under a
+                                  # cash-like heading) sits with the gold bars in "other", never in cash; a gold-loan bond has an Indian (INE) ISIN and keeps its class
         sec_probe = txt(cell(row, "sector"))
         deriv_row = in_deriv or bool(re.search(r"\b(futures?|options?|swaps?|derivatives?)\b", sec_probe, re.I))
         if deriv_row and cls != "cash" and pct < 0 and (not isin_raw or in_deriv):
@@ -449,6 +457,15 @@ def parse_rows(rows: Iterable[List], source_name: str, source_url: str, as_of_hi
         holdings.append(Holding(name=name, isin=isin, sector=sector, asset_class=cls, pct_nav=pct, qty=qty, value_lakh=value))
         raw_pcts.append(pct)
         row_sec.append(sec_id)
+        n = len(cash_run)
+        if cls == "cash" and not isin_raw and n >= 2 and None not in cash_run:
+            # task #281: a cash heading that carries the sum of the lines below it ('Reverse Repo 95.1 %', then 'REVERSE REPO (11/2/2026)' twice: ICICI)
+            head, parts = holdings[-n], holdings[-n + 1:]
+            if (abs(cash_run[0] - sum(cash_run[1:])) <= 0.01 * (n - 1) + 1e-6 * abs(cash_run[0])
+                    and all(_alnum(p.name).startswith(_alnum(head.name)) and len(_alnum(p.name)) > len(_alnum(head.name)) for p in parts)):
+                at = len(holdings) - n
+                del holdings[at], raw_pcts[at], row_sec[at]
+                cash_run.pop(0)
     swaps_left_out = 0
     if swap_rows:
         base = sum(raw_pcts)

@@ -225,6 +225,8 @@ CURATED: Dict[str, List[str]] = {
     "rsi14": ["rsi", "rsi 14", "rsi14", "rsi 14 days", "relative strength index", "rsi 14 day"],
     "volatility": ["volatility", "yearly volatility", "annual volatility", "volatility yearly", "price volatility"],
     "max_drawdown": ["max drawdown", "maximum drawdown", "drawdown", "worst fall", "mdd"],
+    # Task #283 PR D: the retired score's names still name it, so "FinLit IQ > 70" gets a clear message with a one-click "Use Prism score" fix
+    # (ql.plan_problems), never a silent swap: the two scores' levels differ, so 70 on one is not 70 on the other.
     "overall": ["FinLit IQ", "overall score", "finlit overall", "overall", "score", "finlit rating score"],
     "prism_final": ["prism", "prism score", "finlit prism", "prism rating"],
     "prism_fundamental": ["prism growth", "prism growth and profitability", "prism g&p"],
