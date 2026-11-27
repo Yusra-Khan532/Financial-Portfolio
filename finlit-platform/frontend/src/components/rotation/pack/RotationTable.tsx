@@ -28,7 +28,7 @@ function Opened({ r }: { r: RotationRow }) {
     <div className="rp-open">
       <p>{rowSummary(r)} <Link to={gl(r.slug)} className="sp-link">Open the {short(r.name)} page →</Link></p>
       {q.isLoading ? <div className="sx-skel" style={{ height: 80 }} role="status" aria-label={`Loading the stocks of ${short(r.name)}`} />
-        : q.data && q.data.stocks == null ? <LockedBlock plan="silver" title={rw("The stocks of each industry are part of the Silver plan")}>{rw("The boxes and ranks are open to everyone. Silver lists each industry's stocks, strongest 6 months first.")}</LockedBlock>
+        : q.data && q.data.stocks == null ? <LockedBlock plan="silver" title={rw("The stocks of each industry are part of every paid plan")}>{rw("The boxes and ranks are open to everyone. Silver lists each industry's stocks, strongest 6 months first.")}</LockedBlock>
         : stocks.length ? <div className="rp-open-l"><div><p className="sp-cap sp-good">Strongest 6-month stocks</p><ul>{best.map(li)}</ul></div>{weak.length > 0 && <div><p className="sp-cap sp-red">Weakest</p><ul>{weak.map(li)}</ul></div>}</div>
         : <p className="sp-nil">{rw("No stock list for this industry right now.")}</p>}
     </div>

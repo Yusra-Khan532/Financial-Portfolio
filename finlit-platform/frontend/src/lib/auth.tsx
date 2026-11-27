@@ -6,13 +6,25 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiGet, apiSend, setCsrf } from "./api";
 import { DEMO } from "./demo";
 
+/** The access TIER every gate written before task #410 checks (the server's entitlements.RANK). The plan itself is a PlanKey; its tier is tierOf(). */
 export type Plan = "basic" | "silver" | "gold";
+/** Task #410 (owner, 27 Nov 2026): the plans on sale, as on the landing page (landing/goliveData.js). */
+export type PlanKey = "free" | "mfetf" | "equity" | "combined" | "gold" | "platinum";
+export const PLAN_KEYS: readonly PlanKey[] = ["free", "mfetf", "equity", "combined", "gold", "platinum"];
+const TIER_OF: Record<string, Plan> = { free: "basic", basic: "basic", mfetf: "silver", equity: "silver", combined: "silver", silver: "silver", gold: "gold", platinum: "gold" };
+/** The tier a plan opens (entitlements.TIER_OF on the server). */
+export const tierOf = (k: string | null | undefined): Plan => TIER_OF[String(k ?? "").toLowerCase()] ?? "basic";
+let currentKey: PlanKey | null = null;
+/** Task #410: the signed-in member's plan key, for plain helpers (badges); null before the account answer (and in tests that mock useAuth). */
+export const planKeyOf = (): PlanKey | null => currentKey;
+/** A plan value from the server read as a plan key ("basic" from an old answer is Free, "silver" the combined plan, as on the server). */
+export const keyOf = (k: string | null | undefined): PlanKey => { const v = String(k ?? "").toLowerCase(); return (PLAN_KEYS as readonly string[]).includes(v) ? v as PlanKey : v === "silver" ? "combined" : "free"; };
 /** Keeps lib/adminView's flag in step with the signed-in account, and returns it. */
 const setSeesAll = (v: boolean): boolean => { setSeesAllNow(v); return v; };
 
-export type User = { id: string; email: string; name: string | null; role: "investor" | "admin"; plan: Plan; verified: boolean; mfa: boolean; mfaOk: boolean; viewAs?: Plan | null };
+export type User = { id: string; email: string; name: string | null; role: "investor" | "admin"; plan: PlanKey | Plan; verified: boolean; mfa: boolean; mfaOk: boolean; viewAs?: PlanKey | Plan | null };
 export type Limits = { watchlist_lists: number; watchlist_symbols: number; screens: number; baskets: number; compare: number; holdings: number; mf_holdings: number; etf_holdings: number; earnings_calls_per_month: number };
-type Me = { user: User | null; plan: Plan; limits: Limits; csrf: string | null; showcase?: string[]; prismReportsPerDay?: number | null; features?: string[] };
+type Me = { user: User | null; plan: PlanKey | Plan; tier?: Plan; limits: Limits; csrf: string | null; showcase?: string[]; prismReportsPerDay?: number | null; features?: string[] };
 
 /** Same numbers the server enforces (backend/finlit/auth/entitlements.py); the server is what actually applies them. */
 export const LIMITS: Record<Plan, Limits> = {
@@ -28,7 +40,12 @@ const DEMO_USER: User = { id: "demo", email: "demo@finlit.example", name: "Demo 
 const VISITOR: Me = { user: null, plan: "basic", limits: LIMITS.basic, csrf: null, showcase: [] };
 
 type Auth = {
-  ready: boolean; user: User | null; plan: Plan; limits: Limits; isAdmin: boolean;
+  ready: boolean; user: User | null;
+  /** The access tier (basic, silver, gold) the plan opens: what every gate written before task #410 checks. */
+  plan: Plan;
+  /** Task #410: the plan itself (free, mfetf, equity, combined, gold, platinum). */
+  planKey: PlanKey;
+  limits: Limits; isAdmin: boolean;
   /** An administrator in the "everything" view (lib/adminView): every plan's features at once. False while one plan is previewed, so the page is exactly that plan. */
   seesAll: boolean;
   /** Symbols whose full report the server sends to everyone (the free example). */
@@ -73,8 +90,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     qc.removeQueries({ queryKey: ["state"] });
   }, [qc, clearPlanData]);
 
+  currentKey = DEMO ? null : keyOf(me.plan);
   const value = useMemo<Auth>(() => ({
-    ready: DEMO || !q.isPending, user: DEMO ? DEMO_USER : me.user, plan: me.plan, limits: me.limits, isAdmin: me.user?.role === "admin", seesAll: setSeesAll(me.user?.role === "admin" && !me.user?.viewAs), showcase: me.showcase ?? [], prismReportsPerDay: me.prismReportsPerDay ?? null, features: me.features ?? [], refresh, signOut,
+    ready: DEMO || !q.isPending, user: DEMO ? DEMO_USER : me.user, plan: me.tier ?? tierOf(me.plan), planKey: DEMO ? "platinum" : keyOf(me.plan), limits: me.limits, isAdmin: me.user?.role === "admin", seesAll: setSeesAll(me.user?.role === "admin" && !me.user?.viewAs), showcase: me.showcase ?? [], prismReportsPerDay: me.prismReportsPerDay ?? null, features: me.features ?? [], refresh, signOut,
   }), [me, q.isPending, refresh, signOut]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

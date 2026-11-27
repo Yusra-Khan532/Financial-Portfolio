@@ -16,6 +16,7 @@ import { HelpActions } from "./PageFeedback";
 import { SideRail } from "./SideRail";
 import { SheetTools } from "./SheetTools";
 import { hasLab } from "../lib/lab";
+import { memberPlanName } from "../lib/planNames";
 
 /** Task #310 part D: the menu is on screen from 860px (below it, a sheet); from 860 to 1100px it starts as the rail. */
 export const DESKTOP_Q = "(min-width: 861px)", NARROW_Q = "(max-width: 1099px)";
@@ -35,7 +36,7 @@ function InfoButton({ k, label, target, info, setInfo, title }: { k: string; lab
 /** The left rail for every product page: where you are, what you follow, and what else the platform offers, in the order people use it. */
 export function AppShell() {
   const { pathname } = useLocation();
-  const { user, isAdmin, features } = useAuth();
+  const { user, isAdmin, features, planKey } = useAuth();
   const { plan } = useUI();
   const gold = useIsGold();
   const wl = useWatchlist();
@@ -216,7 +217,7 @@ export function AppShell() {
         </nav>
         <div className="side-foot">
           <div className="side-plan" style={{ "--tc": `var(${TIER[plan].tc})` } as React.CSSProperties}>
-            <span className={"tier " + plan}><Icon name={TIER[plan].ic} />{TIER[plan].n}</span>
+            <span className={"tier " + plan}><Icon name={TIER[plan].ic} />{memberPlanName(planKey, plan)}</span>
             {plan !== "gold" ? <><p>{plan === "basic" ? "Unlock watchlists, the full screener and more." : "Gold adds FinLit Prism and deeper analysis."}</p><Link className="btn primary" to={user ? "/account/plan?want=" + (plan === "basic" ? "silver" : "gold") : "/plans"}>{plan === "basic" ? "See Silver" : "See Gold"}</Link></> : <p>Everything is unlocked.</p>}
           </div>
           {/* task #310 part D: Help and feedback at the foot of the menu (the floating dock is gone) */}

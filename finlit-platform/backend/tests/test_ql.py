@@ -203,7 +203,7 @@ def test_plan_locks_name_the_plan_and_are_not_dropped():
     q = "ROE > 10 AND P/B < 2 AND FinLit IQ > 60"
     probs = [p for p in ql.analyze(q, "basic").problems if p.code == "plan_locked"]
     assert [(q[p.start:p.end], p.extra["plan"]) for p in probs] == [("P/B", "silver")]
-    assert "Silver plan" in probs[0].message
+    assert "every paid plan" in probs[0].message
     for plan in ("basic", "silver", "gold"):                        # task #283: the retired FinLit IQ is no ratio on any plan; queries use FinLit Prism
         score = [p for p in ql.analyze(q, plan).problems if p.code == "plan_score"]
         assert len(score) == 1 and "FinLit Prism" in score[0].message and "FinLit IQ" not in score[0].message, plan

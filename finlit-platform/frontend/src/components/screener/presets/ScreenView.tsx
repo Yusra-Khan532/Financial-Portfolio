@@ -380,7 +380,7 @@ export function ScreenView({ route }: { route: PresetRoute }) {
   const step = (dir: 1 | -1) => { const i = rows.findIndex((r) => r.symbol === chart?.symbol), n = rows[i + dir]; if (i >= 0 && n) setChart(openRow(n)); };
   const maxCompare = has("gold") ? 4 : 2;
   const addPicked = () => {
-    if (!has(PLAN_FOR_WATCHLIST)) { upgrade(PLAN_FOR_WATCHLIST, "Watchlists come with the Silver plan."); return; }
+    if (!has(PLAN_FOR_WATCHLIST)) { upgrade(PLAN_FOR_WATCHLIST, "Watchlists come with the Equity Portfolio, combined, Gold and Platinum plans."); return; }
     const fresh = picked.filter((x) => !watch.has(x)); fresh.forEach((x) => watch.add(x));
     toast(fresh.length ? `${fresh.length} ${fresh.length === 1 ? "company" : "companies"} added to your watchlist.` : "These companies are already on your watchlist.");
   };

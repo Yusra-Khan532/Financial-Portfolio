@@ -126,6 +126,8 @@ async def test_both_files_land_in_daily_candles_nse_first(market):
 
 async def test_a_file_not_out_yet_is_the_normal_wait_and_the_probe_asks_again(market):
     evening = datetime(2026, 11, 26, 12, 0, tzinfo=timezone.utc)          # 17:30 IST
+    for x in ("NSE", "BSE"):                                               # the day before is loaded: only today's files are in question here
+        await market.redis.set(eod_bhav.DONE_KEY.format(day="2026-11-25", exch=x), 1)
     res = await eod_bhav.load(market, D26, get=getter({"bseindia": (200, BSE_FILE)}))
     assert res["NSE"] == {"status": "not out yet"} and res["BSE"]["status"] == "loaded"
     assert await eod_bhav.has_work(market, evening) is True                # NSE still missing: asked again in 10 minutes
@@ -180,3 +182,26 @@ def test_the_closing_prices_line_goes_late_then_stale():
     assert line_at(14, 30, date(2026, 11, 26))["status"] == "fresh"
     assert line_at(14, 30, date(2026, 11, 25))["status"] == "late"          # 20:00 IST without the day's closes
     assert line_at(17, 30, date(2026, 11, 25))["status"] == "stale"         # 23:00 IST
+
+
+# ------------------------------------------------------------------------------------------------------------- 27 Nov 2026: a missed evening is caught up
+async def test_a_missed_evening_is_loaded_the_next_morning(market):
+    morning = datetime(2026, 11, 27, 0, 0, tzinfo=timezone.utc)            # 27 Nov 05:30 IST: 26 Nov's files were never loaded (the deploys of that night)
+    assert eod_bhav.days_to_look(morning) == [D26]
+    assert await eod_bhav.has_work(market, morning) is True
+    out = await eod_bhav.catch_up(market, morning, get=getter({"nsearchives": (200, NSE_FILE), "bseindia": (200, BSE_FILE)}))
+    assert [r["day"] for r in out] == ["2026-11-26"] and out[0]["written"] == 3
+    assert await eod_bhav.has_work(market, morning) is False
+
+
+async def test_a_past_day_without_files_was_a_holiday_and_is_not_asked_again(market):
+    morning = datetime(2026, 11, 25, 0, 0, tzinfo=timezone.utc)            # 25 Nov 05:30 IST: 24 Nov, Guru Nanak Jayanti, has no files
+    for x in ("NSE", "BSE"):
+        await market.redis.delete(eod_bhav.DONE_KEY.format(day="2026-11-24", exch=x))
+    out = await eod_bhav.catch_up(market, morning, get=getter({}))         # 404 from both
+    assert out[0]["NSE"]["status"].startswith("no session") and out[0]["BSE"]["status"].startswith("no session")
+    assert await eod_bhav.has_work(market, morning) is False
+
+
+def test_a_monday_morning_looks_back_to_friday():
+    assert eod_bhav.days_to_look(datetime(2026, 11, 30, 2, 0, tzinfo=timezone.utc)) == [date(2026, 11, 27)]

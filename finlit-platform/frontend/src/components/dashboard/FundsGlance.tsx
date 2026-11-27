@@ -37,7 +37,7 @@ export function FundsGlance({ pf = "all" }: { pf?: string }) {
 
   if (!silver) return (
     <Card id="mfglance" title="Your mutual funds at a glance">
-      <div className="dsh-empty"><b>Track your mutual funds</b><p>The MF portfolio is part of Silver: add your funds to see their health, overlap and the stocks underneath here.</p><Link className="dsh-btn" to="/plans">See plans</Link></div>
+      <div className="dsh-empty"><b>Track your mutual funds</b><p>The MF portfolio is part of the Mutual Fund + ETF, combined, Gold and Platinum plans: add your funds to see their health, overlap and the stocks underneath here.</p><Link className="dsh-btn" to="/plans">See plans</Link></div>
     </Card>);
   if (q.isLoading) return <Card id="mfglance" title="Your mutual funds at a glance"><Rows n={3} h={40} /></Card>;
   if (q.isError) return <Card id="mfglance" title="Your mutual funds at a glance"><p className="dsh-note" role="alert">Your mutual funds could not be read just now. <Link to="/mf-portfolio">Open the MF portfolio</Link>.</p></Card>;
@@ -108,12 +108,12 @@ export function EtfsGlance({ pf = "all" }: { pf?: string }) {
   // no ETFs (or no ETF portfolio on this plan): the short strip
   if (!silver || (!q.isLoading && !q.isError && !n)) return pane ? (
     <Card id="etfglance" title="Your ETFs at a glance">
-      <p className="dsh-note">{silver ? "No ETFs added yet. Add them to see what they track, their yearly cost and their price against NAV." : "The ETF portfolio is part of Silver: add your ETFs to see what they track, their yearly cost and their price against NAV."}</p>
+      <p className="dsh-note">{silver ? "No ETFs added yet. Add them to see what they track, their yearly cost and their price against NAV." : "The ETF portfolio is part of the Mutual Fund + ETF, combined, Gold and Platinum plans: add your ETFs to see what they track, their yearly cost and their price against NAV."}</p>
       <Link className="dsh-link foot" to={silver ? "/etf-portfolio" : "/etfs"}>{silver ? "Add your ETFs on the ETF portfolio page →" : "See ETFs →"}</Link>
     </Card>) : (
     <section className="dsh-card dsh-strip dsh-strip1" aria-labelledby="dsh-etfglance">
       <h2 id="dsh-etfglance" className="t">Your ETFs at a glance</h2>
-      <p className="m">{silver ? "No ETFs added yet. Add them to see what they track, their yearly cost and their price against NAV." : "The ETF portfolio is part of Silver: add your ETFs to see what they track, their yearly cost and their price against NAV."}</p>
+      <p className="m">{silver ? "No ETFs added yet. Add them to see what they track, their yearly cost and their price against NAV." : "The ETF portfolio is part of the Mutual Fund + ETF, combined, Gold and Platinum plans: add your ETFs to see what they track, their yearly cost and their price against NAV."}</p>
       <Link className="dsh-btn" to={silver ? "/etf-portfolio" : "/etfs"}>{silver ? "Add your ETFs on the ETF portfolio page →" : "See ETFs →"}</Link>
     </section>);
   const dash = (why?: string | null) => <span title={why ?? "Not available yet"}>—</span>;

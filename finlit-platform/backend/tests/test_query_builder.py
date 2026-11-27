@@ -47,7 +47,7 @@ async def test_validate_reports_every_problem_with_positions(app, anon):  # noqa
 async def test_plan_locks_in_validate_and_run(app, anon):  # noqa: F811
     q = "ROE > 3 AND P/B < 2"
     v = (await post(anon, "ql/validate", query=q)).json()
-    assert not v["ok"] and v["errors"][0]["code"] == "plan_locked" and v["errors"][0]["plan"] == "silver" and "Silver" in v["errors"][0]["message"]
+    assert not v["ok"] and v["errors"][0]["code"] == "plan_locked" and v["errors"][0]["plan"] == "silver" and "every paid plan" in v["errors"][0]["message"]
     r = (await post(anon, "ql/run", query=q)).json()
     assert r["ok"] is False and r["errors"][0]["code"] == "plan_locked"
     assert (await post(anon, "ql/run", query="ROE > 3", columns=["pb"])).json()["errors"][0]["code"] == "plan_locked"      # nor through a column

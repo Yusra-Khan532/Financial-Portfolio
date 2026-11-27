@@ -245,7 +245,7 @@ describe("Sections: names, Key figures questions, What changed, risk words, plan
   });
   it("C8, C9, F11: the plan names come from the plan list; the page's gate is unchanged", async () => {
     mount(); await screen.findByText("Where your money sits");
-    expect(text()).toContain("This page is in Silver and Gold: your shares, mutual funds and ETFs together. On Gold the shares are read with FinLit Prism");
+    expect(text()).toContain("This page is in Combined, Gold and Platinum: your shares, mutual funds and ETFs together. On Gold the shares are read with FinLit Prism");   // task #410
     expect(text()).not.toMatch(/Silver: your shares/);
   });
 });

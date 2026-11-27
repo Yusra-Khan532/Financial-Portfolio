@@ -10,7 +10,7 @@ import orjson
 from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel
 
-from ..auth.entitlements import has, sees_all
+from ..auth.entitlements import has, is_platinum, sees_all
 from ..auth.routes import SYMBOL, Ctx, fail, secure_ctx
 from ..screener.data import get_table
 from .inputs import build_inputs
@@ -33,8 +33,8 @@ class OutlookIn(BaseModel):
 
 
 async def gold_ctx(request: Request, ctx: Ctx = Depends(secure_ctx)) -> Ctx:
-    if not sees_all(ctx) and not has(ctx.plan, "gold"):
-        raise fail(403, "plan_required", "The profit and revenue forecasting is part of the Gold plan.", plan="gold")
+    if not is_platinum(ctx):            # task #410: a Platinum tool (goliveData: Platinum, or the forecast add-on); old Gold accounts are Platinum now
+        raise fail(403, "plan_required", "The profit and revenue forecasting is part of the Platinum plan.", plan="platinum")
     return ctx
 
 

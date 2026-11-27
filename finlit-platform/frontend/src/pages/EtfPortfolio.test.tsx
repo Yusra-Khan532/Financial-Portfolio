@@ -16,7 +16,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const FX = (n: string): unknown => JSON.parse(JSON.stringify(({ list: LIST, risk: RISK, inside: INSIDE } as Record<string, unknown>)[n]));
 const st = vi.hoisted(() => ({ plan: "gold", user: { id: "u1" } as { id: string } | null, book: null as unknown, put: [] as unknown[], add: vi.fn(async (b: { symbol: string }) => ({ symbol: b.symbol, merged: false })),
   remove: vi.fn(async () => ({})), clear: vi.fn(async () => ({ removed: 4, undoSeconds: 10 })), undo: vi.fn(async () => ({ restored: 4 })), list: null as unknown }));
-vi.mock("../lib/ui", async (orig) => ({ ...(await orig<typeof import("../lib/ui")>()), useUI: () => ({ plan: st.plan, has: (t: string) => ({ basic: 0, silver: 1, gold: 2 } as Record<string, number>)[st.plan] >= ({ basic: 0, silver: 1, gold: 2 } as Record<string, number>)[t], upgrade: vi.fn(), toast: vi.fn() }) }));
+vi.mock("../lib/ui", async (orig) => ({ ...(await orig<typeof import("../lib/ui")>()), useUI: () => ({ plan: st.plan, has: (t: string) => ({ basic: 0, silver: 1, gold: 2, mfetf: 1, equity: 1, combined: 1, platinum: 2 } as Record<string, number>)[st.plan] >= ({ basic: 0, silver: 1, gold: 2, mfetf: 1, equity: 1, combined: 1, platinum: 2 } as Record<string, number>)[t], upgrade: vi.fn(), toast: vi.fn() }) }));
 vi.mock("../lib/auth", async (orig) => ({ ...(await orig<typeof import("../lib/auth")>()), useAuth: () => ({ user: st.user }) }));
 const words = (s: string) => s.toLowerCase().split(/\s+/).filter(Boolean);
 vi.mock("../lib/api", async (orig) => ({ ...(await orig<typeof import("../lib/api")>()),
@@ -62,7 +62,7 @@ describe("the plan gate", () => {
   it("Silver sees the page with its own plan on the badge", async () => {
     st.plan = "silver";
     await open();
-    expect(text(".ptk-plan")).toBe("Silver");
+    expect(text(".ptk-plan")).toBe("Combined");   // task #410: a Silver-tier account reads as the combined plan
     expect(document.querySelector(".px-strip")).toBeTruthy();
   });
 });

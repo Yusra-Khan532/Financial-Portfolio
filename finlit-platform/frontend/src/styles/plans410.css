@@ -1,0 +1,9 @@
+/* Task #410: /plans. The plan table itself is the landing page's (landing/golive.css, its lp-* and lq-* rules); these rules only space the page around
+   it and style the line under it. Scoped to .pl410. */
+.pl410 { padding-top: 8px; }
+.pl410 .lp-cmp { padding-top: 24px; }
+.pl410 .xt-head h1 { margin: 0 0 8px; }
+.pl410-now { padding-top: 0; }
+.pl410-now p { margin: 0 0 8px; max-width: 72ch; font-size: var(--fs-16); line-height: var(--lh-16); color: var(--text); }
+.pl410-now .pl410-fine { font-size: var(--fs-13); color: var(--muted); }
+.pl410 .pl410-lede { margin: 0 0 8px; max-width: 72ch; font-size: var(--fs-16); line-height: var(--lh-16); color: var(--muted); }

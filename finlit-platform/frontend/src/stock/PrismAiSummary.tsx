@@ -195,7 +195,7 @@ export function PrismAiSummary({ symbol, name, r, parts, a, scoredAt, review }: 
     if (!canAi) {
       setState({ kind: "card", note: !q?.enabled && user && paid ? "FinLit AI's written answers are not switched on right now, so this summary is written from the card itself."
         : user && paid ? `You have used this month's ${sq?.limit ?? 10} AI summaries${sq?.resets ? ` (they renew on ${renews(sq.resets)})` : ""}, so this summary is written from the card itself. Your FinLit AI questions are counted separately.`
-          : "This summary is written from the card itself. An AI summary from FinLit AI (10 a month) is part of the Silver and Gold plans." });
+          : "This summary is written from the card itself. An AI summary from FinLit AI (10 a month) is part of the paid plans." });
       return;
     }
     ctl.current?.abort();
@@ -219,7 +219,7 @@ export function PrismAiSummary({ symbol, name, r, parts, a, scoredAt, review }: 
         <div className="pai2-t">
           <b>AI summary of this card</b>
           {writing ? <small className="pai2-st" role="status"><i aria-hidden="true" className="pai2-dots"><i /><i /><i /></i>{state.status ? `${state.status}…` : "Writing…"}</small>
-            : <small>{canAi ? `A few lines from FinLit AI${left}` : user && paid ? "What this card means, in a few lines" : "What this card means, in a few lines · FinLit AI summaries are part of Silver and Gold"}</small>}
+            : <small>{canAi ? `A few lines from FinLit AI${left}` : user && paid ? "What this card means, in a few lines" : "What this card means, in a few lines · FinLit AI summaries are part of the paid plans"}</small>}
         </div>
         {writing ? <button type="button" className="btn pai2-stop" onClick={() => ctl.current?.abort()}>Stop</button>
           : <button type="button" className="btn pai2-btn" onClick={() => void run()} aria-expanded={state.kind !== "idle" && !hidden}>

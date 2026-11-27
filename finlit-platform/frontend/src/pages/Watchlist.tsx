@@ -132,7 +132,7 @@ export function WatchlistPage() {
   const addStock = (r: Row) => { if (wl.total() >= lim.watchlist_symbols && !wl.has(r.symbol)) { if (gold) toast(`Your watchlist is full (${lim.watchlist_symbols} stocks).`); else upgrade("gold", "Silver holds up to 30 stocks; Gold holds up to 1,000."); return; } wl.add(r.symbol, list.id); toast(`${r.symbol} added to ${list.name}.`); };
   const newList = () => { if (st.lists.length >= MAXL) { if (gold) toast(`You have reached ${MAXL} lists.`); else upgrade("gold", "Silver includes 3 lists; Gold has up to 50."); return; } const id = wl.create(name || `List ${st.lists.length + 1}`); setLid(id); setName(""); setNaming(false); };
   const exportCsv = () => {
-    if (!silver) { toast("Downloads come with the Silver plan."); nav("/plans"); return; }
+    if (!silver) { toast("Downloads come with every paid plan."); nav("/plans"); return; }
     const esc = (s: string) => `"${csvText(s).replace(/"/g, '""')}"`;
     const head = ["Symbol", "Company", "Industry", "Price", "Change %", "P/E", "ROE %", "Size", "Market cap (Cr)", ...(model ? [scName] : []), "Against peers", "Peer rank", "Target", "Note"];
     const body = sorted.map((i) => { const p = peerCell(i.lead), m = st.meta[i.symbol]; return [i.symbol, i.name, i.industry || "Not classified", i.row.price ?? "", i.change ?? "", i.row.pe ?? "", i.row.roe ?? "", sizeWord(i.marketCap) ?? "", i.marketCap ?? "", ...(model ? [i.score ?? ""] : []), p.chip, p.line, m?.target ?? "", m?.note ?? ""].map((v) => (typeof v === "string" ? esc(v) : v)).join(","); });

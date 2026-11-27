@@ -22,7 +22,7 @@ import { PageArt, type PhArtKind } from "./PageHeaderArt";
 import { buttonClass } from "./ui";
 import "../styles/page-header.css";
 
-export type PhPlan = "free" | "basic" | "silver" | "gold";
+export type PhPlan = "free" | "basic" | "silver" | "gold" | "platinum";
 export type PhStat = { icon: string; value: ReactNode; label: string };
 export type PhLearn = { to?: string; onClick?: () => void; label?: string };
 export type PageHeaderProps = {
@@ -33,7 +33,8 @@ export type PageHeaderProps = {
 
 const PLAN: Record<string, { n: string; ic: string; cls: string }> = {
   free: { n: "Free", ic: "sprout", cls: "free" }, basic: { n: "Free", ic: "sprout", cls: "free" },
-  silver: { n: "Silver", ic: "medal", cls: "silver" }, gold: { n: "Gold", ic: "crown", cls: "gold" },
+  silver: { n: "Paid", ic: "medal", cls: "silver" }, gold: { n: "Gold", ic: "crown", cls: "gold" },   // task #410: a Silver page is open on every paid plan
+  platinum: { n: "Platinum", ic: "crown", cls: "gold" },
 };
 
 /** A router link, or a plain anchor when the header is drawn outside a router (previews, tests). */

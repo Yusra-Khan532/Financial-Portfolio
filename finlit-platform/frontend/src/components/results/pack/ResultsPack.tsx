@@ -60,7 +60,7 @@ export function KpiTiles({ r }: { r: QResp | undefined }) {
   return (
     <section className="rs-kpis" aria-label="The quarter so far">
       <div className="rs-tiles">{kpiTiles(t, !!r.locked).map((x) => <div key={x.k} className="ip-tile"><p className="sp-cap">{x.k}{x.help && <Tip text={x.help} label={`About “${x.k}”`} />}</p><b>{x.v}</b><small>{x.sub}</small></div>)}</div>
-      {r.locked && <p className="sp-note">The growth figures, shares and verdicts are part of the Silver plan. <Link to="/plans">See plans</Link>.</p>}
+      {r.locked && <p className="sp-note">The growth figures, shares and verdicts are part of every paid plan. <Link to="/plans">See plans</Link>.</p>}
       <p className="sp-note">Quarter ended {longDate(q.periodEnd)} ({q.fiscal}){upd ? ` · updated ${upd} IST` : ""} · figures in ₹ crore · "typical" is the middle company (the median), so a few extreme results cannot distort it.</p>
     </section>
   );
@@ -192,7 +192,7 @@ export function DayResults({ day, resp, week, locked, mine, picker, today, onDay
           </ol>
           <p className="rs-legend"><span><b className="rs-ck up">▲</b> better than typical</span><span><b className="rs-ck flat">●</b> close to typical</span><span><b className="rs-ck down">▼</b> worse than typical</span><span><b className="rs-ck loss">✕</b> loss</span></p>
         </details>
-        {locked ? <LockedBlock plan="silver" title="Each company's figures and verdict are part of the Silver plan">The calendar, the counts and the companies are open to everyone. Silver shows every company's revenue, profit and margin against a year ago, with its verdict against its industry.</LockedBlock>
+        {locked ? <LockedBlock plan="silver" title="Each company's figures and verdict are part of every paid plan">The calendar, the counts and the companies are open to everyone. Silver shows every company's revenue, profit and margin against a year ago, with its verdict against its industry.</LockedBlock>
           : <><ResultsTable rows={all ? shown : shown.slice(0, 10)} label={`results declared on ${dayShort(day)}`} mine={mine} />
             {shown.length > 10 && <button type="button" className="sp-morebtn" aria-expanded={all} onClick={() => setAll(!all)}>{all ? "Show fewer ▴" : `Show the other ${shown.length - 10} companies ▾`}</button>}
             {total > rows.length && <p className="sp-note">The {rows.length} largest of {n0(total)} are listed here. <Link to={`/results?view=companies&date=${day}`}>All {n0(total)} in the Companies view →</Link></p>}</>}
@@ -241,7 +241,7 @@ export function ComingUp({ resp, inds, dueMine, followed, mine, locked }: { resp
                 {r.hasNumbers && <small className="rsc-early" title="The company's figures for the quarter are already filed, ahead of the board-meeting date it announced">Figures already filed</small>}</td>
               <td className="rs-ind"><ComingIndustry name={r.industry} /></td><td>{r.cap ?? <span className="sp-nil" title="The size follows the market value, which is not known for this company yet">–</span>}</td><td className="r">{!r.marketCap ? <span className="sp-nil" title="No market value is known for this company yet (no traded price in our data)">–</span> : `₹${n0(Math.round(r.marketCap))} Cr`}</td>
               <td className="rs-sofar">{x && x.companies ? <span className="rsc-sofar"><i aria-hidden="true"><u style={{ width: `${Math.min(100, (x.declared / x.companies) * 100)}%` }} /></i>{n0(x.declared)} of {n0(x.companies)} reported</span> : <span className="sp-nil">Too few results to compare yet</span>}</td>
-              <td className="r">{v != null ? <span className={"rsc-chip " + growthTone(v)}>{sp(v)}</span> : x && locked ? <span className="sp-nil" title="The industry's typical growth is part of the Silver plan">Silver plan</span> : <span className="sp-nil" title={x ? "Too few of the industry's results have figures yet" : "No industry to compare with"}>—</span>}</td></tr>;
+              <td className="r">{v != null ? <span className={"rsc-chip " + growthTone(v)}>{sp(v)}</span> : x && locked ? <span className="sp-nil" title="The industry's typical growth is part of every paid plan">Paid plans</span> : <span className="sp-nil" title={x ? "Too few of the industry's results have figures yet" : "No industry to compare with"}>—</span>}</td></tr>;
           })}</tbody>
         </table></Scroll>
       </>}

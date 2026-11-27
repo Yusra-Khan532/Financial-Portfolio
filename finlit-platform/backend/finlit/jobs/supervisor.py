@@ -191,7 +191,10 @@ class Supervisor:
                 return f"waiting for {name} to finish first (it reads this job's output)"
         if plan.first and plan.first != job.name and job.cls in LONG_CLASSES:
             return f"waiting: the {plan.first} job has this time to itself (owner, 21 Nov 2026); this one starts when it has finished"
-        if plan.deploy_hold and job.cls in LONG_CLASSES:
+        if plan.deploy_hold and job.cls in LONG_CLASSES and not job.deploy_hold_exempt:
+            # 27 Nov 2026: the night of 26 Nov brought deploy after deploy and the hold kept every bulk job waiting, so the ready-made lists (about 80 s,
+            # database only) did not run all night and still said 23 Nov on the 27th. A job marked deploy_hold_exempt is short and re-run by its probe if a
+            # restart cuts it, so it goes on; the long ones still wait, as the gate intends (deploy_gate.py)
             return plan.deploy_hold           # the running long job finishes, the deploy goes in the gap, then this one starts on the new version
         if job.cls == "bulk" or job.group == "funds":
             since = (now - self.started_at).total_seconds()

@@ -867,6 +867,7 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
     app.include_router(__import__("finlit.lab.flow", fromlist=["router"]).router)
     app.include_router(__import__("finlit.lab.global_cues", fromlist=["router"]).router)  # /api/lab/global: Trading Lab > Global cues (docs/GLOBAL-MARKETS.md)
     app.include_router(__import__("finlit.lab.zones", fromlist=["router"]).router)  # /api/lab/zones/{symbol}: Trading Lab > Stock zones (docs/TRADING-LAB.md)
+    app.include_router(__import__("finlit.lab.journal", fromlist=["router"]).router)  # /api/lab/journal: Trading Lab > Trading journal, private to each member
     app.include_router(__import__("finlit.jobs.status", fromlist=["router"]).router)   # GET /api/jobs/status: public, read-only (every job, every dataset's freshness, the pause)
     app.include_router(__import__("finlit.dbusage", fromlist=["admin"]).admin)   # /api/admin/db-usage: top statements by rows returned
     app.include_router(__import__("finlit.storage", fromlist=["admin"]).admin)   # /api/admin/storage: disk, database by table, backups, growth

@@ -23,6 +23,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 
+from ..auth.entitlements import part_of
 from .catalog import BY_KEY, GROUP_LABEL, allowed, offered
 from .qaliases import ALIAS, ALIAS_TEXT, PREFIXES, UNIT_WORDS, norm
 
@@ -33,7 +34,6 @@ OP_WORDS = {">": "is greater than", ">=": "is at least", "<": "is less than", "<
 UNIT_NAME = {"pct": "a percentage (%)", "Cr": "an amount in ₹ crore", "Rs": "an amount in rupees (₹)", "x": "a multiple (times)", "d": "a number of days",
              "n": "a count", "pts": "a score in points", "flag": "a yes/no answer"}
 SUFFIX_TEXT = {"pct": "%", "Cr": "Cr", "Rs": "₹", "x": "x", "d": "days", "flag": "yes/no"}
-TIER_NAME = {"basic": "Basic", "silver": "Silver", "gold": "Gold"}
 # ownership changes are measured in percentage points: "Promoter holding change > 2%" reads naturally
 PCT_POINTS = {k for k, m in BY_KEY.items() if m.unit == "pts" and (m.group == "ownership" or k == "opm_change")}
 STOP_WORDS = {"the", "of", "a", "an", "to", "in", "and", "or", "ratio", "per", "for", "is", "vs"}
@@ -878,8 +878,7 @@ def plan_problems(root: Node, plan: str) -> List[Problem]:
                 else:
                     out.append(Problem("plan_score", "That ratio is not offered: queries use the FinLit Prism score and its parts.", n.start, n.end, "error", [], {"key": n.key}))
             elif not allowed(plan, m.tier):
-                tier = TIER_NAME[m.tier]
-                out.append(Problem("plan_locked", f"{m.label} is part of the {tier} plan. Upgrade to {tier} to use it, or pick another ratio.", n.start, n.end, "error", [],
+                out.append(Problem("plan_locked", f"{m.label} is part of {part_of(m.tier)}. Pick another ratio, or ask for a plan from your account.", n.start, n.end, "error", [],
                                    {"plan": m.tier, "key": n.key}))
     return out
 

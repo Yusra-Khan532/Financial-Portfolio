@@ -13,6 +13,7 @@ import { OPEN_AI } from "../assistantEvents";
 import { HelpActions } from "../PageFeedback";
 import { SystemControl } from "../SystemControl";
 import { DEMO } from "../../lib/demo";
+import { memberPlanName } from "../../lib/planNames";
 
 export const OPEN_PHONE_MENU = "finlit:open-phone-menu";
 
@@ -71,7 +72,7 @@ function Switch({ on, label, sub, onClick, icon }: { on: boolean; label: string;
 /** The Menu sheet: the account, the most used pages, every page by group (lib/nav.ts), the theme, the Tools button, help, and "Desktop site". */
 export function MobileMenu() {
   const [open, setOpen] = useState(false);
-  const { user, isAdmin, signOut } = useAuth();
+  const { user, isAdmin, signOut, planKey } = useAuth();
   const { theme, toggleTheme, plan } = useUI();
   const gold = useIsGold();
   const nav = useNavigate();
@@ -103,7 +104,7 @@ export function MobileMenu() {
         <div className="ma-list">
           {user ? <>
             <button type="button" className="ma-row" onClick={() => go("/account")}><span className="ma-av" aria-hidden="true">{(user.name || user.email)[0].toUpperCase()}</span>
-              <span className="ma-rt"><b>{user.name || "Your account"}</b><small>{plan[0].toUpperCase() + plan.slice(1)} plan · {user.email}</small></span><Icon name="arrow" className="ma-chev" /></button>
+              <span className="ma-rt"><b>{user.name || "Your account"}</b><small>{memberPlanName(planKey, plan)} plan · {user.email}</small></span><Icon name="arrow" className="ma-chev" /></button>
           </> : <>
             <button type="button" className="ma-row" onClick={() => go("/login")}><span className="ma-av" aria-hidden="true"><Icon name="users" /></span>
               <span className="ma-rt"><b>Sign in</b><small>{`Free account: ${freeAccountLine()}`}</small></span><Icon name="arrow" className="ma-chev" /></button>
