@@ -13,14 +13,15 @@ const item = { code: 1, symbol: null, plan: "Direct", group: "EQ", final: 72.4, 
   flags: [], confidence: null, pillars: { performance: "Strong", risk: "Fair", cost: "Weak", quality: null } } as never;
 
 describe("task #371: a bigger score and parts that name themselves", () => {
-  it("each letter carries its part's name and word for hover, focus and screen readers", () => {
+  it("each letter carries its part's name and word for hover, focus and screen readers (task #378: no figure sent, so none is shown)", () => {
     render(<ScoreCell locked={false} why="" item={item} />);
     const chips = [...document.querySelectorAll(".mfs-cell .mfs-part")];
-    expect(chips.map((c) => c.getAttribute("data-tip"))).toEqual(["Performance: Strong", "Risk: Fair", "Cost: Weak", "Quality: Not scored"]);
-    expect(chips.map((c) => c.getAttribute("aria-label"))).toEqual(["Performance: Strong", "Risk: Fair", "Cost: Weak", "Quality: Not scored"]);
+    const say = ["Performance · Strong · figure not available", "Risk · Fair · figure not available", "Cost · Weak · figure not available", "Quality · Not scored"];
+    expect(chips.map((c) => c.getAttribute("data-tip"))).toEqual(say);
+    expect(chips.map((c) => c.getAttribute("aria-label"))).toEqual(say);
     chips.forEach((c) => { expect(c.getAttribute("tabindex")).toBe("0"); expect(c.getAttribute("title")).toBe(""); expect(c.getAttribute("aria-hidden")).toBeNull(); });
   });
-  it("never shows a part as a figure (parts are words on the site)", () => {
+  it("never makes up a figure: with no part figures sent, no number is in the tips", () => {
     render(<ScoreCell locked={false} why="" item={item} />);
     document.querySelectorAll(".mfs-part").forEach((c) => expect(c.getAttribute("data-tip")).not.toMatch(/\d/));
   });
@@ -28,10 +29,10 @@ describe("task #371: a bigger score and parts that name themselves", () => {
     expect(readFileSync(join(process.cwd(), "src/mf/ScoreCell.tsx"), "utf8")).toContain('import "../styles/task371.css";');
     expect(css).toContain(".mfs-cell .mfs-pv { font-size: var(--fs-20); }");   // task #378: larger again (18 -> 20px)
     expect(css).toContain(":root .mfs-table td.mfs-hs .mfs-pv { font-size: var(--fs-20);");     // the screener's pill was 13px
-    expect(css).toMatch(/\.mfs-cell \.mfs-part \{ position: relative; width: 22px; height: 22px; font-size: var\(--fs-13\);/);   // were 16px, 12px
+    expect(css).toMatch(/\.mfs-cell \.mfs-part \{ position: static; width: 22px; height: 22px; font-size: var\(--fs-13\);/);   // were 16px, 12px (task #378: static, the box anchors to the row)
   });
   it("shows the tip on hover and on focus (keyboard, or a tap on a phone)", () => {
-    expect(css).toMatch(/\.mfs-part\[data-tip\]:hover::after, \.mfs-cell \.mfs-part\[data-tip\]:focus::after \{\s*content: attr\(data-tip\);/);
+    expect(css).toMatch(/\.mfs-tip-below \.mfs-part\[data-tip\]:hover::after, \.mfs-cell \.mfs-tip-below \.mfs-part\[data-tip\]:focus::after \{\s*content: attr\(data-tip\);/);
   });
   it("still locks below Gold: no letters, no words in the page", () => {
     const { container } = render(<ScoreCell locked={true} why="" item={item} />);

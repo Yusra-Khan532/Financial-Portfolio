@@ -47,6 +47,12 @@ def part_words(performance: Any, risk: Any, cost: Any, quality: Any) -> Dict[str
     return {"performance": part_word(performance), "risk": part_word(risk), "cost": part_word(cost), "quality": part_word(quality)}
 
 
+def part_scores(performance: Any, risk: Any, cost: Any, quality: Any) -> Dict[str, Optional[float]]:
+    """Task #378: each part's own figure, 0 to 100 as the score job stored it (one decimal, as the fund page shows it), beside the words of part_words.
+    A part with no stored figure is None (the page says "Not scored"); never a made-up number. Sent only where the score itself may be seen (Gold)."""
+    return {"performance": _f(performance), "risk": _f(risk), "cost": _f(cost), "quality": _f(quality)}
+
+
 def _f(v: Any) -> Optional[float]:
     return None if v is None else round(float(v), 1)
 
