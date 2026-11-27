@@ -69,6 +69,8 @@ export function FrequentFunds({ q, onPick, onScore }: { q: ListQuery; onPick: (c
 }
 
 /** Equity | Hybrid | Debt | Solution Oriented | Others (and All funds), and under the chosen tab its sub-categories with how many schemes each shows. */
+/** Task #427: where the open or closed "Fund type" drop-down is remembered (this browser only). */
+export const TYPES_KEY = "finlit-mf-types";
 export function CategoryPicker({ q, subs, loading, onTab, onCats, frequent, side = false }: {
   q: ListQuery; subs: SubCat[]; loading: boolean; onTab: (t: TabKey | "all") => void; onCats: (c: string[] | null) => void;
   /** task #344: the frequently visited categories at the top of the box */ frequent?: { onPick: (c: Card) => void; onScore: (c: Card) => void };
@@ -79,6 +81,10 @@ export function CategoryPicker({ q, subs, loading, onTab, onCats, frequent, side
   /** Task #362 (Chinmay, 24 Nov 2026): which box of the filter panel is open, apart from which type the list shows. Every box starts closed; opening one
    *  closes the one that was open, and its own header closes it again. The type in use keeps its tick (and "N of M selected") while folded. */
   const [exp, setExp] = useState<string | null>(null);
+  /** Task #427 (team, 27 Nov 2026: "give a drop down for this"): the six fund-type boxes sit inside one "Fund type" drop-down, closed at first (the
+   *  choice is remembered in this browser). Its header always names the type the list shows, so the panel says what is chosen while it is folded. */
+  const [types, setTypes] = useState<boolean>(() => { try { return localStorage.getItem(TYPES_KEY) === "open"; } catch { return false; } });
+  const flipTypes = () => setTypes((o) => { try { localStorage.setItem(TYPES_KEY, o ? "closed" : "open"); } catch { /* private mode: not remembered */ } return !o; });
   const on = (k: string) => q.cats === null || q.cats.includes(k);
   const onTabKey = (e: React.KeyboardEvent, i: number) => {   // arrow keys move between the tabs, as a tab list should
     const d = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
@@ -108,6 +114,13 @@ export function CategoryPicker({ q, subs, loading, onTab, onCats, frequent, side
        categories as "N of M selected") is the type the list shows, with its categories under it. Opening another switches to it, as the tabs did. */
     <section className="mf-catpick mf-catside" aria-label="Choose categories">
       {frequent && <FrequentFunds q={q} onPick={frequent.onPick} onScore={frequent.onScore} />}
+      <div className={"mf-typedd" + (types ? " open" : "")}>
+      <span className="label mf-typedd-k" id="mf-typedd-k">Fund type</span>
+      <button type="button" className="mf-typedd-h" aria-expanded={types} aria-controls="mf-typedd-b" aria-labelledby="mf-typedd-k mf-typedd-v" onClick={flipTypes}>
+        <span id="mf-typedd-v" className="mf-typedd-v">{tabs.find((t) => t.key === q.tab)?.label ?? "All funds"}{q.tab !== "all" && subs.length > 0 && <small> · {picked} of {subs.length} selected</small>}</span>
+        <span className="mf-acc-car" aria-hidden="true">{types ? "▴" : "▾"}</span>
+      </button>
+      {types && <div className="mf-typedd-b" id="mf-typedd-b" role="group" aria-labelledby="mf-typedd-k">
       {tabs.map((t) => { const used = q.tab === t.key, open = used && exp === t.key, all = used && (t.key === "all" || q.cats === null), some = used && !all && picked > 0; return (
         <div key={t.key} className={"mf-acc" + (used ? " on" : "") + (open ? " open" : "")}>
           <button type="button" className="mf-acc-h" id={`mf-acc-${t.key}`} aria-expanded={open} aria-controls={`mf-acc-b-${t.key}`}
@@ -119,6 +132,8 @@ export function CategoryPicker({ q, subs, loading, onTab, onCats, frequent, side
           </button>
           {open && <div className="mf-acc-b" id={`mf-acc-b-${t.key}`} role="region" aria-labelledby={`mf-acc-${t.key}`}>{body}</div>}
         </div>); })}
+      </div>}
+      </div>
     </section>
   );
   return (

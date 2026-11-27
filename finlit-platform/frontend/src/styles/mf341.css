@@ -199,3 +199,19 @@
    the table card), as between the page header and the cards above it; the boxes used to touch (0px). */
 .mf-list .mf-main { display: flex; flex-direction: column; gap: 16px; }
 .mf-list .mf-main > * { margin-top: 0; margin-bottom: 0; }
+
+/* Task #427 (team, 27 Nov 2026): "give a drop down for this also the headigns: plan , fund house etc make them in green like it is in stock screener
+   page and increase the size for visibility".
+   (1) The six fund-type boxes (Equity, Hybrid, Debt, Solution Oriented, Others, All funds) sit in one "Fund type" drop-down (Dashboard.tsx), drawn like
+       the Fund house drop-down under it: a 38px field naming the type in use, the boxes open below it.
+   (2) Every heading of the filter panel (Search, Frequently visited funds, Fund type, Fund house, Plan, Option, Status) in the stock screener's green
+       (its group headings use var(--gain), styles/task364.css: #1F6B49 light, #4FC08C dark) and larger: 14px (was 12px), the same capitals and weight. */
+.mf-list .mf-typedd { display: grid; gap: 4px; }
+.mf-list .mf-typedd-h { all: unset; box-sizing: border-box; display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; min-height: 38px; padding: 0 12px;
+  border: 1px solid var(--ui-field-line, var(--border-strong)); border-radius: var(--r-ctl); background: var(--s1); color: var(--text); font: 600 var(--fs-14) var(--sans); cursor: pointer; }
+.mf-list .mf-typedd-h:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.mf-list .mf-typedd-v { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mf-list .mf-typedd-v small { font: 500 var(--fs-12) var(--sans); color: var(--muted); font-variant-numeric: tabular-nums; }
+.mf-list .mf-typedd.open .mf-typedd-h { border-color: var(--border-strong); }
+.mf-list .mf-typedd-b { display: grid; gap: 8px; padding-top: 4px; }
+.mf-list .mf-side .label, .mf-list .mf-side .mf-freq-k { color: var(--gain); font: 600 var(--fs-14)/1.3 var(--sans); letter-spacing: .08em; text-transform: uppercase; }
