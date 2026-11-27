@@ -1,7 +1,7 @@
 /* Home page (8 Nov 2026 landing design): header, hero with the tour video, Explore the platform (explore-tools.css), the Prism panel, the plans. Palette only from the brand CSS variables. */
 .hh { --hh-rule: color-mix(in srgb, var(--text) 22%, transparent); }
 
-/* Task #120 (13 Nov 2026): the landing page uses only the logo's three colours, green, golden and yellow (public/brand/finlit-logo*.png), plus neutrals.
+/* Task #120 (13 Nov 2026): the landing page uses only the logo's three colours, green, golden and yellow (since task #400 the FinLit Ventures logo, public/brand/finlit-ventures-*.png), plus neutrals.
    One set per theme; text pairs meet WCAG AA (green text on cream 6.4:1, mint on deep green 9:1, golden on cream 5.7:1). */
 .hh, .fl-modal-wrap {
   --hh-g: #1F6B49; --hh-g-fill: #1F7A55; --hh-on-g: #FFFFFF; --hh-g-soft: rgba(31, 122, 85, .12);
