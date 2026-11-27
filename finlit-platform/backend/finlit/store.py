@@ -108,6 +108,11 @@ def stock_key(symbol: str, statement: str) -> str:
     return f"stock:{symbol.upper()}:{statement}"
 
 
+def _loggable(text: str) -> str:
+    """A value from a request, safe for one log line: line breaks would let it forge log entries (CodeQL log injection)."""
+    return text.replace("\r", "\\r").replace("\n", "\\n")
+
+
 def inputs_key(symbol: str, statement: str) -> str:
     return f"mi:{symbol.upper()}:{statement}"
 
@@ -1018,7 +1023,7 @@ class Store:
         try:
             body, etag = await self.redis.hmget(key, [section, f"{section}:etag"])
         except aioredis.RedisError as exc:   # the cache is busy or down: read the stored copy instead
-            log.warning("redis read failed (%s): reading %s from Postgres", type(exc).__name__, key)
+            log.warning("redis read failed (%s): reading %s from Postgres", type(exc).__name__, _loggable(key))
             body = etag = None
         if body is not None and etag is not None:
             return body, etag.decode()
@@ -1035,8 +1040,10 @@ class Store:
                     pipe.hset(key, mapping={section: body, f"{section}:etag": row["etag"].encode()})
                     pipe.expire(key, STOCK_TTL)
                     await pipe.execute()
-            except Exception:
-                pass
+            except aioredis.RedisError:
+                pass             # the cache is busy or down: the page is served from Postgres all the same
+            except Exception:    # never fail a read over the cache, but a fault that is not Redis's must be seen, not swallowed
+                log.exception("cache write-back of %s failed", _loggable(key))
         return body, row["etag"]
 
     async def get_etag(self, symbol: str, statement: str, section: str) -> Optional[str]:

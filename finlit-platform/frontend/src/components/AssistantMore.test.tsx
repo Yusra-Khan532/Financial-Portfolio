@@ -306,7 +306,7 @@ describe("written answers from FinLit AI (task #211)", () => {
       expect(screen.queryByText(/written answers left this month/)).toBeNull();          // no "0 of 0" line for Basic
       await typeAndSend("Search the listed questions", "Will the dividend rise much higher next year, do you think?");
       expect(ai.sent).toEqual([]);
-      expect(screen.getByText(/part of the Silver plan \(50 a month\) and the Gold plan \(100 a month\)/)).toBeTruthy();
+      expect(screen.getByText(/part of the combined plan \(60 a month\), Gold \(100 a month\) and Platinum \(300 a month\)/)).toBeTruthy();
       expect(within(screen.getByRole("list", { name: "Closest listed questions" })).getAllByRole("button").length).toBeGreaterThan(0);
       expect(screen.getByRole("link", { name: /See the plans/ }).getAttribute("href")).toBe("/plans");
     });

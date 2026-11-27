@@ -28,7 +28,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, field_validator
 
 from .. import mf
-from ..auth.entitlements import LIMITS, has, sees_all
+from ..auth.entitlements import LIMITS, has, in_area, sees_all
 from ..auth.routes import Ctx, fail, limit, secure_ctx
 from ..mfscore.api import NOT_SCORED
 from .. import mf_fill
@@ -54,8 +54,8 @@ def reply(body: Dict[str, Any], status: int = 200) -> JSONResponse:
 
 
 async def member_ctx(request: Request, ctx: Ctx = Depends(secure_ctx)) -> Ctx:
-    if not sees_all(ctx) and not has(ctx.plan, "silver"):
-        raise fail(403, "plan_required", "My mutual funds is part of the Silver plan.", plan="silver")
+    if not in_area(ctx, "mf"):          # task #410: Mutual Fund + ETF, the combined plan, Gold and Platinum
+        raise fail(403, "plan_required", "My mutual funds is part of the Mutual Fund + ETF, combined, Gold and Platinum plans.", plan="mfetf")
     return ctx
 
 

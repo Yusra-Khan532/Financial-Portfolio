@@ -268,7 +268,7 @@ export function Assistant({ sector, startOpen = false }: { sector?: string | nul
     if (!found && aiReady) { await written(q, before); return; }
     if (!found && aiPlan) {
       const close = searchListed(q, company, 6, true);
-      setMsgs((m) => [...m, { role: "assistant", content: "Written answers to your own questions are part of the Silver plan (50 a month) and the Gold plan (100 a month). The listed questions answer at once on every plan." + (close.length ? " These are the closest to yours:" : ""), suggest: close, ai: { plans: true } }]);
+      setMsgs((m) => [...m, { role: "assistant", content: "Written answers to your own questions are part of the combined plan (60 a month), Gold (100 a month) and Platinum (300 a month). The listed questions answer at once on every plan." + (close.length ? " These are the closest to yours:" : ""), suggest: close, ai: { plans: true } }]);
       return;
     }
     if (!found) {

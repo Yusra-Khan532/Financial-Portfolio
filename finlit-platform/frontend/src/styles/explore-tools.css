@@ -17,6 +17,7 @@
 .xt-free { background: color-mix(in srgb, var(--gain) 14%, var(--s1)); color: var(--gain); }
 .xt-silver { background: color-mix(in srgb, var(--text) 9%, var(--s1)); color: var(--muted); }
 .xt-gold { background: color-mix(in srgb, var(--gold) 18%, var(--s1)); color: var(--gold-deep, var(--gold)); }
+.xt-platinum { background: color-mix(in srgb, var(--gold) 18%, var(--s1)); color: var(--gold-deep, var(--gold)); }
 .xt-what { margin: 0; font-size: var(--fs-16); line-height: 1.45; color: var(--text); }
 .xt-pts { list-style: none; margin: 0 0 6px; padding: 0; display: grid; gap: 9px; font-size: var(--fs-14); color: var(--muted); line-height: 1.45; }
 .xt-pts li { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 8px; } .xt-pts svg { width: 16px; height: 16px; margin-top: 2px; color: var(--gold); }

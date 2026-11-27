@@ -36,7 +36,7 @@ def test_the_day_whose_close_counts_is_the_day_added_or_the_next_after_the_close
 
 async def test_backfill_fills_once_from_the_stored_closes_and_a_later_save_keeps_it(app):  # noqa: F811
     pool = app.state.store.pool
-    c = await signed_in(app, "wp408@example.com", plan="silver")
+    c = await signed_in(app, "wp408@example.com", plan="equity")
     added = ms(2026, 11, 20, 16, 0)        # Friday after the close: Monday 23 Nov's close counts
     wl = {"lists": [{"id": "main", "name": "My watchlist", "symbols": ["WP408A", "WP408B"]}],
           "meta": {"WP408A": {"added": added}, "WP408B": {"added": added, "addedPrice": 50.5}}}
@@ -82,9 +82,12 @@ def test_target_words_numbers_and_switches():
     assert ta.message("SBIN", 1200, 1180, "Banks")[1] == "SBIN at ₹1,200.00 is 1.7% above your target of ₹1,180.00 (Banks)."
     assert not ADVICE.search(t + " " + b)
     wl = {"lists": [{"id": "a", "name": "Off list", "symbols": ["TCS"], "alerts": {"target": False, "peer": "any", "filings": []}},
-                    {"id": "b", "name": "On list", "symbols": ["SBIN", "TCS", "INFY", "ITC"]}],
-          "meta": {"SBIN": {"target": 1180, "added": 1}, "TCS": {"target": 4000, "added": 1}, "INFY": {"target": 1500, "added": 1, "nearAlert": False}, "ITC": {"added": 1}}}
-    assert ta.targets(wl) == {"TCS": (4000.0, "On list"), "SBIN": (1180.0, "On list")}   # the off list's stock counts through the other list; the box unticked and no target do not
+                    {"id": "b", "name": "On list", "symbols": ["SBIN", "TCS", "INFY", "ITC"], "alerts": {"target": True, "peer": "any", "filings": []}},
+                    {"id": "c", "name": "Never saved", "symbols": ["HDFCBANK"], "labelAlert": "any"}],
+          "meta": {"SBIN": {"target": 1180, "added": 1}, "TCS": {"target": 4000, "added": 1}, "INFY": {"target": 1500, "added": 1, "nearAlert": False}, "ITC": {"added": 1},
+                   "HDFCBANK": {"target": 1700, "added": 1}}}
+    # the off list's stock counts through the other list; the box unticked, no target, and a list never saved through Alerts for this list do not
+    assert ta.targets(wl) == {"TCS": (4000.0, "On list"), "SBIN": (1180.0, "On list")}
     # once per crossing: fires when it comes near, not again while near, re-arms only more than 5% away, and a new target re-arms it
     assert ta.step(None, None, 100, 96) == (True, ta.SIDE_NEAR)
     assert ta.step(ta.SIDE_NEAR, 100, 100, 97) == (False, ta.SIDE_NEAR)
@@ -100,13 +103,17 @@ async def test_list_and_stock_switches_decide_who_is_told(app):  # noqa: F811
     from finlit.alerts import check_alerts
     pool, mailer = app.state.store.pool, app.state.mailer
     on = await signed_in(app, "ta408on@example.com", plan="gold")
-    off = await signed_in(app, "ta408off@example.com", plan="gold")
-    box = await signed_in(app, "ta408box@example.com", plan="silver")
-    base = {"id": "main", "name": "Energy", "symbols": ["RELIANCE"]}
+    off = await signed_in(app, "ta408off@example.com", plan="platinum")
+    box = await signed_in(app, "ta408box@example.com", plan="equity")
+    unsaved = await signed_in(app, "ta408new@example.com", plan="combined")
+    saved = {"target": True, "peer": "any", "filings": []}
+    base = {"id": "main", "name": "Energy", "symbols": ["RELIANCE"], "alerts": saved}
     assert (await on.put("/api/me/watchlist", json={"lists": [base], "meta": {"RELIANCE": {"target": 1440, "added": 1}}})).status_code == 200
     assert (await off.put("/api/me/watchlist", json={"lists": [{**base, "alerts": {"target": False, "peer": "any", "filings": []}}],
                                                        "meta": {"RELIANCE": {"target": 1440, "added": 1}}})).status_code == 200
     assert (await box.put("/api/me/watchlist", json={"lists": [base], "meta": {"RELIANCE": {"target": 1440, "added": 1, "nearAlert": False}}})).status_code == 200
+    never = {"id": "main", "name": "Energy", "symbols": ["RELIANCE"]}          # a list never saved through Alerts for this list: no target alert
+    assert (await unsaved.put("/api/me/watchlist", json={"lists": [never], "meta": {"RELIANCE": {"target": 1440, "added": 1}}})).status_code == 200
     async with pool.acquire() as conn:
         await conn.execute("DELETE FROM alert_state WHERE symbol = 'RELIANCE'")
         await conn.execute("DELETE FROM auto_alert_sent WHERE kind = 'target_near'")
@@ -114,9 +121,9 @@ async def test_list_and_stock_switches_decide_who_is_told(app):  # noqa: F811
     assert await check_alerts(pool, mailer, "http://test") == 1
     note = [n for n in (await on.get("/api/notifications")).json()["notifications"] if n["symbol"] == "RELIANCE"]
     assert note[0]["title"] == "RELIANCE is near your target" and note[0]["body"] == "RELIANCE at ₹1,396.20 is 3.1% below your target of ₹1,440.00 (Energy)."
-    for c in (off, box):
+    for c in (off, box, unsaved):
         assert not [n for n in (await c.get("/api/notifications")).json()["notifications"] if n["title"].endswith("near your target")]
-    for c in (on, off, box):
+    for c in (on, off, box, unsaved):
         await c.aclose()
 
 
@@ -126,7 +133,7 @@ async def test_membership_names_each_stocks_screens_with_place_count_and_join_da
         await conn.execute("TRUNCATE preset_results, screen_runs, screen_snapshots")
     await store.redis.flushdb()
     gold = await signed_in(app, "mem408@example.com", plan="gold")
-    silver = await signed_in(app, "mem408s@example.com", plan="silver")
+    silver = await signed_in(app, "mem408s@example.com", plan="equity")
     for pid, syms in (("emerging-tech", ["AAA", "SBIN", "BBB"]), ("highest-rated-large", ["SBIN"])):
         p = BY_ID[pid]
         chips = [c.id for c in p.chips if c.default]
@@ -153,3 +160,53 @@ async def test_membership_names_each_stocks_screens_with_place_count_and_join_da
     assert (await gold.get("/api/screener/membership?symbols=bad%20one")).status_code == 422
     for c in (gold, silver):
         await c.aclose()
+
+
+# ------------------------------------------------------------------------------------------------ card 4: "Peer label changed" reads the weekly record
+def test_overlay_carries_the_records_changed_and_week_only_for_a_real_weekly_run():
+    from finlit.leadership_api import overlay
+    row = {"label": "laggard", "raw_label": "laggard", "label_since": date(2026, 3, 13)}
+    rec = {"label": "in_line", "reading": "in_line", "label_since": date(2026, 11, 20), "pending_to": None, "changed": True, "source": "run", "week_end": date(2026, 11, 20)}
+    out = overlay(row, rec)
+    assert out["changed"] is True and out["week_end"] == date(2026, 11, 20) and out["label"] == "in_line"
+    assert overlay(row, {**rec, "source": "rebuild"})["changed"] is False        # the one-time rebuild's rows never count as this week's change
+    assert overlay(row, {**rec, "changed": False})["changed"] is False
+    assert overlay(row, None)["changed"] is None and overlay(row, None)["week_end"] is None
+
+
+async def test_list_and_stock_answers_carry_changed_week_end_and_the_records_latest_week(app):  # noqa: F811
+    from finlit import leadership_api
+    pool = app.state.store.pool
+    friday = date(2026, 11, 20)
+    async with pool.acquire() as conn:
+        await conn.execute("UPDATE feature_flags SET enabled = true WHERE name = 'leadership'")
+        for sym in ("CHG408", "SAME408"):
+            await conn.execute("DELETE FROM leadership WHERE symbol = $1", sym)
+            await conn.execute("DELETE FROM peer_label_week WHERE symbol = $1", sym)
+            await conn.execute("INSERT INTO leadership (symbol, name, as_of, group_short, group_name, ranked, rank, label, raw_label, label_since) "
+                               "VALUES ($1, $1, $2, 'Oil & gas', 'Oil & gas', 12, 4, 'in_line', 'in_line', $2)", sym, friday)
+        for wk, src in ((friday - __import__("datetime").timedelta(days=7), "run"), (friday, "run")):
+            rid = f"run-408-{wk.isoformat()}"
+            await conn.execute("INSERT INTO peer_label_run (run_id, week_end, status, source) VALUES ($1, $2, 'current', $3) ON CONFLICT (run_id) DO NOTHING", rid, wk, src)
+            for sym, lab, ch in (("CHG408", "laggard" if wk < friday else "in_line", wk == friday), ("SAME408", "in_line", False)):
+                await conn.execute("INSERT INTO peer_label_week (symbol, week_end, run_id, ranked, rank, reading, label, label_since, changed, rule_version, source) "
+                                   "VALUES ($1, $2, $3, 12, 4, $4, $4, $2, $5, 'two-runs-v1', 'run')", sym, wk, rid, lab, ch)
+    leadership_api._flag["at"] = 0.0
+    try:
+        c = new_client(app)
+        d = (await c.get("/api/leadership/list?symbols=CHG408,SAME408")).json()
+        assert d["available"] and d["recordWeek"] >= "2026-11-20"
+        assert d["rows"]["CHG408"]["changed"] is True and d["rows"]["CHG408"]["weekEnd"] == "2026-11-20" and d["rows"]["CHG408"]["label"] == "in_line"
+        assert d["rows"]["SAME408"]["changed"] is False and d["rows"]["SAME408"]["weekEnd"] == "2026-11-20"
+        one = (await c.get("/api/stocks/CHG408/leadership")).json()
+        assert one["changed"] is True and one["weekEnd"] == "2026-11-20"
+        hist = (await c.get("/api/stocks/CHG408/leadership-history")).json()
+        assert [r["label"] for r in hist["rows"] if r["date"] < "2026-11-20"][-1:] == ["laggard"]      # the page's "after Laggard": the previous record row
+        await c.aclose()
+    finally:
+        async with pool.acquire() as conn:
+            await conn.execute("UPDATE feature_flags SET enabled = false WHERE name = 'leadership'")
+            await conn.execute("DELETE FROM peer_label_week WHERE symbol IN ('CHG408', 'SAME408')")
+            await conn.execute("DELETE FROM peer_label_run WHERE run_id LIKE 'run-408-%'")
+            await conn.execute("DELETE FROM leadership WHERE symbol IN ('CHG408', 'SAME408')")
+        leadership_api._flag["at"] = 0.0

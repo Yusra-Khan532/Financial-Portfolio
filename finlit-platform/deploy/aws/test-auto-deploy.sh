@@ -24,13 +24,24 @@ case "\$1" in
         esac ;;
   deploy) [ "\${FAKE_JOBS:-}" = pending ] && echo jobcodeX > "$FINLIT_HOME/state/jobs_pending"   # deploy.sh deploy: the jobs move had to wait
           case "\${FAKE_MODE:-ok}" in
-            ok) echo imgB > "$T/image"; exit 0 ;;
+            ok) echo imgB > "$T/image"; echo "\${DEPLOY_SHA:-head}" > "$T/deployed.sha"; exit 0 ;;
             unhealthy) echo imgC > "$T/image"; exit 1 ;;
             early) exit 1 ;;
           esac ;;
 esac
 FAKE
-export DEPLOY_SH="$FINLIT_HOME/src/sub/deploy/aws/deploy.sh" IMAGE_ID_CMD="cat $T/image" DISK_PCT_CMD="echo 40"
+# GitHub's answer about a commit's checks (the workflow runs its push started): runs "name|status|conclusion|attempt" ... writes it; every test before
+# section 9 sees all checks green, as a commit that passed CI
+runs() {
+  local out="" sep="" n s c a cj
+  for x in "$@"; do
+    IFS='|' read -r n s c a <<<"$x"; if [ -n "$c" ]; then cj="\"$c\""; else cj=null; fi
+    out="$out$sep{\"name\":\"$n\",\"status\":\"$s\",\"conclusion\":$cj,\"run_attempt\":${a:-1},\"id\":1}"; sep=","
+  done
+  printf '{"total_count":%s,"workflow_runs":[%s]}' "$#" "$out" > "$T/ci.json"
+}
+runs "Platform CI|completed|success" "Security|completed|success" "codeql|completed|success" "platform-image|completed|success"
+export DEPLOY_SH="$FINLIT_HOME/src/sub/deploy/aws/deploy.sh" IMAGE_ID_CMD="cat $T/image" DISK_PCT_CMD="echo 40" CI_RUNS_CMD="echo \$CI_SHA > $T/ci.sha; if [ -f $T/ci-\$CI_SHA.json ]; then cat $T/ci-\$CI_SHA.json; else cat $T/ci.json; fi"
 A="$HERE/auto-deploy.sh"
 mkdir -p "$FINLIT_HOME/state"; date +%s > "$FINLIT_HOME/state/last_daily_clean"   # today's daily cleaning is done, so the tests below only see what they ask for
 fail=0; ok() { if [ "$2" = "$3" ]; then echo "PASS  $1"; else echo "FAIL  $1 (wanted '$2', got '$3')"; fail=1; fi; }
@@ -93,4 +104,67 @@ reset; bash "$A" force >/dev/null 2>&1;                     ok "force with nothi
 echo jobcodeY > "$FINLIT_HOME/state/jobs_pending"
 printf 'REPO_URL=%s\nREPO_BRANCH=main\nREPO_SUBDIR=sub\n' "$T/missing.git" > "$FINLIT_HOME/auto-deploy.conf"
 reset; FAKE_JOBS=moved bash "$A" >/dev/null 2>&1;           ok "GitHub unreachable: a waiting jobs move still goes" "jobs" "$(calls)"
+# 9. the checks gate (25 Nov 2026): a commit is deployed only once the checks its push started are green
+printf 'REPO_URL=%s\nREPO_BRANCH=main\nREPO_SUBDIR=sub\n' "$ORIGIN" > "$FINLIT_HOME/auto-deploy.conf"
+rm -f "$FINLIT_HOME/state/jobs_pending"; L="$FINLIT_HOME/logs/auto-deploy.log"
+commit nine; reset
+runs "Platform CI|in_progress||1" "Security|completed|success"
+FAKE_MODE=ok bash "$A" >/dev/null 2>&1;                     ok "checks still running: not deployed" "" "$(calls)"
+ok "GitHub is asked about the new commit" "$(git -C "$W" rev-parse HEAD)" "$(cat "$T/ci.sha")"
+runs "Security|completed|success"
+reset; FAKE_MODE=ok bash "$A" >/dev/null 2>&1;              ok "a required check not started yet: not deployed" "" "$(calls)"
+runs "Platform CI|completed|failure" "Security|completed|success"
+reset; FAKE_MODE=ok bash "$A" >/dev/null 2>&1;              ok "a check failed: not deployed" "" "$(calls)"
+ok "...and the failure is named in the log" "1" "$(grep -c 'red: Platform CI failure' "$L")"
+reset; FAKE_MODE=ok bash "$A" >/dev/null 2>&1;              ok "...still red at the next check: still not deployed" "" "$(calls)"
+ok "...and logged once, not every check" "1" "$(grep -c 'red: Platform CI failure' "$L")"
+ok "a red commit is not marked failed (a re-run can still turn it green)" "none" "$(cat "$FINLIT_HOME/state/auto_failed_sha" 2>/dev/null || echo none)"
+: > "$T/ci.json"
+reset; FAKE_MODE=ok bash "$A" >/dev/null 2>&1;              ok "GitHub cannot be asked: not deployed" "" "$(calls)"
+runs "Platform CI|completed|failure|1" "Platform CI|completed|success|2" "Security|completed|success" "platform-image|completed|failure"
+reset; out="$(FAKE_MODE=ok bash "$A" now 2>&1)"
+ok "a re-run turned green (the image build is not part of the verdict): deployed" "backup deploy" "$(calls)"
+ok "...and 'now' says why" "1" "$(printf '%s' "$out" | grep -c 'green: Platform CI, Security passed')"
+commit ten; runs "Platform CI|completed|cancelled" "Security|completed|success"
+reset; FAKE_MODE=ok bash "$A" skip-ci >/dev/null 2>&1;      ok "skip-ci: deployed by hand although a check is red" "backup deploy" "$(calls)"
+ok "...and it is logged" "1" "$(grep -c 'skip-ci: deploying' "$L")"
+commit eleven; runs "Platform CI|queued||1" "Security|completed|success"
+printf 'REPO_URL=%s\nREPO_BRANCH=main\nREPO_SUBDIR=sub\nCI_WAIT_WARN_MIN=0\n' "$ORIGIN" > "$FINLIT_HOME/auto-deploy.conf"
+reset; bash "$A" >/dev/null 2>&1; bash "$A" >/dev/null 2>&1
+ok "a long wait is warned about once" "1" "$(grep -c 'have not finished after 0 minutes' "$L")"
+printf 'REPO_URL=%s\nREPO_BRANCH=main\nREPO_SUBDIR=sub\nCI_GATE=off\n' "$ORIGIN" > "$FINLIT_HOME/auto-deploy.conf"
+reset; FAKE_MODE=ok bash "$A" >/dev/null 2>&1;              ok "CI_GATE=off: deployed without asking" "backup deploy" "$(calls)"
+ok "status shows the gate" "1" "$(bash "$A" status 2>/dev/null | grep -c '^checks gate:    off')"
+# 10. the newest GREEN commit is deployed (27 Nov 2026): a commit whose checks are still running, or red, never holds back an older green one
+printf 'REPO_URL=%s\nREPO_BRANCH=main\nREPO_SUBDIR=sub\n' "$ORIGIN" > "$FINLIT_HOME/auto-deploy.conf"
+runs "Platform CI|completed|success" "Security|completed|success"; cp "$T/ci.json" "$T/green.json"
+runs "Platform CI|in_progress||1" "Security|completed|success"; cp "$T/ci.json" "$T/running.json"
+runs "Platform CI|completed|failure" "Security|completed|success"; cp "$T/ci.json" "$T/red.json"
+at() { cp "$T/$2.json" "$T/ci-$(git -C "$W" rev-parse "$1").json"; }   # at REV VERDICT: GitHub's answer for that commit
+rev() { git -C "$W" rev-parse "$1"; }
+cp "$T/running.json" "$T/ci.json"                                       # any commit not named below: still running
+D="$FINLIT_HOME/state/auto_deployed_sha"
+commit c1; commit c2; at HEAD~1 green; at HEAD running
+reset; FAKE_MODE=ok bash "$A" >/dev/null 2>&1
+ok "the newest commit still running, an older one green: the older one is deployed" "$(rev HEAD~1)" "$(cat "$D")"
+ok "...deploy.sh is told that exact commit" "$(rev HEAD~1)" "$(cat "$T/deployed.sha")"
+ok "...and the log says why" "1" "$(grep -c "the newest green commit is $(rev HEAD~1)" "$L")"
+reset; FAKE_MODE=ok bash "$A" >/dev/null 2>&1;              ok "the newest is still running: nothing more runs" "" "$(calls)"
+at HEAD green
+reset; FAKE_MODE=ok bash "$A" >/dev/null 2>&1;              ok "the newest turns green: it is deployed" "$(rev HEAD)" "$(cat "$D")"
+commit c3; at HEAD running
+reset; FAKE_MODE=ok bash "$A" >/dev/null 2>&1;              ok "everything newer than the deployed commit still running: wait" "" "$(calls)"
+commit c4; at HEAD red; at HEAD~1 green
+reset; FAKE_MODE=ok bash "$A" >/dev/null 2>&1;              ok "the newest red, an older one green: the green one is deployed" "$(rev HEAD~1)" "$(cat "$D")"
+commit c5; at HEAD running; at HEAD~1 red
+reset; FAKE_MODE=ok bash "$A" >/dev/null 2>&1;              ok "never backwards: a green commit at or before the deployed one is not deployed again" "" "$(calls)"
+at HEAD green
+reset; FAKE_MODE=early bash "$A" >/dev/null 2>&1;           ok "a green commit whose deploy fails..." "backup deploy" "$(calls)"
+reset; FAKE_MODE=ok bash "$A" >/dev/null 2>&1;              ok "...is never tried again, and nothing past the deployed one is taken instead" "" "$(calls)"
+n="$(grep -c . "$FINLIT_HOME/state/ci_verdicts")"; reset; FAKE_MODE=ok bash "$A" >/dev/null 2>&1
+ok "a green verdict is kept: it is not added again" "$n" "$(grep -c . "$FINLIT_HOME/state/ci_verdicts")"
+# the repository's own address gives the GitHub name the checks are asked of
+printf 'REPO_URL=https://github.com/Owner/Repo.git\n' > "$FINLIT_HOME/auto-deploy.conf"
+got="$(bash "$A" status 2>/dev/null | sed -n 's/^checks gate:    on (asks \([^)]*\)).*/\1/p')"
+ok "CI_REPO is read from a github.com REPO_URL" "Owner/Repo" "$got"
 exit $fail

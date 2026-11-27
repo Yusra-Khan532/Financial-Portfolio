@@ -14,7 +14,7 @@ import orjson
 from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel, Field
 
-from ..auth.entitlements import has, sees_all
+from ..auth.entitlements import has, is_platinum, sees_all
 from ..auth.routes import SYMBOL, Ctx, admin_ctx, fail, secure_ctx, user_ctx
 from ..background import spawn
 from ..screener.data import get_table
@@ -30,15 +30,17 @@ RANGES = {"crude": (-90.0, 300.0), "usdinr": (1 / 1.4 * 100 - 100, 1 / 0.67 * 10
           "rate_bp": (-500.0, 1000.0), "demand": (-60.0, 30.0), "erp_bp": (-300.0, 600.0)}
 
 
+# Task #410: Stress Lab is a Platinum tool (goliveData: Platinum, or the Stress Lab add-on). Accounts that had it before keep it: migration 146 moved
+# every old Silver and Gold account to Platinum.
 async def silver_ctx(ctx: Ctx = Depends(user_ctx)) -> Ctx:
-    if not sees_all(ctx) and not has(ctx.plan, "silver"):
-        raise fail(403, "plan_required", "Stress Lab is part of the Silver and Gold plans.", plan="silver")
+    if not is_platinum(ctx):
+        raise fail(403, "plan_required", "Stress Lab is part of the Platinum plan.", plan="platinum")
     return ctx
 
 
 async def gold_ctx(ctx: Ctx = Depends(secure_ctx)) -> Ctx:
-    if not sees_all(ctx) and not has(ctx.plan, "gold"):
-        raise fail(403, "plan_required", "This part of Stress Lab is part of the Gold plan.", plan="gold")
+    if not is_platinum(ctx):
+        raise fail(403, "plan_required", "Stress Lab is part of the Platinum plan.", plan="platinum")
     return ctx
 
 

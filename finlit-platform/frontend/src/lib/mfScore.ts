@@ -47,6 +47,14 @@ export type ScoreMetric = { id: string; label: string; pillar: string; state: Sc
 export type ScorePillar = { key: "performance" | "risk" | "cost" | "quality"; name: string; reading?: string | null; points?: number | null; allNotApplicable?: boolean };
 /** A part in words (the site never shows the weights): 70 or more Strong, 50 to 69 Fair, under 50 Weak. */
 export const partWord = (v: number | null | undefined) => (v == null ? "Not scored" : v >= 70 ? "Strong" : v >= 50 ? "Fair" : "Weak");
+/** Task #378 (team, 25 Nov 2026: "still the scores are not seen"): what a P R C Q chip says on hover, focus or tap, and to a screen reader: the part's name,
+ *  its own figure out of 100 (as stored by the score job, one decimal as on the fund page) and its word, e.g. "Performance 42.0 / 100 · Weak". A part with
+ *  no figure says so and never shows a made-up number. */
+export function partTip(name: string, word: string | null | undefined, points: number | null | undefined): string {
+  const w = word || partWord(points);
+  if (points != null && Number.isFinite(points)) return `${name} ${scoreText(points)} / 100 · ${w}`;
+  return w === "Not scored" ? `${name} · Not scored` : `${name} · ${w} · figure not available`;
+}
 /** A part word as a colour band, and as a FIXED position for charts (the charts show the word, never a figure). */
 export const wordBand = (w: string | null | undefined): ScoreBand => (w === "Strong" ? "hi" : w === "Fair" ? "mid" : w === "Weak" ? "lo" : "na");
 export const WORD_POS: Record<string, number> = { Strong: 85, Fair: 60, Weak: 30 };
@@ -63,7 +71,7 @@ export type FundScore = {
   disclaimer: string; method: string; model: string;
 };
 export type ScoreItem = { code: number | null; symbol: string | null; plan: string; group: string | null; final: number | null; label: string | null; status: string | null; reason: string | null;
-  pillars: Record<string, string | null> | null; rank: number | null; rankOf: number | null; flags: string[]; confidence: number | null;
+  pillars: Record<string, string | null> | null; pillarScores?: Record<string, number | null> | null; rank: number | null; rankOf: number | null; flags: string[]; confidence: number | null;
   inherited?: { code: number; name: string; label: string; why: string } | null };   // task #281: an IDCW row's score is its same-plan Growth option's
 export type ScoreList = { locked: boolean; items: ScoreItem[]; total: number | null };
 /** One sub-category of the Funds dashboard: median of the scored Direct-plan funds, how many, and the counts in the three colour bands. */

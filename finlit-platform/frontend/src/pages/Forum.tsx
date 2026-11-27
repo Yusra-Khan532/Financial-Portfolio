@@ -7,7 +7,7 @@ import { useDocTitle } from "../lib/title";
 import { useUI, TIER } from "../lib/ui";
 import { watch as wl, useWatchlist } from "../lib/watchlist";
 import { MINUS, nf } from "../lib/format";
-import { BOARD_NAME, DISCLAIMER, PLANS, forumMe, pickCompanies, send, type CompanyFilter, type ForumCompany, type QueueItem } from "../lib/forum";
+import { BOARD_NAME, DISCLAIMER, PLANS, useForumMe, pickCompanies, send, type CompanyFilter, type ForumCompany, type QueueItem } from "../lib/forum";
 import { BoardNote, CompanyLogo, Disclaimer, ThreadList, ThreadView, msg, useCompanyQuotes } from "../components/forum/ForumParts";
 import "../styles/forum.css";
 import { codeText, coTitle, subLine, titleOf } from "../lib/companyLabel";
@@ -21,7 +21,7 @@ const count = (n: number) => `${n.toLocaleString("en-IN")} ${n === 1 ? "discussi
 
 /** The front page's left column: every company with discussion on the viewer's board, listed once, with its logo and discussion count. */
 function Companies({ active, board }: { active?: string; board: string }) {
-  const { data: me } = forumMe(), wlState = useWatchlist(); void wlState;
+  const { data: me } = useForumMe(), wlState = useWatchlist(); void wlState;
   const [q, setQ] = useState(""), [filter, setFilter] = useState<CompanyFilter>("all");
   const list = useQuery<{ companies: ForumCompany[] }>({ queryKey: ["forum", "companies", "all", board], queryFn: () => apiGet(`/api/forum/companies?days=0&limit=500${board ? `&board=${board}` : ""}`), enabled: !!me?.signedIn, staleTime: 30_000 });
   const all = list.data?.companies ?? [];
@@ -48,7 +48,7 @@ function Companies({ active, board }: { active?: string; board: string }) {
   );
 }
 
-/** Follow = the member's watchlist (Silver and up), the same as the report's Watchlist button. */
+/** Follow = the member's watchlist (Mutual Fund + ETF, combined, Gold and Platinum), the same as the report's Watchlist button. */
 function FollowButton({ symbol }: { symbol: string }) {
   const { has, toast, upgrade } = useUI(), wlState = useWatchlist(); void wlState;
   const on = wl.has(symbol);
@@ -95,7 +95,7 @@ function CompanyPanel({ symbol, board }: { symbol: string; board: string }) {
 }
 
 function Home({ symbol }: { symbol?: string }) {
-  const { data: me } = forumMe();
+  const { data: me } = useForumMe();
   const [pick, setPick] = useState("");      // moderators may look at another plan's board
   const board = me?.moderator && PLANS.includes(pick as never) && pick !== me.board ? pick : "";
   return (

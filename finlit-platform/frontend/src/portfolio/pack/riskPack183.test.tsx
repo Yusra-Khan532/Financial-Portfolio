@@ -65,6 +65,9 @@ describe("how the beta is built, and reading a beta (E73–E78)", () => {
     expect(screen.getAllByRole("tab").map((t) => `${t.querySelector("b")!.textContent}${t.getAttribute("aria-selected") === "true" ? "*" : ""}`)).toEqual(["By size*", "Where your shares sit", "Three ways to measure"]);
     expect(document.querySelector(".xtabs")!.classList.contains("eqb-tabs3")).toBe(true);
     expect(document.querySelector(".x2-k")!.textContent).toBe("How it is built 3 ways to look · tap one");
+    // audit of 26 Nov (file 38, Part D): the caption is the bar's first line, so the bar sits 18 px under the boxes above (was 37, the caption between)
+    expect(document.querySelector(".xtabs.eqb-tabs3 > .x2-k")).toBeTruthy();
+    expect(document.querySelector(".eqb-sum + .xtabs.eqb-tabs3")).toBeTruthy();
     expect(document.querySelector(".eqr-steps")).toBeNull();
     fireEvent.click(screen.getByRole("tab", { name: /Three ways to measure/ }));
     expect(Array.from(document.querySelectorAll(".eqr-b3 .eqr-v b")).map((b) => b.textContent)).toEqual(["1.82×", "1.86×", "1.13×"]);

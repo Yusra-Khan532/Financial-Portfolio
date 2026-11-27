@@ -228,7 +228,8 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
             try:
                 if await leadership_api.public_now(app.state.store):
                     async with app.state.store.pool.acquire() as conn:
-                        lead = {x["symbol"]: {**dict(x), "label": leadership_api.agreeing(x["label"], x["raw_label"], x["rel52"])} for x in await conn.fetch("SELECT symbol, label, raw_label, rel52, rank, ranked, group_short FROM leadership WHERE label IS NOT NULL")}
+                        lead = {x["symbol"]: dict(x) for x in await conn.fetch(   # task #409: the weekly record's label (written into leadership), never replaced on read
+                        "SELECT symbol, label, raw_label, rel52, rank, ranked, group_short FROM leadership WHERE label IS NOT NULL")}
             except Exception:
                 logging.getLogger("finlit.api").exception("screener universe: leadership labels not read")
         nse: dict = {}
@@ -865,7 +866,10 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
     app.include_router(fundjobs.router)
     app.include_router(sysctl.router)   # /api/admin/system: loads switch, restart, status
     app.include_router(__import__("finlit.lab.access", fromlist=["router"]).router)
-    app.include_router(__import__("finlit.lab.flow", fromlist=["router"]).router)   # /api/lab/access and /api/admin/lab/grants: Trading Lab access, admin-granted (docs/TRADING-LAB.md)
+    app.include_router(__import__("finlit.lab.flow", fromlist=["router"]).router)
+    app.include_router(__import__("finlit.lab.global_cues", fromlist=["router"]).router)  # /api/lab/global: Trading Lab > Global cues (docs/GLOBAL-MARKETS.md)
+    app.include_router(__import__("finlit.lab.zones", fromlist=["router"]).router)  # /api/lab/zones/{symbol}: Trading Lab > Stock zones (docs/TRADING-LAB.md)
+    app.include_router(__import__("finlit.lab.journal", fromlist=["router"]).router)  # /api/lab/journal: Trading Lab > Trading journal, private to each member
     app.include_router(__import__("finlit.jobs.status", fromlist=["router"]).router)   # GET /api/jobs/status: public, read-only (every job, every dataset's freshness, the pause)
     app.include_router(__import__("finlit.dbusage", fromlist=["admin"]).admin)   # /api/admin/db-usage: top statements by rows returned
     app.include_router(__import__("finlit.storage", fromlist=["admin"]).admin)   # /api/admin/storage: disk, database by table, backups, growth

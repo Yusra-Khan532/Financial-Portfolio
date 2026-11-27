@@ -187,7 +187,8 @@ describe("M5: the heading pins under the LOWEST visible bar, and again when a ba
   it("the MF table watches both bars; the ETF table uses the same pin line; Equity keeps its tools row", () => {
     expect(src("mf/pack/MfFunds.tsx")).toContain('pinBelow=".ptk-frow.stuck, .ptk-bar:not(.away)" pinWatch=".ptk-bar, .ptk-frow"');
     expect(src("etf/pack/EtfList.tsx")).toContain('pinBelow=".ptk-frow.stuck, .ptk-bar:not(.away)"');
-    expect(src("portfolio/SharesTable.tsx")).toContain('pinBelow={p.editSell ? "#pf-shares .pfx-tools.pfh" : undefined}');
+    // audit of 26 Nov (file 38): the tools row, and the section bar while the open row is scrolled away (only the one-line row sticks); Enlarge its row only
+    expect(src("portfolio/SharesTable.tsx")).toContain('pinBelow={p.editSell ? (full ? "#pf-shares .pfx-tools.pfh" : "#pf-shares .pfx-tools.pfh, .eqt-bar") : undefined}');
     expect(src("components/HScroll.tsx")).not.toMatch(/document\.querySelector\(pinBelow\)/);
   });
 });

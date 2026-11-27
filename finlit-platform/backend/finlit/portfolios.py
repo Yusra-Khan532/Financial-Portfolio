@@ -61,6 +61,13 @@ LOAD_MAX_CALLS = 900                 # scheme-details calls per run (about 15 mi
 LOAD_MAX_SECONDS = 25 * 60           # task #281 (22 Nov): the whole loads step's time budget. Without it, AMFI's "too many requests" waits (up to 90 s, three tries,
                                      # on every fund-house list and scheme call) ran the portfolios job into its 120-minute limit on 22 Nov, and the job ended "timeout".
 LOAD_STOP_AFTER_429 = 5              # this many schemes in a row refused with 429 stop the step for this run, keeping what was stored
+# Task #281 (27 Nov): the loads step asked only ~62 funds a night. Each scheme-details call went through _retry, which on a 429 slept AMFI's Retry-After
+# (capped at 90 s) twice before giving up: up to ~180 s of waiting per refused fund, so 6 refusals spent ~18 of the 25 budget minutes. Now a refused fund
+# waits once, at most LOAD_429_WAIT_MAX seconds, is left for the next run (as before), and the pace between calls backs off instead: the pause doubles
+# after a 429 (up to LOAD_PAUSE_MAX) and eases back by half after LOAD_EASE_AFTER answers in a row, never below LOAD_PAUSE_S. Never faster than before.
+LOAD_429_WAIT_MAX = 20.0
+LOAD_PAUSE_MAX = 8.0
+LOAD_EASE_AFTER = 5
 URL_PERF = "https://www.amfiindia.com/gateway/pollingsebi/api/amfi/fundperformance"
 URL_PERF_SUB = "https://www.amfiindia.com/gateway/pollingsebi/api/amfi/getsubcategory"
 URL_EQUITY_L = "https://nsearchives.nseindia.com/content/equities/EQUITY_L.csv"
@@ -566,6 +573,36 @@ async def download(client: httpx.AsyncClient, url: str, dest: str, headers: Opti
     return await _retry(go)
 
 
+async def get_json_no_wait_on_429(client: httpx.AsyncClient, url: str, **kw):
+    """Task #281 (27 Nov): one scheme-details call for the loads step. A network error or a 5xx is retried as before (_retry), but a 429 ("too many
+    requests") is raised at once, without _retry's Retry-After sleeps: the loads step waits once itself (capped) and slows its own pace instead."""
+    async def go():
+        r = await client.request("GET", url, **kw)
+        if r.status_code == 429:
+            raise httpx.HTTPStatusError("429 Too Many Requests", request=r.request, response=r)
+        r.raise_for_status()
+        return r.json()
+
+    async def guarded():
+        try:
+            return await go()
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code == 429:
+                raise _NoRetry429(exc) from None
+            raise
+    try:
+        return await _retry(guarded)
+    except _NoRetry429 as e:
+        raise e.exc from None
+
+
+class _NoRetry429(Exception):
+    """Carries a 429 past _retry, which only retries httpx errors (so it is not retried)."""
+    def __init__(self, exc: httpx.HTTPStatusError):
+        super().__init__(str(exc))
+        self.exc = exc
+
+
 async def get_json(client: httpx.AsyncClient, url: str, method: str = "GET", **kw):
     # task #281 round 6: the method is read once. It used to be popped inside the retried call, so a retry (after a 429, a 5xx or a timeout) went out as
     # GET: through the relay that is a path its GET branch does not serve, and the relay's own "not found" (404, never retried) ended the performance step.
@@ -806,21 +843,35 @@ async def step_loads(pool, client, idx: Index, today: date) -> dict:
                     lane.append((fam, seen_fam[fam]))
                 seen_fam[fam].append((hid, str(r["scheme_id"])))
     facts: list = []
-    st = {"asked": 0, "blank": 0, "stored": 0, "refused429": 0, "in_a_row": 0, "errors": 0}
+    st = {"asked": 0, "blank": 0, "stored": 0, "refused429": 0, "in_a_row": 0, "errors": 0, "wait429": 0.0, "call_s": 0.0, "calls": 0, "ok_run": 0}
+    pace = {"pause": LOAD_PAUSE_S}
 
     async def one(fam: str, cands: List[Tuple[str, str]]) -> None:
         launch_done = min_done = False
         answered = errored = False
         for mf_id, sid in sorted(cands, key=lambda c: -int(c[1]) if c[1].isdigit() else 0)[:3]:   # the newest listing of a scheme first
             st["asked"] += 1
+            t0 = time.monotonic()
+            dt = None
             try:
-                d = ((await get_json(client, URL_DETAILS, params={"MF_ID": mf_id, "scheme_id": sid})).get("data") or [{}])[0]
+                d = ((await get_json_no_wait_on_429(client, URL_DETAILS, params={"MF_ID": mf_id, "scheme_id": sid})).get("data") or [{}])[0]
+                dt = time.monotonic() - t0
                 st["in_a_row"] = 0
                 answered = True
+                st["ok_run"] += 1
+                if st["ok_run"] >= LOAD_EASE_AFTER and pace["pause"] > LOAD_PAUSE_S:    # answers again: ease the pace back towards the normal pause
+                    pace["pause"] = max(LOAD_PAUSE_S, pace["pause"] / 2)
+                    st["ok_run"] = 0
             except httpx.HTTPStatusError as exc:
-                if exc.response.status_code == 429:      # AMFI: "too many requests" even after the waits _retry made; not recorded, asked on a later run
+                dt = time.monotonic() - t0
+                if exc.response.status_code == 429:      # AMFI: "too many requests": wait once (capped), slow the pace, leave this fund for a later run
                     st["refused429"] += 1
                     st["in_a_row"] += 1
+                    st["ok_run"] = 0
+                    pace["pause"] = min(LOAD_PAUSE_MAX, pace["pause"] * 2)
+                    wait = min(_retry_after(exc.response, LOAD_429_WAIT_MAX), LOAD_429_WAIT_MAX)
+                    st["wait429"] += wait
+                    await asyncio.sleep(wait)
                     return
                 st["errors"] += 1
                 answered = errored = True                # AMFI answered with an error for this scheme: recorded below, asked again after LOAD_RETRY_DAYS
@@ -829,7 +880,9 @@ async def step_loads(pool, client, idx: Index, today: date) -> dict:
                 st["errors"] += 1
                 continue
             finally:
-                await asyncio.sleep(LOAD_PAUSE_S)
+                st["calls"] += 1
+                st["call_s"] += dt if dt is not None else time.monotonic() - t0
+                await asyncio.sleep(pace["pause"])
             ld = amfi.parse_dmy(str(d.get("Launch_Date") or ""))
             if ld and not launch_done and date(1950, 1, 1) <= ld <= today:    # a second source for schemes the scheme master gives no clean launch date
                 facts.append((fam, "launch_details", today, {"date": ld.isoformat()}, SRC_DETAILS, "https://www.amfiindia.com/otherdata/scheme-details"))
@@ -872,7 +925,9 @@ async def step_loads(pool, client, idx: Index, today: date) -> dict:
     out = {"status": "partial" if stopped else "ok", "families": len(items), "asked": st["asked"], "loadsStored": st["stored"], "blank": st["blank"],
            "refused429": st["refused429"], "errors": st["errors"], "alreadyFresh": len(fresh & active), "namesNotMatched": unmapped, "houseListsSkipped": lists_skipped,
            "houseListsCached": lists_cached, "housesReached": len(reached), "housesWithWork": sum(1 for v in by_house.values() if v),
-           "familiesLeft": len(items) - done, "triedRecently": len(recent & active), "cutTextsToReread": len(recut & active)}
+           "familiesLeft": len(items) - done, "triedRecently": len(recent & active), "cutTextsToReread": len(recut & active),
+           "secondsWaiting429": round(st["wait429"], 1), "avgCallSeconds": round(st["call_s"] / st["calls"], 2) if st["calls"] else None,
+           "finalPauseSeconds": pace["pause"]}
     if stopped:
         out["why"] = stopped
     return out

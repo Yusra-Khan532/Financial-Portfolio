@@ -545,6 +545,18 @@ async def cached(app, key: str, fresh: Callable[[float], bool], fetch: Callable[
         mine = bool(await redis.set(lock, b"1", nx=True, ex=40))
     except Exception:
         mine = True
+    if mine:   # the answer may have been stored between our first read and taking the lock (another request just finished): use it, ask nobody
+        try:
+            raw = await redis.get(key)
+            cur = json.loads(raw) if raw else None
+        except Exception:
+            cur = None
+        if cur and fresh(cur["t"]):
+            try:
+                await redis.delete(lock)
+            except Exception:
+                pass
+            return cur, "fresh"
     if entry and not wait_if_stale:
         if mine:
             spawn(refresh())
@@ -566,6 +578,11 @@ async def cached(app, key: str, fresh: Callable[[float], bool], fetch: Callable[
             if cur and cur["t"] > since:
                 return cur, "fresh"
             if not await redis.exists(lock):
+                # the other request may have stored its answer and let go of the lock between our read and this check: read once more
+                raw = await redis.get(key)
+                cur = json.loads(raw) if raw else None
+                if cur and cur["t"] > since:
+                    return cur, "fresh"
                 break
         except Exception:
             break

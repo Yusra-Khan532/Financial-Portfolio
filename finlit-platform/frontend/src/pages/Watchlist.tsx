@@ -11,7 +11,8 @@ import { WhatChanged, useWhatChanged } from "../components/changes/WhatChanged";
 import { Gate } from "../components/Gate";
 import { PageFaqs } from "../components/PageFaqs";
 import { Scroll } from "../components/sectors/pack/Common";
-import { limitsFor, useAuth } from "../lib/auth";
+import { LIMITS, limitsFor, useAuth } from "../lib/auth";
+import { memberPlanName, plansFromText } from "../lib/planNames";
 import { useQuotesFor } from "../lib/api";
 import { useAlerts } from "../lib/alerts";
 import { DEMO } from "../lib/demo";
@@ -99,7 +100,7 @@ function ListAlertsCard({ list }: { list: List }) {
 export function WatchlistPage() {
   useDocTitle("Watchlists", "The companies you follow: what moved, what is near your target, and what is new.");
   const { has, toast, upgrade, plan } = useUI();
-  const { user } = useAuth();
+  const { user, planKey } = useAuth();
   const nav = useNavigate();
   const st = useWatchlist();
   const uniQ = useUniverse(), rows = useMemo(() => uniQ.data?.rows || [], [uniQ.data]);
@@ -119,11 +120,11 @@ export function WatchlistPage() {
   const wc = useWhatChanged(syms, "watchlist");
   const stocks = useMemo(() => sortStocks(data.stocks, sort, dir), [data.stocks, sort, dir]);
   const looks = useMemo(() => lookCards(data.stocks, {
-    results: data.resultsSoon, moved: data.moved, rotDate: data.rotDate, sectors: !data.sectorsLocked, scrAsOf: data.screens?.asOf ?? null, today: data.today,
+    results: data.resultsSoon, moved: data.moved, rotDate: data.rotDate, sectors: !data.sectorsLocked, scrAsOf: data.screens?.asOf ?? null, recordWeek: data.recordWeek, today: data.today,
     filings: wc.rows.filter((r) => r.fresh > 0).map((r) => ({ s: r.s, kind: KIND[r.k]?.row ?? "Filing", t: r.t, d: r.d })),
-  }), [data.stocks, data.resultsSoon, data.moved, data.rotDate, data.sectorsLocked, data.screens, data.today, wc.rows]);
+  }), [data.stocks, data.resultsSoon, data.moved, data.rotDate, data.sectorsLocked, data.screens, data.recordWeek, data.today, wc.rows]);
   const lim = limitsFor(plan), MAXL = lim.watchlist_lists;
-  const full = !DEMO && wl.total() >= lim.watchlist_symbols ? fullText(lim.watchlist_symbols, plan) : null;
+  const full = !DEMO && wl.total() >= lim.watchlist_symbols ? fullText(lim.watchlist_symbols, memberPlanName(planKey, plan)) : null;   // the server's limits (auth LIMITS mirrors entitlements.LIMITS), counted across every list as the server counts
   const empty = syms.length === 0;
   const k = looks.length;
   const day = dayCounts(data.stocks);
@@ -140,7 +141,7 @@ export function WatchlistPage() {
     if (full && !wl.has(r.symbol)) { if (gold) toast(`${full}.`); else upgrade("gold", `${full}.`); return; }
     wl.add(r.symbol, list.id, null); toast(`${r.symbol} added to ${list.name}.`);
   };
-  const newList = () => { if (st.lists.length >= MAXL) { if (gold) toast(`You have reached ${MAXL} lists.`); else upgrade("gold", `Silver includes ${MAXL} lists; Gold has up to 50.`); return; } const id = wl.create(name || `List ${st.lists.length + 1}`); setLid(id); setName(""); setNaming(false); };
+  const newList = () => { if (st.lists.length >= MAXL) { if (gold) toast(`You have reached ${MAXL} lists.`); else upgrade("gold", `Your plan includes ${MAXL} lists; ${plansFromText("gold")} include up to ${LIMITS.gold.watchlist_lists}.`); return; } const id = wl.create(name || `List ${st.lists.length + 1}`); setLid(id); setName(""); setNaming(false); };
   const setTarget = (s: string, v: string) => { setTargetText((x) => ({ ...x, [s]: v })); const n = parseFloat(v); wl.setMeta(s, { target: n > 0 ? n : undefined }); };
   const compareMax = lim.compare || 2;
 
@@ -200,7 +201,7 @@ export function WatchlistPage() {
                   onRemove={(s) => { wl.remove(s, list.id); setCmp((o) => { const n = new Set(o); n.delete(s); return n; }); toast(`${s} removed from ${list.name}.`); }} />
               </Scroll>}
             <p className="wl-foot" id="wl-foot" hidden={!(view === "prism" && pending)}>{PRISM_FOOT}</p>
-            {view === "prism" && data.prismLocked && <p className="wl-foot">FinLit Prism’s scores come with Gold. <Link to="/plans">See plans →</Link></p>}
+            {view === "prism" && data.prismLocked && <p className="wl-foot">FinLit Prism’s scores come with {plansFromText("gold")}. <Link to="/plans">See plans →</Link></p>}
             <p className="wl-foot" id="wl-sfoot" hidden={view !== "sec"}>{data.sectorsLocked ? "Sector Pulse and Sector Rotation are not part of this plan." : `Industry readings for the week to ${data.sectorsDate ?? "the latest weekly run"}, from NSE daily data with equal-weighted industry groups.`}
               <span className="wl-fl2"><Link to="/sectors">Open Sector Pulse ↗</Link><Link to="/sectors/rotation">Open Sector Rotation ↗</Link></span></p>
           </div>

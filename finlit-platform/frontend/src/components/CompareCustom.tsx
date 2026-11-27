@@ -105,7 +105,7 @@ export function CompareCustom({ companies, keysParam, onKeys }: { companies: { s
       {mine.length > 0 && <div className="cx-mine" aria-label="Your saved sets">{mine.map((s) => (
         <span className="cx-chip" key={s.name}><button type="button" onClick={() => load(s.keys)} title={`Load ${s.keys.length} measures`}>{s.name}</button>
           <button type="button" className="x" aria-label={`Delete the set ${s.name}`} onClick={() => sync.remove(s.name)}>×</button></span>))}</div>}
-      <p className="cx-note">Sets are kept in {sync.where}.{sync.where === "this browser" ? " Silver and Gold members also keep them on their account." : ""}</p>
+      <p className="cx-note">Sets are kept in {sync.where}.{sync.where === "this browser" ? " Members on a paid plan also keep them on their account." : ""}</p>
 
       <div className="cx-pick">
         <div className="cx-pick-h">

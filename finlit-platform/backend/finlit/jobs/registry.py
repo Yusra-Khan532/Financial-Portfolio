@@ -131,6 +131,7 @@ class Job:
     ok_exit: Tuple[int, ...] = (0,)
     gate: Optional[Gate] = None
     visitor_gate: Optional[str] = None              # visitor | alerts | visitor_or_alerts | env:NAME (only when that env var is 1)
+    deploy_hold_exempt: bool = False                # 27 Nov 2026: a short job whose restart costs at most a re-run is never held by a waiting deploy
     catchup: bool = True                            # a job that never succeeded is due at once (first start / boot catch-up); False for jobs that send mail or follow visitors
     boot: bool = False                              # a first-start load: BOOT_LOAD_ENABLED=0 stops it from starting just because it never ran
     external: bool = False
@@ -206,6 +207,7 @@ FUNDS_GATE = Gate("FUND_LOADS_ENABLED", "ETF and fund loads are switched off: se
 #   database   works on tables already held, no provider calls
 #   measured   no hard bound known: the typical run is far below the limit, and the early warning (status.near_limit) tells the admin before it nears it
 LIMIT_POLICY: Dict[str, str] = {
+    "eod-candles": "fixed: two downloads and two inserts, done in a minute; a run stopped at its limit stored nothing half-way (each exchange's file is one statement) and the probe asks again 10 minutes later",
     "ath": "deadline: stops itself after --max-minutes 8 (limit 12)",
     "coverage": "deadline: stops itself after --max-minutes 13 and records what it checked (limit 22)",
     "calendars": "fixed: two provider calendars (IPO and results dates); measured about 9 s",
@@ -213,6 +215,7 @@ LIMIT_POLICY: Dict[str, str] = {
     "ipo-gmp": "deadline: no new page or NSE request after --max-minutes 10, at most --limit 300 pages and --nse-limit 80 NSE books a run, one a second (limit 14)",
     "quotes": "deadline: no new slice after --max-minutes 7 (each slice followed up inside it), Dhan phase 90 s, a company 30 s (limit 10)",
     "alerts-live": "fixed: members' own alerts only; measured about 3 s",
+    "global-cues": "fixed: nine small FRED downloads (one series each); measured about 10 s",
     "lab-flow": "fixed: one Dhan quote call for every F&O stock and its two futures contracts; missing previous-session open interest is filled for at most 90 s a run, the rest next run (limit 4)",
     "listing": "fixed: two provider calls for the whole market list; measured about 13 s",
     "alerts-flag": "fixed: one flag in Redis; measured about 4 s",
@@ -225,6 +228,7 @@ LIMIT_POLICY: Dict[str, str] = {
     "presets": "database: builds the prebuilt screens from tables already held and runs the eleven chart-pattern scans on the stored daily candles; screens about 4 s, scans a few minutes (its own guard, so a scan problem never stops the screens)",
     "leadership": "database: weekly labels from stored prices, Saturdays only",
     "watchlist-prices": "database: reads members' saved watchlists and stored daily closes; writes only the missing added prices; measured in seconds",
+    "peer-labels": "database: one time, builds the weekly peer-label record from the stored weekly readings (task #409)",
     "score-mf": "database: scores from tables already held; measured about 2 s",
     "mf-screen": "database: one transaction over tables already held; measured about 4 s",
     "backtest-leadership": "database: quarterly, stored weekly prices only",
@@ -318,6 +322,12 @@ def build_jobs(env: Optional[Mapping[str, str]] = None) -> List[Job]:
         # sight, then only new sessions; resumable (the longest-unloaded company first). Task #394 (developer file 37, F1): it finishes every night: the
         # time box is 150 minutes (was 45, which left companies a night behind), and a run that still stops with companies left exits partial (degraded,
         # with the count) so the supervisor tries it again, never silently "done"
+        # 26 Nov 2026 (the founder: after the 15:30 close the screens move to that day's data as fast as possible): the exchanges' own end-of-day files,
+        # one download each with every company's official close, written into daily_candles the moment they are out (asked every 10 minutes from
+        # 16:30 IST until both are in); the candles job below fills what they did not have. Light: two downloads and two statements
+        Job("eod-candles", ("refresh-eod",), priority=8, max_runtime_min=10, weight_mb=150, stall_min=8, honours_pause=False, probe="eod-candles",
+            min_gap_min=10, catchup=False, owns=("daily_candles",),
+            what="the day's official closes of every company from NSE's and BSE's end-of-day files, as soon as they are published (16:30 to 23:30 IST)"),
         Job("candles", ("refresh-candles", "--max-minutes", "150"), cls="bulk", priority=9, max_runtime_min=160, weight_mb=150, resumable=True,
             probe="candles", min_gap_min=60,   # task #394: a session Dhan published after the evening run is loaded the same morning, not the next evening
             windows=(W("AFTER_CLOSE", 0), W("MORNING", 0)), sla=Sla("session", 12), owns=("daily_candles",),
@@ -326,7 +336,7 @@ def build_jobs(env: Optional[Mapping[str, str]] = None) -> List[Job]:
         Job("price-sections", ("refresh-price-sections", "--max-minutes", "40"), cls="bulk", priority=11, max_runtime_min=50, weight_mb=200, resumable=True,
             prerequisites=("candles",), probe="price-sections", min_gap_min=30,
             windows=(W("AFTER_CLOSE", 0), W("MORNING", 0)), sla=Sla("session", 12), owns=("price_sections",),
-            what="the price charts (1M to MAX, and 3Y on daily candles) of every stored report from daily_candles, after the candles job: every chart ends on the latest close, no part-day candle; no provider calls"),
+            deploy_hold_exempt=True, what="the price charts (1M to MAX, and 3Y on daily candles) of every stored report from daily_candles, after the candles job: every chart ends on the latest close, no part-day candle; no provider calls"),
         # weekend nights only, at the lowest bulk priority (owner, 18 Nov 2026; docs/JOBS.md "The sector job on weekend nights"): one full build a week on the
         # week's data up to Friday's close; every daily and weekly job of the night goes first; never on a weekday night
         Job("sectors", ("refresh-sectors",), cls="bulk", priority=95, max_runtime_min=90, weight_mb=SECTORS_WEIGHT_MB, stall_min=45, prerequisites=("technicals",), resumable=True,
@@ -351,7 +361,7 @@ def build_jobs(env: Optional[Mapping[str, str]] = None) -> List[Job]:
         Job("presets", ("refresh-presets",), cls="bulk", priority=42, max_runtime_min=40, weight_mb=350, windows=(W("NIGHT", 20), W("MORNING", 14)), sla=Sla("hours", 30),
             prerequisites=("prism", "price-sections"), catchup=False,
             probe="presets", min_gap_min=60,   # task #394: candles that arrive after the night's run move the lists the same day, with the charts
-            what="prebuilt screens: momentum and growth scores, industry breadth and theme states, every screen's list into the cache (after the Prism batch; database only)"),
+            deploy_hold_exempt=True, what="prebuilt screens: momentum and growth scores, industry breadth and theme states, every screen's list into the cache (after the Prism batch; database only)"),
         # task #326: one file per market day for the owner's archive, started by the presets job's completion (its probe sees the finished day without a file;
         # presets is its prerequisite, so it never reads while the lists are being rewritten). Stored results only: a few seconds. Back-fill of earlier days,
         # a few a run, only in the night shift. A run with nothing to do is a success (weekends, holidays).
@@ -400,6 +410,10 @@ def build_jobs(env: Optional[Mapping[str, str]] = None) -> List[Job]:
         # "watchlist-prices"), fill it from the stored daily closes. Idempotent: once every entry has its price the probe says no and it does not run.
         Job("watchlist-prices", ("backfill-watchlist-prices",), priority=46, max_runtime_min=10, weight_mb=80, stall_min=8, probe="watchlist-prices", min_gap_min=60,
             sla=Sla("none"), catchup=False, owns=(), what="watchlist entries without an added price: the close of the day they were added, from the stored daily prices (task #408)"),
+        # task #409: one time. While the weekly peer-label record is empty and stored weekly readings exist (probe "peer-labels"), build it from them with
+        # the two-run rule, so every page reads one label from the day this ships, not from the next Saturday. Afterwards the probe says no: it never runs again.
+        Job("peer-labels", ("rebuild-peer-labels",), cls="bulk", priority=44, max_runtime_min=20, weight_mb=250, probe="peer-labels", min_gap_min=30,
+            sla=Sla("none"), catchup=False, owns=(), what="one time: the weekly peer-label record from the stored weekly readings (task #409)"),
         Job("portfolios", ("refresh-portfolios",), cls="bulk", priority=50, max_runtime_min=120, weight_mb=200, group="funds", windows=night_morning,
             sla=Sla("hours", 26), resumable=True, gate=FUNDS_GATE, boot=True, what="fund holdings, sector split and exit loads (resumable)"),
         Job("score-mf", ("score-mf",), cls="bulk", priority=55, max_runtime_min=60, weight_mb=250, group="funds", windows=night_morning,
@@ -435,6 +449,8 @@ def build_jobs(env: Optional[Mapping[str, str]] = None) -> List[Job]:
         Job("logos", ("refresh-logos",), priority=80, max_runtime_min=30, weight_mb=100, windows=(W("NIGHT", 20),), sla=Sla("hours", 60), what="company and fund-house logos"),
         Job("macro", ("refresh-macro",), priority=20, max_runtime_min=20, weight_mb=100, windows=(W("AFTER_CLOSE", 18, (19, 10)), W("MORNING", 14)),
             sla=Sla("hours", 30), owns=("macro",), what="India macro data (MoSPI, RBI)"),
+        Job("global-cues", ("refresh-global-cues",), priority=21, max_runtime_min=5, weight_mb=60, windows=(W("MORNING", 6), W("AFTER_CLOSE", 6)),
+            sla=Sla("hours", 30), what="Trading Lab Global cues: US yields, Fed funds, dollar index, EUR/JPY/CNY and WTI/Brent crude from FRED's public download (docs/GLOBAL-MARKETS.md)"),
         Job("macro-outlook", ("refresh-macro-outlook",), priority=22, max_runtime_min=10, weight_mb=100, windows=(W("AFTER_CLOSE", 8, (19, 40)), W("MORNING", 8)),
             interval_min=360, probe="macro-outlook", min_gap_min=20, prerequisites=("macro", "flows-nse", "flows"), sla=Sla("hours", 30), owns=("macro_outlook",),
             what="Macro & Sector Outlook: sector scores from the stored macro, flows and commodity series (database only; also when new data arrives)"),

@@ -231,7 +231,7 @@ export function QueryBuilder() {
   };
 
   // ---- fixes and jumping to a problem
-  const useFix = (f: { start: number; end: number; text: string }) => { const r = applyFix(text, f); edit(r.text, r.caret); };
+  const takeFix = (f: { start: number; end: number; text: string }) => { const r = applyFix(text, f); edit(r.text, r.caret); };
   const jump = (p: Problem) => { const t = taRef.current; if (!t) return; t.focus(); t.setSelectionRange(p.start, Math.max(p.end, p.start)); setCaret(p.start); };
   const toggleRules = () => setRulesOpen((o) => !o);
   const openAll = (q = "") => { setSeed(q); setDrawer(true); };
@@ -257,7 +257,7 @@ export function QueryBuilder() {
     setSort(next); if (res) run(0, next);
   };
   const exportCsv = async () => {
-    if (!rat.data?.limits.export) { ask(PLAN_FOR_SCREENER, "Downloading results comes with the Silver plan."); return; }
+    if (!rat.data?.limits.export) { ask(PLAN_FOR_SCREENER, "Downloading results comes with every paid plan."); return; }
     try {
       const r = await fetch(apiUrl("/api/screener/ql/export"), { method: "POST", credentials: API_BASE ? "include" : "same-origin", headers: { "Content-Type": "application/json", Accept: "text/csv", ...viewAsHeader() }, body: JSON.stringify(bodyFor(0)) });
       if (!r.ok) throw new Error(String(r.status));
@@ -352,7 +352,7 @@ export function QueryBuilder() {
                     <p>{p.message}</p>
                     {(() => { const r = ruleFor(p); return r && <p className="qb-rule"><b>Rule:</b> {r.rule} <b>Fix:</b> {r.fix}{r.bad && r.good && <> For example <code>{r.bad}</code> becomes <code>{r.good}</code>.</>}</p>; })()}
                     <div className="qb-fx">
-                      {p.fixes.map((f) => <button key={f.label} className={"qb-fix" + (onlyFix(p) === f ? " one" : "")} onClick={() => useFix(f)}>{onlyFix(p) === f ? "Fix it: " : ""}{f.label}</button>)}
+                      {p.fixes.map((f) => <button key={f.label} className={"qb-fix" + (onlyFix(p) === f ? " one" : "")} onClick={() => takeFix(f)}>{onlyFix(p) === f ? "Fix it: " : ""}{f.label}</button>)}
                       {p.seeAll && <button className="qb-fix ghost" onClick={() => openAll(p.name || "")}>See all ratios</button>}
                       {p.code === "plan_locked" && p.plan && <button className="qb-fix ghost" onClick={() => ask(p.plan!, p.message)}>See the {TIER[p.plan].n} plan</button>}
                     </div>
@@ -422,7 +422,7 @@ export function QueryBuilder() {
               </tbody></table></HScroll>
             {res.capped ? (
               <div className="pl-cap"><Icon name="lock" /><span><b>Showing the first {res.limit} of {nf(total, 0)} matches.</b> Silver shows every match and lets you download them.</span>
-                <button className="btn primary" onClick={() => ask(PLAN_FOR_SCREENER, "See every match with Silver.")}>Unlock with Silver</button></div>
+                <button className="btn primary" onClick={() => ask(PLAN_FOR_SCREENER, "See every match on a paid plan.")}>Unlock with Silver</button></div>
             ) : total > PAGE && (
               <div className="pm-pager"><span>{page * PAGE + 1}–{Math.min(total, page * PAGE + PAGE)} of {nf(total, 0)}</span>
                 <button className="btn" disabled={page === 0 || running} onClick={() => run((page - 1) * PAGE)}>Previous</button><button className="btn" disabled={(page + 1) * PAGE >= total || running} onClick={() => run((page + 1) * PAGE)}>Next</button></div>)}

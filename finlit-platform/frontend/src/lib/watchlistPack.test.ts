@@ -10,7 +10,7 @@ import { lastResults, yoy } from "./watchlistData";
 const base: WStock = {
   s: "X", name: "X Ltd", logo: null, added: null, addedPrice: null, target: null, note: "", nearAlert: true, px: null, chgp: null, h52: null, l52: null, quoteAsOf: null,
   m1: null, m3: null, y1: null, prism: null, prismWord: null, gp: null, val: null, qual: null, risk: null, stS: null, stW: null, ltS: null, ltW: null,
-  peer: null, peerRank: null, peerOf: null, peerGroup: null, peerWhy: null, noLabelYet: false, rawLabel: null, pending: null, labelSince: null, leadAsOf: null, labelBefore: null,
+  peer: null, peerRank: null, peerOf: null, peerGroup: null, peerWhy: null, noLabelYet: false, rawLabel: null, pending: null, labelSince: null, changed: false, weekEnd: null, labelBefore: null,
   vixName: null, vix52: null, vix13: null, grp1: null, mcap: null, pe: null, pb: null, dy: null, roe: null, revY: null, revCr: null, npY: null, npCr: null, resD: null, resQ: null, filings: [],
   theme: null, themeStatus: null, ind: null, sec: null, scr: [],
 };
@@ -18,7 +18,7 @@ const SEC = { slug: "", sector: null, pulseCode: null, pulse: null, pulseTone: "
 // the pack's sample list (reference/sample-data.json)
 const SBIN: WStock = { ...base, s: "SBIN", name: "State Bank Of India", added: Date.parse("2026-11-23T06:00:00Z"), addedPrice: 1132.65, px: 1136.65, chgp: -0.13, h52: 1234.8, l52: 933.85, quoteAsOf: "2026-11-26T15:28:00+05:30",
   m1: 18.7, m3: 8.6, y1: 20, prism: 60.62, prismWord: "Average", gp: 75.12, val: 49.74, qual: 33.89, risk: 88.75, stS: 27.6, stW: "Uptrend", ltS: 18.5, ltW: "Sideways",
-  peer: "in_line", peerRank: 4, peerOf: 9, peerGroup: "PSU bank", rawLabel: "in_line", labelSince: "2026-09-25", leadAsOf: "2026-11-20", vixName: "Nifty PSU Bank", vix52: 1.9, vix13: -3.5,
+  peer: "in_line", peerRank: 4, peerOf: 9, peerGroup: "PSU bank", rawLabel: "in_line", labelSince: "2026-09-25", weekEnd: "2026-11-20", vixName: "Nifty PSU Bank", vix52: 1.9, vix13: -3.5,
   mcap: 1049215, pe: 11.62, pb: 1.52, dy: 1.52, roe: 13.05, revY: 10.2, npY: 20, ind: "Banks", sec: { ...SEC, slug: "banks", pulseO: 2, cornerO: 0, rank: 1, of: 37 },
   scr: [{ id: "a", name: "Fresh close above a base", group: "Chart patterns", added_on: "2026-11-20", baseline: true, position: 6, count: 15 },
         { id: "b", name: "Setups with the sector behind them", group: "Sectors", added_on: "2026-11-20", baseline: false, position: 8, count: 125 },
@@ -26,10 +26,10 @@ const SBIN: WStock = { ...base, s: "SBIN", name: "State Bank Of India", added: D
         { id: "d", name: "Low-volatility names", group: "Safety", added_on: "2026-11-11", baseline: true, position: 14, count: 27 }] };
 const REL: WStock = { ...base, s: "RELIANCE", name: "Reliance Industries Ltd", added: Date.parse("2026-11-25T06:00:00Z"), addedPrice: 1373.9, px: 1396.2, chgp: 1.62, h52: 1611.2, l52: 1152.3, quoteAsOf: "2026-11-26T15:28:00+05:30",
   m1: 15.3, m3: 4.2, y1: -10.8, prism: 57, prismWord: "Average", gp: 55, val: 40, qual: 72, risk: 80, stS: 39, stW: "Uptrend", ltS: -21, ltW: "Downtrend",
-  peer: "laggard", peerRank: 4, peerOf: 6, peerGroup: "Petroleum Products", rawLabel: "in_line", pending: "This week’s reading says In line.", labelSince: "2026-03-13", leadAsOf: "2026-11-20",
+  peer: "laggard", peerRank: 4, peerOf: 6, peerGroup: "Petroleum Products", rawLabel: "in_line", pending: "This week’s reading says In line.", labelSince: "2026-03-13", weekEnd: "2026-11-20",
   vixName: "Nifty Oil & Gas", vix52: -6.1, vix13: 1.3, mcap: 1889413, pe: 22.6, pb: 1.97, dy: 0.44, roe: 8.7, revY: 28.6, npY: 40.6, ind: "Petroleum Products",
   sec: { ...SEC, slug: "petroleum-products", pulseO: 1, cornerO: 1, rank: 2, of: 37 } };
-const CTX: LookCtx = { results: {}, filings: [], moved: [{ slug: "petroleum-products", name: "Petroleum Products", from: "Ahead and gaining", to: "Ahead but slowing" }], rotDate: "2026-11-20", sectors: true, scrAsOf: "2026-11-23", today: "2026-11-26" };
+const CTX: LookCtx = { results: {}, filings: [], moved: [{ slug: "petroleum-products", name: "Petroleum Products", from: "Ahead and gaining", to: "Ahead but slowing" }], rotDate: "2026-11-20", sectors: true, scrAsOf: "2026-11-23", recordWeek: "2026-11-20", today: "2026-11-26" };
 const ADVICE = /\b(buy|sell|hold|recommend\w*|undervalued|overvalued|bullish|bearish|consider|opportunity|watch out|best|thrust)\b/i;
 
 describe("Needs a look (04-needs-a-look.md)", () => {
@@ -53,10 +53,14 @@ describe("Needs a look (04-needs-a-look.md)", () => {
     expect([dn.k, dn.t]).toEqual(["dn", "Down 5.4% today, to ₹1,075.30."]);
     expect(lookCards([{ ...base, s: "C", px: 100, chgp: 4.99 }], CTX)).toEqual([]);
     expect(lookCards([{ ...base, s: "D" }], { ...CTX, results: { D: "2026-12-04" } })[0]).toMatchObject({ kl: "Results soon", t: "Board meeting for results on 4 Dec." });
-    const ch = { ...base, s: "E", peer: "in_line" as const, labelBefore: "laggard" as const, labelSince: "2026-11-27", leadAsOf: "2026-11-27" };
-    expect(lookCards([ch], { ...CTX, today: "2026-11-30" })[0]).toMatchObject({ kl: "Peer label changed", t: "Now In line, after Laggard, in the 27 Nov weekly check." });
-    expect(lookCards([ch], { ...CTX, today: "2026-12-05" })).toEqual([]);                              // only for 7 days after the run
-    expect(lookCards([{ ...ch, labelSince: "2026-11-20" }], { ...CTX, today: "2026-11-28" })).toEqual([]);   // not this run's change
+    // card 4 reads the weekly record: `changed` on the stock's row of the latest committed run, for 7 days after it; the label before from the previous row
+    const ch = { ...base, s: "E", peer: "in_line" as const, labelBefore: "laggard" as const, labelSince: "2026-11-27", changed: true, weekEnd: "2026-11-27" };
+    const wk = { ...CTX, recordWeek: "2026-11-27" };
+    expect(lookCards([ch], { ...wk, today: "2026-11-30" })[0]).toMatchObject({ kl: "Peer label changed", t: "Now In line, after Laggard, in the 27 Nov weekly check." });
+    expect(lookCards([ch], { ...wk, today: "2026-12-05" })).toEqual([]);                              // only for 7 days after the run
+    expect(lookCards([{ ...ch, changed: false }], { ...wk, today: "2026-11-28" })).toEqual([]);       // the record says it did not change (the label is never worked out here)
+    expect(lookCards([ch], { ...wk, recordWeek: "2026-12-04", today: "2026-12-05" })).toEqual([]);   // not the latest run's row
+    expect(lookCards([{ ...ch, labelBefore: null }], { ...wk, today: "2026-11-28" })).toEqual([]);   // no earlier row: not a change
     const long = "Receipt of an order worth ₹1,200 crore from a state power utility for the supply of transformers and related equipment over two years";
     expect(lookCards([{ ...base, s: "F" }], { ...CTX, filings: [{ s: "F", kind: "Order win", t: long, d: "2026-11-26" }] })[0].t).toBe(`Order win: ${long.slice(0, 80).trimEnd()}…`);
     expect(lookCards([{ ...base, s: "G", px: 1217.5, h52: 1234.8, l52: 900 }], CTX)[0]).toMatchObject({ kl: "Near 52-week high", t: "1.4% below its 52-week high of ₹1,234.80." });
@@ -152,8 +156,8 @@ describe("Alerts for this list (05-alerts.md) and the page's words", () => {
     expect(alertsLine({ target: true, peer: "leader", filings: [] })).toBe("Target: on · Peer labels: only to leader · Filings: off");
   });
   it("the list-is-full line uses the plan's real numbers", () => {
-    expect(fullText(30, "silver")).toBe("This list is full: 30 stocks on Silver");
-    expect(fullText(1000, "gold")).toBe("This list is full: 1,000 stocks on Gold");
+    expect(fullText(30, "Equity Portfolio")).toBe("This list is full: 30 stocks on Equity Portfolio");
+    expect(fullText(1000, "Gold")).toBe("This list is full: 1,000 stocks on Gold");
   });
   it("never advises, never says tag, and uses curly apostrophes and true minus signs", () => {
     const all = [PAGE_DESC, LIST_SUB, EMPTY_LIST, QUIET_TARGET, QUIET_NO_TARGET, QUIET_EMPTY, pendingNote("in_line"), ...lookCards([SBIN, REL], CTX).map((x) => x.t + " " + x.kl),

@@ -956,7 +956,8 @@ async def membership(request: Request):
     true when that is the first list FinLit stored (the stock was on it from the start). Gold, like the screens."""
     ctx = await current(request)
     if not _gold(ctx):
-        raise fail(403, "plan_required", "Prebuilt screens are part of the Gold plan.", plan="gold")
+        from ..auth.entitlements import part_of
+        raise fail(403, "plan_required", f"Prebuilt screens are part of {part_of('gold')}.", plan="gold")
     syms: List[str] = []
     for s in (request.query_params.get("symbols") or "").split(","):
         s = s.strip().upper()

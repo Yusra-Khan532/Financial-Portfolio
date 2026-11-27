@@ -463,3 +463,80 @@ async def test_option_pulse_in_the_trading_lab_is_for_lab_members_whatever_their
     assert len(dhan.paths("/optionchain")) == calls                                 # served from the same cache
     for c in (admin, member, gold_no_lab):
         await c.aclose()
+
+
+# ------------------------------------------------------------------------------------------------------------------ cache races (scripted Redis)
+
+class _ScriptedRedis:
+    """A tiny in-memory Redis whose `hooks` run another request's step at an exact moment, to replay the two races in oc.cached()."""
+
+    def __init__(self):
+        self.d, self.hooks = {}, {}
+
+    async def _hook(self, name):
+        h = self.hooks.pop(name, None)
+        if h:
+            await h(self)
+
+    async def get(self, k):
+        v = self.d.get(k)
+        await self._hook("after_get:" + k)
+        return v
+
+    async def set(self, k, v, nx=False, ex=None):
+        await self._hook("before_set:" + k)
+        if nx and k in self.d:
+            return None
+        self.d[k] = v if isinstance(v, bytes) else str(v).encode()
+        return True
+
+    async def delete(self, k):
+        self.d.pop(k, None)
+
+    async def exists(self, k):
+        await self._hook("before_exists:" + k)
+        return 1 if k in self.d else 0
+
+
+class _App:
+    def __init__(self, redis):
+        self.state = type("S", (), {"store": type("St", (), {"redis": redis})()})()
+
+
+async def _other_request_finishes(r):
+    """Another request stores its answer and lets go of the lock (as oc.cached's refresh() does: set the key, then delete the lock)."""
+    r.d["k"] = json.dumps({"t": time.time(), "body": {"by": "other"}}).encode()
+    r.d.pop("k:lock", None)
+
+
+async def test_a_late_request_uses_the_answer_stored_just_before_it_took_the_lock():
+    """Race 1: our first read finds nothing; the other request finishes before we take the lock. We must not ask Dhan a second time."""
+    r = _ScriptedRedis()
+    r.d["k:lock"] = b"1"                                       # the other request holds the lock while we read
+    r.hooks["before_set:k:lock"] = _other_request_finishes    # ...and finishes just before we try to take it
+    calls = []
+
+    async def fetch():
+        calls.append(1)
+        return {"by": "us"}
+    entry, state = await oc.cached(_App(r), "k", lambda t: True, fetch, wait_if_stale=True)
+    assert calls == [] and state == "fresh" and entry["body"] == {"by": "other"}
+    assert "k:lock" not in r.d
+
+
+async def test_a_waiting_request_is_not_told_busy_when_the_answer_lands_between_its_reads(monkeypatch):
+    """Race 2: we wait on the other request; between our read of the key and our check of the lock, it stores the answer and lets go.
+    We must return that answer, not 'busy' (the 503 seen on 27 Nov 2026 in 8 of 30 runs of the end-to-end chain test)."""
+    real_sleep = asyncio.sleep
+
+    async def no_sleep(_s):
+        await real_sleep(0)
+    monkeypatch.setattr(oc.asyncio, "sleep", no_sleep)
+    r = _ScriptedRedis()
+    r.d["k:lock"] = b"1"
+    r.hooks["before_exists:k:lock"] = _other_request_finishes  # the answer lands after our read of "k", before our lock check
+
+    async def fetch():
+        raise AssertionError("must not ask Dhan: another request holds the lock")
+    entry, state = await oc.cached(_App(r), "k", lambda t: True, fetch, wait_if_stale=True)
+    assert state == "fresh" and entry["body"] == {"by": "other"}

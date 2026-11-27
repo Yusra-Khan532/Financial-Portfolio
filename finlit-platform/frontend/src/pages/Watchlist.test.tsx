@@ -10,7 +10,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Row } from "../lib/screener";
 
-const st = vi.hoisted(() => ({ gold: true, toast: vi.fn(), create: vi.fn(), remove: vi.fn(), alerts: [] as unknown[], fail: new Set<string>() }));
+const st = vi.hoisted(() => ({ key: "gold" as string, gold: true, toast: vi.fn(), create: vi.fn(), remove: vi.fn(), alerts: [] as unknown[], fail: new Set<string>(), changed: false }));
 const ROWS = [
   { symbol: "SBIN", name: "State Bank Of India", sector: "Banks", price: 1136.65, market_cap: 1049215, pe: 11.62, pb: 1.52, roe: 13.05, dividend_yield: 1.52, change_pct: -0.13 },
   { symbol: "RELIANCE", name: "Reliance Industries Ltd", sector: "Refineries", price: 1396.2, market_cap: 1889413, pe: 22.6, pb: 1.97, roe: 8.7, dividend_yield: 0.44, change_pct: 1.62 },
@@ -64,6 +64,11 @@ vi.mock("../lib/api", async (orig) => {
     const p = path.split("?")[0];
     if (st.fail.has(p)) throw new real.ApiError(500, {});
     if (p === "/api/screener/membership" && !st.gold) throw new real.ApiError(403, {});
+    if (p === "/api/leadership/list" && st.changed) {   // card 4: the record says SBIN's label changed in the latest weekly run (task #409)
+      const l = API[p] as { rows: Record<string, object> };
+      return { ...l, recordWeek: "2026-11-20", rows: { ...l.rows, SBIN: { ...l.rows.SBIN, changed: true, weekEnd: "2026-11-20" } } };
+    }
+    if (p === "/api/stocks/SBIN/leadership-history") return { available: true, rows: [{ date: "2026-11-13", label: "laggard", rank: 7, ranked: 9 }, { date: "2026-11-20", label: "in_line", rank: 4, ranked: 9 }] };
     if (p in API) return API[p];
     throw new real.ApiError(404, {});
   };
@@ -71,7 +76,7 @@ vi.mock("../lib/api", async (orig) => {
 });
 vi.mock("../lib/screener", async (orig) => ({ ...(await orig<typeof import("../lib/screener")>()), useUniverse: () => ({ data: { rows: ROWS, sample: false, asOf: "2026-11-26" }, isLoading: false, isError: false, refetch: () => undefined }) }));
 vi.mock("../lib/ui", async (orig) => ({ ...(await orig<typeof import("../lib/ui")>()), useUI: () => ({ has: (t: string) => t !== "gold" || st.gold, toast: st.toast, upgrade: vi.fn(), plan: st.gold ? "gold" : "silver" }) }));
-vi.mock("../lib/auth", async (orig) => ({ ...(await orig<typeof import("../lib/auth")>()), useAuth: () => ({ user: { id: "u" }, plan: st.gold ? "gold" : "silver" }) }));
+vi.mock("../lib/auth", async (orig) => ({ ...(await orig<typeof import("../lib/auth")>()), useAuth: () => ({ user: { id: "u" }, plan: st.gold ? "gold" : "silver", planKey: st.key }) }));
 vi.mock("../lib/title", () => ({ useDocTitle: () => undefined }));
 vi.mock("../components/PageFaqs", () => ({ PageFaqs: () => <section aria-label="Questions about this page" /> }));
 vi.mock("../components/AlertComposer", () => ({ AlertButton: ({ symbol, className }: { symbol: string; className?: string }) => <button className={className} aria-label={`Create an alert for ${symbol}`} /> }));
@@ -83,7 +88,7 @@ import { WatchlistPage } from "./Watchlist";
 import { watch } from "../lib/watchlist";
 
 beforeEach(() => {
-  localStorage.clear(); watch.reset(); st.gold = true; st.toast.mockClear(); st.create.mockReset(); st.remove.mockReset(); st.alerts = []; st.fail = new Set();
+  localStorage.clear(); watch.reset(); st.gold = true; st.toast.mockClear(); st.create.mockReset(); st.remove.mockReset(); st.alerts = []; st.fail = new Set(); st.changed = false; st.key = "gold";
   watch.replace({ lists: [{ id: "main", name: "My watchlist", symbols: ["SBIN", "RELIANCE"] }, { id: "h", name: "h", symbols: [] }, { id: "k", name: "k", symbols: [] }],
     meta: { SBIN: { added: Date.parse("2026-11-23T06:00:00Z"), addedPrice: 1132.65 }, RELIANCE: { added: Date.parse("2026-11-25T06:00:00Z"), addedPrice: 1373.9 } } });
 });
@@ -293,12 +298,12 @@ describe("Watchlists (task #408): the page as the pack draws it", () => {
     click($('[data-view="price"]'));
     expect($('tr.wl-r[data-s="SBIN"]').textContent).not.toContain("Could not load");
   });
-  it("on Silver the Prism scores and the screens say they come with Gold, and nothing else is hidden", async () => {
-    st.gold = false;
+  it("on the Equity Portfolio plan the Prism scores and the screens say which plans have them, and nothing else is hidden", async () => {
+    st.gold = false; st.key = "equity";
     await open();
     expect($('tr.wl-r[data-s="SBIN"] .wl-tr').textContent).toBe("—");
     click($('[data-view="prism"]'));
-    expect($('tr.wl-r[data-s="SBIN"] .wl-sc').getAttribute("title")).toBe("FinLit Prism comes with Gold.");
+    expect($('tr.wl-r[data-s="SBIN"] .wl-sc').getAttribute("title")).toBe("FinLit Prism comes with Gold and Platinum.");
     expect($('tr.wl-r[data-s="SBIN"]').textContent).toContain("In line4 of 9 peers");
     expect($('[data-scr="SBIN"]')).toBeNull();
   });
@@ -317,5 +322,19 @@ describe("Watchlists (task #408): the page as the pack draws it", () => {
     expect(watch.get().meta.TCS.addedPrice).toBe(3100);
     await open();
     expect(within(screen.getByRole("group", { name: "Your lists" })).getByRole("button", { name: "My watchlist · 3" })).toBeTruthy();
+  });
+  it("the add box says the list is full at the server's limit, counted across every list, with the plan's name", async () => {
+    st.gold = false; st.key = "equity";
+    watch.replace({ lists: [{ id: "main", name: "My watchlist", symbols: ["SBIN", "RELIANCE", ...Array.from({ length: 28 }, (_, i) => `S${i}`)] }], meta: {} });
+    await open();
+    const box = screen.getByRole("combobox", { name: "Add a stock" }) as HTMLInputElement;
+    expect(box.placeholder).toBe("This list is full: 30 stocks on Equity Portfolio");
+    expect(box.disabled).toBe(true);
+  });
+  it("card 4 'Peer label changed' shows when the record's latest row changed the label, with the label before from the previous row", async () => {
+    st.changed = true;
+    await open();
+    await screen.findByText("Now In line, after Laggard, in the 20 Nov weekly check.", {}, { timeout: 3000 });
+    expect($$("#wl-look li").map((l) => l.querySelector(".wl-k")!.textContent)).toContain("Peer label changed");
   });
 });

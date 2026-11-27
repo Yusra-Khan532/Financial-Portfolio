@@ -1,12 +1,13 @@
 """Task #408 (Watchlists, 05-alerts): "Price near your target".
 
-A Silver or Gold member sets a target price on a stock of a watchlist (meta[SYM].target, saved to the account). When the price comes within 5% of the
+A member on a paid plan sets a target price on a stock of a watchlist (meta[SYM].target, saved to the account). When the price comes within 5% of the
 target, either side, the member is told once, in the app and in the browser if allowed:
 
     Title  "{SYM} is near your target"
     Body   "{SYM} at ₹{price} is {x}% {below/above} your target of ₹{target} ({list})."
 
-Rules (05-alerts): only for lists whose "Price near your target" is On (the list's `alerts.target`; absent means On) and for stocks whose own box
+Rules (05-alerts): only for lists whose "Price near your target" was saved On (the list's `alerts.target`; a list never saved through
+"Alerts for this list" has no target alert: nothing changes until the member presses Save, though the page shows the pack's default, On), and for stocks whose own box
 "Tell me when the price is within 5% of my target" is ticked (meta[SYM].nearAlert; absent means ticked). Once per stock per crossing: alert_state
 remembers that the price is near (side NEAR) and the alert re-arms only after the price moves more than 5% away again (side AWAY); a new target
 re-arms it too. At most one per stock per day (auto_alert_sent, kind target_near, period = the IST day). A member who switched alerts off in the
@@ -73,7 +74,7 @@ def targets(watchlist: Any) -> Dict[str, Tuple[float, str]]:
         if not isinstance(lst, dict):
             continue
         al = lst.get("alerts") if isinstance(lst.get("alerts"), dict) else {}
-        if al.get("target") is False:
+        if al.get("target") is not True:
             continue
         for sym in lst.get("symbols") or []:
             if not isinstance(sym, str) or not sym:
@@ -113,7 +114,7 @@ async def auto_target_alerts(pool, mailer: Mailer, site_url: str, now: Optional[
     async with pool.acquire() as conn:
         users = await conn.fetch(
             "SELECT u.id, u.email, s.watchlist, s.prefs FROM user_state s JOIN users u ON u.id = s.user_id "
-            "WHERE u.status = 'active' AND u.email_verified_at IS NOT NULL AND u.plan IN ('silver', 'gold') "
+            "WHERE u.status = 'active' AND u.email_verified_at IS NOT NULL AND u.plan IN ('silver', 'gold', 'equity', 'combined', 'platinum') "   # the plans with watchlists (the eq area)
             "AND (u.plan_until IS NULL OR u.plan_until > now()) AND s.watchlist <> '{}'::jsonb")
         for u in users:
             prefs = _parse(u["prefs"])

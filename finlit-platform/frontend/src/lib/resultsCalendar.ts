@@ -58,7 +58,7 @@ export function industryLines(industry: string | null | undefined): { main: stri
 
 /** The one line under the tiles that keeps the quarter in view (the quarter's figures are on Latest results). Basic sees the counts and which plan opens the rest. */
 export function quarterLine(fiscal: string, t: { declared: number; companies: number; medianRevenueYoY: number | null; medianProfitYoY: number | null; beatShare?: number | null }, locked: boolean): string {
-  if (locked || t.medianRevenueYoY == null) return `Quarter so far, ${fiscal}: ${n0(t.declared)} of ${n0(t.companies)} companies declared${locked ? " · the growth figures open with Silver" : ""}.`;
+  if (locked || t.medianRevenueYoY == null) return `Quarter so far, ${fiscal}: ${n0(t.declared)} of ${n0(t.companies)} companies declared${locked ? " · the growth figures open on a paid plan" : ""}.`;
   const beat = t.beatShare == null ? "" : ` · ${Math.round(t.beatShare)}% beat their industry`;
   return `Quarter so far, ${fiscal}: typical revenue ${sp(t.medianRevenueYoY)} · typical profit ${sp(t.medianProfitYoY)}${beat}.`;
 }

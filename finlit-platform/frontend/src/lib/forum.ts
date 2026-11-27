@@ -11,7 +11,7 @@ export const MAX_LINKS = 2;
 /** One board per plan: a member reads and writes only on the board of the plan they hold now (the server decides; the site only shows it). */
 export type Plan = "basic" | "silver" | "gold";
 export const PLANS: Plan[] = ["basic", "silver", "gold"];
-export const BOARD_NAME: Record<Plan, string> = { basic: "Basic", silver: "Silver", gold: "Gold" };
+export const BOARD_NAME: Record<Plan, string> = { basic: "Free", silver: "Paid plans", gold: "Gold and Platinum" };   // task #410: boards stay by access tier, named for the new plans
 
 export type Author = { handle: string; staff: boolean };
 export type Post = {
@@ -29,7 +29,7 @@ export type QueueItem = {
 export const DISCLAIMER = "Discussion is for information and opinion only. It is not investment advice, a recommendation or a solicitation to buy or sell any security. "
   + "Members are not SEBI-registered advisers unless they say so. Do your own research and consult a registered adviser before you invest.";
 
-export const forumMe = () => useQuery<ForumMe>({ queryKey: ["forum", "me"], queryFn: () => apiGet("/api/forum/me"), staleTime: 60_000 });
+export const useForumMe = () => useQuery<ForumMe>({ queryKey: ["forum", "me"], queryFn: () => apiGet("/api/forum/me"), staleTime: 60_000 });
 export const useStats = (symbol: string) => useQuery<{ threads: number; replies: number; lastActivityAt: string | null; board: Plan | null }>({
   queryKey: ["forum", "stats", symbol], queryFn: () => apiGet(`/api/forum/stats?symbol=${encodeURIComponent(symbol)}`), staleTime: 60_000, retry: false });
 export const send = apiSend;

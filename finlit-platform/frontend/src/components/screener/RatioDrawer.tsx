@@ -83,7 +83,7 @@ export function RatioDrawer({ groups, byKey, start, ratiosOn, firstSymbols, coun
   const unit = unitCheck(top, bottom);
   const u = show === "pct" ? "%" : "×";
   const switchShow = (to: "pct" | "times") => { if (to === show) return; setShowTouched(true); setA((x) => (x.trim() === "" ? x : String(convert(Number(x), to)))); setB((x) => (x.trim() === "" ? x : String(convert(Number(x), to)))); setShow(to); };
-  const useExample = (x: (typeof EXAMPLES)[number]) => { setNum(x.num); setDen(x.den); setField(null); setQ(""); setShow(x.show); setShowTouched(true); setPresetTouched(false); setName(x.name); setNameTyped(true); setOp("gt"); setA(""); setB(""); };
+  const applyExample = (x: (typeof EXAMPLES)[number]) => { setNum(x.num); setDen(x.den); setField(null); setQ(""); setShow(x.show); setShowTouched(true); setPresetTouched(false); setName(x.name); setNameTyped(true); setOp("gt"); setA(""); setB(""); };
   const examples = EXAMPLES.slice(0, 4).filter((x) => byKey.has(x.num) && byKey.has(x.den));
   const ready = !!top && !!bottom && num !== den;
   const pick = (k: string) => {
@@ -99,7 +99,7 @@ export function RatioDrawer({ groups, byKey, start, ratiosOn, firstSymbols, coun
         <div className="rd-body">
           <p className="rd-intro">Divide one company figure by another. The result becomes a column in the table, and a filter too if you set a condition.</p>
           {!editing && examples.length > 0 && <div className="rd-exs" role="group" aria-label="Examples"><span>Examples:</span>{examples.map((x) => (
-            <button key={x.name} type="button" className="rd-chip" aria-pressed={num === x.num && den === x.den} onClick={() => useExample(x)}>{x.name}</button>))}</div>}
+            <button key={x.name} type="button" className="rd-chip" aria-pressed={num === x.num && den === x.den} onClick={() => applyExample(x)}>{x.name}</button>))}</div>}
           <div className="rd-sec" role="group" aria-labelledby="rd-s1"><h3 id="rd-s1"><span>1</span> Pick two figures</h3>
             <div className="rd-frac">
               <FieldBtn label="Top" m={top} on={field === "num"} onClick={() => setField(field === "num" ? null : "num")} />

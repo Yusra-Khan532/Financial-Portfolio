@@ -31,7 +31,7 @@ export type SiPortfolio = SiSummary & Meta & { holdings: SiHolding[]; sectors: {
 const BASE = "/superinvestors";
 const FIRST = 30;
 const GATE = ["Each tracked investor's stocks, under every name they file with", "Moves in the latest filings: new stakes, stakes up or cut, no longer named",
-  "Stocks several investors hold, with FinLit Prism, technical scores and peer tags", "Which of your stocks they hold, and an alert when they file a change"];
+  "Stocks several investors hold, with FinLit Prism, technical scores and peer labels", "Which of your stocks they hold, and an alert when they file a change"];
 const DESCRIPTION = "What well-known investors own and changed, from shareholding filings (holders of 1% or more).";
 const ALL_NOTE = "Every name filed with 1% or more in two or more companies. This list is as the filings write it: it includes company insiders, strategic holders and family members, one investor can appear under several names, and two people with the same name appear as one. The names FinLit groups into a tracked investor are marked.";
 

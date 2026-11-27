@@ -13,6 +13,7 @@ from . import alertengine as eng
 from . import filingalerts as fa
 from . import wake
 from .auth.routes import NO_STORE, SYMBOL, Ctx, fail, limit, secure_ctx
+from .auth.entitlements import part_of
 
 router = APIRouter(prefix="/api")
 
@@ -68,7 +69,7 @@ def _jsonb(r: Any, col: str) -> Any:
 
 def plan_text(metric: str) -> str:
     tier = eng.METRICS[metric]["tier"]
-    return f"{eng.METRICS[metric]['label']} alerts are part of the {eng.TIER_NAME[tier]} plan."
+    return f"{eng.METRICS[metric]['label']} alerts are part of {part_of(tier)}."
 
 
 def notification_json(r: Any) -> Dict[str, Any]:

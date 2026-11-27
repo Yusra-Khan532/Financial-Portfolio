@@ -18,15 +18,16 @@ from test_leadership import END, _seed
 ADVICE = re.compile(r"\b(buy|sell|hold|reduce|avoid|accumulate|target|best|multibagger|top pick)\b", re.I)
 
 
-def test_choices_read_each_lists_pick_with_the_new_alerts_first_and_any_change_by_default():
-    """Task #408: `alerts.peer` (Alerts for this list) wins; the older `labelAlert` still counts; a list with neither takes Any change; Off adds nothing."""
+def test_choices_read_each_lists_pick_with_the_new_alerts_first_and_nothing_for_a_list_never_saved():
+    """Task #408: `alerts.peer` (Alerts for this list) wins; the older `labelAlert` still counts; a list with neither gets nothing (nothing changes until
+    Save, though the page shows Any change); Off adds nothing."""
     wl = {"lists": [{"id": "a", "name": "A", "symbols": ["wheels", "SSWL"], "labelAlert": "laggard"},
                     {"id": "b", "name": "B", "symbols": ["SSWL", "TCS"], "labelAlert": "leader"},
                     {"id": "c", "name": "C", "symbols": ["INFY"]},
                     {"id": "d", "name": "D", "symbols": ["ITC"], "labelAlert": "sometimes"},
                     {"id": "e", "name": "E", "symbols": ["HDFCBANK"], "labelAlert": "any", "alerts": {"target": True, "peer": "off", "filings": []}},
                     {"id": "f", "name": "F", "symbols": ["SBIN"], "labelAlert": "any", "alerts": {"target": True, "peer": "leader", "filings": []}}], "meta": {}}
-    assert la.choices(wl) == {"WHEELS": {"laggard"}, "SSWL": {"laggard", "leader"}, "TCS": {"leader"}, "INFY": {"any"}, "ITC": {"any"}, "SBIN": {"leader"}}
+    assert la.choices(wl) == {"WHEELS": {"laggard"}, "SSWL": {"laggard", "leader"}, "TCS": {"leader"}, "SBIN": {"leader"}}
     assert la.choices("not json") == {} and la.choices(None) == {} and la.choices({"lists": "x"}) == {}
 
 
@@ -85,6 +86,13 @@ async def _labels(conn, symbol: str, before: str, after: str, friday: date) -> N
                        "VALUES ($1, 'Reliance Industries Ltd', $2, 'Oil & gas', 'Oil & gas', 12, 11, $3, $3, $2)", symbol, friday, after)
     await conn.execute("INSERT INTO leadership_history (symbol, run_date, rank, ranked, label) VALUES ($1, $2, 6, 12, $3), ($1, $4, 11, 12, $5)",
                        symbol, friday - timedelta(days=7), before, friday, after)
+    # task #409: the alerts read the weekly record: last week's run with the old label, this week's run (a real one) where it changed
+    await conn.execute("DELETE FROM peer_label_week WHERE symbol = $1", symbol)
+    for wk, lab, ch in ((friday - timedelta(days=7), before, False), (friday, after, True)):
+        rid = f"run-test-{wk.isoformat()}"
+        await conn.execute("INSERT INTO peer_label_run (run_id, week_end, status, source) VALUES ($1, $2, 'current', 'run') ON CONFLICT (run_id) DO NOTHING", rid, wk)
+        await conn.execute("INSERT INTO peer_label_week (symbol, week_end, run_id, ranked, rank, reading, label, label_since, changed, rule_version, source) "
+                           "VALUES ($1, $2, $3, 12, $4, $5, $5, $2, $6, 'two-runs-v1', 'run')", symbol, wk, rid, 6 if not ch else 11, lab, ch)
 
 
 async def test_label_change_alerts_follow_each_lists_choice_once_per_week(app):  # noqa: F811
@@ -116,18 +124,19 @@ async def test_label_change_alerts_follow_each_lists_choice_once_per_week(app): 
         await conn.execute("DELETE FROM leadership")
         await _labels(conn, "RELIANCE", "in_line", "laggard", date(2026, 11, 6))
     pool, mailer = app.state.store.pool, app.state.mailer
-    assert await la.auto_label_alerts(pool, mailer, "http://test") == 3          # Any change, Only to Laggard and no choice (Any change by default); not Only to Leader, Off or Basic
+    assert await la.auto_label_alerts(pool, mailer, "http://test") == 2          # Any change and Only to Laggard; not Only to Leader, a list never saved, Off or Basic
     assert await la.auto_label_alerts(pool, mailer, "http://test") == 0          # the same change of the same week is told once
     note = [n for n in (await any_.get("/api/notifications")).json()["notifications"] if n["symbol"] == "RELIANCE"]
     assert note and note[0]["title"] == "RELIANCE is now Laggard" and note[0]["link"] == "/stocks/RELIANCE"
-    for c in (lead, off, basic):
+    for c in (lead, none, off, basic):
         assert not [n for n in (await c.get("/api/notifications")).json()["notifications"] if n["symbol"] == "RELIANCE" and n["title"].startswith("RELIANCE is now")]
     # the next week the stock becomes a Leader: Only to Leader hears about it, Only to Laggard does not
     async with app.state.store.pool.acquire() as conn:
         await _labels(conn, "RELIANCE", "laggard", "leader", date(2026, 11, 13))
-    assert await la.auto_label_alerts(pool, mailer, "http://test") == 3          # Any change, Only to Leader and no choice (Any change)
+    assert await la.auto_label_alerts(pool, mailer, "http://test") == 2          # Any change and Only to Leader; a list never saved still hears nothing
     # a stock seen for the first time, or one whose label stayed the same, is not a change
     async with app.state.store.pool.acquire() as conn:
         await conn.execute("DELETE FROM leadership_history WHERE symbol = 'RELIANCE' AND run_date < '2026-11-13'")
+        await conn.execute("DELETE FROM peer_label_week WHERE symbol = 'RELIANCE' AND week_end < '2026-11-13'")   # task #409: the record is what the alerts read
         await conn.execute("DELETE FROM auto_alert_sent WHERE kind = 'label_change'")
     assert await la.auto_label_alerts(pool, mailer, "http://test") == 0

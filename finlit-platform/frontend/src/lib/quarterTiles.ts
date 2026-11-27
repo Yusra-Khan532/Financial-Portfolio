@@ -71,7 +71,7 @@ export function quarterTiles(t: VSummary, prev: Prev, by: BySize, locked = false
       note: sizesIn && unbanded > 0 ? `${n0(unbanded)} ${unbanded === 1 ? "company has" : "companies have"} no size band yet.` : undefined },
   };
   if (locked) {
-    const shut = (key: string, label: string): KitTileData => ({ key, label, value: "Silver plan", tone: "plain", sub: "Opens with Silver" });
+    const shut = (key: string, label: string): KitTileData => ({ key, label, value: "Paid plans", tone: "plain", sub: "Opens on a paid plan" });
     return [declared, shut("rev", "Typical revenue growth"), shut("profit", "Typical profit growth"), shut("profitUp", "Profit up"), shut("margin", "Net margin up"), shut("beat", "Beat their industry")];
   }
   const median = (key: "medianRevenueYoY" | "medianProfitYoY", label: string, n: number | null, help: string): KitTileData => ({

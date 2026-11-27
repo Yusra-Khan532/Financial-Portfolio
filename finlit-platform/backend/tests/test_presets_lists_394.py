@@ -45,8 +45,12 @@ def test_the_list_day_is_the_last_session_in_the_candles_never_a_holiday_or_a_st
     sess = listday.sessions_from_counts(counts, HOLIDAY)
     assert sess[0] == LIST_DAY and HOLIDAY not in sess and date(2026, 11, 22) not in sess and len(sess) == 12
     assert listday.list_day(sess, HOLIDAY) == LIST_DAY                 # the weekday rule says 24 Nov; the candles say 23 Nov
-    half = {**counts, LIST_DAY: 600}                              # a load still running for the newest day: the day before is the list's
-    assert listday.sessions_from_counts(half, LIST_DAY)[0] == date(2026, 11, 20)
+    # 26 Nov 2026 (the founder: use whatever closes are loaded): a third of the market loaded is used at once (it waited for half before; rows still
+    # waiting say "still loading"); under a quarter, the day before stays the list's
+    third = {**counts, LIST_DAY: 600}
+    assert listday.sessions_from_counts(third, LIST_DAY)[0] == LIST_DAY
+    few = {**counts, LIST_DAY: 400}
+    assert listday.sessions_from_counts(few, LIST_DAY)[0] == date(2026, 11, 20)
     assert listday.list_day([date(2026, 11, 2)], HOLIDAY) is None       # candles three weeks behind: the weekday rule's day is kept, nothing guessed
 
 

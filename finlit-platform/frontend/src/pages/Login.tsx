@@ -97,7 +97,7 @@ export function Login() {
                 <button type="button" role="tab" aria-selected={mode === "signup"} onClick={() => setMode("signup")}>Create account</button>
               </div>
               <h2 style={{ font: "400 28px var(--serif)", margin: "16px 0 6px" }}>{mode === "signup" ? "Create your free account" : needCode ? "Two-step check" : "Welcome back"}</h2>
-              <p className="muted" style={{ margin: "0 0 18px" }}>{mode === "signup" ? "Free forever on the Basic plan. No card needed." : needCode ? "Enter the 6-digit code from your authenticator app." : "Sign in to open your alerts, dashboard and plan."}</p>
+              <p className="muted" style={{ margin: "0 0 18px" }}>{mode === "signup" ? "Free forever on the Free plan. No card needed." : needCode ? "Enter the 6-digit code from your authenticator app." : "Sign in to open your alerts, dashboard and plan."}</p>
               {mode === "signup" && <label>Name <span className="faint">(optional)</span><input autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} maxLength={80} /></label>}
               {mode === "signup" && <label>Mobile number<input type="tel" inputMode="tel" autoComplete="tel" required placeholder="98765 43210" value={mobile} onChange={(e) => setMobile(e.target.value)} maxLength={16} /></label>}
               {!needCode && <>

@@ -13,6 +13,7 @@ import type { Card } from "../../lib/pulsePack";
 import type { MfSpread } from "../../lib/mfPortfolio";
 import { shortFund } from "../../lib/mfPack";
 import { codeText } from "../../lib/companyLabel";
+import { FitStack } from "./FitStack";
 import { holdingName, holdingShort } from "../../lib/holdingName";
 import { GridScreen } from "../../portfolio/pack/Div385";
 import { Info, ShowAll, andList, cap1, capRows, corr2, corrWord, countOf, inCommon, CAP_DEFAULT } from "../../portfolio/shared";
@@ -153,11 +154,11 @@ export function MoneySection({ sp }: { sp: MfSpread }) {
   return (
     <Section id="mfp-money" hide title="What your money is in" help="Your list split into shares, debt and money market, and gold and other, from each fund's latest monthly file." how="The top bar is the whole list; one bar per fund below it. Grey stripes: a fund whose file is not loaded."
       sub={`Each fund's latest monthly file, each fund counting ${sp.basis === "value" ? "by the value of your units" : "the same"}.`}>
-      <div className="mfm-stack big" role="img" aria-label={MIX.filter(([k]) => sp.mix[k as keyof MfSpread["mix"]] > 0.0005).map(([k, l]) => `${l} ${p0(sp.mix[k as keyof MfSpread["mix"]])}`).join(", ")}>
-        {MIX.map(([k, l, c]) => { const v = sp.mix[k as keyof MfSpread["mix"]], t = sliceLabel(v); return v > 0.0005 ? <i key={k} className={"mfm-" + c} style={{ width: `${v * 100}%` }} title={`${l} ${p0(v)}`}>{t.pct && <b>{p0(v)}</b>}{t.word && <small>{l}</small>}</i> : null; })}</div>
+      <FitStack as="div" className="mfm-stack big" role="img" aria-label={MIX.filter(([k]) => sp.mix[k as keyof MfSpread["mix"]] > 0.0005).map(([k, l]) => `${l} ${p0(sp.mix[k as keyof MfSpread["mix"]])}`).join(", ")}>
+        {MIX.map(([k, l, c]) => { const v = sp.mix[k as keyof MfSpread["mix"]], t = sliceLabel(v); return v > 0.0005 ? <i key={k} className={"mfm-" + c} style={{ width: `${v * 100}%` }} title={`${l} ${p0(v)}`}>{t.pct && <b>{p0(v)}</b>}{t.word && <small>{l}</small>}</i> : null; })}</FitStack>
       <div className="mfm-fbars">{sp.funds.map((f) => { const a = f.assetSplit, t = a ? (a.equity ?? 0) + (a.debt ?? 0) + (a.cash ?? 0) + (a.other ?? 0) : 0;
-        return <div key={f.code} className="mfm-fb"><b>{nm(f.name)}</b>{a && t ? <span className="mfm-stack">{[["s", (a.equity ?? 0) / t, "Shares"], ["d", ((a.debt ?? 0) + (a.cash ?? 0)) / t, "Debt"], ["o", (a.other ?? 0) / t, "Gold and other"]].map(([c, v, l]) =>
-          (v as number) > 0.005 ? <i key={c as string} className={"mfm-" + c} style={{ width: `${(v as number) * 100}%` }} title={`${l} ${p0(v as number)}`}>{(v as number) > 0.12 ? `${l} ${p0(v as number)}` : ""}</i> : null)}</span>
+        return <div key={f.code} className="mfm-fb"><b>{nm(f.name)}</b>{a && t ? <FitStack className="mfm-stack">{[["s", (a.equity ?? 0) / t, "Shares"], ["d", ((a.debt ?? 0) + (a.cash ?? 0)) / t, "Debt"], ["o", (a.other ?? 0) / t, "Gold and other"]].map(([c, v, l]) =>
+          (v as number) > 0.005 ? <i key={c as string} className={"mfm-" + c} style={{ width: `${(v as number) * 100}%` }} title={`${l} ${p0(v as number)}`}>{(v as number) > 0.12 ? <><span className="mfm-w">{l} </span><span>{p0(v as number)}</span></> : ""}</i> : null)}</FitStack>
           : <span className="mfm-stack"><i className="mfm-u" style={{ width: "100%" }}>Holdings not loaded yet</i></span>}</div>; })}</div>
       <p className="sp-note"><i className="mfm-key mfm-s" /> Shares · <i className="mfm-key mfm-d" /> Debt and money market · <i className="mfm-key mfm-o" /> Gold and other · <i className="mfm-key mfm-u" /> Not loaded</p>
     </Section>
@@ -270,8 +271,8 @@ export function SharedSection({ sp }: { sp: MfSpread }) {
 export function SizesSection({ sp }: { sp: MfSpread }) {
   const funds = sp.funds.filter((f) => sp.perFund?.[String(f.code)]);
   const row = (sz: Record<string, number>, scale = 1) => { const l = (sz.Large ?? 0) * scale, m = (sz.Mid ?? 0) * scale, s = (sz.Small ?? 0) * scale, x = (sz.Micro ?? 0) * scale, u = (sz.Unsized ?? 0) * scale, o = Math.max(0, 1 - l - m - s - x - u);
-    return <span className="mfm-stack">{[["L", l, "Large"], ["M", m, "Mid"], ["S", s, "Small"], ["X", x, "Micro"], ["U", u, "Not sized"], ["O", o, "Cash, debt and gold"]].map(([c, v, n]) => (v as number) > 0.005 ?
-      <i key={c as string} className={"mfm-z" + c} style={{ width: `${(v as number) * 100}%` }} title={`${n} ${p0(v as number)}`}>{(v as number) > 0.08 ? p0(v as number) : ""}</i> : null)}</span>; };
+    return <FitStack className="mfm-stack">{[["L", l, "Large"], ["M", m, "Mid"], ["S", s, "Small"], ["X", x, "Micro"], ["U", u, "Not sized"], ["O", o, "Cash, debt and gold"]].map(([c, v, n]) => (v as number) > 0.005 ?
+      <i key={c as string} className={"mfm-z" + c} style={{ width: `${(v as number) * 100}%` }} title={`${n} ${p0(v as number)}`}>{(v as number) > 0.08 ? <span>{p0(v as number)}</span> : ""}</i> : null)}</FitStack>; };
   const micro = sp.size.Micro ?? 0, tot = sp.size.Large + sp.size.Mid + sp.size.Small + micro;
   return (
     <Section id="mfp-sizes" hide title="Large, mid, small and micro" help="The shares inside each fund by company size, on FinLit's ₹ rule: large above ₹75,000 Cr, mid ₹25,000 to 75,000 Cr, small ₹10,000 to 25,000 Cr, micro below ₹10,000 Cr." how="One bar per fund: large, mid, small and micro, then cash, debt and gold in grey. The list's total adds up the shares only."

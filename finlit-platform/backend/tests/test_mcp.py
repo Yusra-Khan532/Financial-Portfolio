@@ -445,7 +445,7 @@ async def test_quarter_results_and_calendar_equal_the_results_route(app, seeded)
         d = got["data"]
         assert d["quarter"] == q and d["total"] == route["total"] and [r["symbol"] for r in d["rows"]] == [r["symbol"] for r in route["rows"]]
         assert [r["date"] for r in d["rows"]] == [r["date"] for r in route["rows"]] and d["summary"]["declared"] == route["summary"]["declared"]
-        assert all(r["revenue"] is None and r["netProfit"] is None for r in d["rows"]) and any("Silver" in n for n in got["notes"])   # withheld, as for a visitor
+        assert all(r["revenue"] is None and r["netProfit"] is None for r in d["rows"]) and any("paid-plan" in n for n in got["notes"])   # withheld, as for a visitor
         assert (await ok(c, "get_quarter_results", {"quarter": q, "limit": 1}))["data"]["returned"] == 1
         one_day = await ok(c, "get_quarter_results", {"date": seeded["when"].isoformat()}) if seeded["when"] <= date.today() else None
         if one_day:

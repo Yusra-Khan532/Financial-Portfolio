@@ -271,11 +271,13 @@ describe("Change 7 and part B item 7: the view cards", () => {
 // ------------------------------------------------------------------------------------------------ part B item 2: plan names from the plan list
 describe("Part B item 2: plan names come from the plan list", () => {
   it("one list: Basic, Silver, Gold; the lock card's TIER names and the Questions answer read it", () => {
-    expect(PLAN_LIST.map((p) => p.name)).toEqual(["Basic", "Silver", "Gold"]);
-    expect(planName("silver")).toBe("Silver"); expect(plansFrom("silver")).toEqual(["Silver", "Gold"]); expect(plansFromText("silver")).toBe("Silver and Gold"); expect(plansFromText("gold")).toBe("Gold");
+    // task #410 (owner, 27 Nov 2026): the plans on sale; an old Silver gate reads Gold (the smallest full plan that opens it)
+    expect(PLAN_LIST.map((p) => p.name)).toEqual(["Free", "Mutual Fund + ETF", "Equity Portfolio", "Combined", "Gold", "Platinum"]);
+    expect(planName("silver")).toBe("Gold"); expect(plansFrom("silver")).toEqual(["Gold", "Platinum"]); expect(plansFromText("silver")).toBe("Gold and Platinum"); expect(plansFromText("gold")).toBe("Gold and Platinum");
+    expect(plansFromText("equity")).toBe("Equity Portfolio, Combined, Gold and Platinum"); expect(plansFromText("platinum")).toBe("Platinum");
     expect(TIER.silver.n).toBe(planName("silver")); expect(TIER.gold.n).toBe(planName("gold"));
     const a = MY_PORTFOLIO_FAQ.items.find((x) => /broker/.test(x.q))!.a;
-    expect(a).toContain(`on ${plansFromText("silver")} they are also saved`);
+    expect(a).toContain(`on ${plansFromText("equity")} they are also saved`);
   });
   it("no fixed plan name is left in the lock card, the Gold locks or the Questions source", () => {
     const src = (f: string) => readFileSync(join(__dirname, f), "utf8");
@@ -298,5 +300,20 @@ describe("Part B item 10: on a phone, All sections folds every step after the fi
     cleanup(); phone(false);
     wrap(<StepCtx.Provider value={{ step: "all", firstStep: "a" }}><Step id="b" title="Second" line="x"><p>Second body</p></Step></StepCtx.Provider>);
     expect(document.querySelector(".eqf")).toBeNull();
+  });
+});
+
+// Audit of 26 Nov (file 38, Your shares in every column set): the Against peers line runs through the group rows (By sector, By company size) and the
+// heading labels stay on two lines
+describe("audit of 26 Nov: Your shares in By sector and By company size", () => {
+  for (const tab of ["sector", "size"] as const) it(`${tab}: the group row has the Against peers line under its heading; long labels are two set lines`, () => {
+    table(tab);
+    const t = document.querySelector("#pf-shares table") as HTMLTableElement;
+    let col = 0, at = -1; for (const c of Array.from(t.tHead!.rows[0].cells)) { if (/Against peers/.test(c.textContent ?? "")) at = col; col += c.colSpan; }
+    expect(at).toBeGreaterThan(0);
+    const sub = t.querySelector("tr.eqs-sub")!; let k = 0; const cell = Array.from(sub.children).find((c) => { const hit = k === at; k += (c as HTMLTableCellElement).colSpan; return hit; })!;
+    expect(cell.classList.contains("eq-div2")).toBe(true);
+    const avg = Array.from(t.tHead!.rows[1].cells).find((c) => /^Avg buy/.test(c.textContent ?? ""))!;
+    expect(avg.querySelector(".pfx-l2")!.innerHTML).toBe("Avg buy <br>price");
   });
 });

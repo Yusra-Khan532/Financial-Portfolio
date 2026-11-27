@@ -1,10 +1,10 @@
 import type { PageFaq } from "./pageFaqs";
 import { planName } from "../lib/planNames";
-import { PLAN_FOR_PORTFOLIO } from "../lib/planGates";
+import { PLAN_FOR_FUND_PORTFOLIO } from "../lib/planGates";
 
 // Task #183 part 2: the pack's nine questions (02-mf-portfolio, 15 Nov), written for any list and any plan.
 export const MF_PORTFOLIO_FAQ: PageFaq = {
-  id: "mf-portfolio", title: "MF portfolio", section: "Your workspace", routes: ["/mf-portfolio"], plan: planName(PLAN_FOR_PORTFOLIO),   // task #389 (fault 1): read from the plan list, never a fixed name
+  id: "mf-portfolio", title: "MF portfolio", section: "Your workspace", routes: ["/mf-portfolio"], plan: planName(PLAN_FOR_FUND_PORTFOLIO),   // task #389 (fault 1): read from the plan list, never a fixed name
   items: [
     { q: "How does FinLit see inside my funds?", a: "Each fund house publishes its holdings once a month. FinLit reads those files, adds up the stocks across your funds and describes how much they overlap and how they are spread. A fund whose file is not loaded yet is named and left out." },
     { q: "Why is each fund compared with a different benchmark?", a: "A small-cap fund is measured against small companies and a hybrid fund against a mix of shares, debt and gold. Comparing every fund with one broad index makes a small-cap fund look riskier than its own market, and a hybrid fund look calmer than it is against its own." },

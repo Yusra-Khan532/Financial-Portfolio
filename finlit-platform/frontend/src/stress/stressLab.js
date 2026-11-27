@@ -63,7 +63,9 @@ export function mountStressLab(root, E, D, opts) {
   var CALLN = 0;
   function call(c, i) {
     var key = c.k + ':' + (typeof i === 'number' ? i : c.t), id = 'cd-' + (++CALLN), open = !!(S.callsOpen && S.callsOpen[key]);
-    return '<div class="call ' + c.k + '"><span class="ic">' + svg(ICON[c.k]) + '</span><div class="tx"><span class="k">' + KIND[c.k] + '</span><b>' + c.t + '</b></div>' +
+    var one = String(c.d || '').replace(/<[^>]*>/g, ' ').replace(/[<>]/g, '').replace(/\s+/g, ' ').trim(), cut = one.search(/[.;:](\s|$)/);   // task #401: the first sentence, as plain text (no angle bracket left; escaped again below)
+    one = cut > 0 ? one.slice(0, cut + 1) : one;
+    return '<div class="call ' + c.k + '"><span class="ic">' + svg(ICON[c.k]) + '</span><div class="tx"><span class="k">' + KIND[c.k] + '</span><b>' + c.t + '</b>' + (one ? '<span class="ln"' + (open ? ' hidden' : '') + '>' + esc(one) + '</span>' : '') + '</div>' +
       '<button type="button" class="cx" data-cx="' + esc(key) + '" aria-expanded="' + open + '" aria-controls="' + id + '" aria-label="' + (open ? 'Hide the detail' : 'Show the detail') + '">' + svg(open ? '<path d="M5 12.5l5-5 5 5"/>' : '<path d="M5 7.5l5 5 5-5"/>', 16) + '</button>' +
       '<span class="d" id="' + id + '"' + (open ? '' : ' hidden') + '>' + c.d + '</span></div>';
   }
@@ -72,7 +74,7 @@ export function mountStressLab(root, E, D, opts) {
     if (!list.length) return '';
     var all = list.every(function (c, i) { return S.callsOpen && S.callsOpen[c.k + ':' + i]; });
     return '<div class="callsh"><span>What stands out</span>' + (list.length > 1 ? '<button type="button" class="btn sm" data-callall="1" aria-pressed="' + all + '">' + (all ? 'Close all' : 'Open all') + '</button>' : '') + '</div>' +
-      '<div class="callsg">' + list.map(call).join('') + '</div>';
+      '<div class="callsg n' + list.length + '">' + list.map(call).join('') + '</div>';   // QA 27 Nov: the count picks the layout (stresslab.css)
   }
   var LCLS = { 'Holds up well': 'g', 'Gains under this shock': 'g', 'Takes a clear hit': 'a', 'Hit hard': 'r', 'Debt cover at risk': 'r', 'Not comparable': 'n' };
   var LICON = { g: ICON.good, a: ICON.watch, r: ICON.warn, n: ICON.ins };
@@ -239,12 +241,15 @@ export function mountStressLab(root, E, D, opts) {
   }
   function renderScen() {
     var co = coA();
-    $('chips').innerHTML = CHIPS.map(function (id) {
+    var chipOf = function (id) {
       if (LOCKED[id]) return '<button type="button" class="chip lock' + (id === 'custom' ? ' cust' : '') + '" aria-disabled="true" data-locked="' + id + '" aria-describedby="upnote">' + esc(LOCKED[id]) + gtag() + '</button>';
       if (!SC[id] && id !== 'custom') return '';
       var nm = id === 'custom' ? 'Custom' : SC[id].name;
       return '<button type="button" class="chip' + (id === 'custom' ? ' cust' : '') + '" aria-pressed="' + (S.scen === id) + '" data-scen="' + id + '">' + nm + '</button>';
-    }).join('');
+    };
+    var ready = CHIPS.filter(function (id) { return id !== 'custom'; }).map(chipOf).join(''), own = CHIPS.indexOf('custom') >= 0 ? chipOf('custom') : '';
+    $('chips').innerHTML = '<div class="chg"><span class="chgl" aria-hidden="true">Ready-made scenarios</span><div class="chgr">' + ready + '</div></div>' +   // task #401: two labelled groups
+      (own ? '<div class="chg own"><span class="chgl" aria-hidden="true">Your own</span><div class="chgr">' + own + '</div></div>' : '');
     var s = cur();
     var based = s.id === 'custom' ? 'Your own mix of shocks, starting from ' + esc(S.customFrom || 'Today') + '. Move any slider; everything below updates at once.' : esc(String(s.based_on || '').replace(/(\d{4}-\d{2}-\d{2}) to (\d{4}-\d{2}-\d{2})/g, function (_, a, b) { return winWords([a, b]); }));   // pages stored before the server said it in months
     var todaySeg = S.scen === 'today' && SC.today_eia ? '<div class="seg sm" role="group" aria-label="Crude in the Today scenario"><button type="button" data-tc="level" aria-pressed="' + (S.todayCrude === 'level') + '">Crude stays at today’s level</button><button type="button" data-tc="eia" aria-pressed="' + (S.todayCrude === 'eia') + '">Crude eases (EIA outlook)</button></div>' : '';
@@ -563,18 +568,34 @@ export function mountStressLab(root, E, D, opts) {
       tile('Rate rise that takes cover under 1.5×', bp.rate_bp === null ? 'None' : '+' + Math.round(bp.rate_bp).toLocaleString('en-IN') + ' bp', bp.rate_bp === null ? (netCash ? 'more cash than debt' : 'within the range tested') : 'from ' + xx(E.run(co, { crude: 0 }).base.interest_cover) + ' today') +
       '</div>';
   }
+  // QA 27 Nov: a click anywhere on an "Every scenario" row opens its shocks (the line above the table says "Pick a row to open it"), and picks it;
+  // clicking the picked, open row again closes it. Focus comes back to the same row after the redraw.
+  function pickRow(tr) {
+    var id = tr.getAttribute('data-pick');
+    if (tr.querySelector('[data-xr]')) {
+      var curId = S.scen === 'today' ? (S.todayCrude === 'eia' ? 'today_eia' : 'today') : S.scen;
+      S.rowsOpen = S.rowsOpen || {};
+      S.rowsOpen[id] = !(id === curId && S.rowsOpen[id]);
+    }
+    pick(id);
+    renderEvery(coA());
+    var again = root.querySelector('#every tr[data-pick="' + id + '"]');
+    if (again) again.focus();
+  }
   function renderEvery(co) {
     var ids = ALL_IDS.concat(S.scen === 'custom' ? ['custom'] : []);
     var curId = S.scen === 'today' ? (S.todayCrude === 'eia' ? 'today_eia' : 'today') : S.scen;
     var body = ids.map(function (id) {
       var sc = id === 'custom' ? Object.assign({}, S.custom, { persistence: S.persistence }) : scenOf(id), r = E.run(co, sc), e = r.change_pct.eps;
-      return '<tr class="click' + (id === curId ? ' on' : '') + '" data-pick="' + id + '" tabindex="0"><td class="l">' + (id === 'custom' ? 'Custom' : esc(SC[id].name)) + '</td><td class="r' + (e < -0.05 ? ' dn' : e > 0.05 ? ' up' : '') + '">' + pct(e) + '</td><td class="r">' + pc(r.stressed.ebitda_margin_pct) + '</td><td class="r">' + xx(r.stressed.interest_cover) + '</td>' + (SHOWV ? '<td class="r">' + (r.value ? pct(r.value.move_pct) : '–') + '</td>' : '') + '<td class="r"><b>' + (r.score === null ? '–' : r.score) + '</b></td><td>' + labPill(r.label) + '</td></tr>';
+      var xo = !!(S.rowsOpen && S.rowsOpen[id]), nm = id === 'custom' ? 'Custom' : esc(SC[id].name);
+      var det = xo ? '<tr class="xrow" id="xr-' + id + '"><td colspan="' + (SHOWV ? 7 : 6) + '"><div class="shocks">' + shockPills(sc, co) + '</div>' + (id !== 'custom' && sc.based_on ? '<p class="note" style="margin:6px 0 0">' + esc(String(sc.based_on).replace(/(\d{4}-\d{2}-\d{2}) to (\d{4}-\d{2}-\d{2})/g, function (_, a, b) { return winWords([a, b]); })) + '</p>' : '') + '</td></tr>' : '';
+      return '<tr class="click' + (id === curId ? ' on' : '') + '" data-pick="' + id + '" tabindex="0"><td class="l"><button type="button" class="xr" data-xr="' + id + '" aria-expanded="' + xo + '" aria-controls="xr-' + id + '" aria-label="' + (xo ? 'Hide' : 'Show') + ' the shocks in ' + nm + '">' + svg(xo ? '<path d="M5 12.5l5-5 5 5"/>' : '<path d="M7.5 5l5 5-5 5"/>', 14) + '</button>' + nm + '</td><td class="r' + (e < -0.05 ? ' dn' : e > 0.05 ? ' up' : '') + '">' + pct(e) + '</td><td class="r">' + pc(r.stressed.ebitda_margin_pct) + '</td><td class="r">' + xx(r.stressed.interest_cover) + '</td>' + (SHOWV ? '<td class="r">' + (r.value ? pct(r.value.move_pct) : '–') + '</td>' : '') + '<td class="r"><b>' + (r.score === null ? '–' : r.score) + '</b></td><td>' + labPill(r.label) + '</td></tr>' + det;
     }).join('') + Object.keys(LOCKED).filter(function (id) { return id !== 'custom'; }).map(function (id) {
       return '<tr class="lockrow"><td class="l">' + esc(LOCKED[id]) + '</td><td colspan="' + (SHOWV ? 6 : 5) + '">' + gtag() + ' <small>Included with Gold</small></td></tr>';
     }).join('');
     var worst = ids.map(function (id) { var sc = id === 'custom' ? S.custom : scenOf(id); return [id, E.run(co, sc).change_pct.eps]; }).filter(function (x) { return x[1] !== null; }).sort(function (a, b) { return a[1] - b[1]; })[0];
     $('every').innerHTML = '<h2>Every scenario at a glance' + ib('The same company under each scenario, with today’s settings. Pick a row to see it in full.', 'lt', 'About this table') + '</h2><p class="sub">Pick a row to open it.' + (worst ? ' The hardest for ' + esc(short(co)) + ' is ' + (worst[0] === 'custom' ? 'your custom shock' : '‘' + esc(SC[worst[0]].name) + '’') + ' (EPS ' + pct(worst[1]) + ').' : '') + '</p>' +
-      '<div class="tw"><table class="t"><thead><tr><th>Scenario</th><th class="r">EPS change</th><th class="r">EBITDA margin after</th><th class="r">Interest cover after</th>' + (SHOWV ? '<th class="r">Value move</th>' : '') + '<th class="r">Score</th><th>Label</th></tr></thead><tbody>' + body + '</tbody></table></div>';
+      '<div class="tw"><table class="t evt"><colgroup><col class="c-n"><col><col><col>' + (SHOWV ? '<col>' : '') + '<col class="c-s"><col class="c-l"></colgroup><thead><tr><th>Scenario</th><th class="r">EPS change</th><th class="r">EBITDA margin after</th><th class="r">Interest cover after</th>' + (SHOWV ? '<th class="r">Value move</th>' : '') + '<th class="r">Score</th><th>Label</th></tr></thead><tbody>' + body + '</tbody></table></div>';
   }
   function renderHist(cos) {
     var H = D.history || [], last = D.as_of || '2026-10-29', NO = { fall_pct: null, back: null };
@@ -585,20 +606,20 @@ export function mountStressLab(root, E, D, opts) {
     }
     // a company with prices from a later date was listed later; one with no prices at all has none on file
     var firstWith = function (c) { for (var i = 0; i < H.length; i++) if (H[i][c.symbol]) return i; return -1; };
-    var back = function (x) { return !fin(x.fall_pct) ? '–' : x.fall_pct === 0 ? 'No fall' : x.back ? dt(x.back) : 'Not yet, by ' + dt(last); };
+    var back = function (x, h) { return !fin(x.fall_pct) ? '–' : x.fall_pct === 0 ? 'No fall' : x.back ? dt(x.back) + (h && h.to && h.to <= last && x.back < h.to ? '<br>within the episode' : '') : 'Not yet, by ' + dt(last); };
     var rows = H.map(function (h, i) {
       var so = h.to > last, nf = h.nifty || NO, rng = dt(h.from).replace(/ \d{4}$/, '') + ' to ' + (so ? dt(last) : dt(h.to));
       var cells = cos.map(function (c) {
         var x = h[c.symbol], f = firstWith(c);
-        return x ? '<td class="r' + (x.fall_pct < 0 ? ' dn' : '') + '">' + pct(x.fall_pct) + '</td><td class="r"><small>' + back(x) + '</small></td>' : '<td class="r" colspan="2"><small>' + (f > i ? 'Listed later' : 'No prices on file') + '</small></td>';
+        return x ? '<td class="r' + (x.fall_pct < 0 ? ' dn' : '') + '">' + pct(x.fall_pct) + '</td><td class="r"><small>' + back(x, h) + '</small></td>' : '<td class="r" colspan="2"><small>' + (f > i ? 'Listed later' : 'No prices on file') + '</small></td>';
       }).join('');
-      return '<tr><td class="l">' + esc(String(h.episode || '').replace('2026 so far', '2026 oil spike, so far')) + '<br><small>' + rng + '</small></td><td class="r">' + pct(nf.fall_pct) + '</td><td class="r"><small>' + back(nf) + '</small></td>' + cells + '</tr>';
+      return '<tr><td class="l">' + esc(String(h.episode || '').replace('2026 so far', '2026 oil spike, so far')) + '<br><small>' + rng + '</small></td><td class="r">' + pct(nf.fall_pct) + '</td><td class="r"><small>' + back(nf, h) + '</small></td>' + cells + '</tr>';
     }).join('');
     var a = cos[0], less = [], more = [], faster = 0, both = 0;
     H.forEach(function (h) { var x = h[a.symbol]; if (!x || !fin(x.fall_pct) || !h.nifty || !fin(h.nifty.fall_pct)) return; var y = String(h.episode).slice(0, 4); (x.fall_pct > h.nifty.fall_pct ? less : more).push(y); if (x.back && h.nifty.back) { both++; if (x.back < h.nifty.back) faster++; } });
     var n = less.length + more.length;
     var line = esc(short(a)) + ' fell less than the Nifty 50 in ' + (less.length ? less.join(' and ') : 'none of these episodes') + (more.length ? ' and more in ' + more.join(', ').replace(/, (\d+)$/, ' and $1') : '') + '.' + (both && faster === both ? ' Each time both recovered, it was back at its high first.' : '');
-    $('hist').innerHTML = head + '<p class="sub">Largest fall from a closing high inside each episode, and when the price first closed back at that high</p>' +
+    $('hist').innerHTML = head + '<p class="sub">Each share’s own largest fall from a closing high inside the episode, and when it first closed back at that high; a share can be back before the episode ends, while the market is still falling</p>' +
       '<div class="tw"><table class="t"><thead><tr><th>Episode</th><th class="r">Nifty 50</th><th class="r">Back at its high</th>' + cos.map(function (c) { return '<th class="r">' + esc(short(c)) + '</th><th class="r">Back at its high</th>'; }).join('') + '</tr></thead><tbody>' + rows + '</tbody></table></div>' +
       (n ? '<div class="calls" style="margin-top:12px;grid-template-columns:1fr">' + call({ k: 'ins', t: (more.length >= less.length ? 'Fell more than the Nifty 50 in ' + more.length : 'Fell less than the Nifty 50 in ' + less.length) + ' of ' + n + ' episode' + (n > 1 ? 's' : ''), d: line + ' Past falls show how the shares behaved, not what happens next.' }) + '</div>'
          : '<p class="note">' + esc(short(a)) + ' and the Nifty 50 cannot be set side by side here: one of the two has no prices on file for these episodes.</p>');
@@ -849,29 +870,63 @@ export function mountStressLab(root, E, D, opts) {
         return '<div class="sb-g"><a href="#' + st.id + '" data-sec="' + st.id + '"><span class="sb-n">' + (i + 1) + '</span><b>' + esc(st.getAttribute('data-step')) + '</b></a>' +
           subsOf(st).map(function (x) { return '<a href="#' + x[0] + '" data-sec="' + x[0] + '" class="sb-sub">' + esc(x[1]) + '</a>'; }).join('') + '</div>';
       }).join('') + '</div></span><span class="sb-sep" aria-hidden="true"></span><ol class="sb-l">' +
-      steps.map(function (st, i) { return (i ? '<li class="sb-ar" aria-hidden="true">→</li>' : '') + '<li><a href="#' + st.id + '" class="sb-c" data-sec="' + st.id + '"><span class="sb-n">' + (i + 1) + '</span>' + esc(st.getAttribute('data-step')) + '</a></li>'; }).join('') + '</ol>';
+      steps.map(function (st, i) { var nm = esc(st.getAttribute('data-step')); return '<li><a href="#' + st.id + '" class="sb-c" data-sec="' + st.id + '" title="Jump to ' + nm + '" aria-label="' + (i + 1) + '. ' + nm + ': jump to this section"><span class="sb-n">' + (i + 1) + '</span>' + nm + '</a></li>'; }).join('') + '</ol>';   // task #401: buttons, no arrows
     fixBarTop(); spy();
   }
   function fixBarTop() {   // under the site's own sticky header, whatever its height on this screen
     var bar = $('secbar'); if (!bar) return;
     var h = document.querySelector('body > header, #root header, header'), top = 8;
     if (h) { var cs = getComputedStyle(h); if (/sticky|fixed/.test(cs.position)) top = Math.round(h.getBoundingClientRect().bottom) + 6; }
-    bar.style.top = Math.max(0, top) + 'px';
+    // task #401: below EVERY sticky strip at the top of the screen (the header, the preview strip, the phone's tool tabs), not only the header
+    var y = 0, host = root.host, x = Math.round(window.innerWidth / 2);
+    for (var i = 0; i < 6 && document.elementFromPoint; i++) {
+      var hit = document.elementFromPoint(x, y + 1), stick = null;
+      for (var e = hit; e && e !== document.body && e !== document.documentElement; e = e.parentElement) {
+        if (e === host) { stick = null; break; }
+        if (/sticky|fixed/.test(getComputedStyle(e).position)) { var er = e.getBoundingClientRect(); if (er.top <= y + 1 && er.height < window.innerHeight * 0.3) stick = e; }   // a strip at the top, not a full-height layer or the side menu
+      }
+      if (!stick) break;
+      var b = Math.round(stick.getBoundingClientRect().bottom); if (b <= y) break; y = b;
+    }
+    if (y + 2 > top) top = y + 2;   // right under the lowest strip (no gap for the page to show through)
+    var nt = Math.max(0, top) + 'px', off = (Math.max(0, top) + bar.offsetHeight + 12) + 'px';
+    if (bar.style.top !== nt) bar.style.top = nt;
+    if (HOST && HOST.style.getPropertyValue('--sl-navoff') !== off) HOST.style.setProperty('--sl-navoff', off);   // task #401: scroll-margin-top of every section
   }
-  var spyRaf = 0;
+  var spyRaf = 0, lockTo = null, lockT = 0;
+  function markOn(on) {
+    var bar = $('secbar'); if (!bar) return;
+    bar.querySelectorAll('.sb-c').forEach(function (c) {
+      var y = c.getAttribute('data-sec') === on; c.classList.toggle('on', y);
+      if (y) { c.setAttribute('aria-current', 'location'); var l = bar.querySelector('.sb-l'); if (l && l.scrollWidth > l.clientWidth + 1) { var cl = c.offsetLeft - l.offsetLeft, cr = cl + c.offsetWidth; if (cl < l.scrollLeft || cr > l.scrollLeft + l.clientWidth) l.scrollLeft = Math.max(0, cl - 12); } }
+      else c.removeAttribute('aria-current');
+    });
+  }
   function spy() {
     spyRaf = 0;
     var bar = $('secbar'); if (!bar) return;
+    if (lockTo) { markOn(lockTo); return; }   // task #401: a click's own scroll does not fight the click
     var line = (parseFloat(bar.style.top) || 0) + bar.offsetHeight + 24, on = null;
     root.querySelectorAll('.step').forEach(function (st) { if (!st.hidden && st.getBoundingClientRect().top <= line) on = st.id; });
-    bar.querySelectorAll('.sb-c').forEach(function (c) { var y = c.getAttribute('data-sec') === on; c.classList.toggle('on', y); if (y) c.setAttribute('aria-current', 'location'); else c.removeAttribute('aria-current'); });
+    markOn(on);
   }
-  listen(window, 'scroll', function () { if (!spyRaf) spyRaf = requestAnimationFrame(spy); }, { passive: true });
+  function unlockSoon() { clearTimeout(lockT); lockT = setTimeout(function () { lockTo = null; spy(); }, 180); }
+  var lastFix = 0;
+  listen(window, 'scroll', function () { if (lockTo) unlockSoon(); else { var t = Date.now(); if (t - lastFix > 400) { lastFix = t; fixBarTop(); } } if (!spyRaf) spyRaf = requestAnimationFrame(spy); }, { passive: true });   // never re-measure during a click's own scroll
+  listen(window, 'wheel', function () { if (lockTo) { lockTo = null; } }, { passive: true });          // the reader takes over: follow the page again
+  listen(window, 'touchstart', function () { if (lockTo) { lockTo = null; } }, { passive: true });
   listen(window, 'resize', function () { fixBarTop(); spy(); });
+  [400, 1500].forEach(function (ms) { var tm = setTimeout(function () { fixBarTop(); spy(); }, ms); OFF.push(function () { clearTimeout(tm); }); });   // task #401: the site's strips can arrive after the page is drawn
   function goTo(id) {
     var el = root.getElementById(id), bar = $('secbar'); if (!el) return;
+    fixBarTop();   // task #401: measure the strips above first, so the heading lands right under the bar
     var off = (parseFloat(bar && bar.style.top) || 0) + (bar ? bar.offsetHeight : 0) + 12;
-    window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - off, behavior: 'smooth' });
+    // the step a target belongs to: the last visible step heading at or above it (a sub-section from "All sections" lights its step)
+    var step = el.classList.contains('step') ? id : null, et = el.getBoundingClientRect().top + 1;
+    if (!step) root.querySelectorAll('.step').forEach(function (st) { if (!st.hidden && st.getBoundingClientRect().top <= et) step = st.id; });
+    if (step) { lockTo = step; markOn(step); clearTimeout(lockT); lockT = setTimeout(function () { lockTo = null; spy(); }, 1600); }   // task #401: the clicked step is active at once
+    var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - off, behavior: reduce ? 'auto' : 'smooth' });
   }
   function renderAll() {
     renderStrip(); renderScen(); renderResults();
@@ -914,6 +969,7 @@ export function mountStressLab(root, E, D, opts) {
       S.callsOpen[key] = on; cx.setAttribute('aria-expanded', String(on)); cx.setAttribute('aria-label', on ? 'Hide the detail' : 'Show the detail');
       cx.innerHTML = svg(on ? '<path d="M5 12.5l5-5 5 5"/>' : '<path d="M5 7.5l5 5 5-5"/>', 16);
       var dd = root.getElementById(cx.getAttribute('aria-controls')); if (dd) dd.hidden = !on;
+      var ln = cx.parentNode && cx.parentNode.querySelector('.ln'); if (ln) ln.hidden = on;   // task #401: the one-line explanation gives way to the full detail
       var wrap = cx.closest('.calls'), btn = wrap && wrap.querySelector('[data-callall]');
       if (btn) { var every = [].every.call(wrap.querySelectorAll('[data-cx]'), function (b) { return b.getAttribute('aria-expanded') === 'true'; }); btn.textContent = every ? 'Close all' : 'Open all'; btn.setAttribute('aria-pressed', String(every)); }
       return;
@@ -934,6 +990,8 @@ export function mountStressLab(root, E, D, opts) {
     if (cl) { if (opts.onClose) opts.onClose(); return; }   // closes the company even when its figures could not be drawn
     var lk = ev.target.closest('[data-locked]');
     if (lk) { var up = $('upnote'); if (up) { up.classList.remove('pulse'); void up.offsetWidth; up.classList.add('pulse'); up.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } return; }
+    var xr = ev.target.closest('[data-xr]');
+    if (xr) { S.rowsOpen = S.rowsOpen || {}; var xid = xr.getAttribute('data-xr'); S.rowsOpen[xid] = !S.rowsOpen[xid]; renderEvery(coA()); var nb = root.querySelector('[data-xr="' + xid + '"]'); if (nb) nb.focus(); return; }   // task #401: open a row in place
     var t = ev.target.closest('[data-scen],[data-tc],[data-pers],[data-reset],[data-sure],[data-unit],[data-pick],[data-resetedits],#adj,[data-view]');
     if (!t || A_BAD) return;
     if (t.hasAttribute('data-scen')) pick(t.getAttribute('data-scen'));
@@ -942,12 +1000,12 @@ export function mountStressLab(root, E, D, opts) {
     else if (t.hasAttribute('data-reset')) { S.scen = 'today'; S.todayCrude = 'level'; S.custom = null; S.persistence = 'one_year'; S.stretch = {}; renderAll(); }
     else if (t.hasAttribute('data-sure')) { var k = t.getAttribute('data-sure'), v = +t.getAttribute('data-v'); if (Math.abs(v - A.exposure[k]) < 1e-6) delete S.edits[k]; else S.edits[k] = v; renderAll(); }
     else if (t.hasAttribute('data-unit')) { S.unit = t.getAttribute('data-unit'); renderResults(); }
-    else if (t.hasAttribute('data-pick')) pick(t.getAttribute('data-pick'));
+    else if (t.hasAttribute('data-pick')) pickRow(t);
     else if (t.hasAttribute('data-resetedits')) { S.edits = {}; renderAll(); }
     else if (t.hasAttribute('data-view')) { setView(t.getAttribute('data-view')); try { history.replaceState(null, '', t.getAttribute('data-view') === 'compare' ? '#compare' : '#one'); } catch (e) {} }
     else if (t.id === 'adj') { S.open = !(S.open || S.scen === 'custom'); if (!S.open && S.scen === 'custom') { S.scen = 'today'; } renderScen(); if (!S.open) renderResults(); }
   });
-  listen(root, 'keydown', function (ev) { var x = ev.target.closest && ev.target.closest('.ib'); if (x && (ev.key === 'Enter' || ev.key === ' ')) { ev.preventDefault(); toggleTip(x); return; } if (A_BAD) return; if ((ev.key === 'Enter' || ev.key === ' ') && ev.target.hasAttribute && ev.target.hasAttribute('data-pick')) { ev.preventDefault(); pick(ev.target.getAttribute('data-pick')); } });
+  listen(root, 'keydown', function (ev) { var x = ev.target.closest && ev.target.closest('.ib'); if (x && (ev.key === 'Enter' || ev.key === ' ')) { ev.preventDefault(); toggleTip(x); return; } if (A_BAD) return; if ((ev.key === 'Enter' || ev.key === ' ') && ev.target.hasAttribute && ev.target.hasAttribute('data-pick')) { ev.preventDefault(); pickRow(ev.target); } });
   listen(root, 'input', function (ev) {
     var t = ev.target;
     if (t.matches('.find input')) { findResults(t); return; }

@@ -3,7 +3,7 @@
 //    are in it now (GET /api/sector-next, counted on the server). Cards, one per state; those holding groups today have a gold edge and "N in it now".
 //  - PriceVsResults (addition 3): one row per group, the member's own first: the price side (state, stocks rising) beside its results groups this quarter
 //    (GET /api/results/quarter: industries[].vsMarket), and one fixed sentence read from the two.
-//  - InsideSector (addition 2): a picker, then the 12 strongest counted stocks of the group by 6-month return with their peer tag, FinLit Prism (stored scores only:
+//  - InsideSector (addition 2): a picker, then the 12 strongest counted stocks of the group by 6-month return with their peer label, FinLit Prism (stored scores only:
 //    GET /api/prism/scores reads, it never calculates, so it does not count against the daily Prism report limit) and trend words.
 import { useMemo, useState } from "react";
 import { Link } from "react-router";

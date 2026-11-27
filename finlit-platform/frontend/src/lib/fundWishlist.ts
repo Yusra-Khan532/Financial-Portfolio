@@ -4,7 +4,7 @@
 // to every device. Any signed-in member (everything stays free); a visitor is asked to sign in.
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiGet, apiSend } from "./api";
-import { useAuth } from "./auth";
+import { useAuthMaybe } from "./auth";
 import type { Facts, FundRow, PeerStats } from "./mf";
 
 export const WISH_MAX = 100;
@@ -17,8 +17,7 @@ export function toggleCode(codes: number[], code: number): number[] {
 
 /** The member's wishlist and a toggle. `signedIn` false: there is nothing to keep, and `toggle` reports "sign-in". */
 export function useFundWishlist() {
-  let auth: ReturnType<typeof useAuth> | null = null;
-  try { auth = useAuth(); } catch { auth = null; }          // a page drawn without the sign-in context (a test, a preview) acts as for a visitor
+  const auth = useAuthMaybe();                              // a page drawn without the sign-in context (a test, a preview) acts as for a visitor
   const uid = auth?.user?.id ?? null;
   const qc = useQueryClient();
   const q = useQuery({

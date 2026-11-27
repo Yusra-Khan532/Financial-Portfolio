@@ -9,16 +9,16 @@ Written 17 Nov 2026 from a full read of the repository, the team workspace and t
   1. Copy the task and the team's notes into a checklist, word for word.
   2. Reproduce each point on the live site.
   3. Fix the root cause.
-  4. Prove each point with a test or a screenshot: desktop and phone, light and dark, Silver and Gold where it applies.
+  4. Prove each point with a test or a screenshot: desktop and phone, light and dark, each plan where it applies (Free, a one-area plan, Gold, Platinum).
   5. Push only when everything passes, then check the live page.
 - Standing rules (`CLAUDE.md`):
   - Background jobs never stop or get weaker. The sector job runs only on weekend nights (owner, 18 Nov 2026: Saturday 23:00 to Sunday 08:00 IST, Sunday night as a catch-up, after every other job of the night; docs/JOBS.md); `SECTORS_JOB=off` in `/opt/finlit/.env.aws` switches it off.
   - Numbers are correct and current, and every blank says why.
   - Describe, never advise, and keep the disclaimer.
-  - Everything stays free.
+  - Plans: Free, Mutual Fund + ETF, Equity Portfolio, the combined plan, Gold and Platinum (owner, 27 Nov 2026, task #410); prices only in `frontend/src/landing/goliveData.js`; payments not live yet.
   - Secrets live only in `/opt/finlit/.env.aws`.
   - No model names in commits or code.
-- Design: the "FinLit final pages" pack (`docs/design/finlit-final-pages/`) is the final design for the pages it shows. The landing page follows its own tasks (#118–#121).
+- Design: the "FinLit final pages" pack (`docs/design/finlit-final-pages/`) is the final design for the pages it shows. The landing page follows its own tasks (#118–#121). Since task #407 (26 Nov 2026) it is the team's go-live pack: markup `landing/GoLiveMarkup.tsx`, interactive parts `landing/golive.js` (the pack's scripts, ported), data `landing/goliveData.js` (areas, tools, plans and their prices, recordings: change prices there only), styles `landing/golive.css`, media `public/landing/golive/`; the hero's company check reads the search index and `/api/search/quotes`.
 - Shipping:
   - Work goes on a branch, then a PR on `Yusra-Khan532/Financial-Portfolio`, squash-merged when every check passes.
   - `main` reaches the live site by itself in about 10 minutes.
@@ -76,11 +76,11 @@ Written 17 Nov 2026 from a full read of the repository, the team workspace and t
     - `due.py`: what runs when.
     - `supervisor.py`, `runner.py`: run each job and kill it by process group.
   - Time windows (IST): night 23:00–05:00, morning 05:00–08:00, after close 18:30–21:30.
-  - Watchlists (task #408, the founder's 27 Nov pack): the page reads `meta[SYM].addedPrice` (filled once for older entries by the probe-driven job `watchlist-prices`, `finlit/watchprices.py`), list alerts on the list (`alerts: {target, peer, filings}`; target alerts in `finlit/targetalerts.py`, run by the market-hours `check-alerts`; peer labels in `finlit/labelalerts.py`; filings are the list's `discover_filing` alert) and `GET /api/screener/membership` (Gold). Page: `pages/Watchlist.tsx`, `watchlist/`, `lib/watchlistPack.ts`, `lib/watchlistData.ts`.
+  - Watchlists (task #408, the founder's 27 Nov pack): the page reads `meta[SYM].addedPrice` (filled once for older entries by the probe-driven job `watchlist-prices`, `finlit/watchprices.py`), list alerts on the list (`alerts: {target, peer, filings}`; a list never saved through Alerts for this list gets no target or peer-label alert, an older `labelAlert` still counts; target alerts in `finlit/targetalerts.py`, run by the market-hours `check-alerts`; peer labels in `finlit/labelalerts.py`; filings are the list's `discover_filing` alert) `GET /api/screener/membership` (Gold and Platinum), and Needs a look card 4 from the weekly record (`changed`, `weekEnd` on /leadership and /leadership/list, `recordWeek` on the list). Page: `pages/Watchlist.tsx`, `watchlist/`, `lib/watchlistPack.ts`, `lib/watchlistData.ts`.
   - Nightly scores export (task #326, `docs/SCORES-EXPORT.md`): job `scores-export` after presets writes one file per market day to the `scores_export` volume; the owner's Mac reads `/internal/export/scores` with `X-Export-Key` (`EXPORT_KEY` in `/opt/finlit/.env.aws`).
   - Monitoring (owner, 24 Nov 2026, `docs/MONITORING.md`): the `gatus` container checks the public site every minute and emails on failure and recovery through Resend's SMTP (`RESEND_API_KEY`, `ALERT_EMAIL_TO` in `.env.aws`); GitHub Actions `platform-uptime.yml` (outside check, every 5 min) and `platform-load.yml` (k6, nightly and Sunday night); optional `uptime-kuma` (`COMPOSE_PROFILES=kuma`). Public `/status`, admin Console → Monitoring (`backend/finlit/monitoring.py`).
 - **Database:**
-  - `finlit/migrations/NNN_*.sql` are applied in filename order. The latest is `106_company_classification.sql`, and numbers have gaps, so the next one is `107_`.
+  - `finlit/migrations/NNN_*.sql` are applied in filename order. The latest is `140_company_brief_writer_retry.sql` (25 Nov 2026), so the next one is `141_`: always the highest number plus one (`ls backend/finlit/migrations | tail -1`). Numbers have gaps (20, 22–26, 29–31, 36, 66–69, 75, 89); never fill one, as it would sort before migrations already applied. Each file is recorded in `schema_migrations` by its full name.
   - Migrations only go forward: a rollback does not undo them.
   - A one-time data change that needs Python runs from `Store.migrate()` after the SQL files and records its own version in `schema_migrations`
     (it never raises, so it cannot stop a deploy or a job). The first is task #283 PR D's `finlit/iq_retire.py` (`123_iq_to_prism`): members' saved
@@ -100,7 +100,7 @@ Written 17 Nov 2026 from a full read of the repository, the team workspace and t
   | Resend | Email (sign-up codes, alerts; Gmail "Send mail as" contact@) |
   | Amazon SES (Sydney) | Bulk mail from contact@finlitventures.com: Console > Email (`finlit/mailer.py`, task #387). Key: IAM user finlit-ses-sender (send-only) in `SES_REGION`, `SES_ACCESS_KEY_ID`, `SES_SECRET_ACCESS_KEY`. Out of the sandbox since 24 Nov 2026: 50,000 a day, 14 a second |
 - **Plans:**
-  - `auth/entitlements.py` holds `RANK`, `has()`, `LIMITS` and the `redact_*` functions.
+  - `auth/entitlements.py` holds `RANK`, `has()`, `LIMITS` and the `redact_*` functions; since task #410 also the plan keys (`PLAN_KEYS`, `TIER_OF`: each plan opens an access tier), `is_platinum()` (Stress Lab, forecasting), `in_area(ctx, "mf" | "eq")` (the one-area plans) and `part_of()` (the plan names in a lock message). The frontend twin is `lib/auth.tsx` (`tierOf`, `keyOf`) and `lib/ui.tsx` (`Gate`, `passes`).
   - Every route checks the plan itself (24 files); there is no central dependency, so **a new route must add its own check**.
   - The session cache lasts 120 s; call `forget_cached` when a plan changes.
   - `SHOWCASE_SYMBOLS` are open to every plan.
@@ -138,7 +138,7 @@ Written 17 Nov 2026 from a full read of the repository, the team workspace and t
 - **Tests:**
   - Vitest: about 305 files and 2,800 cases. jsdom is chosen per file with `// @vitest-environment jsdom`.
   - Browser checks are standalone Playwright scripts in `e2e/`, for example `layout_guard.mjs` (`docs/LAYOUT-GUARD.md`). CI runs none of them.
-  - There is no ESLint, although the code has about 97 `exhaustive-deps` suppressions.
+  - **ESLint, React hooks rules only (25 Nov 2026):** `npm run lint:install` once, then `npm run lint` (CI's Website workflow and `scripts/preflight.sh` run it). It lives in `frontend/lint/` with its own packages, because typescript-eslint parses with TypeScript 5.9 and cannot use the app's TypeScript 7. `react-hooks/rules-of-hooks` is an error; `react-hooks/exhaustive-deps` warnings may not grow past `--max-warnings` in `package.json` (60 on 25 Nov; lower it when you fix some, never raise it). About 160 older `eslint-disable-line react-hooks/exhaustive-deps` comments remain.
 - **Large files:**
   - `src/stress/stressLab.js` (untyped).
   - Pages: `AdvancedCharts.tsx`, `ScreenerPro.tsx`, `Dcf.tsx`, `EpsCalculator.tsx`, `Funds.tsx`.
@@ -177,7 +177,7 @@ Memory is the recurring fault (`docs/ops/MEMORY-AND-503.md`).
 1. A PR is merged to `main`.
 2. `platform-image.yml` builds `ghcr.io/yusra-khan532/finlit-app:<sha>`. It runs only when `finlit-platform/**` changes.
 3. The server's timer runs `deploy/aws/auto-deploy.sh` about every 5 minutes:
-   1. It runs `git ls-remote` and takes a backup.
+   1. It runs `git ls-remote`, then waits until the checks that the push of that commit started are green (the checks gate, 25 Nov 2026: Platform CI, Security, Website, codeql; the image build is left to `deploy.sh`; scheduled checks never block it). A red commit is held, never deployed; a re-run that turns green, or a newer green commit, is deployed. Since 27 Nov 2026 it deploys the NEWEST GREEN commit among the branch's last 20 newer than the deployed one (`AUTO_DEPLOY_LOOKBACK`), so a newest commit whose 70-90 minute checks are still running, or red, no longer holds back an older green one (merges arriving faster than CI had stopped all deploys for hours); never backwards, a failed deploy is never retried, and `deploy.sh` is handed the exact commit (`DEPLOY_SHA`). `auto-deploy.sh skip-ci` deploys without waiting (emergencies only, logged); `CI_GATE=off` in `/opt/finlit/auto-deploy.conf` turns the gate off. Then it takes a backup.
    2. `deploy.sh` pulls the prebuilt image, waiting up to 20 minutes, or builds it locally.
    3. It tags the old image `previous` and starts the new one.
    4. It waits for `/api/ping` and `/api/health`.
@@ -185,7 +185,7 @@ Memory is the recurring fault (`docs/ops/MEMORY-AND-503.md`).
 4. A failed deploy rolls back to `previous`, and its SHA is never retried.
 
 **Fragile points:**
-- Nothing waits for CI; whatever lands on `main` is deployed.
+- ~~Nothing waits for CI~~: since 25 Nov 2026 a commit is deployed only once its checks are green (above). The server picks the gate up after the first deploy that carries it (the installed `auto-deploy.sh` replaces itself after a successful deploy).
 - A commit outside `finlit-platform/` gets no image, so the 2 GB server builds the image itself.
 - `tsc` runs only in the frontend workflow.
 
@@ -230,9 +230,9 @@ Before a push: `bash scripts/preflight.sh`.
 - #191 (Zerodha, Upstox, Groww connection), #212 (superinvestor portfolios from FinEdge) and #211 ("claude integration check") need scoping first.
 - ~~Should Cloudflare's proxy be turned on?~~ Done (on by 24 Nov 2026), and the EC2 security group is limited to Cloudflare's ranges (above).
 - Cheap safety fixes worth doing between tasks:
-  - deploy only after CI passes;
+  - ~~deploy only after CI passes~~ (done 25 Nov 2026, the checks gate in `auto-deploy.sh`);
   - one central plan-check dependency on the backend;
-  - ESLint for React hooks;
+  - ~~ESLint for React hooks~~ (done 25 Nov 2026, `frontend/lint/`);
   - the layout guard in CI.
 - Out-of-date docs:
   - `TEAM-DEPLOY.md`: misses the prebuilt image and the separate jobs container.

@@ -19,8 +19,8 @@ describe("task #378: the score cell centred, a larger score, P R C Q apart, a na
     expect(t371).toContain(":root .mfs-table td.mfs-hs .mfs-pv { font-size: var(--fs-20);");
   });
   it("P R C Q are 8px apart", () => { expect(t371).toContain(".mfs-cell .mfs-parts { gap: 8px;"); });
-  it("each part names itself and its rating on hover, focus or tap (a word, never a figure)", () => {
-    expect(cell).toMatch(/const tip = `\$\{p\.name\}: \$\{parts\[p\.key\] \?\? "Not scored"\}`;/);
-    expect(cell).toMatch(/tabIndex=\{0\} title="" data-tip=\{tip\} aria-label=\{tip\}/);
+  it("each part names itself, its figure and its rating on hover, focus or tap (reopened 25 Nov: the figure was missing; see scoreParts378.test.tsx)", () => {
+    expect(cell).toContain("partTip(p.name, parts[p.key], scores?.[p.key])");
+    expect(cell).toMatch(/tabIndex=\{0\} title="" data-tip=\{tipLines\(tips\[i\]\)\} aria-label=\{tips\[i\]\}/);   // the box: two lines, the figure on its own
   });
 });

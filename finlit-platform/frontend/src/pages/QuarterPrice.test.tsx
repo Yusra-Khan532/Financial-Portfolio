@@ -221,7 +221,7 @@ describe("the table columns", () => {
     st.plan = "basic";
     st.resp = resp({ locked: true, total: 1, rows: [mk({ below52: null, belowAth: null, price: null, high52: null, ath: null, hasNumbers: true, locked: true })] });
     open();
-    expect(document.querySelector("td.qr-pp abbr")!.getAttribute("title")).toMatch(/Silver/);
+    expect(document.querySelector("td.qr-pp abbr")!.getAttribute("title")).toMatch(/every paid plan/);
   });
 });
 

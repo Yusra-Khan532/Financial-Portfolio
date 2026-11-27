@@ -142,6 +142,24 @@ def load(rel: Optional[Path] = None) -> Optional[Dict[str, Any]]:
         return None
 
 
+def apply_labels(reading: Optional[Dict[str, Any]], labels: Optional[Dict[str, Optional[str]]]) -> int:
+    """Task #409: the peer label (sr_peer, and sr_lead, which the four sector screens filter on) from the weekly record, the label the rest of the site
+    shows, instead of the sector build's own. `labels` is symbol -> 'Leader' | 'In line' | 'Laggard' (None: no label); a company with no stored row has
+    no label. Nothing changes while the record has no rows (labels None). Returns how many companies' label differs from the sector build's."""
+    if not reading or labels is None:
+        return 0
+    moved = 0
+    for sym, f in reading["by"].items():
+        new = labels.get(sym)
+        new = new if new in PEERS else None
+        if f.get("sr_peer") != new:
+            moved += 1
+        f["sr_peer"] = new
+        f["sr_lead"] = 1.0 if new == "Leader" else 0.0
+        f["sr_tailwinds"] = tailwinds(f)
+    return moved
+
+
 def mark(prism: Dict[str, dict], reading: Optional[Dict[str, Any]]) -> int:
     """Put the reading on each company's frame fields. Returns how many companies got one."""
     if not reading:

@@ -10,9 +10,10 @@ export type LeadLabel = "leader" | "in_line" | "laggard";
 export type ListLead =
   | { available: true; label: LeadLabel; rank: number; ranked: number; group: string; groupName?: string | null; sector: string | null; sectorKind?: string | null; rel52: number | null;
       fundamentalRank: number | null; fundamentalOf: number | null; fundamentalNote: "below_peers" | "stronger_than_price" | null; stale?: boolean;
-      /** task #235 (E4): the week's own reading and its direction, for the Equity portfolio's table */ rawLabel?: LeadLabel | null; direction?: "gaining" | "weakening" | null }
+      /** task #235 (E4): the week's own reading and its direction, for the Equity portfolio's table */ rawLabel?: LeadLabel | null; direction?: "gaining" | "weakening" | null;
+      /** task #408: the weekly record's latest row changed the label in a real weekly run, and that row's week */ changed?: boolean | null; weekEnd?: string | null }
   | { available: false; reason: string; text: string };
-export type ListLeadFeed = { available: true; asOf: string; rows: Record<string, ListLead> } | { available: false; reason: string };
+export type ListLeadFeed = { available: true; asOf: string; /** task #408: the record's latest committed weekly run */ recordWeek?: string | null; rows: Record<string, ListLead> } | { available: false; reason: string };
 
 // ------------------------------------------------------------------------------------------------ words of the page (01-page.md, final wording)
 export const PAGE_DESC = "The companies you follow: what moved, what is near your target, and what is new.";
@@ -83,7 +84,7 @@ export type WStock = {
   prism: number | null; prismWord: string | null; gp: number | null; val: number | null; qual: number | null; risk: number | null;
   stS: number | null; stW: string | null; ltS: number | null; ltW: string | null;
   peer: LeadLabel | null; peerRank: number | null; peerOf: number | null; peerGroup: string | null; peerWhy: string | null; noLabelYet: boolean;
-  rawLabel: LeadLabel | null; pending: string | null; labelSince: string | null; leadAsOf: string | null; labelBefore: LeadLabel | null;
+  rawLabel: LeadLabel | null; pending: string | null; labelSince: string | null; changed: boolean; weekEnd: string | null; labelBefore: LeadLabel | null;
   vixName: string | null; vix52: number | null; vix13: number | null; grp1: string | null;
   mcap: number | null; pe: number | null; pb: number | null; dy: number | null; roe: number | null;
   revY: number | null; revCr: number | null; npY: number | null; npCr: number | null; resD: string | null; resQ: string | null; filings: Filing[];
@@ -248,6 +249,7 @@ export type LookCtx = {
   /** Discover's filings since the last visit (What changed's rows with something new) */ filings: { s: string; kind: string; t: string | null; d: string }[];
   /** Sector Rotation's moves in the latest weekly run, and its date */ moved: { slug: string; name: string; from: string; to: string }[]; rotDate: string | null; sectors: boolean;
   /** the screens' as-of date */ scrAsOf: string | null;
+  /** the peer-label record's latest committed weekly run (/api/leadership/list recordWeek) */ recordWeek: string | null;
   /** today in India (for "for 7 days after that run") */ today: string;
 };
 const daysBetween = (a: string, b: string) => Math.round((Date.parse(b.slice(0, 10)) - Date.parse(a.slice(0, 10))) / 86_400_000);
@@ -259,8 +261,10 @@ export function lookCards(list: WStock[], c: LookCtx): Look[] {
     if (d != null && Math.abs(d) <= NEAR && s.target) out.push({ s: s.s, k: "tgt", kl: "Near your target", n: 1, t: Math.abs(d) < 0.05 ? `At your target of ${rs(s.target)}` : `${rs(s.px!)} is ${Math.abs(d).toFixed(1)}% ${d > 0 ? "below" : "above"} your target of ${rs(s.target)}` });
     if (s.chgp != null && s.px != null && Math.abs(s.chgp) >= 5) out.push({ s: s.s, k: s.chgp > 0 ? "up" : "dn", kl: "Big move", n: 2, t: `${s.chgp > 0 ? "Up" : "Down"} ${Math.abs(s.chgp).toFixed(1)}% today, to ${rs(s.px)}.` });
     if (c.results[s.s]) out.push({ s: s.s, k: "soon", kl: "Results soon", n: 3, t: `Board meeting for results on ${dMon(c.results[s.s])}.` });
-    if (s.peer && s.labelBefore && s.labelBefore !== s.peer && s.labelSince && s.leadAsOf && s.labelSince === s.leadAsOf && daysBetween(s.leadAsOf, c.today) <= 7)
-      out.push({ s: s.s, k: "tag", kl: "Peer label changed", n: 4, t: `Now ${LABEL_WORD[s.peer]}, after ${LABEL_WORD[s.labelBefore]}, in the ${dMon(s.leadAsOf)} weekly check.` });
+    // card 4 reads the weekly record (task #409): its row in the latest committed run has changed = true, for 7 days after that run; the label before is the
+    // stock's previous record row. Nothing here works out a label.
+    if (s.changed && s.peer && s.weekEnd && c.recordWeek && s.weekEnd === c.recordWeek && daysBetween(s.weekEnd, c.today) <= 7 && daysBetween(s.weekEnd, c.today) >= 0 && s.labelBefore && s.labelBefore !== s.peer)
+      out.push({ s: s.s, k: "tag", kl: "Peer label changed", n: 4, t: `Now ${LABEL_WORD[s.peer]}, after ${LABEL_WORD[s.labelBefore]}, in the ${dMon(s.weekEnd)} weekly check.` });
     for (const f of c.filings.filter((x) => x.s === s.s)) out.push({ s: s.s, k: "file", kl: "New filing", n: 5, t: f.t ? `${f.kind}: ${cut(f.t)}` : `${f.kind}: filed on ${dMon(f.d)}.` });
     if (s.px != null && s.h52 && (1 - s.px / s.h52) * 100 <= 2) out.push({ s: s.s, k: "hl", kl: "Near 52-week high", n: 6, t: `${Math.max(0, (1 - s.px / s.h52) * 100).toFixed(1)}% below its 52-week high of ${rs(s.h52)}.` });
     else if (s.px != null && s.l52 && (s.px / s.l52 - 1) * 100 <= 2) out.push({ s: s.s, k: "hl", kl: "Near 52-week low", n: 6, t: `${Math.max(0, (s.px / s.l52 - 1) * 100).toFixed(1)}% above its 52-week low of ${rs(s.l52)}.` });
@@ -314,5 +318,6 @@ export function alertsLine(a: ListAlerts): string {
 }
 
 // ------------------------------------------------------------------------------------------------ the list is full (06, plan limits)
-/** The add box's placeholder when the plan's limit is reached: "This list is full: 30 stocks on Silver" (the site's real limits). */
-export const fullText = (limit: number, plan: string) => `This list is full: ${limit.toLocaleString("en-IN")} stocks on ${plan.charAt(0).toUpperCase() + plan.slice(1)}`;
+/** The add box's placeholder when the plan's limit is reached: "This list is full: 1,000 stocks on Gold". The limit is the server's (entitlements.LIMITS,
+ *  stocks across every list); `plan` is the plan's name as a member reads it (lib/planNames.ts). */
+export const fullText = (limit: number, plan: string) => `This list is full: ${limit.toLocaleString("en-IN")} stocks on ${plan}`;

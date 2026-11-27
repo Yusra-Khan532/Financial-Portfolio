@@ -15,6 +15,8 @@ const VISIBLE = /(["'`>])([^"'`<>\n]*\b[Ff]undamentals?\b[^"'`<>\n]*)(?=["'`<])/
 // Task #126 (14 Nov 2026, the team's sample, kept at the founder's choice): the tag on the business-scores card of "How the scores have moved" reads "Fundamental".
 // Task #122 (14 Nov 2026, the team's picture, its wording kept exactly at the founder's choice): the landing page's Prism part says "4 Fundamental Areas"
 // (its "Combines fundamental and technical views..." strip was removed by task #149).
+// Task #407 (26 Nov 2026, the team's go-live pack, its wording kept exactly): the landing page's picture of the Prism card says
+// "Fundamental · one score, four parts" and "Cumulative fundamental score 57.9 of 100, Average".
 // Task #183 (15 Nov 2026, the team's portfolio pack, its screenshots): the Equity portfolio's heading band reads "Fundamental pillars".
 // Task #243 (18 Nov 2026, the screeners pack v4, the owner's v3 request 8): the screen tables label the Prism columns "Score · 4 fundamental pillars · 2 technical pillars".
 // Task #280 (20 Nov 2026, the team's picture of the company header: "INSTEAD OF RATING MAKE IT FUNDAMENTAL RATING EVERYWHERE"): the label of the Prism and
@@ -23,7 +25,7 @@ const VISIBLE = /(["'`>])([^"'`<>\n]*\b[Ff]undamentals?\b[^"'`<>\n]*)(?=["'`<])/
 // "FinLit Prism · fundamental score", and the i texts that explain it); any string that says both "FinLit Prism" and "fundamental score" is allowed.
 // Task #408 (27 Nov 2026, the founder's Watchlists pack, 02-columns and its approved reference page): the Prism column set's group heading reads
 // "FinLit Prism · Fundamental score", capital F as the pack writes it.
-const ALLOWED = /^((?=.*FinLit Prism)(?=.*[Ff]undamental score).*|Fundamental rating|Prism fundamental rating|FinLit IQ fundamental rating|Fundamental|Fundamental pillars|4 fundamental pillars| fundamental |4 Fundamental Areas|Prism Fundamental score|Fundamental Score|Total Fundamental Score|Fundamental analysis|Cumulative fundamental score|Fundamental components|Filter stocks using our fundamental and technical scoring model\.|fundamentals?|prism_fundamental|stock-fundamentals|cmp-fundamentals|\/premium\/fundamentals.*|premium\/fundamentals|\/fundamentals.*|\.\/pages\/Fundamentals|.*\$\{.*|= \{ fundamental:.*)$/;
+const ALLOWED = /^((?=.*FinLit Prism)(?=.*[Ff]undamental score).*|Fundamental rating|Prism fundamental rating|FinLit IQ fundamental rating|Fundamental|Fundamental pillars|4 fundamental pillars| fundamental |4 Fundamental Areas|Prism Fundamental score|Fundamental Score|Total Fundamental Score|Fundamental analysis|Cumulative fundamental score|Fundamental · one score, four parts|Cumulative fundamental score 57\.9 of 100, Average|Fundamental components|Filter stocks using our fundamental and technical scoring model\.|fundamentals?|prism_fundamental|stock-fundamentals|cmp-fundamentals|\/premium\/fundamentals.*|premium\/fundamentals|\/fundamentals.*|\.\/pages\/Fundamentals|.*\$\{.*|= \{ fundamental:.*)$/;
 
 describe("no 'Fundamental' on any page", () => {
   it("no visible string uses the word (only routes, ids and data keys keep it)", () => {

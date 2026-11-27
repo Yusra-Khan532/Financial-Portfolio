@@ -6,7 +6,7 @@ export type Metric = { label: string; unit: string; group: Group; live: boolean;
 const TIER_RANK: Record<string, number> = { basic: 0, silver: 1, gold: 2 };
 /** True when the member's plan does not include the metric (Silver metrics below Silver; FinLit Prism below Gold). */
 export const tierLocked = (tier: Tier, plan: string): boolean => (TIER_RANK[plan] ?? 0) < TIER_RANK[tier];
-export const TIER_LABEL: Record<Tier, string> = { basic: "Basic", silver: "Silver", gold: "Gold" };
+export const TIER_LABEL: Record<Tier, string> = { basic: "Free", silver: "Paid plans", gold: "Gold" };   // task #410: the new plan names (silver = every paid plan)
 
 export const METRICS: Record<string, Metric> = {
   price: { label: "Price", unit: "₹", group: "Price & momentum", live: true, tier: "basic", ops: ["above", "below"], hint: "The last traded price. Checked every few minutes while the market is open.", sample: 0 },

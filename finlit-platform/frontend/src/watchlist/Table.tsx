@@ -7,6 +7,7 @@ import { AlertButton } from "../components/AlertComposer";
 import { Tip } from "../components/sectors/pack/Common";
 import { Logo } from "../components/search/parts";
 import { titleOf } from "../lib/companyLabel";
+import { plansFromText } from "../lib/planNames";
 import type { WatchData } from "../lib/watchlistData";
 import { quarterName } from "../lib/watchlistData";
 import {
@@ -18,7 +19,7 @@ import { PriceChart } from "./Chart";
 const chev = <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>;
 const sortI = <svg aria-hidden="true" fill="none" height="10" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.6" viewBox="0 0 12 12" width="10"><path d="m3 4.5 3-3 3 3M3 7.5l3 3 3-3" /></svg>;
 const noteI = <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4z" /><path d="m13.5 6.5 4 4" /></svg>;
-const PRISM_GOLD = "FinLit Prism comes with Gold.";
+const PRISM_GOLD = `FinLit Prism comes with ${plansFromText("gold")}.`;   // the plans whose tier opens it (lib/planNames.ts)
 
 export type TableProps = {
   stocks: WStock[]; view: View; group: GroupBy; sort: string | null; dir: 1 | -1; open: Set<string>; shut: Set<string>; cmp: Set<string>;
@@ -175,8 +176,8 @@ function Details({ s, p, span }: { s: WStock; p: TableProps; span: number }) {
         {S?.s6 != null && kv("Vs average industry", <><span className={tone(S.s6, 1)}>{pts(S.s6)}</span> over 6 months{S.s1 != null && <span className="wl-sub2"><span className={tone(S.s1, 1)}>{pts(S.s1)}</span> last month</span>}</>)}
         {kv("Theme", s.theme ? <>{s.theme}{s.themeStatus && <span className="wl-mut"> · {s.themeStatus}</span>}</> : "Not placed yet")}
       </dl>}</section>
-      <section className="wl-xc d-scr" id={`wls-${s.s}`}><h3>Advanced screener · {d.screensLocked ? "Gold" : s.scr.length ? `${s.scr.length} screen${s.scr.length === 1 ? "" : "s"}` : "no screens"}</h3>
-        {d.screensLocked ? <p className="wl-none2">The Advanced screener’s screens come with Gold.</p> : d.err.screens ? <Retry fn={d.err.screens} /> : s.scr.length ? <ul className="wl-scl">{s.scr.map((x) =>
+      <section className="wl-xc d-scr" id={`wls-${s.s}`}><h3>Advanced screener{d.screensLocked ? "" : " · "}{d.screensLocked ? "" : s.scr.length ? `${s.scr.length} screen${s.scr.length === 1 ? "" : "s"}` : "no screens"}</h3>
+        {d.screensLocked ? <p className="wl-none2">The Advanced screener’s screens come with {plansFromText("gold")}.</p> : d.err.screens ? <Retry fn={d.err.screens} /> : s.scr.length ? <ul className="wl-scl">{s.scr.map((x) =>
           <li key={x.id}><Link to={`/advanced-score-screener?preset=${encodeURIComponent(x.id)}`}>{x.name} ↗</Link><small>{x.group} · {x.added_on ? (x.baseline ? `on it since ${dMon(x.added_on)}` : `joined ${dMon(x.added_on)}`) : "on it today"}{x.position ? ` · ${x.position} of ${x.count}` : ""}</small></li>)}</ul>
           : <p className="wl-none2">{n != null ? `Not in any of the screener’s ${n} screens today.` : "Not in any of the screener’s screens today."}</p>}
         {!d.screensLocked && d.screens?.asOf && <p className="wl-foot2">Screens as of {dMon(d.screens.asOf)}. A screen narrows a list; it is not a recommendation.</p>}</section>

@@ -3,7 +3,7 @@
 //   quote, returns          GET /api/stocks/{s}             (the company report's header and returns; the same cache as the report)
 //   peer label, place       GET /api/leadership/list        (label, rank, ranked, group) and GET /api/stocks/{s}/leadership (labelSince, rel, peers[0], display.pending)
 //   label before a change   GET /api/stocks/{s}/leadership-history, only for a stock whose label changed in the latest weekly run
-//   Prism                   POST /api/portfolio/overview    (as the Shares page; FinLit Prism for Gold)
+//   Prism                   POST /api/portfolio/overview    (as the Shares page; FinLit Prism for Gold and Platinum)
 //   size, P/E, P/B, yield, ROE   the screener's universe row (as the live page)
 //   revenue, net profit     GET /api/stocks/{s}/financials  (quarterly.pl, latest quarter and the same quarter a year earlier)
 //   results, filings        GET /api/stocks/{s}/events      (announcements)
@@ -11,7 +11,7 @@
 //   theme                   GET /api/discovery/board
 //   industry, sector        GET /api/taxonomy/companies, GET /api/sectors/membership
 //   Sector Pulse, Rotation  GET /api/sectors, GET /api/rotation
-//   screens                 GET /api/screener/membership    (Gold)
+//   screens                 GET /api/screener/membership    (Gold and Platinum)
 //   results within 7 days   GET /api/results/calendar
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { ApiError, apiGet, retryDelayMs, shouldRetry, type Quote, type Return } from "./api";
@@ -74,7 +74,9 @@ export function useWatchData({ symbols, meta, view, open, gold, signedIn }: { sy
   const summaries = useQueries({ queries: symbols.map((s) => sec<Summary>(s, "", true)) });
   const leads = useQueries({ queries: symbols.map((s) => ({ queryKey: ["leadership", s], queryFn: () => apiGet<Leadership>(`/api/stocks/${encodeURIComponent(s)}/leadership`), staleTime: 15 * 60_000, retry: 1 })) });
   const list = useLeadershipList(symbols, on);
-  const changedNow = symbols.filter((_s, i) => { const l = leads[i].data; return l && l.available && l.labelSince && l.labelSince === l.asOf; });
+  // card 4: a stock whose record row changed the label in the latest weekly run (task #409's `changed`); its previous row gives the label before
+  const listRow = (s: string) => { const r = list.data?.available ? list.data.rows[s] : undefined; return r && r.available ? r : null; };
+  const changedNow = symbols.filter((s) => { const r = listRow(s); return !!(r?.changed && r.weekEnd); });
   const hist = useQueries({ queries: changedNow.map((s) => ({ queryKey: ["leadership-history", s], queryFn: () => apiGet<{ available: boolean; rows: LeadRun[] }>(`/api/stocks/${encodeURIComponent(s)}/leadership-history`), staleTime: 15 * 60_000, retry: 1 })) });
   const fins = useQueries({ queries: symbols.map((s) => sec<Fin>(s, "/financials", biz || eager || open.has(s))) });
   const evs = useQueries({ queries: symbols.map((s) => sec<Events>(s, "/events", biz || eager || open.has(s))) });
@@ -107,7 +109,8 @@ export function useWatchData({ symbols, meta, view, open, gold, signedIn }: { sy
     const p = isReady(o) ? o.prism : undefined;
     const lon = l && l.available ? l : null;
     const h = changedNow.includes(s) ? hist[changedNow.indexOf(s)].data : undefined;
-    const before = lon && h?.rows?.length ? [...h.rows].filter((r) => r.date < lon.labelSince!).sort((a, b) => b.date.localeCompare(a.date))[0]?.label ?? null : null;
+    const wk = (lr && lr.available ? lr.weekEnd : null) ?? null;
+    const before = wk && h?.rows?.length ? [...h.rows].filter((r) => r.date < wk).sort((a, b) => b.date.localeCompare(a.date))[0]?.label ?? null : null;
     const pl = fins[i].data?.quarterly?.pl, rv = yoy(pl, "revenue"), np = yoy(pl, "net_profit");
     const res = lastResults(evs[i].data, rv.period);
     const slug = mem.data?.groups?.[s]?.slug ?? null, g = slug ? secBy.get(slug) : undefined, r = slug ? rotBy.get(slug) : undefined;
@@ -137,7 +140,7 @@ export function useWatchData({ symbols, meta, view, open, gold, signedIn }: { sy
       peerGroup: lr && lr.available ? (lr.groupName || lr.group) : lon?.peerGroup.short ?? null,
       peerWhy: lr && !lr.available ? lr.text : null, noLabelYet: !!lr && !lr.available && lr.reason === "history",
       rawLabel: (lon?.rawLabel as LeadLabel | null | undefined) ?? (lr && lr.available ? lr.rawLabel ?? null : null), pending: lon?.display?.pending ?? null,
-      labelSince: lon?.labelSince ?? null, leadAsOf: lon?.asOf ?? (list.data?.available ? list.data.asOf : null), labelBefore: (before as LeadLabel | null),
+      labelSince: lon?.labelSince ?? null, changed: !!(lr && lr.available && lr.changed), weekEnd: wk, labelBefore: (before as LeadLabel | null),
       vixName: lon?.benchmarks.sector.name ?? null, vix52: lon?.rel.w52 != null ? lon.rel.w52 * 100 : null, vix13: lon?.rel.w13 != null ? lon.rel.w13 * 100 : null,
       grp1: peers0 && peers0.rel52 != null && lon ? `${peers0.name ?? peers0.symbol}, ${pts(peers0.rel52 * 100)} vs ${lon.benchmarks.sector.name}` : null,
       mcap: u?.market_cap ?? null, pe: u?.pe ?? null, pb: u?.pb ?? null, dy: u?.dividend_yield ?? null, roe: u?.roe ?? null,
@@ -181,6 +184,7 @@ export function useWatchData({ symbols, meta, view, open, gold, signedIn }: { sy
     screens: scr.data ?? null,
     screensLocked: !gold || (scr.error instanceof ApiError && scr.error.status === 403),
     resultsSoon,
+    recordWeek: list.data?.available ? list.data.recordWeek ?? null : null,
     today: cal.data?.today ?? today,
     latestPeriod: stocks.map((x) => yoy(fins[symbols.indexOf(x.s)]?.data?.quarterly?.pl, "revenue").period).find(Boolean) ?? null,
   };

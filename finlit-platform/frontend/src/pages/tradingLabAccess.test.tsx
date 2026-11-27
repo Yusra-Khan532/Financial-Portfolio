@@ -2,7 +2,7 @@
 // Trading Lab access (founder, 25 Nov 2026: "only admin can give access to anybody"): the page shows its tools only to a member the server says has
 // access, an invitation message otherwise; the menu entry appears only with the granted feature; the admin panel grants by email and removes.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { hasLab, hasSignals } from "../lib/lab";
@@ -13,6 +13,7 @@ const toast = vi.fn();
 vi.mock("../lib/ui", async (orig) => ({ ...(await orig<typeof import("../lib/ui")>()), useUI: () => ({ toast }) }));
 import { TradingLabPage } from "./TradingLab";
 import { LabAccess } from "../components/admin/LabAccess";
+import { settle } from "../testing/settle";
 
 const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 let answer: (url: string, init?: RequestInit) => Response;
@@ -23,7 +24,6 @@ beforeEach(() => {
 });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 const wrap = (el: React.ReactNode) => render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><MemoryRouter>{el}</MemoryRouter></QueryClientProvider>);
-const settle = async () => { await act(async () => { await new Promise((r) => setTimeout(r, 20)); }); };
 
 describe("Trading Lab page", () => {
   it("a member without a grant sees the invitation message, not the tools; the disclaimer is always there", async () => {

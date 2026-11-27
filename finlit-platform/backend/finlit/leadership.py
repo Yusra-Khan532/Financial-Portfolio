@@ -811,9 +811,10 @@ async def run(store, settings, *, as_of: Optional[date] = None, backfill_from: O
         async with conn.transaction():
             if history_rows:
                 await conn.executemany(
+                    # task #409: frozen. A week already stored is never re-ranked (the backfill only adds weeks a stock does not have yet); the label
+                    # members see comes from the weekly record (peerlabels.py), not from this table
                     "INSERT INTO leadership_history (symbol, run_date, rank, ranked, label, direction, rel52, rel52_market, raw_label, rel13) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) "
-                    "ON CONFLICT (symbol, run_date) DO UPDATE SET rank = EXCLUDED.rank, ranked = EXCLUDED.ranked, label = EXCLUDED.label, direction = EXCLUDED.direction, "
-                    "rel52 = EXCLUDED.rel52, rel52_market = EXCLUDED.rel52_market, raw_label = EXCLUDED.raw_label, rel13 = EXCLUDED.rel13", history_rows)
+                    "ON CONFLICT (symbol, run_date) DO NOTHING", history_rows)
             recs = []
             for sym, v in latest.items():
                 row, g = v["row"], v["g"]
@@ -850,12 +851,37 @@ async def run(store, settings, *, as_of: Optional[date] = None, backfill_from: O
             if missing:
                 await conn.execute("UPDATE leadership SET stale_runs = stale_runs + 1 WHERE symbol = ANY($1::text[]) AND as_of < $2", missing, as_of)
             await conn.execute("DELETE FROM leadership_history WHERE run_date < current_date - 2200")
-    churn = sum(1 for s, v in latest.items() if s in state and state[s].get("label") and state[s]["label"] != v["published"])
+    # task #409: the weekly record. This week's readings go through the one rule (peerlabels.next_label) against each stock's last STORED row, in one
+    # transaction; the label, since and pending members see are copied from it into `leadership`. A stock held for a corporate-action gap, or not ranked
+    # this week, has no reading (the label is kept for up to 2 runs). The record is built once from the stored weekly readings when it is still empty.
+    from . import peerlabels
+    readings: List[peerlabels.Reading] = []
+    for sym, v in latest.items():
+        row, g = v["row"], v["g"]
+        held = sym in held_syms
+        readings.append(peerlabels.Reading(symbol=sym, reading="none" if held else row.label, peer_group_id=v["group_id"],
+                                           peer_list_version=(iso(lists_as_of).isoformat() if v["source"] == "list" and iso(lists_as_of) else "nse-industry"),
+                                           ranked=g.n, rank=None if held else row.rank, not_ranked_reason="corporate_action" if held else None,
+                                           rel52=row.rel52, rel13=row.rel13, rel52_market=row.rel52_market, direction=row.direction))
+    for sym, why in why_not.items():
+        if sym not in latest:
+            readings.append(peerlabels.Reading(symbol=sym, reading="none", not_ranked_reason=why))
+    record: Dict[str, Any] = {}
+    try:
+        if await peerlabels.needs_rebuild(store):
+            record["rebuilt"] = await peerlabels.rebuild(store)
+        async with store.pool.acquire() as conn:
+            record["run"] = await peerlabels.write_run(conn, as_of, readings)
+            record["synced"] = await peerlabels.sync_leadership(conn)
+    except Exception:
+        log.exception("leadership: the weekly peer-label record was not written for %s", as_of)
+        raise
+    churn = int((record.get("run") or {}).get("changed") or 0)
     covered = len(latest)
     on_lists = sum(1 for v in latest.values() if v["source"] == "list")
     out = {"asOf": as_of.isoformat(), "runs": len(dates), "labelled": covered, "withPrices": len(members), "history": len(history_rows), "churn": churn,
            "churnPct": round(100 * churn / max(1, len([s for s in latest if s in state])), 1), "held": sorted(held_syms), "indices": {c: (len(p) if p else 0) for c, p in idx.items()},
-           "onIndicatorLists": on_lists, "onNseIndustry": covered - on_lists,
+           "onIndicatorLists": on_lists, "onNseIndustry": covered - on_lists, "record": record,
            "lists": {g.id: {"listed": len(set(g.norm)), "withPrices": len(listed_members(g)), "ranked": rank_list(g, as_of).n, "homes": sum(1 for h in home.values() if h.id == g.id)}
                      for g in lists if g.id in usable}}
     log.info("leadership run %s", {k: v for k, v in out.items() if k != "lists"})

@@ -1,4 +1,4 @@
-// Task #289: the small parts every superinvestor table shares: the move tag, FinLit Prism, the technical words, the peer tag, the size and the figures.
+// Task #289: the small parts every superinvestor table shares: the move tag, FinLit Prism, the technical words, the peer label, the size and the figures.
 // Styles: styles/superinvestors.css (sx-). Describes, never advises.
 import { Link } from "react-router";
 import type { Move, Peers, Prism, Size, Tech } from "./types";

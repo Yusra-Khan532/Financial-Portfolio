@@ -262,7 +262,7 @@ async def test_screener_filters_sort_pages_and_csv(app):
     mid = sorted(i["final"] for i in asc)[10]
     f = (await g(f"min={mid}&limit=200")).json()
     assert f["total"] == sum(1 for i in asc if i["final"] >= mid) and all(i["final"] >= mid for i in f["items"])
-    assert all(set(i["pillars"].values()) <= {"Strong", "Fair", "Weak", "Not scored"} for i in d["items"])      # the parts are words; no figure leaves the server
+    assert all(set(i["pillars"].values()) <= {"Strong", "Fair", "Weak", "Not scored"} for i in d["items"])      # `pillars` stays the words (task #378 adds the figures beside them in `pillarScores`)
     f = (await g("perf_min=50&risk_max=69.9")).json()
     assert f["total"] >= 0
     for exact in ("perf_min=63", "risk_max=80", "cost_min=0", "quality_max=100", "perf_min=49.9"):
@@ -349,7 +349,8 @@ async def test_admin_views_are_admin_only(app):
     assert cal["internal"] is True and "not a forecast" in cal["label"] and cal["funds"] == 0 and cal["quintiles"] == [] and "too short" in cal["note"]
 
 
-async def test_gold_gets_part_words_never_part_figures(app):
+async def test_gold_gets_part_words_in_pillars_and_figures_only_in_pillar_scores(app):
+    """`pillars` (and every part key outside `pillarScores`) is a word; task #378 (team, 25 Nov 2026) adds each part's stored figure in `pillarScores` only."""
     funds, scores = await seed(app, n=12, weeks=4)
     gold = await signed_in(app, "gw@example.com", plan="gold")
     code = funds[0].code
@@ -362,6 +363,9 @@ async def test_gold_gets_part_words_never_part_figures(app):
             for k, v in x.items():
                 if k in parts and k != "reading":
                     assert v is None or isinstance(v, str), (k, v)       # a part is a word, never a number
+                if k == "pillarScores":
+                    assert v is None or all(w is None or (isinstance(w, (int, float)) and 0 <= w <= 100) for w in v.values()), v
+                    continue
                 if k == "pillars" and isinstance(v, dict):
                     assert all(w is None or isinstance(w, str) for w in v.values())
                 if k == "pillar" and v:

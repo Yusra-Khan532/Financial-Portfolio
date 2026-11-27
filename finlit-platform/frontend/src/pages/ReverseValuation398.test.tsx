@@ -87,7 +87,7 @@ describe("reverse valuation redesign (#398)", () => {
   it("gives the grid a legend and a tapped cell's detail", async () => {
     await open();
     expect(screen.getByRole("heading", { name: /Sensitivity grid: value per share/ })).toBeTruthy();
-    expect(document.querySelector(".rv-lg")?.textContent).toMatch(/Below price.*Above price.*Outlined: the combination the price needs/);
+    expect(document.querySelector(".rv-lg")?.textContent).toMatch(/Below price.*Above price.*Solid outline: the combination the price needs.*Dashed outline: where the value first reaches today's price/);
     const td = document.querySelectorAll(".rv-heat tbody tr")[1].querySelectorAll("td")[2] as HTMLElement;
     expect(td.getAttribute("title")).toMatch(/^Growth [\d.]+%, margin [\d.]+%: ₹[\d,]+ a share, [−+][\d.]+% against today's price$/);
     fireEvent.click(td);

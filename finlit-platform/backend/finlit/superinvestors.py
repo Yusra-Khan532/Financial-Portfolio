@@ -255,7 +255,7 @@ async def _finlit_view(app, symbols: List[str]) -> Tuple[Dict[str, dict], Dict[s
     Also the four sizes' median 1-year move over every scored company (the same-size market)."""
     from . import isin as isin_mod, prism_screen
     from .leadership import ordinal
-    from .leadership_api import agreeing, public_now
+    from .leadership_api import public_now
     store = app.state.store
     async with store.pool.acquire() as conn:
         rows = await conn.fetch("SELECT DISTINCT ON (symbol) symbol, name, market_cap, return_1y FROM scores ORDER BY symbol, (statement = 'consolidated') DESC")
@@ -280,7 +280,7 @@ async def _finlit_view(app, symbols: List[str]) -> Tuple[Dict[str, dict], Dict[s
     if await public_now(store):
         words = {"leader": "Leader", "in_line": "In line", "laggard": "Laggard"}
         for r in lead:
-            lab = agreeing(r["label"], r["raw_label"], r["rel52"])
+            lab = r["label"]   # task #409: the weekly record's label (written into leadership), never replaced on read
             if lab in words and r["rank"] and r["ranked"]:
                 leaders[r["symbol"]] = {"chip": words[lab], "text": f"{ordinal(int(r['rank']))} of {r['ranked']} {r['group_short'] or r['group_name']} peers"}
     return universe, leaders, med
