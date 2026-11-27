@@ -5,6 +5,9 @@
 // mounted (hidden), so their anchors exist and a link can find them. Variants: "key" (09: a KEY VIEW badge with a crown inside the bar header) and
 // "highlighted" (16). A bar can also wrap a switch the section already had (06, 07, 08): pass `value` and `onChange` and no `content`; such bars have no
 // Next view. Styles: styles/tabgroup.css (classes ctabs, ct-*). Descriptive only.
+// Developer file 46 (founder, 27 Nov 2026: "make sure we highlight wherever there are tabs like these, so that the user notices he has to click"): every
+// view not opened yet carries a dot, the header's "See N more →" button opens the next one (it stands in for the hint until every view was opened), the tabs
+// look like buttons, and the nudge runs when the bar first comes into view (it ran on page load, long before the reader reached most bars).
 import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from "react";
 import "../styles/tabgroup.css";
 
@@ -27,6 +30,10 @@ export function TabGroup({ views, label, hint = "Tap a tab to switch", numbered 
   const [own, setOwn] = useState(initial ?? views[0]?.key);
   const cur = value ?? own;
   const [used, setUsed] = useState(false);
+  // the views opened so far (the one open first counts), and the nudge, which starts when the bar first comes into view
+  const [seen, setSeen] = useState<Set<string>>(() => new Set(cur ? [cur] : []));
+  useEffect(() => { if (cur) setSeen((s) => (s.has(cur) ? s : new Set(s).add(cur))); }, [cur]);
+  const [nudge, setNudge] = useState(false);
   const bar = useRef<HTMLDivElement>(null), panels = useRef<HTMLDivElement>(null);
   const [stuck, setStuck] = useState(false);
   const stickTop = () => parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--pzn-stick")) || 0;
@@ -73,6 +80,18 @@ export function TabGroup({ views, label, hint = "Tap a tab to switch", numbered 
   }, [hasPanels, onChange]);
 
   const n = views.length;
+  const unseen = views.filter((v) => !seen.has(v.key)), ci = views.findIndex((v) => v.key === cur);
+  const nextUnseen = unseen.length ? views[[...Array(n).keys()].map((d) => (ci + 1 + d) % n).find((i) => !seen.has(views[i].key)) ?? 0].key : null;
+  // "See N more →" stands in for the hint while views are left to open (so the header keeps its width and the bar its single row on a desktop)
+  const more = n > 1 && nextUnseen ? <button type="button" className="ct-more" onClick={() => pick(nextUnseen)} aria-label={`See ${unseen.length} more ${noun}: opens ${views.find((v) => v.key === nextUnseen)!.label}`}>See {unseen.length} more<span aria-hidden="true">→</span></button> : null;
+  useEffect(() => {
+    const b = bar.current;
+    if (!b || used || n < 2 || typeof IntersectionObserver === "undefined") return;
+    let t = 0;
+    const io = new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) { io.disconnect(); setNudge(true); t = window.setTimeout(() => setNudge(false), 6500); } }, { threshold: 0.6 });
+    io.observe(b);
+    return () => { io.disconnect(); clearTimeout(t); };
+  }, [used, n]);
   const goNext = (from: number) => {
     const k = views[(from + 1) % n].key; pick(k);
     if (sticky) { showFromStart(k); return; }
@@ -81,14 +100,15 @@ export function TabGroup({ views, label, hint = "Tap a tab to switch", numbered 
   };
   return (
     <>
-      <div ref={bar} className={"ctabs" + (className ? " " + className : "") + (used ? " used" : "") + (variant ? " ct-" + variant : "") + (tools ? " has-tools" : "") + (sticky ? " ct-sticky" : "") + (stuck ? " stuck" : "")}>
+      <div ref={bar} className={"ctabs" + (className ? " " + className : "") + (used ? " used" : "") + (nudge && !used ? " nudge" : "") + (variant ? " ct-" + variant : "") + (tools ? " has-tools" : "") + (sticky ? " ct-sticky" : "") + (stuck ? " stuck" : "")}>
         <div className="ctabs-h">
           {variant === "key" && <span className="ct-crown" title="The key view of this section"><svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor" aria-hidden="true" focusable="false"><path d="M3 18h18l-1.6-9-4.4 3.6L12 6l-3 6.6L4.6 9z" /></svg>KEY VIEW</span>}
-          <span className="ctabs-ic" aria-hidden="true">⇆</span>{title != null ? <b className="ct-title">{title}<small>{n} {noun} · {hint}</small></b> : <><b>{n} {noun}</b><span className="ctabs-hint">{hint}</span></>}
+          <span className="ctabs-ic" aria-hidden="true">⇆</span>{title != null ? <b className="ct-title">{title}<small>{n} {noun} · {hint}</small></b> : <><b>{n} {noun}</b>{!more && <span className="ctabs-hint">{hint}</span>}</>}
+          {more}
         </div>
         <div className={"ct-list" + (views.some((v) => v.crown) ? " crowned" : "")} role="tablist" aria-label={label}>
           {views.map((v, j) => (
-            <button key={v.key} type="button" role="tab" id={`${uid}-t-${v.key}`} aria-selected={cur === v.key} aria-controls={hasPanels ? `${uid}-p-${v.key}` : undefined}
+            <button key={v.key} type="button" role="tab" id={`${uid}-t-${v.key}`} aria-selected={cur === v.key} className={(seen.has(v.key) ? "" : "unseen") + (v.key === nextUnseen ? " up-next" : "") || undefined} aria-controls={hasPanels ? `${uid}-p-${v.key}` : undefined}
               tabIndex={cur === v.key ? 0 : -1} onClick={() => pick(v.key)}
               onKeyDown={(e) => { const m = { ArrowRight: 1, ArrowLeft: -1 }[e.key]; if (m) { e.preventDefault(); const k = views[(j + m + n) % n].key; pick(k); document.getElementById(`${uid}-t-${k}`)?.focus(); } }}>
               {numbered && <span className="ct-n" aria-hidden="true">{j + 1}</span>}{v.label}

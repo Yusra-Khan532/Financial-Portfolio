@@ -23,9 +23,25 @@
 .ct-list button[aria-selected="true"] { background: var(--ui-on-bg); border-color: var(--ui-on-bg); color: var(--ui-on-fg); box-shadow: none; }
 .ct-n { display: inline-grid; place-items: center; min-width: 20px; height: 20px; border-radius: var(--ui-r-pill); font: 700 var(--fs-12, 12px) var(--sans); background: var(--s2); color: var(--text); }
 .ct-list button[aria-selected="true"] .ct-n { background: var(--ui-on-fg); color: var(--ui-on-bg); }
-/* the nudge: the tab after the chosen one pulses softly, 4 times, until the reader first uses the bar */
-@keyframes ctNudge { 0%, 100% { box-shadow: 0 0 0 0 transparent; } 50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--text) 18%, transparent); } }
-.ctabs:not(.used) .ct-list button[aria-selected="true"] + button { animation: ctNudge 2.2s ease-in-out 1s 4; }
+/* developer file 46 (founder, 27 Nov 2026: "highlight wherever there are tabs like these, so that the user notices he has to click"), all in the bar's one ink
+   colour (task #310):
+   - the tabs look like buttons: a raised edge, and a lift on hover;
+   - a view not opened yet carries a dot at its top right; the header's "See N more →" opens the next one (in place of the hint until each was opened);
+   - the nudge: when the bar first comes into view (not on page load), the next view not opened yet pulses three times and the arrow moves, until the
+     reader first uses the bar. */
+.ct-list button { position: relative; box-shadow: 0 1.5px 0 var(--border-strong); }
+.ct-list button:hover { transform: translateY(-1px); box-shadow: 0 3px 0 var(--border-strong); } .ct-list button[aria-selected="true"]:hover { transform: none; box-shadow: none; }
+.ct-list button.unseen { padding-right: 18px; }
+.ct-list button.unseen::after { content: ""; position: absolute; top: 5px; right: 5px; width: 8px; height: 8px; border-radius: 50%; background: var(--ui-on-bg); box-shadow: 0 0 0 2px var(--s1); }
+.ct-more { display: inline-flex; align-items: center; gap: 6px; min-height: 30px; padding: 5px 12px; border: 0; border-radius: var(--ui-r-pill); background: var(--ui-on-bg); color: var(--ui-on-fg);
+  font: 700 var(--fs-13, 13px)/1 var(--sans); white-space: nowrap; cursor: pointer; }
+.ct-more span { display: inline-block; transition: transform .15s; }
+.ct-more:hover span { transform: translateX(3px); }
+.ct-more:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+@keyframes ctNudge { 0%, 100% { box-shadow: 0 1.5px 0 var(--border-strong), 0 0 0 0 transparent; } 50% { box-shadow: 0 1.5px 0 var(--border-strong), 0 0 0 6px color-mix(in srgb, var(--text) 28%, transparent); } }
+@keyframes ctArrow { 0%, 100% { transform: none; } 50% { transform: translateX(4px); } }
+.ctabs.nudge .ct-list button.up-next { animation: ctNudge 1.8s ease-in-out 3; border-color: var(--text); }
+.ctabs.nudge .ct-more span { animation: ctArrow .9s ease-in-out 6; }
 .ctabs.ct-highlighted { border-width: 2px; border-left-width: 6px; background: var(--s1); }
 /* Next view, at the bottom of every panel */
 .ct-next { display: flex; align-items: center; gap: 10px; width: 100%; margin: 14px 0 0; padding: 12px 16px; border: 1px solid var(--border-strong); border-radius: var(--r-ctl);
@@ -37,7 +53,7 @@
 .ct-next-a { margin-left: auto; display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--ui-on-bg); color: var(--ui-on-fg); font-weight: 700; }
 .ctab-panel > .card:first-child, .ctab-panel > .gate:first-child { margin-top: 0; }
 @media (max-width: 700px) { .ctabs-hint { display: none; } }
-@media (prefers-reduced-motion: reduce) { .ct-list button { transition: none; } .ctabs:not(.used) .ct-list button { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .ct-list button { transition: none; } .ct-list button:hover { transform: none; } .ctabs .ct-list button, .ctabs .ct-more span { animation: none; } }
 /* a bar or its panels placed in a grid or flex parent (10's Decoding ROE sits in a grid): never let the row of tabs widen the parent; the tabs scroll instead */
 .ctabs, .ct-panels, .ctab-panel { min-width: 0; }
 /* task #220 (Prism report, README 1.3): a score or count in a tab label; controls inside the bar under the tabs */
