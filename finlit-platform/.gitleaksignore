@@ -17,6 +17,17 @@ ce88b3debef1c80e3fc311d6edd9b9696cf00ad3:frontend/public/demo/RELIANCE/ratios.js
 cefac88b8a9285745be59ba4df756f284beb0fe0:finlit-platform/frontend/src/stock/ForecastCard.tsx:generic-api-key:15
 # reviewed false positive (25 Nov 2026, PR #944): a made-up Logo.dev test key in the unit test; replaced by "pk_demo" in the next commit
 2c6bd8bae5018790a55e753dfd96efa69d88a6f5:finlit-platform/frontend/src/lib/logoCdn.test.ts:generic-api-key:9
+# reviewed false positives (27 Nov 2026): the Trading Lab's Case for / against and Signals desk test fixtures hold a field called key
+# whose value is the stored ratio name profit_cagr_3y (not a credential); generic-api-key matches a key field holding a token-like word.
+# The last line is this file's own earlier comment, which quoted that field as an example.
+f00b5ae2bf16a44913da3100ea42a8c700bd81ae:finlit-platform/frontend/src/lib/__fixtures__/lab-case-reliance.json:generic-api-key:380
+f00b5ae2bf16a44913da3100ea42a8c700bd81ae:finlit-platform/frontend/src/lib/__fixtures__/lab-case-reliance.json:generic-api-key:828
+f00b5ae2bf16a44913da3100ea42a8c700bd81ae:finlit-platform/frontend/src/lib/__fixtures__/lab-case-reliance.json:generic-api-key:1276
+46d7432306f4fb2ab36c125bbba1faaf0f513073:finlit-platform/frontend/src/lib/__fixtures__/lab-signals-reliance.json:generic-api-key:319
+46d7432306f4fb2ab36c125bbba1faaf0f513073:finlit-platform/frontend/src/lib/__fixtures__/lab-signals-reliance.json:generic-api-key:1764
+46d7432306f4fb2ab36c125bbba1faaf0f513073:finlit-platform/frontend/src/lib/__fixtures__/lab-signals-reliance.json:generic-api-key:3334
+46d7432306f4fb2ab36c125bbba1faaf0f513073:finlit-platform/frontend/src/lib/__fixtures__/lab-signals-reliance.json:generic-api-key:4581
+0f5612ebfc7879a45b7c26129d9020e076c7a8d1:finlit-platform/.gitleaksignore:generic-api-key:21
 # Reviewed false positives in commit 10416ea8 (task #132, 15 Nov): two browser-storage name constants in lib/mf.ts and lib/prefs.ts, and ratio field
 # names in the demo ratios file; none is a credential.
 10416ea8dd0764904aca90b0b091904d85501af6:finlit-platform/frontend/public/demo/RELIANCE/ratios.json:generic-api-key:1
