@@ -55,6 +55,7 @@ from . import search as search_api
 from . import ext_api
 from . import macro as macro_api
 from . import clienterrors as clienterrors_api
+from . import visits as visits_api
 from . import markets as markets_api
 from . import flows as flows_api
 from . import fundjobs, sysctl, wake
@@ -861,6 +862,7 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
     app.include_router(__import__("finlit.macro_sectors", fromlist=["router"]).router)   # /api/macro/sectors: the macro backdrop per sector (Gold, switched on in the Console)
     app.include_router(markets_api.router)
     app.include_router(clienterrors_api.router)
+    app.include_router(visits_api.router)   # POST /api/visits (cookie-free page counter) and GET /api/admin/visitors (Console > Visitors)
     app.include_router(flows_api.router)
     app.include_router(flows_api.admin)
     app.include_router(fundjobs.router)

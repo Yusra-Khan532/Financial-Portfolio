@@ -8,6 +8,7 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 import { UIProvider } from "./lib/ui";
 import { AuthProvider } from "./lib/auth";
 import { StateSync } from "./lib/sync";
+import { VisitCounter } from "./lib/visits";
 import { SplashDone } from "./lib/splash";
 import "@fontsource-variable/inter/wght.css";
 import "@fontsource-variable/source-serif-4/wght.css";
@@ -75,6 +76,7 @@ createRoot(document.getElementById("root")!).render(
         <AuthProvider>
           <UIProvider>
             <StateSync />
+            <VisitCounter />
             <SplashDone />
             <App />
           </UIProvider>
