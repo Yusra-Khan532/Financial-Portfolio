@@ -2,7 +2,7 @@
 // Task #410 (owner, 27 Nov 2026): the plans are the landing page's (landing/goliveData.js). A gate names an access tier (basic, silver, gold) or what a
 // tier cannot say: "platinum" (a Platinum-only tool), "equity" (the shares you own: Equity Portfolio, combined, Gold, Platinum) and "mfetf" (funds and
 // ETFs: Mutual Fund + ETF, combined, Gold, Platinum). lib/ui's has() reads all of them; the server checks the same (entitlements.is_platinum, in_area).
-// Every account that had a feature before keeps it: migration 145 moved old Silver and Gold accounts to Platinum.
+// Every account that had a feature before keeps it: migration 146 moved old Silver and Gold accounts to Platinum.
 import type { Plan } from "./auth";
 import type { Gate } from "./ui";
 

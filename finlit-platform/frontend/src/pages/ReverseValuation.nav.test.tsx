@@ -28,7 +28,7 @@ const years = (n: number) => Array.from({ length: n }, (_, i) => `FY${20 + i}`);
 const fin = (rev: number[], op: number[]) => ({ yearly: { pl: { unit: "Cr", period: "year", periods: years(rev.length), periodEnds: [], rows: { revenue: rev, operating_profit: op } } } });
 const open = () => render(<QueryClientProvider client={new QueryClient()}><MemoryRouter initialEntries={["/reverse-valuation?sym=ABC"]}><ReverseValuationPage /></MemoryRouter></QueryClientProvider>);
 const NAMES = ["Assumptions", "Required Growth", "Miss Scenarios", "Price Drivers", "Weighted Outcome", "Sensitivity Grid", "Save & Export"];
-const btn = (n: string) => [...document.querySelectorAll<HTMLButtonElement>(".rv-sn .rv-snb")].find((b) => b.textContent === n) as HTMLButtonElement;
+const btn = (n: string) => [...document.querySelectorAll<HTMLButtonElement>(".rv-sn .rv-snb")].find((b) => b.getAttribute("aria-label") === n) as HTMLButtonElement;
 const good = () => fin([600, 700, 820, 950, 1100, 1250], [100, 125, 150, 175, 205, 240]);
 
 describe("reverse valuation section bar (task #188)", () => {
@@ -36,7 +36,7 @@ describe("reverse valuation section bar (task #188)", () => {
     st.fin = good(); open();
     await waitFor(() => expect(screen.getByRole("heading", { name: /Result:/ })).toBeTruthy());
     const nav = screen.getByRole("navigation", { name: "Sections of this page" });
-    expect([...nav.querySelectorAll(".rv-snb")].map((b) => b.textContent)).toEqual(NAMES);
+    expect([...nav.querySelectorAll(".rv-snb")].map((b) => b.querySelector(".rv-snl")?.textContent)).toEqual(NAMES);
     const search = document.querySelector(".rv-co") as HTMLElement;
     expect(nav.compareDocumentPosition(search) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();   // the bar comes before the search
   });
@@ -46,7 +46,7 @@ describe("reverse valuation section bar (task #188)", () => {
     await waitFor(() => expect(btn("Assumptions")).toBeTruthy());
     for (const n of NAMES) {
       const i = screen.getByRole("button", { name: `What is ${n}?` });
-      expect(i.closest(".rv-sni")?.querySelector(".rv-snb")?.textContent).toBe(n);
+      expect(i.closest(".rv-sni")?.querySelector(".rv-snb")?.getAttribute("aria-label")).toBe(n);
       expect((i.getAttribute("data-what") ?? "").length).toBeGreaterThan(40);
     }
   });
@@ -76,5 +76,15 @@ describe("reverse valuation section bar (task #188)", () => {
     const spy = vi.fn(); window.scrollTo = spy as unknown as typeof window.scrollTo;
     fireEvent.click(btn("Miss Scenarios"));
     expect(spy).not.toHaveBeenCalled();
+  });
+});
+
+describe("reverse valuation section bar fits a laptop (QA 27 Nov)", () => {
+  it("every button has a short label beside its full one, and the full name stays its accessible name", async () => {
+    const NAMES_SHORT = ["Inputs", "Required", "Misses", "Drivers", "Weighted", "Grid", "Export"];
+    const SRC = (await import("node:fs")).readFileSync((await import("node:path")).join(__dirname, "ReverseValuation.tsx"), "utf8");
+    for (const sh of NAMES_SHORT) expect(SRC).toContain(`short: "${sh}"`);
+    expect(SRC).toMatch(/aria-label=\{n\.label\}/);
+    expect(SRC).toMatch(/data-fit=\{fit\}/);
   });
 });

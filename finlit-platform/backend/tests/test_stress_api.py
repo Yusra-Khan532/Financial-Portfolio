@@ -133,7 +133,7 @@ async def test_free_visitors_and_other_plans_cannot_read_the_page(app, anon):  #
 
 
 async def test_silver_reads_the_page_but_cannot_run_compare_or_ask_for_a_peer(app, store):  # noqa: F811
-    # task #410 (owner, 27 Nov 2026): Stress Lab is part of the Platinum plan; the old Silver and Gold members were moved to Platinum (migration 145)
+    # task #410 (owner, 27 Nov 2026): Stress Lab is part of the Platinum plan; the old Silver and Gold members were moved to Platinum (migration 146)
     await _clean(store)
     body = {"preset": "today"}
     for plan in ("silver", "combined", "gold"):
