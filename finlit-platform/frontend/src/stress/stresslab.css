@@ -468,5 +468,12 @@ input.edit:focus-visible{outline:2px solid var(--teal);outline-offset:1px}
 .callsg.n2{grid-template-columns:repeat(2,minmax(0,1fr))}
 .callsg.n3{grid-template-columns:repeat(3,minmax(0,1fr))}
 .callsg.n4{grid-template-columns:repeat(4,minmax(0,1fr))}
-@container (max-width:900px){.callsg.n4{grid-template-columns:repeat(2,minmax(0,1fr))}}
+/* founder re-check 27 Nov: four cards stay in one row on desktop, also at a 1150px window with the side menu open (the page is then about 820px);
+   between 701 and 1000px of width the icon steps aside so each card keeps room for its words (the kind label above the title keeps its colour) */
+@container (min-width:701px) and (max-width:1000px){.callsg.n4 .call{grid-template-columns:minmax(0,1fr) auto;padding:12px}.callsg.n4 .call .ic{display:none}.callsg.n4 .call span.d{grid-column:1/-1}}
+@container (max-width:700px){.callsg.n4{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @container (max-width:620px){.callsg.n2,.callsg.n3,.callsg.n4{grid-template-columns:1fr}}
+/* founder re-check 27 Nov: the opened (picked) row is tinted across every cell. The row hover colour beat it on all but the first cell, and the pointer is
+   still on the row just after the click, so only the scenario cell looked picked. Its open detail row carries the same left bar. */
+table.t tbody tr.on td,table.t tbody tr.click.on:hover td{background:var(--heef5f4)}
+table.t tbody tr.on+tr.xrow td:first-child{box-shadow:inset 3px 0 0 var(--teal)}

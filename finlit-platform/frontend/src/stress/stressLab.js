@@ -64,7 +64,8 @@ export function mountStressLab(root, E, D, opts) {
   function call(c, i) {
     var key = c.k + ':' + (typeof i === 'number' ? i : c.t), id = 'cd-' + (++CALLN), open = !!(S.callsOpen && S.callsOpen[key]);
     var one = String(c.d || '').replace(/<[^>]*>/g, ' ').replace(/[<>]/g, '').replace(/\s+/g, ' ').trim(), cut = one.search(/[.;:](\s|$)/);   // task #401: the first sentence, as plain text (no angle bracket left; escaped again below)
-    one = cut > 0 ? one.slice(0, cut + 1) : one;
+    one = (cut > 0 ? one.slice(0, cut + (one.charAt(cut) === '.' ? 1 : 0)) : one).replace(/[\s,;:]+$/, '');   // founder re-check 27 Nov: a snippet cut at ; or : ended in that mark
+    if (one && !/[.!?]$/.test(one)) one += '.';
     return '<div class="call ' + c.k + '"><span class="ic">' + svg(ICON[c.k]) + '</span><div class="tx"><span class="k">' + KIND[c.k] + '</span><b>' + c.t + '</b>' + (one ? '<span class="ln"' + (open ? ' hidden' : '') + '>' + esc(one) + '</span>' : '') + '</div>' +
       '<button type="button" class="cx" data-cx="' + esc(key) + '" aria-expanded="' + open + '" aria-controls="' + id + '" aria-label="' + (open ? 'Hide the detail' : 'Show the detail') + '">' + svg(open ? '<path d="M5 12.5l5-5 5 5"/>' : '<path d="M5 7.5l5 5 5-5"/>', 16) + '</button>' +
       '<span class="d" id="' + id + '"' + (open ? '' : ' hidden') + '>' + c.d + '</span></div>';
@@ -314,7 +315,7 @@ export function mountStressLab(root, E, D, opts) {
     return (e < 0 ? 'fall ' : 'rise ') + Math.abs(e).toFixed(1) + '%, from ' + rs(r.base.eps) + ' to ' + rs(r.stressed.eps);
   }
   var SURE = [
-    { k: 'pass_through', name: 'the share of cost rises passed on to customers', f: share, vals: function (v) { return [0.4, v, 0.8]; } },
+    { k: 'pass_through', name: 'the share of cost rises passed on to customers', f: share, vals: function (v) { return [Math.max(0, Math.min(0.4, v - 0.2)), v, Math.min(1, Math.max(0.8, v + 0.1))]; } },   // founder re-check 27 Nov: the estimate (86%) sat outside 40%-80%, so the options read 40% · 86% · 80%
     { k: 'demand_beta', name: 'how strongly its volumes follow demand', f: function (v) { return v.toFixed(2) + '×'; }, vals: function (v) { return [Math.max(0.2, v - 0.3), v, v + 0.3]; } },
     { k: 'crude_rm', name: 'the crude-linked share of materials', f: share, vals: function (v) { return [Math.max(0, v - 0.15), v, Math.min(0.95, v + 0.15)]; } },
     { k: 'floating_debt', name: 'the share of debt at floating rates', f: share, vals: function () { return [0.3, 0.6, 0.9]; } }
@@ -322,7 +323,7 @@ export function mountStressLab(root, E, D, opts) {
   function sureRows(co, sc) {
     return SURE.map(function (d) {
       var base = A.exposure[d.k];
-      var vals = d.vals(base).map(function (v) { return Math.round(v * 1000) / 1000; });
+      var vals = d.vals(base).map(function (v) { return Math.round(v * 1000) / 1000; }).sort(function (a, b) { return a - b; }).filter(function (v, i, a) { return i === 0 || v !== a[i - 1]; });   // lowest first, no repeats, so the options and the low/high wording always run in order
       var res = vals.map(function (v) { var p = {}; p[d.k] = v; var r = E.run(E.withExposure(co, p), sc); return r.change_pct.eps; });
       var lo = Math.min.apply(null, res), hi = Math.max.apply(null, res);
       return { d: d, base: base, vals: vals, res: res, width: hi - lo };
@@ -360,19 +361,20 @@ export function mountStressLab(root, E, D, opts) {
     var rows = sureRows(co, sc); if (!rows.length) return '';
     var top = rows[0], d = top.d, nxt = rows[1];
     var curV = co.exposure[d.k];
-    if (top.width < 1) return '<div class="sure"><div class="t"><b>How sure is this?</b> The result barely depends on the company settings here: ' + d.name + ' between ' + d.f(top.vals[0]) + ' and ' + d.f(top.vals[2]) + ' moves EPS by less than a point.</div></div>';
+    if (top.width < 1) return '<div class="sure"><div class="t"><b>How sure is this?</b> The result barely depends on the company settings here: ' + d.name + ' between ' + d.f(top.vals[0]) + ' and ' + d.f(top.vals[top.vals.length - 1]) + ' moves EPS by less than a point.</div></div>';
     var lo = Math.min.apply(null, top.res), hi = Math.max.apply(null, top.res), now = r.change_pct.eps;
     var mn = Math.min(lo, now), mx = Math.max(hi, now), pad = Math.max(2, (mx - mn) * 0.15); mn -= pad; mx += pad;
     var X = function (v) { return ((v - mn) / (mx - mn) * 100).toFixed(2) + '%'; };
     var lines = [-30, -10, 10].filter(function (v) { return v > mn && v < mx; }).map(function (v) { return '<span class="tick" style="left:' + X(v) + '"></span><span class="tl" style="left:' + X(v) + '">' + (v < 0 ? M : '+') + Math.abs(v) + '% line</span>'; }).join('');
+    var estI = top.vals.findIndex(function (v) { return Math.abs(v - top.base) < 1e-6; }); if (estI < 0) estI = 1;
     var btns = top.vals.map(function (v, i) {
       var on = Math.abs(curV - v) < 1e-6;
-      return '<button type="button" data-sure="' + d.k + '" data-v="' + v + '" aria-pressed="' + on + '">' + d.f(v) + (i === 1 ? ' estimated' : '') + '</button>';
+      return '<button type="button" data-sure="' + d.k + '" data-v="' + v + '" aria-pressed="' + on + '">' + d.f(v) + (i === estI ? ' estimated' : '') + '</button>';   // vals are sorted; the estimate is labelled wherever it sits
     }).join('');
-    var lessLine = nxt ? ' ' + cap(nxt.d.name) + ' matters less: ' + nxt.d.f(nxt.vals[0]) + ' gives ' + pct(nxt.res[0]) + ', ' + nxt.d.f(nxt.vals[2]) + ' gives ' + pct(nxt.res[2]) + '.' : '';
+    var lessLine = nxt ? ' ' + cap(nxt.d.name) + ' matters less: ' + nxt.d.f(nxt.vals[0]) + ' gives ' + pct(nxt.res[0]) + ', ' + nxt.d.f(nxt.vals[nxt.vals.length - 1]) + ' gives ' + pct(nxt.res[nxt.res.length - 1]) + '.' : '';
     var altLabel = top.res.map(function (v, i) { var p = {}; p[d.k] = top.vals[i]; return E.run(E.withExposure(co, p), sc).label; });
     return '<div class="sure"><div class="t"><b>How sure is this?</b>' + ib('The company settings are estimates. This shows the one that moves this result most, at a lower and a higher value, so the result reads as a range rather than one exact number.', 'lt', 'About how sure') +
-      ' The setting that moves it most is ' + d.name + ': at ' + d.f(top.vals[0]) + ' EPS moves ' + pct(top.res[0]) + ' (' + altLabel[0] + '), at ' + d.f(top.vals[2]) + ' it moves ' + pct(top.res[2]) + ' (' + altLabel[2] + ').' + lessLine +
+      ' The setting that moves it most is ' + d.name + ': at ' + d.f(top.vals[0]) + ' EPS moves ' + pct(top.res[0]) + ' (' + altLabel[0] + '), at ' + d.f(top.vals[top.vals.length - 1]) + ' it moves ' + pct(top.res[top.res.length - 1]) + ' (' + altLabel[altLabel.length - 1] + ').' + lessLine +
       (GOLD ? '<div style="margin-top:8px"><span class="seg sm" role="group" aria-label="Try another value">' + btns + '</span></div>' : '<p class="note" style="margin-top:8px">' + LOCKI + ' Trying other values comes with Gold.</p>') + '</div>' +
       '<div class="rangebar" aria-hidden="true"><span class="track"></span><span class="band" style="left:' + X(lo) + ';width:calc(' + X(hi) + ' - ' + X(lo) + ')"></span>' + lines +
       '<span class="mk" style="left:' + X(now) + '" title="This result: ' + pct(now) + '"></span><span class="bl" style="left:' + X(lo) + '">' + pct(lo) + '</span><span class="bl" style="left:' + X(hi) + '">' + pct(hi) + '</span></div></div>';
