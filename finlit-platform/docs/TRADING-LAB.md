@@ -123,6 +123,15 @@ Dhan calls for a stock someone already looked at in the last minute. The chart s
 
 Describe-only: the tab says where prices traded and whether price came back, never what to do.
 
+### Trading journal (built 26 Nov 2026)
+
+Tab `/lab/flow?view=journal`, routes `/api/lab/journal` (GET list and stats, POST add, PUT/DELETE one, POST `/import` CSV), Lab members only, every
+query filtered by the member's own id (`backend/finlit/lab/journal.py`, table `lab_journal`, migration 145; deleting an account deletes its trades).
+Up to 5,000 trades a member, 2,000 rows per CSV; a bad CSV line is listed with its reason and never stops the rest. P&L of a closed trade:
+(exit − entry) × qty for a long, (entry − exit) × qty for a short, less fees. Stats over closed trades in exit order: net P&L, win rate, profit
+factor, expectancy, average and largest win and loss, deepest drawdown from the running peak, best and worst day (exit date, Indian time), runs,
+P&L by the member's own setup tag, the cumulative P&L curve and a daily P&L calendar. A record of the member's own trades: it suggests none.
+
 ## Ideas from the MarketPulse video (founder, 26 Nov 2026)
 
 The founder shared a second reference video (a "MarketPulse" dashboard). What fits FinLit, built one at a time after the Order Flow pages,
