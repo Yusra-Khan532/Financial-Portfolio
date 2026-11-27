@@ -53,8 +53,8 @@
 *{box-sizing:border-box;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 .wrap{position:fixed;inset:0;pointer-events:none;z-index:2147483647;color:var(--ink);--bg:#fff;--ink:#10231a;--mut:#56685e;--line:#dce8e0;--g:#0f6b45;--gd:#0b4d33;--tint:#eaf5ee;--tint2:#f4f9f6;--bar:#dbe8e0;--warn:#8a5a00;--warnbg:#fff4dc}
 @media (prefers-color-scheme:dark){.wrap{--bg:#10201a;--ink:#e8f3ec;--mut:#9db3a7;--line:#25382f;--g:#3fbf85;--gd:#1d7a52;--tint:#173125;--tint2:#13271e;--bar:#27402f;--warn:#f0c36a;--warnbg:#3a2f12}}
-.bubble{position:fixed;pointer-events:auto;width:30px;height:30px;border-radius:50%;border:0;background:var(--g);color:#fff;box-shadow:0 4px 14px rgba(0,0,0,.28);cursor:pointer;display:none;align-items:center;justify-content:center;padding:0;animation:pop .14s ease-out}
-.bubble.on{display:flex}.bubble:hover{background:var(--gd)}.bubble:focus-visible,button:focus-visible,a:focus-visible{outline:2px solid var(--g);outline-offset:2px}
+.bubble{position:fixed;pointer-events:auto;width:30px;height:30px;border-radius:8px;border:0;background:#0c1f15;color:#fff;box-shadow:0 4px 14px rgba(0,0,0,.28);cursor:pointer;display:none;align-items:center;justify-content:center;padding:0;overflow:hidden;animation:pop .14s ease-out}
+.bubble.on{display:flex}.bubble:hover{filter:brightness(1.18)}.bubble .mk{width:30px;height:30px;border-radius:0}.mk{display:block;border-radius:5px}.bubble:focus-visible,button:focus-visible,a:focus-visible{outline:2px solid var(--g);outline-offset:2px}
 .panel{position:fixed;pointer-events:auto;width:380px;max-width:calc(100vw - 24px);max-height:min(88vh,660px);overflow:auto;background:var(--bg);border:1px solid var(--line);border-radius:16px;box-shadow:0 18px 50px rgba(0,0,0,.28);display:none;animation:pop .16s ease-out;font-size:14px;line-height:1.45}
 .panel.on{display:block}
 @keyframes pop{from{opacity:0;transform:translateY(4px) scale(.98)}to{opacity:1;transform:none}}
@@ -104,14 +104,22 @@
     s.setAttribute("viewBox", "0 0 24 24"); s.setAttribute("width", size); s.setAttribute("height", size); s.setAttribute("aria-hidden", "true");
     s.setAttribute("fill", "none"); s.setAttribute("stroke", "currentColor"); s.setAttribute("stroke-width", "2"); s.setAttribute("stroke-linecap", "round"); s.setAttribute("stroke-linejoin", "round");
     const p = (d) => { const e = document.createElementNS(NS, "path"); e.setAttribute("d", d); s.appendChild(e); };
-    if (kind === "logo") { s.setAttribute("stroke-width", "3.2"); p("M5 20v-5"); p("M12 20V10"); p("M19 20V4"); }
-    else if (kind === "open") { p("M14 4h6v6"); p("M20 4l-9 9"); p("M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"); }
+    if (kind === "open") { p("M14 4h6v6"); p("M20 4l-9 9"); p("M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"); }
     else if (kind === "close") { p("M6 6l12 12"); p("M18 6L6 18"); }
     else if (kind === "pin") { p("M12 17v5"); p("M9 3h6l-1 6 3 3v2H7v-2l3-3z"); }
     else if (kind === "sound") { p("M4 9v6h4l5 4V5L8 9z"); p("M16.5 8.5a5 5 0 0 1 0 7"); }
     else if (kind === "info") { p("M12 8h.01"); p("M11 12h1v5h1"); const c = document.createElementNS(NS, "circle"); c.setAttribute("cx", 12); c.setAttribute("cy", 12); c.setAttribute("r", 9); s.appendChild(c); }
     else if (kind === "lock") { p("M7 11V8a5 5 0 0 1 10 0v3"); p("M5 11h14v9H5z"); }
     return s;
+  }
+  /** The FinLit Ventures mark (task #400's icon, icons/icon48.png), served from the extension itself: Chrome lets an extension's own files through a page's
+   *  image rules. If a page still refuses it, the picture is dropped and the button or heading stays usable. */
+  function mark(size) {
+    const i = document.createElement("img");
+    i.className = "mk"; i.alt = ""; i.width = size; i.height = size; i.setAttribute("aria-hidden", "true");
+    i.addEventListener("error", () => i.remove(), { once: true });
+    try { i.src = chrome.runtime.getURL("icons/icon48.png"); } catch { /* extension reloaded */ }
+    return i;
   }
   function el(tag, cls, text, attrs) {
     const e = document.createElement(tag);
@@ -130,7 +138,7 @@
     catch { const st = document.createElement("style"); st.textContent = CSS; root.appendChild(st); }
     const wrap = el("div", "wrap");
     bubble = el("button", "bubble", null, { type: "button", "aria-label": "Look up on FinLit", title: "Look up on FinLit" });
-    bubble.appendChild(icon("logo", 17));
+    bubble.appendChild(mark(30));
     bubble.addEventListener("mousedown", (e) => e.preventDefault());       // keep the person's selection
     bubble.addEventListener("click", () => { if (bubble._sel) openPanel(bubble._sel.text, bubble._sel.rect); });
     panel = el("div", "panel", null, { role: "dialog", "aria-label": "FinLit Ventures" });
@@ -166,7 +174,7 @@
   function frame(title) {
     panel.replaceChildren();
     const hd = el("div", "hd");
-    const lg = el("span", null, null); lg.style.color = "var(--g)"; lg.appendChild(icon("logo", 20));
+    const lg = el("span", null, null); lg.appendChild(mark(20));
     const pin = el("button", "ib", null, { type: "button", "aria-label": "Keep this card open", "aria-pressed": String(pinned), title: "Keep open" });
     pin.appendChild(icon("pin", 16));
     pin.addEventListener("click", () => { pinned = !pinned; pin.setAttribute("aria-pressed", String(pinned)); });
