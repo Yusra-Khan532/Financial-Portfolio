@@ -22,7 +22,7 @@ import { firstDir, gRange, listedRecently, LSORT_COLS, sectionOrder, shortName, 
 import { rowFromCalendar, useIpoHistory } from "../lib/ipoHistory";
 import { asOf, IpoDrawer } from "./IpoDrawer";
 import { IpoAllView } from "./IpoHistory";
-import { MINUS, nf } from "../lib/format";
+import { dateFormat, MINUS, nf } from "../lib/format";
 import { ChartHelp } from "../components/ChartHelp";
 import { ChartZoom } from "../components/ChartZoom";
 import { GmpRecord, GSTATE0, type GState } from "../components/ipo/GmpRecord";
@@ -35,8 +35,8 @@ import "../styles/ipo-views.css";
 
 const DAY = 86_400_000;
 const d0 = (iso: string) => new Date(iso + "T00:00:00").getTime();
-const short = (iso: string | null) => (iso ? new Date(iso + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short" }) : "—");
-const full = (iso: string | null) => (iso ? new Date(iso + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : MINUS);
+const short = (iso: string | null) => (iso ? dateFormat({ day: "numeric", month: "short" }).format(new Date(iso + "T00:00:00")) : "—");
+const full = (iso: string | null) => (iso ? dateFormat({ day: "numeric", month: "short", year: "numeric" }).format(new Date(iso + "T00:00:00")) : MINUS);
 const STATUS: Record<Ipo["status"], { label: string; colour: string }> = { open: { label: "Open now", colour: "var(--gain)" }, upcoming: { label: "Upcoming", colour: "var(--k1)" }, closed: { label: "Closed", colour: "var(--k4)" }, listed: { label: "Listed", colour: "var(--k7)" },
   not_listed: { label: "Not listed", colour: "var(--muted)" } };
 const LEGEND: Ipo["status"][] = ["open", "upcoming", "closed", "listed"];

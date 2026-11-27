@@ -12,7 +12,7 @@
 // block's "See the N →" sets. /ipo/all redirects to /ipo?view=all with its parameters. The filters stay in the address, next to view=all.
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link, Navigate, useLocation, useNavigate, useSearchParams } from "react-router";
-import { MINUS, nf } from "../lib/format";
+import { dateFormat, MINUS, nf } from "../lib/format";
 import { useGmpRecord } from "../lib/ipo";
 import { GR, gTally } from "../lib/ipoCalendar";
 import { leadText } from "../components/ipo/GmpRecord";
@@ -30,13 +30,13 @@ export const tone = (v: number | null | undefined) => (v == null || v === 0 ? ""
 export const rupees = (v: number | null | undefined, dp?: number) => (v == null ? MINUS : "₹" + nf(v, dp ?? (v % 1 ? 2 : 0)));
 export const crore = (v: number | null | undefined) => (v == null ? MINUS : `₹${nf(v, v >= 100 ? 0 : 2)} Cr`);
 export const times = (v: number | null | undefined) => (v == null ? MINUS : nf(v, 2) + "x");
-export const dateIn = (iso: string | null | undefined) => (iso ? new Date(iso + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : MINUS);
+export const dateIn = (iso: string | null | undefined) => (iso ? dateFormat({ day: "numeric", month: "short", year: "numeric" }).format(new Date(iso + "T00:00:00")) : MINUS);
 /** "25–27 Nov 2026", "28 Nov – 2 Dec 2026", "30 Dec 2026 – 1 Jan 2027". */
 export function windowOf(a: string | null, b: string | null): string {
   if (!a) return MINUS;
   if (!b || a === b) return dateIn(a);
   const [x, y] = [new Date(a + "T00:00:00"), new Date(b + "T00:00:00")];
-  const m = (d: Date) => d.toLocaleDateString("en-IN", { month: "short" });
+  const m = (d: Date) => dateFormat({ month: "short" }).format(d);
   if (x.getFullYear() !== y.getFullYear()) return `${dateIn(a)} – ${dateIn(b)}`;
   if (x.getMonth() !== y.getMonth()) return `${x.getDate()} ${m(x)} – ${y.getDate()} ${m(y)} ${y.getFullYear()}`;
   return `${x.getDate()}–${y.getDate()} ${m(y)} ${y.getFullYear()}`;

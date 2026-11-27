@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import App from "./App";
+import { apiGet } from "./lib/api";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { UIProvider } from "./lib/ui";
 import { AuthProvider } from "./lib/auth";
@@ -54,6 +55,17 @@ installSvgTextFit();
 purgeLegacy(["finlit-side", "finlit-side-groups", "finlit-dash-open", "finlit-etf-cols-v2", "finlit-mf-cols-v4"], ["finlit.side."]);
 
 const client = new QueryClient({ defaultOptions: { queries: { refetchOnWindowFocus: false } } });
+
+// The IPO pages' data starts downloading with the main script instead of after the IPO page's own script has arrived (that waited about 1.7 s on a
+// desktop and 3.4 s on a phone, 27 Nov 2026). Same keys and requests as lib/ipo.ts (useIpos) and lib/ipoHistory.ts (useIpoHistory), so the page
+// picks these up; if one fails, the page asks again as before.
+{
+  const path = window.location.pathname.slice(import.meta.env.BASE_URL.replace(/\/$/, "").length) || "/";
+  if (/^\/ipo(\/all)?\/?$/.test(path)) {
+    void client.prefetchQuery({ queryKey: ["ipo-history"], queryFn: () => apiGet("/api/ipos/history"), staleTime: 600_000 });
+    void client.prefetchQuery({ queryKey: ["ipos", false], queryFn: () => apiGet<{ ipos: unknown[] }>("/api/ipos").then((d) => d.ipos), staleTime: 120_000 });
+  }
+}
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
