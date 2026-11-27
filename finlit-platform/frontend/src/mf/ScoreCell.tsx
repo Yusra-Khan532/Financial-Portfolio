@@ -35,10 +35,12 @@ const PARTS: { key: string; letter: string; name: string }[] = [
 export function Parts({ parts, scores }: { parts?: Record<string, string | null> | null; scores?: Record<string, number | null> | null }) {
   if (!parts || !PARTS.some((p) => parts[p.key])) return null;
   const tips = PARTS.map((p) => partTip(p.name, parts[p.key], scores?.[p.key]));
+  // the box shows the same words on two lines, the figure on its own ("Performance · Weak" / "42.0 / 100"), so it never breaks inside "42.0 / 100"
+  const tipLines = (t: string) => { const m = /^(\S+) ([\d.]+ \/ 100) · (.+)$/.exec(t); return m ? `${m[1]} · ${m[3]}\n${m[2]}` : t; };
   // title="" keeps the whole cell's long tooltip from stacking on top; focusable, so a keyboard or a tap on a phone shows the box too.
   return (
     <span className="mfs-parts mfs-tip-below" role="group" aria-label={`The four parts. ${tips.join("; ")}.`}>
-      {PARTS.map((p, i) => <i key={p.key} className={"mfs-part b-" + wordBand(parts[p.key])} tabIndex={0} title="" data-tip={tips[i]} aria-label={tips[i]}>{p.letter}</i>)}
+      {PARTS.map((p, i) => <i key={p.key} className={"mfs-part b-" + wordBand(parts[p.key])} tabIndex={0} title="" data-tip={tipLines(tips[i])} aria-label={tips[i]}>{p.letter}</i>)}
     </span>);
 }
 

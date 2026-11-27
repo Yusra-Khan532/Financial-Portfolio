@@ -28,7 +28,8 @@ describe("task #378 (reopened): each part shows its score and name, below the le
     const chips = [...document.querySelectorAll(".mfs-cell .mfs-parts .mfs-part")];
     const say = ["Performance 42.0 / 100 · Weak", "Risk 81.5 / 100 · Strong", "Cost 55.5 / 100 · Fair", "Quality · Not scored"];
     expect(chips.map((c) => c.textContent)).toEqual(["P", "R", "C", "Q"]);
-    expect(chips.map((c) => c.getAttribute("data-tip"))).toEqual(say);
+    // the box shows the same words on two lines (name and word, then the figure), so it never breaks inside "42.0 / 100"
+    expect(chips.map((c) => c.getAttribute("data-tip"))).toEqual(["Performance · Weak\n42.0 / 100", "Risk · Strong\n81.5 / 100", "Cost · Fair\n55.5 / 100", "Quality · Not scored"]);
     expect(chips.map((c) => c.getAttribute("aria-label"))).toEqual(say);
     chips.forEach((c) => expect(c.getAttribute("tabindex")).toBe("0"));
     expect(document.querySelector(".mfs-parts")!.getAttribute("aria-label")).toBe(`The four parts. ${say.join("; ")}.`);
@@ -40,7 +41,7 @@ describe("task #378 (reopened): each part shows its score and name, below the le
     const rule = css.slice(css.indexOf(".mfs-cell .mfs-tip-below .mfs-part[data-tip]:hover::after"));
     expect(rule).toMatch(/top: calc\(100% \+ 6px\); bottom: auto;/);
     expect(rule).not.toMatch(/bottom: calc\(100%/);
-    expect(rule).toContain("box-sizing: border-box; max-width: min(156px, calc(100vw - 32px)); white-space: normal;");
+    expect(rule).toContain("box-sizing: border-box; max-width: min(156px, calc(100vw - 32px)); white-space: pre-line;");
     expect(css).toMatch(/@media \(max-width: 560px\) \{\s*[^}]*\{ max-width: 124px; \}/);   // inside the ~130px score column on a phone
     expect(css).toContain(".mfs-cell .mfs-parts.mfs-tip-below { position: relative; }");
     expect(css).not.toMatch(/bottom: calc\(100% \+ 8px\)/);   // the old box above the letter is gone
