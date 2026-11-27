@@ -14,7 +14,10 @@ These lines of CHECKLIST.md need re-checking first, because the repository or `d
 - **Uptime monitoring (section 3):** `deploy/aws/gatus/` and `deploy/aws/uptime-kuma/` exist. To check: are they running, and do their alerts reach the founder's phone?
 - **Backups (section 3):** `deploy/aws/backup.sh` (nightly, kept on the server) and `test-backup-prune.sh` exist. The offsite copy is the missing part.
 - **favicon.ico (section 8):** `frontend/public` has `favicon-16.png` and `favicon-32.png`, but no `favicon.ico`.
-- **Analytics (section 7):** the same decision as `docs/search-growth/FOUNDER-STEPS.md` step 3 (recommended: FinLit's own cookie-free counter). Decide it once for both.
+- **Privacy notice out of date (found 27 Nov 2026, `frontend/src/pages/Legal.tsx`):** "Who sees it" names hosting on Render, Neon and MongoDB Atlas, and "Where it is stored" says "mainly in Singapore". The site now runs on AWS EC2 in Sydney behind Cloudflare (MAINTAINER-MAP section 5). The legal text is left for the lawyer review of the privacy notice (section 1); only the "Counting visits" section was added with the counter.
+- **Tab icon / favicon (section 8; task #400 belongs to another session):** the live icons are the new logo since #973. At tab size they show its "L + chart bars" part. `/favicon.ico` still returns 404. Owner asked about the tab icon on 27 Nov 2026; any change goes as a note on task #400.
+- **Analytics (section 7):** the owner chose "both, in two steps" (27 Nov 2026): step 1, FinLit's own cookie-free counter (built; see search-growth PROGRESS, Phase 0); step 2, GA4 only after consent.
+- **Analytics (section 7), as first noted:** the same decision as `docs/search-growth/FOUNDER-STEPS.md` step 3 (recommended: FinLit's own cookie-free counter). Decide it once for both.
 - **Mumbai move (sections 0 and 4):** shared with the search-growth plan (Phase 4). One plan document covers both.
 
 ## The 6 that matter most (CHECKLIST section 0)

@@ -218,7 +218,7 @@ async def test_ai_summary_is_silver_and_gold_written_once_and_kept(app, monkeypa
 
     async def fake_write(request, row, pages, name):
         calls.append(row["link"])
-        return "**What the quarter looked like**\n- Revenue grew (p. 1)"
+        return "## What the quarter looked like\n- Revenue grew (p. 1)"   # task #432: the sectioned form is kept as it is
     monkeypatch.setattr(A, "_write_summary", fake_write)
     import dataclasses
     app.state.settings = dataclasses.replace(app.state.settings, anthropic_api_key=app.state.settings.anthropic_api_key or "test-key")

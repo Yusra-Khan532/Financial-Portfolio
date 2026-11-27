@@ -18,6 +18,12 @@ mark.k.g { background: linear-gradient(transparent 62%, color-mix(in srgb, var(-
 .ins-dot { display: inline-flex; width: 22px; height: 22px; align-items: center; justify-content: center; border-radius: 50%; color: #fff; background: var(--gold); }
 .ins-dot svg { width: 13px; height: 13px; } .ins-dot.f { background: var(--loss); } .ins-dot.w { background: var(--warn); } .ins-dot.s { background: var(--gain); }
 .kf-none { margin: 0; font-size: var(--fs-13); color: var(--faint); }
+/* founder, 26 Nov 2026: a column shows its first 3 findings; the rest open from this bar, in the look of the report's other "Show all" buttons
+   (News and filings: a pill on the card colour), the width of its column, with the drop-down chevron */
+.kf-more { display: flex; width: 100%; align-items: center; justify-content: center; gap: 8px; min-height: 40px; padding: 7px 16px; border: 1px solid var(--border-strong); border-radius: var(--ui-r-pill); background: var(--s1); font: 600 var(--fs-13) var(--sans); color: var(--text); cursor: pointer; }
+.kf-more:hover { border-color: var(--text); }
+.kf-more:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.kf-more .xdd-chev { transition: transform .15s; } .kf-more.open .xdd-chev { transform: rotate(180deg); }
 @media (max-width: 900px) { .kf-g { grid-template-columns: minmax(0, 1fr); } }
 
 /* dots on the section tabs: red = a red flag, orange = something to watch */

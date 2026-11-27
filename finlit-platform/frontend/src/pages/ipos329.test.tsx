@@ -83,7 +83,7 @@ describe("rules 1-3: the address, the redirect, which view opens", () => {
   it("the bar: '2 views · press one to switch', two numbered views with their counts, 'Showing: …'", () => {
     page();
     const bar = document.querySelector(".ctabs") as HTMLElement;
-    expect(bar.querySelector(".ctabs-h")!.textContent).toBe("⇆2 viewspress one to switch");
+    expect(bar.querySelector(".ctabs-h")!.textContent).toBe("⇆2 viewsSee 1 more→")   // developer file 46: See N more stands in for the hint until each view was opened;
     expect(within(bar).getAllByRole("tab").map((t) => t.textContent)).toEqual(["1Open and upcoming1", "2All IPOs since 202063"]);
     expect(bar.querySelector(".ct-aside")!.textContent).toBe("Showing: Open, upcoming, about to list, and listed in the last 30 days");
     fireEvent.click(tab(/All IPOs since 2020/));

@@ -1,0 +1,17 @@
+/* Developer file 45 (founder, 27 Nov 2026: "too many colours? yes"): the company report's colour roles. The page had 58 colours in 8 families with no logic:
+   17 section numbers in 6 colours, the Ratios cards in 5 edge colours, and green both "up" and the colour of three section headings.
+   1 Brand gold: every section's number, name and icon, and every card's edge and icon (SectionHead, .card.acc; the Discover rows too).
+   2 Green and red: up and down only (--gain, --loss, and the good / watch / bad tones of findings).
+   3 Blue: this company in a chart (--c1, --line). Grey: context and comparison (--cmp: volume, an industry, an average).
+   4 A palette only where categories must be told apart (segments, owners, a chart's several lines): --c1 to --c5 below, with no green or red in it,
+     at most five colours and grey for the rest. */
+:root { --cmp: var(--faint); }
+section.block { --c3: var(--k7); --c4: color-mix(in srgb, var(--k1) 45%, var(--k3)); }
+/* Where it stands reuses the Sector pages' pack, which has its own teal for notes and links and its own green: in the report they are the report's
+   neutral note colour and its gain green (the selector outranks the pack's dark-theme one) */
+section.block.sp.ws { --sp-info: var(--info); --sp-info-bg: var(--info-soft); --sp-info-bd: color-mix(in srgb, var(--info) 22%, transparent);
+  --sp-good: var(--gain); --sp-good-bg: var(--gain-soft); --sp-good-bd: color-mix(in srgb, var(--gain) 22%, transparent); }
+section.block .sp-spark-l { stroke: var(--cmp); } section.block .sp-spark-lo { fill: color-mix(in srgb, var(--cmp) 8%, transparent); } section.block .sp-spark-dot { fill: var(--cmp); }
+section.block .card { --ac: var(--gold); }   /* a card's edge and its heading icon: gold (an inline --ac, kept only where it carries a meaning, still wins) */
+section.block .avgline { border-top-color: color-mix(in srgb, var(--cmp) 80%, transparent); } section.block .avgline b { color: var(--cmp); }   /* the dividends' average: a comparison, grey */
+section.block .plain:not(.pl-good):not(.pl-warn) { --pl: var(--gold); }   /* a plain-words note that is neither good nor a watch: gold (it was blue, the company's chart colour) */

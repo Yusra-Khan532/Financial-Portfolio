@@ -1,0 +1,27 @@
+/* Developer file 42: the profit and loss charts under Financials (stock/ProfitCharts.tsx). */
+.plb { display: grid; grid-template-columns: minmax(92px, max-content) minmax(0, 1fr) auto auto; column-gap: 14px; font-size: var(--fs-13); }
+.plb-r { display: contents; }
+.plb-r > * { min-height: 34px; display: flex; align-items: center; min-width: 0; }
+.plb-hd > * { min-height: 26px; font-size: var(--fs-12); color: var(--faint); }
+.plb-l { color: var(--muted); line-height: 1.25; }
+.plb-r.tot > * { border-top: 1px solid var(--border); }
+.plb-r.tot .plb-l { color: var(--text); font-weight: 600; }
+.plb-lane { position: relative; }
+.plb-bar { position: absolute; top: 9px; bottom: 9px; border-radius: var(--ui-r-mark); background: var(--c1); }
+.plb-bar.up { background: var(--gain); } .plb-bar.down { background: var(--loss); }
+/* revenue and the operating costs run past the scale: a slanted cut near the end says so */
+.plb-bar.cut { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.plb-bar.cut::after { content: ""; position: absolute; right: 16px; top: -4px; bottom: -4px; width: 5px; background: var(--s1); transform: skewX(-24deg); }
+.plb-link { position: absolute; top: -9px; height: 18px; border-left: 1px dashed var(--border-strong); }
+.plb-v, .plb-p { justify-content: flex-end; font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.plb-v { font-weight: 600; color: var(--text); } .plb-v.pos { color: var(--pos, var(--gain)); } .plb-v.neg { color: var(--neg, var(--loss)); }
+.plb-p { color: var(--muted); }
+.plb-hd > :nth-child(3), .plb-hd > :nth-child(4) { justify-content: flex-end; text-align: right; }
+@media (max-width: 600px) { .plb { column-gap: 10px; font-size: var(--fs-12); } .plb-x { display: none; } }
+
+.p100-read { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; min-height: 40px; margin: 0 0 8px; font-size: var(--fs-12); color: var(--muted); }
+.p100-read b { color: var(--text); font-weight: 600; }
+.p100-read span { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.p100-read i { width: 10px; height: 10px; border-radius: var(--ui-r-mark); display: inline-block; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 14%, transparent); }
+.p100-read em { font-style: normal; font-family: var(--mono); color: var(--text); }
+.p100 svg { display: block; overflow: visible; }

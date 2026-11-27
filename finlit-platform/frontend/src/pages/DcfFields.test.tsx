@@ -182,6 +182,28 @@ describe("the DCF page (task #396)", () => {
     expect(screen.getByRole("heading", { name: "Methodology and important notes" })).toBeTruthy();
     expect(document.querySelector(".dcf-disc")?.textContent).toMatch(/not a forecast of the future share price/);
   });
+  it("task #412: the methodology card is a drop-down, closed at first; its title row opens and closes it, remembered per member", async () => {
+    localStorage.clear();
+    openPage();
+    const card = document.querySelector("details.dcx-meth") as HTMLDetailsElement;
+    expect(card).toBeTruthy();
+    expect(card.open).toBe(false);
+    const row = card.querySelector(":scope > summary") as HTMLElement;
+    expect(row.querySelector("h2")?.textContent).toBe("Methodology and important notes");
+    expect(row.querySelector(".dcx-mtg")?.textContent).toBe("Show");
+    fireEvent.click(row);
+    await waitFor(() => expect(card.querySelector(".dcx-mtg")?.textContent).toBe("Hide"));
+    expect(card.open).toBe(true);
+    expect(localStorage.getItem("finlit.dcf.meth.1")).toBe("open");
+    expect(card.textContent).toMatch(/Gordon growth/);                                  // every note is still there, unchanged
+    fireEvent.click(row);
+    await waitFor(() => expect(card.open).toBe(false));
+    expect(localStorage.getItem("finlit.dcf.meth.1")).toBe("closed");
+    cleanup(); localStorage.setItem("finlit.dcf.meth.1", "open");
+    openPage();
+    expect((document.querySelector("details.dcx-meth") as HTMLDetailsElement).open).toBe(true);
+    expect(localStorage.getItem("finlit.dcf.intro.1")).toBeNull();                      // its own key: the intro card is not moved with it
+  });
 });
 
 describe("the page layout (tasks #302 and #396)", () => {
@@ -200,5 +222,21 @@ describe("the page layout (tasks #302 and #396)", () => {
     expect(css).toMatch(/@media \(max-width:860px\)\{\s*\.dcx-ws\{grid-template-columns:1fr\}/);
     expect(css).toMatch(/\.dcx-ws\{display:grid;grid-template-columns:minmax\(320px,34%\) minmax\(0,1fr\);gap:12px/);
     expect(css).not.toMatch(/\.dcx-rng/);
+  });
+  it("task #416: the bear, base, bull boxes and the plain figures are centred together, outweighing dcf.css's top-left cells", () => {
+    const css = readFileSync(join(process.cwd(), "src/styles/dcf-redesign.css"), "utf8");
+    const old = readFileSync(join(process.cwd(), "src/styles/dcf.css"), "utf8");
+    // the cause: dcf.css loads after this file in the build, and its cell rule has the same weight as .dcx-t's, so it pinned every cell top-left
+    expect(old).toMatch(/\.dcf th, \.dcf td \{[^}]*text-align: left; vertical-align: top;/);
+    // the fix is one class heavier (.dcx .dcx-sc) and only for this table: every cell centred both ways, headers included
+    expect(css).toMatch(/\.dcx \.dcx-sc th,\.dcx \.dcx-sc td\{text-align:center;vertical-align:middle\}/);
+    expect(css).toMatch(/\.dcx \.dcx-sc thead th\{vertical-align:middle\}/);
+    expect(css).toMatch(/\.dcx \.dcx-sc input\{text-align:center;vertical-align:middle\}/);   // the typed figure sits in the middle of its box
+    expect(css).toMatch(/\.dcx \.dcx-sc \.lk\{width:auto;padding:0\}/);                      // the base row's figures centre on the same line as the boxes
+    expect(css).toMatch(/\.dcx \.dcx-sc tfoot th\{text-align:left\}/);                       // the "Weighted value" label spans five columns and stays a row label
+    expect(css).not.toMatch(/\.dcx \.dcx-t th/);                                             // the other tables of the working are not touched
+    const page = readFileSync(join(process.cwd(), "src/pages/Dcf.tsx"), "utf8");
+    expect(page).toContain('<div className="wrap dcf dcx">');                                 // the .dcx scope the rules hang from
+    expect(page).toContain('<table className="dcx-t dcx-sc">');
   });
 });

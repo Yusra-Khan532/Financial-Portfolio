@@ -121,6 +121,13 @@ section.block .own-chip:focus-visible { outline: 2px solid var(--focus); }
 .hx-d .hxd-strip { display: grid; grid-template-columns: auto minmax(0, 2fr) minmax(0, 1fr) auto; margin-top: 12px; border: 1px solid var(--border); border-radius: var(--r-ctl); overflow: hidden; }
 .hx-d .hxd-strip > div { padding: 10px 14px; border-right: 1px solid var(--border); min-width: 0; }
 .hx-d .hxd-strip > div:last-child { border-right: 0; }
+/* founder, 27 Nov 2026: "too much empty space" under Market cap and Listed as (the rating cell with its two technical rows set the strip's height).
+   Against peers takes the top row beside the rating, Market cap and Listed as share the row under it, so no cell is left half empty. */
+.hx-d .hxd-strip { grid-template-columns: auto minmax(0, 1.25fr) minmax(0, 1fr); grid-template-areas: "rate peer peer" "rate cap list"; }
+.hx-d .hxd-strip > .hx-rate { grid-area: rate; } .hx-d .hxd-strip > .hxpeer { grid-area: peer; border-right: 0; border-bottom: 1px solid var(--border); }
+.hx-d .hxd-strip > .hx-cap { grid-area: cap; } .hx-d .hxd-strip > .hx-list { grid-area: list; }
+.hx-d .hxd-strip > .hx-cap, .hx-d .hxd-strip > .hx-list { display: flex; flex-direction: column; justify-content: center; gap: 4px; }
+.hx-d .hxd-strip > .hx-list .tags { margin: 0; }
 .hx-d .hxd-strip b { font: 600 var(--fs-14, 14px) var(--sans); }
 .hx-d .hxd-strip .ld-line { margin: 0; padding: 0; border: 0; background: none; }
 .hx-d .hxd-strip .ld-notes .ld-caution { display: none; }   /* the fundamental note stays in the peers section; stale and pending notes stay visible */
@@ -158,8 +165,9 @@ section.block .own-chip:focus-visible { outline: 2px solid var(--focus); }
 @media (max-width: 900px) {
   .hx-d .hxd-top { grid-template-columns: auto minmax(0, 1fr); }
   .hx-d .hxd-px, .hx-d .hxd-top .hx-acts { grid-column: 1 / -1; }
-  .hx-d .hxd-strip { grid-template-columns: 1fr 1fr; }
+  .hx-d .hxd-strip { grid-template-columns: 1fr 1fr; grid-template-areas: "rate rate" "peer peer" "cap list"; }
   .hx-d .hxd-strip .hxpeer { grid-column: 1 / -1; }
+  .hx-d .hxd-strip > .hx-cap { border-right: 1px solid var(--border); }
   .hx-d .hxd-strip > div { border-right: 0; border-bottom: 1px solid var(--border); }
   .hx-d .hxd-strip > div:last-child { border-bottom: 0; }
   .hx-d .hx-cls .hc-a { display: none; }

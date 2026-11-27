@@ -11,7 +11,7 @@ import { CategoryPicker, TYPES_KEY } from "./Dashboard";
 import type { ListQuery, SubCat } from "../lib/mf";
 
 afterEach(() => { cleanup(); localStorage.clear(); });
-const css = readFileSync(resolve(process.cwd(), "src", "styles", "mf341.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+const css = readFileSync(resolve(process.cwd(), "src", "styles", "fundType427.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
 const screenerCss = readFileSync(resolve(process.cwd(), "src", "styles", "task364.css"), "utf8");
 const Q = { q: "", amc: "", plan: "", option: "", status: "", sort: "", dir: "desc", page: 1, size: 25, min1y: "", max1y: "", min5y: "", max5y: "", view: "", tab: "all", cats: null } as ListQuery;
 const SUBS: SubCat[] = [{ key: "a", label: "Large Cap Fund", names: [], count: 30 }, { key: "b", label: "Mid Cap Fund", names: [], count: 35 }];
@@ -52,7 +52,10 @@ describe("task #427: the fund types in one drop-down", () => {
   });
   it("the panel's headings are the stock screener's green and larger (14px, was 12px)", () => {
     expect(screenerCss).toMatch(/\.wrap\.ssw \.srt-grp, \.wrap\.ssw \.srt-h \{[^}]*color: var\(--gain\);/);
-    expect(css).toMatch(/\.mf-list \.mf-side \.label, \.mf-list \.mf-side \.mf-freq-k \{ color: var\(--gain\); font: 600 var\(--fs-14\)\/1\.3 var\(--sans\); letter-spacing: \.08em; text-transform: uppercase; \}/);
+    // "aside.mf-side" outranks mf341.css's ".mf-list .mf-fbar .label" (grey, 12px) whichever sheet loads first
+    expect(css).toMatch(/\.mf-list aside\.mf-side \.label, \.mf-list aside\.mf-side \.mf-freq-k \{ color: var\(--gain\); font: 600 var\(--fs-14\)\/1\.3 var\(--sans\); letter-spacing: \.08em; text-transform: uppercase; \}/);
+    expect(readFileSync(resolve(process.cwd(), "src", "mf", "Dashboard.tsx"), "utf8")).toContain('import "../styles/fundType427.css";');
+    expect(readFileSync(resolve(process.cwd(), "src", "pages", "Funds.tsx"), "utf8")).toContain('<aside className="mf-side"');
     expect(css).toMatch(/\.mf-list \.mf-typedd-h \{[^}]*min-height: 38px;/);
   });
 });

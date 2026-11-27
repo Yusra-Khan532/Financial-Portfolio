@@ -43,7 +43,10 @@ describe("the three filings, point by point", () => {
   it("never the words positive, neutral or negative as a label", async () => {
     mount(SAMPLE);
     await screen.findAllByRole("article");
-    const text = document.body.textContent!.toLowerCase();
+    // developer file 47 (founder, 27 Nov 2026): the block's own name is "Sentiment analysis", the one place the word appears; no score is ever called
+    // positive, neutral or negative, and no other line says "sentiment"
+    expect(screen.getByRole("heading", { name: "Sentiment analysis" })).toBeTruthy();
+    const text = document.body.textContent!.toLowerCase().replace("sentiment analysis", "");
     expect(text).not.toMatch(/\b(positive|neutral|negative|sentiment)\b/);
   });
   it("why a point scored as it did, and every point on demand", async () => {
@@ -59,7 +62,7 @@ describe("the three filings, point by point", () => {
       C: { name: "Earnings call transcript", status: "none" }, R: { name: "Results filing", status: "unreadable", why: "The exchange did not send a readable copy of this file. FinLit tries again tomorrow.", doc: { title: "y", date: "2026-10-15", link: "https://nsearchives.nseindia.com/b.pdf", source: "section18" } } } });
     const cards = await screen.findAllByRole("article");
     expect(cards[0].textContent).toContain("Reading the file from the exchange");
-    expect(cards[1].textContent).toContain("No earnings call transcript in Section 18 or in the company's stored filings of the last 400 days.");
+    expect(cards[1].textContent).toContain("No earnings call transcript in Section 16 or in the company's stored filings of the last 400 days.");   // News and filings, its number from the report's order (developer file 41)
     expect(cards[2].textContent).toContain("The exchange did not send a readable copy");
     expect(document.querySelector(".fs-co")).toBeNull();
   });

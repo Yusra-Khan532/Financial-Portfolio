@@ -117,7 +117,7 @@ REDIRECTS: Dict[str, str] = {
     "glossary/score-bands-strong-healthy-mixed-watch": "/glossary",
     # task #317 (developer file 23, 22 Nov 2026): two pages taken off the site
     "commodities": "/macro",                 # Commodity prices -> India economy (free; it still shows crude and the rupee)
-    "premium/fundamentals": "/research",     # Company financials -> the Company report (section 06 carries a company's financials)
+    "premium/fundamentals": "/research",     # Company financials -> the Company report (its Financials section carries a company's financials)
 }
 
 

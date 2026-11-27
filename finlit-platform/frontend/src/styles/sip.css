@@ -133,12 +133,6 @@
 .sip-rule-in label { display: inline-flex; gap: 6px; align-items: center; }
 .sip-page .sip-rule-in input[type="number"] { width: 84px; height: 32px; padding: 0 8px; border-radius: var(--r-ctl); text-align: right; font: 600 var(--fs-13) var(--mono); }
 
-.sip-how { display: grid; gap: 18px; }
-.sip-formula { display: inline-flex; align-items: center; gap: 12px; justify-self: start; padding: 18px 26px; border-radius: var(--r-card); border: 1px solid color-mix(in srgb, var(--gold) 45%, transparent); background: var(--s2); font: 500 var(--fs-20) var(--serif); }
-.sip-formula .frac { display: inline-grid; text-align: center; } .sip-formula .frac span:first-child { padding: 0 6px 4px; border-bottom: 1.5px solid var(--text); } .sip-formula .frac span:last-child { padding-top: 4px; }
-.sip-vars { margin: 0; display: grid; gap: 8px; } .sip-vars div { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 12px; align-items: baseline; }
-.sip-vars dt { font: 600 var(--fs-16) var(--serif); color: var(--gold); } .sip-vars dd { margin: 0; font: 500 var(--fs-14) var(--mono); color: var(--text); overflow-wrap: anywhere; }
-.sip-how-l { margin: 0; padding-left: 18px; display: grid; gap: 6px; color: var(--muted); font-size: var(--fs-14); line-height: 1.55; max-width: 90ch; }
 .sip-disc { margin: 4px 0 0; font-size: var(--fs-13); color: var(--faint); max-width: 100ch; line-height: 1.55; }
 
 @keyframes sip-in { from { opacity: 0; transform: translateY(4px); } }
@@ -152,7 +146,6 @@
   .sip-goal { grid-template-columns: minmax(0, 1fr); }
   .sip-wrow { grid-template-columns: minmax(0, 1fr); gap: 6px; } .sip-wrow b { text-align: left; }
   .sip-page .sip-box input:not([type="checkbox"]):not([type="radio"]):not([type="range"]) { width: 96px; font-size: var(--fs-16); }
-  .sip-formula { font-size: var(--fs-18); padding: 14px 16px; }
   .sip-tip { min-width: 160px; }
 }
 @media (prefers-reduced-motion: reduce) {

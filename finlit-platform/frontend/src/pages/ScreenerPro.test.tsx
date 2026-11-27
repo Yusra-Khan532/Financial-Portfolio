@@ -235,7 +235,7 @@ describe("task #64 Part 4: the panel and the header", () => {
     mount("?s=" + encodeState(norm({ ranges: { roe: { min: 15 } } }), "market_cap", "desc")); await ready();
     const h = screen.getByRole("button", { name: /^Profitability/ });
     expect(h.textContent).toMatch(/1 on/);
-    fireEvent.click(h);
+    expect(h.getAttribute("aria-expanded")).toBe("true");                                        // task #415: a group with a range on opens by itself, its range in the dropdown
     expect((within(document.getElementById("srt-b-profitability")!).getByRole("checkbox", { name: "Return on equity" }) as HTMLInputElement).checked).toBe(true);
   });
   it("task #364: the search narrows every group at once and opens the ones that match", async () => {
@@ -270,6 +270,32 @@ describe("task #64 Part 4: the panel and the header", () => {
       fireEvent.change(within(rbox).getByLabelText("Return on equity from"), { target: { value: "20" } });
       await waitFor(() => expect(last().filters).toEqual({ roe: { min: 20 } }));
       expect((within(body).getByRole("checkbox", { name: "Return on equity" }) as HTMLInputElement).checked).toBe(true);
+    });
+  });
+  describe("task #415: a filter's range card is only in its dropdown, never outside it above the list", () => {
+    const cards = () => [...rulesPanel().querySelectorAll("[data-rule]")].map((e) => ({ key: e.getAttribute("data-rule"), inside: !!e.closest(".srt-rbox") }));
+    it("ticking a filter draws no card above the list; its arrow opens the one card, inside the dropdown", async () => {
+      mount(); await ready();
+      fireEvent.click(screen.getByRole("button", { name: /^Profitability/ }));
+      const body = document.getElementById("srt-b-profitability")!;
+      fireEvent.click(within(body).getByRole("checkbox", { name: "Return on equity" }));
+      await waitFor(() => expect(ruleHeads()).toEqual(["Return on equity"]));
+      expect(cards()).toEqual([]);                                                                 // before: a P/E-style card appeared above "N filters in N groups"
+      fireEvent.click(within(body).getByRole("button", { name: "Set a range for Return on equity" }));
+      expect(cards()).toEqual([{ key: "roe", inside: true }]);                                     // one card, in the dropdown
+      expect(document.querySelector(".srt-total")!.compareDocumentPosition(rulesPanel().querySelector("[data-rule]")!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+    it("+ Add a rule and a typed rule open the filter's group and its range in the dropdown, with no card outside", async () => {
+      mount(); await ready();
+      await addRule("Return on equity");
+      expect(screen.getByRole("button", { name: /^Profitability/ }).getAttribute("aria-expanded")).toBe("true");
+      expect(cards()).toEqual([{ key: "roe", inside: true }]);
+      fireEvent.change(screen.getByPlaceholderText("Or type: pe < 20 and roe > 15"), { target: { value: "pb < 3" } });
+      fireEvent.submit(screen.getByPlaceholderText("Or type: pe < 20 and roe > 15").closest("form")!);
+      await waitFor(() => expect(cards()).toEqual([{ key: "pb", inside: true }, { key: "roe", inside: true }]));
+      expect(screen.getByRole("button", { name: /^Valuation/ }).getAttribute("aria-expanded")).toBe("true");
+      fireEvent.click(within(rulesPanel()).getByRole("button", { name: "Remove the rule on P/B" }));   // × takes the rule off and closes the box it opened
+      await waitFor(() => expect(cards()).toEqual([{ key: "roe", inside: true }]));
     });
   });
   it("S-9: the header names the data date in India time, in its date chip", async () => {

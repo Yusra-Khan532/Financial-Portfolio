@@ -231,11 +231,13 @@ function FlagCard({ items, onClose, floating, onAnimationEnd }: { items: Insight
   );
 }
 
-/** Founder, 24 Nov 2026: the alert pops up when the reader reaches section 05 and goes once the whole of section 05 has been scrolled past (or by its x).
- *  `top` is the top of the results bar (just above section 05), `bottom` the bottom of section 05; both from the top of the screen, `vh` its height.
- *  The reader is on the section once its start has come up into the top 70% of the screen (REACH), and leaves it when its end has gone up into the
- *  top 20% (END), under the page header: by then the next section fills the screen. Scrolling back above the section is "away" too. */
-export const REACH = 0.7, END = 0.2;
+/** Founder, 24 Nov 2026: the alert pops up when the reader reaches the Latest quarter section (05 then, 04 since developer file 41) and goes once the
+ *  whole of it has been scrolled past (or by its x). `top` is the top of the results bar (just above the section), `bottom` the bottom of the section;
+ *  both from the top of the screen, `vh` its height. The reader is on the section once its start has come up into the top 35% of the screen (REACH),
+ *  and leaves it when its end has gone up into the top 20% (END), under the page header. Scrolling back above the section is "away" too.
+ *  Founder, 26 Nov 2026: "why is there a pop on section 3, it opens when we reach section 5 and closes when section 5 ends". At 70% (before) the card
+ *  came up while the section above still filled most of the screen, and stayed over it on the way back up; at 35% the section fills the screen first. */
+export const REACH = 0.35, END = 0.2;
 export function isAway(top: number, bottom: number, vh: number): boolean {
   return top > vh * REACH || bottom < vh * END;
 }

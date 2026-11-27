@@ -8,6 +8,7 @@ import { cardScoreView, type CardScoreView } from "../lib/mfScoreDash";
 import { bandInk } from "../lib/scoreBands";
 import { toggleAll, toggleCat, type ListQuery, type SubCat } from "../lib/mf";
 import { CARDS, ELSS_FOOTNOTE, TABS, type Card, type TabKey } from "../lib/mfCategories";
+import "../styles/fundType427.css";   // task #427: the Fund type drop-down and the green, larger filter headings
 
 /** Mutual Fund Score strip of a card (task #130): the median of the category's scored Direct-plan funds, the bar of its three bands named in words
  *  ("Healthy or strong 3% · Average 66% · Weak or poor 31%", never by colour), and a button that opens the list below on that category, by Mutual Fund Score. */

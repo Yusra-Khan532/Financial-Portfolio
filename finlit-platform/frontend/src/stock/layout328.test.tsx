@@ -68,15 +68,10 @@ describe("4 · Key takeaways and risks: closed rows with the count and first lin
 });
 
 describe("C · the overbought trigger and the style scale", () => {
-  const s3 = src("./Sections3.tsx");
-  it("Heavy recent buying has its own two lines, not the heavy-selling ones, and no advice words", () => {
-    expect(s3).toMatch(/rsi14_high: \["Heavy recent buying has lifted the price fast/);
-    expect(s3).toMatch(/n\.key === "rsi14" && \/buying\|overbought\/i\.test/);
-    const line = s3.slice(s3.indexOf("rsi14_high"), s3.indexOf("\n", s3.indexOf("rsi14_high")));
-    expect(line).not.toMatch(/\b(buy now|sell|hold|target|accumulate|avoid)\b/i);
-  });
-  it("the style scale reads 'Between the value and growth groups', never cheap or expensive", () => {
-    expect(s3).toContain('"Between the value and growth groups"');
+  it("went with Gold insights, the section that drew them (developer file 41: the founder removed section 15)", () => {
+    const s3 = src("./Sections3.tsx");
+    expect(s3).not.toMatch(/rsi14_high:/);
+    expect(s3).not.toContain("Between the value and growth groups");
     expect(s3).not.toContain("Neither cheap nor expensive");
   });
 });

@@ -13,6 +13,7 @@ import { MINUS, cr, dateIN, nf, signed } from "../lib/format";
 import { useBasis, setBasis, wasAutomatic, wasChosen, type Basis } from "../lib/basis";
 import { useIntraday, usePrice, useSection, type ApiError, type Financials, type Intraday, type IntradayRange, type Ratios, type Summary, type Table } from "../lib/api";
 import { barSpan, changePct, istDay, status as intradayStatus } from "../lib/intraday";
+import { hasOhlc } from "../lib/candles";
 import { useAuth } from "../lib/auth";
 import { finTiles, yoy } from "./derive";
 import { PL_INFO, PL_LABEL, plCell } from "./plDefinitions";
@@ -21,11 +22,13 @@ import { Plain } from "../components/Plain";
 import { ChartZoom } from "../components/ChartZoom";
 import { TabGroup } from "../components/TabGroup";
 import { ForecastCard } from "./ForecastCard";
+import { CfCharts, PlCharts, PriceStats } from "./MoreCharts";
+import { Defer } from "./Defer";
+import { HEADING, sectionNo } from "../lib/sectionNav";
 
-const css = (v: string) => `var(${v})`;
 /** Section header (task #216, compact): the number large (40 px; 32 on phones), a thin rule, the eyebrow with the plan badge, the title (24 px), and under it
  *  one line: the counts as coloured chips (if any), a dot, then the description (13 px, muted). Controls (toggles, a link) go on the right in `aside`.
- *  A section without a number (Chart lab) keeps its icon tile. */
+ *  The number comes from the report's one order (lib/sectionNav); a heading without one keeps its icon tile. */
 import "../styles/insights.css";
 import { PLAN_FOR_REPORT_EXTRAS } from "../lib/planGates";
 export type HeadCount = { n: number; label: string; tone: "red" | "amb" | "pos" };
@@ -42,13 +45,19 @@ export function longTrend(t: { vsEma200Pct: number | null; ema50: number | null;
 export function CountChips({ counts }: { counts: HeadCount[] }) {
   return <span className="cchips">{counts.map((c) => <span key={c.label} className={"cchip " + (c.n === 0 ? "zero" : c.tone)}><b>{c.n}</b> {c.label}</span>)}</span>;
 }
-export function SectionHead({ id, no, icon, tier, title, sub, color, aside, counts }: { id: string; no: string; icon: string; tier?: "basic" | "silver" | "gold"; title: string; sub?: string; color: string; aside?: React.ReactNode; counts?: HeadCount[] }) {
-  const m = /^(\d{1,2})\s*·\s*(.+)$/.exec(no);
+/** Developer file 45 (founder, 27 Nov 2026: "too many colours? yes"): every section's number, name and icon are the one brand gold (they were six colours with no
+ *  pattern), so the head takes no colour of its own.
+ *  Developer file 47 (founder, 27 Nov 2026: "why are we showing two headings in each section ... the main headings are way too big and no need to write the
+ *  company name"): one plain heading, the section's name, at a modest size, with the number before it and the plan chip after it; the old second heading
+ *  (often a question with the company's name) is gone, and the one-line description stays under it, small. */
+export function SectionHead({ id, no, icon, tier, sub, aside, counts }: { id: string; no: string; icon: string; tier?: "basic" | "silver" | "gold"; sub?: string; aside?: React.ReactNode; counts?: HeadCount[] }) {
+  // developer file 41: a report section's number comes from the one order in lib/sectionNav (pass its name only); "07 · Name" still works elsewhere
+  const n = sectionNo(id), m = /^(\d{1,2})\s*·\s*(.+)$/.exec(no) ?? (n ? [no, n, HEADING[id] ?? no] : null);   // developer file 48: a report section's heading from HEADING
   return (
-    <div className="sh" id={id} style={{ "--sc": `var(${color})` } as React.CSSProperties}>
+    <div className="sh" id={id} style={{ "--sc": "var(--gold)" } as React.CSSProperties}>
       <div className="sh-l">
-        {m ? <><span className="sh-n" aria-hidden="true">{m[1]}</span><span className="sh-rule" aria-hidden="true" /></> : <div className="sh-ic"><Icon name={icon} /></div>}
-        <div><div className="no">{m ? m[2] : no} {tier && <TierChip tier={tier} />}</div><h2>{title}</h2>
+        {m ? <span className="sh-n" aria-hidden="true">{m[1]}</span> : <div className="sh-ic"><Icon name={icon} /></div>}
+        <div className="sh-t"><div className="sh-tl"><h2>{m ? m[2] : no}</h2>{tier && <TierChip tier={tier} />}</div>
           {(counts?.length || sub) ? <p className="sh-desc">{counts?.length ? <CountChips counts={counts} /> : null}{counts?.length && sub ? <span className="sh-dot" aria-hidden="true">·</span> : null}{sub ? <span>{sub}</span> : null}</p> : null}
         </div>
       </div>
@@ -62,10 +71,18 @@ const RANGES = ["1M", "6M", "1Y", "3Y", "5Y", "MAX"];
 /** Intraday ranges (Dhan) and the plan each needs; every one needs a signed-in account, except on the free example company. */
 const INTRA: [IntradayRange, Plan][] = [["1D", "basic"], ["5D", PLAN_FOR_REPORT_EXTRAS], ["1M", PLAN_FOR_REPORT_EXTRAS]];
 const CAP: React.CSSProperties = { fontSize: "var(--fs-12)", padding: "0 6px 0 8px", alignSelf: "center", whiteSpace: "nowrap" };
+/** Developer file 42 (founder, 26 Nov 2026): the chart's two views, the close line and candles; every range and plan has both. */
+export type PriceView = "line" | "candles";
+/** The legend's swatches for candles: green closed at or above its open, red below; volume in the candle's own colour. */
+export function CandleKey() {
+  return <><span><i style={{ background: "var(--gain)" }} />Closed higher</span><span><i style={{ background: "var(--loss)" }} />Closed lower</span></>;
+}
+const VOL_KEY = (view: PriceView) => <span><i style={view === "candles" ? { background: "linear-gradient(90deg, var(--gain) 50%, var(--loss) 50%)", opacity: 0.45 } : { background: "var(--cmp)", opacity: 0.6 }} />Volume</span>;   // developer file 45: volume is context, grey
 export function PriceSection({ s, symbol, ratios }: { s: Summary; symbol: string; ratios?: Ratios }) {
   const [range, setRange] = useState("1Y"), [from, setFrom] = useState<number | undefined>();
   const [intra, setIntra] = useState<IntradayRange | null>(null);
   const [ind, setInd] = useState({ e50: true, e200: false, vol: true });
+  const [view, setView] = useState<PriceView>("line");
   const { has, upgrade } = useUI();
   const { user } = useAuth();
   const open = useContext(OpenAccess);
@@ -77,23 +94,26 @@ export function PriceSection({ s, symbol, ratios }: { s: Summary; symbol: string
   const t = data?.technical, series = data?.series, c = series?.c || [];
   const chg = intra ? (idata?.series ? changePct(idata) : null) : c.length > 1 ? (c[c.length - 1] / c[0] - 1) * 100 : null;
   const gold = has("gold"), e = (k: string, on: boolean) => gold ? on : k === "e50" ? true : k === "vol";
+  // candles need the open, high and low: intraday bars always have them; a daily or weekly range from an older server may send closes only
+  const ohlc = intra ? true : series ? hasOhlc(series) : true, candles = view === "candles" && ohlc;
   const pickIntra = (r: IntradayRange, tier: Plan) => {
     if (mayIntra(tier)) { setIntra(r); setFrom(undefined); return; }
     upgrade(tier, tier === "basic" ? "Intraday charts come with a free account." : "The 5D and 1M intraday charts are part of Silver.");
   };
   return (
-    <section className="block" style={{ "--sc": "var(--p-tech)" } as React.CSSProperties}>
-      <SectionHead id="price" no="04 · Price & technicals" icon="line" tier="basic" title="How the stock has traded" sub="Intraday bars from Dhan for 1D, 5D and 1M; daily closes up to one year, weekly closes beyond. Hover the chart for detail." color="--p-tech" />
+    <section className="block">
+      <SectionHead id="price" no="Price & technicals" icon="line" tier="basic" sub="Intraday bars from Dhan for 1D, 5D and 1M; daily closes up to one year, weekly closes beyond. Hover the chart for detail." />
       {intra && idata?.series && chg != null && <Plain tone={chg >= 0 ? "good" : "warn"}>Since the open {idata.sessions.length > 1 ? "of " + istDay(idata.sessions[0]) : "on " + istDay(idata.session ?? "")}, the price {chg >= 0 ? "rose" : "fell"} {nf(Math.abs(chg), 2)}%.</Plain>}
       {!intra && chg != null && <Plain tone={chg >= 0 ? "good" : "warn"}>Over this period the price {chg >= 0 ? "rose" : "fell"} {nf(Math.abs(chg), 1)}%.{t?.vsEma200Pct != null && <> It trades {nf(Math.abs(t.vsEma200Pct), 1)}% {t.vsEma200Pct < 0 ? "below" : "above"} its 200-day average, {longTrend(t)}.</>}</Plain>}
       <div className="grid g3">
-        <div className="card acc span2" style={{ "--ac": "var(--p-tech)" } as React.CSSProperties}>
+        <div className="card acc span2">
           <div className="stats">
             {[["52W high", s.range52.high == null ? "—" : "₹" + nf(s.range52.high)], ["52W low", s.range52.low == null ? "—" : "₹" + nf(s.range52.low)], [intra ? "Since the open" : "Range change", chg == null ? "—" : signed(chg)], ["vs 200-day average", t?.vsEma200Pct == null ? "—" : signed(t.vsEma200Pct)]].map(([k, v]) => <div className="stat" key={k}><div className="k">{k}</div><div className={"v " + (k === "Range change" || k === "Since the open" || k.startsWith("vs") ? (v.includes("▼") ? "neg" : v.includes("▲") ? "pos" : "") : "")}>{v}</div></div>)}
           </div>
           <ChartZoom label="Price chart" className="cz-r">
           <div className="tools">
             <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8, minWidth: 0, maxWidth: "100%" }}>
+              <div className="seg" role="group" aria-label="Chart view">{([["line", "Line"], ["candles", "Candles"]] as const).map(([k, lab]) => <button key={k} aria-pressed={view === k} disabled={k === "candles" && !ohlc} title={k === "candles" && !ohlc ? "This range has closing prices only" : undefined} onClick={() => setView(k)}>{lab}</button>)}</div>
               <div className="seg" role="group" aria-label="Intraday range"><span className="faint" style={CAP}>Intraday</span>{INTRA.map(([r, tier]) => { const ok = mayIntra(tier); return <button key={r} aria-pressed={intra === r} aria-label={ok ? `${r} intraday` : `${r} intraday (${tier === "basic" ? "sign in" : "Paid plans"})`} onClick={() => pickIntra(r, tier)}>{!ok && <Icon name="lock" />}{r}</button>; })}</div>
               <div className="seg" role="group" aria-label="Range"><span className="faint" style={CAP}>Daily</span>{RANGES.map((r) => <button key={r} aria-pressed={!intra && !from && range === r} onClick={() => { setRange(r); setFrom(undefined); setIntra(null); }}>{r}</button>)}</div>
               <label className="faint" style={{ fontSize: "var(--fs-12)" }}>From year <select aria-label="From year" value={intra ? "" : from ?? ""} onChange={(e) => { setFrom(e.target.value ? Number(e.target.value) : undefined); setIntra(null); }}><option value="">Any</option>{fromYears().map((y) => <option key={y} value={y}>{y}</option>)}</select></label><ChartHelp id="price-section" /></div>
@@ -101,17 +121,17 @@ export function PriceSection({ s, symbol, ratios }: { s: Summary; symbol: string
               {!intra && <><button aria-pressed={ind.e50} onClick={() => setInd((x) => ({ ...x, e50: !x.e50 }))}>EMA 50</button><button aria-pressed={ind.e200} onClick={() => setInd((x) => ({ ...x, e200: !x.e200 }))}>EMA 200</button></>}<button aria-pressed={ind.vol} onClick={() => setInd((x) => ({ ...x, vol: !x.vol }))}>Volume</button></div>
               : <span className="tier gold" style={{ cursor: "pointer" }} onClick={() => upgrade("gold", "More indicators come with Gold.")}>More indicators in Gold</span>}
           </div>
-          {intra ? <IntradayBody q={iq} data={idata} showVol={e("vol", ind.vol)} chg={chg} /> : <>
+          {intra ? <IntradayBody q={iq} data={idata} showVol={e("vol", ind.vol)} chg={chg} view={candles ? "candles" : "line"} /> : <>
           {isLoading && <div className="skeleton" style={{ height: 340 }} />}
           {isError && <p className="muted">Price history is unavailable right now.</p>}
-          {data && series && c.length > 1 && <PriceChart data={data} showEma50={e("e50", ind.e50)} showEma200={e("e200", ind.e200)} showVol={e("vol", ind.vol)} />}
+          {data && series && c.length > 1 && <PriceChart data={data} showEma50={e("e50", ind.e50)} showEma200={e("e200", ind.e200)} showVol={e("vol", ind.vol)} candles={candles} />}
           {data && !data.complete && <p className="faint" style={{ fontSize: "var(--fs-12)", margin: "10px 0 0" }}>History for this company starts {data.startsAt ? dateIN(data.startsAt, { month: "short", year: "numeric" }) : "later"}, so this range is shorter than {range}.</p>}
-          {data && <div className="legend"><span className={"chip " + ((chg ?? 0) >= 0 ? "up" : "down")}>{signed(chg)} over the period</span><span><i className="ln" style={{ background: "var(--line)" }} />Close</span>{e("e50", ind.e50) && <span><i className="ln" style={{ background: "var(--c2)" }} />EMA 50</span>}{e("e200", ind.e200) && <span><i className="ln" style={{ background: "var(--c3)" }} />EMA 200</span>}{e("vol", ind.vol) && <span><i style={{ background: "var(--c4)", opacity: 0.6 }} />Volume</span>}{data.provisionalLastBar && <span className="faint">Latest bar is the live quote</span>}</div>}
+          {data && <div className="legend"><span className={"chip " + ((chg ?? 0) >= 0 ? "up" : "down")}>{signed(chg)} over the period</span>{candles ? <CandleKey /> : <span><i className="ln" style={{ background: "var(--line)" }} />Close</span>}{e("e50", ind.e50) && <span><i className="ln" style={{ background: "var(--c2)" }} />EMA 50</span>}{e("e200", ind.e200) && <span><i className="ln" style={{ background: "var(--c3)" }} />EMA 200</span>}{e("vol", ind.vol) && VOL_KEY(candles ? "candles" : "line")}{data.provisionalLastBar && <span className="faint">Latest bar is the live quote</span>}</div>}
           </>}
           </ChartZoom>
         </div>
         <Gate tier="gold" title="Advanced technical score" points={["RSI momentum gauge and trend signals", "Price vs 50- and 200-day averages", "Returns across every holding period"]}>
-          <div className="card acc" style={{ "--ac": "var(--p-tech)", height: "100%" } as React.CSSProperties}>
+          <div className="card acc" style={{ height: "100%" } as React.CSSProperties}>
             <div className="card-h"><h3><span className="ci"><Icon name="activity" /></span>Momentum<ChartHelp id="momentum" /></h3><TierChip tier="gold" /></div>
             {t?.rsi14 != null && <RsiGauge value={t.rsi14} />}
             <div className="mrow" style={{ marginTop: 6 }}><span className="k">What is RSI? <Info g={ratios?.glossary.rsi14} /></span><span className="v faint" style={{ fontWeight: 400, fontSize: "var(--fs-13)" }}>0 to 100 scale</span></div>
@@ -122,12 +142,15 @@ export function PriceSection({ s, symbol, ratios }: { s: Summary; symbol: string
           </div>
         </Gate>
       </div>
+      {/* developer file 41: the price statistics of the old Chart lab (section 08), drawn when the section comes near the screen */}
+      <div className="rp-more"><p className="label rp-more-h">Price statistics <TierChip tier={PLAN_FOR_REPORT_EXTRAS} /></p><Defer all={false} onShow={noop} height={560}><PriceStats symbol={symbol} /></Defer></div>
     </section>
   );
 }
+const noop = () => {};
 
 /** The intraday chart with what it shows (session, source, as-of time), or why it cannot be shown. */
-function IntradayBody({ q, data, showVol, chg }: { q: { isPending: boolean; isError: boolean; error: ApiError | null }; data?: Intraday; showVol: boolean; chg: number | null }) {
+function IntradayBody({ q, data, showVol, chg, view }: { q: { isPending: boolean; isError: boolean; error: ApiError | null }; data?: Intraday; showVol: boolean; chg: number | null; view: PriceView }) {
   if (!data && q.isError) return <p className="muted">{q.error?.body.detail || "Intraday prices are unavailable right now."}</p>;
   if (!data) return <div className="skeleton" style={{ height: 340 }} />;
   const st = intradayStatus(data), sr = data.series, n = sr?.t.length ?? 0;
@@ -136,9 +159,9 @@ function IntradayBody({ q, data, showVol, chg }: { q: { isPending: boolean; isEr
       <div className="faint" style={{ fontSize: "var(--fs-12)", margin: "0 0 10px", display: "flex", flexWrap: "wrap", gap: "2px 12px" }}><b style={{ color: "var(--text)", fontWeight: 600 }}>{st.title}</b><span>{st.asOf}</span></div>
       {st.note && <p className={data.stale ? "neg" : "faint"} style={{ fontSize: "var(--fs-12)", margin: "0 0 10px" }}>{st.note}</p>}
       {!data.available && <p className="muted">{data.detail || "No recent trades."}</p>}
-      {sr && n > 1 && <IntradayChart data={data} showVol={showVol} />}
+      {sr && n > 1 && <IntradayChart data={data} showVol={showVol} candles={view === "candles"} />}
       {sr && n === 1 && <p className="muted">One price bar so far in this session: ₹{nf(sr.c[0])}, {barSpan(sr.t[0], data.interval)} IST.</p>}
-      {sr && n > 0 && <div className="legend"><span className={"chip " + ((chg ?? 0) >= 0 ? "up" : "down")}>{signed(chg)} since the open</span><span><i className="ln" style={{ background: "var(--line)" }} />Close</span>{showVol && <span><i style={{ background: "var(--c4)", opacity: 0.6 }} />Volume</span>}<span className="faint">Times are Indian (IST)</span></div>}
+      {sr && n > 0 && <div className="legend"><span className={"chip " + ((chg ?? 0) >= 0 ? "up" : "down")}>{signed(chg)} since the open</span>{view === "candles" && n > 1 ? <CandleKey /> : <span><i className="ln" style={{ background: "var(--line)" }} />Close</span>}{showVol && VOL_KEY(view === "candles" && n > 1 ? "candles" : "line")}<span className="faint">Times are Indian (IST)</span></div>}
     </>
   );
 }
@@ -195,7 +218,7 @@ export function FinancialsSection({ f: page }: { f?: Financials }) {
   const alt = useSection<Financials>(sym, "financials", !!page && basis === "consolidated" && years > 0 && years < 5 && !wasChosen(sym), "standalone");
   const altYears = alt.data?.yearly.pl.periods.length ?? 0;
   useEffect(() => { if (basis === "consolidated" && years > 0 && altYears >= years + 2) setBasis(sym, "standalone", true); }, [basis, years, altYears, sym]);
-  if (!page) return <section className="block"><SectionHead id="financials" no="06 · Financials" icon="bars" tier="basic" title="Profit and loss, balance sheet and cash flow, quarterly and yearly" color="--p-growth" /><div className="skeleton" style={{ height: 380 }} /></section>;
+  if (!page) return <section className="block"><SectionHead id="financials" no="Financials" icon="bars" tier="basic" /><div className="skeleton" style={{ height: 380 }} /></section>;
   const name = (b: Basis) => (b === "consolidated" ? "Consolidated" : "Standalone");
   const active: Basis = chosen ?? page.meta.statement;
   const basisSeg = (
@@ -213,9 +236,9 @@ export function FinancialsSection({ f: page }: { f?: Financials }) {
       : other.isError ? `${name(chosen as Basis)} accounts could not be loaded right now (${other.error?.status === 503 ? "the data provider did not answer" : "please try again in a moment"}). The ${page.meta.statement} accounts are still here: press ${name(page.meta.statement)}.`
         : `Loading ${(chosen as Basis)} accounts…`;
     return (
-      <section className="block" style={{ "--sc": "var(--p-growth)" } as React.CSSProperties}>
-        <SectionHead id="financials" no="06 · Financials" icon="bars" tier="basic" title="Profit and loss, balance sheet and cash flow, quarterly and yearly" sub={`${name(chosen as Basis)}, ₹ crore. L Cr = lakh crore. FY = April–March.`} color="--p-growth" />
-        <div className="card acc" style={{ "--ac": "var(--p-growth)" } as React.CSSProperties}>
+      <section className="block">
+        <SectionHead id="financials" no="Financials" icon="bars" tier="basic" sub={`${name(chosen as Basis)}, ₹ crore. L Cr = lakh crore. FY = April–March.`} />
+        <div className="card acc">
           <div className="tools"><span className="faint" style={{ fontSize: "var(--fs-13)" }}>Accounts</span><div className="tools-r">{basisSeg}</div></div>
           <p className={noneFor || other.isError ? "muted" : "faint"} role="status" style={{ fontSize: "var(--fs-14)", margin: "6px 0 0" }}>{why}</p>
           {!noneFor && !other.isError && <div className="skeleton" style={{ height: 320, marginTop: 14 }} />}
@@ -231,18 +254,21 @@ export function FinancialsSection({ f: page }: { f?: Financials }) {
   const rows = ROWS[kind === "q" ? "pl" : kind].filter(([k]) => tbl.rows[k]);
   const last = tbl.periods.length - 1;
   return (
-    <section className="block" style={{ "--sc": "var(--p-growth)" } as React.CSSProperties}>
-      <SectionHead id="financials" no="06 · Financials" icon="bars" tier="basic" title="Profit and loss, balance sheet and cash flow, quarterly and yearly" sub={`${f.meta.statement === "consolidated" ? "Consolidated" : "Standalone"}, ₹ crore. L Cr = lakh crore. FY = April–March.`} color="--p-growth" aside={<ForecastCard f={f} />} />
-      {(() => { const [rv, np, , mg] = tiles; return rv.delta != null && np.delta != null ? <Plain tone={np.delta >= 0 ? "good" : "warn"}>Sales {rv.delta >= 0 ? "grew" : "fell"} {nf(Math.abs(rv.delta), 1)}% last year and profit {np.delta >= 0 ? "rose" : "fell"} {nf(Math.abs(np.delta), 1)}%.{typeof mg.value === "number" && <> Out of every ₹100 of sales, about ₹{nf(mg.value, 1)} is kept as profit.</>}</Plain> : null; })()}
-      <div className="grid g4" style={{ marginBottom: 16 }}>
-        {tiles.map((t) => (
-          <div className="ftile hover-lift" key={t.k} style={{ "--fc": css(t.color) } as React.CSSProperties}>
-            <div className="k"><Icon name={t.icon} />{t.k} · {t.fy}</div>
-            <div className="v">{t.value == null ? "—" : t.unit === "cr" ? "₹" + cr(t.value) + (Math.abs(t.value) >= 100000 ? " Cr" : " Cr") : nf(t.value) + "%"}</div>
-            <div className="row"><span className={"chip " + ((t.delta ?? 0) >= 0 ? "up" : "down")}>{t.delta == null ? "—" : signed(t.delta, 1, t.suffix)} YoY</span><Spark values={t.series} color={`var(${t.color})`} w={96} h={34} /></div>
-          </div>
-        ))}
+    <section className="block">
+      <SectionHead id="financials" no="Financials" icon="bars" tier="basic" sub={`${f.meta.statement === "consolidated" ? "Consolidated" : "Standalone"}, ₹ crore. L Cr = lakh crore. FY = April–March.`} />
+      {/* developer file 47 (founder, 27 Nov 2026: "highlight the forecast in section 5, and the 4 boxes are way too big"): the forecast is a gold band under
+          the heading (it sat at the heading's right, leaving the left half empty), and the four key figures are one strip of four cells with a small trend line
+          (they were four 155 px tiles whose trend lines were too faint to see) */}
+      <div className="fin-top"><ForecastCard f={f} />
+        <div className="fstrip" role="list" aria-label="Key figures, latest year">{tiles.map((t) => (
+          <div className="fs-c" role="listitem" key={t.k}>
+            <p className="fs-k"><Icon name={t.icon} />{t.k} · {t.fy}</p>
+            <p className="fs-v"><b>{t.value == null ? "—" : t.unit === "cr" ? "₹" + cr(t.value) + " Cr" : nf(t.value) + "%"}</b><span className={"chip " + ((t.delta ?? 0) >= 0 ? "up" : "down")}>{t.delta == null ? "—" : signed(t.delta, 1, t.suffix)} YoY</span></p>
+            <Spark values={t.series} color="var(--c1)" w={84} h={28} />
+          </div>))}
+        </div>
       </div>
+      {(() => { const [rv, np, , mg] = tiles; return rv.delta != null && np.delta != null ? <Plain tone={np.delta >= 0 ? "good" : "warn"}>Sales {rv.delta >= 0 ? "grew" : "fell"} {nf(Math.abs(rv.delta), 1)}% last year and profit {np.delta >= 0 ? "rose" : "fell"} {nf(Math.abs(np.delta), 1)}%.{typeof mg.value === "number" && <> Out of every ₹100 of sales, about ₹{nf(mg.value, 1)} is kept as profit.</>}</Plain> : null; })()}
       {!chosen && wasAutomatic(sym) && basis === "standalone" && <p className="faint" style={{ fontSize: "var(--fs-13)", margin: "0 0 10px" }}>Showing standalone accounts ({f.yearly.pl.periods.length} years) because this company's consolidated accounts cover far fewer. Press Consolidated to see the group's accounts.</p>}
       {shownBasis && shownBasis !== basis && chosen && <p className="faint" style={{ fontSize: "var(--fs-13)", margin: "0 0 10px" }}>This section now shows {shownBasis} accounts; the rest of this page uses {basis} accounts.</p>}
       {f.yearly.pl.periods.length > 0 && f.yearly.pl.periods.length < 5 && (chosen || !wasAutomatic(sym)) && <p className="faint" style={{ fontSize: "var(--fs-13)", margin: "0 0 10px" }}>Only {f.yearly.pl.periods.length} year{f.yearly.pl.periods.length === 1 ? "" : "s"} of {shownBasis} statements are available for this company (it may be newly listed, or have started publishing these accounts recently).</p>}
@@ -252,7 +278,7 @@ export function FinancialsSection({ f: page }: { f?: Financials }) {
       <TabGroup label="Statement" value={kind === "q" ? "pl" : kind} onChange={(k) => { if (!(k === "pl" && kind === "q")) setKind(k as FinKind); }} next={false}
         hint={`${{ pl: "Profit & loss", bs: "Balance sheet", cf: "Cash flow" }[kind === "q" ? "pl" : kind]} shown here`}
         views={[{ key: "pl", label: "Profit & loss" }, { key: "bs", label: "Balance sheet" }, { key: "cf", label: "Cash flow" }]} />
-      <div className="card acc" style={{ "--ac": "var(--p-growth)" } as React.CSSProperties}>
+      <div className="card acc">
         <ChartZoom label="Financial statements chart" className="cz-r">
         <div className="tools">
           <div className="tools-r">
@@ -262,7 +288,7 @@ export function FinancialsSection({ f: page }: { f?: Financials }) {
           </div>
         </div>
         <FinChart kind={kind} pl={f.yearly.pl} bs={f.yearly.bs} cf={f.yearly.cf} ql={f.quarterly.pl} />
-        <div className="legend">{kind === "pl" || kind === "q" ? <><span><i style={{ background: "var(--c2)" }} />Revenue</span><span><i style={{ background: "var(--c3)" }} />Net profit</span><span><i className="ln" style={{ background: "var(--c4)" }} />Net margin</span><span><i style={{ background: "var(--c1)" }} />Latest period</span></>
+        <div className="legend">{kind === "pl" || kind === "q" ? <><span><i style={{ background: "color-mix(in srgb, var(--c1) 40%, transparent)" }} />Revenue and net profit</span><span><i style={{ background: "var(--c1)" }} />Latest period</span><span><i className="ln" style={{ background: "var(--c2)" }} />Net margin</span></>
           : kind === "bs" ? <><span><i style={{ background: "var(--c1)" }} />Equity + reserves</span><span><i style={{ background: "var(--c2)" }} />Borrowings</span><span><i style={{ background: "var(--c4)" }} />Other liabilities</span></>
             : <><span><i style={{ background: "var(--c3)" }} />Operating</span><span><i style={{ background: "var(--c2)" }} />Investing</span><span><i style={{ background: "var(--c4)" }} />Financing</span><span><i className="ln" style={{ background: "var(--c1)" }} />Free cash flow</span></>}</div>
         </ChartZoom>
@@ -272,6 +298,10 @@ export function FinancialsSection({ f: page }: { f?: Financials }) {
             <tr key={k} className={tot ? "tot" : ""} data-row-key={k}><td>{kind === "bs" || kind === "cf" ? label : (PL_LABEL[k] ?? label)}{(kind === "pl" || kind === "q") && PL_INFO[k] && <> <Info g={PL_INFO[k]} /></>}</td>{v.map((x, i) => <td key={i} className={i === last ? "latest" : ""}>{plCell(k, x)}</td>)}{kind === "q" ? <>{cell(y)}{cell(y4)}</> : kind !== "cf" && cell(y)}<td><Spark values={v} color="var(--muted)" w={76} h={24} /></td></tr>); })}</tbody>
         </table></HScroll></div>
       </div>
+      {/* developer file 41: the old Chart lab's charts of the statement shown (yearly), on the same accounts as the table. Developer file 47 (founder,
+          27 Nov 2026: "remove balance sheet in charts"): the balance sheet has its table only. */}
+      {kind !== "bs" && <div className="rp-more"><p className="label rp-more-h">{{ pl: "Profit and loss", q: "Profit and loss", cf: "Cash flow" }[kind]} in charts{kind === "q" ? ", yearly" : ""}</p>
+        {kind === "cf" ? <CfCharts f={f} /> : <PlCharts f={f} />}</div>}
     </section>
   );
 }

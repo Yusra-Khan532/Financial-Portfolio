@@ -35,9 +35,6 @@
 .dp-sl { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 10px; align-items: baseline; min-width: 0; } .dp-sl label { font-size: var(--fs-13); color: var(--muted); } .dp-sl output { font: 600 var(--fs-14) var(--mono); } .dp-sl input { grid-column: 1 / -1; width: 100%; accent-color: var(--gold); } .dp-sl input:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
 .dp-simout { margin: 6px 0; font-size: var(--fs-16); } .dp-simout b { font: 600 var(--fs-20) var(--serif); } .dp-simout small { font-size: var(--fs-13); color: var(--muted); }
 .dp-need { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); } .dp-need label { font-size: var(--fs-14); } .dp-goal { width: 5.5ch; margin: 0 4px; padding: 3px 6px; border: 1px solid var(--border-strong); border-radius: var(--ui-r-mark); background: var(--s2); color: var(--text); font: 600 var(--fs-14) var(--mono); }
-.dp-how { display: flex; width: 100%; align-items: center; gap: 8px; background: none; border: 0; padding: 0; color: var(--text); font: 600 var(--fs-16) var(--sans); cursor: pointer; text-align: left; } .dp-how svg { width: 16px; height: 16px; color: var(--gold); } .dp-how span:last-child { margin-left: auto; font: 600 var(--fs-18) var(--mono); } .dp-how:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; border-radius: var(--ui-r-mark); }
-.dp-howbody { margin-top: 14px; display: grid; gap: 10px; } .dp-pick { font-size: var(--fs-14); color: var(--muted); } .dp-pick select { margin-left: 8px; padding: 5px 8px; border: 1px solid var(--ui-field-line); border-radius: var(--r-ctl); background: var(--s2); color: var(--text); font: inherit; }
-.dp-how-t td, .dp-how-t th { white-space: normal; text-align: left; } .dp-how-t td:last-child { text-align: right; white-space: nowrap; font-weight: 600; } .dp-how-t th[scope="row"] { min-width: 120px; } .dp-how-t td { min-width: 140px; }
 .dp-notes { margin: 0; padding-left: 18px; font-size: var(--fs-13); max-width: 84ch; } .dp-notes li { margin: 4px 0; }
 .dp-deep .dp-head { margin: 8px 0 -4px; }
 
@@ -74,6 +71,14 @@
 .dp-bar1 i { width: 70%; max-width: 28px; border-radius: var(--ui-r-mark) var(--ui-r-mark) 0 0; background: var(--border-strong); display: block; } .dp-bar1.last i { background: var(--text); opacity: .75; }
 .dp-bar1 em { font-style: normal; font-variant-numeric: tabular-nums; order: -1; margin-bottom: 2px; } .dp-bar1 u { text-decoration: none; position: absolute; top: 100%; margin-top: 3px; white-space: nowrap; } .dp-bars { margin-bottom: 20px; }
 .dp-sum1 { display: flex; gap: 12px; align-items: center; margin: 14px 0 0; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--r-ctl); background: var(--s2); font-size: var(--fs-16); max-width: none; }
+/* founder, 26 Nov 2026: the summary was held to 68 characters by the cards' reading-width rule (.card p), leaving half the card blank beside it; it runs the
+   card's width now, and the notes under it sit side by side (one under the other on a phone) */
+.card p.dp-sum1 { max-width: none; }
+.dp-foot2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 4px 32px; margin-top: 10px; }
+.dp-foot2 > p { margin: 0; max-width: none; }
+/* the same rule held the intro line above the figures ("ROE is broken into three components: ...") to 68 characters, so it broke in two beside
+   empty space; it takes the room the box beside it leaves */
+.card .dp-title p { max-width: none; }
 .dp-bulb { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; flex: none; background: var(--s1); color: var(--gold); } .dp-bulb svg { width: 15px; height: 15px; }
 .dp-main .dp-deep { margin-top: 28px; padding-top: 22px; border-top: 1px solid var(--border); }
 .dp-main .dp-deep .dp-card { box-shadow: none; background: var(--s1); padding: 16px 18px; }

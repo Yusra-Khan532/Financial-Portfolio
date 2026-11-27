@@ -314,12 +314,30 @@ a.pr-row:hover, .pr-row.hot { transform: translateX(4px); border-color: color-mi
 .trg2-h { display: flex; gap: 12px; align-items: center; } .trg2-h b { display: block; font-size: var(--fs-16); } .trg2 p { margin: 8px 0 0; font-size: var(--fs-14); color: var(--text); }
 .trg2-w { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; } .trg2-w span { padding: 9px 11px; border-radius: var(--r-ctl); background: color-mix(in srgb, var(--tg) 9%, transparent); font-size: var(--fs-13); color: var(--muted); line-height: 1.45; } .trg2-w small { display: block; font: 700 var(--fs-12) var(--sans); letter-spacing: .12em; text-transform: uppercase; color: var(--tg); margin-bottom: 3px; }
 @media (max-width: 700px) { .trg2-w { grid-template-columns: 1fr; } }
-.rib { display: flex; gap: 3px; height: 44px; border-radius: var(--r-ctl); overflow: hidden; margin-bottom: 16px; } .rib span { display: grid; place-items: center; min-width: 14px; opacity: .92; } .rib b { font: 700 var(--fs-13) var(--mono); color: #181714; }
-.seg-l2 { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
-.seg-l2 li { --bc: var(--c1); padding: 12px 14px; border-radius: var(--r-ctl); background: var(--s2); border: 1px solid var(--border); border-left: 4px solid var(--bc); }
-.sl-h { display: flex; align-items: center; gap: 10px; } .sl-h i { display: none; } .sl-h b { flex: 1; font-size: var(--fs-14); } .sl-h em { font: 600 var(--fs-24) var(--sans); font-style: normal; color: var(--bc); }
-.sl-bar { height: 6px; border-radius: var(--ui-r-pill); background: var(--s3); margin: 8px 0; overflow: hidden; } .sl-bar span { display: block; height: 100%; background: var(--bc); border-radius: var(--ui-r-mark); transform-origin: left; animation: barIn 1.2s both; }
-.sl-m { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: var(--fs-12); color: var(--faint); } .sl-i { margin-top: 6px; font-size: var(--fs-12); color: var(--muted); }
+/* developer file 42: Revenue by business segment, one ranked row a segment (stock/Sections2.tsx SegmentCard) */
+.sgr { display: grid; grid-template-columns: minmax(150px, 1.1fr) minmax(160px, 2fr) auto auto auto; font-size: var(--fs-13); }
+.sgr-r { display: contents; }
+.sgr-r > * { display: flex; align-items: center; min-width: 0; padding: 10px 0 10px 20px; border-top: 1px solid var(--border); } .sgr-r > :first-child { padding-left: 0; }
+.sgr-hd > * { padding-top: 0; padding-bottom: 8px; border-top: 0; font-size: var(--fs-12); color: var(--faint); }
+.sgr-hd > :nth-child(n + 3), .sgr-v, .sgr-g, .sgr-m { justify-content: flex-end; text-align: right; }
+.sgr-n { gap: 10px; } .sgr-n > i { flex: none; width: 10px; height: 10px; border-radius: var(--ui-r-mark); background: var(--bc); }
+.sgr-n b { display: block; font-weight: 600; color: var(--text); } .sgr-n small { display: block; margin-top: 2px; font-size: var(--fs-12); color: var(--muted); }
+.sgr-s { gap: 10px; } .sgr-t { flex: 1; height: 10px; border-radius: var(--ui-r-pill); background: var(--s3); overflow: hidden; }
+.sgr-t b { display: block; height: 100%; min-width: 3px; border-radius: var(--ui-r-pill); background: var(--bc); }
+.sgr-s em { flex: none; min-width: 48px; text-align: right; font: 600 var(--fs-14) var(--mono); font-style: normal; color: var(--text); }
+.sgr-v, .sgr-g, .sgr-m { font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--text); }
+.sgr-g.pos { color: var(--pos, var(--gain)); } .sgr-g.neg { color: var(--neg, var(--loss)); }
+.sgr-g small, .sgr-m small { display: none; font-family: var(--sans); color: var(--faint); }
+/* a phone: the name and the share on one line, the bar under them, then revenue, growth and margin with their words */
+@media (max-width: 640px) {
+  .sgr { display: block; }
+  .sgr-r.sgr-hd { display: none; }
+  .sgr-r { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; grid-template-areas: "n n n" "s s s" "v g m"; column-gap: 12px; padding: 12px 0; border-top: 1px solid var(--border); }
+  .sgr-r > * { padding: 0; border-top: 0; }
+  .sgr-n { grid-area: n; } .sgr-s { grid-area: s; margin: 8px 0 6px; } .sgr-v { grid-area: v; justify-content: flex-start; } .sgr-g { grid-area: g; } .sgr-m { grid-area: m; }
+  .sgr-v, .sgr-g, .sgr-m { font-size: var(--fs-12); }
+  .sgr-g small, .sgr-m small { display: inline; margin-left: 4px; }
+}
 .seg-note { margin-top: 14px; padding: 10px 14px; border-radius: var(--r-ctl); font-size: var(--fs-13); background: var(--info-soft); color: var(--text); } .seg-note.warn { background: var(--warn-soft); }
 
 /* plans: art, feature icons, matrix */
@@ -344,7 +362,6 @@ a.pr-row:hover, .pr-row.hot { transform: translateX(4px); border-color: color-mi
 .trg-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; align-items: start; } .trg-colh { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; font: 700 var(--fs-12) var(--sans); letter-spacing: .14em; text-transform: uppercase; color: var(--warn); } .trg-colh.good { color: var(--info); } .trg-colh span { padding: 1px 8px; border-radius: var(--ui-r-pill); background: color-mix(in srgb, currentColor 16%, transparent); }
 .trg2 li { padding: 12px; } .trg2 p { margin: 6px 0 0; font-size: var(--fs-13); } .trg2-w { grid-template-columns: 1fr; gap: 6px; } .trg2-w span { padding: 7px 10px; }
 @media (max-width: 900px) { .trg-cols { grid-template-columns: 1fr; } }
-.seg-l2 { grid-template-columns: repeat(3, minmax(0, 1fr)); } @media (max-width: 900px) { .seg-l2 { grid-template-columns: 1fr; } }
 .own3 { align-items: stretch; } .own-db { display: flex; flex-direction: column; } .own-db .db { flex: 1; align-content: space-evenly; gap: 20px; } .db-t { height: 34px; } .db-s, .db-e { top: 8px; } .db-bar { top: 14px; } .wf { max-width: 310px; }
 .wf-head b { font-size: var(--fs-40); }
 
@@ -385,15 +402,6 @@ a.pr-row:hover, .pr-row.hot { transform: translateX(4px); border-color: color-mi
 .trg2 li::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: linear-gradient(180deg, color-mix(in srgb, var(--tg) 45%, #fff), var(--tg)); }
 .trg2 .trg-i { color: #fff; background: linear-gradient(140deg, color-mix(in srgb, var(--tg) 60%, #fff), var(--tg)); box-shadow: 0 8px 18px -8px var(--tg); }
 .trg2-w span { background: color-mix(in srgb, var(--tg) 10%, var(--s1)); border: 1px solid color-mix(in srgb, var(--tg) 16%, transparent); }
-.rib { height: 52px; border-radius: var(--r-ctl); gap: 4px; padding: 4px; background: var(--s2); border: 1px solid var(--border); }
-.rib span { border-radius: var(--r-ctl); opacity: 1; position: relative; overflow: hidden; }
-.rib span::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(255,255,255,.28), transparent 60%, rgba(0,0,0,.05)); }
-.rib span { background: linear-gradient(120deg, color-mix(in srgb, var(--bc, var(--c1)) 60%, #fff), var(--bc, var(--c1))) !important; }
-.rib b { position: relative; z-index: 1; font-size: var(--fs-16); color: #181714; } .rib b.xs { font-size: var(--fs-12); letter-spacing: -.02em; }
-.seg-l2 li { border: 1px solid color-mix(in srgb, var(--bc) 30%, transparent); border-left: 0; position: relative; overflow: hidden; background: radial-gradient(100% 120% at 100% 0%, color-mix(in srgb, var(--bc) 18%, transparent), transparent 60%), var(--s2); }
-.seg-l2 li::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--bc); }
-.sl-h em { font-size: var(--fs-32); background: linear-gradient(120deg, color-mix(in srgb, var(--bc) 55%, #fff), var(--bc)); -webkit-background-clip: text; background-clip: text; color: transparent; }
-.sl-bar { height: 8px; } .sl-bar span { background: linear-gradient(90deg, color-mix(in srgb, var(--bc) 50%, #fff), var(--bc)); box-shadow: 0 0 12px -2px var(--bc); }
 .seg-note { border: 1px solid color-mix(in srgb, var(--info) 30%, transparent); background: linear-gradient(100deg, var(--info-soft), transparent); } .seg-note.warn { border-color: color-mix(in srgb, var(--warn) 35%, transparent); background: linear-gradient(100deg, var(--warn-soft), transparent); }
 
 /* ===== colour pass: dividends ===== */
@@ -426,7 +434,6 @@ a.pr-row:hover, .pr-row.hot { transform: translateX(4px); border-color: color-mi
 
 /* ownership rows fill the card evenly; light-mode contrast */
 .cmpl { grid-auto-rows: 1fr; align-content: stretch; } .cmp-r { display: flex; flex-direction: column; justify-content: center; } .cmp-b { margin-top: 8px; } .cmp-trk { height: 14px; }
-:root[data-theme="light"] .sl-h em { background: linear-gradient(120deg, var(--bc), color-mix(in srgb, var(--bc) 60%, #000)); -webkit-background-clip: text; background-clip: text; color: transparent; }
 :root[data-theme="light"] .dcol span { color: var(--gold-deep); }
 
 /* long exchange-announcement titles must wrap, not push the page wider than a phone */
@@ -469,6 +476,25 @@ a.pr-row:hover, .pr-row.hot { transform: translateX(4px); border-color: color-mi
 .mx-chart { position: relative; min-width: 0; } .mx-chart svg { display: block; max-width: 100%; } .mx-chart rect:focus-visible { stroke: var(--gold); stroke-width: 2; }
 .mx-tip { top: 4px; min-width: 200px; max-width: min(320px, 92%); } .mx-tip span { align-items: baseline; } .mx-tip span i { flex: none; align-self: center; } .mx-tip em { white-space: nowrap; }
 .mx-leg { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: var(--fs-13); color: var(--muted); } .mx-leg li { display: inline-flex; align-items: center; gap: 6px; } .mx-leg i { width: 10px; height: 10px; border-radius: var(--ui-r-mark); }
+/* developer file 43: How the mix has changed as lines. The list under the chart is the key: each segment, its latest figure and its change since its
+   first year; pointing at one picks out its line (the others fade). */
+.mx-key-h { margin: 12px 0 4px; font-size: var(--fs-12); color: var(--faint); }
+.mx-key { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 0 12px; margin-top: 0; }
+.mx-key li { display: block; min-width: 0; }
+.mx-key button { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 8px; width: 100%; padding: 6px 8px; border: 1px solid transparent; border-radius: var(--r-ctl); background: none; color: var(--muted); font: inherit; text-align: left; cursor: pointer; }
+.mx-key button:hover, .mx-key button[aria-pressed="true"] { border-color: var(--border); background: var(--s2); color: var(--text); }
+.mx-key button:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
+.mx-key button > i { flex: none; align-self: center; width: 10px; height: 10px; border-radius: var(--ui-r-mark); }
+.mx-key b { font-weight: 500; color: var(--text); } .mx-key em { font-style: normal; font-family: var(--mono); font-variant-numeric: tabular-nums; color: var(--text); }
+.mx-key span { font-size: var(--fs-12); } .mx-key span.pos { color: var(--pos, var(--gain)); } .mx-key span.neg { color: var(--neg, var(--loss)); }
+.mx-lines svg text tspan { font-variant-numeric: tabular-nums; }
+.mx-key .mx-until { font-size: var(--fs-12); color: var(--faint); }
+/* a desktop labels each line at its end with its latest figure and change: the key is then one compact row of names */
+@media (min-width: 640px) {
+  .mx-key-h, .mx-key em, .mx-key span { display: none; }
+  .mx-key { display: flex; flex-wrap: wrap; gap: 0 4px; margin-top: 8px; }
+  .mx-key button { width: auto; padding: 4px 8px; }
+}
 .mx-tw { position: relative; overflow-x: auto; } .mx-t { width: 100%; border-collapse: collapse; font-size: var(--fs-13); }
 .mx-t th, .mx-t td { text-align: right; padding: 10px 8px; border-bottom: 1px solid var(--border); vertical-align: middle; font-variant-numeric: tabular-nums; }
 .mx-t thead th { font: 600 var(--fs-12) var(--sans); color: var(--faint); white-space: nowrap; } .mx-t th:first-child, .mx-t td:first-child { text-align: left; }
@@ -541,10 +567,11 @@ a.pr-row:hover, .pr-row.hot { transform: translateX(4px); border-color: color-mi
 .seg.seg-period button:focus-visible { outline: 2px solid var(--focus, var(--gold)); outline-offset: 2px; }
 
 /* Latest quarter: Revenue and Net profit stand out in the tiles and in the table (task #57) */
-.qt.hl { border-color: color-mix(in srgb, var(--gain) 55%, var(--border)); box-shadow: 0 0 0 1px color-mix(in srgb, var(--gain) 28%, transparent); background: color-mix(in srgb, var(--gain) 6%, var(--s1)); }
-.qtt tr.hl td, .qtt tr.sub.hl td { background: color-mix(in srgb, var(--gain) 14%, var(--s1)); font-weight: 700; color: var(--text); border-top: 1.5px solid color-mix(in srgb, var(--gain) 55%, var(--border)); border-bottom: 1.5px solid color-mix(in srgb, var(--gain) 55%, var(--border)); }
-.qtt tr.hl td:first-child, .qtt tr.sub.hl td:first-child { border-left: 4px solid var(--gain); border-radius: var(--r-ctl) 0 0 var(--r-ctl); } .qtt tr.hl td:last-child, .qtt tr.sub.hl td:last-child { border-radius: 0 var(--r-ctl) var(--r-ctl) 0; }
-.qtt tr.sub.hl td.latest, .qtt tr.hl td.latest { background: color-mix(in srgb, var(--gain) 22%, var(--s1)); box-shadow: none; }
+.qt.hl { border-color: color-mix(in srgb, var(--gold) 55%, var(--border)); box-shadow: 0 0 0 1px color-mix(in srgb, var(--gold) 28%, transparent); background: color-mix(in srgb, var(--gold) 6%, var(--s1)); }
+/* developer file 45: the key rows (Revenue, Net profit) are marked in the brand gold; green means only up */
+.qtt tr.hl td, .qtt tr.sub.hl td { background: color-mix(in srgb, var(--gold) 14%, var(--s1)); font-weight: 700; color: var(--text); border-top: 1.5px solid color-mix(in srgb, var(--gold) 55%, var(--border)); border-bottom: 1.5px solid color-mix(in srgb, var(--gold) 55%, var(--border)); }
+.qtt tr.hl td:first-child, .qtt tr.sub.hl td:first-child { border-left: 4px solid var(--gold); border-radius: var(--r-ctl) 0 0 var(--r-ctl); } .qtt tr.hl td:last-child, .qtt tr.sub.hl td:last-child { border-radius: 0 var(--r-ctl) var(--r-ctl) 0; }
+.qtt tr.sub.hl td.latest, .qtt tr.hl td.latest { background: color-mix(in srgb, var(--gold) 22%, var(--s1)); box-shadow: none; }
 /* Task #222 (19 Nov pack): 17, the year in progress ("so far", hatched, out of the average) and E1, the yield ring, scoped to 17 (the dashboard's .dk-ring
    of dash-shared.css made it 38 px, too small for its figure): 64 px with the figure inside it. */
 .dbars .dcol.part i { opacity: .5; background-image: repeating-linear-gradient(135deg, transparent 0 5px, color-mix(in srgb, var(--s1) 55%, transparent) 5px 9px); }

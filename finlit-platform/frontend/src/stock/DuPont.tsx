@@ -38,11 +38,12 @@ export function DuPont({ symbol, lender, head }: { symbol: string; lender: boole
     <div className="dp">
       {has && (
         <div className="card dp-card dp-main" id="dupont-card">
+          {/* developer file 48 (founder, 27 Nov 2026: "too much white space"): one line; the side box ("What drives the return on equity?") was four lines
+              tall beside a one-line formula, so the row was as tall as the box */}
           <div className="dp-top">
             <div className="dp-title">
-              <p className="faint">ROE is broken into three components: <b>Net profit margin × Asset turnover × Equity multiplier</b></p>
+              <p className="faint dp-formula"><Icon name="info" /><span>ROE shows how efficiently a company turns equity into profit: <b>Net profit margin × Asset turnover × Equity multiplier</b></span></p>
             </div>
-            <aside className="dp-info" aria-label="What drives ROE"><Icon name="info" /><div><b>What drives the return on equity (ROE)?</b><span>ROE shows how efficiently a company turns equity into profits.</span></div></aside>
           </div>
           {now && (
             <div className="dp-strip" role="group" aria-label={`ROE equals ${lender ? "net profit over total income" : "net profit over revenue"} times asset turnover times equity multiplier, ${fy(now.period)}`}>
@@ -96,14 +97,17 @@ export function DuPont({ symbol, lender, head }: { symbol: string; lender: boole
             </details>
           )}
           {summary && <p className="dp-sum1"><span className="dp-bulb"><Icon name="spark" /></span><span>{summary}</span></p>}
-          {d.words.slice(2).map((t, i) => <p className="dp-say faint" key={i}>{t}</p>)}
           {flagged.map((y) => <p className="dp-find" key={y.period}><Icon name="alert" /><span><b>Unusual year, {fy(y.period)}:</b> {y.flag}</span></p>)}
-          <p className="faint dp-note">Worked out from the company's own statements, using each year-end balance sheet. Net profit is the part that belongs to the company's shareholders. Information only, not investment advice.</p>
+          {/* founder, 26 Nov 2026: "too much blank space" beside the summary. The summary runs the card's width, and its notes sit side by side under it */}
+          <div className="dp-foot2">
+            {d.words.slice(2).map((t, i) => <p className="dp-say faint" key={i}>{t}</p>)}
+            <p className="faint dp-note">Worked out from the company's own statements, using each year-end balance sheet. Net profit is the part that belongs to the company's shareholders. Information only, not investment advice.</p>
+          </div>
           <DecodeRoe pl={f.data?.yearly.pl} bs={f.data?.yearly.bs} lender={lender} said={d.words} />
         </div>
       )}
     </div>
   );
   // as its own section: the header comes only when there is a DuPont analysis to show
-  return head ? (has ? <section className="block" style={{ "--sc": "var(--p-quality)" } as React.CSSProperties}>{head}{body}</section> : null) : body;
+  return head ? (has ? <section className="block">{head}{body}</section> : null) : body;
 }
