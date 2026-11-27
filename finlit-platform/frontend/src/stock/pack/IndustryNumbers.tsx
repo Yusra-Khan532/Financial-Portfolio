@@ -1,17 +1,19 @@
-// Developer file 51: "The industry in numbers" in 14 Industry analysis (lib/industryNumbers says what and why). Nine rows in four groups; each row the
-// company's figure, the industry median and one strip of dots (each company one grey dot, the company blue, the median the section's dashed gold line).
+// "In numbers", 14 Industry analysis's fourth tab (lib/industryNumbers says what and why). Developer file 52 (founder, 27 Nov 2026, 5:22 pm: "I am not
+// able to understand what it is"): two plain parts. "Who makes up the industry": each company's share of the industry's market value, one bar. "How
+// <company> compares with a typical <industry> company": what stands out, then one row a measure: what it measures in words, the company's figure, the
+// typical company's, and where the company sits from the lowest to the highest, in words and on a simple scale (the middle mark is the typical company).
 import { useMemo } from "react";
 import { useQueries } from "@tanstack/react-query";
 import { apiGet } from "../../lib/api";
 import { METRICS, fmt, useUniverse } from "../../lib/screener";
-import { IND_GROUPS, fences, industryLead, industryNumbers, placeText, type IndMeasure } from "../../lib/industryNumbers";
-import { stripDots } from "../../lib/standsList";
+import { IND_GROUPS, PLAIN, industryNumbers, industryShares, sitAt, sitText, standouts, type IndMeasure } from "../../lib/industryNumbers";
 import { failureText, type GroupRow } from "../../lib/sectors";
 import { dateIN } from "../../lib/format";
-import { shortLabel } from "../../lib/companyLabel";
+import { ordinal } from "../../lib/standsPack";
 import { Tip } from "../../components/sectors/pack/Common";
 
 type Membership = { date?: string | null; groups: Record<string, { slug: string; name: string }> };
+type G = Pick<GroupRow, "slug" | "name" | "kind" | "sector" | "industries">;
 /** The membership answer takes at most 200 symbols a call; the candidates go in sorted chunks, so the same industry asks the same question. */
 export const membershipPaths = (symbols: string[]): string[] => {
   const s = [...new Set(symbols)].sort(), out: string[] = [];
@@ -19,59 +21,79 @@ export const membershipPaths = (symbols: string[]): string[] => {
   return out;
 };
 
-export function IndustryNumbers({ symbol, name, g }: { symbol: string; name: string; g: Pick<GroupRow, "slug" | "name" | "kind" | "sector" | "industries"> }) {
-  const u = useUniverse();
-  const ind = g.name;
-  // the candidates: the screener's companies in the group's NSE industries (or its NSE sector); the membership answer keeps the group's own members
-  const cands = useMemo(() => (u.data ? u.data.rows.filter((r) => (g.kind === "sector" ? r.nse_sector === g.sector : false) || (g.industries ?? [g.name]).includes(r.nse_industry ?? "")).map((r) => r.symbol) : []), [u.data, g]);
+/** The industry's members and figures, for the tab and for the section's top box (the queries are shared, so asking twice costs nothing). */
+export function useIndustryNumbers(symbol: string, g: G | null) {
+  const u = useUniverse(!!g);
+  const cands = useMemo(() => (u.data && g ? u.data.rows.filter((r) => (g.kind === "sector" ? r.nse_sector === g.sector : false) || (g.industries ?? [g.name]).includes(r.nse_industry ?? "")).map((r) => r.symbol) : []), [u.data, g]);
   const paths = useMemo(() => membershipPaths(cands), [cands]);
   const mq = useQueries({ queries: paths.map((p) => ({ queryKey: ["sectors", "membership", p], queryFn: () => apiGet<Membership>(p), staleTime: 3_600_000, retry: 1 })) });
   const memLoading = mq.some((q) => q.isLoading), memErr = mq.find((q) => q.isError)?.error;
-  const members = useMemo(() => (memLoading || memErr ? [] : cands.filter((s) => mq.some((q) => q.data?.groups?.[s]?.slug === g.slug))), [cands, mq, memLoading, memErr, g.slug]);
+  const slug = g?.slug;
+  const members = useMemo(() => (memLoading || memErr || !slug ? [] : cands.filter((s) => mq.some((q) => q.data?.groups?.[s]?.slug === slug))), [cands, mq, memLoading, memErr, slug]);
   const res = useMemo(() => (u.data && members.length ? industryNumbers(u.data.rows, members, symbol) : null), [u.data, members, symbol]);
-  const lead = res ? industryLead(name, ind, res.measures) : null;
-
-  const head = <h3 className="ws-h3">The industry in numbers<Tip text={`${name} against the median of the NSE-listed ${ind} companies, on FinLit's screener figures (the Screener's definitions). Each company counts once, whatever its size. Describes; not a recommendation.`} label="About the industry in numbers" /></h3>;
+  const shares = useMemo(() => (u.data && members.length ? industryShares(u.data.rows, members, symbol) : null), [u.data, members, symbol]);
+  const error = u.error ?? memErr ?? null;
+  const status: "loading" | "error" | "few" | "none" | "ok" = u.isError || memErr ? "error" : u.isLoading || memLoading || (u.data && cands.length && !mq.length) ? "loading" : !res || res.n < 4 ? "few" : !res.inIt ? "none" : "ok";
   const retry = () => { u.refetch(); mq.forEach((q) => q.refetch()); };
-  let body: React.ReactNode;
-  if (u.isError || memErr) body = <p className="sp-note" role="status">The industry's figures could not be loaded: {failureText(u.error ?? memErr)} <button type="button" className="mf-linkbtn" onClick={retry}>Try again</button></p>;
-  else if (u.isLoading || memLoading || (u.data && cands.length && !mq.length)) body = <p className="sp-note" aria-busy="true">Loading the {ind} companies' figures…</p>;
-  else if (!res || res.n < 4) body = <p className="sp-note">Too few {ind} companies have screener figures for a comparison{res ? ` (${res.n})` : ""}.</p>;
-  else if (!res.inIt) body = <p className="sp-note">{name} has no screener figures yet, so it cannot be placed among the {res.n} {ind} companies.</p>;
-  else body = (<>
-    {lead && <p className="in-lead">{lead}</p>}
-    <p className="in-key" aria-hidden="true"><span><i className="in-k-me" />{name}</span><span><i className="ws6-medk" />Industry median</span><span><i className="in-k-dot" />Each other {ind} company</span></p>
-    {IND_GROUPS.map(([title, keys]) => (
-      <div key={title} className="in-grp" role="group" aria-label={title}>
-        <p className="in-gt">{title}</p>
-        {keys.map((k) => <Measure key={k} x={res.measures.find((m) => m.key === k)!} symbol={symbol} name={name} />)}
-      </div>))}
-    <p className="sp-note in-foot">The {res.n} NSE-listed {ind} companies on FinLit's screener figures{u.data?.asOf ? ` of ${dateIN(u.data.asOf)}` : ""}; the median is the middle company, each counted once. A company without a figure is left out of that row (a loss-making company has no P/E). A hollow dot at an end is another company further out than the strip shows; the end labels give the lowest and highest.</p>
-  </>);
-  return <div className="sp-sec in-sec" data-testid="industry-numbers">{head}{body}</div>;
+  return { status, error, retry, res, shares, asOf: u.data?.asOf ?? null };
 }
 
-function Measure({ x, symbol, name }: { x: IndMeasure; symbol: string; name: string }) {
-  const m = METRICS[x.key];
-  const vals = x.dots.map((d) => d.v), lo = vals.length ? Math.min(...vals) : null, hi = vals.length ? Math.max(...vals) : null;
-  // the scale: Tukey's fences, always wide enough for the company's own value (its dot is never moved; only other far companies sit at an end, hollow)
-  const f = useMemo(() => { const k = fences(x.dots.map((d) => d.v)); return k && x.me != null ? { lo: Math.min(k.lo, x.me), hi: Math.max(k.hi, x.me) } : k; }, [x.dots, x.me]);
-  const clamp = (v: number) => (f ? Math.min(f.hi, Math.max(f.lo, v)) : v), out = (v: number) => !!f && (v > f.hi || v < f.lo);
-  const strip = useMemo(() => stripDots(x.dots.map((d) => (f ? Math.min(f.hi, Math.max(f.lo, d.v)) : d.v)), 2.4, 3, false), [x.dots, f]);
-  const place = placeText(x), lanes = Math.max(1, ...strip.dots.map((d) => (d ? d.lane + 1 : 1)));
-  return (
-    <div className="in-row">
-      <span className="in-l">{m.label}<Tip text={m.say} label={`About ${m.label}`} /></span>
-      <span className="in-v"><b className={x.me == null ? "in-me none" : "in-me"}>{fmt(m, x.me)}</b><span className="in-md">median {fmt(m, x.med)}</span></span>
-      <div className="in-strip" role="img" aria-label={`${m.label}: ${name} ${fmt(m, x.me)}, industry median ${fmt(m, x.med)}; ${place.toLowerCase()}; ${x.dots.length} companies from ${fmt(m, lo)} to ${fmt(m, hi)}`}>
-        <small className="in-end">{fmt(m, lo)}</small>
-        <span className="in-track" style={{ height: 12 + lanes * 7 }}>
-          {x.med != null && <i className="ws6-med in-med" style={{ left: `${strip.at(clamp(x.med))}%` }} />}
-          {strip.dots.map((d) => { if (!d) return null; const c = x.dots[d.i], me = c.symbol === symbol;
-            return <i key={c.symbol} className={"in-dot" + (me ? " me" : "") + (out(c.v) ? " out" : "")} style={{ left: `${d.pos}%`, bottom: 3 + d.lane * 7 }} title={`${me ? symbol : shortLabel(c)} ${fmt(m, c.v)}${out(c.v) ? " (further out than the strip shows)" : ""}`} />; })}
-        </span>
-        <small className="in-end">{fmt(m, hi)}</small>
+/** The top box's fourth reading: the company's size in its industry. */
+export function sizeReading(shares: ReturnType<typeof industryShares>): { chip: string; line: string } | null {
+  if (!shares?.me) return null;
+  const pct = shares.me.share >= 10 ? Math.round(shares.me.share) : Math.round(shares.me.share * 10) / 10;
+  return { chip: shares.me.rank === 1 ? `Largest of ${shares.n}` : `${ordinal(shares.me.rank)} largest of ${shares.n}`, line: `${pct}% of the industry's market value${shares.missing > 0 ? ` (${shares.n} with a figure)` : ""}` };
+}
+
+const SHOWN = 4;   // the bar names the four largest; the rest are "the other N"
+export function IndustryNumbers({ symbol, name, g }: { symbol: string; name: string; g: G }) {
+  const d = useIndustryNumbers(symbol, g), ind = g.name;
+  if (d.status === "error") return <p className="sp-note" role="status">The industry's figures could not be loaded: {failureText(d.error)} <button type="button" className="mf-linkbtn" onClick={d.retry}>Try again</button></p>;
+  if (d.status === "loading") return <p className="sp-note" aria-busy="true">Loading the {ind} companies' figures…</p>;
+  if (d.status === "few") return <p className="sp-note">Too few {ind} companies have screener figures for a comparison{d.res ? ` (${d.res.n})` : ""}.</p>;
+  if (d.status === "none") return <p className="sp-note">{name} has no screener figures yet, so it cannot be placed among the {d.res!.n} {ind} companies.</p>;
+  const res = d.res!, sh = d.shares, stand = standouts(name, res.measures), hl = new Set(stand.map((s) => s.key));
+  const top = sh ? sh.list.slice(0, SHOWN) : [], rest = sh ? sh.list.slice(SHOWN) : [], restShare = rest.reduce((a, x) => a + x.share, 0);
+  const pc = (x: number) => (x >= 10 ? `${Math.round(x)}%` : `${(Math.round(x * 10) / 10).toFixed(1)}%`);
+  const second = sh ? sh.list.filter((x) => x.symbol !== symbol).slice(0, 2) : [];
+  return (<div className="in-sec">
+    {sh && sh.me && <div className="sp-sec in-part">
+      <h3 className="ws-h3">Who makes up the industry<Tip text={`Each of the ${sh.n} ${ind} companies' share of their total market value (what the stock market values each company at), from FinLit's screener figures.`} label="About who makes up the industry" /></h3>
+      <p className="in-txt"><b>{name} is {sh.me.rank === 1 ? "the largest" : `the ${ordinal(sh.me.rank)} largest`} of the {sh.n} {ind} companies{sh.missing > 0 ? " with a market value figure" : ""}</b>, with {pc(sh.me.share)} of the industry's market value{second.length === 2 ? `; the next largest, ${second[0].symbol} and ${second[1].symbol}, have ${pc(second[0].share)} and ${pc(second[1].share)}` : ""}.</p>
+      <div className="in-bar" role="img" aria-label={`Share of the industry's market value: ${top.map((x) => `${x.symbol} ${pc(x.share)}`).join(", ")}${rest.length ? `, the other ${rest.length} ${pc(restShare)}` : ""}`}>
+        {top.map((x) => <i key={x.symbol} className={x.symbol === symbol ? "me" : ""} style={{ flexGrow: x.share }} title={`${x.symbol} ${pc(x.share)}`} />)}
+        {rest.length > 0 && <i className="rest" style={{ flexGrow: restShare }} title={`The other ${rest.length} ${pc(restShare)}`} />}
       </div>
-      <span className="in-pos" title={x.left > 0 ? `${x.left} of the ${x.dots.length + x.left} companies ${x.left === 1 ? "has" : "have"} no figure${x.key === "pe" ? " (a loss, or none reported)" : ""}` : undefined}>{place}</span>
+      {sh.missing > 0 && <p className="sp-note in-miss">{sh.missing} of the {sh.n + sh.missing} companies {sh.missing === 1 ? "has" : "have"} no market value figure and {sh.missing === 1 ? "is" : "are"} not in the bar.</p>}
+      <ul className="in-bar-key">{top.map((x) => <li key={x.symbol} className={x.symbol === symbol ? "me" : ""}><i />{x.symbol === symbol ? name : x.symbol} <b>{pc(x.share)}</b></li>)}{rest.length > 0 && <li className="rest"><i />The other {rest.length} <b>{pc(restShare)}</b></li>}</ul>
+    </div>}
+    <div className="sp-sec in-part">
+      <h3 className="ws-h3">How {name} compares with a typical {ind} company<Tip text={`The typical company is the middle one when the ${res.n} ${ind} companies are lined up on a measure, each counted once, whatever its size. Figures are FinLit's screener figures, the same as on the Screener.`} label="About the typical company" /></h3>
+      <p className="in-txt">The typical company is the middle one when the {res.n} companies are lined up on each measure, each counted once{sh?.me?.rank === 1 ? `: mostly companies far smaller than ${name}` : ""}.</p>
+      {stand.length > 0 && <div className="in-stand"><p className="in-gt">What stands out</p><ul>{stand.map((s) => <li key={s.key}>{s.text}</li>)}</ul></div>}
+      <div className="in-tab" role="table" aria-label={`${name} against a typical ${ind} company`}>
+        <div className="in-row in-hd" role="row"><span role="columnheader">What it measures</span><span role="columnheader">{name}</span><span role="columnheader">Typical company</span><span role="columnheader">Where {name} sits <small>lowest → highest</small></span></div>
+        {IND_GROUPS.map(([title, keys]) => (
+          <div key={title} role="rowgroup" className="in-grp">
+            <div className="in-gt" role="row"><span role="rowheader">{title}</span></div>
+            {keys.map((k) => <MeasureRow key={k} x={res.measures.find((m) => m.key === k)!} name={name} hl={hl.has(k)} />)}
+          </div>))}
+      </div>
+      <p className="sp-note in-foot">FinLit's screener figures{d.asOf ? ` of ${dateIN(d.asOf)}` : ""} for the {res.n} NSE-listed {ind} companies. A company without a figure is left out of that measure (a loss-making company has no price for its profit). Describes; not a recommendation.</p>
+    </div>
+  </div>);
+}
+
+function MeasureRow({ x, name, hl }: { x: IndMeasure; name: string; hl: boolean }) {
+  const m = METRICS[x.key], p = PLAIN[x.key]!, s = sitText(x), at = sitAt(x), per = x.key === "sales_cagr" || x.key === "profit_cagr" ? " a year" : "";
+  return (
+    <div className={"in-row" + (hl ? " hl" : "")} role="row">
+      <span className="in-what" role="rowheader">{p.what}<small>{p.term}<Tip text={m.say} label={`About ${m.label}`} /></small></span>
+      <span className="in-me" role="cell"><small className="in-lab">{name}</small>{fmt(m, x.me)}{x.me != null ? per : ""}</span>
+      <span className="in-ty" role="cell"><small className="in-lab">Typical</small>{fmt(m, x.med)}{x.med != null ? per : ""}</span>
+      <span className="in-sit" role="cell">
+        <span className="in-meter" aria-hidden="true"><i className="mid" />{at != null && <i className="dot" style={{ left: `${at * 100}%` }} />}</span>
+        <span className="in-sw" title={x.left > 0 ? `${x.left} of the ${x.dots.length + x.left} companies ${x.left === 1 ? "has" : "have"} no figure for this` : undefined}><b>{s.word}</b>{s.detail && <small>{s.detail}</small>}</span>
+      </span>
     </div>);
 }

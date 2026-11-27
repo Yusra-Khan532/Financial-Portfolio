@@ -249,6 +249,10 @@ export function PeersSection({ p, self, s }: { p?: Peers; self: string; s: Summa
       {/* developer file 48 (founder, 27 Nov 2026: "in sections 13 and 14, check if we are missing something"): 14's peers tab said where the P/E sits among the
           peers and how the return on equity compares; nothing else on the page did, so it is this section's plain words now (it opened with a general line) */}
       <Plain>{peerValueCard(s.profile.name.split(" ")[0], { pe: me.pe, roe: me.roe, peers: peers.map((i) => ({ pe: i.pe ?? null, roe: i.roe ?? null })) })?.text ?? "Comparing a company with its closest rivals is the quickest way to tell whether a number is good or just normal for the industry."} {cls?.industry ? `${s.profile.name.split(" ")[0]} is in NSE's ${cls.industry} industry${cls.basic_industry ? ` (basic industry: ${cls.basic_industry})` : ""}; these ${N} are the companies the data provider lists as its peers.` : ""}</Plain>
+      {/* developer file 52 (founder, 27 Nov 2026, 5:22 pm: "in section 13 make tabs, it is getting too long"): two tabs, the closest peers (the map and
+          the list) and the price against them (the 12-month ranking and the group leader what-if); without a ranking, the peers alone, as before */}
+      {(() => {
+        const closest = (
       <div className="pr2">
         <div className="card acc orbit-card">
           <ChartZoom label="Peer map: companies in the same industry">
@@ -283,10 +287,17 @@ export function PeersSection({ p, self, s }: { p?: Peers; self: string; s: Summa
             </a>); })}
         </div>
       </div>
-      {lead?.available && <PeerRanking lead={lead} self={self} extras={items.map((i) => ({ symbol: i.symbol, name: i.name }))} />}
-      {/* developer file 47: "What if you had owned the group leader?" moved here from 14, whose "Against peers" tab repeated this section */}
-      {lead?.available && (() => { const top = lead.peers.find((p) => p.rank === 1); return top && top.symbol !== self
-        ? <div className="sp ws-wi13"><LeaderWhatIf symbol={self} name={s.profile.name.replace(/\s+(industries|limited|ltd\.?|corporation|corp\.?|company)\b.*$/i, "").trim() || s.profile.name} leader={top.symbol} leaderName={top.name ?? top.symbol} leaderCap={top.marketCap} myCap={lead.peers.find((p) => p.symbol === self)?.marketCap ?? null} /></div> : null; })()}
+        );
+        if (!lead?.available) return closest;
+        const whatIf = (() => { const top = lead.peers.find((p) => p.rank === 1); return top && top.symbol !== self
+        ? <div className="sp ws-wi13"><LeaderWhatIf symbol={self} name={s.profile.name.replace(/\s+(industries|limited|ltd\.?|corporation|corp\.?|company)\b.*$/i, "").trim() || s.profile.name} leader={top.symbol} leaderName={top.name ?? top.symbol} leaderCap={top.marketCap} myCap={lead.peers.find((p) => p.symbol === self)?.marketCap ?? null} /></div> : null; })();
+        return <TabGroup label="Comparison with peers" hint="Its closest peers shown here" views={[
+          { key: "peers", label: "Its closest peers", content: closest },
+          { key: "price", label: "Price against peers", content: <><PeerRanking lead={lead} self={self} extras={items.map((i) => ({ symbol: i.symbol, name: i.name }))} />
+            {/* developer file 47: "What if you had owned the group leader?" moved here from 14, whose "Against peers" tab repeated this section */}
+            {whatIf}</> },
+        ]} />;
+      })()}
     </section>
   );
 }
