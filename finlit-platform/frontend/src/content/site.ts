@@ -3,7 +3,7 @@
 export const COMPANY = {
   name: "FinLit Ventures",
   tagline: "Invest with clarity, not noise.",
-  email: "finlit.start@gmail.com", // replace with the company email at launch
+  email: "contact@finlitventures.com", // the owner, 27 Nov 2026 (routed by Cloudflare Email Routing); internal alerts still go to the team's Gmail
   linkedin: "https://www.linkedin.com/company/finlitventures/",
   disclaimer:
     "FinLit Ventures is a technology company and is not registered with SEBI or AMFI. Research shown here is for information only and is not investment advice.",

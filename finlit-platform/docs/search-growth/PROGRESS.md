@@ -15,7 +15,13 @@
   - Owner: Pranshu's Microsoft account. Verified with a CNAME record in Cloudflare (DNS only), which must be kept.
   - Sitemap submitted, "Processing" (up to 48 h).
   - AI Performance (beta) is always on, with no switch.
-- [ ] IndexNow key + pings on changed URLs
+- [ ] IndexNow key + pings on changed URLs. **Design (27 Nov 2026), to build together with "Real lastmod":**
+  - Every company's report is rebuilt each night and its price changes every day. So "changed" must mean the company's facts changed, not that its report was rebuilt: otherwise all 5,800 pages are pinged daily, which IndexNow treats as spam, and every sitemap date says today (the problem PLAN.md found).
+  - Keep a small table `seo_page_state (path, facts_hash, changed_at, pinged_at)`.
+  - A light supervisor job (docs/JOBS.md section 11) runs after ingest. It hashes each company's dated facts that are not prices (latest quarter, five years, owners, peers, fundamentalsAsOf), and moves `changed_at` only when the hash changes.
+  - The sitemap's `lastmod` reads `changed_at`.
+  - The job submits only the changed addresses to IndexNow, up to 10,000 per call, with new funds and research pages too.
+  - The key is derived from the server's secret (HMAC), so nothing goes in the repository and the founder has nothing to set up. It is served at `/{key}.txt`.
 - [ ] Analytics option chosen and live. **Owner's decision (27 Nov 2026): "both, in two steps".**
   - **Step 1, FinLit's own cookie-free counter, in the analytics pull request:**
     - `finlit/visits.py` (`POST /api/visits`, `GET /api/admin/visitors`) and migration 148 `site_visits` (daily totals per page, source and phone/desktop);
@@ -48,7 +54,16 @@
     - FinLit Prism or any score: plan-gated, so never in public HTML (not planned).
     - `industry` in Corporation JSON-LD: schema.org's Organization has no such property. The industry appears in the page text instead.
     - The ISIN is added by the API when it serves the page (`with_isin`), so it appears in the JSON-LD only when the stored summary carries it.
-  - **Live check after deploy:** `curl -A GPTBot` and `curl -A Googlebot` on 10 sample companies (facts present and unique), then URL Inspection in Search Console.
+  - **Live check, 27 Nov 2026** (live `d9b3370`, PR #1019): GPTBot and Googlebot on TCS, RELIANCE, HDFCBANK, INFY, ITC, SBIN, ICICIBANK, AVANTEL, SEDEMAC and TITAN.
+    - New titles on all 10, each 70 characters or fewer.
+    - The answer, key figures, owners, peers and group link on 9 of 10.
+    - The quarter line on 8: SEDEMAC is a recent listing with fewer than 5 quarters, so it is correctly left out.
+    - 3–5 questions each; banks get no debt question.
+    - All 10 pages unique, the same HTML for both bots, no advice words.
+    - Words about the company: about 73 before, 500–620 after.
+    - AVANTEL has no stored report yet (its summary answers 202 "Preparing this stock's report"), so it gets the plain page, as the app does.
+    - Still to do: URL Inspection in Search Console (the founder's account).
+  - **Follow-up:** the ISIN is not in the JSON-LD, because stored summaries don't carry it (`with_isin` adds it only when the API serves the page). Read it in `web.company_facts` the same way.
 - [ ] Shared link block shrunk; page content first
 - [ ] Sectors, ETFs, results, IPO, macro, superinvestors, screener lists: real content
 - [ ] Real lastmod + sitemap index split
@@ -66,7 +81,12 @@
 - [ ] Glossary examples   - [ ] Pillar guides   - [ ] Substantial company sub-pages
 ## Phase 6 data stories (monthly)
 ## Phase 7 off-site + AI presence + category answers
-- [ ] M1 Organization JSON-LD (alternateName, sameAs, founder) + About first sentence
+- [x] M1 Organization JSON-LD (alternateName, sameAs, founder) + About first sentence. In the identity pull request (27 Nov 2026):
+  - `seo.organization`: name FinLit, alternateName FinLit Ventures, the descriptor as slogan, a description that opens with the About sentence, areaServed India, founder Nishant Jain, contactPoint contact@finlitventures.com, and `foundingDate` 2026-12 from 1 Dec 2026 only (tested).
+  - The About page's crawler text opens with "FinLit (finlitventures.com) is an Indian stock and mutual fund research platform. It explains … 5,800+ listed companies and 1,700+ mutual funds …".
+  - The About page's header line says "FinLit is an Indian stock and mutual fund research platform: company filings explained in plain English." It is kept within the founder's 110-character rule for header lines.
+  - The site's public contact email (`content/site.ts` COMPANY.email: footer, Contact and legal pages) is contact@finlitventures.com. Internal alert and feedback mail still go to the team's Gmail.
+  - `sameAs`: LinkedIn only. Crunchbase, AlternativeTo and the others are added once the owner confirms their links open (those sites refuse automated checks).
 - [ ] M2 category hub pages (screener, research reports, mutual funds, sectors, calculators)
 - [ ] M3 comparison pages (founder OK + lawyer read: ____)
 - [ ] M4 outreach list of 30–50 cited pages + pitch draft
@@ -84,7 +104,7 @@
   - The cited sources are Value Research, StockEdge and Guideflow's "12 best financial research software tools for 2026" (a third-party list, so a candidate for M4).
   - FinLit is not named. Track it with panel Q1 (similar); add the founder's exact wording to the M4 outreach notes.
 - [ ] M6 community guide   - [ ] M7 press pitch templates
-- [ ] M8 robots.txt: Claude-SearchBot / Claude-User in AI group (checked 27 Nov: robots.txt lists ClaudeBot, Claude-Web and anthropic-ai, but not Claude-SearchBot or Claude-User)
+- [x] M8 robots.txt: Claude-SearchBot and Claude-User added to the AI group (the same `/api/` and `/prism` rule; public pages stay open). Tested in `tests/test_seo_identity.py`; identity pull request, 27 Nov 2026.
 - [ ] M9 AI-PANEL.md: 60 questions × 7 engines, monthly. Sheet ready 27 Nov 2026; the baseline run needs a person (Claude can't open those AI tools from its container)
 ## Measurements log (date: indexed / clicks / impressions / top-10 keywords / AI citations / CWV)
 - 27 Nov 2026 (from PLAN.md's audit, before any change):
@@ -129,8 +149,8 @@
   - The founder named a target query (see M5).
   - The Phase 1 part 1 pull request opened.
 ## Next step
-1. Phase 1 part 1: after it merges and deploys, run the live checks listed under Phase 1, then tick what passes.
-2. IndexNow: a key file at `/{key}.txt`, plus pings when results arrive, new funds appear or research pages change (a supervisor-run job; read docs/JOBS.md first).
-3. M1 identity: Organization JSON-LD gets `alternateName` "FinLit Ventures", `sameAs` (LinkedIn and Crunchbase now), `founder` Nishant Jain, `areaServed` IN, and the contactPoint contact@finlitventures.com; `foundingDate` only from 1 Dec 2026. The About page's first sentence too.
-4. Phase 1 part 2: the same answer and questions block in the React company report.
-5. M8: add Claude-SearchBot and Claude-User to robots.txt's AI group.
+1. The identity pull request (M1 + M8): after it merges and deploys, check the home page JSON-LD, the About page, robots.txt and the footer email live.
+2. IndexNow + real lastmod, as designed under Phase 0 (one pull request; read docs/JOBS.md section 11 first).
+3. Phase 1 part 2: the same answer and questions block in the React company report (people and crawlers read the same text).
+4. The ISIN in company JSON-LD (Phase 1 follow-up).
+5. When the owner sends the GA4 Measurement ID: analytics step 2 (consent banner + GA4 after consent).
