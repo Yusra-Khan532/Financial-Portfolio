@@ -25,7 +25,7 @@ export function BoardNote({ board, compact = false }: { board?: string; compact?
   const { data: me } = useForumMe();
   if (!me) return null;
   const on = (board || me.board) as keyof typeof BOARD_NAME | null;
-  if (!me.signedIn) return <p className="fo-board" role="note"><b>Each plan has its own board.</b> Basic, Silver and Gold members talk among their own plan. <Link to={`/login?next=${encodeURIComponent(here())}`}>Sign in</Link> (free) to see yours.</p>;
+  if (!me.signedIn) return <p className="fo-board" role="note"><b>Each plan has its own board.</b> Members talk with others on a plan at their own level. <Link to={`/login?next=${encodeURIComponent(here())}`}>Sign in</Link> (free) to see yours.</p>;
   if (!on) return null;
   const name = BOARD_NAME[on];
   if (compact && !(board && board !== me.board)) return <p className="fo-board fo-board-sm" role="note" data-board={on}><b>{name} board</b> · seen by {name} members only</p>;

@@ -73,11 +73,11 @@ export function CalendarTileSet({ kpi, ahead, week, lastDay, lastResp, mine, tod
           </> : <p>{mine.signedIn ? "Add shares to your equity portfolio or a watchlist; their result dates then show here and are marked in the calendar." : <><Link to="/login">Sign in</Link> and add shares to your portfolio or a watchlist; their result dates then show here.</>}</p>} />,
     last: <DropTile key="last" testId="tile-last" label={lastDay ? `Last full day · ${dayShort(lastDay).toUpperCase()}` : "Last full day"} accent="gold" value={lastDay ? n0(lastTotal) : "–"} unit="declared"
           bar={ld && lastTotal ? <span className="rsc-vbar" aria-hidden="true">{ld.parts.filter((p) => p.n).map((p) => <u key={p.k} className={"rs-v-" + p.k.toLowerCase().replace(" ", "")} style={{ flexGrow: p.n }} />)}{lastTotal - (lastSum?.withNumbers ?? 0) > 0 && <u className="rsc-vnone" style={{ flexGrow: lastTotal - (lastSum?.withNumbers ?? 0) }} />}</span> : undefined}
-          sub={!lastDay ? "No day with results yet this quarter." : ld ? ld.sub : locked ? "The verdicts open with Silver." : `${n0(lastSum?.withNumbers ?? 0)} with figures so far`} moreLabel="Verdicts"
+          sub={!lastDay ? "No day with results yet this quarter." : ld ? ld.sub : locked ? "The verdicts open on a paid plan." : `${n0(lastSum?.withNumbers ?? 0)} with figures so far`} moreLabel="Verdicts"
           more={ld ? <table><thead><tr><th>Verdict</th><th className="r">Companies</th></tr></thead>
               <tbody>{VERDICTS.map((v) => <tr key={v}><td><span className={"rs-v rs-v-" + v.toLowerCase().replace(" ", "")}>{v}</span></td><td className="r">{n0(lastSum!.verdicts![v])}</td></tr>)}
                 <tr><td>No figures yet</td><td className="r">{n0(Math.max(0, lastTotal - (lastSum?.withNumbers ?? 0)))}</td></tr></tbody></table>
-            : <p>{locked ? <>Each result's verdict against its industry is part of the Silver plan. <Link to="/plans">See plans</Link>.</> : "No verdicts yet: the day's figures are still coming in."}</p>} />,
+            : <p>{locked ? <>Each result's verdict against its industry is part of every paid plan. <Link to="/plans">See plans</Link>.</> : "No verdicts yet: the day's figures are still coming in."}</p>} />,
   };
   return <>{only.map((k) => tiles[k])}</>;
 }

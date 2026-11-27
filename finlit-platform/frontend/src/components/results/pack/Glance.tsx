@@ -52,7 +52,7 @@ export function GlanceCard({ dist, growth, locked, fills }: { dist: QDistributio
           <div className="rs-gblock rs-ggrow">
             <p className="rs-glab">Meeting your growth conditions</p>
             {growth ? <><p className="big on">{n0(growth.matching)}</p><p className="muted">of the {n0(growth.withFigures)} companies with figures meet {growth.k === 1 ? "your condition" : growth.join === "and" ? `all ${growth.k} of your conditions` : `at least one of your ${growth.k} conditions`}. Change them in Filters.</p></>
-              : <><p className="big" aria-label="No count yet">—</p><p className="muted">{locked ? "Growth filters and their counts are part of the Silver plan." : "No growth filter is on yet. Start from a quick fill, or set your own in Filters."}</p></>}
+              : <><p className="big" aria-label="No count yet">—</p><p className="muted">{locked ? "Growth filters and their counts are part of every paid plan." : "No growth filter is on yet. Start from a quick fill, or set your own in Filters."}</p></>}
             <div className="rs-gqf" role="group" aria-label="Quick fills">{fills.map((f) => <button key={f.id} type="button" className={"rs-gqfb" + (f.on ? " on" : "")} aria-pressed={f.on} title={f.hint} onClick={f.apply}>{f.label}</button>)}</div>
           </div>
         </div>

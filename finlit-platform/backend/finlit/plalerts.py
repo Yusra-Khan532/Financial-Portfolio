@@ -94,7 +94,7 @@ async def auto_pl_flags(pool, mailer: Mailer, site_url: str, today: Optional[dat
     async with pool.acquire() as conn:
         users = await conn.fetch(
             "SELECT u.id, u.email, s.watchlist, s.prefs FROM users u JOIN user_state s ON s.user_id = u.id "
-            "WHERE u.status = 'active' AND u.email_verified_at IS NOT NULL AND u.plan IN ('silver', 'gold') "
+            "WHERE u.status = 'active' AND u.email_verified_at IS NOT NULL AND u.plan IN ('silver', 'gold', 'mfetf', 'equity', 'combined', 'platinum') "
             "AND (u.plan_until IS NULL OR u.plan_until > now())")
         wl = {u["id"]: watchlist_symbols(u["watchlist"]) for u in users}
         symbols = sorted({x for v in wl.values() for x in v})

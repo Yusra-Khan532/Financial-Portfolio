@@ -11,9 +11,9 @@ afterEach(() => { setAdminView("all"); setSeesAllNow(false); });
 describe("the admin view", () => {
   it("sends the view-as header only while a plan is previewed, and remembers the choice", () => {
     expect(viewAsHeader()).toEqual({});
-    setAdminView("silver");
-    expect(viewAsHeader()).toEqual({ [VIEW_AS_HEADER]: "silver" }); expect(getAdminView()).toBe("silver");
-    expect(localStorage.getItem("finlit-admin-view")).toBe("silver");
+    setAdminView("equity");   // task #410: the new plans
+    expect(viewAsHeader()).toEqual({ [VIEW_AS_HEADER]: "equity" }); expect(getAdminView()).toBe("equity");
+    expect(localStorage.getItem("finlit-admin-view")).toBe("equity");
     setAdminView("all");
     expect(viewAsHeader()).toEqual({}); expect(localStorage.getItem("finlit-admin-view")).toBeNull();
   });

@@ -12,6 +12,62 @@ from typing import Any, Dict, Optional
 RANK = {"basic": 0, "silver": 1, "gold": 2}
 PLANS = tuple(RANK)
 
+# Task #410 (owner, 27 Nov 2026): the plans on sale are the landing page's (frontend/src/landing/goliveData.js, PLANS): Free, Mutual Fund + ETF,
+# Equity Portfolio, the combined plan (both one-area plans together), Gold and Platinum. A member's stored plan is one of PLAN_KEYS. Every gate written
+# before the new plans checks an access TIER (basic < silver < gold, RANK above); TIER_OF gives each plan its tier, so those gates and the limit tables
+# keyed by tier keep working unchanged. What the tiers cannot say is said by the plan key itself: Platinum-only tools (is_platinum) and the two areas a
+# one-area plan opens (in_area: "mf" funds and ETFs, "eq" the shares you own).
+PLAN_KEYS = ("free", "mfetf", "equity", "combined", "gold", "platinum")
+PAID_KEYS = PLAN_KEYS[1:]
+TIER_OF = {"free": "basic", "mfetf": "silver", "equity": "silver", "combined": "silver", "gold": "gold", "platinum": "gold",
+           "basic": "basic", "silver": "silver"}            # the last two: names stored before migration 145, read the same way if one is ever seen
+KEY_RANK = {"free": 0, "basic": 0, "mfetf": 1, "equity": 1, "combined": 1, "silver": 1, "gold": 2, "platinum": 3}
+AREAS = {"free": frozenset(), "basic": frozenset(), "mfetf": frozenset({"mf"}), "equity": frozenset({"eq"}), "combined": frozenset({"mf", "eq"}),
+         "silver": frozenset({"mf", "eq"}), "gold": frozenset({"mf", "eq"}), "platinum": frozenset({"mf", "eq"})}
+# Migration 145 moved every stored plan to the new names without anyone losing anything: basic -> free; silver and gold -> platinum (Platinum includes
+# everything either had); the old name stays in users.plan_legacy. After it, "basic" and "silver" are never stored; if one is ever read (an old cached
+# session, a test row) it keeps its old tier: basic is Free, silver is the combined plan (tier silver). "gold" is the new Gold plan (tier gold, as before).
+LEGACY_TO_KEY = {"basic": "free", "silver": "combined"}
+
+
+def plan_key(stored: Optional[str]) -> str:
+    """The plan a stored value means today (an unknown or empty value is Free)."""
+    v = (stored or "").strip().lower()
+    return v if v in PLAN_KEYS else LEGACY_TO_KEY.get(v, "free")
+
+
+def tier_of(key: Optional[str]) -> str:
+    """The access tier a plan key opens: the tier every gate written before the new plans checks."""
+    return TIER_OF.get((key or "").strip().lower(), "basic")
+
+
+_PART_OF = {"basic": "the Free plan", "free": "the Free plan", "silver": "every paid plan", "gold": "the Gold and Platinum plans",
+            "platinum": "the Platinum plan", "equity": "the Equity Portfolio, Combined, Gold and Platinum plans",
+            "mfetf": "the Mutual Fund + ETF, Combined, Gold and Platinum plans", "combined": "the Combined, Gold and Platinum plans"}
+
+
+def part_of(tier: str) -> str:
+    """Task #410: the plans that open a gate, in words for "… is part of {part_of(tier)}." A Silver gate is open on every paid plan (each opens the
+    Silver tier); a Gold gate on Gold and Platinum."""
+    return _PART_OF.get((tier or "").strip().lower(), f"the {str(tier).title()} plan")
+
+
+def is_platinum(ctx) -> bool:
+    """A Platinum-only tool (goliveData's Platinum column: Stress Lab, profit and revenue forecasting, reverse valuation): Platinum, or an
+    administrator seeing every plan's features."""
+    return sees_all(ctx) or KEY_RANK.get(getattr(ctx, "plan_key", None) or "", 0) >= KEY_RANK["platinum"]
+
+
+def in_area(ctx, area: str) -> bool:
+    """A one-area plan opens only its own area: Mutual Fund + ETF the fund and ETF tools ("mf"), Equity Portfolio the shares you own ("eq").
+    Combined, Gold and Platinum open both."""
+    if sees_all(ctx):
+        return True
+    key = getattr(ctx, "plan_key", None)
+    if not key:                         # a context built without a plan key (an old cached session): its tier decides, as before task #410
+        return has(getattr(ctx, "plan", "basic"), "silver")
+    return area in AREAS.get(key, frozenset())
+
 # The ratio history cards (every plan) read these five; the full multi-year table (Gold) reads all of them.
 BASIC_HISTORY_KEYS = ("gross_margin", "operating_margin", "net_margin", "roe", "roce")
 GOLD_RATIO_GROUPS = {"leverage", "liquidity", "efficiency", "quality", "shareholder"}
@@ -40,7 +96,7 @@ def has(plan: str, tier: str) -> bool:
     return RANK.get(plan, 0) >= RANK[tier]
 
 
-VIEW_AS = ("basic", "silver", "gold")
+VIEW_AS = PLAN_KEYS + ("basic", "silver")      # task #410: the new plans; "basic" and "silver" still accepted (an admin's old bookmark), read as Free and Combined
 
 
 def sees_all(ctx) -> bool:

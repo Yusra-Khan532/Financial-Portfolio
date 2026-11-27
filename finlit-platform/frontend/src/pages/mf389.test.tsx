@@ -31,7 +31,7 @@ import { foldSentence } from "../portfolio/pack/EqSteps385";
 import { KnowPop } from "../portfolio/pack/Round388";
 import { MF_PORTFOLIO_FAQ } from "../content/mfPortfolioFaqs";
 import { planName } from "../lib/planNames";
-import { PLAN_FOR_PORTFOLIO } from "../lib/planGates";
+import { PLAN_FOR_FUND_PORTFOLIO } from "../lib/planGates";
 
 globalThis.ResizeObserver ??= class { observe() {} unobserve() {} disconnect() {} } as never;
 const ln = (id: string, units: number, nav: number, boughtOn: string, pf: string): Line => ({ id, units, invested: Math.round(units * nav * 100) / 100, boughtOn, pf, side: "buy" });
@@ -177,7 +177,7 @@ describe("Your funds (F1, F2, T6, X8)", () => {
     for (const f of files) { const s = readFileSync(f, "utf8").split("\n").filter((l) => !/^\s*(\/\/|\*|\/\*\*)/.test(l)).join("\n"); expect([f, /Fund Health Score|\bHealth Score\b|Health parts/.test(s)]).toEqual([f, false]); }
   });
   it("X1: the questions box reads the plan name from the plan list", () => {
-    expect(MF_PORTFOLIO_FAQ.plan).toBe(planName(PLAN_FOR_PORTFOLIO));
+    expect(MF_PORTFOLIO_FAQ.plan).toBe(planName(PLAN_FOR_FUND_PORTFOLIO));   // task #410
     expect(readFileSync(resolve(__dirname, "../content/mfPortfolioFaqs.ts"), "utf8")).not.toMatch(/plan: "Silver"/);
   });
 });

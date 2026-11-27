@@ -16,7 +16,7 @@ import { ClearPortfolio } from "../components/ClearPortfolio";
 import { Tip } from "../components/sectors/pack/Common";
 import { WhatChanged, useWhatChanged } from "../components/changes/WhatChanged";
 import { useDocTitle } from "../lib/title";
-import { TIER, useUI } from "../lib/ui";
+import { useUI } from "../lib/ui";
 import { limitsFor, useAuth } from "../lib/auth";
 import { etfGet, useEtfSearch, type EtfList } from "../lib/etf";
 import { avgBySymbol, etfRowsFromFile, toSend, useEtfInside, useEtfPortfolio, useEtfRisk, useEtfWrites, type EtfRow, type Preview, type RawRow } from "../lib/etfPortfolio";
@@ -64,8 +64,10 @@ import "../mf/pack/mf-pack.css";
 import "../styles/etfportfolio.css";
 import "../portfolio/kit/kit.css";
 import "../etf/pack/spacing390.css";   // task #390 (file 39 v4, Part D): the page's spacing, after the pack CSS
-import { PLAN_FOR_PORTFOLIO } from "../lib/planGates";
+import { PLAN_FOR_FUND_PORTFOLIO } from "../lib/planGates";
 import { PageTabs } from "../components/PageTabs";
+import { memberPlanName } from "../lib/planNames";
+import { planKeyOf } from "../lib/auth";
 
 const errText = (e: unknown) => ((e as { body?: { detail?: string } })?.body?.detail) || (e instanceof Error ? e.message : "Something went wrong. Please try again.");
 
@@ -179,7 +181,7 @@ export function EtfPortfolioPage() {
   useDocTitle("ETF portfolio", "What your ETFs track, what they cost, how close they trade to their value, what sits inside them and how risky they are together.");
   const { plan, has, toast } = useUI();
   const { user } = useAuth();
-  const silver = has(PLAN_FOR_PORTFOLIO);
+  const silver = has(PLAN_FOR_FUND_PORTFOLIO);
   const [params, setParams] = useSearchParams();
   const qAll = useEtfPortfolio(silver), w = useEtfWrites();
   const book = useEtfBook(silver, (qAll.data?.items ?? []).filter((e) => !e.gone && e.qty == null).map((e) => e.symbol));
@@ -290,10 +292,10 @@ export function EtfPortfolioPage() {
     // task #390 (developer file 39 v4, A2 / E1): VisitFolds keeps Key figures and the bottom's two folds open for the rest of the visit once opened,
     // closed on every new visit; the shared bottom (Questions fold, Disclaimer fold, sources line) as on the Equity and MF pages
     <KnowPop.Provider value={true}><VisitFolds><div className="wrap ipo mp sp mfp efp pfx">
-      <Gate tier={PLAN_FOR_PORTFOLIO} title="Track your ETFs" points={["What each ETF tracks and costs, and how close it trades to its NAV", "What sits inside them: asset mix, overlap and the largest stocks", "Each ETF against the Nifty 500, and the list together", "Import a broker file, read by ISIN, then symbol"]}>
+      <Gate tier={PLAN_FOR_FUND_PORTFOLIO} title="Track your ETFs" points={["What each ETF tracks and costs, and how close it trades to its NAV", "What sits inside them: asset mix, overlap and the largest stocks", "Each ETF against the Nifty 500, and the list together", "Import a broker file, read by ISIN, then symbol"]}>
         <header className="ptk-head card" id="etp-top">
           <div className="ptk-t1">
-            <div className="ptk-ht"><h1 className="ui-title">ETF portfolio</h1><p className="ptk-plan mfp-plan"><span>{TIER[plan].n}</span></p>
+            <div className="ptk-ht"><h1 className="ui-title">ETF portfolio</h1><p className="ptk-plan mfp-plan"><span>{memberPlanName(planKeyOf(), plan)}</span></p>
               <Tip text="What your ETFs track, what they cost, how close they trade to their value, what sits inside them and how risky they are together." how="Start with names; add quantities when you want the figures to follow your money. Each ETF is read by its ISIN; a row without one is matched on the NSE symbol." label="About “ETF portfolio”" />
               {lastDay && <span className="ptk-asof">Prices at close · {lastDay}</span>}</div>
             <AddBox placeholder="Add an ETF by name, symbol or ISIN" noun={["ETF", "ETFs"]} useResults={useResults} full={full} fullWhy={`Your plan holds ${limit} ETFs. Remove one to add another.`}

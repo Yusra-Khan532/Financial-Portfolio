@@ -80,8 +80,8 @@ function SummaryPanel({ c }: { c: Call }) {
     writeSummary(link).then((s) => setState({ s }), (e: ApiError) => setState({ err: e.body?.detail || e.message }));
   }, [link, allowed]);
   if (!link) return <Why text={c.summary.why || "Nothing to summarise yet."} />;
-  if (!user) return <p className="ccm-why">AI summaries are for signed-in Silver and Gold members. <Link to="/login">Sign in</Link></p>;
-  if (!allowed) return <p className="ccm-why">AI summaries are part of the Silver and Gold plans (10 a month). <Link to="/plans">See the plans</Link></p>;
+  if (!user) return <p className="ccm-why">AI summaries are for signed-in members on a paid plan. <Link to="/login">Sign in</Link></p>;
+  if (!allowed) return <p className="ccm-why">AI summaries are part of the paid plans (10 a month). <Link to="/plans">See the plans</Link></p>;
   if (state.busy) return <p className="ccm-why">Writing the summary from the {c.summary.source}…</p>;
   if (state.err) return <Why text={state.err} />;
   const s = state.s;

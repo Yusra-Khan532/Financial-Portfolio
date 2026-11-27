@@ -29,7 +29,7 @@ describe("the four tiles' words", () => {
   it("the one quarter line: the figures for Silver, the counts and the plan for Basic", () => {
     const t = { declared: 5166, companies: 5175, medianRevenueYoY: 16.8, medianProfitYoY: 11.1, beatShare: 34 };
     expect(quarterLine("Q2 FY27", t, false)).toBe("Quarter so far, Q2 FY27: typical revenue +16.8% · typical profit +11.1% · 34% beat their industry.");
-    expect(quarterLine("Q2 FY27", { ...t, medianRevenueYoY: null, medianProfitYoY: null }, true)).toBe("Quarter so far, Q2 FY27: 5,166 of 5,175 companies declared · the growth figures open with Silver.");
+    expect(quarterLine("Q2 FY27", { ...t, medianRevenueYoY: null, medianProfitYoY: null }, true)).toBe("Quarter so far, Q2 FY27: 5,166 of 5,175 companies declared · the growth figures open on a paid plan.");
   });
 });
 

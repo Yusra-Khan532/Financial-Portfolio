@@ -9,13 +9,13 @@ Written 17 Nov 2026 from a full read of the repository, the team workspace and t
   1. Copy the task and the team's notes into a checklist, word for word.
   2. Reproduce each point on the live site.
   3. Fix the root cause.
-  4. Prove each point with a test or a screenshot: desktop and phone, light and dark, Silver and Gold where it applies.
+  4. Prove each point with a test or a screenshot: desktop and phone, light and dark, each plan where it applies (Free, a one-area plan, Gold, Platinum).
   5. Push only when everything passes, then check the live page.
 - Standing rules (`CLAUDE.md`):
   - Background jobs never stop or get weaker. The sector job runs only on weekend nights (owner, 18 Nov 2026: Saturday 23:00 to Sunday 08:00 IST, Sunday night as a catch-up, after every other job of the night; docs/JOBS.md); `SECTORS_JOB=off` in `/opt/finlit/.env.aws` switches it off.
   - Numbers are correct and current, and every blank says why.
   - Describe, never advise, and keep the disclaimer.
-  - Everything stays free.
+  - Plans: Free, Mutual Fund + ETF, Equity Portfolio, the combined plan, Gold and Platinum (owner, 27 Nov 2026, task #410); prices only in `frontend/src/landing/goliveData.js`; payments not live yet.
   - Secrets live only in `/opt/finlit/.env.aws`.
   - No model names in commits or code.
 - Design: the "FinLit final pages" pack (`docs/design/finlit-final-pages/`) is the final design for the pages it shows. The landing page follows its own tasks (#118–#121). Since task #407 (26 Nov 2026) it is the team's go-live pack: markup `landing/GoLiveMarkup.tsx`, interactive parts `landing/golive.js` (the pack's scripts, ported), data `landing/goliveData.js` (areas, tools, plans and their prices, recordings: change prices there only), styles `landing/golive.css`, media `public/landing/golive/`; the hero's company check reads the search index and `/api/search/quotes`.
@@ -99,7 +99,7 @@ Written 17 Nov 2026 from a full read of the repository, the team workspace and t
   | Resend | Email (sign-up codes, alerts; Gmail "Send mail as" contact@) |
   | Amazon SES (Sydney) | Bulk mail from contact@finlitventures.com: Console > Email (`finlit/mailer.py`, task #387). Key: IAM user finlit-ses-sender (send-only) in `SES_REGION`, `SES_ACCESS_KEY_ID`, `SES_SECRET_ACCESS_KEY`. Out of the sandbox since 24 Nov 2026: 50,000 a day, 14 a second |
 - **Plans:**
-  - `auth/entitlements.py` holds `RANK`, `has()`, `LIMITS` and the `redact_*` functions.
+  - `auth/entitlements.py` holds `RANK`, `has()`, `LIMITS` and the `redact_*` functions; since task #410 also the plan keys (`PLAN_KEYS`, `TIER_OF`: each plan opens an access tier), `is_platinum()` (Stress Lab, forecasting), `in_area(ctx, "mf" | "eq")` (the one-area plans) and `part_of()` (the plan names in a lock message). The frontend twin is `lib/auth.tsx` (`tierOf`, `keyOf`) and `lib/ui.tsx` (`Gate`, `passes`).
   - Every route checks the plan itself (24 files); there is no central dependency, so **a new route must add its own check**.
   - The session cache lasts 120 s; call `forget_cached` when a plan changes.
   - `SHOWCASE_SYMBOLS` are open to every plan.

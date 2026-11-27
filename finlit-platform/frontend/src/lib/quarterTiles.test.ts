@@ -65,7 +65,7 @@ describe("the six tiles", () => {
   it("on Basic keeps the counts and names the plan for every figure", () => {
     const b = quarterTiles(now, prev, by, true);
     expect(b[0].value).toBe("5,166");
-    expect(b.slice(1).map((x) => x.value)).toEqual(Array(5).fill("Silver plan"));
+    expect(b.slice(1).map((x) => x.value)).toEqual(Array(5).fill("Paid plans"));
     expect(b.slice(1).every((x) => !x.pill && !x.detail)).toBe(true);
   });
   it("words the quarter's months as the pack", () => {

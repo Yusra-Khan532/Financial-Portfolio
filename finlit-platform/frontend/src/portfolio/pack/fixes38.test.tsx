@@ -43,7 +43,7 @@ describe("E3: no date until the prices behind it have loaded", () => {
   });
   it("the page passes only the shares' own price date, never the index's last close, and says it is loading while the prices are pending", () => {
     const h = src("../../pages/Holdings.tsx");
-    expect(h).toMatch(/<EqTitle plan=\{TIER\[plan\]\.n\} asOf=\{priceDay\} loading=\{!!model && !DEMO && symbols\.length > 0 && ov\.isPending\}/);
+    expect(h).toMatch(/<EqTitle plan=\{memberPlanName\(planKeyOf\(\), plan\)\} asOf=\{priceDay\} loading=\{!!model && !DEMO && symbols\.length > 0 && ov\.isPending\}/);
     expect(h).not.toMatch(/asOf=\{priceDay \?\? idxQ/);   // the bug: "Prices at close · 23 Nov" (the index's date) for about 5 seconds
   });
 });

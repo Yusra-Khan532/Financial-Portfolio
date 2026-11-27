@@ -68,7 +68,7 @@ describe("the key read (v2)", () => {
   });
   it("a Basic reader gets the counts and the Silver lock; a company without a comparable group says why", () => {
     const { container: c } = draw({ ...read("RELIANCE"), state: "locked" });
-    expect(c.querySelector(".sx-lock")!.textContent).toContain("part of the Silver plan");
+    expect(c.querySelector(".sx-lock")!.textContent).toContain("part of every paid plan");
     expect(c.querySelector(".sx-lock")!.textContent).toContain("22 of 22 companies in Petroleum Products have declared");
     expect(c.querySelector(".aiq-kp")).toBeNull();
     cleanup();

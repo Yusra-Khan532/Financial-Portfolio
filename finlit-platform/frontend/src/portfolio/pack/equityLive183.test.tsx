@@ -13,6 +13,6 @@ describe("Equity portfolio live fixes (#183)", () => {
     expect(screen.queryByRole("tab", { name: /^Diversification(?! analytics)/ })).toBeNull();
   });
   it("the plan badge words come from the plan: a Gold account reads Gold, never Silver", () => {
-    expect([TIER.gold.n, TIER.silver.n]).toEqual(["Gold", "Silver"]);
+    expect([TIER.gold.n, TIER.silver.n]).toEqual(["Gold", "Gold"]);   // task #410: an old Silver gate reads Gold, the smallest full plan that opens it
   });
 });

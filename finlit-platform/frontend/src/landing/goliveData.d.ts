@@ -10,3 +10,5 @@ export const PLANS: {
   cnt: number[]; n: number; AP?: Record<string, string>;
 };
 export const CLIPS: Record<string, string>;
+/** Task #410: the combined plan (Equity Portfolio + Mutual Fund + ETF): its yearly price and the extras it adds from Gold ([name, line]). */
+export const COMBINED: { y: number; extras: [string, string][] };

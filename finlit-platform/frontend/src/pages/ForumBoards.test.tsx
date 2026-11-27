@@ -37,15 +37,15 @@ describe("forum boards by plan", () => {
   it("a Gold member is told they are on the Gold board and only Gold members read it", async () => {
     st.me = me({ plan: "gold", board: "gold" });
     open();
-    expect(await screen.findByText("Gold board.")).toBeTruthy();
-    expect(screen.getByText(/Only Gold members can read and reply here/)).toBeTruthy();
+    expect(await screen.findByText("Gold and Platinum board.")).toBeTruthy();
+    expect(screen.getByText(/Only Gold and Platinum members can read and reply here/)).toBeTruthy();
     await waitFor(() => expect(st.calls.some((c) => c.startsWith("/api/forum/threads"))).toBe(true));
     expect(st.calls.find((c) => c.startsWith("/api/forum/threads"))).not.toContain("board=");   // members never ask for another board
   });
   it("a Basic member is on the Basic board", async () => {
     st.me = me({});
     open();
-    expect(await screen.findByText("Basic board.")).toBeTruthy();
+    expect(await screen.findByText("Free board.")).toBeTruthy();
     expect(screen.queryByRole("group", { name: "Board" })).toBeNull();   // only moderators can switch boards
   });
   it("a moderator can switch between the three boards", async () => {
