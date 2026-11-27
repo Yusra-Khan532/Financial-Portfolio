@@ -38,7 +38,7 @@ import { SizeNote } from "../components/SizeNote";
 const PRIORITY_1 = ["1.2", "1.9", "1.13", "1.19", "1.17"];   // section 1 "Priority checks", in the doc's order
 const COLORS = ["var(--k1)", "var(--k2)", "var(--k3)", "var(--k4)", "var(--k5)", "var(--k7)"];
 const MODE_LABEL: Record<Mode, string> = { cross: "Across companies", history: "Company history", tech: "Company time series" };
-const TIER_NAME: Record<Tier, string> = { basic: "Basic", silver: "Silver", gold: "Gold" };
+const TIER_NAME: Record<Tier, string> = { basic: "Free", silver: "Paid plans", gold: "Gold" };   // task #410
 const nextPlan = (p: Plan): Plan => (p === "basic" ? "silver" : "gold");
 const allowed = (plan: Plan, t: Tier | undefined) => RANK[plan] >= RANK[(t ?? "silver") as Plan];
 const pairLabel = (p: { xLabel: string; yLabel: string }) => `${p.xLabel} vs ${p.yLabel}`;

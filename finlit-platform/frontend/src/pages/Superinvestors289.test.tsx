@@ -7,7 +7,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 let PLAN = "gold";
-vi.mock("../lib/ui", () => ({ useUI: () => ({ has: (t: string) => ({ basic: 0, silver: 1, gold: 2 } as Record<string, number>)[PLAN] >= ({ basic: 0, silver: 1, gold: 2 } as Record<string, number>)[t], upgrade: vi.fn(), toast: vi.fn() }),
+vi.mock("../lib/ui", () => ({ useUI: () => ({ has: (t: string) => ({ basic: 0, silver: 1, gold: 2, mfetf: 1, equity: 1, combined: 1, platinum: 2 } as Record<string, number>)[PLAN] >= ({ basic: 0, silver: 1, gold: 2, mfetf: 1, equity: 1, combined: 1, platinum: 2 } as Record<string, number>)[t], upgrade: vi.fn(), toast: vi.fn() }),
   TIER: { silver: { n: "Silver", ic: "medal", tc: "--silver" }, gold: { n: "Gold", ic: "crown", tc: "--gold" }, basic: { n: "Free", ic: "sprout", tc: "--text" } } }));
 vi.mock("../lib/auth", () => ({ useAuth: () => ({ user: PLAN === "basic" ? null : { id: "u", email: "m@example.com", plan: PLAN } }) }));
 vi.mock("../components/PageHeader", () => ({ PageHeader: ({ title, description, plan, eyebrow }: { title: string; description?: React.ReactNode; plan?: string; eyebrow?: React.ReactNode }) => <header data-plan={plan}><div>{eyebrow}</div><h1>{title}</h1><div>{description}</div></header> }));

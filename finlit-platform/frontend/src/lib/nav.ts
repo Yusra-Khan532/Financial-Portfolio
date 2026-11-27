@@ -134,7 +134,7 @@ export const MORE: NavSection = { id: "more", label: "More", groups: [
 MORE.wide = true;
 
 /** Pricing sits in the header on its own. */
-export const PRICING: NavItem = i("/plans", "Pricing", "Free, Silver and Gold", "crown");
+export const PRICING: NavItem = i("/plans", "Pricing", "Free, Mutual Fund + ETF, Equity Portfolio, Gold and Platinum", "crown");
 
 /** Does this address belong to the item (itself or a page under it)? `end` items match only themselves; `not` names a sibling page that has its own item. */
 export const isHere = (path: string, it: NavItem) => path === it.to || (!it.end && path.startsWith(it.to + "/") && !(it.not && (path === it.not || path.startsWith(it.not + "/"))));

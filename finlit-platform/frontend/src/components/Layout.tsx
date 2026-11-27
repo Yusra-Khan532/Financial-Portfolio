@@ -32,6 +32,8 @@ import { SheetTools } from "./SheetTools";
 import { HubChips, MobileMenu, MobileTabs, PhoneFootLinks, ToolsButton } from "./mobile/MobileApp";
 import { desktopSiteOn, setDesktopSite } from "../lib/mobileNav";
 import { hasLab } from "../lib/lab";
+import { memberPlanName } from "../lib/planNames";
+const PREVIEW_NAME = { basic: "Free", silver: "Paid", gold: "Gold" } as const;   // task #410: the demo preview's tiers, in the new plan words
 
 /** One header dropdown, built from lib/nav.ts. */
 function Menu({ m, open, setOpen, path, extra }: { m: NavSection; open: boolean; setOpen: (v: string | null) => void; path: string; extra?: React.ReactNode }) {
@@ -64,7 +66,7 @@ function Header({ onSearch }: { onSearch: () => void }) {
   const { theme, toggleTheme, plan, setPlan } = useUI();
   const gold = useIsGold();
   const sections = useMemo(() => forPlan(SECTIONS, gold), [gold]);   // task #100: pages not offered to Gold (none since task #283)
-  const { user, ready, isAdmin, signOut, features } = useAuth();
+  const { user, ready, isAdmin, signOut, features, planKey } = useAuth();
   const nav = useNavigate();
   const [acct, setAcct] = useState(false);
   const [menu, setMenu] = useState(false);
@@ -100,7 +102,7 @@ function Header({ onSearch }: { onSearch: () => void }) {
           <div className="seg planseg" role="group" aria-label="Preview plan">
             <span className="lbl">Preview</span>
             {(["basic", "silver", "gold"] as const).map((p) => (
-              <button key={p} aria-pressed={plan === p} style={{ "--tc": `var(--t-${p})` } as React.CSSProperties} onClick={() => setPlan(p)}><i />{p[0].toUpperCase() + p.slice(1)}</button>
+              <button key={p} aria-pressed={plan === p} style={{ "--tc": `var(--t-${p})` } as React.CSSProperties} onClick={() => setPlan(p)}><i />{PREVIEW_NAME[p]}</button>
             ))}
           </div>
         )}
@@ -114,7 +116,7 @@ function Header({ onSearch }: { onSearch: () => void }) {
         {user ? (
           <div className="dd acct-dd">
             <button className="av-btn" aria-haspopup="true" aria-expanded={acct} aria-label={`Account menu for ${user.email}`} onClick={() => setAcct(!acct)} onBlur={(e) => { if (!e.currentTarget.parentElement?.contains(e.relatedTarget as Node)) setAcct(false); }}>
-              <span className="av sm" aria-hidden="true">{(user.name || user.email)[0].toUpperCase()}</span><span className={"tier " + plan}>{plan[0].toUpperCase() + plan.slice(1)}</span>
+              <span className="av sm" aria-hidden="true">{(user.name || user.email)[0].toUpperCase()}</span><span className={"tier " + plan}>{memberPlanName(planKey, plan)}</span>
             </button>
             <div className={"ddm right" + (acct ? " open" : "")} role="menu">
               <div className="acct-who"><b>{user.name || "Signed in"}</b><small>{user.email}</small></div>

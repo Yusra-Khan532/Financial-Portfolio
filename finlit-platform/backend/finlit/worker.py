@@ -1890,10 +1890,13 @@ async def main(argv: Optional[List[str]] = None, settings: Optional[Settings] = 
                 from . import eod_bhav
                 from .jobs.reasons import PARTIAL_EXIT
                 from .mf import record_run
-                day = _date.fromisoformat(args.date) if args.date else _dt.now(eod_bhav.IST).date()
-                res = await eod_bhav.load(store, day, only=[args.exchange] if args.exchange else None)
+                if args.date:
+                    runs = [await eod_bhav.load(store, _date.fromisoformat(args.date), only=[args.exchange] if args.exchange else None)]
+                else:      # 27 Nov 2026: the previous weekday too, when its files are missing (an evening the job missed), then today's in its hours
+                    runs = await eod_bhav.catch_up(store)
+                res = {"days": runs, "written": sum(r.get("written", 0) for r in runs)}
                 print(res)
-                failed = [x for x in ("NSE", "BSE") if (res.get(x) or {}).get("status") == "failed"]
+                failed = [f"{r['day']} {x}" for r in runs for x in ("NSE", "BSE") if (r.get(x) or {}).get("status") == "failed"]
                 # a file not published yet is the normal evening wait (the job asks again in 10 minutes; the "Closing prices" freshness line says when it is
                 # late); a refusal or a broken file is a fault: recorded partial, so the supervisor shows it degraded and the admins are told
                 await record_run(store, args.cmd, {"status": "partial" if failed else "ok", **({"why": f"{', '.join(failed)} file failed"} if failed else {}), **res})

@@ -139,7 +139,7 @@ async def test_a_page_from_an_older_close_is_not_served_and_is_rebuilt_on_this_c
         new["today_inputs"] = {**new["today_inputs"], "usdinr_source": "FinLit usdinr"}
         return new, pack or {}
     monkeypatch.setattr(service, "build_payload_and_pack", build)
-    silver = await signed_in(app, "sl9@example.com", plan="silver")
+    silver = await signed_in(app, "sl9@example.com", plan="platinum")
     r = await silver.get("/api/stress/ASIANPAINT/page")
     assert r.status_code == 200 and r.json()["as_of"] == "2026-11-12"            # never the 11 Nov page
     assert got == [True]                                                           # rebuilt from its stored statements: no call to the data provider

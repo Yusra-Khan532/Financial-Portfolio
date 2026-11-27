@@ -38,6 +38,6 @@ export type Fallback = { label: string; note: string };
 export function fallbackLine(text: string, aiReady: boolean, aiPlan: boolean, left?: number | null): Fallback {
   const t = text.trim();
   if (aiReady) return { label: `Ask FinLit AI: “${t}”`, note: `A written answer${left != null ? ` · ${left} left this month` : ""}` };
-  if (aiPlan) return { label: `Ask “${t}”`, note: "Written answers are part of Silver and Gold" };
+  if (aiPlan) return { label: `Ask “${t}”`, note: "Written answers are part of the combined, Gold and Platinum plans" };
   return { label: `Search the listed questions for “${t}”`, note: "The closest ones answer at once" };
 }

@@ -143,7 +143,7 @@ export function AlertsPage() {
     return (
       <div className="wrap alx">
         <PageHeader plan="free" title="Alerts" art="calendar" links={["/watchlist", "/holdings", "/results"]} description={<>Get told when a <b>price, signal, score, ratio, result or filing</b> crosses the line you set.</>} />
-        <section className="card dw-empty"><span className="dw-ei"><Icon name="bell" /></span><b>Sign in to set alerts</b><p>Alerts are free to create. Basic includes 3 at a time; Silver and Gold add every metric and many more alerts.</p><Link className="btn primary" to="/login?next=/alerts">Sign in or create an account</Link></section>
+        <section className="card dw-empty"><span className="dw-ei"><Icon name="bell" /></span><b>Sign in to set alerts</b><p>Alerts are free to create. Free includes 3 at a time; the paid plans add every metric and many more alerts.</p><Link className="btn primary" to="/login?next=/alerts">Sign in or create an account</Link></section>
       </div>
     );
   }

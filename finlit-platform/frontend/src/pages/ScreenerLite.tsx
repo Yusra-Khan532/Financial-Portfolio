@@ -84,7 +84,7 @@ export function ScreenerLite() {
   ];
   const save = () => { const n = saveName.trim(); if (!n || !nActive) { toast("Add a filter and a name first."); return; } if (saved.length >= limitsFor(plan).screens && !saved.some((s) => s.name === n)) { toast(`Your plan keeps up to ${limitsFor(plan).screens} saved screens. Remove one first.`); return; } screens.save(n, f, limitsFor(plan).screens); setSaveName(""); toast(`Saved “${n}” in Quick screens.`); };
   const download = () => {
-    if (!has(PLAN_FOR_SCREENER)) { toast("Downloads come with the Silver plan. Showing plans."); nav("/plans"); return; }
+    if (!has(PLAN_FOR_SCREENER)) { toast("Downloads come with every paid plan. Showing plans."); nav("/plans"); return; }
     const ks = cols; const esc = (s: string) => `"${csvText(s).replace(/"/g, '""')}"`;
     const csv = [["Symbol", "Company", "Sector", ...ks.map((k) => METRICS[k].label)].map(esc).join(","), ...result.map((r) => [r.symbol, r.name || "", r.sector || "", ...ks.map((k) => r[k] ?? "")].map((v) => (typeof v === "string" ? esc(v) : v)).join(","))].join("\n");
     saveFile("FinLit-screen.csv", csv, "text/csv;charset=utf-8"); toast(`Saved ${result.length} companies as FinLit-screen.csv.`);

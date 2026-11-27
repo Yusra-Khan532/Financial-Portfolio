@@ -2625,6 +2625,10 @@ export const PLANS = {
  }
 };
 
+/* Task #410: the combined plan (Equity Portfolio + Mutual Fund + ETF), shown under the plans table on the landing page and on /plans: its yearly
+   price and the five extras it adds from Gold (moved here from golive.js, so both pages read one source). */
+export const COMBINED = {y:4499,extras:[['All my investments','Shares, funds and ETFs in one view'],['Full dashboard','Shares, funds and alerts on one screen'],['Watchlists','3 lists of 20 stocks'],['Discussion forums','Moderated threads by company'],['FinLit AI','60 questions a month']]};
+
 export const CLIPS = {
  "Stock screener": "/landing/golive/clips/stock-screener.mp4",
  "Query builder": "/landing/golive/clips/query-builder.mp4",

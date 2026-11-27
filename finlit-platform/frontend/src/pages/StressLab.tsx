@@ -35,7 +35,7 @@ export function StressLabIndexPage() {
   const picks = !has(PLAN_FOR_STRESS_LAB) ? [] : pq.isPending ? null : pq.isError ? [] : pq.data.picks.map((p) => ({ symbol: p.symbol, name: p.name.replace(/\s+(Ltd|Limited)\.?$/i, "") }));
   return (
     <>
-      <PageHeader wrap eyebrow="Quant Lab" plan={has("gold") ? "gold" : "silver"} title="Stress Lab" art="chart" links={["/outlook", "/dcf", "/research"]}
+      <PageHeader wrap eyebrow="Quant Lab" plan="platinum" title="Stress Lab" art="chart" links={["/outlook", "/dcf", "/research"]}
         description="How a shock to crude, the rupee, inflation, rates or demand could move next-year earnings; illustrative." />
       <div className="wrap ol"><OutlookPicker intro base={BASE} picks={picks} recents={false} introText={<>Pick a large or mid cap that is not a bank, NBFC or insurer. Stress Lab starts from its last four reported quarters, applies the shock you choose, and shows what happens to earnings per share, interest cover and an earnings-based value, with every assumption and its source.</>} /></div>
     </>
@@ -125,7 +125,7 @@ export function StressLabPage() {
   const waiting = silver && (q.isPending || q.isLoading) && !q.isError;
   return (
     <>
-      <PageHeader wrap eyebrow="Quant Lab" plan={gold ? "gold" : "silver"} title="Stress Lab" art="chart" links={[{ to: `/stocks/${encodeURIComponent(sym)}`, label: "Company report" }, BASE, "/outlook"]}
+      <PageHeader wrap eyebrow="Quant Lab" plan="platinum" title="Stress Lab" art="chart" links={[{ to: `/stocks/${encodeURIComponent(sym)}`, label: "Company report" }, BASE, "/outlook"]}
         description={<>{data?.company?.name ? <><b>{data.company.name}</b> <span className="mono faint">{sym}</span> · </> : <><span className="mono">{sym}</span> · </>}How a shock would move this company's earnings. Illustrative, not a forecast and not advice.</>} />
       <div className="wrap ol">
         <Gate tier={PLAN_FOR_STRESS_LAB} title="Stress Lab" points={GATE}>

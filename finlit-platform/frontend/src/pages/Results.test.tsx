@@ -105,8 +105,8 @@ describe("Results, the Calendar view (pack 10, 15 Nov changes: task #193; one pa
 
   it("for Basic the figures and verdicts are locked in words; the counts stay", () => {
     st.locked = true; open();
-    expect(screen.getByText("Each company's figures and verdict are part of the Silver plan")).toBeTruthy();
-    expect(document.querySelector(".mg-note")?.textContent).toContain("The growth figures, shares and verdicts are part of the Silver plan.");
+    expect(screen.getByText("Each company's figures and verdict are part of every paid plan")).toBeTruthy();
+    expect(document.querySelector(".mg-note")?.textContent).toContain("The growth figures, shares and verdicts are part of every paid plan.");
     expect(screen.getByTestId("tile-declared").textContent).toContain("3,040of 4,682");
     st.locked = false;
   });
@@ -115,7 +115,7 @@ describe("Results, the Calendar view (pack 10, 15 Nov changes: task #193; one pa
 describe("the words", () => {
   it("tiles, a day's cards and the week's cards", () => {
     expect(kpiTiles(totals as never).map((t) => t.v)).toEqual(["3,040", "+18.4%", "+15.4%", "62%", "47%", "32%"]);
-    expect(kpiTiles(totals as never, true).map((t) => `${t.v} | ${t.sub}`)).toEqual(["3,040 | of 4,682 · 1,642 still due", ...Array(5).fill("Silver plan | Opens with Silver")]);
+    expect(kpiTiles(totals as never, true).map((t) => `${t.v} | ${t.sub}`)).toEqual(["3,040 | of 4,682 · 1,642 still due", ...Array(5).fill("Paid plans | Opens on a paid plan")]);
     const rows = [row("DIVISLAB", { name: "Divi's Laboratories Ltd" }), row("TATASTEEL", { verdict: "Poor", cap: "Large", marketCap: 200000 }), row("A", { verdict: "Loss", cap: "Small", marketCap: 10 })] as unknown as VRow[];
     const c = dayCards(rows, { Strong: 14, Good: 3, "In line": 9, Weak: 6, Poor: 8, Loss: 9 }, 49, "2026-11-07", [{ date: "2026-11-12", n: 428 }, { date: "2026-11-13", n: 604 }]);
     expect(c[0]).toEqual({ kind: "good", title: "17 of 49 beat their industry", text: "Divi's Laboratories was the largest Strong result: revenue +35.4% and profit +63.6% from a year ago." });

@@ -181,16 +181,16 @@ export function CompaniesView() {
     setSp(n); setOffset(0); setMsg("");
   };
   const setGrowth = (next: GrowthState) => {
-    if (growthOn(next) && !silver) return need("Filtering by growth is part of the Silver plan.");   // Basic sees the panel; the figures behind it are Silver
+    if (growthOn(next) && !silver) return need("Filtering by growth is part of every paid plan.");   // Basic sees the panel; the figures behind it are Silver
     setSp(growthToParams(sp, next), { replace: true }); setOffset(0);
   };
   const setPrice = (next: PriceState) => {
-    if (priceOn(next) && !silver) return need("Filtering by price position is part of the Silver plan.");
+    if (priceOn(next) && !silver) return need("Filtering by price position is part of every paid plan.");
     setSp(priceToParams(sp, next), { replace: true }); setOffset(0);
   };
   /** Both blocks in ONE address write (a preset or the reset): two writes in a row would each start from the same old address. */
   const setBoth = (g: GrowthState, pr: PriceState) => {
-    if ((growthOn(g) || priceOn(pr)) && !silver) return need("Filtering by growth and price position is part of the Silver plan.");
+    if ((growthOn(g) || priceOn(pr)) && !silver) return need("Filtering by growth and price position is part of every paid plan.");
     setSp(priceToParams(growthToParams(sp, g), pr), { replace: true }); setOffset(0);
   };
   const growthLocked = res.error instanceof ApiError && res.error.status === 403;
@@ -200,7 +200,7 @@ export function CompaniesView() {
   const locked = !!d?.locked;
 
   const setSort = (v: string) => {
-    if (SORTS.find((s) => s[0] === v)?.[2] && !silver) return need("Sorting by growth and margin is part of the Silver plan.");
+    if (SORTS.find((s) => s[0] === v)?.[2] && !silver) return need("Sorting by growth and margin is part of every paid plan.");
     set({ sort: v, dir: v === "date" || v === "marketCap" || v.endsWith("YoY") || v === "gap" || v === "revenue" || v === "netProfit" || v === "marginChange" ? "desc" : "asc" });
   };
   // task #224 (results pack of 18 Nov, A1): every heading sorts, on the server, so the order covers every page. First click: numbers high to low, the company
@@ -210,7 +210,7 @@ export function CompaniesView() {
   const onHead = (k: string) => {
     const nx = nextSort(headSort, k);
     if (!nx) return set({ sort: "date", dir: "desc" });
-    if (!["company", "marketCap"].includes(k) && !silver) return need("Sorting by results figures is part of the Silver plan.");
+    if (!["company", "marketCap"].includes(k) && !silver) return need("Sorting by results figures is part of every paid plan.");
     set({ sort: k, dir: TEXT_KEYS.has(k) ? (nx.dir === "desc" ? "asc" : "desc") : nx.dir });
   };
   const setScope = (scope: "all" | "watchlist" | "portfolio") => {
@@ -218,7 +218,7 @@ export function CompaniesView() {
     set({ scope });
   };
   const exportCsv = async () => {
-    if (!silver) return need("Downloading the quarter's results is part of the Silver plan.");
+    if (!silver) return need("Downloading the quarter's results is part of every paid plan.");
     try {
       const u = queryString({ ...p, quarter: d?.quarter?.key || p.quarter, offset: 0, limit: undefined });
       const out = await apiGet<{ rows: QRow[]; quarter: { label: string; fiscal: string } | null }>(`/api/results/quarter/export?${u}`);
@@ -292,13 +292,13 @@ export function CompaniesView() {
       <label className={"cx-f" + (f.status ? " set" : "")}>Status
         <select value={f.status || ""} onChange={(e) => set({ status: e.target.value })} aria-label="Status">{STATUSES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></label>
       <button type="button" className={"cx-btn" + (nAdv ? " set" : "")} aria-expanded={panel} aria-controls="cx-gp" onClick={() => setPanel((v) => !v)}>Growth and price filters{nAdv > 0 && <span className="cx-n">{nAdv}</span>} ▾</button>
-      <span className="cx-flagw"><label className="sw"><input type="checkbox" checked={!!f.flagged} onChange={(e) => (silver ? set({ flagged: e.target.checked }) : need("The sales-and-profit flag is part of the Silver plan."))} /><span aria-hidden="true" /><b>Only flagged</b></label><ChartHelp id="qr-gap" /></span>
+      <span className="cx-flagw"><label className="sw"><input type="checkbox" checked={!!f.flagged} onChange={(e) => (silver ? set({ flagged: e.target.checked }) : need("The sales-and-profit flag is part of every paid plan."))} /><span aria-hidden="true" /><b>Only flagged</b></label><ChartHelp id="qr-gap" /></span>
       <span className="cx-end">
         <label className="cx-f">Sort by
-          <select value={f.sort} onChange={(e) => setSort(e.target.value)} aria-label="Sort by">{SORTS.map(([v, l, x]) => <option key={v} value={v}>{l}{x && !silver ? " (Silver)" : ""}</option>)}{f.sort && !SORTS.some(([v]) => v === f.sort) && <option value={f.sort}>{HEAD_WORD[f.sort] ?? "The column you chose"}</option>}</select></label>
+          <select value={f.sort} onChange={(e) => setSort(e.target.value)} aria-label="Sort by">{SORTS.map(([v, l, x]) => <option key={v} value={v}>{l}{x && !silver ? " (paid plans)" : ""}</option>)}{f.sort && !SORTS.some(([v]) => v === f.sort) && <option value={f.sort}>{HEAD_WORD[f.sort] ?? "The column you chose"}</option>}</select></label>
         <button type="button" className="cx-btn" aria-label={f.dir === "desc" ? "Highest first" : "Lowest first"} onClick={() => set({ dir: f.dir === "desc" ? "asc" : "desc" })}>{grouped ? (f.dir === "desc" ? "Newest first" : "Oldest first") : f.dir === "desc" ? "High to low" : "Low to high"}</button>
         <button type="button" className="cx-btn" disabled={!applied.length} onClick={resetAll}>Reset filters</button>
-        <button type="button" className="cx-btn" onClick={exportCsv}>CSV{silver ? "" : " (Silver)"}</button>
+        <button type="button" className="cx-btn" onClick={exportCsv}>CSV{silver ? "" : " (paid plans)"}</button>
       </span>
     </div>
   );
@@ -306,12 +306,12 @@ export function CompaniesView() {
     <div className="ipo qr sp rs rs-latest">
       {delayed && <div className="rc-stale" role="status" data-testid="results-delayed">{delayed}</div>}
       {dateErr && <div className="formerr qr-derr" role="alert">{dateErr} <button type="button" className="alx-link" onClick={() => setDates(null)}>Show the latest quarter</button></div>}
-      {growthLocked && <div className="formerr" role="alert">Filtering by {growthOn(growth) ? "growth" : "price position"} is part of the Silver plan. <button type="button" className="alx-link" onClick={() => need("Filtering by growth and price position is part of the Silver plan.")}>See Silver</button> <button type="button" className="alx-link" onClick={() => setBoth(DEFAULT_GROWTH, DEFAULT_PRICE)}>Remove the {growthOn(growth) && priceOn(price) ? "filters" : growthOn(growth) ? "growth filter" : "price-position filter"}</button></div>}
+      {growthLocked && <div className="formerr" role="alert">Filtering by {growthOn(growth) ? "growth" : "price position"} is part of every paid plan. <button type="button" className="alx-link" onClick={() => need("Filtering by growth and price position is part of every paid plan.")}>See Silver</button> <button type="button" className="alx-link" onClick={() => setBoth(DEFAULT_GROWTH, DEFAULT_PRICE)}>Remove the {growthOn(growth) && priceOn(price) ? "filters" : growthOn(growth) ? "growth filter" : "price-position filter"}</button></div>}
       {res.isError && !dateErr && !growthLocked && <div className="formerr">The results could not be loaded. Please try again shortly. <Link to="/results">Open the results calendar</Link></div>}
 
       {locked && (
         <div className="pl-cap qr-cap"><Icon name="lock" /><span><b>Basic shows who declared and when.</b> Silver shows every figure, growth against last year and last quarter, margins, the copy-ready summary line, the sales-and-profit flag, all the sorting and filters, and a CSV download.</span>
-          <button type="button" className="btn primary" onClick={() => need("Quarter results figures are part of the Silver plan.")}>See Silver</button></div>
+          <button type="button" className="btn primary" onClick={() => need("Quarter results figures are part of every paid plan.")}>See Silver</button></div>
       )}
 
       <div className="cx">
@@ -336,7 +336,7 @@ export function CompaniesView() {
           <div className="sp-filters" role="group" aria-label="Against its industry">
             <button type="button" className={"sp-fbtn" + (!f.verdict ? " on" : "")} aria-pressed={!f.verdict} onClick={() => set({ verdict: undefined })}>All {nf(vAll, 0)}</button>
             {VERDICTS.map((v) => <button key={v} type="button" className={"sp-fbtn rs-fv-" + v.toLowerCase().replace(" ", "") + (f.verdict === v ? " on" : "")} aria-pressed={f.verdict === v}
-              disabled={!!vc && !vc[v] && f.verdict !== v} onClick={() => (silver ? set({ verdict: f.verdict === v ? undefined : v }) : need("Each company's verdict against its industry is part of the Silver plan."))}>{v}{vc ? ` · ${nf(vc[v] ?? 0, 0)}` : ""}</button>)}
+              disabled={!!vc && !vc[v] && f.verdict !== v} onClick={() => (silver ? set({ verdict: f.verdict === v ? undefined : v }) : need("Each company's verdict against its industry is part of every paid plan."))}>{v}{vc ? ` · ${nf(vc[v] ?? 0, 0)}` : ""}</button>)}
           </div>
           <div className="cx-sets" role="group" aria-label="Columns">{COL_SETS.map(([k, l]) => <button key={k} type="button" aria-pressed={colSet === k} onClick={() => setColSet(k)}>{l}</button>)}</div>
         </div>
@@ -369,7 +369,7 @@ export function CompaniesView() {
             <div ref={tableTop} className="qr-ttop">{total > PAGE_SIZES[0] && <Pager at="top" offset={offset} total={total} size={size} onPage={goPage} onSize={pickSize} />}</div>
             <HScroll label="results table" className="qr-scroll">
               <CompaniesGrid rows={d.rows} set={colSet} sort={headSort} onSort={onHead} grouped={grouped} today={d.today || "9999"} days={days} locked={locked}
-                onUnlock={() => need("Results figures, growth and margin are part of the Silver plan.")}
+                onUnlock={() => need("Results figures, growth and margin are part of every paid plan.")}
                 hits={(r, k) => cellHit(r, k === "revg" ? "revYoY" : k === "opg" ? "opYoY" : "npYoY", effGrowth.cells[k === "revg" ? "revYoY" : k === "opg" ? "opYoY" : "npYoY"])}
                 phits={(r, k) => priceHit(r, k, effPrice[k])} />
             </HScroll>

@@ -7,7 +7,7 @@
 //   - the pack's own theme button and its "preview" toast are gone (the site's header and theme switch are used); the tour follows the site's theme;
 //   - every listener, observer and element added outside the page is removed when the page unmounts (the returned function).
 // Every value written into the page goes through esc() first.
-import { AREAS, PLANS, CLIPS } from "./goliveData.js";
+import { AREAS, PLANS, CLIPS, COMBINED } from "./goliveData.js";
 
 /** @param {{ navigate: (to: string) => void, searchIndex: () => Promise<{ rows: [string, string][], sectors?: string[], sec?: number[], mc?: number[] }>, quote: (symbol: string) => Promise<{ price: number | null, changePct: number | null, priceDate: string | null } | null> }} opts
  *  @returns {() => void} */
@@ -91,7 +91,7 @@ function cqPhone(){var k=CS.plan==null?0:CS.plan,p=CQ.P[k],base=k===4?3:0,d=CQ.c
 function cqMode(){return innerWidth>=1100?'wide':innerWidth>=760?'mid':'small'}
 /* 26 Nov: the combined plan (Equity Portfolio + Mutual Fund + ETF), shown under the plans table.
    Its price and the five extras it adds from Gold are set here; the tool count (Free, both plans and the extras) is worked out from the plan data. */
-var CQ_BUN={y:4499,extras:[['All my investments','Shares, funds and ETFs in one view'],['Full dashboard','Shares, funds and alerts on one screen'],['Watchlists','3 lists of 20 stocks'],['Discussion forums','Moderated threads by company'],['FinLit AI','60 questions a month']]};
+var CQ_BUN=COMBINED;   /* task #410: the combined plan's price and extras live in ./goliveData.js, read by /plans too */
 function cqBundle(){var a=CQ.P[2],b=CQ.P[1],g=CQ.P[3],names=CQ_BUN.extras.map(function(x){return x[0]}),has=function(v){return v&&v!=='N'},n=0;
  CQ.G.forEach(function(gr){gr.rows.forEach(function(r){if(has(r.v[0])||has(r.v[1])||has(r.v[2])||names.indexOf(r.n)>=0)n++})});
  var save=a[4].y+b[4].y-CQ_BUN.y,ok='<svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7"/></svg>';

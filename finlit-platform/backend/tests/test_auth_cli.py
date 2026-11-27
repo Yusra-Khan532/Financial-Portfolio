@@ -27,7 +27,7 @@ async def password_hash(store, email=EMAIL):  # noqa: F811
 async def test_create_admin_once_then_keep_later_changes(store, env):  # noqa: F811
     assert await cli.create_admin(EMAIL, FIRST) == "created"
     row = await password_hash(store)
-    assert await crypto.verify_password(row["password_hash"], FIRST) and row["role"] == "admin" and row["plan"] == "gold" and row["email_verified_at"]
+    assert await crypto.verify_password(row["password_hash"], FIRST) and row["role"] == "admin" and row["plan"] == "platinum" and row["email_verified_at"]
 
     async with store.pool.acquire() as conn:   # the owner changes the password under Account; ADMIN_PASSWORD is left as it was
         await conn.execute("UPDATE users SET password_hash = $2 WHERE lower(email) = $1", EMAIL, await crypto.hash_password(CHANGED))
@@ -68,7 +68,7 @@ async def test_role_and_status_are_put_back(store, env):  # noqa: F811
         await conn.execute("UPDATE users SET role = 'investor', plan = 'basic', status = 'disabled' WHERE lower(email) = $1", EMAIL)
     assert await cli.create_admin(EMAIL, FIRST) == "unchanged"
     row = await password_hash(store)
-    assert (row["role"], row["plan"], row["status"]) == ("admin", "gold", "active")
+    assert (row["role"], row["plan"], row["status"]) == ("admin", "platinum", "active")
 
 
 async def test_the_kept_password_signs_in(ingested, env):  # noqa: F811

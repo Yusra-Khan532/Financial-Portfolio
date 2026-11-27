@@ -199,7 +199,7 @@ async def test_insurers_amcs_and_exchanges_are_financial_without_the_bank_flag(a
     assert not service.is_financial("ASIANPAINT", "Consumer Durables", "Paints")
     t = data._table
     assert service.coverage_reason(t, "SBILIFE") == service.FINANCIAL and "SBILIFE" not in service.covered_quarters(t, ["SBILIFE", "ASIANPAINT"])
-    silver = await signed_in(app, "fin79@example.com", plan="silver")
+    silver = await signed_in(app, "fin79@example.com", plan="platinum")
     r = await silver.get("/api/stress/SBILIFE/page")
     assert r.status_code == 404 and "financial companies" in r.text
     await silver.aclose()
@@ -271,7 +271,7 @@ async def test_a_failed_build_is_tried_again_on_a_later_visit_but_not_on_every_p
         calls.append(sym)
         raise service.NotReady("The statements for this company are not available right now.")
     monkeypatch.setattr(service, "build_payload_and_pack", fails)
-    silver = await signed_in(app, "retry79@example.com", plan="silver")
+    silver = await signed_in(app, "retry79@example.com", plan="platinum")
     for _ in range(4):
         r = await silver.get("/api/stress/ASIANPAINT/page")
         assert r.status_code == 503 and service.PLAIN_NOT_READY in r.text
@@ -300,7 +300,7 @@ async def test_a_stale_stored_page_is_served_at_once_and_rebuilt_behind_the_read
         calls.append(sym)
         return _payload(), PACK
     monkeypatch.setattr(service, "build_payload_and_pack", build)
-    silver = await signed_in(app, "stale79@example.com", plan="silver")
+    silver = await signed_in(app, "stale79@example.com", plan="platinum")
     r = await silver.get("/api/stress/ASIANPAINT/page")
     assert r.status_code == 200
     for t in list(R._building.values()):
@@ -333,7 +333,7 @@ async def test_compare_answers_without_either_companys_assumptions(app, store, m
     async def today(store_):
         return _today_in(), None          # FinLit's own FBIL series (SL-9: no stop-gap)
     monkeypatch.setattr(service, "macro_today", today)
-    gold = await signed_in(app, "cmp79@example.com", plan="gold")
+    gold = await signed_in(app, "cmp79@example.com", plan="platinum")
     r = await gold.post("/api/stress/compare", json={"a": "ASIANPAINT", "b": "BERGEPAINT", "preset": "2022"})
     assert r.status_code == 200, r.text
     d = r.json()
@@ -368,7 +368,7 @@ async def test_a_chosen_peer_without_a_page_starts_being_built(app, store, monke
     async def peers(sym, statement, name):
         return (json.dumps({"symbols": ["SBILIFE", "KANSAINER", "BERGEPAINT"]}),) if name == "peers" else None
     monkeypatch.setattr(app.state.store, "get_section", peers)
-    gold = await signed_in(app, "peer79@example.com", plan="gold")
+    gold = await signed_in(app, "peer79@example.com", plan="platinum")
     d = (await gold.get("/api/stress/ASIANPAINT/peer")).json()
     assert d["peer"] == {"symbol": "BERGEPAINT", "same_quarter": True, "stored": False} and d["peers"] == ["KANSAINER", "BERGEPAINT"]   # never the insurer
     assert {p["symbol"]: p["stored"] for p in d["peer_details"]} == {"KANSAINER": True, "BERGEPAINT": False}

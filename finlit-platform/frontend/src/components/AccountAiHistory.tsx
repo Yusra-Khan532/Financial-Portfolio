@@ -39,7 +39,7 @@ export function AccountAiHistory() {
     <Card as="section" className="aim-acct" aria-labelledby="aim-acct-h">
       <H2 id="aim-acct-h">FinLit AI history</H2>
       <p className="muted">FinLit AI keeps the questions you ask, with the key lines of each answer and the figures it read, for {RETENTION_DAYS} days
-        (at most 200), so it can tell you what changed since you last asked. Only you can see them.{kept ? "" : " They are kept only on the Silver and Gold plans, where FinLit AI writes answers."}</p>
+        (at most 200), so it can tell you what changed since you last asked. Only you can see them.{kept ? "" : " They are kept only on the plans where FinLit AI writes answers: combined, Gold and Platinum."}</p>
       <label className="sw"><input type="checkbox" checked={p.aiMemory} onChange={(e) => prefs.set({ aiMemory: e.target.checked })} /><span aria-hidden="true" /><b>Remember my FinLit AI questions</b></label>
       {!p.aiMemory && <p className="muted">Switched off: new questions are not kept. The ones already kept stay until you clear them or they are {RETENTION_DAYS} days old.</p>}
       <p className="aim-count" role="status">{readErr ? "The number of kept questions could not be read just now." : count === null ? "Counting your kept questions…"

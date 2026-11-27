@@ -3,8 +3,10 @@ import { Link, NavLink, Navigate, useNavigate, useParams, useSearchParams } from
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError } from "../lib/api";
 import * as acct from "../lib/account";
-import { useAuth } from "../lib/auth";
-import { RANK, TIER, useUI, type Plan } from "../lib/ui";
+import { keyOf, tierOf, useAuth, type PlanKey } from "../lib/auth";
+import { planIncludes, planOffers, rupees } from "../lib/planOffer";
+import { planName } from "../lib/planNames";
+import { useUI } from "../lib/ui";
 import { PALETTES, PALETTE_IDS } from "../lib/palettes";
 import { prefs, usePrefs } from "../lib/prefs";
 import { Icon } from "../lib/icons";
@@ -31,7 +33,7 @@ export function Account() {
     <div className="wrap acct">
       <header className="acct-h card">
         <div className="av lg" aria-hidden="true">{(user.name || user.email)[0].toUpperCase()}</div>
-        <div><h1 className="ui-title">{user.name || "Your account"}</h1><p className="muted">{user.email} · <span className={"tier " + user.plan}>{TIER[user.plan].n}</span></p></div>
+        <div><h1 className="ui-title">{user.name || "Your account"}</h1><p className="muted">{user.email} · <span className={"tier " + tierOf(user.plan)}>{planName(keyOf(user.plan))}</span></p></div>
       </header>
       <nav className="acct-tabs" aria-label="Account sections">
         {TABS.filter(([to]) => !DEMO || to === "appearance").map(([to, label, ic]) => <NavLink key={to} to={to ? `/account/${to}` : "/account"} end className={({ isActive }) => (isActive ? "on" : "")}><Icon name={ic} />{label}</NavLink>)}
@@ -193,31 +195,37 @@ export function Appearance() {
 }
 
 function PlanTab() {
-  const { plan, limits, refresh } = useAuth();
+  // Task #410: the plans on sale and their prices, from the landing page's plan data (lib/planOffer); what each includes is on /plans.
+  const { planKey, limits, refresh } = useAuth();
   const [params] = useSearchParams();
-  const want = params.get("want");
+  const want = wantedPlan(params.get("want"));
   const [note, setNote] = useState("");
-  const req = useMutation({ mutationFn: (p: "silver" | "gold") => acct.requestPlan(p, note.trim() || undefined), onSuccess: () => refresh() });
-  const rows: [Plan, string[]][] = [
-    ["basic", ["Screener, comparison of 2 companies, glossary, latest quarter, financials, ratios, peers, charts"]],
-    ["silver", ["Parameter history", "Watchlist: 3 lists, 30 stocks", "Model-based comparison tabs", "Data export", "Portfolio tracker (30 holdings) with import", "Saved-screen alerts"]],
-    ["gold", ["Advanced scoring and full ratio history", "Technical analysis and segments", "Model-based screener filters", "Compare up to 4 companies", "Watchlist: up to 50 lists, 1,000 stocks", "FinLit Prism financial-health rating with PDF", "Equity research reports (Later)"]],
-  ];
+  const req = useMutation({ mutationFn: (p: PlanKey) => acct.requestPlan(p, note.trim() || undefined), onSuccess: () => refresh() });
+  const offers = planOffers();
   return (
     <section className="card acct-c">
-      <h2>Your plan: {TIER[plan].n}</h2>
-      <p className="muted">Pricing is announced at launch. Until then, ask for a plan and the FinLit team switches it on for your account and confirms by email.</p>
+      <h2>Your plan: {planName(planKey)}</h2>
+      <p className="muted">Payments are not live yet: ask for a plan below and the FinLit team switches it on for your account and confirms by email. Prices are yearly, before GST; <Link to="/plans">see what each plan includes</Link>.</p>
       <ul className="lim"><li>Watchlists <b>{limits.watchlist_lists}</b></li><li>Stocks in watchlists <b>{limits.watchlist_symbols}</b></li><li>Saved screens <b>{limits.screens}</b></li><li>Companies to compare <b>{limits.compare}</b></li></ul>
       <div className="pgrid2">
-        {rows.map(([k, f]) => (
-          <div key={k} className={"plan2" + (plan === k ? " cur" : "") + (want === k ? " want" : "")} style={{ "--tc": `var(${TIER[k].tc})` } as React.CSSProperties}>
-            <b><Icon name={TIER[k].ic} />{TIER[k].n}</b>
-            <ul>{f.map((x) => <li key={x}><Icon name="check" />{x}</li>)}</ul>
-            {plan === k ? <span className="chip gold">Your plan</span> : k !== "basic" && RANK[k] > RANK[plan] ? <button className="btn" disabled={req.isPending || (req.isSuccess && req.variables === k)} onClick={() => req.mutate(k as "silver" | "gold")}>{req.isSuccess && req.variables === k ? "Requested" : `Request ${TIER[k].n}`}</button> : null}
+        {offers.map((o) => (
+          <div key={o.key} className={"plan2" + (planKey === o.key ? " cur" : "") + (want === o.key ? " want" : "")}>
+            <b>{o.name}</b>
+            <p className="muted" style={{ margin: "4px 0 10px" }}>{o.yearly ? `${rupees(o.yearly)} a year · ${rupees(o.monthly)} a month` : "Free, no card needed"}</p>
+            {planKey === o.key ? <span className="chip gold">Your plan</span>
+              : o.key !== "free" && !planIncludes(planKey, o.key) ? <button className="btn" disabled={req.isPending || (req.isSuccess && req.variables === o.key)} onClick={() => req.mutate(o.key)}>{req.isSuccess && req.variables === o.key ? "Requested" : `Ask for ${o.name}`}</button>
+              : o.key !== "free" ? <span className="muted" style={{ fontSize: "var(--fs-13)" }}>Included in your plan</span> : null}
           </div>))}
       </div>
       <label className="form" style={{ display: "block", marginTop: 14 }}><span className="muted" style={{ fontSize: "var(--fs-13)" }}>Anything we should know? (optional)</span><textarea value={note} onChange={(e) => setNote(e.target.value)} maxLength={300} rows={2} style={{ width: "100%" }} /></label>
       <Status m={req} ok="Request sent. We will confirm by email once your plan is switched on." />
     </section>
   );
+}
+
+/** Task #410: the plan a "?want=" link asks for. Old links name a tier or a gate ("silver", "gold", "platinum", "equity", "mfetf"): each reads as the
+ *  smallest plan that opens it. Exported for tests. */
+export function wantedPlan(want: string | null): PlanKey | null {
+  const w = String(want ?? "").toLowerCase();
+  return w === "silver" || w === "gold" ? "gold" : w === "platinum" ? "platinum" : w === "equity" ? "equity" : w === "mfetf" ? "mfetf" : w === "combined" ? "combined" : null;
 }

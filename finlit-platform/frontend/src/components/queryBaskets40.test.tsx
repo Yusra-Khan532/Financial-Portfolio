@@ -102,7 +102,7 @@ describe("one page, one menu entry", () => {
     expect(faqForPath("/baskets")).toBeNull();
     const ent = readFileSync(resolve(SRC, "../../backend/finlit/auth/entitlements.py"), "utf8");
     const lim = (plan: string) => Number(new RegExp(`"${plan}": \\{[^}]*"baskets": (\\d+)`).exec(ent)![1]);
-    expect(f.items.find((i) => i.q === "How many baskets can I keep?")!.a).toBe(`${lim("basic")} with a free account, ${lim("silver")} with Silver and ${lim("gold")} with Gold.`);
+    expect(f.items.find((i) => i.q === "How many baskets can I keep?")!.a).toBe(`${lim("basic")} with a free account, ${lim("silver")} on Mutual Fund + ETF, Equity Portfolio and the combined plan, and ${lim("gold")} on Gold and Platinum.`);
     expect(f.items.map((i) => i.q)).not.toContain("How do I create a basket?");
   });
 });
