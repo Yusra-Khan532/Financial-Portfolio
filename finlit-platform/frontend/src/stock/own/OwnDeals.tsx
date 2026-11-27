@@ -8,6 +8,7 @@ import { usePrice } from "../../lib/api";
 import { MINUS, nf } from "../../lib/format";
 import { crIn, dayIn, useStockDeals, type Deal } from "../../lib/deals";
 import { DealFollow } from "../../components/DealFollow";
+import { ChartZoom } from "../../components/ChartZoom";
 import "../../styles/deals.css";
 
 const W = 720, H = 220, PAD = { l: 48, r: 12, t: 12, b: 26 };
@@ -49,6 +50,7 @@ export function OwnDeals({ symbol }: { symbol: string }) {
         ? <><b>{nf(once.length, 0)}</b> bulk and block {once.length === 1 ? "trade" : "trades"} in {symbol}: <span className="up">{crIn(d.buyCr)}</span> bought, <span className="down">{crIn(d.sellCr)}</span> sold, net {d.netCr >= 0 ? "+" : MINUS}{crIn(Math.abs(d.netCr))}.</>
         : <>No bulk or block deal in {symbol}.</>} {held}</p>
       {chart && chart.on.length > 0 && <figure className="bbd-ch">
+        <ChartZoom label={`${symbol}: closing prices and bulk and block deals`}>
         <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${symbol} closing prices over the last year, with ${chart.on.length} bulk and block deals at their deal prices`}>
           {chart.ticks.map((v) => <g key={v}><line x1={PAD.l} x2={W - PAD.r} y1={chart.y(v)} y2={chart.y(v)} className="bbd-gl" /><text x={PAD.l - 6} y={chart.y(v) + 4} textAnchor="end" className="bbd-tx">{nf(v, v >= 1000 ? 0 : 1)}</text></g>)}
           <text x={PAD.l} y={H - 6} className="bbd-tx">{dayIn(chart.first)}</text><text x={W - PAD.r} y={H - 6} textAnchor="end" className="bbd-tx">{dayIn(chart.last)}</text>
@@ -57,6 +59,7 @@ export function OwnDeals({ symbol }: { symbol: string }) {
             aria-label={`${dayIn(r.day)}: ${r.client ?? "a client"} ${r.side === "buy" ? "bought" : "sold"} ${nf(r.qty, 0)} shares at ₹${nf(r.price as number, 2)}, ${crIn(r.valueCr)}`}
             onMouseEnter={() => setHi(i)} onMouseLeave={() => setHi(null)} onFocus={() => setHi(i)} onBlur={() => setHi(null)} />)}
         </svg>
+        </ChartZoom>
         {h && <div className="bbd-tip" role="status" style={{ left: `${(chart.x(h.day) / W) * 100}%` }}>
           <b>{dayIn(h.day)} · {h.kind === "block" ? "Block" : "Bulk"}</b><span>{h.client}</span>
           <span className={h.side === "buy" ? "up" : "down"}>{h.side === "buy" ? "Bought" : "Sold"} {nf(h.qty, 0)} at ₹{nf(h.price as number, 2)}</span><span>{crIn(h.valueCr)}{h.pctEquity != null ? ` · ${nf(h.pctEquity, 2)}% of equity` : ""}</span></div>}

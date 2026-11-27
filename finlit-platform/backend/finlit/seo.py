@@ -125,6 +125,7 @@ REDIRECTS: Dict[str, str] = {
 # Task #329 (developer file 29, 23 Nov 2026): All IPOs (/ipo/all) is the second view of the one IPOs page; its filters carry over.
 KEEP_QUERY: Dict[str, str] = {
     "ipo/all": "/ipo?view=all",
+    "deals": "/ipo?view=deals",              # Bulk & Block Deals (27 Nov 2026): the IPOs page's third view; its filters carry over
 }
 
 

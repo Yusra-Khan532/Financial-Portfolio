@@ -8,17 +8,17 @@ const C = counts(TERMS, TOPICS);
 const T = (name: string) => TERMS.find((t) => t.term === name)!;
 
 describe("the pack's figures", () => {
-  it("task #381: 1,260 terms, 20 topics, 819 new and 54 updated (the team's 1,000-term glossary added 812 and updated 20), 35 FinLit words", () => {
-    expect(C).toEqual({ terms: 1260, topics: 20, added: 819, updated: 54, finlit: 35 });
-    expect(tiles(C)).toEqual([{ k: "Terms", v: 1260, s: "from A to Z" }, { k: "Topics", v: 20, s: "pick one on the left" }, { k: "New this update", v: 819, s: "including the team's 1,000-term glossary" }, { k: "Updated this update", v: 54, s: "renamed or rewritten" }]);
-    expect(tabs(C).map((t) => [t.title, t.sub])).toEqual([["Browse A to Z", "All 1,260 terms, by letter or topic"], ["FinLit words", "35 terms behind the scores and labels"], ["New and updated", "873 terms added or changed"]]);
-    expect(DESC(1260)).toBe("1,260 investing terms in plain words: what each means, why it matters, how to use it, and its formula.");   // one line (founder, 22 Nov 2026)
-    expect(SEARCH_HINT(1260)).toBe('Search 1,260 terms, for example "P/E", "Sold off" or "Company size"');
+  it("task #381: 1,261 terms, 20 topics, 820 new and 54 updated (the team's 1,000-term glossary added 812 and updated 20), 35 FinLit words", () => {
+    expect(C).toEqual({ terms: 1261, topics: 20, added: 820, updated: 54, finlit: 35 });
+    expect(tiles(C)).toEqual([{ k: "Terms", v: 1261, s: "from A to Z" }, { k: "Topics", v: 20, s: "pick one on the left" }, { k: "New this update", v: 820, s: "including the team's 1,000-term glossary" }, { k: "Updated this update", v: 54, s: "renamed or rewritten" }]);
+    expect(tabs(C).map((t) => [t.title, t.sub])).toEqual([["Browse A to Z", "All 1,261 terms, by letter or topic"], ["FinLit words", "35 terms behind the scores and labels"], ["New and updated", "874 terms added or changed"]]);
+    expect(DESC(1261)).toBe("1,261 investing terms in plain words: what each means, why it matters, how to use it, and its formula.");   // one line (founder, 22 Nov 2026)
+    expect(SEARCH_HINT(1261)).toBe('Search 1,261 terms, for example "P/E", "Sold off" or "Company size"');
   });
   it("letter A holds 66 terms (21 as drawn, plus the 1,000-term glossary of task #381), ATR among them marked Updated; the topic counts follow the data", () => {
     const n = letterCounts(TERMS, LETTERS, {});
     expect(n.A).toBe(66);                                              // task #381: the 1,000-term glossary added 45 terms under A
-    expect({ "0–9": n["0–9"], B: n.B, C: n.C, D: n.D, S: n.S, Z: n.Z }).toEqual({ "0–9": 1, B: 69, C: 139, D: 92, S: 119, Z: 3 });
+    expect({ "0–9": n["0–9"], B: n.B, C: n.C, D: n.D, S: n.S, Z: n.Z }).toEqual({ "0–9": 1, B: 69, C: 139, D: 92, S: 120, Z: 3 });
     expect(countLine(pick(TERMS, { letter: "A" }).length)).toBe("66 terms · select a term to open it");
     expect(pick(TERMS, { letter: "A" })[0].term).toBe("Absolute and annualised return");
     expect(badge(T("Average true range (ATR)"))).toBe("Updated");

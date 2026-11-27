@@ -61,7 +61,7 @@
 
 .bbd .bbd-cp { padding: 16px; display: grid; gap: 10px; }
 .bbd .bbd-cph { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
-.bbd .bbd-cph h3 { margin: 0; font: 600 var(--fs-18) var(--sans); } .bbd .bbd-cph p { margin: 4px 0 0; font-size: var(--fs-13); }
+.bbd .bbd-cph h3 { margin: 0; font: 600 var(--ui-fs-h3) var(--sans); } .bbd .bbd-cph p { margin: 4px 0 0; font-size: var(--fs-13); }
 .bbd .bbd-cph .dbx-ddb svg { width: 14px; height: 14px; }
 .bbd .bbd-both { margin: 0; font-size: var(--fs-13); }
 .bbd .bbd-cpt { overflow-x: auto; }
