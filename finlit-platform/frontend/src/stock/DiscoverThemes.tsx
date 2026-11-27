@@ -127,7 +127,8 @@ export function BuildCard({ symbol, name }: { symbol: string; name: string }) {
       {/* developer file 47 (founder, 27 Nov 2026: "remove the four boxes from Discover, we are already showing them on the report"): the theme's four
          figures (companies, 3-month and 1-year medians, long-term uptrend) are no longer drawn here; the header row's tooltip still counts the companies */}
       <p className="dtc-check"><b>What to check:</b> {verify ? `${verify.replace(/\.?\s*$/, ".")} ` : ""}A theme word alone is not proof of real business.</p>
-      <div className="dtc-acts"><Link className={buttonClass("secondary", "md", "dth-btn")} to={themeLink(d.main?.name ?? c.theme, co)}>See the theme in Discover<Arrow /></Link>
+      {/* developer file 50 (founder, 27 Nov 2026, 3:54 pm: "highlight this"): the card's one action is its main button, filled in the card's gold */}
+      <div className="dtc-acts"><Link className={buttonClass("primary", "md", "dth-btn dth-go")} to={themeLink(d.main?.name ?? c.theme, co)}>See the theme in Discover<Arrow /></Link>
         {doc?.link && <a className="dth-link" href={doc.link} target="_blank" rel="noopener noreferrer">Open the presentation ↗</a>}
 </div>
     </div>);
