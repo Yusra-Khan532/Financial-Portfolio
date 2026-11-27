@@ -79,3 +79,30 @@ describe("Stress Lab #401: the redesigned controls", () => {
     expect(root.getElementById("xr-2020")).toBeNull();
   });
 });
+
+describe("Stress Lab QA 27 Nov", () => {
+  it("6. a click anywhere on an 'Every scenario' row picks it AND opens its shocks; a second click on the open row closes them; widths are fixed", () => {
+    const { root } = draw(P("gold"));
+    root.querySelector<HTMLElement>('#every tr[data-pick="2020"] td.l')!.click();
+    expect(root.querySelector('[data-xr="2020"]')!.getAttribute("aria-expanded")).toBe("true");
+    expect(root.querySelectorAll("#xr-2020 .shock").length).toBeGreaterThan(2);
+    expect(root.querySelector('#every tr[data-pick="2020"]')!.classList.contains("on")).toBe(true);
+    root.querySelector<HTMLElement>('#every tr[data-pick="2020"] td.r')!.click();
+    expect(root.getElementById("xr-2020")).toBeNull();
+    const t = root.querySelector("#every table")!;
+    expect(t.classList.contains("evt")).toBe(true);
+    expect(t.querySelectorAll("colgroup col").length).toBe(t.querySelectorAll("thead th").length);
+  });
+  it("6b. Enter on a focused row opens it too", () => {
+    const { root } = draw(P("gold"));
+    root.querySelector<HTMLElement>('#every tr[data-pick="2020"]')!.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    expect(root.querySelector('[data-xr="2020"]')!.getAttribute("aria-expanded")).toBe("true");
+  });
+  it("7. the history table says the high is the share's own, and a recovery inside the episode says so", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { join } = await import("node:path");
+    const src = readFileSync(join(__dirname, "stressLab.js"), "utf8");
+    expect(src).toContain("Each share’s own largest fall from a closing high inside the episode");
+    expect(src).toMatch(/x\.back < h\.to \? '<br>within the episode'/);
+  });
+});
