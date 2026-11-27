@@ -3,6 +3,7 @@
 *Written 27 Nov 2026. Paste one prompt at a time into the Claude extension in Chrome, while signed in to your own accounts. Each prompt carries everything it needs. Do them in this order: 1 (Search Console and Bing) unlocks measurement; 2 (profiles) builds the brand; 3 (AI panel) records where FinLit starts. When each one finishes, paste its final report back to Claude Code.*
 
 Facts used in all three, confirmed by the founder on 27 Nov 2026:
+- **Email:** contact@finlitventures.com is FinLit's address (the owner corrected `hello@` on 27 Nov 2026; there is no hello@ address).
 - **Founder:** Nishant Jain. **Founded:** December 2026. **City:** Jabalpur.
 - **Plans on the site:** Free, Mutual Fund + ETF, Equity Portfolio, Gold, Platinum. There is no Silver plan.
 - **Score:** FinLit Prism is FinLit's only company score. FinLit IQ is retired; never mention it.
@@ -48,7 +49,7 @@ THE IDENTITY (say it the same way everywhere):
 - Website: https://finlitventures.com
 - Founder: Nishant Jain. Founded: 2026 (December 2026). City: Jabalpur, India.
 - Handle: try finlitventures first; if taken, finlit.india, then finlitindia. Use the same handle on every platform and tell me which one was used.
-- Contact email for brand accounts: hello@finlitventures.com (if it does not exist yet, first open Cloudflare > finlitventures.com > Email > Email Routing, create the address hello@finlitventures.com and forward it to my Gmail; ask me which Gmail).
+- Contact email for brand accounts: contact@finlitventures.com (FinLit's existing address; do not create any new email address).
 - Profile picture: https://finlitventures.com/icon-512.png . Cover image: https://finlitventures.com/og-finlit-1200x630.png (download them first).
 - Plans: Free to start, with paid plans for more (the plans are Free, Mutual Fund + ETF, Equity Portfolio, Gold and Platinum). The only company score is FinLit Prism. NEVER mention FinLit IQ or a Silver plan.
 - Never use these words anywhere: best, top pick, buy, sell, hold, target, multibagger, guaranteed returns, tips.
@@ -105,7 +106,7 @@ THE IDENTITY (say it the same way everywhere):
  Everything here is information only, not investment advice. We describe companies; we never tell you what to buy or sell.
 
  Website: https://finlitventures.com
- Links: "FinLit website" https://finlitventures.com and "LinkedIn" https://www.linkedin.com/company/finlitventures/ | Contact email: hello@finlitventures.com
+ Links: "FinLit website" https://finlitventures.com and "LinkedIn" https://www.linkedin.com/company/finlitventures/ | Contact email: contact@finlitventures.com
 
 4. INSTAGRAM @finlitventures: Professional account > Business, category Financial Service (or Education website if asked).
  Name: FinLit | Stock Research India
@@ -113,13 +114,13 @@ THE IDENTITY (say it the same way everywhere):
  Indian stocks and mutual funds, explained from filings in plain English.
  5,800+ companies | 1,700+ funds
  Free to start. Info only, not advice.
- Link: https://finlitventures.com | Email button: hello@finlitventures.com
+ Link: https://finlitventures.com | Email button: contact@finlitventures.com
 
 5. FACEBOOK PAGE (ask me first whether to create it): Page name FinLit Ventures, category Financial Service, bio: Indian stock and mutual fund research platform. Filings explained in plain English. Website https://finlitventures.com
 
 6. CRUNCHBASE (crunchbase.com > Add a company): Name FinLit Ventures; Website https://finlitventures.com
  Short description: FinLit (finlitventures.com) is an Indian stock and mutual fund research platform that explains 5,800+ listed companies and 1,700+ funds from their filings, in plain English.
- Full description: the LinkedIn Overview above. Industries: FinTech, Financial Services, Information Services, Personal Finance. Headquarters: Jabalpur, India. Founded: 2026. Founder: Nishant Jain (link his LinkedIn). Employees: ask me. Social: the LinkedIn, X, YouTube and Instagram links created above. Contact: hello@finlitventures.com
+ Full description: the LinkedIn Overview above. Industries: FinTech, Financial Services, Information Services, Personal Finance. Headquarters: Jabalpur, India. Founded: 2026. Founder: Nishant Jain (link his LinkedIn). Employees: ask me. Social: the LinkedIn, X, YouTube and Instagram links created above. Contact: contact@finlitventures.com
  If Tracxn or Inc42 DataLabs already list the company, tell me (do not claim them without me).
 
 7. ALTERNATIVETO (alternativeto.net > Suggest new app): Name FinLit; Website https://finlitventures.com
@@ -146,7 +147,6 @@ AlternativeTo:
 Quora:
 Reddit:
 Handle used:
-hello@finlitventures.com created: yes/no
 ```
 
 ---

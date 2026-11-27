@@ -8,6 +8,7 @@
 > It also corrects three things that changed on the live site and must not be pasted:
 > - **FinLit IQ was retired** (task #283); FinLit Prism is FinLit's only company score.
 > - **The plans are now** Free, Mutual Fund + ETF, Equity Portfolio, Gold and Platinum (task #410; the five on finlitventures.com/plans, confirmed by the owner 27 Nov 2026), not Silver and Gold.
+> - **The brand email is contact@finlitventures.com**, not hello@ (owner, 27 Nov 2026).
 > - **The browser extension's plan line** needs checking before the Chrome Web Store listing (see section 9).
 >
 > Each change is marked *(corrected)*. Everything else is the founder's text.
@@ -31,7 +32,7 @@ The 3 blanks, filled in by the founder on 27 Nov 2026:
 ## Before you start (10 minutes)
 
 - [ ] **One handle everywhere:** try **`finlitventures`** first (it matches the LinkedIn page that already exists). If it's taken, use `finlit.india`, then `finlitindia`, the same choice on every platform.
-- [ ] **One email for all brand accounts:** create `hello@finlitventures.com` in Cloudflare → Email Routing → forward to your Gmail. Don't use a personal Gmail on brand accounts.
+- [ ] **One email for all brand accounts:** `contact@finlitventures.com`, FinLit's existing address (corrected: the owner said on 27 Nov 2026 that the address is contact@, not hello@). Don't use a personal Gmail on brand accounts.
 - [ ] **Turn on 2-step login** on every account as you create it.
 - [ ] **Images.** Download these from the site to your PC. **PowerShell on your PC:**
 
@@ -140,7 +141,7 @@ Everything here is information only, not investment advice. We describe companie
 Website: https://finlitventures.com
 ```
 - **Links** (Customisation → Basic info → Links): `FinLit website` → `https://finlitventures.com`, and `LinkedIn` → `https://www.linkedin.com/company/finlitventures/`
-- **Contact email:** `hello@finlitventures.com`
+- **Contact email:** `contact@finlitventures.com`
 - [ ] Add the disclaimer line to every video description: `Information only, not investment advice. Data: company filings via finlitventures.com`
 
 ---
@@ -160,7 +161,7 @@ Indian stocks and mutual funds, explained from filings in plain English.
 Free to start. Info only, not advice.
 ```
 - **Link:** `https://finlitventures.com`
-- **Email button:** `hello@finlitventures.com`
+- **Email button:** `contact@finlitventures.com`
 
 ---
 
@@ -191,7 +192,7 @@ FinLit (finlitventures.com) is an Indian stock and mutual fund research platform
 - **Founders:** `Nishant Jain` (link your LinkedIn)
 - **Employees:** your real range
 - **Social:** LinkedIn, X, YouTube and Instagram URLs from above
-- **Contact email:** `hello@finlitventures.com`
+- **Contact email:** `contact@finlitventures.com`
 
 Also claim the same company in **Tracxn** and **Inc42 DataLabs** if they appear (Indian startup databases); use the same short description.
 
@@ -252,7 +253,7 @@ FinLit is an Indian stock and mutual fund research platform. It explains the fin
 
 ## 9. Chrome Web Store: the browser extension (one-time US$5 developer fee)
 
-The extension already exists (version 1.4.0, `finlit-extension.zip` on the site). Register at the Chrome Web Store Developer Dashboard with `hello@finlitventures.com`, then:
+The extension already exists (version 1.4.0, `finlit-extension.zip` on the site). Register at the Chrome Web Store Developer Dashboard with `contact@finlitventures.com`, then:
 
 - **Name:** `FinLit Ventures: select to understand`
 - **Summary** (116/132):

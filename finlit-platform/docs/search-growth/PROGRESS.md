@@ -57,6 +57,7 @@
 - **Founder's full name:** Nishant Jain (the same founder the site's Organization JSON-LD already names).
 - **Founded:** December 2026. Profiles may say "2026". `foundingDate` in JSON-LD only from 1 Dec 2026, so structured data never shows a date in the future.
 - **City:** Jabalpur (India).
+- **Email:** contact@finlitventures.com is FinLit's address for brand profiles and contact; there is no hello@ (owner, 27 Nov 2026). The site's Organization JSON-LD still gives a Gmail address as its contactPoint: change it to contact@ in M1.
 - **Plans on the live site:** Free, Mutual Fund + ETF, Equity Portfolio, Gold, Platinum (no Silver). FinLit Prism is the only company score; FinLit IQ is retired (owner, 27 Nov 2026).
 - **Profile texts:** `PROFILE-CHECKLIST.md` mentioned the retired FinLit IQ (task #283) and the old Silver and Gold plans (task #410 changed them). `PROFILE-CHECKLIST-FILLED.md` corrects every such line, marked "(corrected)". The extension's plan line is left out until Claude checks what the extension shows today.
 ## Waiting on the founder
