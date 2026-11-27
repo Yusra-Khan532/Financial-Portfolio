@@ -19,11 +19,11 @@ const mk = (periods: string[], rows: Record<string, (number | null)[]>): Segment
 });
 
 describe("segment card with history", () => {
-  it("keeps the latest-year strip and tiles and adds the chart, table and insights", () => {
+  it("keeps the latest year's rows (developer file 42: ranked rows in place of the strip and tiles) and adds the chart, table and insights", () => {
     const html = card(LARGE);
     expect(html).toContain("Revenue by business segment");
-    expect(html).toContain('class="rib"');
-    expect(html).toContain("seg-l2");
+    expect(html).toContain('class="sgr"');
+    expect(html).not.toContain('class="rib"');
     expect(html).toContain("How the mix has changed");
     expect(html).toContain("Segment trends");
     expect(html).toContain("Revenue (₹ Cr)");
@@ -32,17 +32,17 @@ describe("segment card with history", () => {
     expect(html).toContain("Information only, not advice");
     expect(html).toContain("sum of the segment revenues");
     expect(html).toContain('role="img"');
-    expect(html).toContain("Stacked bar chart of revenue by segment");
+    expect(html).toContain("Line chart of each segment&#x27;s share");   // developer file 43: one line a segment (was stacked bars)
     for (const y of ["FY19", "FY22", "FY26"]) expect(html).toContain(`>${y}<`);   // every year is labelled
     expect(html).toContain("6.62 L");                                              // lakh crore in the table
     expect(html).toContain("Retail gained the most share");
     expect(html).toContain("Discontinued") ;                                       // not-reported rows are explained
     expect(html).toContain("Not reported in FY26");
   });
-  it("uses the same colour for a segment in the tile, the legend and the table", () => {
+  it("uses the same colour for a segment in its row, the legend and the table (developer file 42: one row in place of the strip and the tile)", () => {
     const html = card(LARGE);
-    expect(html.match(/--bc:var\(--k1\)/g)!.length).toBeGreaterThanOrEqual(3);   // tile, table row (and the strip)
-    expect(html).toContain("background:var(--k1)");                                // legend + chart swatches
+    expect(html.match(/--bc:var\(--c1\)/g)!.length).toBeGreaterThanOrEqual(2);   // tile, table row (and the strip)
+    expect(html).toContain("background:var(--c1)");                                // legend + chart swatches
   });
   it("renders the real recorded data with its definition-change warning", () => {
     const html = card(REAL);
@@ -73,28 +73,30 @@ describe("segment card with history", () => {
   });
 });
 
-describe("Segments section and the report numbering (task #11, renumbered in task #34)", () => {
+describe("Segments section and the report numbering (task #11, renumbered in task #34 and developer file 41)", () => {
   const read = (f: string) => readFileSync(join(__dirname, f), "utf8");
-  it("Where the revenue comes from is its own Segments section (16, task #216), no longer a box inside Gold insights", () => {
+  it("Where the revenue comes from is its own Segments section, right after Trends (developer file 41; Gold insights, where it once was a box, is gone)", () => {
     const s3 = read("Sections3.tsx");
-    expect(s3).toContain('no="16 · Segments"');
-    expect(s3).toContain('title="Where the revenue comes from"');
-    const insights = s3.slice(s3.indexOf("export function InsightsSection"), s3.indexOf("export function SegmentsSection"));
-    expect(insights).not.toContain("SegmentCard");
-    expect(insights).toContain('no="15 · Gold insights"');
-  });
-  it("the sections after it are numbered 17 (Dividends), 18 (News and filings) and 19 (community, the last section), in page order (tasks #216, #222)", () => {
-    expect(read("Sections2.tsx")).toContain('no="17 · Dividends"');
-    expect(read("NewsSection.tsx")).toContain('no="18 · News and filings"');
-    expect(read("CommunitySection.tsx")).toContain('no="19 · Community"');   // tasks #105 and #113: the discussions are their own section, the last one
+    expect(s3).toContain('<SectionHead id="segments" no="Segments"');
+    expect(s3).not.toContain('title="Where the revenue comes from"');   // developer file 47: one heading per section, its name
+    expect(s3).not.toContain("export function InsightsSection");
     const page = read("StockPage.tsx");
     const at = (s: string) => page.indexOf(s);
-    expect(at("<InsightsSection")).toBeLessThan(at("<SegmentsSection"));
-    expect(at("<SegmentsSection")).toBeLessThan(at("<DividendsSection"));
+    expect(at("<TrendsSection")).toBeLessThan(at("<SegmentsSection"));
+    expect(at("<SegmentsSection")).toBeLessThan(at("<RatiosSection"));
+  });
+  it("Dividends, News and filings and Community take their numbers from the report's order (developer file 41); Community is last", () => {
+    expect(read("Sections2.tsx")).toContain('<SectionHead id="dividends" no="Dividends"');
+    expect(read("NewsSection.tsx")).toContain('<SectionHead id="news" no="News & filings"');   // developer file 47: the one heading of each section
+    expect(read("CommunitySection.tsx")).toContain('<SectionHead id="community" no="Discussions"');   // tasks #105 and #113: the discussions are their own section, the last one
+    const page = read("StockPage.tsx");
+    const at = (s: string) => page.indexOf(s);
+    expect(at("<DividendsSection")).toBeLessThan(at("<NewsSection"));
+    expect(at("<NewsSection")).toBeLessThan(at("<CommunitySection symbol"));
   });
   it("the Trends section no longer draws a Revenue by segment chart", () => {
     const s4 = read("Sections4.tsx");
     expect(s4).not.toContain("Revenue by segment");
-    expect(s4).toContain("How sales, profit and cash have moved");
+    expect(s4).toContain('<SectionHead id="trends" no="Trends"');   // developer file 47: its second title ("How sales, profit and cash have moved") is gone
   });
 });

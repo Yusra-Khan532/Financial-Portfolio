@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Icon } from "../lib/icons";
 import { dateIN } from "../lib/format";
 import { SectionHead } from "./Sections";
+import { HEADING } from "../lib/sectionNav";
 import "../styles/macro-outlook.css";
 import { GROUP_ICON, arrow, companyRows, driverText, indicatorsForReasons, insufficientText, pct, reasonsOf, shortName, signed, useCompanyMacro, useMacroHistory, useSectorImpact,
   MACRO_RANGES, macroSummary, macroWindow, readings, type MacroRange, type HistoryPoint,
@@ -198,7 +199,7 @@ export function MacroOutlookSection({ symbol }: { symbol: string }) {
 
   // Task #222 (19 Nov pack S2): the heading in plain words, a question the 0-100 reading answers; the sub-line names the company's sector group(s)
   const h = macroHeading(c);
-  const head = <SectionHead id="macro" no="02 · Economy and sector" icon="globe" title={h.title} sub={h.sub} color="--p-growth" />;
+  const head = <SectionHead id="macro" no="Economy and sector" icon="globe" sub={h.sub} />;
   let body: React.ReactNode;
   if (q.isLoading) body = <div className="mo-skel" aria-busy="true">Loading the macro outlook…</div>;
   else if (q.isError || !c) body = <p className="mo-note" role="status"><Icon name="alert" />The macro outlook is unavailable right now ({q.error?.status ?? "no answer"}). It reads stored results only; please try again shortly.</p>;
@@ -218,5 +219,5 @@ export function MacroOutlookSection({ symbol }: { symbol: string }) {
         <p className="mo-disc">{c.disclaimer}</p>
       </>);
   }
-  return <section className="block mo" aria-label="Economy and sector" style={{ "--sc": "var(--p-growth)" } as React.CSSProperties}>{head}{body}</section>;
+  return <section className="block mo" aria-label={HEADING.macro}>{head}{body}</section>;
 }

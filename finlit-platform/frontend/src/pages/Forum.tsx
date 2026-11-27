@@ -8,7 +8,7 @@ import { useUI, TIER } from "../lib/ui";
 import { watch as wl, useWatchlist } from "../lib/watchlist";
 import { MINUS, nf } from "../lib/format";
 import { BOARD_NAME, DISCLAIMER, PLANS, useForumMe, pickCompanies, send, type CompanyFilter, type ForumCompany, type QueueItem } from "../lib/forum";
-import { BoardNote, CompanyLogo, Disclaimer, ThreadList, ThreadView, msg, useCompanyQuotes } from "../components/forum/ForumParts";
+import { BoardNote, CompanyLogo, Disclaimer, MeFailed, ThreadList, ThreadView, msg, useCompanyQuotes } from "../components/forum/ForumParts";
 import "../styles/forum.css";
 import { codeText, coTitle, subLine, titleOf } from "../lib/companyLabel";
 import { PLAN_FOR_FORUM } from "../lib/planGates";
@@ -21,7 +21,7 @@ const count = (n: number) => `${n.toLocaleString("en-IN")} ${n === 1 ? "discussi
 
 /** The front page's left column: every company with discussion on the viewer's board, listed once, with its logo and discussion count. */
 function Companies({ active, board }: { active?: string; board: string }) {
-  const { data: me } = useForumMe(), wlState = useWatchlist(); void wlState;
+  const meQ = useForumMe(), me = meQ.data, wlState = useWatchlist(); void wlState;
   const [q, setQ] = useState(""), [filter, setFilter] = useState<CompanyFilter>("all");
   const list = useQuery<{ companies: ForumCompany[] }>({ queryKey: ["forum", "companies", "all", board], queryFn: () => apiGet(`/api/forum/companies?days=0&limit=500${board ? `&board=${board}` : ""}`), enabled: !!me?.signedIn, staleTime: 30_000 });
   const all = list.data?.companies ?? [];
@@ -33,7 +33,7 @@ function Companies({ active, board }: { active?: string; board: string }) {
       <div className="fo-co-search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
         <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search company (e.g. Reliance, TCS…)" aria-label="Search companies" maxLength={60} /></div>
       <div className="fo-filters" role="group" aria-label="Show">{FILTERS.map(([k, l]) => <button type="button" key={k} className={"chip" + (filter === k ? " on" : "")} aria-pressed={filter === k} onClick={() => setFilter(k)}>{l}</button>)}</div>
-      {me && !me.signedIn ? null : list.isPending ? <ul className="fo-co-list" aria-busy="true">{[0, 1, 2, 3].map((i) => <li key={i} className="skeleton" style={{ height: 62, borderRadius: "var(--r-ctl)" }} />)}</ul>
+      {me && !me.signedIn ? null : !me && meQ.isError ? <MeFailed q={meQ} /> : list.isPending ? <ul className="fo-co-list" aria-busy="true">{[0, 1, 2, 3].map((i) => <li key={i} className="skeleton" style={{ height: 62, borderRadius: "var(--r-ctl)" }} />)}</ul>
         : list.isError ? <div className="fo-err" role="alert">{msg(list.error)}</div>
         : !shown.length ? <div className="fo-empty"><b>{term ? "No company matches that search." : filter === "following" ? "None of the companies you follow has a discussion yet." : filter === "trending" ? "Nothing active in the last 7 days." : "No discussions on your board yet."}</b>
             <span>{term || filter !== "all" ? "Try All companies." : "Open any company's report and start the first discussion."}</span></div>

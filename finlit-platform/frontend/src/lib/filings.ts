@@ -8,11 +8,12 @@ export type GroupKey = "res" | "div" | "inv" | "ord" | "shr" | "oth";
 // short: the one-line filing row's label (QA of 23 Nov, task #328: "Investor calls & presentations" wrapped the row onto two lines); the filter
 // chips and the row's title keep the full label.
 export const GROUPS: { key: GroupKey; label: string; colour: string; short?: string }[] = [
-  { key: "res", label: "Results & board meetings", colour: "var(--k1)", short: "Results & board" },
-  { key: "div", label: "Dividends & corporate actions", colour: "var(--gold-deep)", short: "Dividends & actions" },
-  { key: "inv", label: "Investor calls & presentations", colour: "var(--k7)", short: "Calls & presentations" },
-  { key: "ord", label: "Orders & agreements", colour: "var(--k3)" },
-  { key: "shr", label: "Shares & fund raising", colour: "var(--k2)" },
+  // developer file 45: the five kinds are categories, so the report's palette (no gold, which marks the page's structure, and no green, which means up)
+  { key: "res", label: "Results & board meetings", colour: "var(--c1)", short: "Results & board" },
+  { key: "div", label: "Dividends & corporate actions", colour: "var(--c2)", short: "Dividends & actions" },
+  { key: "inv", label: "Investor calls & presentations", colour: "var(--c3)", short: "Calls & presentations" },
+  { key: "ord", label: "Orders & agreements", colour: "var(--c4)" },
+  { key: "shr", label: "Shares & fund raising", colour: "var(--c5)" },
   { key: "oth", label: "Other", colour: "var(--muted)" },
 ];
 export const GROUP: Record<GroupKey, { label: string; colour: string; short?: string }> = Object.fromEntries(GROUPS.map((g) => [g.key, g])) as unknown as Record<GroupKey, { label: string; colour: string; short?: string }>;

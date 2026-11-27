@@ -1,0 +1,21 @@
+/* Developer file 47: Price statistics' Distance from high and How bumpy (charts/RiskLine.tsx). Ink and the chart's one line colour; grid and labels quiet. */
+.rl-facts { display: flex; flex-wrap: wrap; gap: 4px 22px; margin: 0 0 8px; }
+.rl-facts > div { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
+.rl-facts dt { font: 600 var(--fs-12)/1.4 var(--sans); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
+.rl-dash { display: inline-block; width: 16px; margin-right: 6px; vertical-align: middle; border-top: 1.5px dashed var(--cmp, var(--faint)); }
+.rl-facts dd { margin: 0; font-size: var(--fs-14); color: var(--muted); }
+.rl-facts dd b { font-weight: var(--ui-fw-semibold); color: var(--text); font-variant-numeric: tabular-nums; }
+.rl-box { width: 100%; min-width: 0; }
+.rl-box svg { display: block; width: 100%; height: auto; overflow: visible; touch-action: pan-y; }
+.rl text { font: 12px/1 var(--sans); font-variant-numeric: tabular-nums; }
+.rl .rl-ax { fill: var(--faint); }
+.rl .rl-grid { stroke: var(--border); stroke-dasharray: 2 4; }
+.rl-usual line { stroke: var(--cmp, var(--faint)); stroke-width: 1.2; stroke-dasharray: 6 4; }
+.rl-usual text, .rl-mark text { fill: var(--text); font-weight: 600; paint-order: stroke; stroke: var(--s1); stroke-width: 4px; stroke-linejoin: round; }
+.rl-usual text { fill: var(--muted); font-weight: 500; }
+.rl-mark circle { stroke: var(--s1); stroke-width: 2px; }
+.rl-hover line { stroke: var(--border-strong); }
+.rl-hover circle { stroke: var(--s1); stroke-width: 2px; }
+.rl-hover rect { fill: var(--text); }
+.rl-hover text { fill: var(--s1); font-weight: 600; }
+@media (max-width: 640px) { .rl-facts { gap: 2px 14px; } .rl-facts dd { font-size: var(--fs-13); } }

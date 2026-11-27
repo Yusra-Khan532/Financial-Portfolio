@@ -1,6 +1,6 @@
 import { axisUnit, niceRange, niceTicks } from "../lib/chartUnits";
 import { useRef } from "react";
-import { css, drawIn, el, vgrad } from "../lib/svg";
+import { css as cssAt, drawIn, el, vgrad } from "../lib/svg";
 import { MINUS, cr, nf, num } from "../lib/format";
 import { useChart } from "./useChart";
 import type { Series, Table } from "../lib/api";
@@ -15,7 +15,9 @@ export { axisUnit };
 /** Statement charts: P&L (revenue bars, profit bars, margin line), balance-sheet funding stack, cash-flow groups. */
 export function FinChart({ kind, pl, bs, cf, ql }: { kind: FinKind; pl: Table; bs: Table; cf: Table; ql: Table }) {
   const tip = useRef<HTMLDivElement>(null);
-  const { wrap, svg } = useChart((s, W, first, fill) => {   // fill (task #167): the full-screen view's room, used by every chart below
+  const { wrap, svg } = useChart((s, W, first, fill) => {
+    const css = (v: string) => cssAt(v, s);   // developer file 45: colours are read where the chart sits, so the report's palette (styles/report45.css) applies
+      // fill (task #167): the full-screen view's room, used by every chart below
     const small = W < 560;
     const showTip = (html: (d: HTMLElement) => void, i: number, step: number, x0: number, H: number) => {
       const t = tip.current; if (!t) return;
@@ -41,9 +43,11 @@ export function FinChart({ kind, pl, bs, cf, ql }: { kind: FinKind; pl: Table; b
       const H = Math.max(small ? 320 : 360, fill ?? 0); s.setAttribute("viewBox", `0 0 ${W} ${H}`); s.style.height = H + "px";
       const pl_ = 50, pr = 46, step = (W - pl_ - pr) / n, bw = Math.min(54, step * 0.52), topH = H * 0.44, botT = topH + 40, botH = H - botT - 28;
       const rmx = niceTicks(Math.max(...rev, 1)).top, nmx = niceTicks(Math.max(...np.map(Math.abs), 1)).top, mmx = Math.max(...margins.map(Math.abs), 1) * 1.2;
-      const gRev = vgrad(s, css("--c2"), 0.9, 0.35), gGold = vgrad(s, css("--c1"), 1, 0.55), gNp = vgrad(s, css("--c3"), 0.9, 0.35), gLoss = vgrad(s, css("--loss"), 0.9, 0.4);
+      // developer file 45: revenue and net profit are this company, so both are blue (the latest period full, earlier ones light); the margin line is the
+      // palette's second colour (they were orange, green and violet)
+      const gRev = vgrad(s, css("--c1"), 0.45, 0.18), gGold = vgrad(s, css("--c1"), 1, 0.55), gNp = gRev, gLoss = vgrad(s, css("--loss"), 0.9, 0.4);
       const ru = axisUnit(Math.max(rmx, nmx)), nu = ru;   // round tops (5,000 not 4,873); one unit for both panels, rupees crore until a lakh crore
-      axisText(0, 10, `REVENUE · ${ru.label}`, "start", css("--muted"), 600); axisText(0, botT - 10, `NET PROFIT · ${nu.label}`, "start", css("--muted"), 600); axisText(W, botT - 10, "NET MARGIN %", "end", css("--c4"), 600);
+      axisText(0, 10, `REVENUE · ${ru.label}`, "start", css("--muted"), 600); axisText(0, botT - 10, `NET PROFIT · ${nu.label}`, "start", css("--muted"), 600); axisText(W, botT - 10, "NET MARGIN %", "end", css("--c2"), 600);
       [0, 0.5, 1].forEach((f) => { const yy = 20 + (1 - f) * (topH - 20); el("line", { x1: pl_, x2: W - pr, y1: yy, y2: yy, stroke: css("--border"), "stroke-dasharray": "3 5" }, s); axisText(pl_ - 8, yy + 4, nf((rmx * f) / ru.div, ru.digits), "end"); });
       [0, 0.5, 1].forEach((f) => { const yy = botT + (1 - f) * botH; el("line", { x1: pl_, x2: W - pr, y1: yy, y2: yy, stroke: css("--border"), "stroke-dasharray": "3 5" }, s); axisText(pl_ - 8, yy + 4, nf((nmx * f) / nu.div, nu.digits), "end"); });
       [0, 0.5, 1].forEach((f) => axisText(W - pr + 8, botT + (1 - f) * botH + 4, nf(mmx * f, 1), "start", css("--faint")));
@@ -57,8 +61,8 @@ export function FinChart({ kind, pl, bs, cf, ql }: { kind: FinKind; pl: Table; b
         ml += `${i ? "L" : "M"}${cx},${botT + (1 - Math.max(0, margins[i]) / mmx) * botH}`;
         axisText(cx, H - 6, lab.replace(/^(\w{3}) 20(\d\d)$/, "$1 $2"), "middle", last ? css("--gold") : css("--faint"), last ? 700 : 400);
       });
-      drawIn(el("path", { d: ml, fill: "none", stroke: css("--c4"), "stroke-width": 2.4, "stroke-linejoin": "round" }, s), first);
-      labels.forEach((_, i) => el("circle", { cx: pl_ + step * (i + 0.5), cy: botT + (1 - Math.max(0, margins[i]) / mmx) * botH, r: 4.5, fill: css("--c4"), stroke: css("--s1"), "stroke-width": 2 }, s));
+      drawIn(el("path", { d: ml, fill: "none", stroke: css("--c2"), "stroke-width": 2.4, "stroke-linejoin": "round" }, s), first);
+      labels.forEach((_, i) => el("circle", { cx: pl_ + step * (i + 0.5), cy: botT + (1 - Math.max(0, margins[i]) / mmx) * botH, r: 4.5, fill: css("--c2"), stroke: css("--s1"), "stroke-width": 2 }, s));
       hoverBands(n, pl_, step, H, (i, d) => { line(d, labels[i], "faint"); line(d, `Revenue ₹${cr(rev[i])} Cr`, "", "b"); line(d, `Net profit ₹${num(np[i], 0)} Cr · margin ${nf(margins[i], 1)}%`, "muted"); });
     } else if (kind === "bs") {
       const labels = bs.periods, n = labels.length, H = Math.max(320, fill ?? 0); s.setAttribute("viewBox", `0 0 ${W} ${H}`); s.style.height = H + "px";

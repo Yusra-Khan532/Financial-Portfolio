@@ -1,0 +1,43 @@
+/* Developer file 48 (founder, 27 Nov 2026, 1:08 pm), the company report. Loaded after report47.css; every rule is scoped to the report's sections. */
+
+/* 1 "Too much white space". The site's `.card p, .sh p { max-width: 68ch }` held the report's notes and descriptions to about 520 to 690 px, so a short
+   note wrapped to two or three lines with 400 to 570 px of empty card beside it (DuPont, Decoding ROE, Segments, Earnings & cash, Peers, Sentiment
+   analysis, the filings' source line). Inside the report they take the card's width. */
+section.block .card p, section.block .sh p, section.block .dp-head p, section.block p.faint, section.block p.cl-note { max-width: none; }
+section.block .dp-top { margin-bottom: 12px; }
+section.block .dp-formula { display: flex; align-items: center; gap: 8px; margin: 0; }
+section.block .dp-formula svg { flex: none; width: 15px; height: 15px; color: var(--gold); }
+/* 09's four figures: the icon beside the name, not on a row of its own (each tile was about 170 px, now about 100) */
+section.block .dp-sc { grid-template-columns: auto minmax(0, 1fr); column-gap: 10px; row-gap: 0; padding: 10px 14px; }
+section.block .dp-sc > .dp-sci { grid-column: 1; grid-row: 1 / span 2; margin: 0; align-self: start; }
+section.block .dp-sc > :not(.dp-sci) { grid-column: 2; }
+section.block .dp-sc b { margin-top: 4px; font-size: var(--fs-20); }
+section.block .dp-strip { margin-bottom: 14px; }
+/* 12: Owners today's enlarge button sits on its title row (it kept a 40 px strip of its own above the title); Who bought and who sold, tighter rows,
+   so the pair is shorter (that card sets the row's height) */
+section.block .ow-card .cz-strip > .cz-slot { padding-top: 0; }
+section.block .ow-card .cz-strip .ow-sec-h { padding-right: 48px; }
+section.block .ow-row { margin-top: 14px; gap: 16px; }
+section.block .ow-move { padding: 5px 0; }
+section.block .ow-move .ow-bars { margin-top: 2px; row-gap: 1px; }
+
+/* 2: on a phone a head's switches (06: Consolidated / Standalone and Quarterly / Annual) share one row under the heading (they took a row each) */
+@media (max-width: 760px) {
+  section.block .sh-r { flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: flex-start; gap: 6px; width: 100%; }
+  section.block .sh-r .seg button { min-height: 32px; padding: 0 10px; font-size: var(--fs-13); }
+}
+
+/* 3 (and the same cause twice more): rules from other pages that matched the report's class names. With every stylesheet of the site loaded (as after a
+   reader has visited those pages) the report changed in three places: Markets today's .mkt grew 04's market ticks to 40 px (the labels fell onto the
+   key line: the overlap), the callout cards' .cl turned the chart cards into flex boxes, and the Score screener's unscoped slider rules shrank the
+   report's table slider text on a phone. The first two are renamed in the report (tk-mkt, tk-ind, clc); the third is held here at the report's own size. */
+section.block .hs-bar .hs-end, section.block .hs-bar .hs-now { font-size: var(--fs-14); line-height: 1.6; }
+/* 09 on a phone: the four figures two by two (stacked one a row they took about 1,000 px); the formula line above says how they combine, so the = and ×
+   between them go */
+@media (max-width: 760px) {
+  section.block .dp-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  section.block .dp-strip .dp-op { display: none; }
+  section.block .dp-sc { grid-template-columns: minmax(0, 1fr); padding: 10px 12px; }
+  section.block .dp-sc > .dp-sci { display: none; }
+  section.block .dp-sc > :not(.dp-sci) { grid-column: 1; }
+}

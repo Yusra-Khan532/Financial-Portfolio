@@ -1,4 +1,4 @@
-// "Where <company> stands" on the company report, as the final pages pack draws it (board 17): one section with its industry, its peers, its own price and its
+// "Where <company> stands" on the company report, as the final pages pack draws it (board 17): one section with its industry, its peers and its
 // risk, one question per tab. It replaces "Where its industry stands" and "Where this stock stands among its peers". Every figure is the server's (the stock's
 // sector reading, the industry page, Sector Rotation, the peer reading, the price and Prism); this file only puts them into sentences. Describes; never advice.
 import type { Card } from "./pulsePack";
@@ -93,38 +93,21 @@ export function peerCards(name: string, lead: LeadershipOn, val: { pe: number | 
     if (lead.label !== "leader" && w13 > 0) out.push({ kind: "good", title: "But the recent direction has turned", text: `Over the last 3 months it is ${p1(w13)} points ahead of ${sec}${turned}` });
     else if (lead.label !== "laggard" && w13 < 0) out.push({ kind: "watch", title: "The recent direction has slowed", text: `Over the last 3 months it is ${p1(w13)} points behind ${sec}${turned}` });
   }
-  if (val?.pe != null && val.pe > 0) {
-    const pes = val.peers.map((x) => x.pe).filter((x): x is number => x != null && x > 0);
-    if (pes.length >= 2) {
-      const lo = Math.min(...pes), hi = Math.max(...pes), above = val.pe > hi, below = val.pe < lo;
-      const roes = val.peers.map((x) => x.roe).filter((x): x is number => x != null), mroe = roes.length ? roes.reduce((a, b) => a + b, 0) / roes.length : null;
-      const roe = val.roe == null || mroe == null ? "" : `, with a ${val.roe < mroe ? "lower" : "higher"} return on equity (${val.roe.toFixed(1)}%) than their average (${mroe.toFixed(1)}%)`;
-      out.push({ kind: "insight", title: "Cheap or expensive?", text: `${name} trades at ${val.pe.toFixed(1)} times profit, ${above ? "above" : below ? "below" : "within the range of"} the other companies in its industry (${lo.toFixed(0)} to ${hi.toFixed(0)} times)${roe}.` });
-    }
-  }
+  const v = peerValueCard(name, val);
+  if (v) out.push(v);
   return out;
 }
 
-// ------------------------------------------------------------------------------------------------ Price chart
-export type PriceFacts = { last: number; high52: number | null; m1: number | null; m12: number | null; vs50: number | null; vs200: number | null; rsi: number | null; align: string | null };
-export function priceCards(f: PriceFacts): Card[] {
-  const out: Card[] = [], below = f.high52 ? (1 - f.last / f.high52) * 100 : null;
-  const fig = [f.m1 == null ? null : `${f.m1 >= 0 ? "Up" : "Down"} ${p1(f.m1)}% in the last month`, below == null ? null : `${below < 0.5 ? "at" : `${below.toFixed(0)}% below`} its 1-year high`, f.m12 == null ? null : `${f.m12 >= 0 ? "up" : "down"} ${Math.abs(f.m12).toFixed(0)}% over the year`].filter(Boolean);
-  const text = fig.length ? `${fig[0]}${fig.length > 1 ? `, ${fig.slice(1).join(" and ")}` : ""}.` : "";
-  if (f.align === "Bounce in a downtrend") out.push({ kind: "good", title: "A bounce inside a downtrend", text: text.replace(/, (\d+% below)/, ", but still $1") });
-  else if (f.align === "Dip in an uptrend") out.push({ kind: "watch", title: "A dip inside an uptrend", text });
-  else if (f.align === "Rising on both") out.push({ kind: "good", title: "Rising on both trends", text });
-  else if (f.align === "Falling on both") out.push({ kind: "warning", title: "Falling on both trends", text });
-  else if (f.align && text) out.push({ kind: "insight", title: f.align, text });
-  if (f.vs200 != null) {
-    if (f.vs200 < 0) out.push({ kind: "watch", title: "The long-term trend has not turned", text: `The price is ${p1(f.vs200)}% below its long-term (200-day) average${f.vs50 != null && f.vs50 > 0 ? ", though above its medium-term one" : ""}.` });
-    else if (f.vs200 < 2 && (f.vs50 ?? 0) > 0) out.push({ kind: "watch", title: "The long-term trend has not turned", text: `The price is above its medium-term average but only just above its long-term one (${f.vs200.toFixed(1)}%). A clear turn would need a few more weeks of gains.` });
-    else out.push({ kind: "good", title: "Above its long-term average", text: `The price is ${f.vs200.toFixed(1)}% above its long-term (200-day) average.` });
-  }
-  if (f.rsi != null) out.push(f.rsi >= 70 ? { kind: "watch", title: "Momentum is stretched", text: `The momentum reading (RSI ${f.rsi.toFixed(0)}) is high: the price has risen fast lately.` }
-    : f.rsi <= 30 ? { kind: "watch", title: "Momentum is weak", text: `The momentum reading (RSI ${f.rsi.toFixed(0)}) is low: the price has fallen fast lately.` }
-      : { kind: "insight", title: "Momentum is normal", text: `The momentum reading (RSI ${f.rsi.toFixed(0)}) is in the normal range: neither stretched nor weak.` });
-  return out;
+/** The company's P/E against the range of its peers' and its return on equity against their average ("Cheap or expensive?"). Developer file 48: 13 Peers
+ *  shows it in its plain-words line, since 14's peers tab (where it was) is gone. Null without the company's P/E or two peers with one. */
+export function peerValueCard(name: string, val: { pe: number | null; roe: number | null; peers: { pe: number | null; roe: number | null }[] } | null): Card | null {
+  if (val?.pe == null || val.pe <= 0) return null;
+  const pes = val.peers.map((x) => x.pe).filter((x): x is number => x != null && x > 0);
+  if (pes.length < 2) return null;
+  const lo = Math.min(...pes), hi = Math.max(...pes), above = val.pe > hi, below = val.pe < lo;
+  const roes = val.peers.map((x) => x.roe).filter((x): x is number => x != null), mroe = roes.length ? roes.reduce((a, b) => a + b, 0) / roes.length : null;
+  const roe = val.roe == null || mroe == null ? "" : `, with a ${val.roe < mroe ? "lower" : "higher"} return on equity (${val.roe.toFixed(1)}%) than their average (${mroe.toFixed(1)}%)`;
+  return { kind: "insight", title: "Cheap or expensive?", text: `${name} trades at ${val.pe.toFixed(1)} times profit, ${above ? "above" : below ? "below" : "within the range of"} the other companies in its industry (${lo.toFixed(0)} to ${hi.toFixed(0)} times)${roe}.` };
 }
 
 // ------------------------------------------------------------------------------------------------ Risk

@@ -73,7 +73,7 @@ describe("20a: the header's themes", () => {
 });
 
 describe("20b: What it is building", () => {
-  it("task #312: compact: the header with the stage, one sentence with its words, the four figures in one strip, what to check, the actions", () => {
+  it("task #312 and developer file 47: compact: the header with the stage, one sentence with its words, what to check, the actions (no figures)", () => {
     mount(<BuildCard symbol="TECHM" name="Tech Mahindra Ltd" />, TECHM);
     const card = document.getElementById("dth-card")!;
     expect(card.className).toBe("card dth-card dtc");
@@ -82,20 +82,15 @@ describe("20b: What it is building", () => {
     expect(card.querySelector(".dth-more")!.getAttribute("title")).toBe("c, d, e");
     expect(card.querySelector(".dth-q")).toBeNull();                                               // the passage goes
     expect(card.querySelector(".dth-also")).toBeNull();                                            // "also mentions" is in the header line
-    const ctx = within(card.querySelector("dl.dtc-ctx") as HTMLElement);
-    expect(card.querySelector("dl.dtc-ctx")!.getAttribute("aria-label")).toBe("AI & GenAI on Discover");
-    expect(ctx.getByText("Companies in the theme").parentElement!.textContent).toBe("Companies in the theme324 more mention it");
-    expect(ctx.getByText("3-month median").parentElement!.textContent).toBe("3-month median−4.1%Tech Mahindra +8.9%");
-    expect(ctx.getByText("1-year median").parentElement!.textContent).toBe("1-year median−8.7%of the theme");
-    expect(ctx.getByText("In a long-term uptrend").parentElement!.textContent).toBe("In a long-term uptrend2of 3");
+    expect(card.querySelector("dl.dtc-ctx")).toBeNull();   // developer file 47: the four theme figures are not drawn (founder, 27 Nov 2026)
     expect(card.querySelector(".dtc-check")!.textContent).toBe("What to check: Look for quantified revenue contribution, order value and management commentary. A theme word alone is not proof of real business.");
     expect(screen.getByRole("link", { name: /See the theme in Discover/ }).getAttribute("href")).toBe("/discover/themes/ai-and-genai?q=Tech+Mahindra");
     expect(screen.getByRole("link", { name: "Open the presentation ↗" }).getAttribute("href")).toBe("https://example.com/p.pdf");
-    expect(card.querySelector(".dth-fine")!.textContent).toMatch(/^Theme figures as on Discover/);
+    expect(card.querySelector(".dth-fine")).toBeNull();                                               // no figures, so no "as on Discover" line
     expect(card.textContent).not.toContain("Information only, not a recommendation.");   // task #311: said once, at the Prism card
   });
-  it("below Gold the uptrend figure is a Gold lock, as on Discover's theme card, never a wrong 0", () => {
+  it("below Gold the card shows no uptrend figure at all (developer file 47 removed the four figures), so never a wrong 0", () => {
     mount(<BuildCard symbol="TECHM" name="Tech Mahindra Ltd" />, TECHM, UNI, false);
-    expect(within(document.querySelector("dl.dtc-ctx") as HTMLElement).getByText("In a long-term uptrend").parentElement!.textContent).toBe("In a long-term uptrendGold");
+    expect(document.getElementById("dth-card")!.textContent).not.toContain("long-term uptrend");
   });
 });

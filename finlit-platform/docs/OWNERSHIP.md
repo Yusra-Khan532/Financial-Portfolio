@@ -1,4 +1,4 @@
-# Ownership insights (company page, section 11)
+# Ownership insights (company page, the Ownership section)
 
 The Ownership section (`/stocks/SYMBOL`, anchor `#ownership`, nav entry unchanged, open to every visitor like before) is drawn from two stored things:
 

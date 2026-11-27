@@ -14,8 +14,8 @@ describe("All sections panel", () => {
   it("is closed to start with, and lists Where it stands in place of Sector & peers and Leadership", () => {
     const h = renderToStaticMarkup(<SectionsMenu items={navFor()} active={null} onPick={() => {}} />);
     expect(h).toContain("hidden"); expect(h).toContain('aria-expanded="false"'); expect(h).not.toContain('data-s="leadership"'); expect(h).not.toContain('data-s="history"'); expect(h).toContain('data-s="ownership"'); expect(h).not.toContain('data-s="plans"');
-    expect(navFor()).toHaveLength(20);   // task #216: live 17 Pros & cons is gone
-    expect(h).toContain("<b><span class=\"sn-no\">14</span>Where it stands</b>");   // Key findings is merged into Strengths & watch-outs (task #37); Leadership went into Where it stands (pack board 17)
+    expect(navFor()).toHaveLength(18);   // task #216: live 17 Pros & cons is gone; developer file 41: Chart lab and Gold insights are gone
+    expect(h).toContain("<b><span class=\"sn-no\">14</span>Industry</b>");   // developer file 47: Where it stands is Industry (the peers are 13's);   // Key findings is merged into Strengths & watch-outs (task #37); Leadership went into Where it stands (pack board 17)
   });
 });
 
@@ -30,11 +30,11 @@ describe("panel keyboard rule", () => {
 });
 
 describe("sections bar numbers and the plan's Scores line (task #216, README 1.8)", () => {
-  it("numbers every section 01 to 19; Scores has none; Announcements is gone, 18 is News & filings, 02 reads Economy (task #222, 19 Nov pack)", () => {
-    expect(NAV.map(([id]) => sectionNo(id)).filter(Boolean)).toEqual(Array.from({ length: 19 }, (_, i) => String(i + 1).padStart(2, "0")));
-    expect([sectionNo("prism"), sectionNo("announcements")]).toEqual([null, null]);
+  it("numbers every section 01 to 17 in the funnel order; Scores has none; Announcements is gone; Macro is 15, News & filings 16, Discussions 17 (developer files 41 and 49)", () => {
+    expect(NAV.map(([id]) => sectionNo(id)).filter(Boolean)).toEqual(Array.from({ length: 17 }, (_, i) => String(i + 1).padStart(2, "0")));
+    expect([sectionNo("prism"), sectionNo("announcements"), sectionNo("charts"), sectionNo("insights")]).toEqual([null, null, null, null]);
     expect(NAV.map(([id]) => id)).not.toContain("announcements");
-    expect(NAV.filter(([id]) => ["macro", "dividends", "news", "community"].includes(id)).map(([id, l]) => `${sectionNo(id)} ${l}`)).toEqual(["02 Economy", "17 Dividends", "18 News & filings", "19 Discussions"]);
+    expect(NAV.filter(([id]) => ["macro", "dividends", "news", "community"].includes(id)).map(([id, l]) => `${sectionNo(id)} ${l}`)).toEqual(["11 Dividends", "15 Macro", "16 News & filings", "17 Discussions"]);
   });
   it("task #283: every plan reads only FinLit Prism on the Scores line", () => {
     for (const m of ["prism", null, undefined] as const) {

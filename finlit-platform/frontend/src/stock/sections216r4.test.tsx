@@ -78,11 +78,11 @@ describe("02 Macro outlook (README 3.2)", () => {
 });
 
 describe("10, 12, 13, 15 drop-downs and the ranking status (README 3.10, 3.12, 3.13, 3.15)", () => {
-  it("10's findings, 12's insight cards and 15's trigger are drop-downs", () => {
+  it("DuPont's findings and Ownership's insight cards are drop-downs (15's trigger cards went with Gold insights, developer file 41)", () => {
     expect(src("DecodeRoe.tsx")).toContain("dp-insc xdd");
     expect(src("own/OwnInsightCards.tsx")).toContain("ow-icard xdd");
     expect(src("own/OwnInsightCards.tsx")).not.toContain('href="#method"');
-    expect(src("Sections3.tsx")).toContain("Why it matters, and what to watch");
+    expect(src("Sections3.tsx")).not.toContain("Why it matters, and what to watch");
   });
   it("13: the label chip alone, its rank and reading and its method in two drop-downs", () => {
     const s = src("Leadership.tsx");
@@ -91,22 +91,21 @@ describe("10, 12, 13, 15 drop-downs and the ranking status (README 3.10, 3.12, 3
   });
 });
 
-describe("14 Where it stands (README 3.14)", () => {
-  it("each reading has its own link to its tab (no i button inside a button) and opens and scrolls to the panel", () => {
+describe("14 Industry (README 3.14; developer file 47: the industry only, no tabs)", () => {
+  it("its readings are plain readings (the industry is the one view, so they link to no tab); the chart reading still points to 03", () => {
     const s = src("pack/WhereStands.tsx");
-    expect(s.match(/className="ws-go" onClick=\{\(\) => open\("/g)?.length).toBeGreaterThanOrEqual(4);
+    expect(s).not.toMatch(/className="ws-go" onClick=\{\(\) => open\("/);
     expect(s).not.toMatch(/<button[^>]*className="ws-pill"/);
-    expect(s).toContain('document.getElementById("ws-panel")');
+    expect(s).toContain('<a className="ws-go" href="#price" onClick={toPrice}>');
   });
   it("a group already called \"peers\" is not named twice (\"10 peers peers\")", () => {
     expect(groupWord("peers")).toBe(""); expect(groupWord("Refineries")).toBe("Refineries "); expect(groupWord(null)).toBe("");
   });
-  it("tab 2 shows the head-to-head with the group leader in place of a copy of 13's ranking table; peer cards follow the plan", () => {
+  it("the peers are 13's alone: no head-to-head and no copy of its company cards here; the group leader what-if is in 13", () => {
     const s = src("pack/WhereStands.tsx");
-    expect(s).toContain("<HeadToHead name={name} symbol={symbol} lead={lead} />");
-    expect(s).toContain("The full ranking table, with each company's label, is in");
-    expect(s).toContain('{model && <p className="sp-note">Prism is the FinLit Prism score, 0 to 100.</p>}');   // task #283: no score column without Prism
-    expect(css).toMatch(/\.ws-h2h \.ws-six-s \.dot\.me \{/);
+    expect(s).not.toContain("<HeadToHead ");
+    expect(s).not.toContain("Business against similar companies");
+    expect(src("Sections3.tsx")).toContain("<LeaderWhatIf symbol={self}");
     expect(css).toMatch(/@media \(max-width: 760px\) \{ \.ws \.ws-reads \{ grid-template-columns: minmax\(0, 1fr\); \} \}/);
   });
 });

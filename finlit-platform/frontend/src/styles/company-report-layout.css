@@ -139,3 +139,24 @@
 /* 6 · task #328: under 1180 px the driven-by box is narrow (two boxes side by side, about 400 px): the direction goes under the name and the values */
 .dp-sum .dp-stat{min-width:0}
 @media (max-width:1180px){.dp-drv li{grid-template-columns:minmax(0,1fr) auto}.dp-drv .e{grid-column:1/-1;white-space:normal}}
+/* developer file 41: the old Chart lab's charts inside their own sections (Price & technicals: the price statistics; Financials: under the statement
+   table), each block with a small label naming what it shows */
+.rp-more{margin-top:var(--block-gap)}
+.rp-more-h{margin:0 0 var(--sp-3)}
+
+/* ---- Developer file 49 (founder, 27 Nov 2026, 2:30 pm) ---- */
+
+/* "it is spilling out": a table's sideways-scroll box bleeds into its card's padding by --tw-pad (24 px on a desktop, 16 on a phone, finlit.css), but the
+   report's cards are padded 18 and 14 px since file 47. So every report table's box, and the ratio key and Show all inside it, stood 5 px (1 px on a phone)
+   past the card's border. The bleed now follows the card's padding through one variable. */
+section.block .card { --card-px: 18px; }   /* = report47.css's card padding; a test keeps the two equal */
+@media (max-width: 760px) { section.block .card { --card-px: 14px; } }
+section.block .card .tw { --tw-pad: var(--card-px); }
+
+/* 08's key now sits above the ratio table (it read last, under 8 to 26 rows); Show all stays under the rows it opens. */
+section.block p.tkey.tkey-top { margin: 0 0 10px; }
+section.block p.rh-more { margin: 10px 0 0; }
+
+/* A table's sideways slider that opens the enlarge button's strip (04, 05, 09, 10 at 1,100 px and on a phone) sat 2 to 6 px under the button, two tap
+   targets touching: it starts 10 px lower. Only then; charts and tables without a slider keep their height. */
+section.block :is(.cz-strip, .cz-table:not(.cz-boxed)) .cz-tbl > .hs-bar:first-child { margin-top: 10px; }   /* in a strip, or under the arrow of a table outside a box */

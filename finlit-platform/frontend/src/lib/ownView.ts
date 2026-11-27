@@ -12,7 +12,8 @@ export const DESC: Record<GroupKey, string> = {
   promoters: "Founders and their group", fii: "Foreign funds", dii: "Indian mutual funds, insurers and banks", public: "Everyday investors and others", government: "Outside the promoter group",
 };
 /** The only fixed colours on the page (checked for colour-blind separation): everything else uses the design tokens. */
-export const COLOR: Record<GroupKey, string> = { promoters: "#2F67C1", fii: "#D9772F", dii: "#0B7A4B", public: "#8256B8", government: "#C2387A" };
+// developer file 45 (founder, 27 Nov 2026: "too many colours? yes"): domestic institutions were green, which elsewhere means up; now teal (five owners, five colours)
+export const COLOR: Record<GroupKey, string> = { promoters: "#2F67C1", fii: "#D9772F", dii: "#1F8A9E", public: "#8256B8", government: "#C2387A" };
 
 export type Tone = "supportive" | "neutral" | "watch";
 export const TONE: Record<Tone, { word: string; glyph: string }> = { supportive: { word: "Supportive", glyph: "+" }, neutral: { word: "Worth knowing", glyph: "i" }, watch: { word: "Watch", glyph: "!" } };
