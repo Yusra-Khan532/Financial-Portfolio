@@ -45,7 +45,7 @@ export const MENU: MenuGroup[] = [
     i("/superinvestors", "Superinvestor portfolios", "What named investors of 1% or more hold, from company filings", "users", { newUntil: "2026-12-17" }),
   ] },
   { id: "company", title: "Analyse a company", line: "One company in depth: report, rating, financials, forecasts", short: "Company", icon: "layers", items: [
-    i("/research", "Company report", "A report for every listed company: score, financials, ratios", "search"),
+    i("/research", "Company report", "A report for every listed company: score, financials, ratios", "search", { not: "/research/stress-lab" }),   // task #411 (bug 2, the same cause): Stress Lab has its own item
     i("/prism", "FinLit Prism", "A company's financial health rated in four parts", "layers", { gold: true }),
     i("/outlook", "Profit and revenue forecasting", "Revenue and profit estimates from a company's own history and its sector", "activity", { gold: true }),
     i("/research/stress-lab", "Stress Lab", "How a shock to crude, the rupee or rates would move a company's earnings", "gauge"),
@@ -63,7 +63,8 @@ export const MENU: MenuGroup[] = [
     i("/sip-calculator", "SIP calculator", "Project potential wealth creation through monthly investments.", "spark"),
   ] },
   { id: "markets", title: "Markets & economy", line: "Sectors, FII and DII money, the economy, commodities", short: "Markets", icon: "activity", items: [
-    i("/sectors", "Sector Pulse", "Which NSE industries are sold off, bouncing back or losing steam", "activity"),   // SHARED §3 (20 Nov pack): the shared Pulse words
+    // task #411 (bug 2): Sector Rotation (/sectors/rotation) has its own item, so Sector Pulse is not marked there; its industry pages stay under it
+    i("/sectors", "Sector Pulse", "Which NSE industries are sold off, bouncing back or losing steam", "activity", { not: "/sectors/rotation" }),   // SHARED §3 (20 Nov pack): the shared Pulse words
     i("/sectors/rotation", "Sector Rotation", "Which NSE industries are pulling ahead of the average industry, and which are falling behind", "activity"),
     i("/premium/markets", "Market events & index", "Index moves and the events behind them", "activity", { gold: true }),
     i("/fii-dii", "FII & DII flows", "Institutional buying and selling, streaks and history", "bars"),
@@ -76,7 +77,7 @@ export const MENU: MenuGroup[] = [
     i("/news", "News & filings", "Exchange filings and headlines", "notes"),
   ] },
   { id: "funds", title: "Mutual funds & ETFs", line: "Find, screen and compare funds and ETFs", short: "Funds", icon: "pie", items: [
-    i("/funds", "Mutual funds", "NAV, returns, fund size and risk for every scheme", "pie"),
+    i("/funds", "Mutual funds", "NAV, returns, fund size and risk for every scheme", "pie", { not: "/funds/screener" }),   // task #411 (bug 2, the same cause): the fund screener has its own item
     i("/funds/screener", "Mutual fund screener", "Filter every fund by type, cost, returns, risk and portfolio", "layers"),
     i("/etfs", "ETFs", "Exchange-traded funds: price, returns and risk", "bars"),
   ] },
