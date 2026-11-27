@@ -17,7 +17,7 @@ from starlette.requests import Request
 from ..config import Settings
 from .crypto import token_hash
 
-from .entitlements import VIEW_AS
+from .entitlements import VIEW_AS, plan_key, tier_of
 
 log = logging.getLogger("finlit.auth")
 
@@ -33,7 +33,8 @@ class Ctx:
     email: Optional[str] = None
     name: Optional[str] = None
     role: str = "visitor"
-    plan: str = "basic"
+    plan: str = "basic"            # the access TIER (basic, silver, gold) every gate written before task #410 checks
+    plan_key: str = "free"         # task #410: the plan itself (free, mfetf, equity, combined, gold, platinum); entitlements.TIER_OF gives its tier
     verified: bool = False
     mfa_ok: bool = False
     totp: bool = False
@@ -45,7 +46,7 @@ class Ctx:
         return self.user_id is not None
 
     def public(self) -> Dict[str, Any]:
-        out = {"id": self.user_id, "email": self.email, "name": self.name, "role": self.role, "plan": self.plan,
+        out = {"id": self.user_id, "email": self.email, "name": self.name, "role": self.role, "plan": self.plan_key, "tier": self.plan,
                "verified": self.verified, "mfa": self.totp, "mfaOk": self.mfa_ok}
         if self.role == "admin":
             out["viewAs"] = self.extra.get("view_as")     # None: every plan's features; else the plan being previewed
@@ -57,18 +58,19 @@ ANON = Ctx()
 
 def _row_to_ctx(row: Any, token: str) -> Ctx:
     return Ctx(user_id=str(row["user_id"]), session_id=str(row["id"]), email=row["email"], name=row["name"], role=row["role"],
-               plan=row["plan"], verified=row["email_verified_at"] is not None, mfa_ok=row["mfa_ok"],
+               plan=tier_of(plan_key(row["plan"])), plan_key=plan_key(row["plan"]), verified=row["email_verified_at"] is not None, mfa_ok=row["mfa_ok"],
                totp=row["totp_enabled_at"] is not None, csrf=row["csrf"])
 
 
 def _ctx_json(c: Ctx) -> str:
-    return json.dumps({"u": c.user_id, "s": c.session_id, "e": c.email, "n": c.name, "r": c.role, "p": c.plan, "v": c.verified,
+    return json.dumps({"u": c.user_id, "s": c.session_id, "e": c.email, "n": c.name, "r": c.role, "p": c.plan, "k": c.plan_key, "v": c.verified,
                        "m": c.mfa_ok, "t": c.totp, "c": c.csrf})
 
 
 def _ctx_from_json(raw: bytes) -> Ctx:
     d = json.loads(raw)
-    return Ctx(user_id=d["u"], session_id=d["s"], email=d["e"], name=d["n"], role=d["r"], plan=d["p"], verified=d["v"],
+    key = plan_key(d.get("k") or d["p"])          # a session cached before task #410 has only the old plan name
+    return Ctx(user_id=d["u"], session_id=d["s"], email=d["e"], name=d["n"], role=d["r"], plan=tier_of(key), plan_key=key, verified=d["v"],
                mfa_ok=d["m"], totp=d["t"], csrf=d["c"])
 
 
@@ -152,8 +154,9 @@ def admin_view(ctx: Ctx, view_as: Optional[str]) -> Ctx:
     administrator's request is changed; for anyone else the header means nothing."""
     want = (view_as or "").strip().lower()
     if want in VIEW_AS:
-        return replace(ctx, plan=want, extra={**ctx.extra, "view_as": want})
-    return replace(ctx, plan="gold")
+        key = plan_key(want)                         # task #410: a new plan (free … platinum); an old "basic" / "silver" bookmark reads as Free / Combined
+        return replace(ctx, plan=tier_of(key), plan_key=key, extra={**ctx.extra, "view_as": key})
+    return replace(ctx, plan="gold", plan_key="platinum")
 
 
 async def forget_cached(app, user_id: str, only_hash: Optional[str] = None) -> None:
@@ -199,7 +202,7 @@ async def prune_unverified_accounts(conn, days: int = UNVERIFIED_DAYS, timeout: 
     administrator gave a plan to or switched off, and any with a sign-in, a session, saved state, a plan request, an authenticator or a bootstrap
     password. Rows in other tables go with the account (their foreign keys are ON DELETE CASCADE or SET NULL, as when a member deletes their account).
     Run by the nightly `prune` job (Store.prune)."""
-    cond = ("u.email_verified_at IS NULL AND u.created_at < now() - make_interval(days => $1::int) AND u.role = 'investor' AND u.plan = 'basic' "
+    cond = ("u.email_verified_at IS NULL AND u.created_at < now() - make_interval(days => $1::int) AND u.role = 'investor' AND u.plan IN ('basic', 'free') "
             "AND u.plan_until IS NULL AND u.status = 'active' AND u.last_login_at IS NULL AND u.totp_enabled_at IS NULL AND u.bootstrap_pw_hash IS NULL "
             "AND NOT EXISTS (SELECT 1 FROM sessions s WHERE s.user_id = u.id) AND NOT EXISTS (SELECT 1 FROM user_state us WHERE us.user_id = u.id) "
             "AND NOT EXISTS (SELECT 1 FROM plan_requests p WHERE p.user_id = u.id)")

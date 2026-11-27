@@ -10,7 +10,7 @@ import "../styles/explore-tools.css";
 const pad = (n: number) => String(n).padStart(2, "0");
 /** Fired to open the groups from elsewhere on the page, even when the address already ends in #platform (the hero now links to the screener). */
 export const OPEN_EXPLORE = "finlit:open-explore";
-const BADGE_LABEL = { FREE: "Free", SILVER: "Silver", GOLD: "Gold" } as const;
+const BADGE_LABEL = { FREE: "Free", SILVER: "Paid", GOLD: "Gold", PLATINUM: "Platinum" } as const;   // task #410: a Silver tool is open on every paid plan
 
 function Card({ c, onExpand }: { c: PlatformCard; onExpand: (id: string) => void }) {
   const bot = c.id === "finlit-bot";          // the assistant opens its panel; every other card opens a page
@@ -35,7 +35,7 @@ function Card({ c, onExpand }: { c: PlatformCard; onExpand: (id: string) => void
 function Tool({ c }: { c: PlatformCard }) {
   const inner = <><span className="xt-ti" aria-hidden="true"><Icon name={TOOL_ICON[c.id] ?? "grid"} /></span>
     <span className="xt-nm">{(c.crown === undefined ? c.badge === "FREE" : c.crown === false) ? <b>{c.rowTitle ?? c.title}</b>
-      : <Crowned title={c.rowTitle ?? c.title} plan={c.crown ? `free to open, more with the ${BADGE_LABEL[c.crown]}` : BADGE_LABEL[c.badge]} />}</span>
+      : <Crowned title={c.rowTitle ?? c.title} plan={c.crown ? `free to open, more with ${c.crown === "SILVER" ? "every paid" : `the ${BADGE_LABEL[c.crown]}`}` : BADGE_LABEL[c.badge]} />}</span>
     {FIGURE[c.id] && <span className="xt-fig"><strong>{FIGURE[c.id][0]}</strong> {FIGURE[c.id][1]}</span>}<small>{SHORT[c.id]}</small></>;
   return <li>{c.id === "finlit-bot" ? <button type="button" className="xt-tool" title={SHORT[c.id]} onClick={() => dispatchEvent(new Event(OPEN_AI))} aria-haspopup="dialog">{inner}</button> : <Link className="xt-tool" to={c.link} title={SHORT[c.id]}>{inner}</Link>}</li>;
 }

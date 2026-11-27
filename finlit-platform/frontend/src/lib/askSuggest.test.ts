@@ -20,7 +20,7 @@ describe("suggestion groups (task #268)", () => {
   });
   it("the last line says where the words as typed go, by plan, in plain words", () => {
     expect(fallbackLine(" ev margins ", true, false, 38)).toEqual({ label: "Ask FinLit AI: “ev margins”", note: "A written answer · 38 left this month" });
-    expect(fallbackLine("ev margins", false, true)).toEqual({ label: "Ask “ev margins”", note: "Written answers are part of Silver and Gold" });
+    expect(fallbackLine("ev margins", false, true)).toEqual({ label: "Ask “ev margins”", note: "Written answers are part of the combined, Gold and Platinum plans" });
     expect(fallbackLine("ev margins", false, false)).toEqual({ label: "Search the listed questions for “ev margins”", note: "The closest ones answer at once" });
     for (const f of [fallbackLine("a", true, false, 1), fallbackLine("a", false, true), fallbackLine("a", false, false)]) expect(f.label + f.note).not.toMatch(FORBIDDEN);
   });

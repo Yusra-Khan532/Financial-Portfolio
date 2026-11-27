@@ -28,7 +28,7 @@ export const mfaSetup = () => apiSend<{ secret: string; uri: string }>("POST", "
 export const mfaEnable = (code: string) => apiSend("POST", "/api/me/mfa/enable", { code });
 export const mfaDisable = (code: string) => apiSend("POST", "/api/me/mfa/disable", { code });
 export const deleteAccount = (password: string) => apiSend("DELETE", "/api/me", { password });
-export const requestPlan = (plan: "silver" | "gold", note?: string) => apiSend("POST", "/api/me/plan-request", { plan, note });
+export const requestPlan = (plan: "mfetf" | "equity" | "combined" | "gold" | "platinum" | "free", note?: string) => apiSend("POST", "/api/me/plan-request", { plan, note });
 
 export type SavedState = { portfolio?: { holdings?: Holding[]; portfolios?: Portfolio[] }; watchlist: { lists?: { id: string; name: string; symbols: string[] }[]; meta?: Record<string, { note?: string; target?: number; added: number }> }; screens: { name: string; state: unknown }[]; prefs: Partial<Prefs> };
 export const loadState = () => apiGet<SavedState>("/api/me/state");
@@ -42,7 +42,7 @@ export const saveScreens = (screens: unknown) => apiSend("PUT", "/api/me/screens
 export const savePrefs = (p: Prefs) => apiSend("PUT", "/api/me/prefs", p);
 
 export type AdminUser = { id: string; email: string; name: string | null; role: string; plan: Plan3; planUntil: string | null; status: string; verified: boolean; mfa: boolean; createdAt: string; lastLoginAt: string | null };
-type Plan3 = "basic" | "silver" | "gold";
+type Plan3 = "free" | "mfetf" | "equity" | "combined" | "gold" | "platinum" | "basic" | "silver";   // task #410: the new plans (an old row may still say basic or silver)
 export type PlanRequest = { id: number; email: string; plan: Plan3; currentPlan: Plan3; note: string | null; createdAt: string; userId: string };
 export type AuditRow = { at: string; actor: string | null; action: string; target: string | null; ip: string | null; meta: Record<string, unknown> };
 export const adminUsers = (q: string, page: number) => apiGet<{ users: AdminUser[]; total: number; page: number }>(`/api/admin/users?q=${encodeURIComponent(q)}&page=${page}`);

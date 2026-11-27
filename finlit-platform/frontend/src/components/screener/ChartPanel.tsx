@@ -380,7 +380,7 @@ export function ChartPanel({ row, onClose, onStep, extra, inline = false, onChar
       <div className="cp-bar" role="group" aria-label="Lines, compare and measure">
         <span className="cp-menu"><button type="button" className={"cp-dd" + (menu === "ind" ? " on" : "")} aria-haspopup="true" aria-expanded={menu === "ind"} onClick={() => setMenu(menu === "ind" ? null : "ind")}>Indicators ▾</button>
           {menu === "ind" && <div className="cp-pop" role="group" aria-label="Indicators">
-            {LINES.map((L) => { const lock = L.k === "ema200" && hasLock("ema200"); return <label key={L.k} className={lock ? "lk" : ""}><input type="checkbox" checked={ind[L.k] && !lock} disabled={lock} onChange={() => tog(L.k)} /><i style={{ background: L.color }} />{lineLabel(L.src, L.n, weekly)}{lock ? " (Silver)" : ""}</label>; })}
+            {LINES.map((L) => { const lock = L.k === "ema200" && hasLock("ema200"); return <label key={L.k} className={lock ? "lk" : ""}><input type="checkbox" checked={ind[L.k] && !lock} disabled={lock} onChange={() => tog(L.k)} /><i style={{ background: L.color }} />{lineLabel(L.src, L.n, weekly)}{lock ? " (paid plans)" : ""}</label>; })}
             <hr />
             <label><input type="checkbox" checked={ind.volAvg} onChange={() => tog("volAvg")} />Volume average (20)</label>
             <label><input type="checkbox" checked={ind.hiVol} onChange={() => tog("hiVol")} /><i style={{ background: "#2563eb" }} />Highest volume in 3 months</label>

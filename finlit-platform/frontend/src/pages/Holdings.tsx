@@ -4,7 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Gate } from "../components/Gate";
 import { Icon } from "../lib/icons";
 import { useDocTitle } from "../lib/title";
-import { TIER, useUI } from "../lib/ui";
+import { useUI } from "../lib/ui";
 import { limitsFor, useAuth } from "../lib/auth";
 import { DEMO } from "../lib/demo";
 import { rowsWithBseIds, useSearchIndex } from "../lib/api";
@@ -74,6 +74,8 @@ import { coTitle, subLine, titleOf } from "../lib/companyLabel";
 import { PLAN_FOR_PORTFOLIO, PLAN_FOR_PRISM } from "../lib/planGates";
 import { planName } from "../lib/planNames";   // task #388 (file 36, B2): plan names from the plan list
 import { KnowPop, closePops } from "../portfolio/pack/Round388";   // task #388 part A (developer file 36)
+import { memberPlanName } from "../lib/planNames";
+import { planKeyOf } from "../lib/auth";
 
 /** Equity portfolio: give it the names of the shares you own (typed, pasted or from a broker file) and it describes the list: how strong each share is, where the list sits by
  *  sector and size, what moves together, where the risk comes from and how the list has moved against the NIFTY 50. Names are enough; task #217 adds each share's buy history
@@ -441,7 +443,7 @@ export function HoldingsPage() {
         <section className="card eqx-top" aria-label="Equity portfolio">
           {/* task #388 reopened (developer file 38, E3): the date of the shares' own prices only; while they load, "Loading prices…" (the index's last
               close stood in for about 5 seconds and showed an older day). An empty list has no prices, so no date. */}
-          <EqTitle plan={TIER[plan].n} asOf={priceDay} loading={!!model && !DEMO && symbols.length > 0 && ov.isPending} add={<>
+          <EqTitle plan={memberPlanName(planKeyOf(), plan)} asOf={priceDay} loading={!!model && !DEMO && symbols.length > 0 && ov.isPending} add={<>
           <form className="pfx-add" onSubmit={(e) => { e.preventDefault(); const t = one.trim(); if (!t) { setAddWin({ tab: "search", pre: null }); return; }
             const hit = suggest(index, t, isinOf)[0]; if (hit) { setOne(""); setAddWin({ tab: "search", pre: hit }); } else { void add([entryOf(t)]); setOne(""); } }}>
             <label className="pfx-input"><Icon name="search" />

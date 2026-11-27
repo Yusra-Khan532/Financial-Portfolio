@@ -131,6 +131,7 @@ class Job:
     ok_exit: Tuple[int, ...] = (0,)
     gate: Optional[Gate] = None
     visitor_gate: Optional[str] = None              # visitor | alerts | visitor_or_alerts | env:NAME (only when that env var is 1)
+    deploy_hold_exempt: bool = False                # 27 Nov 2026: a short job whose restart costs at most a re-run is never held by a waiting deploy
     catchup: bool = True                            # a job that never succeeded is due at once (first start / boot catch-up); False for jobs that send mail or follow visitors
     boot: bool = False                              # a first-start load: BOOT_LOAD_ENABLED=0 stops it from starting just because it never ran
     external: bool = False
@@ -334,7 +335,7 @@ def build_jobs(env: Optional[Mapping[str, str]] = None) -> List[Job]:
         Job("price-sections", ("refresh-price-sections", "--max-minutes", "40"), cls="bulk", priority=11, max_runtime_min=50, weight_mb=200, resumable=True,
             prerequisites=("candles",), probe="price-sections", min_gap_min=30,
             windows=(W("AFTER_CLOSE", 0), W("MORNING", 0)), sla=Sla("session", 12), owns=("price_sections",),
-            what="the price charts (1M to MAX, and 3Y on daily candles) of every stored report from daily_candles, after the candles job: every chart ends on the latest close, no part-day candle; no provider calls"),
+            deploy_hold_exempt=True, what="the price charts (1M to MAX, and 3Y on daily candles) of every stored report from daily_candles, after the candles job: every chart ends on the latest close, no part-day candle; no provider calls"),
         # weekend nights only, at the lowest bulk priority (owner, 18 Nov 2026; docs/JOBS.md "The sector job on weekend nights"): one full build a week on the
         # week's data up to Friday's close; every daily and weekly job of the night goes first; never on a weekday night
         Job("sectors", ("refresh-sectors",), cls="bulk", priority=95, max_runtime_min=90, weight_mb=SECTORS_WEIGHT_MB, stall_min=45, prerequisites=("technicals",), resumable=True,
@@ -359,7 +360,7 @@ def build_jobs(env: Optional[Mapping[str, str]] = None) -> List[Job]:
         Job("presets", ("refresh-presets",), cls="bulk", priority=42, max_runtime_min=40, weight_mb=350, windows=(W("NIGHT", 20), W("MORNING", 14)), sla=Sla("hours", 30),
             prerequisites=("prism", "price-sections"), catchup=False,
             probe="presets", min_gap_min=60,   # task #394: candles that arrive after the night's run move the lists the same day, with the charts
-            what="prebuilt screens: momentum and growth scores, industry breadth and theme states, every screen's list into the cache (after the Prism batch; database only)"),
+            deploy_hold_exempt=True, what="prebuilt screens: momentum and growth scores, industry breadth and theme states, every screen's list into the cache (after the Prism batch; database only)"),
         # task #326: one file per market day for the owner's archive, started by the presets job's completion (its probe sees the finished day without a file;
         # presets is its prerequisite, so it never reads while the lists are being rewritten). Stored results only: a few seconds. Back-fill of earlier days,
         # a few a run, only in the night shift. A run with nothing to do is a success (weekends, holidays).

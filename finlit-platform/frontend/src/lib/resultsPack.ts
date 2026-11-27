@@ -39,7 +39,7 @@ export function kpiTiles(t: VSummary, locked = false): Tile[] {
     { k: "Beat their industry", v: t.beatShare == null ? "–" : `${Math.round(t.beatShare)}%`, sub: "Strong or Good result", help: "Revenue growth, profit growth and margin change on a year ago are each compared with the typical company in the same NSE industry. Above on most of them: Strong or Good. Below on most: Weak or Poor. Company size does not change the yardstick." },
   ];
   // On Basic the server leaves out the growth figures: those tiles say which plan opens them, never an empty dash.
-  return locked ? tiles.map((x, i) => (i === 0 ? x : { ...x, v: "Silver plan", sub: "Opens with Silver" })) : tiles;
+  return locked ? tiles.map((x, i) => (i === 0 ? x : { ...x, v: "Paid plans", sub: "Opens on a paid plan" })) : tiles;
 }
 
 // ------------------------------------------------------------------------------------------------ one day's declared results

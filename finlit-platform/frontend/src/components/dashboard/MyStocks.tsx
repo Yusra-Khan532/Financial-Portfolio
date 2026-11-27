@@ -100,7 +100,7 @@ export function MyStocks({ followed, loading, watch = new Set(), held = new Set(
   const mfq = useMfPortfolio(has(PLAN_FOR_PORTFOLIO), mfPf);
   const funds = mfq.data?.holdings ?? [];
   const fundDetail = useQueries({ queries: funds.map((h) => ({ queryKey: ["mf", "detail", h.code], queryFn: () => apiGet<FundDetail>(`/api/mf/${h.code}`), staleTime: 300_000, retry: false })) });
-  // task #223 (D1): the member's ETFs from the ETF portfolio (Silver and up), the same answer the ETF page and "Your ETFs at a glance" read
+  // task #223 (D1): the member's ETFs from the ETF portfolio (Mutual Fund + ETF, combined, Gold and Platinum), the same answer the ETF page and "Your ETFs at a glance" read
   const etfq = useEtfPortfolio(has(PLAN_FOR_PORTFOLIO), etfPf);
   const etfItems = etfq.data?.items ?? [];
   const allSyms = followed.map((f) => f.symbol);
@@ -196,10 +196,10 @@ export function MyStocks({ followed, loading, watch = new Set(), held = new Set(
       )) : !invList.length ? (
         tab === "mf" ? (has(PLAN_FOR_PORTFOLIO)
           ? <div className="dsh-empty"><b>No mutual funds added yet</b><p>Add your mutual funds to see their NAV and Mutual Fund Score here.</p><Link className="dsh-btn" to="/mf-portfolio">Add a fund</Link></div>
-          : <div className="dsh-empty"><b>Track your mutual funds</b><p>The MF portfolio is part of Silver: add your funds to see their NAV here, and their Mutual Fund Score on Gold.</p><Link className="dsh-btn" to="/plans">See plans</Link></div>)
+          : <div className="dsh-empty"><b>Track your mutual funds</b><p>The MF portfolio is part of the Mutual Fund + ETF, combined, Gold and Platinum plans: add your funds to see their NAV and their Mutual Fund Score here.</p><Link className="dsh-btn" to="/plans">See plans</Link></div>)
         : has(PLAN_FOR_PORTFOLIO)
           ? <div className="dsh-empty"><b>No ETFs added yet</b><p>Add the ETFs you hold on the ETF portfolio page to see their price, today's move and their price against NAV here.</p><Link className="dsh-btn" to="/etf-portfolio">Add your ETFs</Link></div>
-          : <div className="dsh-empty"><b>Track your ETFs</b><p>The ETF portfolio is part of Silver: add your ETFs to see their price against NAV here. Every ETF on the NSE is on the ETFs page.</p><Link className="dsh-btn" to="/etfs">See ETFs</Link></div>
+          : <div className="dsh-empty"><b>Track your ETFs</b><p>The ETF portfolio is part of the Mutual Fund + ETF, combined, Gold and Platinum plans: add your ETFs to see their price against NAV here. Every ETF on the NSE is on the ETFs page.</p><Link className="dsh-btn" to="/etfs">See ETFs</Link></div>
       ) : (
         <div className="dsh-st dsh-inv" role="table" id={LIST_ID} aria-label={tab === "mf" ? "Your mutual funds" : tab === "etf" ? "Your ETFs" : "Your investments"}>
           <div className="dsh-st-h" role="row"><span role="columnheader">Name</span><span role="columnheader">Type</span><span role="columnheader" className="r">Price or NAV</span>

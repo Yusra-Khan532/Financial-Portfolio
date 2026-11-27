@@ -18,6 +18,7 @@ from __future__ import annotations
 import re
 from typing import Any, Dict, List, Optional, Tuple
 
+from ..auth.entitlements import part_of
 from ..mcp.gateway import Gateway, ToolError
 from ..mcp.tools import Out, Tool
 
@@ -105,7 +106,7 @@ def washout_words(page: Dict[str, Any]) -> str:
 
 def _locked(data: Dict[str, Any]) -> List[str]:
     lk = data.get("locked") if isinstance(data.get("locked"), dict) else {}
-    return [f"{_LOCK_WORDS.get(k, k.replace('_', ' '))} is part of the {str(v).title()} plan, which this member's plan does not include"
+    return [f"{_LOCK_WORDS.get(k, k.replace('_', ' '))} is part of {part_of(str(v))}, which this member's plan does not include"
             for k, v in lk.items() if v]
 
 
@@ -236,7 +237,7 @@ TOOLS: List[Tool] = [
     Tool("get_sector_pulse", "Sector Pulse", "FinLit's Sector Pulse page: the state of every NSE sector or industry group (Thrust C, Thrust CAP, "
          "Confirmed, Washout, Fading, Neutral, with what each means), its breadth (how many of every 100 stocks are above their 9, 20 and 50-day "
          "averages), how far its index is below its 52-week high and its last thrust, each with its date. With `slug`: one group in full (its "
-         "state since when, the summary, and its ranked stocks on Silver). Use it first for any question about how a sector or industry is doing.",
+         "state since when, the summary, and its ranked stocks on the paid plans). Use it first for any question about how a sector or industry is doing.",
          {"show": SHOW, "slug": SLUG}, get_sector_pulse),
     Tool("get_sector_rotation", "Sector Rotation", "FinLit's Sector Rotation page: each NSE sector or industry group's box against the average "
          "industry (Ahead and gaining, Ahead but slowing, Behind and slipping, Behind but gaining), its rank and how it moved, the groups that "

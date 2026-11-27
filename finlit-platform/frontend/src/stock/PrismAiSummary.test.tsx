@@ -139,7 +139,7 @@ describe("AI summary under the FinLit Prism cards (task #228)", () => {
     const box = screen.getByRole("region", { name: /summary of the FinLit Prism rating of Reliance/ });
     expect(box.textContent).toContain("read as mixed");
     expect(box.textContent).toContain("Overall 58.1");                    // task #382: the figures are kept (replaces #228's "no numbers")
-    expect(box.textContent).toContain("An AI summary from FinLit AI (10 a month) is part of the Silver and Gold plans");
+    expect(box.textContent).toContain("An AI summary from FinLit AI (10 a month) is part of the paid plans");
     expect(screen.getByRole("link", { name: "Compare plans" }).getAttribute("href")).toBe("/plans");
     expect(box.textContent).toContain("not a recommendation");
     expect(asked).toEqual([]);
@@ -187,7 +187,7 @@ describe("AI summary under the FinLit Prism cards (task #228)", () => {
     auth = { user: { id: "u2", role: "investor" }, plan: "basic" }; quota = { enabled: true, left: 0, limit: 0, summary: { limit: 0, used: 0, left: 0, resets: "2026-12-01" } };
     show();
     fireEvent.click(screen.getByRole("button", { name: /^Summarise$/ }));
-    expect(screen.getByRole("region", { name: /summary of the FinLit Prism rating of/ }).textContent).toContain("part of the Silver and Gold plans");
+    expect(screen.getByRole("region", { name: /summary of the FinLit Prism rating of/ }).textContent).toContain("part of the paid plans");
     expect(asked).toEqual([]);
     cleanup();
     auth = { user: { id: "u4", role: "investor" }, plan: "silver" }; quota = { enabled: true, left: 3, limit: 50, summary: ALLOW(2) }; mode = "refuse";

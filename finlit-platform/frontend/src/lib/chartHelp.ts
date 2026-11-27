@@ -710,7 +710,7 @@ export const CHART_HELP: Record<string, ChartHelpEntry> = {
   "sx-col-flags": {
     title: "Leader flags",
     what: "Stocks that closed at a 52-week high while their industry is still well below its own high.",
-    read: "A full flag means the industry is further down, an early flag less far. The number is how many stocks in the group carry a flag today. Leader flags are part of the Silver plan.",
+    read: "A full flag means the industry is further down, an early flag less far. The number is how many stocks in the group carry a flag today. Leader flags are part of every paid plan.",
     why: "They show stocks holding up inside a weak group. About the share price only.",
   },
   "sx-col-corner": {

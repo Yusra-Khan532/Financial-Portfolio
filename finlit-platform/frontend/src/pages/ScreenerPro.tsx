@@ -539,7 +539,7 @@ export function ScreenerPro() {
                     </tbody></table></HScroll></TableZoom>
                   {res.data.capped ? (
                     <div className="pl-cap"><Icon name="lock" /><span><b>Showing the first {res.data.limit} of {nf(total, 0)} matches.</b> Silver shows every match and unlocks every filter.</span>
-                      <button className="btn primary" onClick={() => ask(PLAN_FOR_SCREENER, "See every match and use every filter with Silver.")}>Unlock with Silver</button></div>
+                      <button className="btn primary" onClick={() => ask(PLAN_FOR_SCREENER, "See every match and use every filter on a paid plan.")}>Unlock with Silver</button></div>
                   ) : total > PAGE && (
                     <div className="pm-pager ssw-pager"><span>Showing {nf(page * PAGE + 1, 0)}–{nf(Math.min(total, page * PAGE + PAGE), 0)} of {nf(total, 0)}</span><button className="btn" disabled={page === 0} onClick={() => setPage(page - 1)}>‹ Previous</button><button className="btn" disabled={(page + 1) * PAGE >= total} onClick={() => setPage(page + 1)}>Next {PAGE} ›</button></div>)}
                   {webgl && cloud && <div className="scr-3d">

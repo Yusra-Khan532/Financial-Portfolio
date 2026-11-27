@@ -99,7 +99,7 @@ const LINES: [string, string][] = [
   ["pages/LeadershipLabel.tsx", "How a stock's last 12 months compare with similar companies. It looks back; it does not predict."],
   ["pages/Contact.tsx", "Tell us what you need. A person reads every message; we usually reply within one working day."],
   ["pages/Blog.tsx", "Explainers, myth-busters and thought pieces on investing, in plain language; never a recommendation."],
-  ["pages/Plans.tsx", "Basic is free with no card; Silver adds the full screener and watchlists; Gold adds Prism and more."],
+  ["pages/Plans.tsx", "Free to start; Mutual Fund + ETF and Equity Portfolio open one area each; Gold and Platinum open everything."],   // task #410
 ];
 
 describe("page headers are boxed again (founder, 22 Nov 2026)", () => {

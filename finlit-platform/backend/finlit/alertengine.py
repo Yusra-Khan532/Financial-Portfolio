@@ -83,7 +83,6 @@ COOLDOWN_HOURS = 1  # a repeating alert never fires twice inside this window
 # Task #283: the retired overall score and its parts. The keys stay so members' converted or paused alerts still read; no alert can be set on them,
 # resumed on them or checked on them.
 RETIRED = {"overall", "pillar_quality", "pillar_growth", "pillar_profitability", "pillar_balance", "pillar_technical"}
-TIER_NAME = {"basic": "Basic", "silver": "Silver", "gold": "Gold"}
 
 
 def allowed(plan: str, metric: str) -> bool:

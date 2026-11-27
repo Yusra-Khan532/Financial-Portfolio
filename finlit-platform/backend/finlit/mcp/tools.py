@@ -285,7 +285,7 @@ def _results_params(a: Dict[str, Any], limit: int) -> Dict[str, Any]:
 def _results_out(b: Dict[str, Any], path: str, extra_notes: Optional[List[str]] = None) -> Out:
     notes = list(extra_notes or [])
     if b.get("locked"):
-        notes.append("Growth and margin figures for these results are a Silver feature on the website, so rows here carry dates, names and status only; figures are null because they are withheld, not because they are zero.")
+        notes.append("Growth and margin figures for these results are a paid-plan feature on the website, so rows here carry dates, names and status only; figures are null because they are withheld, not because they are zero.")
     if not b.get("quarter"):
         notes.append("No quarter with declarations is loaded yet.")
     rows = [{k: r.get(k) for k in ("symbol", "name", "sector", "cap", "date", "status", "periodEnd", "hasNumbers", "revenue", "netProfit", "revenueYoY", "profitYoY") if k in r} for r in b.get("rows", [])]

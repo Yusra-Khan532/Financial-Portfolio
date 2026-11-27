@@ -21,7 +21,7 @@ const CHANGES = { days: 90, events: ["order", "rating"], notPlaced: [{ s: "ZZCO"
   companies: [{ s: "INFY", n: "Infosys Limited", ev: { order: { n: 4, d: "2026-11-20", t: "Order win", l: null, dates: ["2026-11-20"] } } },
     { s: "TCS", n: "Tata Consultancy Services Limited", ev: { rating: { n: 1, d: "2026-11-02", t: "Credit rating", l: null, dates: ["2026-11-02"] } } }] };
 const st = vi.hoisted(() => ({ plan: "gold", phone: false, visit: null as string | null, list: null as unknown, risk: null as unknown }));
-vi.mock("../lib/ui", async (orig) => ({ ...(await orig<typeof import("../lib/ui")>()), useUI: () => ({ plan: st.plan, has: (t: string) => ({ basic: 0, silver: 1, gold: 2 } as Record<string, number>)[st.plan] >= ({ basic: 0, silver: 1, gold: 2 } as Record<string, number>)[t], upgrade: vi.fn(), toast: vi.fn() }) }));
+vi.mock("../lib/ui", async (orig) => ({ ...(await orig<typeof import("../lib/ui")>()), useUI: () => ({ plan: st.plan, has: (t: string) => ({ basic: 0, silver: 1, gold: 2, mfetf: 1, equity: 1, combined: 1, platinum: 2 } as Record<string, number>)[st.plan] >= ({ basic: 0, silver: 1, gold: 2, mfetf: 1, equity: 1, combined: 1, platinum: 2 } as Record<string, number>)[t], upgrade: vi.fn(), toast: vi.fn() }) }));
 vi.mock("../lib/auth", async (orig) => ({ ...(await orig<typeof import("../lib/auth")>()), useAuth: () => ({ user: { id: "u-sample" } }) }));
 vi.mock("../lib/title", () => ({ useDocTitle: () => undefined }));
 vi.mock("../lib/api", async (orig) => ({ ...(await orig<typeof import("../lib/api")>()),
@@ -48,7 +48,7 @@ import { companySizes, costCard, etfKeyFigures, underneath } from "../lib/etfKey
 import { gainLoss } from "../portfolio/shared";
 import { ETF_PORTFOLIO_FAQ, etfLimitLine, setEtfLimit } from "../content/etfPortfolioFaqs";
 import { planName } from "../lib/planNames";
-import { PLAN_FOR_PORTFOLIO } from "../lib/planGates";
+import { PLAN_FOR_FUND_PORTFOLIO } from "../lib/planGates";
 
 let loc = "";
 function Where() { const l = useLocation(); loc = l.search; return null; }
@@ -405,10 +405,10 @@ describe("i buttons (IB1, IB2)", () => {
 
 describe("Words and faults (F1, F4)", () => {
   it("F1, RB5: the questions box reads the plan name from the plan list; the ETF limit is said for the plans that have the page", () => {
-    expect(ETF_PORTFOLIO_FAQ.plan).toBe(planName(PLAN_FOR_PORTFOLIO));
-    expect(ETF_PORTFOLIO_FAQ.plan).not.toMatch(/Mutual Fund \+ ETF|Platinum/);
+    expect(ETF_PORTFOLIO_FAQ.plan).toBe(planName(PLAN_FOR_FUND_PORTFOLIO));   // task #410: the fund plans open it
+    expect(ETF_PORTFOLIO_FAQ.plan).not.toMatch(/Silver|Platinum/);
     setEtfLimit(null);                                                  // a visitor, or a plan without the page: never "your plan" (fault 1)
-    expect(etfLimitLine()).toBe("Silver and Gold hold up to 15 ETFs.");
+    expect(etfLimitLine()).toBe("Mutual Fund + ETF, Combined, Gold and Platinum hold up to 15 ETFs.");
     expect(JSON.stringify(ETF_PORTFOLIO_FAQ)).not.toMatch(/Your plan holds up to/);
     // task #390 (developer file 39 v4, C1c): once the member's list has loaded, their own limit from /api/me/etf-portfolio, and no plan name
     setEtfLimit(15);
@@ -444,7 +444,7 @@ describe("Plans (G4)", () => {
     st.plan = "silver";
     await show();
     expect(document.querySelectorAll("button.px-vw")).toHaveLength(3);
-    expect(document.querySelector(".ptk-plan")!.textContent).toBe("Silver");
+    expect(document.querySelector(".ptk-plan")!.textContent).toBe("Combined");   // task #410
   });
 });
 

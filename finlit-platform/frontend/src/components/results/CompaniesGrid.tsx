@@ -178,9 +178,9 @@ export function CompaniesGrid({ rows, set, sort, onSort, grouped, today, days, l
                 if (k === "co") return <td key={k}><Company r={r} showDate={showDate} /></td>;
                 if (k === "v") return <td key={k}><Verdict r={r} /></td>;
                 if (k === "date") return <td key={k}>{cell(k, r)}</td>;
-                if (locked && r.hasNumbers && k === figs[0]) return <td key={k} colSpan={figs.length} className="cx-lock"><button type="button" className="qr-unlock" onClick={onUnlock}><Icon name="lock" /> Figures are part of the Silver plan</button></td>;
+                if (locked && r.hasNumbers && k === figs[0]) return <td key={k} colSpan={figs.length} className="cx-lock"><button type="button" className="qr-unlock" onClick={onUnlock}><Icon name="lock" /> Figures are part of every paid plan</button></td>;
                 const c = COLS[k], base = [c.right ? "r" : "", c.band && !lone(k) ? `cx-c cx-b-${BAND[c.band][1]}` : "", c.band && c.band !== COLS[cols[cols.indexOf(k) - 1]]?.band ? "cx-gs" : ""].filter(Boolean).join(" ");
-                if (locked && (k === "b52" || k === "ath")) return <td key={k} className={base + " qr-pp"}><abbr className="qr-na" title="Price position is part of the Silver plan." tabIndex={0}>—</abbr></td>;
+                if (locked && (k === "b52" || k === "ath")) return <td key={k} className={base + " qr-pp"}><abbr className="qr-na" title="Price position is part of every paid plan." tabIndex={0}>—</abbr></td>;
                 if (locked && r.hasNumbers) return null;
                 if (k === "b52" || k === "ath") { const pk: PriceKey = k === "b52" ? "w52" : "ath"; return <PriceTd key={k} r={r} k={pk} hit={!!phits?.(r, pk)} cls={base} />; }
                 const hit = hits && (k === "revg" || k === "opg" || k === "npg") && hits(r, k);

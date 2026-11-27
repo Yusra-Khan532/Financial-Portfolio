@@ -162,7 +162,7 @@ export function IndustryCard({ read: r }: { read: IndustryRead }) {
     <section className="aiq" id="aiq" aria-labelledby="aiq-h"><div className="aiq-hd"><Head r={r}><p className="aiq-sub">{row.industry ? `Its industry, ${row.industry}, has too few results this quarter to compare.` : "Its industry is not known for this quarter, so it cannot be compared yet."} The comparison appears here once enough of its companies have declared.</p></Head></div></section>);
   if (r.state === "locked") return (
     <section className="aiq" id="aiq" aria-labelledby="aiq-h"><div className="aiq-hd"><Head r={r} /></div>
-      <div className="aiq-lock"><LockedBlock plan="silver" title="How it did against its industry is part of the Silver plan">The counts are open to everyone: {ind!.declared} of {ind!.companies} companies in {ind!.name} have declared. Silver shows its growth against the typical company of its industry and of the market, and the industry's biggest companies.</LockedBlock></div>
+      <div className="aiq-lock"><LockedBlock plan="silver" title="How it did against its industry is part of every paid plan">The counts are open to everyone: {ind!.declared} of {ind!.companies} companies in {ind!.name} have declared. Silver shows its growth against the typical company of its industry and of the market, and the industry's biggest companies.</LockedBlock></div>
     </section>);
   const i = ind!, iR = i.medianRevenueYoY ?? null, iP = i.medianProfitYoY ?? null, mR = i.market?.medianRevenueYoY ?? null, mP = i.market?.medianProfitYoY ?? null;
   const rev = r.declared ? row.revenueYoY : null, profit = r.declared ? row.profitYoY : null;

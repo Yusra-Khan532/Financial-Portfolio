@@ -74,7 +74,7 @@ async def auto_label_alerts(pool, mailer: Mailer, site_url: str) -> int:
             return 0
         users = await conn.fetch(
             "SELECT u.id, u.email, s.watchlist, s.prefs FROM users u JOIN user_state s ON s.user_id = u.id "
-            "WHERE u.status = 'active' AND u.email_verified_at IS NOT NULL AND u.plan IN ('silver', 'gold') "
+            "WHERE u.status = 'active' AND u.email_verified_at IS NOT NULL AND u.plan IN ('silver', 'gold', 'mfetf', 'equity', 'combined', 'platinum') "
             "AND (u.plan_until IS NULL OR u.plan_until > now())")
         for u in users:
             picks = choices(u["watchlist"])
