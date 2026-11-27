@@ -58,8 +58,8 @@ cash, long-term debt). Banks have no operating income (show "—"). `/api/lab/co
 - Global trade: a world map of partners; product-by-partner drill-down; WTO world trade totals (free key in /opt/finlit/.env.aws).
 - Market mood: GDELT world tone (free); Reddit only via an official free app the team registers (no scraping).
 - Global cues: GIFT Nifty if a free feed is found (NSE IX pages are script-loaded; none yet).
-- Open items for the founder: the public Markets-page widget (task #294) shows S&P/Dow/Nasdaq/Nikkei from FRED whose notes carry the owners'
-  copyright (founder may decide); paid-only: X posts, GIFT Nifty live.
+- Founder, 27 Nov 2026: the Lab and the Markets page are internal only and will not be made public; the licence flag is CLOSED (no action).
+  Paid items (X posts, GIFT Nifty live) are optional: skip them; cover everything else with the free sources.
 
 ## Test harness notes
 Local: venv `/tmp/claude-0/venv-be` may be gone in a new container: create one, `pip install -e backend[dev]` style per repo docs; Postgres +
