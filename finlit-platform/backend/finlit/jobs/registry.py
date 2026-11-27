@@ -206,6 +206,7 @@ FUNDS_GATE = Gate("FUND_LOADS_ENABLED", "ETF and fund loads are switched off: se
 #   database   works on tables already held, no provider calls
 #   measured   no hard bound known: the typical run is far below the limit, and the early warning (status.near_limit) tells the admin before it nears it
 LIMIT_POLICY: Dict[str, str] = {
+    "eod-candles": "fixed: two downloads and two inserts, done in a minute; a run stopped at its limit stored nothing half-way (each exchange's file is one statement) and the probe asks again 10 minutes later",
     "ath": "deadline: stops itself after --max-minutes 8 (limit 12)",
     "coverage": "deadline: stops itself after --max-minutes 13 and records what it checked (limit 22)",
     "calendars": "fixed: two provider calendars (IPO and results dates); measured about 9 s",
@@ -213,6 +214,7 @@ LIMIT_POLICY: Dict[str, str] = {
     "ipo-gmp": "deadline: no new page or NSE request after --max-minutes 10, at most --limit 300 pages and --nse-limit 80 NSE books a run, one a second (limit 14)",
     "quotes": "deadline: no new slice after --max-minutes 7 (each slice followed up inside it), Dhan phase 90 s, a company 30 s (limit 10)",
     "alerts-live": "fixed: members' own alerts only; measured about 3 s",
+    "global-cues": "fixed: nine small FRED downloads (one series each); measured about 10 s",
     "lab-flow": "fixed: one Dhan quote call for every F&O stock and its two futures contracts; missing previous-session open interest is filled for at most 90 s a run, the rest next run (limit 4)",
     "listing": "fixed: two provider calls for the whole market list; measured about 13 s",
     "alerts-flag": "fixed: one flag in Redis; measured about 4 s",
@@ -318,6 +320,12 @@ def build_jobs(env: Optional[Mapping[str, str]] = None) -> List[Job]:
         # sight, then only new sessions; resumable (the longest-unloaded company first). Task #394 (developer file 37, F1): it finishes every night: the
         # time box is 150 minutes (was 45, which left companies a night behind), and a run that still stops with companies left exits partial (degraded,
         # with the count) so the supervisor tries it again, never silently "done"
+        # 26 Nov 2026 (the founder: after the 15:30 close the screens move to that day's data as fast as possible): the exchanges' own end-of-day files,
+        # one download each with every company's official close, written into daily_candles the moment they are out (asked every 10 minutes from
+        # 16:30 IST until both are in); the candles job below fills what they did not have. Light: two downloads and two statements
+        Job("eod-candles", ("refresh-eod",), priority=8, max_runtime_min=10, weight_mb=150, stall_min=8, honours_pause=False, probe="eod-candles",
+            min_gap_min=10, catchup=False, owns=("daily_candles",),
+            what="the day's official closes of every company from NSE's and BSE's end-of-day files, as soon as they are published (16:30 to 23:30 IST)"),
         Job("candles", ("refresh-candles", "--max-minutes", "150"), cls="bulk", priority=9, max_runtime_min=160, weight_mb=150, resumable=True,
             probe="candles", min_gap_min=60,   # task #394: a session Dhan published after the evening run is loaded the same morning, not the next evening
             windows=(W("AFTER_CLOSE", 0), W("MORNING", 0)), sla=Sla("session", 12), owns=("daily_candles",),
@@ -435,6 +443,8 @@ def build_jobs(env: Optional[Mapping[str, str]] = None) -> List[Job]:
         Job("logos", ("refresh-logos",), priority=80, max_runtime_min=30, weight_mb=100, windows=(W("NIGHT", 20),), sla=Sla("hours", 60), what="company and fund-house logos"),
         Job("macro", ("refresh-macro",), priority=20, max_runtime_min=20, weight_mb=100, windows=(W("AFTER_CLOSE", 18, (19, 10)), W("MORNING", 14)),
             sla=Sla("hours", 30), owns=("macro",), what="India macro data (MoSPI, RBI)"),
+        Job("global-cues", ("refresh-global-cues",), priority=21, max_runtime_min=5, weight_mb=60, windows=(W("MORNING", 6), W("AFTER_CLOSE", 6)),
+            sla=Sla("hours", 30), what="Trading Lab Global cues: US yields, Fed funds, dollar index, EUR/JPY/CNY and WTI/Brent crude from FRED's public download (docs/GLOBAL-MARKETS.md)"),
         Job("macro-outlook", ("refresh-macro-outlook",), priority=22, max_runtime_min=10, weight_mb=100, windows=(W("AFTER_CLOSE", 8, (19, 40)), W("MORNING", 8)),
             interval_min=360, probe="macro-outlook", min_gap_min=20, prerequisites=("macro", "flows-nse", "flows"), sla=Sla("hours", 30), owns=("macro_outlook",),
             what="Macro & Sector Outlook: sector scores from the stored macro, flows and commodity series (database only; also when new data arrives)"),

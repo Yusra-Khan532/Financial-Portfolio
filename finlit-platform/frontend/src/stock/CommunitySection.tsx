@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { apiGet } from "../lib/api";
-import { BOARD_NAME, forumMe, useStats, ago, type Page, type Post } from "../lib/forum";
+import { BOARD_NAME, useForumMe, useStats, ago, type Page, type Post } from "../lib/forum";
 import { Disclaimer, JoinHead, ThreadList, ThreadView } from "../components/forum/ForumParts";
 import { Icon } from "../lib/icons";
 import { SectionHead } from "./Sections";
@@ -16,7 +16,7 @@ const shortName = (name: string) => name.replace(/\s+(Ltd|Limited)\.?$/i, "");
 
 /** One line under the company header: how many discussions and comments there are about this company, and the way in. A visitor is invited to sign in. */
 export function CommunityStrip({ symbol, name, jump }: { symbol: string; name: string; jump: (id: string) => void }) {
-  const { data: me } = forumMe();
+  const { data: me } = useForumMe();
   const stats = useStats(symbol).data;
   if (!me) return null;
   const short = shortName(name), threads = stats?.threads ?? 0, replies = stats?.replies ?? 0;
@@ -36,7 +36,7 @@ export function CommunityStrip({ symbol, name, jump }: { symbol: string; name: s
 
 /** The three discussions members valued most (upvotes, then comments): a quick way into the best ones. */
 function Trending({ symbol, onOpen }: { symbol: string; onOpen: (id: number) => void }) {
-  const { data: me } = forumMe();
+  const { data: me } = useForumMe();
   const q = useQuery<Page<{ threads: Post[] }>>({ queryKey: ["forum", "trending", symbol], enabled: !!me?.signedIn, staleTime: 60_000, retry: false,
     queryFn: () => apiGet(`/api/forum/threads?sort=top&page=1&per=3&symbol=${encodeURIComponent(symbol)}`) });
   const list = q.data?.threads ?? [];
@@ -54,7 +54,7 @@ function Trending({ symbol, onOpen }: { symbol: string; onOpen: (id: number) => 
 }
 
 export function CommunitySection({ symbol, name }: { symbol: string; name: string }) {
-  const { data: me } = forumMe();
+  const { data: me } = useForumMe();
   const stats = useStats(symbol).data;
   const [open, setOpen] = useState<number | null>(null), [n, setN] = useState<number | null>(null);
   const top = useRef<HTMLElement>(null);

@@ -196,10 +196,11 @@ async def test_the_selfcheck_runs_the_acceptance_checks_on_the_served_lists_with
     await service.refresh_presets(store)
     r = await anon.get("/api/screener/selfcheck")                                      # no account needed: it says pass or fail, never a company
     body = r.json()
-    assert r.status_code == 200 and body["of"] == 7 and [c["id"] for c in body["checks"]] == [f"C{i}" for i in range(1, 8)]
+    assert r.status_code == 200 and body["of"] == 8 and [c["id"] for c in body["checks"]] == [f"C{i}" for i in range(1, 9)]
     by = {c["id"]: c for c in body["checks"]}
     assert by["C1"]["ok"] and by["C2"]["ok"], by                                        # every live screen is served, and the card count is the served count
     assert by["C5"]["ok"] and by["C7"]["ok"], by                                        # one build; no model detail in the texts
+    assert by["C8"]["ok"], by                                                           # 26 Nov 2026: a build just made is on the newest complete candle session
     assert body["screens"] >= 38 and body["passed"] == sum(c["ok"] for c in body["checks"])
     assert not any(f"S{i:02d}" in r.text for i in range(30))                            # no company of the list leaks out
     assert (await anon.get("/api/screener/selfcheck")).text == r.text                    # kept five minutes

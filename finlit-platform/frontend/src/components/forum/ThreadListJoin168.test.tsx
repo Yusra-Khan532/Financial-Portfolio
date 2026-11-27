@@ -9,7 +9,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 const st = vi.hoisted(() => ({ me: { signedIn: true, plan: "gold", board: "gold", handle: null, canPost: false, banned: false, moderator: false } as Record<string, unknown> }));
-vi.mock("../../lib/forum", async (orig) => ({ ...(await orig<typeof import("../../lib/forum")>()), forumMe: () => ({ data: st.me }) }));
+vi.mock("../../lib/forum", async (orig) => ({ ...(await orig<typeof import("../../lib/forum")>()), useForumMe: () => ({ data: st.me }) }));
 vi.mock("../../lib/api", async (orig) => ({ ...(await orig<typeof import("../../lib/api")>()), apiGet: vi.fn(async () => ({ threads: [], total: 0, page: 1, pages: 1 })) }));
 import { ThreadList } from "./ForumParts";
 

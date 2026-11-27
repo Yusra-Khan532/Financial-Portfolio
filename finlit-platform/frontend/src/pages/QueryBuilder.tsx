@@ -231,7 +231,7 @@ export function QueryBuilder() {
   };
 
   // ---- fixes and jumping to a problem
-  const useFix = (f: { start: number; end: number; text: string }) => { const r = applyFix(text, f); edit(r.text, r.caret); };
+  const takeFix = (f: { start: number; end: number; text: string }) => { const r = applyFix(text, f); edit(r.text, r.caret); };
   const jump = (p: Problem) => { const t = taRef.current; if (!t) return; t.focus(); t.setSelectionRange(p.start, Math.max(p.end, p.start)); setCaret(p.start); };
   const toggleRules = () => setRulesOpen((o) => !o);
   const openAll = (q = "") => { setSeed(q); setDrawer(true); };
@@ -352,7 +352,7 @@ export function QueryBuilder() {
                     <p>{p.message}</p>
                     {(() => { const r = ruleFor(p); return r && <p className="qb-rule"><b>Rule:</b> {r.rule} <b>Fix:</b> {r.fix}{r.bad && r.good && <> For example <code>{r.bad}</code> becomes <code>{r.good}</code>.</>}</p>; })()}
                     <div className="qb-fx">
-                      {p.fixes.map((f) => <button key={f.label} className={"qb-fix" + (onlyFix(p) === f ? " one" : "")} onClick={() => useFix(f)}>{onlyFix(p) === f ? "Fix it: " : ""}{f.label}</button>)}
+                      {p.fixes.map((f) => <button key={f.label} className={"qb-fix" + (onlyFix(p) === f ? " one" : "")} onClick={() => takeFix(f)}>{onlyFix(p) === f ? "Fix it: " : ""}{f.label}</button>)}
                       {p.seeAll && <button className="qb-fix ghost" onClick={() => openAll(p.name || "")}>See all ratios</button>}
                       {p.code === "plan_locked" && p.plan && <button className="qb-fix ghost" onClick={() => ask(p.plan!, p.message)}>See the {TIER[p.plan].n} plan</button>}
                     </div>

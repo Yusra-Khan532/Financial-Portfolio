@@ -1229,6 +1229,9 @@ def build_parser() -> argparse.ArgumentParser:
     p_mi = sub.add_parser("refresh-industry", help="daily: AMFI's monthly category report (industry AUM, net flows, folios by scheme category) for the Mutual Fund Insights page; resumable, only new or re-published months are read")
     p_mi.add_argument("--since", default=None, help="first month to load, YYYY-MM (default and earliest: 2019-04, the first category-wise report)")
     p_mi.add_argument("--max-age-hours", type=float, default=None, help="skip when this ran fine in the last N hours")
+    p_eod = sub.add_parser("refresh-eod", help="after the close: the day's official closes of every company from NSE's and BSE's end-of-day files, as soon as they are out (finlit/eod_bhav.py)")
+    p_eod.add_argument("--date", default=None, help="the session to load (YYYY-MM-DD); default: today")
+    p_eod.add_argument("--exchange", choices=("NSE", "BSE"), default=None, help="only this exchange's file")
     p_cdl = sub.add_parser("refresh-candles", help="nightly, after the close: daily candles from the exchange (Dhan, NSE first) into daily_candles, for prices, volume and the chart patterns")
     p_cdl.add_argument("symbols", nargs="*", help="only these companies (default: every company, the longest-unloaded first)")
     p_cdl.add_argument("--days", type=int, default=1150, help="history to load for a company seen for the first time")
@@ -1242,6 +1245,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_di.add_argument("--max-age-hours", type=float, default=None, help="skip when this ran fine in the last N hours")
     p_lf = sub.add_parser("refresh-lab-flow", help="every 3 minutes in market hours: the Trading Lab's Order Flow snapshot of every F&O stock (one Dhan quote call; lab/flow.py)")
     p_lf.add_argument("--history-seconds", type=float, default=90.0, help="at most this long filling missing previous-session open interest from Dhan's daily history")
+    sub.add_parser("refresh-global-cues", help="twice a day: the Trading Lab's Global cues series from FRED's public download (US yields, Fed funds, dollar index, EUR/JPY/CNY, WTI and Brent; lab/global_cues.py)")
     p_cm = sub.add_parser("refresh-commodities", help="commodity prices: MCX futures from Dhan and international prices from metals.dev / MetalpriceAPI into Redis (--loop: keeps running)")
     p_cm.add_argument("--loop", action="store_true")
     p_hp = sub.add_parser("history-probe", help="how many yearly statements each source holds for a few old companies (recorded at /api/mf/status, run:history-probe)")
@@ -1503,6 +1507,13 @@ async def main(argv: Optional[List[str]] = None, settings: Optional[Settings] = 
                     result = await lab_flow.refresh(store, dc, history_seconds=args.history_seconds)
                 except DhanError as e:
                     result = {"status": "failed", "error": str(e)}
+            await record_run(store, args.cmd, result)
+            print(result)
+            return 0 if result["status"] == "ok" else 1
+        if args.cmd == "refresh-global-cues":
+            from .lab import global_cues
+            from .mf import record_run
+            result = await global_cues.refresh(store)
             await record_run(store, args.cmd, result)
             print(result)
             return 0 if result["status"] == "ok" else 1
@@ -1879,6 +1890,21 @@ async def main(argv: Optional[List[str]] = None, settings: Optional[Settings] = 
                     raise
                 print(counts)
                 await _record_results_run(store, args.cmd, "failed" if rep.get("errors") else "ok", counts, rep)
+            elif args.cmd == "refresh-eod":
+                from datetime import date as _date, datetime as _dt, timezone as _tz
+                from . import eod_bhav
+                from .jobs.reasons import PARTIAL_EXIT
+                from .mf import record_run
+                day = _date.fromisoformat(args.date) if args.date else _dt.now(eod_bhav.IST).date()
+                res = await eod_bhav.load(store, day, only=[args.exchange] if args.exchange else None)
+                print(res)
+                failed = [x for x in ("NSE", "BSE") if (res.get(x) or {}).get("status") == "failed"]
+                # a file not published yet is the normal evening wait (the job asks again in 10 minutes; the "Closing prices" freshness line says when it is
+                # late); a refusal or a broken file is a fault: recorded partial, so the supervisor shows it degraded and the admins are told
+                await record_run(store, args.cmd, {"status": "partial" if failed else "ok", **({"why": f"{', '.join(failed)} file failed"} if failed else {}), **res})
+                if failed:
+                    log.warning("refresh-eod: %s", res)
+                    return PARTIAL_EXIT
             elif args.cmd == "refresh-candles":
                 from . import candles
                 from .dhan import DhanClient

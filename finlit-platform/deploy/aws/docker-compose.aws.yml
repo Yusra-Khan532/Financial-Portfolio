@@ -76,7 +76,11 @@ services:
   jobs:
     image: finlit-app:current
     env_file: ${ENV_FILE:-../../.env.aws}
-    environment: *app_env
+    environment:
+      <<: *app_env
+      # the site backend in the app container, for EVERY process here, not only the supervisor jobs.sh starts: on 26 Nov 2026 a command run by hand
+      # (docker exec finlit-jobs-1 python -m finlit.worker ...) had no SITE_API_URL, fell back to 127.0.0.1:8001 and failed with ConnectError
+      SITE_API_URL: "http://app:8001"
     command: ["sh", "-c", "if [ -x ./jobs.sh ]; then exec ./jobs.sh; fi; echo 'this image runs its jobs in the app container'; exec sleep infinity"]
     volumes: *app_volumes
     depends_on:

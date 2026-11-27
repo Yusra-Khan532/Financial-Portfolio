@@ -1,0 +1,55 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`DCF engine unchanged by the #396 redesign > prints the pinned figures (kept in the test below) > Reliance-like, Gordon, shares entered 1`] = `
+{
+  "buy": 748.3560799555524,
+  "ev": 1494335.081499814,
+  "fcfYield": 3.6459955050188073,
+  "ig": 18.307392614087803,
+  "ir": 10.128853600267284,
+  "iv": 935.4450999444405,
+  "pvTv": 866812.4694375697,
+  "sens": 935.4450999444405,
+  "sumPv": 627522.6120622443,
+  "tvShare": 58.00656627612457,
+  "up": -31.913159622647903,
+  "warnings": 0,
+  "weighted": 1004.7125154171032,
+}
+`;
+
+exports[`DCF engine unchanged by the #396 redesign > prints the pinned figures (kept in the test below) > exit multiple 1`] = `
+{
+  "buy": 105.87586041361156,
+  "ev": 2646.896510340289,
+  "fcfYield": 5.75,
+  "ig": 8.157498641548955,
+  "ir": 15.986055277793955,
+  "iv": 132.34482551701444,
+  "pvTv": 1564.4571048278453,
+  "sens": 107.97686904777768,
+  "sumPv": 1082.4394055124435,
+  "tvShare": 59.105337088782385,
+  "up": 32.344825517014456,
+  "warnings": 0,
+  "weighted": 137.03013339902748,
+}
+`;
+
+exports[`DCF engine unchanged by the #396 redesign > prints the pinned figures (kept in the test below) > net cash, mid-year, shares from market cap 1`] = `
+{
+  "buy": 2249.704729367075,
+  "ev": 1114443.4417013845,
+  "fcfYield": 4.2,
+  "ig": 13.825198834138064,
+  "ir": 10.524633166926346,
+  "iv": 3213.8638990958216,
+  "pvTv": 642374.6667226629,
+  "sens": 2601.9385031296188,
+  "sumPv": 472068.7749787217,
+  "tvShare": 57.64084947567822,
+  "up": -6.844524663889229,
+  "warnings": 0,
+  "weighted": 3402.356771818772,
+}
+`;

@@ -25,7 +25,12 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence
 
 log = logging.getLogger("finlit.presets.listday")
 MIN_COMPANIES = 50          # a day with candles for fewer companies than this is not a market session (a stray row, a special listing day)
-SHARE_OF_BUSIEST = 0.5      # ... nor a day with candles for less than half as many companies as the busiest day of the window (a load still running)
+SHARE_OF_BUSIEST = 0.25     # ... nor a day with candles for under a quarter as many companies as the busiest day of the window. Was 0.5 until 26 Nov 2026:
+                            # the founder's rule is that the lists use whatever closes are loaded as soon as they are loaded ("even if it is not fetched
+                            # completely, whatever has been fetched, work with that"); a row still waiting says so (row_price), and the lists are rebuilt
+                            # as more closes arrive (service.has_work)
+GROWTH_MIN, GROWTH_SHARE = 25, 0.05      # has_work: the same day is built again once this many more companies' closes are in
+COMPLETE_SHARE = 0.9        # a day with candles for at least this share of the busiest day is complete; below it, the day's closes are still loading
 WINDOW_DAYS = 21            # calendar days of candles read for the closes and the sessions (about 14 sessions)
 MAX_LAG_DAYS = 10           # no session in this many days before the weekday rule's day: the candles are behind; keep the weekday rule's day
 NO_TRADE_SESSIONS = 5       # F8: no trade in this many sessions up to the list day and the company is left off the lists
@@ -47,6 +52,13 @@ class Market:
     sessions: List[str] = field(default_factory=list)              # the market's sessions, newest first (ISO)
     closes: Dict[str, DayClose] = field(default_factory=dict)      # symbol -> its close of the list day (or its last before it)
     untraded: Dict[str, Optional[str]] = field(default_factory=dict)   # F8: symbol -> the last day it traded (None: never in the candles read)
+    loaded: int = 0                                                 # companies with a candle on the list day
+    busiest: int = 0                                                # companies on the busiest day of the window
+
+    @property
+    def complete(self) -> bool:
+        """The list day's closes are all in (or nothing is known): rows without a candle of that day did not trade, they are not still loading."""
+        return not self.busiest or self.loaded >= COMPLETE_SHARE * self.busiest
 
     def not_traded(self, symbol: str) -> bool:
         return symbol in self.untraded
@@ -119,6 +131,19 @@ def untraded_of(closes: Dict[str, DayClose], older: Dict[str, Optional[str]], se
     return out
 
 
+async def newest_day(conn, expected: date) -> Optional[date]:
+    """The list day the candles support now (the same rule as load): the newest session on or before `expected`, or None."""
+    return (await newest(conn, expected))[0]
+
+
+async def newest(conn, expected: date) -> tuple:
+    """(the list day the candles support now, how many companies have a candle on it); (None, 0) when they support none."""
+    lo = expected - timedelta(days=WINDOW_DAYS)
+    counts = {r["day"]: r["n"] for r in await conn.fetch("SELECT day, count(*) AS n FROM daily_candles WHERE day > $1 AND day <= $2 GROUP BY day", lo, expected)}
+    day = list_day(sessions_from_counts(counts, expected), expected)
+    return day, (counts.get(day, 0) if day else 0)
+
+
 async def load(store, symbols: Sequence[str], expected: date) -> Market:
     """The list day, the sessions, every company's close of the list day and the companies not traded in the last five sessions, in two queries.
     An empty Market when the candles cannot be read (the lists are then dated and priced as before; the reason is logged)."""
@@ -151,7 +176,7 @@ async def load(store, symbols: Sequence[str], expected: date) -> Market:
     if untraded:
         log.info("ready-made lists: %d companies with no trade in the last %d sessions to %s are left off: %s", len(untraded), NO_TRADE_SESSIONS, day,
                  sorted(untraded.items())[:50])
-    return Market(day=day, sessions=sessions, closes=closes, untraded=untraded)
+    return Market(day=day, sessions=sessions, closes=closes, untraded=untraded, loaded=counts.get(day, 0), busiest=max(counts.values(), default=0))
 
 
 async def has_work(store, now=None) -> bool:
@@ -165,11 +190,22 @@ async def has_work(store, now=None) -> bool:
     async with store.pool.acquire() as conn:
         counts = {r["day"]: r["n"] for r in await conn.fetch("SELECT day, count(*) AS n FROM daily_candles WHERE day > $1 AND day <= $2 GROUP BY day", lo, expected)}
         built = await conn.fetchval("SELECT value->>'asOf' FROM preset_meta WHERE key = 'last_run'")
+        had = await conn.fetchval("SELECT value->>'coverage' FROM preset_meta WHERE key = 'last_run'")
     day = list_day(sessions_from_counts(counts, expected), expected)
-    return day is not None and (not built or built < day.isoformat())
+    if day is None:
+        return False
+    if not built or built < day.isoformat():
+        return True
+    # 26 Nov 2026 (the founder: work with whatever closes are loaded, and keep updating): the same day, built while its closes were still arriving,
+    # is built again once clearly more of them are in (at least GROWTH_MIN companies and GROWTH_SHARE more than at the build)
+    try:
+        had_n = int(had) if had is not None and built[:10] == day.isoformat() else None
+    except ValueError:
+        had_n = None
+    return had_n is not None and counts.get(day, 0) >= had_n + max(GROWTH_MIN, GROWTH_SHARE * had_n)
 
 
-def row_price(row: dict, dc: Optional[DayClose], day: str) -> None:
+def row_price(row: dict, dc: Optional[DayClose], day: str, loading: bool = False) -> None:
     """F3: a row's price, day change and price day from the official close of the list day (in place). The day change is worked out from the same two
     candles, so it always matches the prices; when it cannot be, it is None and `ret_1d_note` says why. A company with no candle on the list day shows
     its last close, dated, with no day change. Nothing changes for a company with no candles (dc None)."""
@@ -187,4 +223,7 @@ def row_price(row: dict, dc: Optional[DayClose], day: str) -> None:
     else:
         row["price_on"] = None
         row["ret_1d"] = None
-        row["ret_1d_note"] = f"No trade on {dm(day)}; the price is the {dm(dc.day)} close" if dc.day != day[:10] else f"No trade on {dm(day)}"
+        if loading and dc.day != day[:10]:     # 26 Nov 2026: the day's closes are still arriving; this company's is not in yet (not "no trade")
+            row["ret_1d_note"] = f"The {dm(day)} close is still loading; the price is the {dm(dc.day)} close"
+        else:
+            row["ret_1d_note"] = f"No trade on {dm(day)}; the price is the {dm(dc.day)} close" if dc.day != day[:10] else f"No trade on {dm(day)}"

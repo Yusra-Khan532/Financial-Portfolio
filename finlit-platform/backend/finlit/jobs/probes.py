@@ -58,6 +58,10 @@ def build(store: Any) -> Dict[str, Callable[[], Awaitable[Optional[bool]]]]:
         from ..stress import service as stress_service      # the last run stopped at its time cap with covered companies it never reached
         return await stress_service.has_work(store)
 
+    async def eod_candles() -> Optional[bool]:
+        from .. import eod_bhav   # today's end-of-day file of NSE or BSE is not loaded yet (16:30 to 23:30 IST on weekdays)
+        return await eod_bhav.has_work(store)
+
     async def scores_export() -> Optional[bool]:
         from .. import scores_export as sx   # the presets job has finished a day that has no export file yet (or, at night, a back-fill day waits)
         return await sx.has_work(store)
@@ -69,4 +73,4 @@ def build(store: Any) -> Dict[str, Callable[[], Awaitable[Optional[bool]]]]:
         rel = await asyncio.to_thread(sd.live_release)
         return bool(rel) and not await asyncio.to_thread(lambda: (rel / sd.LEVELS_DIR / "sectors" / "_board.json").is_file())
 
-    return {"sectors-view": sectors_view, "macro-outlook": macro_outlook, "technicals": technicals, "prism": prism, "ath": ath, "candles": candles, "presets": presets, "peer-labels": peer_labels, "price-sections": price_sections, "scores-live": scores_live, "stress": stress, "discovery": discovery, "scores-export": scores_export}
+    return {"sectors-view": sectors_view, "macro-outlook": macro_outlook, "technicals": technicals, "prism": prism, "ath": ath, "candles": candles, "presets": presets, "eod-candles": eod_candles, "peer-labels": peer_labels, "price-sections": price_sections, "scores-live": scores_live, "stress": stress, "discovery": discovery, "scores-export": scores_export}

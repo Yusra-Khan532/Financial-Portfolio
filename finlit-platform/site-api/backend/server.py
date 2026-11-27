@@ -4322,6 +4322,9 @@ app.include_router(api_router)
 DEFAULT_ALLOWED_HOSTS = [
     "localhost",
     "127.0.0.1",
+    # the jobs container calls this backend at http://app:8001 (deploy/jobs.sh, SITE_API_PEER). Always trusted: on 26 Nov 2026 a production
+    # ALLOWED_HOSTS without it answered every technical refresh "400 Invalid host header" (2,493 of 2,500 failed, the technical views went stale)
+    "app",
     "finlitventures.com",
     "www.finlitventures.com",
 ]

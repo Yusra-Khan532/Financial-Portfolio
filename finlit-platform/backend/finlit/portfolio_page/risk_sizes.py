@@ -70,7 +70,7 @@ def weekly(s: pd.Series, end: pd.Timestamp, weeks: int = YEAR_WEEKS) -> pd.Serie
 
 def ols_beta(y: pd.Series, x: pd.Series) -> Tuple[Optional[float], Optional[float]]:
     """(beta of y on x, R²) over the weeks both have; None with too few weeks."""
-    d = pd.concat([y, x], axis=1).dropna()
+    d = pd.concat([y, x], axis=1, sort=True).dropna()
     if len(d) < MIN_WEEKS - 1:
         return None, None
     a, b = d.iloc[:, 0].to_numpy(), d.iloc[:, 1].to_numpy()
@@ -84,7 +84,7 @@ def ols_beta(y: pd.Series, x: pd.Series) -> Tuple[Optional[float], Optional[floa
 
 def capture(y: pd.Series, x: pd.Series) -> Tuple[Optional[float], Optional[float]]:
     """How much y moved for every 100 x moved: (in x's down weeks, in x's up weeks)."""
-    d = pd.concat([y, x], axis=1).dropna()
+    d = pd.concat([y, x], axis=1, sort=True).dropna()
     if d.empty:
         return None, None
     dn, up = d[d.iloc[:, 1] < 0], d[d.iloc[:, 1] > 0]
@@ -205,7 +205,7 @@ def build(prices: Dict[str, Optional[dict]], index_rows: Dict[str, List[dict]], 
         share = sum(cw[x["symbol"]] for x in xs)
         avg = float(sum(cw[x["symbol"]] * x["beta"] for x in xs) / share) if xs and share > 0 else None
         code, name = SIZE_INDEX[k]
-        port = wmean(pd.concat({x["symbol"]: rets[x["symbol"]] for x in xs}, axis=1), cw) if xs else None
+        port = wmean(pd.concat({x["symbol"]: rets[x["symbol"]] for x in xs}, axis=1, sort=True), cw) if xs else None
         b = bw.get(code)
         dn, up = capture(port, b) if port is not None and b is not None else (None, None)
         yr = (lambda q: float((1 + q.dropna()).prod() - 1) * 100)
@@ -213,7 +213,7 @@ def build(prices: Dict[str, Optional[dict]], index_rows: Dict[str, List[dict]], 
                         "adds": r2(avg * share if avg is not None else None), "oneYear": r2(yr(port), 1) if port is not None else None,
                         "benchOneYear": r2(yr(b), 1) if b is not None else None, "downPer100": r2(dn, 0), "upPer100": r2(up, 0)})
     weighted = sum((s["avgBeta"] or 0) * (s["listShare"] or 0) / 100 for s in by_size) if n else None
-    frame = pd.concat({x["symbol"]: rets[x["symbol"]] for x in counted}, axis=1) if counted else None
+    frame = pd.concat({x["symbol"]: rets[x["symbol"]] for x in counted}, axis=1, sort=True) if counted else None
     lst = wmean(frame, cw) if frame is not None else None
     parts_of = risk_parts(frame, cw) if frame is not None else {}
     for x in shares:
@@ -222,7 +222,7 @@ def build(prices: Dict[str, Optional[dict]], index_rows: Dict[str, List[dict]], 
     blend = None
     if lst is not None:
         parts = [bw[SIZE_INDEX[s["size"]][0]] * ((s["listShare"] or 0) / 100) for s in by_size if s["n"] and SIZE_INDEX[s["size"]][0] in bw]
-        blend = pd.concat(parts, axis=1).sum(axis=1, min_count=1) if parts else None
+        blend = pd.concat(parts, axis=1, sort=True).sum(axis=1, min_count=1) if parts else None
     b_blend = ols_beta(lst, blend)[0] if lst is not None and blend is not None else None
     b_nifty = ols_beta(lst, bw["NIF50"])[0] if lst is not None else None
 
@@ -231,7 +231,7 @@ def build(prices: Dict[str, Optional[dict]], index_rows: Dict[str, List[dict]], 
     week_rets = {s: fridays(daily(p["t"], p["c"])).pct_change() for s, p in prices.items() if p and p.get("t") and s in rets}
     glance: Dict[str, Any] = {}
     if week_rets:
-        dr = pd.concat(week_rets, axis=1)
+        dr = pd.concat(week_rets, axis=1, sort=True)
         dr = wmean(dr[(dr.index > end - pd.Timedelta(days=DAYS_3Y)) & (dr.index <= end)], cw).dropna()
         lvl = (1 + dr).cumprod()
         g = grain_of(dr.index)

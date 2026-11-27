@@ -8,6 +8,8 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "typecheck": "tsc -b --noEmit",
+    "lint:install": "npm ci --prefix lint --no-audit --no-fund",
+    "lint": "node lint/node_modules/eslint/bin/eslint.js -c lint/eslint.config.mjs --max-warnings 60 src",
     "test": "vitest run",
     "ui-check": "node scripts/check-ui.mjs",
     "ui-check:baseline": "node scripts/check-ui.mjs --write-baseline",

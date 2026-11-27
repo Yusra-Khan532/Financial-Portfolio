@@ -483,7 +483,7 @@ def _row(fr: Frame, preset: Preset, i: int, pos: int, extra: Sequence[str] = ())
             row[c.key] = _fmt(fr.get(i, c.key), c.format)
     row["badges"] = badges(fr, preset, i) + [b for b in extra if b]
     if "price" in row or "ret_1d" in row:          # F3: the official close of the list day, its day and the day change worked out from the same candles
-        listday.row_price(row, fr.market.closes.get(fr.symbols[i]), fr.as_of.isoformat())
+        listday.row_price(row, fr.market.closes.get(fr.symbols[i]), fr.as_of.isoformat(), loading=not fr.market.complete)
     return row
 
 
