@@ -40,7 +40,7 @@ export const HEADING: Record<string, string> = {
   trends: "Sales, profit and cash over the years",
   segments: "Revenue by business segment",
   ratios: "Valuation, returns, margins and debt",
-  dupont: "What drives return on equity",
+  dupont: "DuPont analysis: what drives return on equity",   // the founder looked for "DuPont" (27 Nov 2026, 2:17 pm): the name stays in the heading
   earnings: "Profit quality and cash flow",
   dividends: "Dividends paid to shareholders",
   ownership: "Who owns the shares",
