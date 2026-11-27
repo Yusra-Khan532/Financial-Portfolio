@@ -20,6 +20,13 @@ check("the address carries the plan", /p=10000/.test(p.url()) && /sk=pct/.test(p
 const again = await b.newPage(); await again.goto(p.url(), { waitUntil: "networkidle" }); await again.waitForTimeout(700);
 check("the link reopens the same result", (await again.locator(".sip-big b").innerText()).trim() === (await big()));
 await p.click("text=Goal planner"); check("goal planner shows a monthly amount", /a month/.test(await p.locator(".sip-gc").first().innerText()));
+// task #424: the disclaimer is a drop-down; closed, it still reads "Disclaimer" and "Information only, not investment advice."
+const dsc = p.locator("details.sip-dsc");
+check("disclaimer starts closed", (await dsc.evaluate((d) => d.open)) === false);
+check("closed row reads as a disclaimer", /^Disclaimer\s+Information only, not investment advice\.\s+Show$/.test((await dsc.locator("summary").innerText()).trim()), await dsc.locator("summary").innerText());
+await dsc.locator("summary").focus(); await p.keyboard.press("Enter"); await p.waitForTimeout(200);
+check("Enter on the row opens it (keyboard)", (await dsc.evaluate((d) => d.open)) === true);
+check("the full wording is there once open", /A SIP calculator assumes the same return every month; real funds go up and down, and past returns do not guarantee future returns\. Mutual fund investments are subject to market risks; read all scheme-related documents carefully\./.test(await dsc.innerText()));
 const m = await (await b.newContext({ viewport: { width: 390, height: 844 } })).newPage();
 await m.goto(B + "/sip-calculator", { waitUntil: "networkidle" });
 check("no sideways scroll at 390 px", (await m.evaluate(() => document.documentElement.scrollWidth)) <= 390);
