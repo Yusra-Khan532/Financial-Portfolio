@@ -6588,7 +6588,7 @@ details.lp-ao>.lp-fine {
     padding: 8px 14px 8px 8px;
     border: 1px solid var(--border-strong);
     border-radius: var(--r-ctl);
-    background: var(--s1) url("tour-poster.jpg") right center/auto 100% no-repeat;
+    background: var(--s1) url("/landing/golive/tour-poster.jpg") right center/auto 100% no-repeat;
     color: var(--text);
     text-align: left;
     cursor: pointer;
@@ -11103,5 +11103,750 @@ main .hh>#begin {
     display: inline-flex;
     align-items: center;
     min-height: 40px;
+  }
+}
+
+/* ===== Task #411: the team's landing pack of 27 Nov 2026 (landing-27nov.css), added after the go-live styles so it wins. Kept to the pack's values;
+   its colours are custom properties (one per line), its corners the site's radius tokens, its font sizes the site's type scale (docs/TYPE-SCALE.md:
+   the pack's 11, 11.5 and 12.5px are 12 or 13px, 15px is 14px, 22px is 20px, 26px is 24px, 34px is 32px), and the rules that change shared tokens (dark text) are
+   scoped to the landing page with :has(.hh), so no other page changes. The Prism and Mutual Fund Score blocks (nx-*) sit inside .lp-sh2. ===== */
+
+/* 1. one page background: the hero uses the same background as the sections under it */
+:root[data-theme=light] .hh,:root[data-theme=light] .hh .hh-top,:root[data-theme=light] .hh .xt,:root[data-theme=light] .hh .hpz {
+  --hh-hero-a: var(--bg);
+  --hh-hero-b: var(--bg);
+}
+:root[data-theme=light] .hh .hh-top {
+  background: var(--bg)!important;
+}
+
+/* 2. explorer: every tool row and every feature box looks the same */
+.lp-ex-t .lp-dot,.lp-ex-t .lp-dot0 {
+  display: none;
+}
+.lp-ex-d .lp-tls>li.lp-tl,.lp-ex-di .lp-tls>li.lp-tl {
+  margin: 0;
+  border: 1px solid var(--border);
+  background: var(--s1);
+}
+.lp-ex-d .lp-tl .lp-tl-i svg {
+  color: var(--hh-g,var(--gain));
+}
+
+/* 6. dark mode: brighter text so it reads clearly (the landing page only: header, page and footer) */
+:root[data-theme=dark]:has(.hh) {
+  --text: #f8f7f3;
+  --muted: #d3d4d8;
+  --faint: #adafb7;
+}
+:root[data-theme=dark] .hh {
+  --hh-hero-text: #fbfaf6;
+  --hh-hero-muted: #d6e9de;
+}
+:root[data-theme=dark]:has(.hh) .band {
+  --text: #fbfaf7;
+  --muted: #e3e0d9;
+  --faint: #c9c5bb;
+}
+:root[data-theme=dark] .hh .lq-p small,:root[data-theme=dark] .hh .lq-s small,:root[data-theme=dark] .hh .lq-gh small {
+  color: var(--muted);
+}
+
+/* 3 + 4. FinLit Prism and Mutual Fund Score, built on the page (no pictures) */
+.lp-sh2 .nx {
+  --nx-good: #1f8a57;
+  --nx-avg: #c98512;
+  --nx-bad: #cf3f35;
+  --nx-good-t: #17734a;
+  --nx-avg-t: #94600c;
+  --nx-bad-t: #b0322a;
+  --nx-track: color-mix(in srgb,var(--text) 10%,transparent);
+  font-family: var(--sans);
+  color: var(--text);
+}
+:root[data-theme=dark] .lp-sh2 .nx {
+  --nx-good: #4fc08c;
+  --nx-avg: #e7ad45;
+  --nx-bad: #f0767f;
+  --nx-good-t: #6fd3a3;
+  --nx-avg-t: #f0bf62;
+  --nx-bad-t: #f5959c;
+  --nx-track: color-mix(in srgb,var(--text) 14%,transparent);
+}
+.lp-sh2 .nx .v-good {
+  --c: var(--nx-good);
+  --ct: var(--nx-good-t);
+}
+.lp-sh2 .nx .v-avg {
+  --c: var(--nx-avg);
+  --ct: var(--nx-avg-t);
+}
+.lp-sh2 .nx .v-bad {
+  --c: var(--nx-bad);
+  --ct: var(--nx-bad-t);
+}
+#prism .lp-pz.nx {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: none!important;
+  width: 100%;
+}
+.lp-sh2 .nx-k {
+  margin: 0 0 10px;
+  font: 700 12px/1.2 var(--sans);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+.lp-sh2 .nx-fund,.lp-sh2 .nx-tech {
+  border-radius: var(--r-ctl);
+  padding: 12px 14px;
+  transition: background .18s,box-shadow .18s;
+}
+.lp-sh2 .nx-fund.lit,.lp-sh2 .nx-tech.lit,.lp-sh2 .nx-mbar.lit {
+  background: var(--hpz-lit,var(--lpg-47));
+  box-shadow: 0 0 0 2px var(--hpz-glow,var(--lpg-48)),0 0 28px -8px var(--hpz-lit-glow,var(--lpg-49));
+}
+.lp-sh2 .nx-fund-in {
+  display: grid;
+  grid-template-columns: 168px minmax(0,1fr);
+  gap: 22px;
+  align-items: center;
+}
+/* the score ring */
+.lp-sh2 .nx-total {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+}
+.lp-sh2 .nx-ring {
+  display: block;
+}
+.lp-sh2 .nx-ring-t {
+  fill: none;
+  stroke: var(--nx-track);
+  stroke-width: 9;
+}
+.lp-sh2 .nx-ring-f {
+  fill: none;
+  stroke: var(--c);
+  stroke-width: 9;
+  stroke-linecap: round;
+}
+.lp-sh2 .nx-total-n {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 132px;
+  height: 132px;
+  margin-left: -66px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.lp-sh2 .nx-total-n b {
+  font: 600 32px/1 var(--serif);
+  letter-spacing: -.01em;
+  color: var(--text);
+}
+.lp-sh2 .nx-total-n small {
+  margin-top: 4px;
+  font: 500 12px/1 var(--sans);
+  color: var(--muted);
+}
+.lp-sh2 .nx-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: var(--ui-r-pill);
+  border: 1px solid color-mix(in srgb,var(--c) 45%,transparent);
+  background: color-mix(in srgb,var(--c) 12%,transparent);
+  font: 700 12px/1.3 var(--sans);
+  font-style: normal;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--ct);
+}
+.lp-sh2 .nx-chip::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--c);
+}
+/* the four parts: plain rows on the card, no boxes of their own */
+.lp-sh2 .nx-parts {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2,minmax(0,1fr));
+  gap: 0 26px;
+}
+.lp-sh2 .nx-part {
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+}
+.lp-sh2 .nx-part:nth-child(-n+2) {
+  border-top: 0;
+  padding-top: 2px;
+}
+.lp-sh2 .nx-ph,.lp-sh2 .nx-th {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+.lp-sh2 .nx-pn {
+  font: 600 14px/1.3 var(--sans);
+  color: var(--text);
+}
+.lp-sh2 .nx-pn small {
+  display: block;
+  font: 400 12px/1.3 var(--sans);
+  color: var(--muted);
+  margin-top: 1px;
+}
+.lp-sh2 .nx-ph b,.lp-sh2 .nx-th b {
+  font: 600 24px/1 var(--serif);
+  color: var(--ct);
+}
+.lp-sh2 .nx-bar {
+  position: relative;
+  display: block;
+  height: 7px;
+  margin: 9px 0 8px;
+  border-radius: var(--ui-r-pill);
+  background: var(--nx-track);
+  overflow: hidden;
+}
+.lp-sh2 .nx-bar i {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  border-radius: var(--ui-r-pill);
+  background: var(--c);
+}
+.lp-sh2 .nx-pf,.lp-sh2 .nx-tf {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.lp-sh2 .nx-pf em,.lp-sh2 .nx-tf em {
+  flex: none;
+  font: 700 12px/1.3 var(--sans);
+  font-style: normal;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--ct);
+}
+.lp-sh2 .nx-pf small {
+  font: 400 13px/1.35 var(--sans);
+  color: var(--muted);
+}
+/* technical: two trend meters and the alignment */
+.lp-sh2 .nx-tech-in {
+  display: grid;
+  grid-template-columns: repeat(3,minmax(0,1fr));
+  gap: 0;
+}
+.lp-sh2 .nx-t {
+  min-width: 0;
+  padding-right: 20px;
+}
+.lp-sh2 .nx-t+.nx-t {
+  border-left: 1px solid var(--border);
+  padding-left: 26px;
+}
+.lp-sh2 .nx-div {
+  position: relative;
+  display: block;
+  height: 7px;
+  margin: 9px 0 8px;
+  border-radius: var(--ui-r-pill);
+  background: var(--nx-track);
+}
+.lp-sh2 .nx-div::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -3px;
+  bottom: -3px;
+  width: 2px;
+  margin-left: -1px;
+  border-radius: var(--ui-r-mark);
+  background: color-mix(in srgb,var(--text) 45%,transparent);
+}
+.lp-sh2 .nx-div i {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: var(--ui-r-pill);
+  background: var(--c);
+}
+.lp-sh2 .nx-tf {
+  justify-content: space-between;
+}
+.lp-sh2 .nx-tf small {
+  font: 400 12px/1.3 var(--sans);
+  color: var(--faint);
+}
+.lp-sh2 .nx-dia {
+  width: 12px;
+  height: 12px;
+  transform: rotate(45deg);
+  border-radius: var(--ui-r-mark);
+  background: var(--c);
+  flex: none;
+  align-self: center;
+}
+.lp-sh2 .nx-al-b {
+  margin: 10px 0 2px;
+  font: 600 16px/1.3 var(--sans);
+  color: var(--text);
+}
+.lp-sh2 .nx-al-s {
+  display: block;
+  font: 400 13px/1.4 var(--sans);
+  color: var(--muted);
+}
+/* Mutual Fund Score */
+#mf-score .lp-sh2>.nx-mf {
+  grid-column: 1;
+  grid-row: 1;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+}
+.lp-sh2 .nx-mf-h {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+.lp-sh2 .nx-mf-h .nx-k {
+  margin: 0;
+}
+.lp-sh2 .nx-mf-h span {
+  font: italic 400 13px/1.3 var(--serif);
+  color: var(--faint);
+}
+.lp-sh2 .nx-mf-in {
+  display: grid;
+  grid-template-columns: 168px minmax(0,1fr) 210px;
+  gap: 26px;
+  align-items: center;
+  padding: 6px 0 4px;
+}
+.lp-sh2 .nx-rank {
+  margin: 2px 0 0;
+  font: 400 13px/1.35 var(--sans);
+  color: var(--muted);
+}
+.lp-sh2 .nx-rank b {
+  color: var(--text);
+  font-weight: 600;
+}
+.lp-sh2 .nx-mbars {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.lp-sh2 .nx-mbar {
+  display: grid;
+  grid-template-columns: 104px minmax(0,1fr) 44px 64px;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px;
+  margin: 0 -10px;
+  border-radius: var(--r-ctl);
+  transition: background .18s,box-shadow .18s;
+}
+.lp-sh2 .nx-mbar .nx-bar {
+  margin: 0;
+}
+.lp-sh2 .nx-mbar b {
+  font: 600 18px/1 var(--serif);
+  text-align: right;
+  color: var(--text);
+}
+.lp-sh2 .nx-mbar em {
+  font: 700 12px/1 var(--sans);
+  font-style: normal;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--ct);
+}
+.lp-sh2 .nx-facts {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border-left: 1px solid var(--border);
+  padding-left: 22px;
+}
+.lp-sh2 .nx-facts>div {
+  padding: 8px 0;
+  border-top: 1px solid var(--border);
+}
+.lp-sh2 .nx-facts>div:first-child {
+  border-top: 0;
+}
+.lp-sh2 .nx-facts dt {
+  font: 400 12px/1.3 var(--sans);
+  color: var(--muted);
+}
+.lp-sh2 .nx-facts dd {
+  margin: 2px 0 0;
+  font: 600 14px/1.3 var(--sans);
+  color: var(--text);
+}
+@media (min-width:761px) {
+  .lp-sh2 .nx-mf-in {
+    grid-template-columns: 170px minmax(0,1fr);
+  }
+  .lp-sh2 .nx-facts {
+    grid-column: 1/-1;
+    flex-direction: row;
+    flex-wrap: wrap;
+    border-left: 0;
+    padding-left: 0;
+    border-top: 1px solid var(--border);
+  }
+  .lp-sh2 .nx-facts>div {
+    flex: 1 1 22%;
+    border-top: 0;
+    padding-right: 12px;
+  }
+}
+@media (max-width:1100px) {
+  .lp-sh2 .nx-fund-in {
+    grid-template-columns: 150px minmax(0,1fr);
+  }
+}
+@media (max-width:760px) {
+  .lp-sh2 .nx-fund,.lp-sh2 .nx-tech {
+    padding: 10px 4px;
+  }
+  .lp-sh2 .nx-fund-in,.lp-sh2 .nx-mf-in {
+    grid-template-columns: minmax(0,1fr);
+    gap: 14px;
+  }
+  .lp-sh2 .nx-total {
+    display: grid;
+    grid-template-columns: 96px minmax(0,1fr);
+    grid-template-rows: 1fr auto auto 1fr;
+    column-gap: 14px;
+    row-gap: 6px;
+    align-items: center;
+    justify-items: start;
+    text-align: left;
+  }
+  .lp-sh2 .nx-total .nx-ring {
+    grid-column: 1;
+    grid-row: 1/5;
+    width: 96px;
+    height: 96px;
+  }
+  .lp-sh2 .nx-total-n {
+    width: 96px;
+    height: 96px;
+    margin-left: 0;
+    left: 0;
+  }
+  .lp-sh2 .nx-total-n b {
+    font: 600 24px/1 var(--serif);
+  }
+  .lp-sh2 .nx-total .nx-chip {
+    grid-column: 2;
+    grid-row: 2;
+  }
+  .lp-sh2 .nx-total .nx-rank {
+    grid-column: 2;
+    grid-row: 3;
+    margin: 0;
+  }
+  .lp-sh2 .nx-parts {
+    grid-template-columns: minmax(0,1fr);
+  }
+  .lp-sh2 .nx-part:nth-child(2) {
+    border-top: 1px solid var(--border);
+    padding-top: 12px;
+  }
+  .lp-sh2 .nx-tech-in {
+    grid-template-columns: minmax(0,1fr);
+  }
+  .lp-sh2 .nx-t {
+    padding: 12px 0;
+  }
+  .lp-sh2 .nx-t+.nx-t {
+    border-left: 0;
+    padding-left: 0;
+    border-top: 1px solid var(--border);
+  }
+  .lp-sh2 .nx-mbar {
+    grid-template-columns: 96px minmax(0,1fr) 36px 58px;
+    gap: 8px;
+  }
+  .lp-sh2 .nx-mbar .nx-pn {
+    font-size: var(--fs-14);
+  }
+  .lp-sh2 .nx-mbar b {
+    font-size: var(--fs-16);
+  }
+  .lp-sh2 .nx-facts {
+    border-left: 0;
+    padding-left: 0;
+    border-top: 1px solid var(--border);
+  }
+  .lp-sh2 .nx-mf-h {
+    flex-direction: column;
+    gap: 2px;
+  }
+}
+
+/* 7 + 8. plans table: a band over the standard plans and the one-need plans, and the combined plan as a column */
+.lq-band {
+  border-bottom: 1px solid var(--border);
+}
+.lq-band>span {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 12px 8px 10px;
+  font: 700 12px/1.2 var(--sans);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  text-align: center;
+}
+.lq-band small {
+  font: 400 12px/1.3 var(--sans);
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--muted);
+}
+.lq-band-a,.lq-band-b {
+  color: var(--text);
+  border-left: 1px solid var(--border);
+}
+/* one clear break between the two groups: a single solid line running the full height */
+.lq-t .lq-band-b,.lq-t:has(.lq-band) .lq-p.k1,.lq-t:has(.lq-band) .lq-s.k1,.lq-t:has(.lq-band) .lq-c.k1 {
+  border-left: 2px solid var(--border-strong)!important;
+}
+.lq-head .lq-p .lq-sub {
+  border: 0!important;
+  padding: 0!important;
+  background: none!important;
+  box-shadow: none!important;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
+  font: 500 12px/1.2 var(--sans);
+  font-style: normal;
+  color: var(--muted);
+}
+.lq-head .lq-p .lq-sub em {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: var(--ui-r-pill);
+  background: color-mix(in srgb,var(--gain) 14%,transparent);
+  font: 600 12px/1.2 var(--sans);
+  font-style: normal;
+  color: var(--gain);
+  white-space: nowrap;
+}
+/* the saving sits in the empty strip above the plan name, so the header is no taller than the others; hidden below 1100px */
+.lq-head .lq-p.k5 .lq-sub {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+}
+.lq-t[data-hl] .lq-head .lq-p.k5 .lq-sub {
+  display: none;
+}
+@media (max-width:1099px) {
+  .lq-head .lq-p.k5 .lq-sub {
+    display: none;
+  }
+}
+/* Mutual Fund Score: a wider reading column (one-line headings) and a roomier score, so the two sides end together */
+@media (min-width:1100px) {
+  #mf-score .lp-sh2 {
+    grid-template-columns: minmax(0,1fr) 340px!important;
+  }
+  #mf-score .lp-sh-t {
+    min-width: 0;
+    overflow: hidden;
+  }
+  #mf-score .nx-mf-in {
+    padding: 14px 0 10px;
+    grid-template-columns: 180px minmax(0,1fr);
+  }
+  #mf-score .nx-mbars {
+    gap: 24px;
+  }
+  #mf-score .nx-mf .nx-ring {
+    width: 150px;
+    height: 150px;
+  }
+  #mf-score .nx-mf .nx-total-n {
+    width: 150px;
+    height: 150px;
+    margin-left: -75px;
+  }
+  #mf-score .nx-facts>div {
+    padding: 11px 0;
+  }
+}
+/* 5b. a bigger product tour in the hero; the two buttons side by side */
+@media (min-width:1100px) {
+  .hh-top .hh-top-cols {
+    grid-template-columns: minmax(0,.92fr) minmax(0,1.08fr)!important;
+    gap: clamp(28px,3vw,44px)!important;
+  }
+  .hh-top {
+    padding-bottom: clamp(28px,3.5vw,48px)!important;
+  }
+  .hh-top h1 {
+    white-space: normal!important;
+  }
+  #lp-vid {
+    width: 100%;
+    max-width: none!important;
+    margin-right: 0;
+  }
+  .hh-top .cta-row {
+    flex-direction: row!important;
+    flex-wrap: nowrap!important;
+  }
+  .hh-top .cta-row .btn {
+    width: auto!important;
+    white-space: nowrap;
+  }
+}
+@media (min-width:1100px) and (max-width:1320px) {
+  .hh-top .cta-row .btn {
+    padding-left: 16px!important;
+    padding-right: 16px!important;
+    font-size: var(--fs-14)!important;
+  }
+}
+/* task #411, found while checking 1100-1280px: with the wider tour column the italic "Invest with clarity." (kept on one line) ran into the video.
+   The heading scales with the window there, so it stays in its column; from 1280px it is the size it was. */
+@media (min-width:1100px) and (max-width:1279px) {
+  .hh-top h1 {
+    --fs-lp-h1: clamp(48px,5vw,64px);
+    font-size: var(--fs-lp-h1)!important;
+  }
+}
+/* 2. between 760px and 1180px the feature boxes stack in one column */
+@media (max-width:1180px) and (min-width:761px) {
+  .lp-ex-d .lp-tls {
+    grid-template-columns: minmax(0,1fr)!important;
+  }
+}
+/* the numbers panel uses the same card surface as every other card */
+:root[data-theme=light] .xt-panel {
+  background: var(--s1)!important;
+  box-shadow: none!important;
+  border-color: var(--border)!important;
+}
+/* 1. the hero no longer fills the whole first screen; the next section starts 36px under it */
+@media (min-width:1100px) {
+  main .hh .hh-top.lp-fill {
+    min-height: 0!important;
+    padding-top: 28px!important;
+    padding-bottom: 28px!important;
+  }
+  #platform {
+    padding-top: 36px!important;
+  }
+  .hh-top .hh-strip {
+    transform: none!important;
+    margin: 8px 0 36px!important;
+  }
+}
+
+/* 9. plans table: the top-left cells carry a name, the price note and the key */
+.lq-band .lq-band-l {
+  align-items: flex-start;
+  text-align: left;
+  padding-left: 20px;
+  color: var(--text);
+}
+.lq-head .lq-lead.lq-lead2 {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px 20px 14px;
+  font: inherit;
+  color: var(--text);
+}
+.lq-lead2 .lq-lt {
+  margin: 0;
+  font: 500 20px/1.2 var(--serif);
+  color: var(--text);
+}
+.lq-lead2 .lq-ls {
+  margin: 0;
+  font: 400 13px/1.4 var(--sans);
+  color: var(--muted);
+}
+.lq-lead2 .lq-key-in {
+  display: grid;
+  grid-template-columns: repeat(2,minmax(0,1fr));
+  gap: 6px 14px;
+  margin: 6px 0 0;
+  font: 400 12px/1.3 var(--sans);
+  color: var(--muted);
+}
+.lq-lead2 .lq-key-in>span {
+  display: flex!important;
+  align-items: center;
+  gap: 6px;
+}
+.lq-lead2 .lq-key-in b {
+  font-weight: 700;
+  color: var(--text);
+}
+.lq-lead2 .lq-key-in .lq-y {
+  color: var(--gain);
+  flex: none;
+}
+.lq-lead2 .lq-lc {
+  margin-top: auto;
+  padding-top: 8px;
+  font: 700 12px/1.2 var(--sans);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+.lq-lead2 .lq-lc i {
+  font-style: normal;
+}
+@media (max-width:1099px) {
+  .lq-lead2 .lq-lt {
+    font: 500 18px/1.2 var(--serif);
+  }
+  .lq-lead2 .lq-key-in {
+    grid-template-columns: minmax(0,1fr);
   }
 }
