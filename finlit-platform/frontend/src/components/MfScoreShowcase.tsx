@@ -7,7 +7,7 @@ import { useState, type ReactNode } from "react";
 import { Link } from "react-router";
 import { Icon } from "../lib/icons";
 import { PILLAR_HELP } from "../lib/mfScore";
-import { ScoreHighLow } from "../mf/ScoreHighLow";
+import { PartLine } from "../mf/PartLine";
 import { useMfShowcase, type MfPartKey } from "../lib/mfShowcase";
 import type { PartTone } from "../lib/prismShowcase";
 import "../styles/prism-showcase.css";
@@ -79,9 +79,9 @@ export function MfScoreShowcase() {
                       <div className="hpz-ph"><Ring v={p.v} size={30} stroke={4} tone={p.tone} /><div><b>{p.name}</b><em className={"hpz-chip " + p.tone}>{p.word}</em></div>
                         <strong className={"hpz-pv " + p.tone} aria-label={`${p.v.toFixed(1)} of 100`}>{p.v.toFixed(1)}</strong></div>
                       <span className="hpz-slide" role="img" aria-label={`${p.name} ${p.v.toFixed(1)} of 100, ${p.word.toLowerCase()}`}><i style={{ width: `${p.v}%` }} /><s style={{ left: `${p.v}%` }} /></span>
+                      <PartLine part={p.key} className="hmf-pl" />
                     </li>))}
                 </ul>
-                <ScoreHighLow className="hmf-hl" />
               </div>
             </> : <p className={"hmf-wait " + state} role="status">{WAIT[state]}</p>}
           </section>

@@ -98,7 +98,12 @@ describe("Top of the page (T1–T5, S1–S2)", () => {
     expect(partsAverage(hs).map((p) => [p.label, p.v])).toEqual([["Performance", 48], ["Risk", 64], ["Cost", 62], ["Quality", 71]]);
     render(<MfParts parts={partsAverage(hs)} open />);
     const p = document.querySelector(".px-parts")!;
-    expect(p.textContent).toMatch(/Riskhigher = lower risk64.*Costhigher = cheaper62/);
+    // task #403 (reworked): every part carries its own "Higher is better" line under its name
+    expect([...p.querySelectorAll(".px-pt")].map((t) => t.querySelector("p")!.textContent)).toEqual([
+      "PerformanceHigher is better: did better than similar funds", "RiskHigher is better: a calmer ride, smaller falls",
+      "CostHigher is better: lower costs", "QualityHigher is better: proven, large enough, soundly built"]);
+    expect(p.textContent).toMatch(/Risk.*smaller falls64.*Cost.*lower costs62/);
+    expect(p.textContent).not.toMatch(/High and low:/);
     expect(p.querySelector(".px-pn")!.textContent).toMatch(/These are the plain averages of your funds; the score above weights them by value\.$/);
     cleanup();
     render(<MfCards score={{ value: 59, label: "AVERAGE", valued: true, n: 2 }} tiles={mfTiles(hs, undefined, undefined)} colors={{ funds: "x", mix: "y", risk: "z" }} view="funds" onView={() => {}} partsOpen={false} onParts={() => {}} hasParts />);

@@ -1,0 +1,10 @@
+/* Task #403: the "Higher is better: …" line on each Mutual Fund Score part (mf/PartLine.tsx). Small, always visible, on the site's tokens. */
+.mfs-pl { display: block; font-size: var(--fs-12); line-height: 1.4; font-weight: 400; color: var(--muted); overflow-wrap: break-word; }
+/* the fund page's card: a full-width line under the part's name, bar and figure */
+.mfs-pillars li > .mfs-pl { grid-column: 1 / -1; margin-top: -6px; }
+/* on a phone the bar takes the second row (mf.css), so the line takes the third, with room under the bar */
+@media (max-width: 640px) { .mfs-pillars li > .mfs-pl { grid-row: 3; margin-top: 2px; } }
+/* the MF portfolio's four parts: under the part's name */
+.px-pt p > .mfs-pl { margin-top: 2px; }
+/* the sample card: under the part's slider */
+.hpz-part > .mfs-pl.hmf-pl { margin-top: 8px; text-align: left; }
