@@ -120,6 +120,22 @@
   .side-fly-i .gtag { margin-left: auto; }
 }
 
+/* ---- task #428 (27 Nov 2026): one gap under the top bar on every page with the side menu ----
+   The team's reference is /funds at rest: the All pages box 22px below the top bar and the page's first card 30px below it. Before, the box was sticky at
+   74px (12px under the 62px bar), so the gap shrank as soon as the page scrolled (or the admin preview strip scrolled away), and each page's own wrapper
+   put its first card anywhere from 12 to 40px down. Now the box keeps the 22px gap at rest and while scrolling, and the main column's first block starts
+   at the same 30px on every page: the wrapper whose first child is the page's head card (or its plan lock) gets the same 18px top padding, and the card
+   keeps the shared 12px top margin. !important because some page wrappers set their top padding inline (the stock screeners: 22px). Pages that open on a
+   breadcrumb or back link, and full-width bands such as the stock page's hero, keep their own top; an outer page wrapper around such a wrapper adds none. */
+.shell { --shell-top-h: 62px; --shell-gap: 22px; --shell-first: 18px; }
+@media (min-width: 861px) {
+  .side { top: calc(var(--shell-top-h) + var(--shell-gap)); max-height: calc(100dvh - var(--shell-top-h) - 2 * var(--shell-gap)); margin-top: var(--shell-gap); }
+  .shell-main > :first-child:has(> :first-child:is(.card, .gate)) { padding-top: var(--shell-first) !important; }
+  .shell-main > :first-child:has(> :first-child:has(> :first-child:is(.card, .gate))) { padding-top: 0 !important; }
+  .shell-main > :first-child > :first-child:has(> :first-child:is(.card, .gate)) { padding-top: var(--shell-first) !important; }
+  .shell-main > :first-child > .gate:first-child > :first-child > .card:first-child { margin-top: 12px; }   /* the card under a plan lock takes the same 12px */
+}
+
 /* ---- phone / tablet drawer ---- */
 @media (max-width: 860px) {
   .side { position: fixed; top: 0; bottom: 0; left: 0; width: min(320px, 90vw); max-height: none; margin: 0; border-width: 0 1px 0 0; border-radius: 0 var(--r-ctl) var(--r-ctl) 0; transform: translateX(-105%); visibility: hidden; transition: transform .24s var(--side-ease), visibility 0s .24s; }

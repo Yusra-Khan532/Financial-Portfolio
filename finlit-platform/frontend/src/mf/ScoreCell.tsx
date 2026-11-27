@@ -12,16 +12,20 @@ import "../styles/task371.css";   // task #371: a bigger score and parts; each p
 export const missingScoreTip = (etf: boolean, reason: string) => `${etf ? "Scoring not available" : "Missing data from AMFI"}. ${reason}`;
 export const isEtfCategory = (category?: string | null) => /\bETFs?\b/i.test(category ?? "");
 
-export function ScoreCell({ item, locked, why, loading = false, etf = false }: { item?: ScoreItem; locked: boolean; why: string; loading?: boolean; etf?: boolean }) {
+export function ScoreCell({ item, locked, why, loading = false, etf = false, bare = false }: { item?: ScoreItem; locked: boolean; why: string; loading?: boolean; etf?: boolean;
+  /** task #430 (the Mutual funds list): the figure only, no words under it ("Average", "Growth option's score", "provisional", "not rated"); the words stay
+   *  in the cell's hover text and are read out to screen readers. The four part letters stay (the team asked for them, tasks #358 and #378). */ bare?: boolean }) {
   if (locked) return <span className="mf-na" title="The Mutual Fund Score is part of the Gold plan."><Icon name="lock" /><span className="sr-only">Locked: Gold plan</span></span>;
   if (loading && !item) return <span className="mf-na" aria-busy="true"><span className="sr-only">Loading</span>…</span>;
   if (!item || item.final == null) { const tip = missingScoreTip(etf || !!item?.symbol, item?.reason || why);
-    return <span className="mf-na mf-na-x"><span aria-hidden="true">—</span>{item?.status === "NOT RATED" && <small>not rated</small>}
+    return <span className="mf-na mf-na-x"><span aria-hidden="true">—</span>{item?.status === "NOT RATED" && (bare ? <span className="sr-only">not rated</span> : <small>not rated</small>)}
       <i className="mf-na-i" tabIndex={0} role="img" data-tip={tip} aria-label={`No score. ${tip}`}>i</i></span>; }
   const band = bandOf(item.final);
   const inh = item.inherited;   // task #281: an IDCW row shows its same-plan Growth option's score, labelled as that option's
   return <span className="mfs-cell" title={`${inh ? `${GROWTH_SCORE_LABEL} (${inh.name}). ${inh.why} ` : ""}${item.label}${item.status === "PROVISIONAL" ? ", provisional" : ""}. ${PLAN_SCORE_NOTE} Describes the past; not a recommendation.`}>
-    <b className={"mfs-pv b-" + band}>{scoreText(item.final)}</b><small>{item.label}{item.status === "PROVISIONAL" ? " · provisional" : ""}</small>{inh && <small className="mfs-inh">{GROWTH_SCORE_LABEL}</small>}
+    <b className={"mfs-pv b-" + band}>{scoreText(item.final)}</b>
+    {bare ? <span className="sr-only">{item.label}{item.status === "PROVISIONAL" ? ", provisional" : ""}{inh ? `, ${GROWTH_SCORE_LABEL}` : ""}</span>
+      : <><small>{item.label}{item.status === "PROVISIONAL" ? " · provisional" : ""}</small>{inh && <small className="mfs-inh">{GROWTH_SCORE_LABEL}</small>}</>}
     <Parts parts={item.pillars} scores={item.pillarScores} /></span>;
 }
 
