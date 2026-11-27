@@ -363,6 +363,7 @@ a.oflow-tab:hover:not([aria-current]) { background: color-mix(in srgb, var(--gol
   .oflow .oflow-3d, .oflow .oflow-card:hover { transform: none; transition: none; }
   .oflow-draw, .oflow-lines path, .oflow-fade, .oflow-pop { animation: none; stroke-dashoffset: 0; }
   .oflow-bar, .oflow-ring-fg { transition: none; }
+  .lcase-dot { animation: none; }
 }
 @media (max-width: 560px) {
   .oflow-curve-plot { padding-left: 36px; } .oflow-yaxis { width: 32px; } .oflow-curve-plot svg { height: 200px; }
@@ -591,3 +592,64 @@ a.oflow-tab:hover:not([aria-current]) { background: color-mix(in srgb, var(--gol
 .opul-legend .sw.zon-fvg { background: color-mix(in srgb, var(--c1) 30%, transparent); }
 .opul-legend .sw.zon-vw { background: var(--info); height: 3px; }
 .zon-pop-note { font-size: var(--fs-12); margin: 8px 0 0; max-width: 340px; }
+
+/* ---- Case for / against (components/lab/CaseForAgainst.tsx): three section cards, source numbers with hover cards, the numbered Sources ---- */
+.lcase .oflow-hero-h p { max-width: 760px; }
+.lcase-bar { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px 20px; padding: 14px 16px; margin: 4px 0 14px;
+  border: 1px solid var(--border); border-radius: var(--r-card); background: color-mix(in srgb, var(--text) 3%, var(--s1)); }
+.lcase-co { display: flex; flex-direction: column; min-width: 0; }
+.lcase-co b { font-size: var(--fs-18); }
+.lcase-co small { font-size: var(--fs-13); }
+.lcase-act { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.lcase-go[disabled] { opacity: 0.6; cursor: not-allowed; }
+.lcase-go[aria-busy="true"] { cursor: progress; }
+.lcase-done { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; color: var(--gain); }
+.lcase-done svg, .lcase-note svg { width: 16px; height: 16px; flex: none; }
+.lcase-limit { font-size: var(--fs-12); color: var(--muted); max-width: 340px; }
+.lcase-limit.warn, .lcase-state.warn { color: var(--warn); }
+.lcase-wait { display: flex; align-items: center; gap: 10px; margin: 0 0 14px; font-size: var(--fs-14); }
+.lcase-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--gold); animation: lcase-pulse 1.1s ease-in-out infinite; flex: none; }
+@keyframes lcase-pulse { 0%, 100% { opacity: 0.35; transform: scale(0.85); } 50% { opacity: 1; transform: scale(1.1); } }
+.lcase-state { margin: 0 0 14px; padding: 10px 14px; border-radius: var(--r-ctl); font-size: var(--fs-14);
+  background: color-mix(in srgb, var(--warn) 10%, var(--s1)); border: 1px solid color-mix(in srgb, var(--warn) 35%, transparent); }
+.lcase-state.muted { background: var(--s1); border-color: var(--border); }
+.lcase-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.lcase-card { position: relative; padding: 16px 16px 14px; border: 1px solid var(--border); border-radius: var(--r-card); background: var(--s1);
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--text) 6%, transparent), 0 8px 22px -14px color-mix(in srgb, var(--text) 40%, transparent); overflow: hidden; }
+.lcase-card::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 4px; background: var(--muted); }
+.lcase-card.support::before { background: var(--gain); } .lcase-card.challenge::before { background: var(--loss); } .lcase-card.unsettled::before { background: var(--info); }
+.lcase-card h3 { display: flex; align-items: center; gap: 8px; margin: 2px 0 10px; font-size: var(--ui-fs-h3); font-weight: 600; }
+.lcase-ic { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; flex: none; }
+.lcase-ic svg { width: 16px; height: 16px; }
+.lcase-card.support .lcase-ic { color: var(--gain); background: color-mix(in srgb, var(--gain) 14%, transparent); }
+.lcase-card.challenge .lcase-ic { color: var(--loss); background: color-mix(in srgb, var(--loss) 14%, transparent); }
+.lcase-card.unsettled .lcase-ic { color: var(--info); background: color-mix(in srgb, var(--info) 14%, transparent); }
+.lcase-sents { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.lcase-sents li { position: relative; padding-left: 14px; font-size: var(--fs-14); line-height: var(--lh-20); }
+.lcase-sents li::before { content: ""; position: absolute; left: 0; top: 0.55em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); }
+.lcase-refs { white-space: nowrap; }
+.lcase-ref { display: inline-block; margin-left: 2px; padding: 0 4px; border-radius: var(--ui-r-mark); font-size: var(--fs-12); font-weight: 700; line-height: var(--lh-16);
+  color: var(--text); background: color-mix(in srgb, var(--gold) 16%, transparent); text-decoration: none; font-variant-numeric: tabular-nums; vertical-align: 1px; }
+.lcase-ref:hover, .lcase-ref:focus-visible { background: color-mix(in srgb, var(--gold) 34%, transparent); outline: none; }
+.lcase-ref:focus-visible { box-shadow: 0 0 0 2px var(--gold); }
+.lcase-meta { margin: 10px 0 0; font-size: var(--fs-12); }
+.lcase-note { display: flex; align-items: center; gap: 8px; margin: 14px 0; font-size: var(--fs-13); color: var(--muted); }
+.lcase-pop-fact { margin: 0; font-size: var(--fs-14); font-weight: 600; }
+.lcase-pop-src { margin: 0; font-size: var(--fs-12); }
+.lcase-srcs { margin-top: 6px; padding-top: 14px; border-top: 1px solid var(--border); }
+.lcase-srcs h3 { margin: 0 0 4px; font-size: var(--ui-fs-h3); font-weight: 600; }
+.lcase-sub { margin: 0 0 10px; font-size: var(--fs-13); }
+.lcase-sgroup h4 { margin: 12px 0 6px; font-size: var(--fs-13); font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.lcase-slist { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 18px; }
+.lcase-slist li { display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 6px; padding: 6px 8px; border-radius: var(--r-ctl); font-size: var(--fs-13); scroll-margin-top: 90px; }
+.lcase-slist li.hot, .lcase-slist li:target { background: color-mix(in srgb, var(--gold) 14%, transparent); }
+.lcase-n { font-variant-numeric: tabular-nums; color: var(--muted); }
+.lcase-stext { display: flex; flex-direction: column; gap: 2px; min-width: 0; overflow-wrap: anywhere; }
+.lcase-stext small { color: var(--muted); font-size: var(--fs-12); }
+.lcase-more { margin-top: 10px; }
+@media (max-width: 1000px) { .lcase-grid { grid-template-columns: minmax(0, 1fr); } .lcase-slist { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 560px) {
+  .lcase-bar { padding: 12px; } .lcase-act { width: 100%; } .lcase-go { width: 100%; justify-content: center; } .lcase-limit { max-width: none; }
+  .lcase-pick .opul-find, .lcase-pick .opul-find input { width: 100%; } .lcase-pick .opul-found { width: 100%; }
+  .lcase-slist li { grid-template-columns: 34px minmax(0, 1fr); padding: 6px 4px; }
+}

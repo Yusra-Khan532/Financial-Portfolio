@@ -19,6 +19,7 @@ import { LabGate } from "./TradingLab";
 import { ChartZoom } from "../components/ChartZoom";
 import { OptionPulse } from "../components/lab/OptionPulse";
 import { StockZones } from "../components/lab/StockZones";
+import { CaseForAgainst } from "../components/lab/CaseForAgainst";
 import { BucketPop, Candles, DirectionPop, SectorPop, StockPop, TipLayer, tiltHandlers, useTip } from "../components/lab/FlowTips";
 import "../styles/portfolio-disc.css";
 import "../styles/tradinglab.css";
@@ -30,6 +31,7 @@ export const FLOW_TABS = [
   { id: "money", name: "Money Flow", ready: true },
   { id: "options", name: "Option Pulse", ready: true },
   { id: "zones", name: "Stock zones", ready: true },
+  { id: "case", name: "Case for / against", ready: true },
   { id: "journal", name: "Trading journal", ready: false },
 ];
 
@@ -638,6 +640,7 @@ function Depth({ d }: { d: Ready }) {
 function Flow({ view }: { view: string }) {
   if (view === "options") return <TipLayer><OptionPulse /></TipLayer>;   // its own data (the option chain), not the Order Flow snapshot
   if (view === "zones") return <TipLayer><StockZones /></TipLayer>;       // its own data (5-minute candles of one stock)
+  if (view === "case") return <TipLayer><CaseForAgainst /></TipLayer>;    // its own data (FinLit's stored figures of one company, written by FinLit AI)
   return <FlowSnapshotView view={view} />;
 }
 

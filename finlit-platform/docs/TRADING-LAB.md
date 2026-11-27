@@ -123,6 +123,35 @@ Dhan calls for a stock someone already looked at in the last minute. The chart s
 
 Describe-only: the tab says where prices traded and whether price came back, never what to do.
 
+### Case for / case against (built 27 Nov 2026, build order item 7)
+
+Tab `/lab/flow?view=case` ("Case for / against"), routes `GET` and `POST /api/lab/case/{symbol}` (Lab members only, `lab_ctx`, `no-store`;
+`backend/finlit/lab/case.py`, `frontend/src/components/lab/CaseForAgainst.tsx`). For any company with a stored report, FinLit AI writes three
+sections: **What the figures support**, **What the figures challenge**, **What the data cannot settle**. TradingAgents' bull/bear debate as a
+described panel: no verdict, rating, recommendation, price level or prediction.
+
+* **Fact sheet** (no model): numbered facts from FinLit's own stores, each with its table, basis and date: the ratios table (P/E, P/B, EV/EBITDA,
+  dividend yield, market cap, ROE, ROCE, margins, debt/equity, interest coverage, current ratio, cash conversion, 5Y and 3Y growth, latest-year
+  growth), the latest quarter's revenue and net profit against the same quarter a year before, the year-end P/E range of the last five years, the
+  daily closes (last close; change over 1 month, 3 months, 1 year; 52-week closing high and low; the 200-day average), and for an F&O stock the
+  Lab's own Order Flow snapshot (change, futures OI change, build-up). Prices come from the exchange daily candles, else FinLit's price table. A
+  figure that is not stored is left out. The Lab is outside the plans, so the sheet reads the full stored report for every Lab member.
+* **Model**: Ask FinLit AI's own client, key, model and effort (`ask/api.client_for`, `ANTHROPIC_API_KEY`, `ASK_MODEL`, `ASK_EFFORT`); no tools;
+  at most 2,500 output tokens a call (never above `ASK_MAX_TOKENS`), 40 s a call, 3 calls at once per process, two calls a case (one retry).
+* **Check** (`case.check`): the three headings in order; every `[n]` on the sheet; every figure in a sentence matches a fact it cites (to the
+  places written); a sentence with a figure and no `[n]` is removed, and a section left empty fails; no word of the case's banned list
+  (`BANNED_WORDS` in `lab/case.py`: the describe-only words of CLAUDE.md and of the Lab rules, plus valuation and advice words) and Ask FinLit
+  AI's own advice check. A failing answer is asked again once with its
+  failures listed; if it fails again the page says "The case could not be written within the rules this time" and lists the figures. A failing
+  text is never shown or cached.
+* **Limits and cache**: 20 written cases a member a day (India time, Redis counter, given back when the AI service did not answer), 6 presses a
+  minute; one case per (symbol, latest filing period end, latest price date, method `case-1`) kept 8 days with the exact sheet it cites, so it is
+  "cached until new filings or prices"; a cached case is free. On demand only (the button); no background job.
+* **Page**: company chips and search over every listed company, the "Write the case" button (writing, limit, switched-off and fallback states),
+  the three sections side by side (stacked below 1,000 px), every `[n]` a link to its source with the fact in a hover card (pointer or keyboard
+  focus), the numbered Sources list grouped by table (15 shown, then "Show N more"), the dates the case was written from, and the note "Written
+  from FinLit's stored figures by FinLit AI; it gives no verdict and is not a recommendation."
+
 ## Ideas from the MarketPulse video (founder, 26 Nov 2026)
 
 The founder shared a second reference video (a "MarketPulse" dashboard). What fits FinLit, built one at a time after the Order Flow pages,

@@ -1,0 +1,1427 @@
+{
+ "written": {
+  "status": "ok",
+  "symbol": "RELIANCE",
+  "name": "Reliance Industries Ltd",
+  "method": "case-1",
+  "outcome": "written",
+  "sections": [
+   {
+    "id": "support",
+    "title": "What the figures support",
+    "sentences": [
+     {
+      "text": "Operating cash flow was 180.29% of reported profit in FY26.",
+      "sources": [
+       21
+      ]
+     },
+     {
+      "text": "Debt stood at 0.41x equity and interest was covered 8.85x over the trailing twelve months.",
+      "sources": [
+       18,
+       19
+      ]
+     },
+     {
+      "text": "Profit rose 24.36% in FY26, and quarterly net profit was up against the same quarter a year before.",
+      "sources": [
+       27,
+       31
+      ]
+     }
+    ]
+   },
+   {
+    "id": "challenge",
+    "title": "What the figures challenge",
+    "sentences": [
+     {
+      "text": "Return on equity was 6.93% and return on capital employed 7.29%.",
+      "sources": [
+       14,
+       15
+      ]
+     },
+     {
+      "text": "Profit compounded at 6.54% a year over 5Y while sales compounded at 14.61%.",
+      "sources": [
+       23,
+       22
+      ]
+     },
+     {
+      "text": "The share closed 25.64% below its 52-week closing high and fell 13.75% over 1 year.",
+      "sources": [
+       7,
+       4
+      ]
+     }
+    ]
+   },
+   {
+    "id": "unsettled",
+    "title": "What the data cannot settle",
+    "sentences": [
+     {
+      "text": "Sales fell 1.63% in FY26 while profit rose 24.36%, and the sheet does not show how much of that came from other income.",
+      "sources": [
+       26,
+       27
+      ]
+     },
+     {
+      "text": "The P/E of 41.36x sits inside its year-end range of FY22 to FY26, which says nothing on its own about earnings ahead.",
+      "sources": [
+       9,
+       32
+      ]
+     },
+     {
+      "text": "Futures open interest rose 6.12% on a down day, and one session cannot show whether those positions stay open.",
+      "sources": [
+       34
+      ]
+     }
+    ]
+   }
+  ],
+  "sources": [
+   {
+    "n": 1,
+    "key": "last_close",
+    "group": "price",
+    "label": "Last close",
+    "value": 1184.0,
+    "unit": "₹",
+    "period": "29 Sep 2026",
+    "text": "Last close ₹1,184 on 29 Sep 2026",
+    "source": "Daily prices, NSE daily candles, close of 29 Sep 2026",
+    "groupLabel": "Share price"
+   },
+   {
+    "n": 2,
+    "key": "change_1m",
+    "group": "price",
+    "label": "Price change over 1 month",
+    "value": -8.0,
+    "unit": "%",
+    "period": "28 Aug 2026 to 29 Sep 2026",
+    "text": "Price change over 1 month: -8.00% (from ₹1,287 on 28 Aug 2026 to 29 Sep 2026)",
+    "source": "Daily prices, NSE daily candles, close of 29 Sep 2026",
+    "groupLabel": "Share price"
+   },
+   {
+    "n": 3,
+    "key": "change_3m",
+    "group": "price",
+    "label": "Price change over 3 months",
+    "value": -8.49,
+    "unit": "%",
+    "period": "30 Jun 2026 to 29 Sep 2026",
+    "text": "Price change over 3 months: -8.49% (from ₹1,293.90 on 30 Jun 2026 to 29 Sep 2026)",
+    "source": "Daily prices, NSE daily candles, close of 29 Sep 2026",
+    "groupLabel": "Share price"
+   },
+   {
+    "n": 4,
+    "key": "change_1y",
+    "group": "price",
+    "label": "Price change over 1 year",
+    "value": -13.75,
+    "unit": "%",
+    "period": "29 Sep 2025 to 29 Sep 2026",
+    "text": "Price change over 1 year: -13.75% (from ₹1,372.80 on 29 Sep 2025 to 29 Sep 2026)",
+    "source": "Daily prices, NSE daily candles, close of 29 Sep 2026",
+    "groupLabel": "Share price"
+   },
+   {
+    "n": 5,
+    "key": "high_52w",
+    "group": "price",
+    "label": "52-week closing high",
+    "value": 1592.3,
+    "unit": "₹",
+    "period": "52 weeks",
+    "text": "52-week closing high ₹1,592.30 on 2 Jan 2026",
+    "source": "Daily prices, NSE daily candles, close of 29 Sep 2026",
+    "groupLabel": "Share price"
+   },
+   {
+    "n": 6,
+    "key": "low_52w",
+    "group": "price",
+    "label": "52-week closing low",
+    "value": 1184.0,
+    "unit": "₹",
+    "period": "52 weeks",
+    "text": "52-week closing low ₹1,184 on 29 Sep 2026",
+    "source": "Daily prices, NSE daily candles, close of 29 Sep 2026",
+    "groupLabel": "Share price"
+   },
+   {
+    "n": 7,
+    "key": "from_high_52w",
+    "group": "price",
+    "label": "Last close against the 52-week closing high",
+    "value": -25.64,
+    "unit": "%",
+    "period": "52 weeks",
+    "text": "Last close is 25.64% below the 52-week closing high",
+    "source": "Daily prices, NSE daily candles, close of 29 Sep 2026",
+    "groupLabel": "Share price"
+   },
+   {
+    "n": 8,
+    "key": "vs_avg_200d",
+    "group": "price",
+    "label": "Last close against its 200-day average",
+    "value": -13.45,
+    "unit": "%",
+    "period": "200 sessions",
+    "source": "Daily prices, NSE daily candles, close of 29 Sep 2026",
+    "text": "Last close is 13.45% below its 200-day average close of ₹1,368.05",
+    "groupLabel": "Share price"
+   },
+   {
+    "n": 9,
+    "key": "pe",
+    "group": "valuation",
+    "label": "P/E",
+    "value": 41.36,
+    "unit": "x",
+    "period": "as of 28 Sep 2026",
+    "text": "P/E 41.36x (as of 28 Sep 2026)",
+    "source": "Ratios table, consolidated statements, as of 28 Sep 2026; FinLit report of 27 Nov 2026",
+    "groupLabel": "Valuation"
+   },
+   {
+    "n": 10,
+    "key": "pb",
+    "group": "valuation",
+    "label": "P/B",
+    "value": 2.86,
+    "unit": "x",
+    "period": "as of 28 Sep 2026",
+    "text": "P/B 2.86x (as of 28 Sep 2026)",
+    "source": "Ratios table, consolidated statements, as of 28 Sep 2026; FinLit report of 27 Nov 2026",
+    "groupLabel": "Valuation"
+   },
+   {
+    "n": 11,
+    "key": "ev_ebitda",
+    "group": "valuation",
+    "label": "EV/EBITDA",
+    "value": 22.98,
+    "unit": "x",
+    "period": "TTM",
+    "text": "EV/EBITDA 22.98x (TTM)",
+    "source": "Ratios table, consolidated statements, TTM; FinLit report of 27 Nov 2026",
+    "groupLabel": "Valuation"
+   },
+   {
+    "n": 12,
+    "key": "dividend_yield",
+    "group": "valuation",
+    "label": "Dividend yield",
+    "value": 0.51,
+    "unit": "%",
+    "period": "TTM",
+    "text": "Dividend yield 0.51% (TTM)",
+    "source": "Ratios table, consolidated statements, TTM; FinLit report of 27 Nov 2026",
+    "groupLabel": "Valuation"
+   },
+   {
+    "n": 13,
+    "key": "market_cap",
+    "group": "valuation",
+    "label": "Market cap",
+    "value": 1602252.58,
+    "unit": "Cr",
+    "period": "report of 27 Nov 2026",
+    "text": "Market cap ₹16,02,252.58 crore (report of 27 Nov 2026)",
+    "source": "Ratios table, consolidated statements; FinLit report of 27 Nov 2026",
+    "groupLabel": "Valuation"
+   },
+   {
+    "n": 14,
+    "key": "roe",
+    "group": "returns",
+    "label": "ROE",
+    "value": 6.93,
+    "unit": "%",
+    "period": "TTM",
+    "text": "ROE 6.93% (TTM)",
+    "source": "Ratios table, consolidated statements, TTM; FinLit report of 27 Nov 2026",
+    "groupLabel": "Returns on capital"
+   },
+   {
+    "n": 15,
+    "key": "roce",
+    "group": "returns",
+    "label": "ROCE",
+    "value": 7.29,
+    "unit": "%",
+    "period": "FY26",
+    "text": "ROCE 7.29% (FY26)",
+    "source": "Ratios table, consolidated statements, FY26; FinLit report of 27 Nov 2026",
+    "groupLabel": "Returns on capital"
+   },
+   {
+    "n": 16,
+    "key": "operating_margin",
+    "group": "margins",
+    "label": "Operating margin",
+    "value": 9.93,
+    "unit": "%",
+    "period": "TTM",
+    "text": "Operating margin 9.93% (TTM)",
+    "source": "Ratios table, consolidated statements, TTM; FinLit report of 27 Nov 2026",
+    "groupLabel": "Margins"
+   },
+   {
+    "n": 17,
+    "key": "net_margin",
+    "group": "margins",
+    "label": "Net margin",
+    "value": 6.73,
+    "unit": "%",
+    "period": "TTM",
+    "text": "Net margin 6.73% (TTM)",
+    "source": "Ratios table, consolidated statements, TTM; FinLit report of 27 Nov 2026",
+    "groupLabel": "Margins"
+   },
+   {
+    "n": 18,
+    "key": "debt_to_equity",
+    "group": "balance",
+    "label": "Debt / equity",
+    "value": 0.41,
+    "unit": "x",
+    "period": "TTM",
+    "text": "Debt / equity 0.41x (TTM)",
+    "source": "Ratios table, consolidated statements, TTM; FinLit report of 27 Nov 2026",
+    "groupLabel": "Debt and liquidity"
+   },
+   {
+    "n": 19,
+    "key": "interest_coverage",
+    "group": "balance",
+    "label": "Interest coverage",
+    "value": 8.85,
+    "unit": "x",
+    "period": "TTM",
+    "text": "Interest coverage 8.85x (TTM)",
+    "source": "Ratios table, consolidated statements, TTM; FinLit report of 27 Nov 2026",
+    "groupLabel": "Debt and liquidity"
+   },
+   {
+    "n": 20,
+    "key": "current_ratio",
+    "group": "balance",
+    "label": "Current ratio",
+    "value": 0.99,
+    "unit": "x",
+    "period": "TTM",
+    "text": "Current ratio 0.99x (TTM)",
+    "source": "Ratios table, consolidated statements, TTM; FinLit report of 27 Nov 2026",
+    "groupLabel": "Debt and liquidity"
+   },
+   {
+    "n": 21,
+    "key": "cfo_to_pat",
+    "group": "cash",
+    "label": "Cash conversion (CFO/PAT)",
+    "value": 180.29,
+    "unit": "%",
+    "period": "FY26",
+    "text": "Cash conversion (CFO/PAT) 180.29% (FY26)",
+    "source": "Ratios table, consolidated statements, FY26; FinLit report of 27 Nov 2026",
+    "groupLabel": "Cash"
+   },
+   {
+    "n": 22,
+    "key": "sales_cagr",
+    "group": "growth",
+    "label": "Sales CAGR",
+    "value": 14.61,
+    "unit": "%",
+    "period": "5Y",
+    "text": "Sales CAGR 14.61% (5Y)",
+    "source": "Ratios table, consolidated statements, 5Y; FinLit report of 27 Nov 2026",
+    "groupLabel": "Growth"
+   },
+   {
+    "n": 23,
+    "key": "profit_cagr",
+    "group": "growth",
+    "label": "Profit CAGR",
+    "value": 6.54,
+    "unit": "%",
+    "period": "5Y",
+    "text": "Profit CAGR 6.54% (5Y)",
+    "source": "Ratios table, consolidated statements, 5Y; FinLit report of 27 Nov 2026",
+    "groupLabel": "Growth"
+   },
+   {
+    "n": 24,
+    "key": "revenue_cagr_3y",
+    "group": "growth",
+    "label": "3Y sales CAGR",
+    "value": -1.19,
+    "unit": "%",
+    "period": "3Y",
+    "text": "3Y sales CAGR -1.19% (3Y)",
+    "source": "Ratios table, consolidated statements, 3Y; FinLit report of 27 Nov 2026",
+    "groupLabel": "Growth"
+   },
+   {
+    "n": 25,
+    "key": "profit_cagr_3y",
+    "group": "growth",
+    "label": "3Y profit CAGR",
+    "value": -0.27,
+    "unit": "%",
+    "period": "3Y",
+    "text": "3Y profit CAGR -0.27% (3Y)",
+    "source": "Ratios table, consolidated statements, 3Y; FinLit report of 27 Nov 2026",
+    "groupLabel": "Growth"
+   },
+   {
+    "n": 26,
+    "key": "sales_growth_latest",
+    "group": "growth",
+    "label": "Sales growth (latest year)",
+    "value": -1.63,
+    "unit": "%",
+    "period": "FY26",
+    "text": "Sales growth (latest year) -1.63% (FY26)",
+    "source": "Ratios table, consolidated statements, FY26; FinLit report of 27 Nov 2026",
+    "groupLabel": "Growth"
+   },
+   {
+    "n": 27,
+    "key": "profit_growth_latest",
+    "group": "growth",
+    "label": "Profit growth (latest year)",
+    "value": 24.36,
+    "unit": "%",
+    "period": "FY26",
+    "text": "Profit growth (latest year) 24.36% (FY26)",
+    "source": "Ratios table, consolidated statements, FY26; FinLit report of 27 Nov 2026",
+    "groupLabel": "Growth"
+   },
+   {
+    "n": 28,
+    "key": "q_revenue",
+    "group": "results",
+    "label": "Quarterly revenue",
+    "value": 166013.0,
+    "unit": "Cr",
+    "period": "Jun 2026",
+    "text": "Quarterly revenue ₹1,66,013 crore in the quarter ended 30 Jun 2026",
+    "source": "Quarterly results table, consolidated, quarter ended 30 Jun 2026",
+    "groupLabel": "Latest results"
+   },
+   {
+    "n": 29,
+    "key": "q_revenue_yoy",
+    "group": "results",
+    "label": "Quarterly revenue against the same quarter a year before",
+    "value": 36.78,
+    "unit": "%",
+    "period": "Jun 2026 against Jun 2025",
+    "text": "Quarterly revenue +36.78% against the quarter ended 30 Jun 2025 (₹1,21,369 crore)",
+    "source": "Quarterly results table, consolidated, quarter ended 30 Jun 2026",
+    "groupLabel": "Latest results"
+   },
+   {
+    "n": 30,
+    "key": "q_net_profit",
+    "group": "results",
+    "label": "Quarterly net profit",
+    "value": 13272.0,
+    "unit": "Cr",
+    "period": "Jun 2026",
+    "text": "Quarterly net profit ₹13,272 crore in the quarter ended 30 Jun 2026",
+    "source": "Quarterly results table, consolidated, quarter ended 30 Jun 2026",
+    "groupLabel": "Latest results"
+   },
+   {
+    "n": 31,
+    "key": "q_net_profit_yoy",
+    "group": "results",
+    "label": "Quarterly net profit against the same quarter a year before",
+    "value": -25.87,
+    "unit": "%",
+    "period": "Jun 2026 against Jun 2025",
+    "text": "Quarterly net profit -25.87% against the quarter ended 30 Jun 2025 (₹17,904 crore)",
+    "source": "Quarterly results table, consolidated, quarter ended 30 Jun 2026",
+    "groupLabel": "Latest results"
+   },
+   {
+    "n": 32,
+    "key": "pe_history",
+    "group": "history",
+    "label": "Year-end P/E, FY22 to FY26",
+    "value": 52.93,
+    "unit": "x",
+    "period": "FY22 to FY26",
+    "text": "Year-end P/E from FY22 to FY26: lowest 38.35x (FY23), highest 52.93x (FY25), latest 44.18x (FY26)",
+    "source": "Valuation history table, consolidated statements, FY22 to FY26; FinLit report of 27 Nov 2026",
+    "groupLabel": "Valuation history"
+   },
+   {
+    "n": 33,
+    "key": "flow_change",
+    "group": "flow",
+    "label": "Change against the previous close",
+    "value": -0.84,
+    "unit": "%",
+    "period": "26 Nov 2026 15:30 IST",
+    "text": "Change against the previous close -0.84% at 26 Nov 2026 15:30 IST",
+    "source": "Trading Lab Order Flow snapshot, 26 Nov 2026 15:30 IST (exchange quotes through Dhan)",
+    "groupLabel": "Order Flow (Trading Lab)"
+   },
+   {
+    "n": 34,
+    "key": "flow_oi",
+    "group": "flow",
+    "label": "Futures open interest change",
+    "value": 6.12,
+    "unit": "%",
+    "period": "26 Nov 2026 15:30 IST",
+    "source": "Trading Lab Order Flow snapshot, 26 Nov 2026 15:30 IST (exchange quotes through Dhan)",
+    "text": "Futures open interest +6.12% against the previous session's close (current and next contract)",
+    "groupLabel": "Order Flow (Trading Lab)"
+   },
+   {
+    "n": 35,
+    "key": "flow_buildup",
+    "group": "flow",
+    "label": "Futures build-up",
+    "value": null,
+    "unit": null,
+    "period": "26 Nov 2026 15:30 IST",
+    "text": "Futures build-up: short build-up (price down, open interest up)",
+    "source": "Trading Lab Order Flow snapshot, 26 Nov 2026 15:30 IST (exchange quotes through Dhan)",
+    "groupLabel": "Order Flow (Trading Lab)"
+   }
+  ],
+  "generatedAt": "2026-11-27T06:41:12+00:00",
+  "cached": false,
+  "inputs": {
+   "statement": "consolidated",
+   "filingDate": "2026-06-30",
+   "priceDate": "2026-11-26",
+   "flowDay": "2026-11-26",
+   "reportDate": "2026-11-27"
+  },
+  "limit": {
+   "limit": 20,
+   "used": 3,
+   "left": 17,
+   "resets": "2026-11-28T00:00:00+05:30"
+  },
+  "enabled": true,
+  "note": "Written from FinLit's stored figures by FinLit AI; it gives no verdict and is not a recommendation.",
+  "disclaimer": "Describes the company's financial health from its filings and prices; not a recommendation. Information only, not investment advice."
+ },
+ "none": {
+  "status": "ok",
+  "symbol": "RELIANCE",
+  "name": "Reliance Industries Ltd",
+  "method": "case-1",
+  "outcome": "none",
+  "sections": [],
+  "sources": [
+   {
+    "n": 1,
+    "key": "last_close",
+    "group": "price",
+    "label": "Last close",
+    "value": 1184.0,
+    "unit": "₹",
+    "period": "29 Sep 2026",
+    "text": "Last close ₹1,184 on 29 Sep 2026",
+    "source": "Daily prices, NSE daily candles, close of 29 Sep 2026",
+    "groupLabel": "Share price"
+   },
+   {
+    "n": 2,
+    "key": "change_1m",
+    "group": "price",
+    "label": "Price change over 1 month",
+    "value": -8.0,
+    "unit": "%",
+    "period": "28 Aug 2026 to 29 Sep 2026",
+    "text": "Price change over 1 month: -8.00% (from ₹1,287 on 28 Aug 2026 to 29 Sep 2026)",
+    "source": "Daily prices, NSE daily candles, close of 29 Sep 2026",
+    "groupLabel": "Share price"
+   },
+   {
+    "n": 3,
+    "key": "change_3m",
+    "group": "price",
+    "label": "Price change over 3 months",
+    "value": -8.49,
+    "unit": "%",
+    "period": "30 Jun 2026 to 29 Sep 2026",
+    "text": "Price change over 3 months: -8.49% (from ₹1,293.90 on 30 Jun 2026 to 29 Sep 2026)",
+    "source": "Daily prices, NSE daily candles, close of 29 Sep 2026",
+    "groupLabel": "Share price"
+   },
+   {
+    "n": 4,
+    "key": "change_1y",
+    "group": "price",
+    "label": "Price change over 1 year",
+    "value": -13.75,
+    "unit": "%",
+    "period": "29 Sep 2025 to 29 Sep 2026",
+    "text": "Price change over 1 year: -13.75% (from ₹1,372.80 on 29 Sep 2025 to 29 Sep 2026)",
+    "source": "Daily prices, NSE daily candles, close of 29 Sep 2026",
+    "groupLabel": "Share price"
+   },
+   {
+    "n": 5,
+    "key": "high_52w",
+    "group": "price",
+    "label": "52-week closing high",
+    "value": 1592.3,
+    "unit": "₹",
+    "period": "52 weeks",
+    "text": "52-week closing high ₹1,592.30 on 2 Jan 2026",
+    "source": "Daily prices, NSE daily candles, close of 29 Sep 2026",
+    "groupLabel": "Share price"
+   },
+   {
+    "n": 6,
+    "key": "low_52w",
+    "group": "price",
+    "label": "52-week closing low",
+    "value": 1184.0,
+    "unit": "₹",
+    "period": "52 weeks",
+    "text": "52-week closing low ₹1,184 on 29 Sep 2026",
+    "source": "Daily prices, NSE daily candles, close of 29 Sep 2026",
+    "groupLabel": "Share price"
+   },
+   {
+    "n": 7,
+    "key": "from_high_52w",
+    "group": "price",
+    "label": "Last close against the 52-week closing high",
+    "value": -25.64,
+    "unit": "%",
+    "period": "52 weeks",
+    "text": "Last close is 25.64% below the 52-week closing high",
+    "source": "Daily prices, NSE daily candles, close of 29 Sep 2026",
+    "groupLabel": "Share price"
+   },
+   {
+    "n": 8,
+    "key": "vs_avg_200d",
+    "group": "price",
+    "label": "Last close against its 200-day average",
+    "value": -13.45,
+    "unit": "%",
+    "period": "200 sessions",
+    "source": "Daily prices, NSE daily candles, close of 29 Sep 2026",
+    "text": "Last close is 13.45% below its 200-day average close of ₹1,368.05",
+    "groupLabel": "Share price"
+   },
+   {
+    "n": 9,
+    "key": "pe",
+    "group": "valuation",
+    "label": "P/E",
+    "value": 41.36,
+    "unit": "x",
+    "period": "as of 28 Sep 2026",
+    "text": "P/E 41.36x (as of 28 Sep 2026)",
+    "source": "Ratios table, consolidated statements, as of 28 Sep 2026; FinLit report of 27 Nov 2026",
+    "groupLabel": "Valuation"
+   },
+   {
+    "n": 10,
+    "key": "pb",
+    "group": "valuation",
+    "label": "P/B",
+    "value": 2.86,
+    "unit": "x",
+    "period": "as of 28 Sep 2026",
+    "text": "P/B 2.86x (as of 28 Sep 2026)",
+    "source": "Ratios table, consolidated statements, as of 28 Sep 2026; FinLit report of 27 Nov 2026",
+    "groupLabel": "Valuation"
+   },
+   {
+    "n": 11,
+    "key": "ev_ebitda",
+    "group": "valuation",
+    "label": "EV/EBITDA",
+    "value": 22.98,
+    "unit": "x",
+    "period": "TTM",
+    "text": "EV/EBITDA 22.98x (TTM)",
+    "source": "Ratios table, consolidated statements, TTM; FinLit report of 27 Nov 2026",
+    "groupLabel": "Valuation"
+   },
+   {
+    "n": 12,
+    "key": "dividend_yield",
+    "group": "valuation",
+    "label": "Dividend yield",
+    "value": 0.51,
+    "unit": "%",
+    "period": "TTM",
+    "text": "Dividend yield 0.51% (TTM)",
+    "source": "Ratios table, consolidated statements, TTM; FinLit report of 27 Nov 2026",
+    "groupLabel": "Valuation"
+   },
+   {
+    "n": 13,
+    "key": "market_cap",
+    "group": "valuation",
+    "label": "Market cap",
+    "value": 1602252.58,
+    "unit": "Cr",
+    "period": "report of 27 Nov 2026",
+    "text": "Market cap ₹16,02,252.58 crore (report of 27 Nov 2026)",
+    "source": "Ratios table, consolidated statements; FinLit report of 27 Nov 2026",
+    "groupLabel": "Valuation"
+   },
+   {
+    "n": 14,
+    "key": "roe",
+    "group": "returns",
+    "label": "ROE",
+    "value": 6.93,
+    "unit": "%",
+    "period": "TTM",
+    "text": "ROE 6.93% (TTM)",
+    "source": "Ratios table, consolidated statements, TTM; FinLit report of 27 Nov 2026",
+    "groupLabel": "Returns on capital"
+   },
+   {
+    "n": 15,
+    "key": "roce",
+    "group": "returns",
+    "label": "ROCE",
+    "value": 7.29,
+    "unit": "%",
+    "period": "FY26",
+    "text": "ROCE 7.29% (FY26)",
+    "source": "Ratios table, consolidated statements, FY26; FinLit report of 27 Nov 2026",
+    "groupLabel": "Returns on capital"
+   },
+   {
+    "n": 16,
+    "key": "operating_margin",
+    "group": "margins",
+    "label": "Operating margin",
+    "value": 9.93,
+    "unit": "%",
+    "period": "TTM",
+    "text": "Operating margin 9.93% (TTM)",
+    "source": "Ratios table, consolidated statements, TTM; FinLit report of 27 Nov 2026",
+    "groupLabel": "Margins"
+   },
+   {
+    "n": 17,
+    "key": "net_margin",
+    "group": "margins",
+    "label": "Net margin",
+    "value": 6.73,
+    "unit": "%",
+    "period": "TTM",
+    "text": "Net margin 6.73% (TTM)",
+    "source": "Ratios table, consolidated statements, TTM; FinLit report of 27 Nov 2026",
+    "groupLabel": "Margins"
+   },
+   {
+    "n": 18,
+    "key": "debt_to_equity",
+    "group": "balance",
+    "label": "Debt / equity",
+    "value": 0.41,
+    "unit": "x",
+    "period": "TTM",
+    "text": "Debt / equity 0.41x (TTM)",
+    "source": "Ratios table, consolidated statements, TTM; FinLit report of 27 Nov 2026",
+    "groupLabel": "Debt and liquidity"
+   },
+   {
+    "n": 19,
+    "key": "interest_coverage",
+    "group": "balance",
+    "label": "Interest coverage",
+    "value": 8.85,
+    "unit": "x",
+    "period": "TTM",
+    "text": "Interest coverage 8.85x (TTM)",
+    "source": "Ratios table, consolidated statements, TTM; FinLit report of 27 Nov 2026",
+    "groupLabel": "Debt and liquidity"
+   },
+   {
+    "n": 20,
+    "key": "current_ratio",
+    "group": "balance",
+    "label": "Current ratio",
+    "value": 0.99,
+    "unit": "x",
+    "period": "TTM",
+    "text": "Current ratio 0.99x (TTM)",
+    "source": "Ratios table, consolidated statements, TTM; FinLit report of 27 Nov 2026",
+    "groupLabel": "Debt and liquidity"
+   },
+   {
+    "n": 21,
+    "key": "cfo_to_pat",
+    "group": "cash",
+    "label": "Cash conversion (CFO/PAT)",
+    "value": 180.29,
+    "unit": "%",
+    "period": "FY26",
+    "text": "Cash conversion (CFO/PAT) 180.29% (FY26)",
+    "source": "Ratios table, consolidated statements, FY26; FinLit report of 27 Nov 2026",
+    "groupLabel": "Cash"
+   },
+   {
+    "n": 22,
+    "key": "sales_cagr",
+    "group": "growth",
+    "label": "Sales CAGR",
+    "value": 14.61,
+    "unit": "%",
+    "period": "5Y",
+    "text": "Sales CAGR 14.61% (5Y)",
+    "source": "Ratios table, consolidated statements, 5Y; FinLit report of 27 Nov 2026",
+    "groupLabel": "Growth"
+   },
+   {
+    "n": 23,
+    "key": "profit_cagr",
+    "group": "growth",
+    "label": "Profit CAGR",
+    "value": 6.54,
+    "unit": "%",
+    "period": "5Y",
+    "text": "Profit CAGR 6.54% (5Y)",
+    "source": "Ratios table, consolidated statements, 5Y; FinLit report of 27 Nov 2026",
+    "groupLabel": "Growth"
+   },
+   {
+    "n": 24,
+    "key": "revenue_cagr_3y",
+    "group": "growth",
+    "label": "3Y sales CAGR",
+    "value": -1.19,
+    "unit": "%",
+    "period": "3Y",
+    "text": "3Y sales CAGR -1.19% (3Y)",
+    "source": "Ratios table, consolidated statements, 3Y; FinLit report of 27 Nov 2026",
+    "groupLabel": "Growth"
+   },
+   {
+    "n": 25,
+    "key": "profit_cagr_3y",
+    "group": "growth",
+    "label": "3Y profit CAGR",
+    "value": -0.27,
+    "unit": "%",
+    "period": "3Y",
+    "text": "3Y profit CAGR -0.27% (3Y)",
+    "source": "Ratios table, consolidated statements, 3Y; FinLit report of 27 Nov 2026",
+    "groupLabel": "Growth"
+   },
+   {
+    "n": 26,
+    "key": "sales_growth_latest",
+    "group": "growth",
+    "label": "Sales growth (latest year)",
+    "value": -1.63,
+    "unit": "%",
+    "period": "FY26",
+    "text": "Sales growth (latest year) -1.63% (FY26)",
+    "source": "Ratios table, consolidated statements, FY26; FinLit report of 27 Nov 2026",
+    "groupLabel": "Growth"
+   },
+   {
+    "n": 27,
+    "key": "profit_growth_latest",
+    "group": "growth",
+    "label": "Profit growth (latest year)",
+    "value": 24.36,
+    "unit": "%",
+    "period": "FY26",
+    "text": "Profit growth (latest year) 24.36% (FY26)",
+    "source": "Ratios table, consolidated statements, FY26; FinLit report of 27 Nov 2026",
+    "groupLabel": "Growth"
+   },
+   {
+    "n": 28,
+    "key": "q_revenue",
+    "group": "results",
+    "label": "Quarterly revenue",
+    "value": 166013.0,
+    "unit": "Cr",
+    "period": "Jun 2026",
+    "text": "Quarterly revenue ₹1,66,013 crore in the quarter ended 30 Jun 2026",
+    "source": "Quarterly results table, consolidated, quarter ended 30 Jun 2026",
+    "groupLabel": "Latest results"
+   },
+   {
+    "n": 29,
+    "key": "q_revenue_yoy",
+    "group": "results",
+    "label": "Quarterly revenue against the same quarter a year before",
+    "value": 36.78,
+    "unit": "%",
+    "period": "Jun 2026 against Jun 2025",
+    "text": "Quarterly revenue +36.78% against the quarter ended 30 Jun 2025 (₹1,21,369 crore)",
+    "source": "Quarterly results table, consolidated, quarter ended 30 Jun 2026",
+    "groupLabel": "Latest results"
+   },
+   {
+    "n": 30,
+    "key": "q_net_profit",
+    "group": "results",
+    "label": "Quarterly net profit",
+    "value": 13272.0,
+    "unit": "Cr",
+    "period": "Jun 2026",
+    "text": "Quarterly net profit ₹13,272 crore in the quarter ended 30 Jun 2026",
+    "source": "Quarterly results table, consolidated, quarter ended 30 Jun 2026",
+    "groupLabel": "Latest results"
+   },
+   {
+    "n": 31,
+    "key": "q_net_profit_yoy",
+    "group": "results",
+    "label": "Quarterly net profit against the same quarter a year before",
+    "value": -25.87,
+    "unit": "%",
+    "period": "Jun 2026 against Jun 2025",
+    "text": "Quarterly net profit -25.87% against the quarter ended 30 Jun 2025 (₹17,904 crore)",
+    "source": "Quarterly results table, consolidated, quarter ended 30 Jun 2026",
+    "groupLabel": "Latest results"
+   },
+   {
+    "n": 32,
+    "key": "pe_history",
+    "group": "history",
+    "label": "Year-end P/E, FY22 to FY26",
+    "value": 52.93,
+    "unit": "x",
+    "period": "FY22 to FY26",
+    "text": "Year-end P/E from FY22 to FY26: lowest 38.35x (FY23), highest 52.93x (FY25), latest 44.18x (FY26)",
+    "source": "Valuation history table, consolidated statements, FY22 to FY26; FinLit report of 27 Nov 2026",
+    "groupLabel": "Valuation history"
+   },
+   {
+    "n": 33,
+    "key": "flow_change",
+    "group": "flow",
+    "label": "Change against the previous close",
+    "value": -0.84,
+    "unit": "%",
+    "period": "26 Nov 2026 15:30 IST",
+    "text": "Change against the previous close -0.84% at 26 Nov 2026 15:30 IST",
+    "source": "Trading Lab Order Flow snapshot, 26 Nov 2026 15:30 IST (exchange quotes through Dhan)",
+    "groupLabel": "Order Flow (Trading Lab)"
+   },
+   {
+    "n": 34,
+    "key": "flow_oi",
+    "group": "flow",
+    "label": "Futures open interest change",
+    "value": 6.12,
+    "unit": "%",
+    "period": "26 Nov 2026 15:30 IST",
+    "source": "Trading Lab Order Flow snapshot, 26 Nov 2026 15:30 IST (exchange quotes through Dhan)",
+    "text": "Futures open interest +6.12% against the previous session's close (current and next contract)",
+    "groupLabel": "Order Flow (Trading Lab)"
+   },
+   {
+    "n": 35,
+    "key": "flow_buildup",
+    "group": "flow",
+    "label": "Futures build-up",
+    "value": null,
+    "unit": null,
+    "period": "26 Nov 2026 15:30 IST",
+    "text": "Futures build-up: short build-up (price down, open interest up)",
+    "source": "Trading Lab Order Flow snapshot, 26 Nov 2026 15:30 IST (exchange quotes through Dhan)",
+    "groupLabel": "Order Flow (Trading Lab)"
+   }
+  ],
+  "generatedAt": null,
+  "cached": false,
+  "inputs": {
+   "statement": "consolidated",
+   "filingDate": "2026-06-30",
+   "priceDate": "2026-11-26",
+   "flowDay": "2026-11-26",
+   "reportDate": "2026-11-27"
+  },
+  "limit": {
+   "limit": 20,
+   "used": 3,
+   "left": 17,
+   "resets": "2026-11-28T00:00:00+05:30"
+  },
+  "enabled": true,
+  "note": "Written from FinLit's stored figures by FinLit AI; it gives no verdict and is not a recommendation.",
+  "disclaimer": "Describes the company's financial health from its filings and prices; not a recommendation. Information only, not investment advice."
+ },
+ "fallback": {
+  "status": "ok",
+  "symbol": "RELIANCE",
+  "name": "Reliance Industries Ltd",
+  "method": "case-1",
+  "outcome": "not_written",
+  "sections": [],
+  "sources": [
+   {
+    "n": 1,
+    "key": "last_close",
+    "group": "price",
+    "label": "Last close",
+    "value": 1184.0,
+    "unit": "₹",
+    "period": "29 Sep 2026",
+    "text": "Last close ₹1,184 on 29 Sep 2026",
+    "source": "Daily prices, NSE daily candles, close of 29 Sep 2026",
+    "groupLabel": "Share price"
+   },
+   {
+    "n": 2,
+    "key": "change_1m",
+    "group": "price",
+    "label": "Price change over 1 month",
+    "value": -8.0,
+    "unit": "%",
+    "period": "28 Aug 2026 to 29 Sep 2026",
+    "text": "Price change over 1 month: -8.00% (from ₹1,287 on 28 Aug 2026 to 29 Sep 2026)",
+    "source": "Daily prices, NSE daily candles, close of 29 Sep 2026",
+    "groupLabel": "Share price"
+   },
+   {
+    "n": 3,
+    "key": "change_3m",
+    "group": "price",
+    "label": "Price change over 3 months",
+    "value": -8.49,
+    "unit": "%",
+    "period": "30 Jun 2026 to 29 Sep 2026",
+    "text": "Price change over 3 months: -8.49% (from ₹1,293.90 on 30 Jun 2026 to 29 Sep 2026)",
+    "source": "Daily prices, NSE daily candles, close of 29 Sep 2026",
+    "groupLabel": "Share price"
+   },
+   {
+    "n": 4,
+    "key": "change_1y",
+    "group": "price",
+    "label": "Price change over 1 year",
+    "value": -13.75,
+    "unit": "%",
+    "period": "29 Sep 2025 to 29 Sep 2026",
+    "text": "Price change over 1 year: -13.75% (from ₹1,372.80 on 29 Sep 2025 to 29 Sep 2026)",
+    "source": "Daily prices, NSE daily candles, close of 29 Sep 2026",
+    "groupLabel": "Share price"
+   },
+   {
+    "n": 5,
+    "key": "high_52w",
+    "group": "price",
+    "label": "52-week closing high",
+    "value": 1592.3,
+    "unit": "₹",
+    "period": "52 weeks",
+    "text": "52-week closing high ₹1,592.30 on 2 Jan 2026",
+    "source": "Daily prices, NSE daily candles, close of 29 Sep 2026",
+    "groupLabel": "Share price"
+   },
+   {
+    "n": 6,
+    "key": "low_52w",
+    "group": "price",
+    "label": "52-week closing low",
+    "value": 1184.0,
+    "unit": "₹",
+    "period": "52 weeks",
+    "text": "52-week closing low ₹1,184 on 29 Sep 2026",
+    "source": "Daily prices, NSE daily candles, close of 29 Sep 2026",
+    "groupLabel": "Share price"
+   },
+   {
+    "n": 7,
+    "key": "from_high_52w",
+    "group": "price",
+    "label": "Last close against the 52-week closing high",
+    "value": -25.64,
+    "unit": "%",
+    "period": "52 weeks",
+    "text": "Last close is 25.64% below the 52-week closing high",
+    "source": "Daily prices, NSE daily candles, close of 29 Sep 2026",
+    "groupLabel": "Share price"
+   },
+   {
+    "n": 8,
+    "key": "vs_avg_200d",
+    "group": "price",
+    "label": "Last close against its 200-day average",
+    "value": -13.45,
+    "unit": "%",
+    "period": "200 sessions",
+    "source": "Daily prices, NSE daily candles, close of 29 Sep 2026",
+    "text": "Last close is 13.45% below its 200-day average close of ₹1,368.05",
+    "groupLabel": "Share price"
+   },
+   {
+    "n": 9,
+    "key": "pe",
+    "group": "valuation",
+    "label": "P/E",
+    "value": 41.36,
+    "unit": "x",
+    "period": "as of 28 Sep 2026",
+    "text": "P/E 41.36x (as of 28 Sep 2026)",
+    "source": "Ratios table, consolidated statements, as of 28 Sep 2026; FinLit report of 27 Nov 2026",
+    "groupLabel": "Valuation"
+   },
+   {
+    "n": 10,
+    "key": "pb",
+    "group": "valuation",
+    "label": "P/B",
+    "value": 2.86,
+    "unit": "x",
+    "period": "as of 28 Sep 2026",
+    "text": "P/B 2.86x (as of 28 Sep 2026)",
+    "source": "Ratios table, consolidated statements, as of 28 Sep 2026; FinLit report of 27 Nov 2026",
+    "groupLabel": "Valuation"
+   },
+   {
+    "n": 11,
+    "key": "ev_ebitda",
+    "group": "valuation",
+    "label": "EV/EBITDA",
+    "value": 22.98,
+    "unit": "x",
+    "period": "TTM",
+    "text": "EV/EBITDA 22.98x (TTM)",
+    "source": "Ratios table, consolidated statements, TTM; FinLit report of 27 Nov 2026",
+    "groupLabel": "Valuation"
+   },
+   {
+    "n": 12,
+    "key": "dividend_yield",
+    "group": "valuation",
+    "label": "Dividend yield",
+    "value": 0.51,
+    "unit": "%",
+    "period": "TTM",
+    "text": "Dividend yield 0.51% (TTM)",
+    "source": "Ratios table, consolidated statements, TTM; FinLit report of 27 Nov 2026",
+    "groupLabel": "Valuation"
+   },
+   {
+    "n": 13,
+    "key": "market_cap",
+    "group": "valuation",
+    "label": "Market cap",
+    "value": 1602252.58,
+    "unit": "Cr",
+    "period": "report of 27 Nov 2026",
+    "text": "Market cap ₹16,02,252.58 crore (report of 27 Nov 2026)",
+    "source": "Ratios table, consolidated statements; FinLit report of 27 Nov 2026",
+    "groupLabel": "Valuation"
+   },
+   {
+    "n": 14,
+    "key": "roe",
+    "group": "returns",
+    "label": "ROE",
+    "value": 6.93,
+    "unit": "%",
+    "period": "TTM",
+    "text": "ROE 6.93% (TTM)",
+    "source": "Ratios table, consolidated statements, TTM; FinLit report of 27 Nov 2026",
+    "groupLabel": "Returns on capital"
+   },
+   {
+    "n": 15,
+    "key": "roce",
+    "group": "returns",
+    "label": "ROCE",
+    "value": 7.29,
+    "unit": "%",
+    "period": "FY26",
+    "text": "ROCE 7.29% (FY26)",
+    "source": "Ratios table, consolidated statements, FY26; FinLit report of 27 Nov 2026",
+    "groupLabel": "Returns on capital"
+   },
+   {
+    "n": 16,
+    "key": "operating_margin",
+    "group": "margins",
+    "label": "Operating margin",
+    "value": 9.93,
+    "unit": "%",
+    "period": "TTM",
+    "text": "Operating margin 9.93% (TTM)",
+    "source": "Ratios table, consolidated statements, TTM; FinLit report of 27 Nov 2026",
+    "groupLabel": "Margins"
+   },
+   {
+    "n": 17,
+    "key": "net_margin",
+    "group": "margins",
+    "label": "Net margin",
+    "value": 6.73,
+    "unit": "%",
+    "period": "TTM",
+    "text": "Net margin 6.73% (TTM)",
+    "source": "Ratios table, consolidated statements, TTM; FinLit report of 27 Nov 2026",
+    "groupLabel": "Margins"
+   },
+   {
+    "n": 18,
+    "key": "debt_to_equity",
+    "group": "balance",
+    "label": "Debt / equity",
+    "value": 0.41,
+    "unit": "x",
+    "period": "TTM",
+    "text": "Debt / equity 0.41x (TTM)",
+    "source": "Ratios table, consolidated statements, TTM; FinLit report of 27 Nov 2026",
+    "groupLabel": "Debt and liquidity"
+   },
+   {
+    "n": 19,
+    "key": "interest_coverage",
+    "group": "balance",
+    "label": "Interest coverage",
+    "value": 8.85,
+    "unit": "x",
+    "period": "TTM",
+    "text": "Interest coverage 8.85x (TTM)",
+    "source": "Ratios table, consolidated statements, TTM; FinLit report of 27 Nov 2026",
+    "groupLabel": "Debt and liquidity"
+   },
+   {
+    "n": 20,
+    "key": "current_ratio",
+    "group": "balance",
+    "label": "Current ratio",
+    "value": 0.99,
+    "unit": "x",
+    "period": "TTM",
+    "text": "Current ratio 0.99x (TTM)",
+    "source": "Ratios table, consolidated statements, TTM; FinLit report of 27 Nov 2026",
+    "groupLabel": "Debt and liquidity"
+   },
+   {
+    "n": 21,
+    "key": "cfo_to_pat",
+    "group": "cash",
+    "label": "Cash conversion (CFO/PAT)",
+    "value": 180.29,
+    "unit": "%",
+    "period": "FY26",
+    "text": "Cash conversion (CFO/PAT) 180.29% (FY26)",
+    "source": "Ratios table, consolidated statements, FY26; FinLit report of 27 Nov 2026",
+    "groupLabel": "Cash"
+   },
+   {
+    "n": 22,
+    "key": "sales_cagr",
+    "group": "growth",
+    "label": "Sales CAGR",
+    "value": 14.61,
+    "unit": "%",
+    "period": "5Y",
+    "text": "Sales CAGR 14.61% (5Y)",
+    "source": "Ratios table, consolidated statements, 5Y; FinLit report of 27 Nov 2026",
+    "groupLabel": "Growth"
+   },
+   {
+    "n": 23,
+    "key": "profit_cagr",
+    "group": "growth",
+    "label": "Profit CAGR",
+    "value": 6.54,
+    "unit": "%",
+    "period": "5Y",
+    "text": "Profit CAGR 6.54% (5Y)",
+    "source": "Ratios table, consolidated statements, 5Y; FinLit report of 27 Nov 2026",
+    "groupLabel": "Growth"
+   },
+   {
+    "n": 24,
+    "key": "revenue_cagr_3y",
+    "group": "growth",
+    "label": "3Y sales CAGR",
+    "value": -1.19,
+    "unit": "%",
+    "period": "3Y",
+    "text": "3Y sales CAGR -1.19% (3Y)",
+    "source": "Ratios table, consolidated statements, 3Y; FinLit report of 27 Nov 2026",
+    "groupLabel": "Growth"
+   },
+   {
+    "n": 25,
+    "key": "profit_cagr_3y",
+    "group": "growth",
+    "label": "3Y profit CAGR",
+    "value": -0.27,
+    "unit": "%",
+    "period": "3Y",
+    "text": "3Y profit CAGR -0.27% (3Y)",
+    "source": "Ratios table, consolidated statements, 3Y; FinLit report of 27 Nov 2026",
+    "groupLabel": "Growth"
+   },
+   {
+    "n": 26,
+    "key": "sales_growth_latest",
+    "group": "growth",
+    "label": "Sales growth (latest year)",
+    "value": -1.63,
+    "unit": "%",
+    "period": "FY26",
+    "text": "Sales growth (latest year) -1.63% (FY26)",
+    "source": "Ratios table, consolidated statements, FY26; FinLit report of 27 Nov 2026",
+    "groupLabel": "Growth"
+   },
+   {
+    "n": 27,
+    "key": "profit_growth_latest",
+    "group": "growth",
+    "label": "Profit growth (latest year)",
+    "value": 24.36,
+    "unit": "%",
+    "period": "FY26",
+    "text": "Profit growth (latest year) 24.36% (FY26)",
+    "source": "Ratios table, consolidated statements, FY26; FinLit report of 27 Nov 2026",
+    "groupLabel": "Growth"
+   },
+   {
+    "n": 28,
+    "key": "q_revenue",
+    "group": "results",
+    "label": "Quarterly revenue",
+    "value": 166013.0,
+    "unit": "Cr",
+    "period": "Jun 2026",
+    "text": "Quarterly revenue ₹1,66,013 crore in the quarter ended 30 Jun 2026",
+    "source": "Quarterly results table, consolidated, quarter ended 30 Jun 2026",
+    "groupLabel": "Latest results"
+   },
+   {
+    "n": 29,
+    "key": "q_revenue_yoy",
+    "group": "results",
+    "label": "Quarterly revenue against the same quarter a year before",
+    "value": 36.78,
+    "unit": "%",
+    "period": "Jun 2026 against Jun 2025",
+    "text": "Quarterly revenue +36.78% against the quarter ended 30 Jun 2025 (₹1,21,369 crore)",
+    "source": "Quarterly results table, consolidated, quarter ended 30 Jun 2026",
+    "groupLabel": "Latest results"
+   },
+   {
+    "n": 30,
+    "key": "q_net_profit",
+    "group": "results",
+    "label": "Quarterly net profit",
+    "value": 13272.0,
+    "unit": "Cr",
+    "period": "Jun 2026",
+    "text": "Quarterly net profit ₹13,272 crore in the quarter ended 30 Jun 2026",
+    "source": "Quarterly results table, consolidated, quarter ended 30 Jun 2026",
+    "groupLabel": "Latest results"
+   },
+   {
+    "n": 31,
+    "key": "q_net_profit_yoy",
+    "group": "results",
+    "label": "Quarterly net profit against the same quarter a year before",
+    "value": -25.87,
+    "unit": "%",
+    "period": "Jun 2026 against Jun 2025",
+    "text": "Quarterly net profit -25.87% against the quarter ended 30 Jun 2025 (₹17,904 crore)",
+    "source": "Quarterly results table, consolidated, quarter ended 30 Jun 2026",
+    "groupLabel": "Latest results"
+   },
+   {
+    "n": 32,
+    "key": "pe_history",
+    "group": "history",
+    "label": "Year-end P/E, FY22 to FY26",
+    "value": 52.93,
+    "unit": "x",
+    "period": "FY22 to FY26",
+    "text": "Year-end P/E from FY22 to FY26: lowest 38.35x (FY23), highest 52.93x (FY25), latest 44.18x (FY26)",
+    "source": "Valuation history table, consolidated statements, FY22 to FY26; FinLit report of 27 Nov 2026",
+    "groupLabel": "Valuation history"
+   },
+   {
+    "n": 33,
+    "key": "flow_change",
+    "group": "flow",
+    "label": "Change against the previous close",
+    "value": -0.84,
+    "unit": "%",
+    "period": "26 Nov 2026 15:30 IST",
+    "text": "Change against the previous close -0.84% at 26 Nov 2026 15:30 IST",
+    "source": "Trading Lab Order Flow snapshot, 26 Nov 2026 15:30 IST (exchange quotes through Dhan)",
+    "groupLabel": "Order Flow (Trading Lab)"
+   },
+   {
+    "n": 34,
+    "key": "flow_oi",
+    "group": "flow",
+    "label": "Futures open interest change",
+    "value": 6.12,
+    "unit": "%",
+    "period": "26 Nov 2026 15:30 IST",
+    "source": "Trading Lab Order Flow snapshot, 26 Nov 2026 15:30 IST (exchange quotes through Dhan)",
+    "text": "Futures open interest +6.12% against the previous session's close (current and next contract)",
+    "groupLabel": "Order Flow (Trading Lab)"
+   },
+   {
+    "n": 35,
+    "key": "flow_buildup",
+    "group": "flow",
+    "label": "Futures build-up",
+    "value": null,
+    "unit": null,
+    "period": "26 Nov 2026 15:30 IST",
+    "text": "Futures build-up: short build-up (price down, open interest up)",
+    "source": "Trading Lab Order Flow snapshot, 26 Nov 2026 15:30 IST (exchange quotes through Dhan)",
+    "groupLabel": "Order Flow (Trading Lab)"
+   }
+  ],
+  "generatedAt": "2026-11-27T06:41:12+00:00",
+  "cached": false,
+  "inputs": {
+   "statement": "consolidated",
+   "filingDate": "2026-06-30",
+   "priceDate": "2026-11-26",
+   "flowDay": "2026-11-26",
+   "reportDate": "2026-11-27"
+  },
+  "limit": {
+   "limit": 20,
+   "used": 4,
+   "left": 16,
+   "resets": "2026-11-28T00:00:00+05:30"
+  },
+  "enabled": true,
+  "note": "Written from FinLit's stored figures by FinLit AI; it gives no verdict and is not a recommendation.",
+  "disclaimer": "Describes the company's financial health from its filings and prices; not a recommendation. Information only, not investment advice.",
+  "message": "The case could not be written within the rules this time, so no text is shown in its place. The numbered figures it would have used are listed under Sources."
+ }
+}
