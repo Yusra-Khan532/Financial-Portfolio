@@ -1,6 +1,6 @@
 /* The FinLit logo and its loading animation (components/LogoLoader.tsx). One file for the first-load splash in index.html (before any script has run)
    and the React component. Movement only for people who have not asked for less; otherwise the finished logo, still.
-   Colours follow the theme: --ll-ink (navy; near-white in the dark theme), --ll-gold, the green gradient in the SVG. */
+   Colours follow the theme: --ll-ink (near-black; near-white in the dark theme), --ll-gold, the teal gradient in the SVG (the FinLit Ventures logo, task #400). */
 .ll { --ll-d: 3.6s; --ll-ink: #1C1A15; --ll-gold: #C8921E; display: block; width: 190px; height: auto; overflow: visible; }
 html[data-theme="dark"] .ll { --ll-ink: #F4F2EC; --ll-gold: #F4C04F; }   /* task #400: the FinLit Ventures logo's yellow and teal */
 .ll-sm { width: 70px; } .ll-md { width: 120px; } .ll-lg { width: 200px; } .ll-xl { width: 320px; }
@@ -23,7 +23,6 @@ html[data-splash="seen"] #ll-boot { display: none; }
   .ll-play .ll-i { animation: ll-rise-i var(--ll-d) ease-out infinite; }
   .ll-play .ll-t { animation: ll-rise-t var(--ll-d) ease-out infinite; }
   .ll-play .ll-person { animation: ll-walk var(--ll-d) ease-in-out infinite; }
-  .ll-play .ll-hair { animation: ll-fade var(--ll-d) ease-out infinite; }
   .ll-play .ll-b1, .ll-play .ll-b2, .ll-play .ll-b3 { transform-box: fill-box; transform-origin: 50% 100%; }
   .ll-play .ll-b1 { animation: ll-bar1 var(--ll-d) cubic-bezier(.2, .9, .3, 1.15) infinite; }
   .ll-play .ll-b2 { animation: ll-bar2 var(--ll-d) cubic-bezier(.2, .9, .3, 1.15) infinite; }
@@ -37,7 +36,6 @@ html[data-splash="seen"] #ll-boot { display: none; }
 @keyframes ll-rise-n { 0%, 9% { opacity: 0; transform: translateY(16px); } 20%, 100% { opacity: 1; transform: translateY(0); } }
 @keyframes ll-rise-i { 0%, 20% { opacity: 0; transform: translateY(16px); } 30%, 100% { opacity: 1; transform: translateY(0); } }
 @keyframes ll-rise-t { 0%, 25% { opacity: 0; transform: translateY(16px); } 35%, 100% { opacity: 1; transform: translateY(0); } }
-@keyframes ll-fade { 0%, 52% { opacity: 0; } 60%, 100% { opacity: 1; } }
 @keyframes ll-walk {
   0% { transform: translate(-80px, 20px); opacity: 0; }
   12% { transform: translate(-80px, 20px); opacity: 0; }

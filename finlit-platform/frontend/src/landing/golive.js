@@ -29,7 +29,7 @@ function tags(t){if(t[2]==='Free')return tag('Free');var r=cqRow(t[1]),one=[];if
 var CROWN='<svg class="lp-crown" viewBox="0 0 24 24" width="15" height="15" role="img" aria-label="FinLit\u2019s own model"><path d="M3 8.2l4.6 3.9L12 5l4.4 7.1L21 8.2 19.3 18H4.7z" fill="currentColor"/></svg>';
 var EX={a:1,t:0};
 /* parts of the product tour, in seconds; a tool with an entry here has a real recording */
-var REC={'Advanced stock screener':[0,5.4],'Company report':[5.6,11],'FinLit Prism':[11.2,16.6],'Sector Pulse':[16.8,22.2],'Sector Rotation':[22.4,27.8],'Mutual Fund Score':[28,33.4]};   /* task #411: the 27 Nov recording's parts */
+var REC={'Advanced stock screener':[0,6],'Company report':[6,9.7],'FinLit Prism':[9.8,17.7],'Sector Pulse':[17.8,24],'Sector Rotation':[24,28.9],'Mutual Fund Score':[29,36.7]};
 var CLIP=CLIPS;function recSlug(n){return n.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')}
 function recOf(n){var p=G+'posters/'+recSlug(n)+'.jpg';return REC[n]?{src:TOUR,s:REC[n][0]+.9,e:REC[n][1],p:p}:CLIP[n]?{src:CLIP[n],s:0,e:null,p:p}:null}
 /* warm the recordings of the area on screen, so a hover starts at once */
@@ -209,7 +209,7 @@ on(document,'click',function(e){var t=e.target.closest&&e.target.closest('[data-
 })();
 /* product tour in the hero, and a recording behind the i button of every tool */
 (function(){
-var CH=[['Screener',0],['Company report',5.6],['FinLit Prism',11.2],['Sector Pulse',16.8],['Sector Rotation',22.4],['Mutual Fund Score',28],['Portfolio',33.6]];   /* task #411: the 27 Nov recording; the hero has no chapter buttons now (no figcaption), so these draw only if a holder comes back */
+var CH=[['Screener',0],['Company report',6],['FinLit Prism',9.8],['Sector Pulse',17.8],['Sector Rotation',24],['Mutual Fund Score',29],['Portfolio',36.8]];   /* task #411: the hero has no chapter buttons now (no figcaption), so these draw only if a holder comes back */
 var fig=document.getElementById('lp-vid'),v=fig&&fig.querySelector('video'),cc=fig&&fig.querySelector('.lp-vid-c');
 if(v&&cc){cc.innerHTML=CH.map(function(c,i){return '<button type="button" data-ch="'+i+'">'+esc(c[0])+'</button>'}).join('');
  var bs=cc.querySelectorAll('button');function mark(){var t=v.currentTime,k=0;CH.forEach(function(c,i){if(t>=c[1])k=i});[].forEach.call(bs,function(b,i){b.setAttribute('aria-pressed',i===k)})}

@@ -11,7 +11,7 @@ import { BAND_NAME, bandVar } from "../lib/scoreBands";
 import { dateIN } from "../lib/format";
 import { GROWTH_SCORE_LABEL, PLAN_SCORE_NOTE, scoreReason } from "../lib/mf";
 import { ScoreBreakdown } from "./ScoreBreakdown";
-import { ScoreHighLow } from "./ScoreHighLow";
+import { PartLine } from "./PartLine";
 import { PEER_KIND_WORD, type CategoryMedian } from "../lib/mfScoreUp";
 import { ScoreAlertButton } from "./ScoreAlertButton";
 import { ScoreHistoryCard } from "./ScoreHistory";
@@ -45,10 +45,10 @@ function Pillars({ s }: { s: FundScore }) {
             <b className={"mfs-pv b-" + band} aria-label={pts != null ? `${p.name}: ${scoreText(pts)} out of 100, ${word}` : undefined}>
               {pts != null && <span className="mfs-pnum">{scoreText(pts)}</span>}{word}{p.allNotApplicable && <sup title="None of this part's measures apply, so it counts as neutral.">F</sup>}
             </b>
+            <PartLine part={p.key} />
           </li>);
       })}
     </ul>
-    <ScoreHighLow />
   </>);
 }
 

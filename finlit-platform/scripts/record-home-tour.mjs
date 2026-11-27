@@ -1,9 +1,12 @@
-// Records the landing page's product tour in the LIGHT theme (task #310 part H): frontend/public/landing/finlit-tour-light-720p.mp4 and its poster,
-// finlit-tour-light-poster.webp (the FinLit Prism report card), plus the dark poster, finlit-tour-dark-poster.webp (the same card in the dark theme).
-// The dark recording (finlit-tour-dark-720p.mp4) is kept as it is.
+// Records the landing page's product tour (task #310 part H; both themes since task #400, so the site's header and logo in it are the current ones):
+// frontend/public/landing/finlit-tour-light-720p.mp4 (THEME=light, the default) or finlit-tour-dark-720p.mp4 (THEME=dark), and the posters,
+// finlit-tour-light-poster.webp (the FinLit Prism report card) and finlit-tour-dark-poster.webp (the same card in the dark theme).
 //
 //   cd frontend && npm run build && npx vite preview --port 4710 --strictPort &
-//   NODE_PATH=$(npm root -g) node ../scripts/record-home-tour.mjs http://localhost:4710 [work-dir]
+//   NODE_PATH=$(npm root -g) THEME=dark ONLY=video node ../scripts/record-home-tour.mjs http://localhost:4710 [work-dir]
+//
+// Every section is cut to a fixed length (LEN below), padded with its last frame when it played shorter, so each section starts where the landing page's
+// chapter buttons (CH in src/landing/golive.js) and the tool previews (REC there) expect it, whatever the theme and however fast the pages loaded.
 //
 // How it records: Playwright's chromium at 1440 x 900 (recordVideo), light theme, signed in as a Gold member who is NOT an administrator
 // (GET /api/auth/me is answered here), so no admin controls, job alerts or "new version" notices appear (the version check is not answered either).
@@ -31,6 +34,10 @@ const FFMPEG = process.env.FFMPEG || "ffmpeg";
 const LIVE = "https://finlitventures.com";
 const COOKIE = process.env.FINLIT_COOKIE || "";
 const W = 1440, H = 900, CROP_H = 810;   // recorded size, and the 16:9 part that is kept
+const THEME = process.env.THEME === "dark" ? "dark" : "light";
+// the length of each section and of the end card, in seconds, cross-fades included: section k starts at the sum of the earlier ones minus one 0.4 s fade each,
+// that is at 0, 6, 9.8, 17.8, 24, 29 and 36.8 s, the chapters of src/landing/golive.js (CH and REC); a test checks the two agree
+const LEN = [6.4, 4.2, 8.4, 6.6, 5.4, 8.2, 5.4, 3.4];
 fs.mkdirSync(path.join(WORK, "cache"), { recursive: true });
 fs.mkdirSync(path.join(WORK, "raw"), { recursive: true });
 
@@ -179,10 +186,10 @@ const SECTIONS = [
     };
   }],
   ["/stocks/RELIANCE", "Company report", "Every listed company, scored and explained", async (p) => async () => {
-    await sleep(250); await hover(p, p.getByText("58.4").first(), 700); await sleep(500);
-    await click(p, p.getByText("Trading details").first(), 650); await sleep(900);
-    await scrollTo(p, 640, 1200); await sleep(200);
-    await moveTo(p, 640, 560, 600); await sleep(800);
+    await sleep(200); await hover(p, p.getByText("58.4").first(), 600); await sleep(300);
+    await click(p, p.getByText("Trading details").first(), 550); await sleep(500);
+    await scrollTo(p, 640, 1000); await sleep(100);
+    await moveTo(p, 640, 560, 500); await sleep(300);
   }],
   ["/prism/RELIANCE", "FinLit Prism", "Financial health in four parts, plus two technical views", async (p) => async () => {
     await sleep(250); await hover(p, p.getByText("Every factor").first(), 600); await sleep(200);
@@ -190,24 +197,24 @@ const SECTIONS = [
     await scrollTo(p, (await topOf(p, card)) - 110, 1100); await sleep(150);
     await hover(p, p.getByText("Valuation", { exact: true }).first(), 550); await sleep(450);
     await hover(p, p.getByText("Quality", { exact: true }).first(), 550); await sleep(450);
-    await hover(p, p.getByText("Risk", { exact: true }).first(), 500); await sleep(700);
+    await hover(p, p.getByText("Risk", { exact: true }).first(), 500); await sleep(2500);
   }],
   ["/sectors", "Sector Pulse", "Which industries are being sold, bouncing back or rising together", async (p) => async () => {
     await sleep(250); await hover(p, p.getByText("Market backdrop", { exact: false }).first(), 650); await sleep(300);
     await click(p, p.locator("button.sp-vbtn").filter({ hasText: "Full table" }).first(), 650); await sleep(700);
-    const table = p.getByText("Every industry, every number").first();
+    const table = p.getByText(/^Every (industry|sector), every number/).first();   // the page now opens on sectors
     await scrollTo(p, (await topOf(p, table)) - 90, 1100); await sleep(150);
     await moveTo(p, 760, 560, 600); await sleep(800);
   }],
   ["/sectors/rotation", "Sector Rotation", "Which industries are pulling ahead of the average, and which are falling behind", async (p) => async () => {
     await sleep(250); await hover(p, p.getByText("The average group").first(), 650); await sleep(400);
-    await click(p, p.locator("a.sp-secbar-c").filter({ hasText: /Map/ }).first(), 650); await sleep(1000);
-    await moveTo(p, 820, 470, 600); await sleep(800);
+    await click(p, p.locator("a.sp-secbar-c").filter({ hasText: /All \d+ sectors|Map/ }).first(), 650); await sleep(700);   // the page's own section bar
+    await moveTo(p, 820, 470, 600); await sleep(300);
   }],
   ["/funds/122639", "Mutual Fund Score", "Every mutual fund scored 0 to 100, with the reasons", async (p) => async () => {
     await sleep(250); await hover(p, p.getByText("Mutual fund score", { exact: false }).first(), 650); await sleep(400);
     await click(p, p.getByRole("link", { name: "Mutual Fund Score", exact: true }).filter({ visible: true }).first(), 650); await sleep(1300);
-    await moveTo(p, 700, 520, 650); await sleep(1000);
+    await moveTo(p, 700, 520, 650); await sleep(3800);
   }],
   ["/holdings", "Portfolio", "FinLit Prism and a diversification score for what you hold", async (p) => async () => {
     await sleep(250); await hover(p, p.getByText("value now").first(), 650); await sleep(350);
@@ -220,10 +227,10 @@ const SECTIONS = [
 async function record() {
   const browser = await chromium.launch();
   // warm-up: load each page once so the live answers are cached and the recording does not wait on the network
-  { const ctx = await browser.newContext({ viewport: { width: W, height: H } }); await prepare(ctx, "light"); const p = await ctx.newPage();
+  { const ctx = await browser.newContext({ viewport: { width: W, height: H } }); await prepare(ctx, THEME); const p = await ctx.newPage();
     for (const [url] of SECTIONS) await open(p, url, 500); await ctx.close(); }
   const ctx = await browser.newContext({ viewport: { width: W, height: H }, deviceScaleFactor: 1, recordVideo: { dir: path.join(WORK, "raw"), size: { width: W, height: H } } });
-  await prepare(ctx, "light"); await ctx.addInitScript(OVERLAY);
+  await prepare(ctx, THEME); await ctx.addInitScript(OVERLAY);
   const page = await ctx.newPage(); const t0 = Date.now(), at = () => (Date.now() - t0) / 1000;
   const cuts = [];
   for (const [i, [url, title, sub, setup]] of SECTIONS.entries()) {
@@ -232,9 +239,9 @@ async function record() {
     const a = at(); await run(); cuts.push({ url, title, from: a, to: at() });
   }
   // the end card: the site's own logo, title and main button, on the page background
-  await page.evaluate(() => { const d = document.createElement("div"); d.id = "tour-end"; document.getElementById("tour-cap")?.remove();
-    d.innerHTML = '<img src="/brand/finlit-ventures-logo-on-light.png" alt=""><h2 class="ui-title ui-title--marketing">Research deeper.<br><em>Invest with clarity.</em></h2><p>Every listed Indian company, scored and explained.</p><a class="ui-btn ui-btn--primary">Start free at finlitventures.com</a>';
-    document.body.appendChild(d); });
+  await page.evaluate((theme) => { const d = document.createElement("div"); d.id = "tour-end"; document.getElementById("tour-cap")?.remove();
+    d.innerHTML = '<img src="/brand/finlit-ventures-logo-on-' + theme + '.png" alt=""><h2 class="ui-title ui-title--marketing">Research deeper.<br><em>Invest with clarity.</em></h2><p>Every listed Indian company, scored and explained.</p><a class="ui-btn ui-btn--primary">Start free at finlitventures.com</a>';
+    document.body.appendChild(d); }, THEME);
   await sleep(300); const e0 = at(); await moveTo(page, 1500, 1000, 10); await sleep(3400); cuts.push({ url: "end", title: "End", from: e0, to: at() });
   const video = page.video(); await ctx.close(); const raw = await video.path(); await browser.close();
   fs.writeFileSync(path.join(WORK, "cuts.json"), JSON.stringify({ raw, cuts }, null, 1));
@@ -243,9 +250,12 @@ async function record() {
 
 function encode({ raw, cuts }, out) {
   const FADE = 0.4, vf = `crop=${W}:${CROP_H}:0:0,scale=1280:720:flags=lanczos,fps=30,format=yuv420p,setsar=1`;
-  const parts = cuts.map((c, i) => `[0:v]trim=start=${c.from.toFixed(3)}:end=${c.to.toFixed(3)},setpts=PTS-STARTPTS,${vf}[s${i}]`);
+  if (cuts.length !== LEN.length) throw new Error(`expected ${LEN.length} parts, recorded ${cuts.length}`);
+  // each part cut to its fixed length: what played longer is cut short, what played shorter holds its last frame
+  const parts = cuts.map((c, i) => { const end = Math.min(c.to, c.from + LEN[i]), pad = Math.max(0, LEN[i] - (end - c.from));
+    return `[0:v]trim=start=${c.from.toFixed(3)}:end=${end.toFixed(3)},setpts=PTS-STARTPTS,${vf},tpad=stop_mode=clone:stop_duration=${(pad + 0.1).toFixed(3)},trim=duration=${LEN[i].toFixed(3)},setpts=PTS-STARTPTS[s${i}]`; });
   let last = "s0", off = 0;
-  for (let i = 1; i < cuts.length; i++) { off += (cuts[i - 1].to - cuts[i - 1].from) - FADE; parts.push(`[${last}][s${i}]xfade=transition=fade:duration=${FADE}:offset=${off.toFixed(3)}[x${i}]`); last = `x${i}`; }
+  for (let i = 1; i < cuts.length; i++) { off += LEN[i - 1] - FADE; parts.push(`[${last}][s${i}]xfade=transition=fade:duration=${FADE}:offset=${off.toFixed(3)}[x${i}]`); last = `x${i}`; }
   execFileSync(FFMPEG, ["-y", "-v", "error", "-i", raw, "-filter_complex", parts.join(";"), "-map", `[${last}]`, "-an", "-c:v", "libx264", "-profile:v", "high", "-preset", "veryslow", "-tune", "stillimage",
     "-crf", process.env.CRF || "28", "-maxrate", "900k", "-bufsize", "1800k", "-g", "60", "-pix_fmt", "yuv420p", "-movflags", "+faststart", out], { stdio: "inherit" });
 }
@@ -277,7 +287,8 @@ async function posters() {
 }
 
 const only = process.env.ONLY || "all";
-if (only === "all" || only === "video") { const r = await record(); encode(r, path.join(OUT, "finlit-tour-light-720p.mp4")); }
-if (only === "encode") encode(JSON.parse(fs.readFileSync(path.join(WORK, "cuts.json"), "utf8")), path.join(OUT, "finlit-tour-light-720p.mp4"));
+const VIDEO = path.join(OUT, `finlit-tour-${THEME}-720p.mp4`);
+if (only === "all" || only === "video") { const r = await record(); encode(r, VIDEO); }
+if (only === "encode") encode(JSON.parse(fs.readFileSync(path.join(WORK, "cuts.json"), "utf8")), VIDEO);
 if (only === "all" || only === "posters") await posters();
 console.log("done; work files in", WORK);
