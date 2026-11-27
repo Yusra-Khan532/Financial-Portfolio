@@ -2,6 +2,8 @@
 
 **Search growth (SEO, AEO, GEO; the founder's brief of 27 Nov 2026):** before any SEO, crawler-HTML, sitemap, tools-page or analytics work, read `docs/search-growth/MASTER-PROMPT.md` (the brief, word for word), `PLAN.md` and `PROGRESS.md` in that folder. Continue from PROGRESS.md's first unchecked item, and update it in the same pull request at the end of every session.
 
+**Launch readiness (the founder's checklist of 27 Nov 2026: legal, security, backups, reliability, speed, email, accessibility, analytics, trust, data accuracy, payments, support, costs):** before any of that work, read `docs/launch-readiness/CHECKLIST.md` (word for word) and `docs/launch-readiness/PROGRESS.md`. Do one item at a time with full focus, each in its own pull request, and keep PROGRESS.md current.
+
 **Start here:** read `docs/MAINTAINER-MAP.md` first in every session. It is the one-page map of the code, the jobs, the hosting (AWS EC2 + Caddy behind Cloudflare's proxy, seen live 24 Nov 2026; Cloudflare also gives DNS, email routing and the AMFI/exchange Worker relay), the release flow, the team workspace and the open questions, plus how every change is applied. Keep it current when any of those change.
 
 ## Current work order (Pranjal Jain, 17 Nov 2026): ONE task at a time, never combined
