@@ -120,3 +120,33 @@ describe-only (calls such as "likely cap", "what's next" or strangle picks stay 
 4. **Liquidity map**: price with option walls, inside Stock zones (Order Flow step 4).
 5. **Stock radar**: the five facts drawn as a radar.
 6. **F&O Academy**: lessons with quizzes, inside Learn.
+
+## Order Flow > Global > US companies (27 Nov 2026; docs/GLOBAL-MARKETS.md step 4, HANDOVER-GLOBAL-MARKETS.md task 8)
+
+`/lab/flow?view=companies&m=global` (`?co=<ticker>` picks a company; JPMorgan Chase, the founder's example, by default). A Global-only view
+(`GLOBAL_TABS` and `GLOBAL_ONLY` in `pages/OrderFlow.tsx`; the India switch falls back to Market depth). Page: `components/lab/UsCompanies.tsx`.
+
+- **Data:** `backend/finlit/lab/companies.py`, the reported figures of 39 large US companies from their own SEC filings (data.sec.gov XBRL, free,
+  no key, User-Agent `FinLit (finlitventures.com) market data`): revenue, operating income, net income and diluted EPS for 10 fiscal years (10-K)
+  and the last 9 quarters (10-Q), and the balance sheet at each fiscal year end (assets, liabilities, equity, cash, long-term debt). Each company's
+  SEC id is checked against the SEC's own ticker list first (a wrong id is skipped, never shown under the name). Every concept of a figure is read;
+  the years come from the concept with the latest year, the quarters from the one with the latest quarter (companies change tags).
+- **Derived, and labelled:** a fiscal fourth quarter (filed only inside the 10-K) is the year less its three filed quarters of the same concept,
+  added only when all three are filed (never for EPS); total liabilities that a company does not tag are total assets less equity
+  (`concepts.liabilities` = "derived: assets less equity"). A quarter that is neither filed nor derivable stays an empty slot.
+- **Missing, said plainly:** banks and some other companies (JPMorgan, Bank of America, Goldman Sachs, Morgan Stanley, Berkshire, Lilly, J&J,
+  Merck, Pfizer, Exxon, Chevron) tag no operating income total: "—" with the reason in the hover card; Visa and Berkshire tag no single diluted EPS.
+- **Route:** `GET /api/lab/companies` (`lab_ctx`: 401 signed out, 403 without access; `Cache-Control: no-store`): `companies` (a summary per
+  company: latest fiscal year, revenue and its change, net income, margin) and `details` (the series, `concepts`, `quarterConcepts`,
+  `derivedQuarters`). No heavy compute: it serves what the weekly job stored (`macro_meta` key `sec:companies`).
+- **Job:** `global-companies` (`refresh-global-companies --max-minutes 10`, weekly, MORNING window, limit 15 min; docs/JOBS.md). One SEC call at a
+  time with a 0.2 s pause (five a second at most; the SEC allows ten); no new company after its own deadline, the rest go first next run and the
+  run is recorded partial. Real load of 27 Nov 2026: 39 of 39 companies, 663 calls in 197 s; latest fiscal years ending 31 Aug 2025 to 3 Oct 2026,
+  history back to FY 2015.
+- **Page:** a board of the companies (squarified treemap: tiles sized by latest annual revenue, grouped by sector, coloured by revenue change on
+  the year before with `color-mix` on `--gain` / `--loss`; selected tile `aria-pressed`); then the company: header (name, sector, SEC name and
+  id), six KPI tiles each with its fiscal period and "SEC filing (10-K)", 10-year revenue bars with a net-income line, the last 9 quarters
+  (derived fourth quarters dashed), the balance sheet as bars against total assets ("derived" chip). Every chart is in `ChartZoom`; hover cards
+  on tiles, sector heads, KPIs, bars and balance rows. US dollars as the Global pages write them ($182.4 bn, $256 mn, $4.42 tn).
+- **Tests:** `backend/tests/test_lab_global_companies.py` (real SEC answers for JPMorgan and Walmart, a trimmed real load of five companies in
+  `tests/fixtures/global/`), `frontend/src/components/lab/usCompanies.test.tsx`, `pages/orderFlowGlobal.test.tsx`.

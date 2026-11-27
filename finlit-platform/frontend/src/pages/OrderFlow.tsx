@@ -22,6 +22,7 @@ import { GlobalCues } from "../components/lab/GlobalCues";
 import { GlobalMarketMood, MarketMood } from "../components/lab/MarketMood";
 import { GlobalTrade } from "../components/lab/GlobalTrade";
 import { EmergingMarkets } from "../components/lab/EmergingMarkets";
+import { UsCompanies } from "../components/lab/UsCompanies";
 import { BucketPop, Candles, DirectionPop, SectorPop, StockPop, TipLayer, tiltHandlers, useTip } from "../components/lab/FlowTips";
 import "../styles/portfolio-disc.css";
 import "../styles/tradinglab.css";
@@ -35,15 +36,16 @@ export const FLOW_TABS = [
   { id: "global", name: "Global cues", ready: true },
   { id: "trade", name: "Global trade", ready: true },
   { id: "em", name: "Emerging markets", ready: true },
+  { id: "companies", name: "US companies", ready: true },
   { id: "mood", name: "Market mood", ready: true },
   { id: "zones", name: "Stock zones", ready: false },
   { id: "journal", name: "Trading journal", ready: false },
 ];
 
 /** The views the Global switch has (the rest are India-only until their global version is built). */
-export const GLOBAL_TABS = ["depth", "board", "money", "options", "global", "trade", "em", "mood"];
+export const GLOBAL_TABS = ["depth", "board", "money", "options", "global", "trade", "em", "companies", "mood"];
 /** Views only the Global switch has. */
-export const GLOBAL_ONLY = ["trade", "em"];
+export const GLOBAL_ONLY = ["trade", "em", "companies"];
 
 const DISCLAIMER = "Order Flow describes how F&O stocks are moving from exchange prices and futures open interest, worked out by fixed formulas and shown with a delay of a few minutes. It does not tell anyone to buy, sell or hold, it never places an order, and a build-up or a count of facts is not a forecast. Intraday and F&O trading carry a high risk of loss; most people who trade them lose money. Information only, not investment advice.";
 
@@ -653,6 +655,7 @@ function Flow({ view, market }: { view: string; market: FlowMarket }) {
   if (view === "global") return <TipLayer><GlobalCues /></TipLayer>;      // its own data (FRED series and the international ETFs on NSE)
   if (view === "em") return <TipLayer><EmergingMarkets /></TipLayer>;       // its own data (World Bank, Yahoo)
   if (view === "trade") return <TipLayer><GlobalTrade /></TipLayer>;        // its own data (UN Comtrade)
+  if (view === "companies") return <TipLayer><UsCompanies /></TipLayer>;    // its own data (SEC filings)
   if (view === "mood") return <TipLayer>{market === "global" ? <GlobalMarketMood /> : <MarketMood />}</TipLayer>;        // its own data (scored news and headlines)
   return <FlowSnapshotView view={view} market={market} />;
 }

@@ -55,6 +55,16 @@ describe("Order Flow, the India | Global switch", () => {
     expect(screen.getByRole("link", { name: "Market depth" }).getAttribute("aria-current")).toBe("page");   // a view Global lacks falls back to depth
     expect(screen.getByRole("link", { name: "India" }).getAttribute("href")).toBe("/lab/flow");
   });
+  it("US companies is a Global view only, and reads the SEC filings route", async () => {
+    wrap("/lab/flow?view=companies&m=global"); await settle();
+    expect(screen.getByRole("link", { name: "US companies" }).getAttribute("aria-current")).toBe("page");
+    expect(urls.some((u) => u.endsWith("/api/lab/companies"))).toBe(true);
+    expect(screen.getByRole("link", { name: "India" }).getAttribute("href")).not.toContain("m=global");
+    cleanup(); wrap("/lab/flow?view=companies"); await settle();     // India has no such view: it shows Market depth
+    expect(screen.getByRole("link", { name: "Market depth" }).getAttribute("aria-current")).toBe("page");
+    const tabs = screen.getAllByRole("link").filter((a) => a.classList.contains("oflow-tab")).map((a) => a.textContent);
+    expect(tabs).not.toContain("US companies");
+  });
   it("clicking India goes back to the India snapshot", async () => {
     wrap("/lab/flow?m=global"); await settle();
     fireEvent.click(screen.getByRole("link", { name: "India" })); await settle();

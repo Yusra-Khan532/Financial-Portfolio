@@ -214,6 +214,7 @@ LIMIT_POLICY: Dict[str, str] = {
     "quotes": "deadline: no new slice after --max-minutes 7 (each slice followed up inside it), Dhan phase 90 s, a company 30 s (limit 10)",
     "alerts-live": "fixed: members' own alerts only; measured about 3 s",
     "global-em": "fixed: seven World Bank calls, one per figure for all seventeen countries; measured about 10 s",
+    "global-companies": "deadline: no new company after --max-minutes 10 (limit 15); one SEC call at a time with a 0.2 s pause (at most five a second, the SEC allows ten), about 17 calls a company (measured: 39 companies, 663 calls, 197 s); the companies read longest ago go first, so a stopped run continues next time",
     "global-trade": "fixed: about 6 UN Comtrade calls on a normal day (new months and the latest two again), 4 s apart; the first load about 32 calls, 3 minutes",
     "global-flow": "fixed: one Nasdaq screener call (every US-listed share); skips itself in a few milliseconds outside the US session",
     "market-mood": "fixed: sixteen Google News topics (eight for India and the world, eight US sectors), about 200 new headlines scored by the sentiment model; measured about 45 s",
@@ -389,6 +390,10 @@ def build_jobs(env: Optional[Mapping[str, str]] = None) -> List[Job]:
             sla=Sla("hours", 24 * 9), catchup=True,
             what="Trading Lab Emerging markets: GDP growth, inflation, current account, trade, GDP per person and reserves of India and sixteen other "
                  "emerging economies from the World Bank's open data, weekly (lab/em.py)"),
+        Job("global-companies", ("refresh-global-companies", "--max-minutes", "10"), priority=42, max_runtime_min=15, weight_mb=60, windows=(W("MORNING", 6),),
+            interval_min=10080, sla=Sla("hours", 24 * 9), catchup=True,
+            what="Trading Lab US companies: revenue, operating and net income, diluted EPS (10 years and 9 quarters) and the year-end balance sheet of "
+                 "39 large US companies from their SEC filings (data.sec.gov XBRL), weekly, each company's SEC id checked first (lab/companies.py)"),
         Job("global-trade", ("refresh-global-trade",), priority=40, max_runtime_min=10, weight_mb=60, windows=(W("MORNING", 6),), interval_min=720,
             sla=Sla("hours", 48), catchup=True,
             what="Trading Lab Global trade: India's exports and imports by partner country (13 months) and by product (the latest month and a year before) "

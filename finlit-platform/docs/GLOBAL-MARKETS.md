@@ -44,6 +44,10 @@ FinLit shows data to its members on a commercial website. A source is usable onl
 4. **Global companies**: JPMorgan, Apple, Microsoft, Nvidia, Amazon, Alphabet, Meta, Berkshire, Tesla, Exxon, Visa and other large US-listed
    companies: revenue, profit, margins, cash, debt and shares over 10 years and by quarter, from SEC filings, drawn with FinLit's own charts.
    No share price (not free to show); where an Indian ETF or fund holds the company, the page says which.
+   **Built (27 Nov 2026):** Trading Lab > Order Flow > Global > US companies (`lab/companies.py`, job `global-companies`, `/api/lab/companies`,
+   `components/lab/UsCompanies.tsx`): 39 companies, 10 fiscal years and 9 quarters of revenue, operating income, net income and diluted EPS,
+   the year-end balance sheet; a derived fourth quarter or liabilities total is labelled. Not built yet: shares outstanding and which Indian
+   ETF or fund holds each company.
 5. **Market mood**: from the sentiment score FinLit already gives every news item and filing: today's share of positive, neutral and negative
    items for the market and each sector, the trend over 30 days, and the most positive and most negative items; plus the world news tone from
    GDELT. It describes the tone of what was published. It does not say where the market will go (the describe-only rule); a direction call

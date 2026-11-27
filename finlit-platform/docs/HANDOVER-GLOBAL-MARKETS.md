@@ -35,7 +35,7 @@ LIVE: #961 access, #962 engine, #964 Market depth + Flow board, #965 Money Flow,
 | 5 | Global Market mood (US sectors + world topics) | `lab-global-mood` | built + tested |
 | 6 | Global trade (UN Comtrade preview, job `global-trade`) | `lab-global-trade` | built + tested (real Aug 2026 data) |
 | 7 | Emerging markets (World Bank + Yahoo, job `global-em`) | `lab-global-em` | built + tested |
-| 8 | US companies (SEC XBRL, job `global-companies`) | `lab-global-companies` | **backend done** (`lab/companies.py`, real load of 39 cos OK); TODO: register router in api.py, job in jobs/registry.py (+ limits note, weekly, MORNING window), worker command `refresh-global-companies`, tests (`tests/fixtures/global/` with a trimmed real load), frontend tab `companies` (GLOBAL_TABS + GLOBAL_ONLY), screenshots |
+| 8 | US companies (SEC XBRL, job `global-companies`) | `lab-global-companies` | **built + tested** (27 Nov): route `/api/lab/companies`, job `global-companies` (weekly, MORNING, `--max-minutes 10`, limit 15) + worker `refresh-global-companies`, tab `companies` (Global only), backend and frontend tests, 4-view screenshots; real load 39/39 companies (docs/TRADING-LAB.md "US companies") |
 
 The branches are STACKED in this order (each on top of the previous). After each merge: `git rebase --onto origin/main <previous branch's old
 head> <next branch>` (or merge main in), resolve conflicts by keeping BOTH sides (OrderFlow.tsx tabs/imports/Flow routing, orderflow.css,
@@ -47,7 +47,7 @@ then open the PR. Re-check the migration number only if you add one (none of the
 each view; `?m=global` sets the market; `setFlowMarket()` in lib/flow.ts switches ₹→$, crore→US$ million, "F&O stocks"→"US companies",
 hides build-up/pivots/facts. Hover cards: `useTip()` from components/lab/FlowTips.tsx.
 
-## US companies page (task 8) — what to build
+## US companies page (task 8) — built (27 Nov 2026; details in docs/TRADING-LAB.md "Order Flow > Global > US companies")
 Tab "US companies" under Global: a board of the 39 companies (tiles sized by latest annual revenue, coloured by revenue growth, grouped by
 sector), click/select one → header (name, sector, SEC name), KPI tiles (revenue, net income, margin, EPS, YoY), 10-year revenue bars with
 net-income line, last 9 quarters, balance sheet (assets, liabilities — "derived" when `concepts.liabilities` starts with "derived", equity,

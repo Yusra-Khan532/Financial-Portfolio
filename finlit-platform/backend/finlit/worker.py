@@ -1242,6 +1242,8 @@ def build_parser() -> argparse.ArgumentParser:
     p_lf = sub.add_parser("refresh-lab-flow", help="every 3 minutes in market hours: the Trading Lab's Order Flow snapshot of every F&O stock (one Dhan quote call; lab/flow.py)")
     p_lf.add_argument("--history-seconds", type=float, default=90.0, help="at most this long filling missing previous-session open interest from Dhan's daily history")
     sub.add_parser("refresh-global-em", help="weekly: the Trading Lab's Emerging markets figures from the World Bank (lab/em.py)")
+    p_gco = sub.add_parser("refresh-global-companies", help="weekly: the Trading Lab's US companies, 39 large US companies' reported figures from their SEC filings (lab/companies.py)")
+    p_gco.add_argument("--max-minutes", type=float, default=10.0, help="start no new company after this long; the rest keep their last load and go first next run")
     sub.add_parser("refresh-global-trade", help="daily: the Trading Lab's Global trade, India's exports and imports by partner and product from UN Comtrade (lab/trade.py)")
     p_gf = sub.add_parser("refresh-global-flow", help="every 5 minutes: the Trading Lab's Global Order Flow snapshot of the largest US companies while the US session is open (lab/global_flow.py)")
     p_gf.add_argument("--force", action="store_true", help="take a snapshot even when the US market is closed (the last session's numbers)")
@@ -1515,6 +1517,19 @@ async def main(argv: Optional[List[str]] = None, settings: Optional[Settings] = 
             from .lab import em
             from .mf import record_run
             result = await em.refresh(store)
+            await record_run(store, args.cmd, result)
+            print(result)
+            return 0 if result["status"] == "ok" else 1
+        if args.cmd == "refresh-global-companies":
+            from .lab import companies
+            from .mf import record_run
+            result = await companies.refresh(store, max_minutes=args.max_minutes)
+            if result["status"] == "ok" and result.get("left"):    # stopped at its own deadline: degraded, tried again; the rest go first next run
+                from .jobs.reasons import PARTIAL_EXIT
+                result = {**result, "status": "partial", "why": f"{len(result['left'])} companies left at the {args.max_minutes:g}-minute deadline; read first on the next run"}
+                await record_run(store, args.cmd, result)
+                print(result)
+                return PARTIAL_EXIT
             await record_run(store, args.cmd, result)
             print(result)
             return 0 if result["status"] == "ok" else 1
