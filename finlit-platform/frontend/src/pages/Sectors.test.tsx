@@ -64,8 +64,7 @@ describe("helpers", () => {
 // The industry page itself (the final pages pack) is tested in SectorIndustry.test.tsx.
 
 // "Where it stands" (final pages pack, board 17) replaced the stock page's Sector & peers section: its industry tab, from the same sector JSON.
-const SUM = { returns: [], quote: { price: 100, high52: 120, marketCapCr: 8000 }, keyMetrics: [] } as never;
-const where = (sym = "SAMBHV", name = "Sambhv Steel Tubes") => render(<MemoryRouter><WhereStands symbol={sym} name={name} s={SUM} /></MemoryRouter>);
+const where = (sym = "SAMBHV", name = "Sambhv Steel Tubes") => render(<MemoryRouter><WhereStands symbol={sym} name={name} /></MemoryRouter>);
 describe("stock page section", () => {
   it("shows the industry's rotation box, rank, figures and the box that may change", () => {
     st.stock = { ...S, rotation: null };
@@ -79,7 +78,7 @@ describe("stock page section", () => {
   it("writes where the stock ranks inside its industry, from the sector JSON", () => {
     where();
     const t = screen.getByTestId("where-stands").textContent ?? "";
-    expect(t).toContain("Where Sambhv Steel Tubes stands"); expect(t).toContain("20th of 105");
+    expect(t).toContain("where Sambhv Steel Tubes ranks inside it");   // developer file 47: 14 is Industry, one heading and its line expect(t).toContain("20th of 105");
     expect(t).toContain("Inside its industry: 6-month return"); expect(t).toContain("Sector Pulse · the last few days");
     expect(screen.getByRole("link", { name: /Open the .* page/ }).getAttribute("href")).toBe("/sectors/industrial-products");
     expect(t).toContain("not a recommendation");

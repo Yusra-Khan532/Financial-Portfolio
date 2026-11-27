@@ -1,24 +1,26 @@
+// Developer file 47 (founder, 27 Nov 2026: "13 and 14 both show peers and some things repeat; make sure nothing repeats; remove the Risk tab"): this is now
+// 14 Industry, the one place for the industry. Its "Against peers" tab repeated 13 Peers (the 12-month ranking, where all the peers sit, the same company
+// cards), so it is gone; its one view of its own, "What if you had owned the group leader?", moved to 13 (LeaderWhatIf, exported). The Risk tab is gone: Prism
+// Risk is on the Prism card at the top and its other figures are in the header and 03. The summary no longer counts the peers (13 does).
 // "Where <company> stands" (final pages pack, board 17): its industry, its peers and its risk, one question per tab (its own price chart left in developer
 // file 43: 03 Price & technicals draws it, with the trends, the 1-year high and the returns). It replaces the report's
 // "Where its industry stands" (Sector & peers) and "Where this stock stands among its peers" (Leadership) sections. Every figure is the server's: the stock's sector
 // reading, its industry page, Sector Rotation, the peer reading and its history, the price and Prism; the words come from lib/standsPack. Describes; never advice.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router";
-import { CoLogo } from "../../components/CoLogo";
 import { LockedBlock } from "../../components/sectors/Parts";
 import { BoxChip, Cards, StateChip, Tip } from "../../components/sectors/pack/Common";
 import { STATE_HELP, WORD, keyOf, short } from "../../lib/pulsePack";
 import { BOX_HELP } from "../../lib/rotationPack";
 import { failureText, useSectorPage, useStockSector, type IndustryPage, type RankedStock } from "../../lib/sectors";
 import { useRotationCard } from "../../lib/rotation";
-import { pendingOf, useLeadership, useLeadershipHistory, type LeadershipOn, type LeadLabel } from "../../lib/leadership";
-import type { Peers, Summary } from "../../lib/api";
+import { useLeadershipHistory } from "../../lib/leadership";
 import { capBucket } from "../../lib/capBuckets";
 import { trendAlignment } from "../../lib/prismTechnical";
 import { sectionNo } from "../../lib/sectionNav";
 import { revealAndScroll } from "../../components/PhoneFold";
-import { scoreView, usePlanModel, usePlanPrism } from "../../lib/planScore";
-import { LABEL, groupWord, headline, industryCards, ordinal, peerCards, riskCards, rotationLine } from "../../lib/standsPack";
+import { usePlanModel, usePlanPrism } from "../../lib/planScore";
+import { headline, industryCards, ordinal, rotationLine } from "../../lib/standsPack";
 import "../../styles/sectors-pack.css";
 import "../../styles/industry-pack.css";
 import { median, shortList, stripDots } from "../../lib/standsList";
@@ -30,59 +32,40 @@ import type { Card } from "../../lib/pulsePack";
 import { SectionHead } from "../Sections";
 import { coTitle, shortLabel } from "../../lib/companyLabel";
 
-type Tab = "industry" | "peers" | "risk";
 const sp = (x: number | null | undefined, dp = 1, unit = "%") => (x == null ? "–" : `${x >= 0 ? "+" : "−"}${Math.abs(x).toFixed(dp)}${unit}`);
 const size = (cr: number | null | undefined) => capBucket(cr ?? null)?.label.replace(" cap", "") ?? "–";
-const PeerChip = ({ l }: { l: LeadLabel }) => <span className={"ws-peer " + l}>{LABEL[l]}</span>;
 
-export function WhereStands({ symbol, name, s, peers }: { symbol: string; name: string; s: Summary; peers?: Peers }) {
+export function WhereStands({ symbol, name }: { symbol: string; name: string }) {
   const short1 = name.replace(/\s+(industries|limited|ltd\.?|corporation|corp\.?|company)\b.*$/i, "").trim() || name;
-  const [tab, setTab] = useState<Tab>("industry");
-  const open = (t: Tab) => { setTab(t); requestAnimationFrame(() => { const el = document.getElementById("ws-panel"); if (el) window.scrollTo({ top: el.getBoundingClientRect().top + scrollY - 190, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" }); }); };
   const secQ = useStockSector(symbol), sec = secQ.data ?? null;
   const g = sec?.group ?? null, locked = !!sec?.locked?.stock;
   const page = useSectorPage(g?.slug ?? "").data ?? null;   // null while loading or without an industry
   const rot = useRotationCard(g?.slug ?? "", !!g).data;
-  const ld = useLeadership(symbol).data, lead = ld && ld.available ? ld : null;
   const model = usePlanModel();
   const pm = usePlanPrism(useMemo(() => [symbol], [symbol]), model)[symbol];
   const prism = pm && pm !== "error" ? pm : null;
   const ind = g ? short(g.name) : null, key = g ? keyOf(g) : null;
   const align = prism ? trendAlignment(prism.shortTerm?.score, prism.longTerm?.score)?.label ?? null : null;
-  const h = headline(short1, ind, key ? WORD[key] : null, sec, rot, lead);
+  const h = headline(short1, ind, key ? WORD[key] : null, sec, rot, null);   // developer file 47: the peers' rank is 13's, not repeated here
   const sixRank = sec?.rank_6m != null && sec.ranked_6m ? `${ordinal(sec.rank_6m)} of ${sec.ranked_6m}` : null;
-  const TABS: [Tab, string, string][] = [["industry", "Its industry", "Sector Pulse, Sector Rotation, and where " + short1 + " ranks inside"],
-    ["peers", "Against peers", lead ? `${lead.peerGroup.ranked} ${groupWord(lead.peerGroup.short)}companies, and what the leader did` : "Similar companies, and what the leader did"],
-    ["risk", "Risk", "How risky the share is, and why"]];
-  const riskV = model === "prism" ? prism?.parts?.risk ?? null : null;
   return (
-    <section className="block sp ws" aria-label={`Where ${short1} stands`} data-testid="where-stands">
-      {/* task #216: numbered 14 with the report's own section heading (number, "Sector, peers and risk", Gold, title, one line) */}
-      <SectionHead id="sector" no="Sector, peers and risk" icon="layers" tier="gold" title={`Where ${short1} stands`} sub="Its industry, its peers and its risk: one question per tab." />
+    <section className="block sp ws" aria-label={`${short1}'s industry`} data-testid="where-stands">
+      <SectionHead id="sector" no="Industry" icon="layers" tier="gold" sub={ind ? `${ind} against the other industries, and where ${short1} ranks inside it.` : `Its industry against the others, and where ${short1} ranks inside it.`} />
       <div className="sp-sec ws-head">
         {h && <p className="ws-lead"><b>{h.lead}</b>{h.rest}</p>}
-        {h?.recent && <p className="sp-note">{h.recent}</p>}
-        {/* task #216 (README 3.14): the readings, each a link that opens its tab and scrolls to it */}
         <div className="ws-strip ws-reads">
-          {key && <div className="ws-pill">Industry now <StateChip k={key} /><Tip text={STATE_HELP[key]} label="About the industry's state" /><button type="button" className="ws-go" onClick={() => open("industry")}>Its industry →</button></div>}
-          {rot?.corner && rot.corner !== "middle" && <div className="ws-pill">Against other industries <BoxChip corner={rot.corner} /><Tip text={BOX_HELP[rot.corner]} label={`About “${rot.corner_name}”`} /><button type="button" className="ws-go" onClick={() => open("industry")}>Its industry →</button></div>}
-          {sixRank && !locked && <div className="ws-pill">Inside its industry <b className={"ws-q q" + (sec?.quarter ?? 0)}>{sixRank}</b><button type="button" className="ws-go" onClick={() => open("industry")}>Its industry →</button></div>}
-          {lead && <div className="ws-pill">Against peers <PeerChip l={lead.label} />{pendingOf(lead) && <span className="ws-next">→ {LABEL[pendingOf(lead)!]}?</span>}<button type="button" className="ws-go" onClick={() => open("peers")}>Against peers →</button></div>}
+          {key && <div className="ws-pill">Industry now <StateChip k={key} /><Tip text={STATE_HELP[key]} label="About the industry's state" /></div>}
+          {rot?.corner && rot.corner !== "middle" && <div className="ws-pill">Against other industries <BoxChip corner={rot.corner} /><Tip text={BOX_HELP[rot.corner]} label={`About “${rot.corner_name}”`} /></div>}
+          {sixRank && !locked && <div className="ws-pill">Inside its industry <b className={"ws-q q" + (sec?.quarter ?? 0)}>{sixRank}</b></div>}
           {/* developer file 43: the chart tab is gone (03 Price & technicals draws the price), so this reading points there */}
           {align && <div className="ws-pill">Its own chart <b className="ws-own">{align}</b><a className="ws-go" href="#price" onClick={toPrice}>{sectionNo("price")} Price &amp; technicals ↑</a></div>}
-          {riskV != null && <div className="ws-pill">Prism Risk <b className="ws-own">{Math.round(riskV)} · {riskV >= 70 ? "Lower risk" : riskV >= 50 ? "Moderate risk" : "Higher risk"}</b><button type="button" className="ws-go" onClick={() => open("risk")}>Risk →</button></div>}
         </div>
       </div>
-      <div className="ws-tabs" role="tablist" aria-label={`Where ${short1} stands`}>
-        {TABS.map(([k, t, d]) => <button key={k} type="button" role="tab" id={`ws-tab-${k}`} aria-selected={tab === k} aria-controls="ws-panel" onClick={() => setTab(k)}><b>{t}</b><small>{d}</small></button>)}
+      <div id="ws-panel">
+        {secQ.isError && <p className="sp-note" role="status" data-testid="sector-blank">{failureText(secQ.error)}</p>}
+        {!secQ.isError && (!g ? <p className="sp-note">{sec?.note ?? "NSE has not given this stock an industry yet, so there is no industry reading to show."}</p> : <IndustryTab name={short1} symbol={symbol} sec={sec!} locked={locked} page={page} rot={rot} />)}
       </div>
-      <div id="ws-panel" role="tabpanel" aria-labelledby={`ws-tab-${tab}`}>
-        {tab === "industry" && secQ.isError && <p className="sp-note" role="status" data-testid="sector-blank">{failureText(secQ.error)}</p>}
-        {tab === "industry" && !secQ.isError && (!g ? <p className="sp-note">{sec?.note ?? "NSE has not given this stock an industry yet, so there is no industry reading to show."}</p> : <IndustryTab name={short1} symbol={symbol} sec={sec!} locked={locked} page={page} rot={rot} />)}
-        {tab === "peers" && (lead ? <PeersTab name={short1} fullName={name} symbol={symbol} lead={lead} peers={peers} pe={s.keyMetrics} score={null} cap={s.quote.marketCapCr} /> : <p className="sp-note">{ld && !ld.available ? ld.display?.line ?? "No peer reading for this stock yet." : "The peer reading is loading."}</p>)}
-        {tab === "risk" && <RiskTab name={short1} s={s} risk={prism?.parts?.risk ?? null} gold={model === "prism"} nifty12={lead?.benchmarks.market?.ret52 ?? null} />}
-      </div>
-      <p className="sp-note ws-foot">Describes past prices, breadth and peer data; not a recommendation. Information only, not investment advice.</p>
+      <p className="sp-note ws-foot">Describes past prices and breadth; not a recommendation. Information only, not investment advice.</p>
     </section>
   );
 }
@@ -204,79 +187,9 @@ export function IndustryList({ stocks, symbol, name, ind, max }: { stocks: Ranke
   </div>);
 }
 
-// ------------------------------------------------------------------------------------------------ Against peers
-/** Tab 2 (task #216, README 3.14): the company against the group leader, not a second copy of 13's ranking table. One line with the rank and the gaps; for each of
- *  the three moves the leader's bar and the company's bar from a 0 line, with the gap; "Where all the peers sit" as dots on one strip, coloured by label, the
- *  company outlined and 0 marked; a link up to 13 for the full table. Describes past prices; not a recommendation. */
-export function HeadToHead({ name, symbol, lead }: { name: string; symbol: string; lead: LeadershipOn }) {
-  const top = lead.peers.find((p) => p.rank === 1), me = lead.peers.find((p) => p.symbol === symbol);
-  const sec = sectorName(lead), mk = lead.benchmarks.market?.name ?? null, n = lead.peers.length;
-  if (!top || !me) return null;
-  const moves: [string, number | null, number | null][] = [[`12 months vs ${sec}`, me.rel52, top.rel52], [`3 months vs ${sec}`, me.rel13, top.rel13], ...(mk ? [[`12 months vs ${mk}`, me.rel52Market, top.rel52Market] as [string, number | null, number | null]] : [])];
-  const P = (v: number) => (v * 100);
-  const max = Math.max(1, ...moves.flatMap(([, a, b]) => [Math.abs(P(a ?? 0)), Math.abs(P(b ?? 0))]));
-  const bar = (v: number): React.CSSProperties => ({ left: `${50 + (Math.min(0, v) / max) * 50}%`, width: `${(Math.abs(v) / max) * 50}%` });
-  const leaderName = top.name || top.symbol, isLeader = top.symbol === symbol;
-  const gap = (a: number | null, b: number | null) => (a == null || b == null ? null : P(a) - P(b));
-  const g12 = gap(me.rel52, top.rel52);
-  const vals = lead.peers.filter((p) => p.rel52 != null).map((p) => P(p.rel52!)), lo = Math.min(0, ...vals), hi = Math.max(0, ...vals), at = (v: number) => ((v - lo) / (hi - lo || 1)) * 100;
-  const f1 = (v: number) => `${v < 0 ? "\u2212" : ""}${Math.abs(v).toFixed(1)}`;
-  return (
-    <div className="sp-sec ws-h2h" id="ws-h2h">
-      <h3 className="ws-h3">{name} against the group leader</h3>
-      <p className="sp-sub">{isLeader ? `${name} is the group leader: 1st of ${lead.peerGroup.ranked} by the 12-month move against ${sec}.`
-        : `${ordinal(me.rank)} of ${lead.peerGroup.ranked} by the 12-month move${g12 != null ? `: ${f1(Math.abs(g12))} pts behind ${leaderName}, the leader` : ""}.`}</p>
-      {!isLeader && <ul className="ws-mv">{moves.map(([label, a, b]) => { const d = gap(a, b); return (
-        <li key={label}><span className="ws-mv-l">{label}</span>
-          <span className="ws-mv-b"><i className="zero" />{b != null && <span className="ld" style={bar(P(b))} title={`${leaderName}: ${f1(P(b))} pts`} />}{a != null && <span className="me" style={bar(P(a))} title={`${name}: ${f1(P(a))} pts`} />}</span>
-          <span className="ws-mv-v"><b>{a == null ? "\u2013" : f1(P(a))}</b> vs <b>{b == null ? "\u2013" : f1(P(b))}</b> pts</span>
-          <span className={"ws-mv-g " + (d == null ? "" : d >= 0 ? "pos" : "neg")}>{d == null ? "" : d >= 0 ? `Ahead by ${f1(d)} pts` : `Gap ${f1(Math.abs(d))} pts`}</span></li>); })}</ul>}
-      {!isLeader && <p className="ws-mv-k"><i className="me" /> {name} <i className="ld" /> {leaderName}</p>}
-      <div className="ws-six"><p className="ws-six-h">Where all {n} sit · 12 months vs {sec}</p>
-        <div className="ws-six-s" role="img" aria-label={lead.peers.map((p) => `${p.name || p.symbol} ${p.rel52 == null ? "no figure" : f1(P(p.rel52)) + " pts"}, ${LABEL[p.label]}`).join("; ")}>
-          <i className="zero" style={{ left: `${at(0)}%` }}><small>0</small></i>
-          {lead.peers.filter((p) => p.rel52 != null).map((p) => <span key={p.symbol} className={"dot " + p.label + (p.symbol === symbol ? " me" : "")} style={{ left: `${at(P(p.rel52!))}%` }} title={`${p.name || p.symbol}: ${f1(P(p.rel52!))} pts, ${LABEL[p.label]}`} />)}
-        </div></div>
-      <p className="sp-note">The full ranking table, with each company's label, is in <a href="#peers">13 · Peers ↑</a>. Describes past prices; not a recommendation.</p>
-    </div>
-  );
-}
-const sectorName = (lead: LeadershipOn) => (lead.benchmarks.sector.kind === "peer_average" ? "the peer average" : lead.benchmarks.sector.name);
-
-function PeersTab({ name, fullName, symbol, lead, peers, pe, score, cap }: { name: string; fullName: string; symbol: string; lead: LeadershipOn; peers?: Peers; pe: Summary["keyMetrics"]; score: number | null | undefined; cap: number | null }) {
-  const km = (k: string) => pe.find((x) => x.key === k)?.value ?? null;
-  // the peers list names the other companies; this company's own card comes first, from the report's own figures
-  const others = (peers?.items ?? []).filter((x) => x.symbol !== symbol);
-  const self = (peers?.items ?? []).find((x) => x.symbol === symbol) ?? { symbol, name: fullName, overall: score ?? null, pe: km("pe"), roe: km("roe"), market_cap: cap ?? km("market_cap") };
-  const items = others.length ? [self, ...others] : [], me = self;
-  // task #283: FinLit Prism on these cards for plans that have it; no score otherwise
-  const model = usePlanModel();
-  const pm = usePlanPrism(useMemo(() => items.slice(0, 6).map((x) => x.symbol), [items]), model);
-  const scoreOf = (x: { symbol: string }) => (model === "prism" ? scoreView(pm[x.symbol]).score : null);
-  const val = { pe: me?.pe ?? km("pe"), roe: me?.roe ?? km("roe"), peers: items.filter((x) => x.symbol !== symbol).map((x) => ({ pe: x.pe ?? null, roe: x.roe ?? null })) };
-  const top = lead.peers.find((p) => p.rank === 1);
-  return (<>
-    <Know scope="ws-peers" items={peerCards(name, lead, val)} />
-    <HeadToHead name={name} symbol={symbol} lead={lead} />
-    <div className="ws-two">
-      {top && top.symbol !== symbol ? <LeaderWhatIf symbol={symbol} name={name} leader={top.symbol} leaderName={top.name ?? top.symbol} leaderCap={top.marketCap} myCap={lead.peers.find((p) => p.symbol === symbol)?.marketCap ?? null} />
-        : <div className="sp-sec"><h3 className="ws-h3">What if you had owned the group leader?</h3><p className="sp-note">{name} is the group leader: it ranks 1st of {lead.peerGroup.ranked}.</p></div>}
-      <div className="sp-sec">
-        <h3 className="ws-h3">Business against similar companies</h3>
-        {items.length > 1 ? <><p className="sp-sub">{name} and the {items.length - 1} other companies in its industry. Select one to open its report.</p>
-          <div className="ws-biz">{items.slice(0, 6).map((x) => (
-            <Link key={x.symbol} to={`/stocks/${x.symbol}`} className={"ws-bc" + (x.symbol === symbol ? " me" : "")}>
-              <span className="ip-sym"><CoLogo symbol={x.symbol} name={x.name ?? x.symbol} size={22} inline /><b>{x.name ?? x.symbol}</b></span>
-              <dl>{model && <div><dt>Prism</dt><dd>{scoreOf(x) == null ? "–" : scoreOf(x)!.toFixed(1)}</dd></div>}<div><dt>P/E</dt><dd>{x.pe == null || x.pe <= 0 ? "–" : `${x.pe.toFixed(1)}×`}</dd></div><div><dt>ROE</dt><dd>{x.roe == null ? "–" : `${x.roe.toFixed(1)}%`}</dd></div><div><dt>Size</dt><dd>{size(x.market_cap)}</dd></div></dl>
-            </Link>))}</div>
-          {model && <p className="sp-note">Prism is the FinLit Prism score, 0 to 100.</p>}</>
-          : <p className="sp-note">No similar companies are listed for this industry yet.</p>}
-      </div>
-    </div>
-  </>);
-}
-
-function LeaderWhatIf({ symbol, name, leader, leaderName, leaderCap, myCap }: { symbol: string; name: string; leader: string; leaderName: string; leaderCap: number | null; myCap: number | null }) {
+// ------------------------------------------------------------------------------------------------ the group leader (shown in 13 Peers)
+/** "What if you had owned the group leader?": ₹1 lakh in the company and in the group's leader a year ago (developer file 47: in 13 Peers, beside the ranking). */
+export function LeaderWhatIf({ symbol, name, leader, leaderName, leaderCap, myCap }: { symbol: string; name: string; leader: string; leaderName: string; leaderCap: number | null; myCap: number | null }) {
   const a = useLeadershipHistory(symbol).data, b = useLeadershipHistory(leader).data;
   const sa = a?.series, sb = b?.series;
   if (!sa || !sb) return <div className="sp-sec"><h3 className="ws-h3">What if you had owned the group leader?</h3><p className="sp-note">{a && b ? "One of the two companies has too little price history for this." : "Loading the two price lines…"}</p></div>;
@@ -297,34 +210,10 @@ function LeaderWhatIf({ symbol, name, leader, leaderName, leaderCap, myCap }: { 
         <line x1="30" x2={W - 10} y1={Y(100)} y2={Y(100)} className="ws-mid" />
         <path d={line(l)} className="ws-ll" fill="none" /><path d={line(m)} className="ws-ml" fill="none" />
       </svg>
-      <div className="ws-wv"><span>₹1 lakh in {symbol}<b className="sp-red">{lakh(m[m.length - 1])}</b></span><span>₹1 lakh in {leader}<b className="sp-good">{lakh(l[l.length - 1])}</b></span></div>
+      {/* developer file 47: green or red by whether the amount is above or below the ₹1 lakh it started at (it was red for this company and green for the leader whatever they did) */}
+      <div className="ws-wv"><span>₹1 lakh in {symbol}<b className={m[m.length - 1] >= 100 ? "sp-good" : "sp-red"}>{lakh(m[m.length - 1])}</b></span><span>₹1 lakh in {leader}<b className={l[l.length - 1] >= 100 ? "sp-good" : "sp-red"}>{lakh(l[l.length - 1])}</b></span></div>
       {leaderCap != null && myCap != null && leaderCap * 5 < myCap && <Cards items={[{ kind: "watch", title: "Not a like-for-like swap", text: `${leaderName} is a ${size(leaderCap).toLowerCase()} company worth about ₹${Math.round(leaderCap).toLocaleString("en-IN")} Cr; ${name} is worth about ₹${Math.round(myCap).toLocaleString("en-IN")} Cr. Small companies can rise faster, and fall faster.` }]} />}
     </div>
   );
 }
 
-// ------------------------------------------------------------------------------------------------ Risk
-function RiskTab({ name, s, risk, gold, nifty12 }: { name: string; s: Summary; risk: number | null; gold: boolean; nifty12: number | null }) {
-  const m1 = s.returns.find((r) => r.period === "1M")?.price ?? null, m12 = s.returns.find((r) => r.period === "1Y")?.price ?? null;
-  const last = s.quote.price, hi = s.quote.high52, cap = s.quote.marketCapCr;
-  const word = risk == null ? null : risk >= 70 ? "Lower risk" : risk >= 50 ? "Moderate risk" : "Higher risk";
-  return (<>
-    <Know scope="ws-risk" items={riskCards(name, gold ? risk : null, m12, nifty12 == null ? null : nifty12 * 100)} />
-    <div className="ws-two">
-      <div className="sp-sec">
-        <h3 className="ws-h3">How risky is the share?</h3><p className="sp-sub">FinLit's risk reading for the company.</p>
-        {!gold ? <LockedBlock plan="gold" title="Prism Risk is part of the Gold plan">FinLit Prism's risk reading for every company, 0 to 100, from how much the price swings, the largest fall, how actively the share trades and whether promoters have pledged shares.</LockedBlock>
-          : risk == null ? <p className="sp-note">FinLit Prism has no risk reading for this company yet.</p>
-            : <div className="ws-risk"><span className="ws-ring" style={{ ["--v" as string]: risk }}><b>{Math.round(risk)}</b></span>
-              <div><p className="ws-rk">Prism Risk {Math.round(risk)} · {word}<Tip text="Prism Risk. FinLit's risk reading for each company from 0 to 100. Higher means lower risk." /></p><p className="sp-note">It looks at how much the price swings, the largest fall, how actively the share trades and whether promoters have pledged shares. Higher means lower risk.</p></div></div>}
-      </div>
-      <div className="sp-sec">
-        <h3 className="ws-h3">The figures behind it</h3><p className="sp-sub">Other readings that bear on risk.</p>
-        <div className="ws-row"><span>Size</span><b>{cap == null ? "–" : `${size(cap)} · ₹${Math.round(cap).toLocaleString("en-IN")} Cr`}</b></div>
-        <div className="ws-row"><span>Below its 1-year high</span><b>{last != null && hi ? `${Math.max(0, (1 - last / hi) * 100).toFixed(1)}%` : "–"}</b></div>
-        <div className="ws-row"><span>Last 12 months</span><b className={(m12 ?? 0) >= 0 ? "sp-good" : "sp-red"}>{sp(m12)}</b></div>
-        <div className="ws-row"><span>Last month</span><b className={(m1 ?? 0) >= 0 ? "sp-good" : "sp-red"}>{sp(m1)}</b></div>
-      </div>
-    </div>
-  </>);
-}

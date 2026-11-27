@@ -77,7 +77,7 @@ export function QuarterSection({ f }: { f?: Financials }) {
   const cols = [last, last - 1, yoy].filter((i) => i >= 0);
   return (
     <section className="block">
-      <SectionHead id="quarter" no="Latest quarter" icon="notes" tier="basic" title={`${q.periods[last]} quarter against a year ago`} sub={`Quarter ended ${end}. Compared with the previous quarter and the same quarter a year earlier.`} />
+      <SectionHead id="quarter" no="Latest quarter" icon="notes" tier="basic" sub={`Quarter ended ${end}. Compared with the previous quarter and the same quarter a year earlier.`} />
       {rvY != null && npY != null && <Plain tone={npY >= 0 ? "good" : "warn"}>In the latest quarter, sales {rvY >= 0 ? "grew" : "fell"} {nf(Math.abs(rvY), 1)}% and profit {npY >= 0 ? "rose" : "fell"} {nf(Math.abs(npY), 1)}% compared with the same quarter last year.{opm[last] != null && opm[yoy] != null ? ` The operating margin ${(opm[last] as number) >= (opm[yoy] as number) ? "widened" : "narrowed"} from ${nf(opm[yoy] as number, 1)}% to ${nf(opm[last] as number, 1)}%.` : ""}</Plain>}
       <div className="qk">{tiles.map((t) => (
         <div className={"qt" + (t.k === "Revenue" || t.k === "Net profit" ? " hl" : "")} key={t.k} style={{ "--qc": t.c } as React.CSSProperties}>
@@ -178,7 +178,7 @@ export function TrendsSection({ f: pageF, e, r: pageR }: { f?: Financials; e?: E
         : `Loading ${chosen as Basis} accounts…`;
     return (
       <section className="block">
-        <SectionHead id="trends" no="Trends" icon="line" tier="basic" title="How sales, profit and cash have moved" sub={head(chosen as Basis)} />
+        <SectionHead id="trends" no="Trends" icon="line" tier="basic" sub={head(chosen as Basis)} />
         <div className="tr-bar"><span className="faint" style={{ fontSize: "var(--fs-13)", alignSelf: "center" }}>Accounts</span>{basisSeg}</div>
         <p className={noneFor || finQ.isError ? "muted" : "faint"} role="status" style={{ fontSize: "var(--fs-14)", margin: "6px 2px 0" }}>{why}</p>
         {!noneFor && !finQ.isError && <div className="skeleton" style={{ height: 320, marginTop: 14 }} />}
@@ -219,7 +219,7 @@ export function TrendsSection({ f: pageF, e, r: pageR }: { f?: Financials; e?: E
   const missing = built.filter((b) => !b.d).map((b) => b.c.title);
   return (
     <section className="block">
-      <SectionHead id="trends" no="Trends" icon="line" tier="basic" title="How sales, profit and cash have moved" sub={head(f.meta.statement)}
+      <SectionHead id="trends" no="Trends" icon="line" tier="basic" sub={head(f.meta.statement)}
         aside={<>{basisSeg}<div className="seg" role="group" aria-label="Period" onKeyDown={segKeys}><button type="button" aria-pressed={mode === "q"} tabIndex={mode === "q" ? 0 : -1} onClick={() => setMode("q")}>Quarterly</button><button type="button" aria-pressed={mode === "a"} tabIndex={mode === "a" ? 0 : -1} onClick={() => setMode("a")}>Annual</button></div></>} />
       {/* task #216 (README 3.7): the trend groups are the report's tab group; Consolidated | Standalone sits in the heading row, left of Quarterly | Annual */}
       <TabGroup label="Trend groups" value={tab} onChange={(k) => setTab(k as typeof tab)} next={false} hint={`${tabName} shown here`}

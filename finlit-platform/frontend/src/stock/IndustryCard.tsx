@@ -2,6 +2,8 @@
 // industry's biggest companies). It reads the company's row and its group on Latest results -> Industries for the same quarter (GET /api/results/quarter, the same
 // figures and verdicts as that page; Silver), and Sector Rotation for "Results and prices" (the Latest results rule). The rules are in lib/industryCard.ts.
 // Styles: styles/industry-card.css, scoped to #aiq. Describes the results; never advice.
+// Developer file 47 (founder, 27 Nov 2026: "the box is too big, way too colourful, and why is The biggest in Petroleum Products not coming"): one plain card in the
+// report's colours (ink, the gold edge, blue only for this company's bar), the eyebrow and the fact icons gone, and a failed list says why with Try again.
 import { useMemo, useState } from "react";
 import { Link } from "react-router";
 import { Info } from "../components/Info";
@@ -29,6 +31,8 @@ const INFO_G = { key: "aiq", label: "Against its industry this quarter", what: I
 export type IndustryRead = {
   state: "none" | "loading" | "nogroup" | "locked" | "ready";
   row?: VRow; ind?: Ind; peers?: VRow[]; quarter?: QResp["quarter"]; name: string; declared: boolean;
+  /** developer file 47: why the industry's biggest companies did not load, and a way to ask again (a failed request used to read "Loading…" for good) */
+  peersError?: string; retryPeers?: () => void;
 };
 
 /** The company's row and its group this quarter, read once and shared by the card and the key-points line. */
@@ -45,7 +49,9 @@ export function useIndustryRead(symbol: string | undefined, companyName?: string
   if (!row) return { state: "none", name, declared };            // not in this quarter's results (an ETF, a fund, a company not followed): no card
   if (!ind) return { state: "nogroup", row, name, declared, quarter: me.data?.quarter };
   if (ind.medianRevenueYoY === undefined) return { state: "locked", row, ind, name, declared, quarter: me.data?.quarter };
-  return { state: "ready", row, ind, peers: (peersQ.data?.rows as VRow[] | undefined) ?? undefined, name, declared, quarter: me.data?.quarter };
+  const peers = (peersQ.data?.rows as VRow[] | undefined) ?? undefined;
+  return { state: "ready", row, ind, peers, name, declared, quarter: me.data?.quarter,
+    peersError: !peers && peersQ.isError ? (peersQ.error?.message || "no answer") : undefined, retryPeers: () => { void peersQ.refetch(); } };
 }
 
 /** The line at the end of the key points: kept with its numbers; none when the company has not declared or a figure is missing. */
@@ -64,7 +70,6 @@ function Head({ r, children }: { r: IndustryRead; children?: React.ReactNode }) 
   const i = r.ind, q = qLabel(r.quarter);
   return (
     <div className="aiq-hl">
-      <p className="aiq-eye"><span className="aiq-dot" aria-hidden="true" />Key read for this quarter</p>
       <h3 id="aiq-h">Against its industry this quarter<Info g={INFO_G} /></h3>
       {children}
       {i && <p className="aiq-sub">{i.name} · {i.declared} of {i.companies} companies have declared · revenue and net profit, {q} quarter against a year ago</p>}
@@ -119,6 +124,10 @@ function Peers({ r }: { r: IndustryRead }) {
       </td>
     );
   };
+  if (!r.peers && r.peersError) return (
+    <p className="aiq-foot aiq-err" role="alert">The industry's biggest companies could not be loaded ({r.peersError}).{" "}
+      {r.retryPeers && <button type="button" className="btn" onClick={r.retryPeers}>Try again</button>}{" "}
+      <Link to={`/results?view=companies&industry=${encodeURIComponent(ind.name)}`}>All {ind.companies} companies in {ind.name} on Results →</Link></p>);
   if (!r.peers) return <p className="aiq-foot" role="status">Loading the industry's biggest companies…</p>;
   return (
     <>
@@ -183,7 +192,7 @@ export function IndustryCard({ read: r }: { read: IndustryRead }) {
           Both panes stay mounted, so the table keeps its sort while the member switches tabs. */}
       <div className="aiq-tabs" role="tablist" aria-label="Views of this quarter">
         <button type="button" role="tab" id="aiq-t1" aria-controls="aiq-p1" aria-selected={tab === 0} tabIndex={tab === 0 ? 0 : -1} onClick={() => setTab(0)} onKeyDown={tabKey}>{r.name} against its industry</button>
-        <button type="button" role="tab" id="aiq-t2" aria-controls="aiq-p2" aria-selected={tab === 1} tabIndex={tab === 1 ? 0 : -1} onClick={() => setTab(1)} onKeyDown={tabKey}>The {r.peers ? `${r.peers.length} ` : ""}biggest in {i.name}{r.peers ? <b>{r.peers.length}</b> : null}</button>
+        <button type="button" role="tab" id="aiq-t2" aria-controls="aiq-p2" aria-selected={tab === 1} tabIndex={tab === 1 ? 0 : -1} onClick={() => setTab(1)} onKeyDown={tabKey}>The {r.peers ? `${r.peers.length} ` : ""}biggest in {i.name}{r.peers ? <b>{r.peers.length}</b> : r.peersError ? <b className="aiq-tn-err" title="Could not be loaded">!</b> : null}</button>
       </div>
       <div className="aiq-pane" id="aiq-p1" role="tabpanel" aria-labelledby="aiq-t1" hidden={tab !== 0}>
       <div className="aiq-kp">
@@ -192,12 +201,12 @@ export function IndustryCard({ read: r }: { read: IndustryRead }) {
       </div>
       <p className="aiq-key"><span><i />{r.name}</span><span><i className="ind" />Typical {i.name} company</span><span><i className="mkt" />Typical company, all industries</span></p>
       <div className="aiq-facts">
-        <div className="aiq-f"><span className="aiq-fi" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 17l6-6 4 4 8-8" /><path d="M14 7h7v7" /></svg></span>
+        <div className="aiq-f">
           <div><small>The industry against the market</small><b>{i.vsMarket ? VS_TEXT[i.vsMarket] : "No reading yet"}</b>{!i.vsMarket && <span className="aiq-why">Too few of its companies have figures to compare.</span>}</div></div>
-        <div className="aiq-f"><span className="aiq-fi" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 3" /></svg></span>
+        <div className="aiq-f">
           <div><small>Beat their industry</small><b>{i.beatShare == null ? "No reading yet" : `${Math.round(i.beatShare)}% of its companies`}</b>
             {i.beatShare != null && <span className="aiq-meter" aria-hidden="true"><i style={{ width: `${Math.max(0, Math.min(100, i.beatShare))}%` }} /></span>}</div></div>
-        <div className="aiq-f" title={agree ? AGREE_TEXT[agree] : noAgree}><span className="aiq-fi" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2" /></svg></span>
+        <div className="aiq-f" title={agree ? AGREE_TEXT[agree] : noAgree}>
           <div><small>Results and prices</small><b>{agree ?? "No clear reading"}</b><a href="#sector">See prices in 14 →</a></div></div>
       </div>
       </div>

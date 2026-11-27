@@ -15,7 +15,7 @@ describe("All sections panel", () => {
     const h = renderToStaticMarkup(<SectionsMenu items={navFor()} active={null} onPick={() => {}} />);
     expect(h).toContain("hidden"); expect(h).toContain('aria-expanded="false"'); expect(h).not.toContain('data-s="leadership"'); expect(h).not.toContain('data-s="history"'); expect(h).toContain('data-s="ownership"'); expect(h).not.toContain('data-s="plans"');
     expect(navFor()).toHaveLength(18);   // task #216: live 17 Pros & cons is gone; developer file 41: Chart lab and Gold insights are gone
-    expect(h).toContain("<b><span class=\"sn-no\">14</span>Where it stands</b>");   // Key findings is merged into Strengths & watch-outs (task #37); Leadership went into Where it stands (pack board 17)
+    expect(h).toContain("<b><span class=\"sn-no\">14</span>Industry</b>");   // developer file 47: Where it stands is Industry (the peers are 13's);   // Key findings is merged into Strengths & watch-outs (task #37); Leadership went into Where it stands (pack board 17)
   });
 });
 

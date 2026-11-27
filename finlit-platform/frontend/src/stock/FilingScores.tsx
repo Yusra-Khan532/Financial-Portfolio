@@ -78,8 +78,10 @@ export function FilingScores({ symbol, name }: { symbol: string; name: string })
   return (
     <div className="card fs-card" id="filing-scores" aria-labelledby="fs-title">
       <div className="fs-top">
-        <div><h3 id="fs-title" className="fs-title">The three filings, point by point</h3>
-          <p className="fs-lede">{possessive(name)} newest investor presentation, earnings call transcript and results filing, each broken into short points and scored from 0 to 100 by fixed word rules (no AI).</p></div>
+        {/* developer file 47 (founder, 27 Nov 2026: rename "The three filings, point by point" to "Sentiment analysis"): what task #266 asked for, the tone of
+            what each document says; the scores still show as numbers and colours only, never a word such as positive or negative */}
+        <div><h3 id="fs-title" className="fs-title">Sentiment analysis</h3>
+          <p className="fs-lede">The tone of {possessive(name)} newest investor presentation, earnings call transcript and results filing, point by point: each split into short points and scored from 0 to 100 by fixed word rules (no AI).</p></div>
         <p className="fs-legend" aria-label="Score ranges"><span><i className="fs-sw b-green" aria-hidden="true" />65–100</span><span><i className="fs-sw b-yellow" aria-hidden="true" />40–64</span><span><i className="fs-sw b-red" aria-hidden="true" />0–39</span></p>
       </div>
       {q.isLoading ? <div className="skeleton" style={{ height: 220 }} aria-busy="true" aria-label="Loading the filing scores" />

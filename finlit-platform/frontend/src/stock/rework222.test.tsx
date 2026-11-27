@@ -23,8 +23,8 @@ const css = (f: string) => readFileSync(join(__dirname, "..", "styles", f), "utf
 describe("18 News and filings (S1)", () => {
   it("the head, the simple words, 4 tiles that open their PDF in a new tab, the chips with counts and 6 rows first", () => {
     const { container: c } = render(<QueryClientProvider client={new QueryClient()}><MemoryRouter><NewsSection e={EV} name="TD Power Systems Ltd" /></MemoryRouter></QueryClientProvider>);
-    expect(c.querySelector("#news h2")!.textContent).toBe("What the company has told the exchange");
-    expect(c.querySelector("#news .no")!.textContent).toContain("News and filings");
+    expect(c.querySelector("#news h2")!.textContent).toBe("News & filings");   // developer file 47: one heading per section (the second title is gone)
+    expect(c.querySelector("#news .sh-desc")!.textContent).toContain("Filings to NSE, newest first.");
     expect(c.querySelector(".plain")!.textContent).toContain("TD Power Systems has made 24 filings with NSE since 11 Aug 2026, the latest on 16 Nov.");
     const tiles = [...c.querySelectorAll("a.nf-h")];
     expect(tiles.length).toBe(4); expect(tiles.every((t) => t.getAttribute("target") === "_blank" && /^https:/.test(t.getAttribute("href")!))).toBe(true);

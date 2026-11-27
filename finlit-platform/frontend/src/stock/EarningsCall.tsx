@@ -21,7 +21,7 @@ export function EarningsCallSection({ symbol, name }: { symbol: string; name: st
   const show = (qid?: string) => { opener.current = document.activeElement as HTMLElement | null; setOpen({ qid }); };
   return (
     <section className="block ec-sec">
-      <SectionHead id="earnings-call" no="Earnings call" icon="notes" tier="gold" title="What management said on the latest call"
+      <SectionHead id="earnings-call" no="Earnings call" icon="notes" tier="gold"
         sub="Ten fixed questions about the company's most recent earnings call, answered from its transcript, with the quote behind every sentence." />
       <div className="card ec-card">
         {q.isLoading ? <div className="ec-skel" role="status" aria-label="Loading the earnings call"><i /><i /><i /></div>

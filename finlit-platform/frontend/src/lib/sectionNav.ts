@@ -22,7 +22,7 @@ export const NAV: NavItem[] = [
   ["ownership", "Ownership", "pie", "Promoters, institutions and the public"],
   // its industry, its sector and the economy
   ["peers", "Peers", "layers", "How the company compares with its peers"],
-  ["sector", "Where it stands", "activity", "Its industry, its peers and its risk, one question per tab"],
+  ["sector", "Industry", "activity", "Its industry against the others, and where the company ranks inside it"],   // developer file 47: the peers are 13's; no Risk tab
   ["macro", "Economy", "globe", "Is the economy helping its sector? The reading, its drivers and indicators"],
   // what it has filed, and what members say
   ["news", "News & filings", "notes", "Everything the company has filed with NSE, by group; routine filings hidden"],

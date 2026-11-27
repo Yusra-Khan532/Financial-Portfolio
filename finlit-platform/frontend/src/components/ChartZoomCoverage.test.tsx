@@ -94,6 +94,7 @@ const EXEMPT: Record<string, string> = {
   "components/ChartSays.tsx": "The collapsible reading under a chart: it has a small caret icon, not a chart.",
   "charts/Small.tsx": "sparklines, the RSI gauge and a small donut (the donut is wrapped where it is a chart: Fundamentals)",
   "charts/Atlas.tsx": "chart primitives; the arrow is on the card that holds them (Chart lab cards, Fundamentals, fund portfolio mix)",
+  "charts/RiskLine.tsx": "the drawdown and volatility line of Price statistics (developer file 47); the arrow is on the card that holds it (MoreCharts' Card)",
   "components/GraphCharts.tsx": "chart builder primitives; the builder's cells have their own arrow (GraphStudio)",
   "components/DrawLayer.tsx": "drawing tool layer, not a chart",
   "components/Art.tsx": "decorative art", "components/BlogArt.tsx": "decorative art", "components/PageArt.tsx": "decorative art", "components/PageHeaderArt.tsx": "decorative art",

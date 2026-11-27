@@ -43,7 +43,7 @@ describe("1 · the Company brief is not in the report", () => {
 
 describe("2 · Profit and loss in charts opens on Growth by line", () => {
   it("Growth by line is the first tab (a tab group opens on its first view); the ₹100 note no longer says 'the walk above'", () => {
-    const more = read("stock/MoreCharts.tsx"), pl = more.slice(more.indexOf("export function PlCharts"), more.indexOf("/* ---------------------------------------------------------------- balance sheet */"));
+    const more = read("stock/MoreCharts.tsx"), pl = more.slice(more.indexOf("export function PlCharts"), more.indexOf("/* ---------------------------------------------------------------- balance sheet"));
     expect([...pl.matchAll(/\{ key: "([a-z]+)", label: "([^"]+)"/g)].map((m) => m[1])).toEqual(["growth", "walk", "hundred"]);
     expect(pl).not.toContain("in the walk above");
     render(<TabGroup label="t" views={[{ key: "growth", label: "Growth by line", content: <p>g</p> }, { key: "walk", label: "Revenue to net profit", content: <p>w</p> }]} />);

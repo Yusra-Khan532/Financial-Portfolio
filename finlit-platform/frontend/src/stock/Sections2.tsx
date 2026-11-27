@@ -40,7 +40,7 @@ export function BusinessSection({ s }: { s: Summary }) {
   ];
   return (
     <section className="block">
-      <SectionHead id="business" no="Company overview" icon="building" tier="basic" title={`What ${p.name.split(" ")[0]} does`} />
+      <SectionHead id="business" no="Company overview" icon="building" tier="basic" />
       <div className="biz2">
         <div className="card acc biz-main">
           <svg className="skyline" viewBox="0 0 400 120" aria-hidden="true" preserveAspectRatio="xMaxYMax meet">
@@ -77,23 +77,24 @@ export function DividendsSection({ e, price, r }: { e?: Events; price?: number |
   const partLabel = d.partial ? (divs.filter((x) => x.forFY === d.partial!.p).length === 1 && divs.find((x) => x.forFY === d.partial!.p)?.type === "interim_dividend" ? "the interim dividend declared so far" : "the dividends declared so far") : "";
   return (
     <section className="block">
-      <SectionHead id="dividends" no="Dividends" icon="coins" tier="basic" title="Cash returned to shareholders" sub="Amounts are adjusted for splits and bonuses." />
+      <SectionHead id="dividends" no="Dividends" icon="coins" tier="basic" sub="Amounts are adjusted for splits and bonuses." />
       {e.dividendYieldTtm != null && <Plain tone={d.streak >= 5 && d.rising >= 3 ? "good" : "info"}>{divPlain(e.dividendYieldTtm, d, payout, nf)}</Plain>}
       <div className="dvk">
-        <div className="dk" style={{ "--dc": "var(--gold)" } as React.CSSProperties}>
+        {/* developer file 47 (founder, 27 Nov 2026: "section 11, the four boxes are too colourful"): one strip in the report's gold and ink, not four colours */}
+        <div className="dk">
           <div className="dk-ring"><svg viewBox="0 0 120 120" aria-hidden="true"><defs><linearGradient id="dvy" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#F3E6BF" /><stop offset=".5" stopColor="var(--gold)" /><stop offset="1" stopColor="var(--gold-deep)" /></linearGradient></defs><circle cx="60" cy="60" r={R} fill="none" stroke="var(--s3)" strokeWidth="10" /><circle className="ring-in" cx="60" cy="60" r={R} fill="none" stroke="var(--gold)" strokeWidth="10" strokeLinecap="round" strokeDasharray={`${(C * yld) / 100} ${C}`} transform="rotate(-90 60 60)" /></svg><b>{pct(e.dividendYieldTtm)}</b></div>
           <div><span className="label">Dividend yield</span><p>Yearly cash per ₹100 invested. Ring: against a 5% scale.</p></div>
         </div>
-        <div className="dk" style={{ "--dc": "var(--c2)" } as React.CSSProperties}>
+        <div className="dk">
           <span className="dk-i"><Icon name="percent" /></span>
           <div><span className="label">Share of profit paid out</span><b className="dk-v">{payout == null ? "—" : nf(payout, 0) + "%"}</b>{safe && <span className={"dk-tag " + safe[1]}>{safe[0]}</span>}<p>{payout == null ? "" : payout < 40 ? "Plenty of room to keep paying." : payout < 70 ? "A balanced split between owners and growth." : "Little left over; the dividend could be harder to sustain."}</p></div>
         </div>
-        <div className="dk" style={{ "--dc": "var(--c3)" } as React.CSSProperties}>
+        <div className="dk">
           <span className="dk-i"><Icon name="growth" /></span>
           <div><span className="label">Dividend growth</span><b className="dk-v">{d.cagr == null ? "—" : (d.cagr >= 0 ? "+" : "−") + nf(Math.abs(d.cagr), 0) + "% a year"}</b>
             <p>{d.first && d.last ? `From ₹${nf(d.first.v, 2)} (${d.first.p}) to ₹${nf(d.last.v, 2)} (${d.last.p}) per share.` : "No dividend in the years shown."}{d.partial ? ` ${d.partial.p} is not over yet.` : ""}</p></div>
         </div>
-        <div className="dk" style={{ "--dc": "var(--c4)" } as React.CSSProperties}>
+        <div className="dk">
           <span className="dk-i"><Icon name="check" /></span>
           <div><span className="label">Years paid in a row</span><b className="dk-v">{d.streak} of {d.total}</b><div className="dk-dots">{d.years.filter((y) => !y.part || y.v > 0).map((y) => <i key={y.p} className={(y.v > 0 ? "on" : "") + (y.part ? " part" : "")} title={y.part ? `${y.p} so far: ₹${nf(y.v, 2)}` : `${y.p}: ₹${nf(y.v, 2)}`} />)}</div></div>
         </div>

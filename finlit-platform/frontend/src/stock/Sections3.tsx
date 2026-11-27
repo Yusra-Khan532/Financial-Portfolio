@@ -24,6 +24,7 @@ import { DuPont } from "./DuPont";
 import { EarningsCash, useEarningsFindings } from "./EarningsCash";
 import { SegmentCard } from "./Sections2";
 import { PeerRanking } from "./Leadership";
+import { LeaderWhatIf } from "./pack/WhereStands";
 import { useLeadership } from "../lib/leadership";
 import { ChartZoom } from "../components/ChartZoom";
 import { CoLogo } from "../components/CoLogo";
@@ -119,7 +120,7 @@ export function HistoryTable({ r, profile }: { r: Ratios; profile?: unknown }) {
           </Fragment>
         );
       })}</tbody>
-    </table>{(hidden > 0 || (all && group === "all" && everyRow.length > HEAD_RATIOS.length + 1)) && <p className="rh-more" style={{ margin: "10px 0 0" }}><button type="button" className="mf-linkbtn" aria-expanded={all} onClick={() => setAll(!all)}>{all ? "Show the main eight" : `Show all ${everyRow.length}`}</button></p>}<p className="faint" style={{ fontSize: "var(--fs-12)", margin: "10px 0 0" }}>Green cells are the most favourable years for that ratio, red the weakest. Where "better" depends on the business, cells stay uncoloured. n/m: the figure cannot be read that year (for example a negative base). They describe; they are not a recommendation.</p></HScroll>
+    </table>{(hidden > 0 || (all && group === "all" && everyRow.length > HEAD_RATIOS.length + 1)) && <p className="rh-more" style={{ margin: "10px 0 0" }}><button type="button" className="mf-linkbtn" aria-expanded={all} onClick={() => setAll(!all)}>{all ? "Show the main eight" : `Show all ${everyRow.length}`}</button></p>}{/* developer file 47 (founder, 27 Nov 2026: "the 3 line sentence below the ratio history table takes a lot of space"): one line of keys */}<p className="faint tkey"><span><i className="tk-g" />Most favourable year</span><span><i className="tk-r" />Weakest</span><span><i />Not coloured where “better” depends on the business</span><span><b>n/m</b> cannot be read that year (for example a negative base)</span><span>Describes; not a recommendation.</span></p></HScroll>
     </>
   );
 }
@@ -153,13 +154,13 @@ export function RatiosSection({ r, lender = false, sector, industry, labels }: {
   const { has, upgrade } = useUI();
   const [sel, setSel] = useState("pe");
   const ef = useEarningsFindings(r?.meta.symbol ?? "", lender, sector, industry, labels);
-  if (!r) return <section className="block"><SectionHead id="ratios" no="Ratios" icon="gauge" tier="basic" title="Valuation, returns, margins and debt" /><div className="skeleton" style={{ height: 300 }} /></section>;
+  if (!r) return <section className="block"><SectionHead id="ratios" no="Ratios" icon="gauge" tier="basic" /><div className="skeleton" style={{ height: 300 }} /></section>;
   const hist = r.history, meters = METERS.filter((m) => r.latest[m.key]);
   const cur = meters.find((m) => m.key === sel) || meters[0];
   return (
     <>
     <section className="block">
-      <SectionHead id="ratios" no="Ratios" icon="gauge" tier="basic" title="Valuation, returns, margins and debt" sub="Latest value with its period. Select i for what it means and how to read it." />
+      <SectionHead id="ratios" no="Ratios" icon="gauge" tier="basic" sub="Latest value with its period. Select i for what it means and how to read it." />
       <Plain>Ratios turn big numbers into fair comparisons. The meters below show where each one sits against common rules of thumb. Zones are a starting point: always compare with companies in the same industry.</Plain>
       <div className="mtr-grid">{meters.map((m) => <Meter key={m.key} m={m} r={r} on={cur?.key === m.key} onSel={() => setSel(m.key)} />)}</div>
       {cur && <p className="mtr-say" aria-live="polite"><b>{r.latest[cur.key].label}</b> {cur.say(r.latest[cur.key].value)}</p>}
@@ -205,9 +206,9 @@ export function RatiosSection({ r, lender = false, sector, industry, labels }: {
       ]} />
     </section>
       <DuPont symbol={r.meta.symbol} lender={lender}
-        head={<SectionHead id="dupont" no="DuPont analysis" icon="layers" tier="basic" title="What drives return on equity" sub="ROE split into profit margin, asset turnover and leverage, then cleaned of one-off items and split further." />} />
+        head={<SectionHead id="dupont" no="DuPont analysis" icon="layers" tier="basic" sub="ROE split into profit margin, asset turnover and leverage, then cleaned of one-off items and split further." />} />
       <section className="block">
-        <SectionHead id="earnings" no="Earnings & cash quality" icon="shield" tier="gold" title="Is the profit real, and is it turning into cash?" sub="Profit against cash, collections and stock, and one-off items." counts={ef ? [{ n: ef.red, label: ef.red === 1 ? "red flag" : "red flags", tone: "red" }, { n: ef.watch, label: "to watch", tone: "amb" }, { n: ef.investigate, label: "to investigate", tone: "amb" }] : undefined} />
+        <SectionHead id="earnings" no="Earnings & cash quality" icon="shield" tier="gold" sub="Profit against cash, collections and stock, and one-off items." counts={ef ? [{ n: ef.red, label: ef.red === 1 ? "red flag" : "red flags", tone: "red" }, { n: ef.watch, label: "to watch", tone: "amb" }, { n: ef.investigate, label: "to investigate", tone: "amb" }] : undefined} />
         <EarningsCash symbol={r.meta.symbol} lender={lender} sector={sector} industry={industry} labels={labels} />
       </section>
     </>
@@ -240,7 +241,7 @@ export function PeersSection({ p, self, s }: { p?: Peers; self: string; s: Summa
   const N = peers.length, CX = 190, CY = 190, RR = 128;
   return (
     <section className="block">
-      <SectionHead id="peers" no="Peers" icon="layers" tier="basic" title={`How ${s.profile.name.split(" ")[0]} compares with its peers`} sub="Select a company to open its report." />
+      <SectionHead id="peers" no="Peers" icon="layers" tier="basic" sub="Select a company to open its report." />
       <Plain>Comparing a company with its closest rivals is the quickest way to tell whether a number is good or just normal for the industry. {cls?.industry ? `${s.profile.name.split(" ")[0]} is in NSE's ${cls.industry} industry${cls.basic_industry ? ` (basic industry: ${cls.basic_industry})` : ""}; these ${N} are the companies the data provider lists as its peers.` : ""}</Plain>
       <div className="pr2">
         <div className="card acc orbit-card">
@@ -277,6 +278,9 @@ export function PeersSection({ p, self, s }: { p?: Peers; self: string; s: Summa
         </div>
       </div>
       {lead?.available && <PeerRanking lead={lead} self={self} extras={items.map((i) => ({ symbol: i.symbol, name: i.name }))} />}
+      {/* developer file 47: "What if you had owned the group leader?" moved here from 14, whose "Against peers" tab repeated this section */}
+      {lead?.available && (() => { const top = lead.peers.find((p) => p.rank === 1); return top && top.symbol !== self
+        ? <div className="sp ws-wi13"><LeaderWhatIf symbol={self} name={s.profile.name.replace(/\s+(industries|limited|ltd\.?|corporation|corp\.?|company)\b.*$/i, "").trim() || s.profile.name} leader={top.symbol} leaderName={top.name ?? top.symbol} leaderCap={top.marketCap} myCap={lead.peers.find((p) => p.symbol === self)?.marketCap ?? null} /></div> : null; })()}
     </section>
   );
 }
@@ -287,7 +291,7 @@ export function PeersSection({ p, self, s }: { p?: Peers; self: string; s: Summa
 export function SegmentsSection({ seg }: { seg?: Segments }) {
   return (
     <section className="block">
-      <SectionHead id="segments" no="Segments" icon="pie" tier="gold" title="Where the revenue comes from" sub="Each business segment's share of revenue, its growth and its profit, year by year." />
+      <SectionHead id="segments" no="Segments" icon="pie" tier="gold" sub="Each business segment's share of revenue, its growth and its profit, year by year." />
       <Gate tier="gold" title="Unlock revenue segmentation" points={["Revenue by business segment, year by year", "Each segment's share, growth and profit", "How dependent the company is on one segment"]}>
         <SegmentCard seg={seg} />
       </Gate>

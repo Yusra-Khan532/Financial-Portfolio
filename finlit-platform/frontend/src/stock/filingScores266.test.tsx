@@ -43,7 +43,10 @@ describe("the three filings, point by point", () => {
   it("never the words positive, neutral or negative as a label", async () => {
     mount(SAMPLE);
     await screen.findAllByRole("article");
-    const text = document.body.textContent!.toLowerCase();
+    // developer file 47 (founder, 27 Nov 2026): the block's own name is "Sentiment analysis", the one place the word appears; no score is ever called
+    // positive, neutral or negative, and no other line says "sentiment"
+    expect(screen.getByRole("heading", { name: "Sentiment analysis" })).toBeTruthy();
+    const text = document.body.textContent!.toLowerCase().replace("sentiment analysis", "");
     expect(text).not.toMatch(/\b(positive|neutral|negative|sentiment)\b/);
   });
   it("why a point scored as it did, and every point on demand", async () => {

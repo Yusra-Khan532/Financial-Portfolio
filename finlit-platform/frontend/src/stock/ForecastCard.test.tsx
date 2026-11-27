@@ -76,11 +76,12 @@ describe("the card (task #215)", () => {
     fireEvent.click(within(screen.getAllByRole("group")[1]).getByRole("button", { name: /^1Y/ }));
     expect(screen.getByText(/^Profit \(Forecast\)$/).parentElement!.textContent).toContain("FY27 · at the 1-year rate (FY25 to FY26)");
   });
-  it("says what it is and never advises; sits in section 06's heading", () => {
+  it("says what it is and never advises; opens section 05, above the key figures (developer file 47: it sat in the heading's right side)", () => {
     const { container } = render(<ForecastCard f={fin(PL)} />);
     expect(container.textContent).toContain("If past growth carried on · not a prediction");
     expect((container.textContent ?? "").toLowerCase()).not.toMatch(/\b(buy|sell|hold|target|avoid|accumulate|best)\b/);
     const src = readFileSync(join(__dirname, "Sections.tsx"), "utf8");
-    expect(src).toContain('aside={<ForecastCard f={f} />}');
+    expect(src).toContain('<div className="fin-top"><ForecastCard f={f} />');
+    expect(src).not.toContain('aside={<ForecastCard f={f} />}');
   });
 });

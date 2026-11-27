@@ -5,8 +5,8 @@
 import { useMemo, type ReactNode } from "react";
 import { Icon } from "../lib/icons";
 import { Gate } from "../components/Gate";
-import { MiniBars } from "../charts/MiniBars";
-import { AreaSeries, Box, HeatGrid, Histo, Timeline, Treemap, Waterfall, type BoxRow, type Step } from "../charts/Atlas";
+import { Box, HeatGrid, Histo, Timeline, Waterfall, type BoxRow, type Step } from "../charts/Atlas";
+import { RiskLine } from "../charts/RiskLine";
 import { useSection, type Events, type Financials, type Meta, type Table } from "../lib/api";
 import { MINUS, cr, nf } from "../lib/format";
 import { TabGroup } from "../components/TabGroup";
@@ -20,8 +20,8 @@ type N = number | null;
 export type Stats = {
   meta?: Meta; available: boolean; locked?: boolean; sessions?: number; from?: string; to?: string; cagrPct?: number | null;
   monthly?: { years: number[]; rows: Record<string, N[]> };
-  drawdown?: { t: string[]; dd: N[]; max: { pct: number | null; date: string | null }; current: number | null };
-  volatility?: { t: string[]; vol: N[]; window: number; current: number | null; median: number | null };
+  drawdown?: { t: string[]; dd: N[]; max: { pct: number | null; date: string | null }; current: number | null; lastHigh?: string | null };
+  volatility?: { t: string[]; vol: N[]; window: number; current: number | null; median: number | null; high?: { v: number | null; date: string } | null };
   histogram?: { counts: number[]; from: number; binWidth: number; days: number; upShare: number; best: number; worst: number; clipped: number };
   box?: { years: (BoxRow & { days: number })[] };
 };
@@ -31,7 +31,42 @@ const crf = (v: number) => (v < 0 ? MINUS : "") + (Math.abs(v) >= 1000 ? cr(Math
 const pc = (v: number, d = 1) => (v < 0 ? MINUS : "") + nf(v, d) + "%";
 const sg = (v: number, d = 0) => (v > 0 ? "+" : v < 0 ? MINUS : "") + nf(v, d) + "%";
 const row = (t: Table | undefined, k: string) => (t?.rows[k] || []) as N[];
-const C = (n: number) => `var(--c${n})`;
+const day = (iso: string) => new Date(iso + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+const mon = (iso: string) => new Date(iso + "T00:00:00").toLocaleDateString("en-IN", { month: "short", year: "numeric" });
+/** Developer file 47: a statistic stored before the server kept the last session ends its line a few days early; end it on the last session's own value
+ *  (`current`, which is that day's), so the line's end and the figure above it agree. */
+export function toLast(t: string[], v: N[], to: string | undefined, current: number | null | undefined): { t: string[]; v: N[] } {
+  return to && current != null && t.length && t[t.length - 1] < to ? { t: [...t, to], v: [...v, current] } : { t, v };
+}
+const lowest = (v: N[]) => v.reduce<number>((k, x, i) => (x != null && (k < 0 || x < (v[k] as number)) ? i : k), -1);
+const highest = (v: N[]) => v.reduce<number>((k, x, i) => (x != null && (k < 0 || x > (v[k] as number)) ? i : k), -1);
+
+/** Distance from the running high: today's gap, the deepest fall and the last new high above the line; the deepest point and today marked on it. */
+function DrawdownChart({ s }: { s: Stats }) {
+  const dd = s.drawdown!, { t, v } = toLast(dd.t, dd.dd, s.to, dd.current);
+  const at = dd.max.date ? t.indexOf(dd.max.date) : -1, deep = at >= 0 ? at : lowest(v), cur = dd.current, end = t.length - 1;
+  const today = cur == null ? null : cur >= 0 ? "at a new high" : `${pc(Math.abs(cur))} below its high`;
+  const marks = [...(deep >= 0 && deep < end - 2 ? [{ i: deep, text: `${pc(dd.max.pct ?? (v[deep] as number))} · ${mon(dd.max.date ?? t[deep])}` }] : []),
+    ...(cur != null ? [{ i: end, text: `Today ${cur >= 0 ? "0%" : pc(cur)}` }] : [])];
+  return <RiskLine t={t} v={v} fmt={(x) => pc(x, 0)} color="var(--loss)" ceil={0} marks={marks}
+    label={`Distance from the running high, ${t[0].slice(0, 4)} to ${t[end].slice(0, 4)}.${today ? ` Today ${today}.` : ""}${dd.max.pct != null ? ` Deepest fall ${pc(dd.max.pct)}${dd.max.date ? ` on ${day(dd.max.date)}` : ""}.` : ""}`}
+    facts={[...(today ? [{ k: "Today", v: today }] : []),
+      ...(dd.max.pct != null ? [{ k: "Deepest fall", v: pc(dd.max.pct), note: dd.max.date ? day(dd.max.date) : undefined }] : []),
+      ...(dd.lastHigh ? [{ k: "Last new high", v: day(dd.lastHigh) }] : [])]} />;
+}
+
+/** How bumpy the ride is: now, the usual level and the highest above the line; the usual level drawn across, the highest and now marked. */
+function VolatilityChart({ s }: { s: Stats }) {
+  const vo = s.volatility!, { t, v } = toLast(vo.t, vo.vol, s.to, vo.current);
+  const top = vo.high?.v != null ? { v: vo.high.v, date: vo.high.date } : (() => { const i = highest(v); return i >= 0 ? { v: v[i] as number, date: t[i] } : null; })();
+  const ti = top ? (t.indexOf(top.date) >= 0 ? t.indexOf(top.date) : highest(v)) : -1, end = t.length - 1;
+  const marks = [...(ti >= 0 && ti < end - 2 ? [{ i: ti, text: `${pc(v[ti] as number, 0)} · ${mon(t[ti])}` }] : []), ...(vo.current != null ? [{ i: end, text: `Now ${pc(vo.current, 0)}` }] : [])];
+  return <RiskLine t={t} v={v} fmt={(x) => pc(x, 0)} color="var(--c1)" floor={0} marks={marks}
+    usual={vo.median != null ? { y: vo.median, text: `usual ${pc(vo.median, 0)}` } : undefined}
+    label={`Volatility over ${vo.window} sessions, a year, ${t[0].slice(0, 4)} to ${t[end].slice(0, 4)}.${vo.current != null ? ` Now ${pc(vo.current, 0)}` : ""}${vo.median != null ? `; usually ${pc(vo.median, 0)}.` : "."}`}
+    facts={[...(vo.current != null ? [{ k: "Now", v: `${pc(vo.current, 0)} a year` }] : []), ...(vo.median != null ? [{ k: "Usual", v: pc(vo.median, 0), dash: true }] : []),
+      ...(top ? [{ k: "Highest", v: pc(top.v, 0), note: mon(top.date) }] : [])]} />;
+}
 
 /** A chart card. Its accent is its section's own colour (developer file 41: the cards now sit in Price & technicals, Financials and Dividends, whose
  *  other cards and heading use --p-tech, --p-growth and the gold; Chart lab drew them all in gold). */
@@ -66,13 +101,14 @@ export function PriceStats({ symbol }: { symbol: string }) {
             </Card>
             </> },
             { key: "high", label: "Distance from high", content: <>
-            <Card help="drawdown" title="Distance from the running high" sub="0% means a new high" icon="growth" note={stats?.drawdown ? `Deepest fall from a high: ${pc(stats.drawdown.max.pct ?? 0)} (${stats.drawdown.max.date}). Today the price is ${pc(Math.abs(stats.drawdown.current ?? 0))} below its high.` : undefined}>
-              {stats?.drawdown ? <AreaSeries t={stats.drawdown.t} v={stats.drawdown.dd} fmt={(x) => pc(x, 0)} color="var(--loss)" ceil={0} /> : (withheld || <div className="skeleton" style={{ height: 200 }} />)}
+            {/* developer file 47: the facts the note gave sit above the line, and the line marks them */}
+            <Card help="drawdown" title="Distance from the running high" sub="How far the price is below its highest close so far; 0% is a new high" icon="growth">
+              {stats?.drawdown ? <DrawdownChart s={stats} /> : (withheld || <div className="skeleton" style={{ height: 200 }} />)}
             </Card>
             </> },
             { key: "bumpy", label: "How bumpy", content: <>
-            <Card help="volatility" title="How bumpy the ride is" sub={`${stats?.volatility?.window ?? 60}-session volatility, a year`} icon="gauge" note={stats?.volatility?.current != null ? `Now ${pc(stats.volatility.current, 0)} a year; the usual level is about ${pc(stats.volatility.median ?? 0, 0)}. Higher means bigger swings.` : undefined}>
-              {stats?.volatility ? <AreaSeries t={stats.volatility.t} v={stats.volatility.vol} fmt={(x) => pc(x, 0)} color="var(--c1)" floor={0} ref={stats.volatility.median != null ? { y: stats.volatility.median, label: "usual" } : undefined} /> : (withheld || <div className="skeleton" style={{ height: 200 }} />)}
+            <Card help="volatility" title="How bumpy the ride is" sub={`Daily swings over ${stats?.volatility?.window ?? 60} sessions, as a yearly figure; higher is bumpier`} icon="gauge">
+              {stats?.volatility ? <VolatilityChart s={stats} /> : (withheld || <div className="skeleton" style={{ height: 200 }} />)}
             </Card>
             </> },
             { key: "day", label: "Typical day's move", content: <>
@@ -130,29 +166,7 @@ export function PlCharts({ f }: { f?: Financials }) {
   );
 }
 
-/* ---------------------------------------------------------------- balance sheet */
-/** Under Financials, Balance sheet: what the company owns, by kind, and the latest year's assets as a map (both the full width, the map as it was). */
-export function BsCharts({ f }: { f?: Financials }) {
-  const bs = f?.yearly.bs;
-  if (!bs || bs.periods.length < 2) return <Soon>Balance sheet history is not available yet.</Soon>;
-  const n = bs.periods.length, last = n - 1, g = (k: string) => row(bs, k);
-  const ta = g("total_assets");
-  const parts: [string, string, string][] = [["Plant & equipment", "fixed_assets", C(1)], ["Work in progress", "cwip", C(3)], ["Investments", "investments", C(2)], ["Inventories", "inventories", C(4)], ["Receivables", "receivables", C(5)], ["Cash", "cash", "var(--cmp)"]]   /* developer file 45: five palette colours, then grey (cash dark, other assets light); green means only up */;
-  const other = ta.map((t, i) => (t == null ? null : Math.max(0, t - parts.reduce((a, [, k]) => a + (g(k)[i] ?? 0), 0))));
-  const assets = [...parts.map(([label, k, color]) => ({ key: k, label, values: g(k), color })), { key: "other", label: "Other assets", values: other, color: "var(--s3)" }];
-  const tree = assets.map((a) => ({ label: a.label, value: Math.max(0, (a.values[last] as number) ?? 0), color: a.color })).filter((x) => x.value > 0);
-  return (
-    <div className="cl-grid">
-      <Card help="bs-assets" title="What the company owns" sub="Total assets by kind, ₹ Crore" icon="building" full note="Assets are everything the company controls. A big slice of cash and investments gives it room to move; a big slice of work in progress means projects not yet earning.">
-        <MiniBars fit mode="stack" labels={bs.periods} fmt={crf} height={240} dim={false} series={assets} />
-        <div className="clg">{assets.map((a) => <span key={a.key}><i style={{ background: a.color }} />{a.label}</span>)}</div>
-      </Card>
-      <Card help="bs-treemap" title={`${bs.periods[last]} assets at a glance`} sub="Box size is share of total assets" icon="layers" full>
-        {tree.length ? <Treemap items={tree} fmt={(x) => "₹" + crf(x) + " Cr"} /> : <Soon>No breakdown available.</Soon>}
-      </Card>
-    </div>
-  );
-}
+/* ---------------------------------------------------------------- balance sheet: no charts (developer file 47, founder 27 Nov 2026: "remove balance sheet in charts") */
 
 /* ---------------------------------------------------------------- cash flow */
 /** Under Financials, Cash flow: how the latest year's three streams add up to the change in cash. */

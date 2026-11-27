@@ -140,8 +140,8 @@ export function EarningsCash({ symbol, lender, sector, industry, labels }: { sym
         <dl><dt>Why it matters</dt><dd>{intel.meaning.why}</dd>
           {intel.meaning.risks.length > 0 && <><dt>Possible risks</dt><dd><ul>{intel.meaning.risks.map((t, i) => <li key={i}>{t}</li>)}</ul></dd></>}
           <dt>What to investigate next</dt><dd>{intel.meaning.where}</dd></dl></details>}
-      {[...(intel?.caveats ?? []), ...pr.notes].map((t, i) => <p className="faint ec-note" key={i}>{t}</p>)}
-      <p className="faint ec-note">Worked out from the company's own yearly statements. These are warning signs to investigate, not proof of anything. {DISCLAIMER}</p>
+      {/* developer file 47 (founder, 27 Nov 2026: the notes at the foot "take a lot of space"): the caveats, the method and the disclaimer as one line at full width */}
+      <p className="faint ec-note ec-foot">{[...(intel?.caveats ?? []), ...pr.notes].map((t) => t.trim().replace(/\.?$/, ". ")).join("")}From the company's own yearly statements: warning signs to look into, not proof. {DISCLAIMER}</p>
     </div>
   );
 }

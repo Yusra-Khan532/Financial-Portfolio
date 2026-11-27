@@ -1,6 +1,6 @@
 // The chart lab's drawing kit: hand-built SVG/HTML charts that read the theme tokens, so they follow the light/dark theme and
 // the member's colour palette. Each takes plain arrays; none fetches anything.
-import { useEffect, useId, useMemo, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from "react";
 import { MINUS, nf } from "../lib/format";
 
 type N = number | null;
@@ -60,35 +60,7 @@ export function Candles({ t, o, h, l, c, v, ema50, ema200, w: W = 1000 }: { t: s
   );
 }
 
-/* ---------- area / line over dates (drawdown, volatility) ---------- */
-export function AreaSeries({ t, v, fmt, color = "var(--k1)", height = 210, floor, ceil, fill = true, ref: refLine }: { t: string[]; v: N[]; fmt: (x: number) => string; color?: string; height?: number; floor?: number; ceil?: number; fill?: boolean; ref?: { y: number; label: string } }) {
-  const id = useId().replace(/:/g, ""), [hv, setHv] = useState<number | null>(null);
-  const n = t.length, H = height, pl = 46, pr = 10, pt = 12, pb = 24;
-  const nums = v.filter((x): x is number => x != null);
-  if (n < 2 || !nums.length) return null;
-  const lo = floor ?? Math.min(...nums), hi = ceil ?? Math.max(...nums), span = hi - lo || 1;
-  const X = (i: number) => pl + (i * (W - pl - pr)) / (n - 1), Y = (x: number) => pt + (1 - (x - lo) / span) * (H - pt - pb);
-  let d = ""; v.forEach((x, i) => { if (x != null) d += `${d ? "L" : "M"}${X(i).toFixed(1)},${Y(x).toFixed(1)}`; });
-  const base = Y(Math.min(Math.max(0, lo), hi));
-  const yearTicks = t.map((s, i) => [s.slice(0, 4), i] as const).filter(([y], i, a) => i === 0 || y !== a[i - 1][0]);
-  const ticks = [lo, lo + span / 2, hi];
-  const i = hv ?? n - 1;
-  return (
-    <div className="mb">
-      <Readout><b>{day(t[i])}</b> <span>{v[i] != null ? fmt(v[i] as number) : "—"}</span></Readout>
-      <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Line chart over time" onMouseLeave={() => setHv(null)}>
-        <defs><linearGradient id={id} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor={color} stopOpacity=".42" /><stop offset="1" stopColor={color} stopOpacity=".04" /></linearGradient></defs>
-        {ticks.map((x) => <g key={x}><line x1={pl} x2={W - pr} y1={Y(x)} y2={Y(x)} stroke={GRID} /><text x={pl - 6} y={Y(x) + 3.5} textAnchor="end" fontSize="11" fill={AX} fontFamily="var(--mono)">{fmt(x)}</text></g>)}
-        {yearTicks.map(([y, k]) => <text key={y} x={X(k)} y={H - 6} fontSize="11" fill={AX}>{y}</text>)}
-        {refLine && <g><line x1={pl} x2={W - pr} y1={Y(refLine.y)} y2={Y(refLine.y)} stroke="var(--faint)" /><text x={W - pr} y={Y(refLine.y) - 4} textAnchor="end" fontSize="11" fill={AX}>{refLine.label}</text></g>}
-        {fill && <path d={`${d}L${X(n - 1)},${base}L${X(0)},${base}Z`} fill={`url(#${id})`} />}
-        <path d={d} fill="none" stroke={color} strokeWidth="1.6" strokeLinejoin="round" />
-        {t.map((_, k) => <rect key={k} x={X(k) - (W - pl - pr) / n / 2} y={pt} width={(W - pl - pr) / n} height={H - pt - pb} fill="transparent" onMouseEnter={() => setHv(k)} />)}
-        {hv != null && v[hv] != null && <g><line x1={X(hv)} x2={X(hv)} y1={pt} y2={H - pb} stroke="var(--border-strong)" /><circle cx={X(hv)} cy={Y(v[hv] as number)} r="4" fill={color} /></g>}
-      </svg>
-    </div>
-  );
-}
+/* developer file 47: the drawdown and volatility line moved to charts/RiskLine.tsx (drawn at its real width, round ticks, marked points) */
 
 /* ---------- histogram of daily moves ---------- */
 export function Histo({ counts, from, binWidth }: { counts: number[]; from: number; binWidth: number }) {

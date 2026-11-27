@@ -198,7 +198,7 @@ export function MacroOutlookSection({ symbol }: { symbol: string }) {
 
   // Task #222 (19 Nov pack S2): the heading in plain words, a question the 0-100 reading answers; the sub-line names the company's sector group(s)
   const h = macroHeading(c);
-  const head = <SectionHead id="macro" no="Economy and sector" icon="globe" title={h.title} sub={h.sub} />;
+  const head = <SectionHead id="macro" no="Economy and sector" icon="globe" sub={h.sub} />;
   let body: React.ReactNode;
   if (q.isLoading) body = <div className="mo-skel" aria-busy="true">Loading the macro outlook…</div>;
   else if (q.isError || !c) body = <p className="mo-note" role="status"><Icon name="alert" />The macro outlook is unavailable right now ({q.error?.status ?? "no answer"}). It reads stored results only; please try again shortly.</p>;

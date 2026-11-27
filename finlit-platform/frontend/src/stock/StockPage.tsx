@@ -29,6 +29,8 @@ import "../styles/report-polish.css";
 import "../styles/report216.css";   // task #216: compact headings, drop-down arrow, enlarge and phone rules (after the polish tokens it adjusts)
 import "../styles/company-report-layout.css";   // task #328 (developer file 27): the eight layout changes, after the sheets they adjust
 import "../styles/report45.css";   // developer file 45: the colour roles (gold, green and red, blue and grey, one palette)
+import "../styles/report47.css";
+import { installStickyHeads } from "../lib/stickyHeads";   // developer file 47: one plain heading per section, tighter spacing
 import { MiniBar } from "./MiniBar";
 import { useEarningsFindings } from "./EarningsCash";
 import { KeyFindings, checkItems, findingsOf } from "./KeyFindings";
@@ -128,6 +130,9 @@ export function StockPage() {
     return () => { removeEventListener("scroll", onScroll); removeEventListener("resize", onScroll); cancelAnimationFrame(tick); io2.disconnect(); };
   }, [s, ratios, fin, own, peers, seg, events, navItems, shown]);
 
+  // developer file 47: every long table keeps its header row in view while it scrolls past (lib/stickyHeads.ts)
+  useEffect(() => (s ? installStickyHeads(document.body) : undefined), [s]);
+
   useEffect(() => {
     const a = links.current?.querySelector<HTMLAnchorElement>(`a[data-s="${active}"]`);
     if (!pill.current) return;
@@ -199,7 +204,7 @@ export function StockPage() {
         <PhoneFold page="stock" {...foldOf("ownership")}><Defer all={openAll} height={usualHeight("ownership")} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><OwnershipSection o={own} ins={ownIns.data} insWhy={ownInsWhy} /></ErrorBoundary></Defer></PhoneFold>
         {/* its industry, its sector and the economy */}
         <PhoneFold page="stock" {...foldOf("peers")}><Defer all={openAll} height={usualHeight("peers")} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><PeersSection p={peers} self={symbol} s={s} /></ErrorBoundary></Defer></PhoneFold>
-        <PhoneFold page="stock" {...foldOf("sector")}><Defer all={openAll} height={usualHeight("sector")} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="Where it stands"><WhereStands symbol={symbol} name={s.profile.name} s={s} peers={peers} /></ErrorBoundary></Defer></PhoneFold>
+        <PhoneFold page="stock" {...foldOf("sector")}><Defer all={openAll} height={usualHeight("sector")} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="Industry"><WhereStands symbol={symbol} name={s.profile.name} /></ErrorBoundary></Defer></PhoneFold>
         <PhoneFold page="stock" {...foldOf("macro")}><Defer all={openAll} height={usualHeight("macro")} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="Economy and sector"><MacroOutlookSection symbol={symbol} /></ErrorBoundary></Defer></PhoneFold>
         <PhoneFold page="stock" {...foldOf("news")}><Defer all={openAll} height={usualHeight("news")} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><NewsSection e={events} name={s.profile.name} symbol={symbol} /></ErrorBoundary></Defer></PhoneFold>
         <PhoneFold page="stock" {...foldOf("community")}><Defer all={openAll} height={usualHeight("community")} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><CommunitySection symbol={symbol} name={s.profile.name} /></ErrorBoundary></Defer></PhoneFold>

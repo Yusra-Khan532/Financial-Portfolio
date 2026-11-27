@@ -34,7 +34,7 @@ describe("task #216 round 1: removals", () => {
   it("live section 17 is gone from the page and the section bar; Community is the last section (17 since developer file 41); the score history sits under the Prism card", () => {
     expect(read("StockPage.tsx")).not.toContain("MethodSection");
     expect(NAV.map(([id]) => id)).not.toContain("method");
-    expect(read("CommunitySection.tsx")).toContain('<SectionHead id="community" no="Community"');
+    expect(read("CommunitySection.tsx")).toContain('<SectionHead id="community" no="Discussions"');   // developer file 47: the section's one heading
     expect(NAV[NAV.length - 1][0]).toBe("community");
     const hero = read("Hero.tsx");
     expect(hero.indexOf("<ScoreMovesCard")).toBeGreaterThan(hero.indexOf("<PrismCompare"));

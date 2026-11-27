@@ -78,7 +78,7 @@ describe("Segments section and the report numbering (task #11, renumbered in tas
   it("Where the revenue comes from is its own Segments section, right after Trends (developer file 41; Gold insights, where it once was a box, is gone)", () => {
     const s3 = read("Sections3.tsx");
     expect(s3).toContain('<SectionHead id="segments" no="Segments"');
-    expect(s3).toContain('title="Where the revenue comes from"');
+    expect(s3).not.toContain('title="Where the revenue comes from"');   // developer file 47: one heading per section, its name
     expect(s3).not.toContain("export function InsightsSection");
     const page = read("StockPage.tsx");
     const at = (s: string) => page.indexOf(s);
@@ -87,8 +87,8 @@ describe("Segments section and the report numbering (task #11, renumbered in tas
   });
   it("Dividends, News and filings and Community take their numbers from the report's order (developer file 41); Community is last", () => {
     expect(read("Sections2.tsx")).toContain('<SectionHead id="dividends" no="Dividends"');
-    expect(read("NewsSection.tsx")).toContain('<SectionHead id="news" no="News and filings"');
-    expect(read("CommunitySection.tsx")).toContain('<SectionHead id="community" no="Community"');   // tasks #105 and #113: the discussions are their own section, the last one
+    expect(read("NewsSection.tsx")).toContain('<SectionHead id="news" no="News & filings"');   // developer file 47: the one heading of each section
+    expect(read("CommunitySection.tsx")).toContain('<SectionHead id="community" no="Discussions"');   // tasks #105 and #113: the discussions are their own section, the last one
     const page = read("StockPage.tsx");
     const at = (s: string) => page.indexOf(s);
     expect(at("<DividendsSection")).toBeLessThan(at("<NewsSection"));
@@ -97,6 +97,6 @@ describe("Segments section and the report numbering (task #11, renumbered in tas
   it("the Trends section no longer draws a Revenue by segment chart", () => {
     const s4 = read("Sections4.tsx");
     expect(s4).not.toContain("Revenue by segment");
-    expect(s4).toContain("How sales, profit and cash have moved");
+    expect(s4).toContain('<SectionHead id="trends" no="Trends"');   // developer file 47: its second title ("How sales, profit and cash have moved") is gone
   });
 });

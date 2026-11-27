@@ -14,15 +14,15 @@ const src = (f: string) => readFileSync(join(__dirname, f), "utf8");
 
 describe("compact section heading (1.1)", () => {
   it("puts the counts as chips, a dot, then the description under the title; a 0 count is grey", () => {
-    const { container } = render(<SectionHead id="notes" no="03 · What's going well and what to watch" icon="notes" tier="silver" title="What's going well and what to watch" sub="Plain-language findings."
+    const { container } = render(<SectionHead id="notes" no="03 · What's going well and what to watch" icon="notes" tier="silver" sub="Plain-language findings."
       counts={[{ n: 1, label: "red flag", tone: "red" }, { n: 6, label: "to watch", tone: "amb" }, { n: 0, label: "positives", tone: "pos" }]} />);
-    const desc = container.querySelector("h2 + .sh-desc")!;
+    const desc = container.querySelector(".sh-tl + .sh-desc")!;   // developer file 47: one heading per section, its chip beside it, the line under both
     expect(desc).toBeTruthy();
     expect([...desc.querySelectorAll(".cchip")].map((c) => `${c.className}|${c.textContent}`)).toEqual(["cchip red|1 red flag", "cchip amb|6 to watch", "cchip zero|0 positives"]);
     expect(desc.querySelector(".sh-dot")).toBeTruthy(); expect(desc.textContent).toContain("Plain-language findings.");
     expect(container.querySelector(".sh-r")).toBeNull();   // the description is no longer on the right
   });
-  it("sizes: number 40, title 24 (the H2 role, task #310), line 13; phone number 32; 44 px above each section", () => {
+  it("sizes as task #216 set them (number 40, title 24, 44 px above; developer file 47's report47.css, loaded after, makes them 26, 20 and 32)", () => {
     const r = css("report216.css");
     expect(r).toMatch(/:root \{ --fs-num: 40px; --section-gap: 44px; \}/);
     expect(r).toMatch(/max-width: 760px\) \{\s*:root \{ --fs-num: 32px;/);

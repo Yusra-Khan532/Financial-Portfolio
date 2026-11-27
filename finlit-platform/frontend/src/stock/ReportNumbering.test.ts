@@ -36,7 +36,8 @@ describe("company report order: from the company out to its industry, its sector
     for (const [id, no] of h) expect(no, id).not.toMatch(/^\d/);
     expect(new Set(h.map(([id]) => id))).toEqual(new Set(ids.filter((id) => id !== "prism")));
     const name = new Map(h);
-    expect([name.get("business"), name.get("macro"), name.get("news"), name.get("community")]).toEqual(["Company overview", "Economy and sector", "News and filings", "Community"]);
+    // developer file 47: one plain heading per section, so News & filings and Discussions are the heads' own names (they were a name plus a second title)
+    expect([name.get("business"), name.get("macro"), name.get("news"), name.get("community"), name.get("sector")]).toEqual(["Company overview", "Economy and sector", "News & filings", "Discussions", "Industry"]);
   });
   it("the separators of the section bar: price · results · ratios · shareholders · industry, sector and economy · filings and discussions", () => {
     expect([...GROUP_START]).toEqual(["price", "quarter", "ratios", "dividends", "peers", "news"]);
@@ -58,7 +59,8 @@ describe("section 08 Chart lab and section 15 Gold insights are gone (developer 
   it("its charts that no other section draws are inside their own sections; the ones that repeated a section's own are not kept", () => {
     const more = read("MoreCharts.tsx"), price = read("Sections.tsx"), div = read("Sections2.tsx");
     expect(price).toContain("<PriceStats symbol={symbol} />");                                 // Price & technicals: the price statistics
-    expect(price).toContain('{kind === "bs" ? <BsCharts f={f} /> : kind === "cf" ? <CfCharts f={f} /> : <PlCharts f={f} />}');   // Financials, on the table's accounts
+    expect(price).toContain('{kind === "cf" ? <CfCharts f={f} /> : <PlCharts f={f} />}');   // Financials, on the table's accounts (developer file 47: no balance sheet charts)
+    expect(more).not.toContain("export function BsCharts");
     expect(div).toContain('{ key: "actions", label: "Bonus and splits", content: <ActionsTimeline e={e} /> }');   // Dividends
     // repeats: the candle chart (Price), EPS (Trends), the funding shares (the balance sheet chart), the cash streams and free cash flow (the cash flow
     // chart and Trends), every ownership chart (Ownership), the valuation dumbbell (Ratios' valuation history), the peers' market values (Peers)
@@ -76,7 +78,7 @@ describe("earlier rules that still hold", () => {
   it("Where it stands replaces Sector & peers and Leadership, right after Peers", () => {
     const ids = NAV.map(([id]) => id);
     expect(ids).not.toContain("leadership");
-    expect(NAV.find(([id]) => id === "sector")?.[1]).toBe("Where it stands");
+    expect(NAV.find(([id]) => id === "sector")?.[1]).toBe("Industry");   // developer file 47 (was "Where it stands"; the peers are 13's)
     expect(page).not.toContain("<LeadershipSection"); expect(page).not.toContain("<SectorPeersSection");
     expect(page.indexOf("<WhereStands")).toBeGreaterThan(page.indexOf("<PeersSection"));
     expect(ids.indexOf("sector")).toBe(ids.indexOf("peers") + 1);

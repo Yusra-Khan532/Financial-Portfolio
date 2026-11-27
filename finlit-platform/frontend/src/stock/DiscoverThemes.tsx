@@ -12,8 +12,7 @@ import { Link } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { ApiError, apiGet } from "../lib/api";
 import { useUniverse } from "../lib/screener";
-import { useUIMaybe } from "../lib/ui";
-import { BASE, fmtDate, joinRows, pct, short, stat, themePath, useBoard, type BoardTheme, type DRow } from "../discovery/model";
+import { BASE, fmtDate, joinRows, short, stat, themePath, useBoard, type BoardTheme, type DRow } from "../discovery/model";
 import { buttonClass } from "../components/ui";
 import "../styles/dth.css";
 
@@ -112,11 +111,10 @@ export function ThemeChips({ symbol, name, jump }: { symbol: string; name: strin
 
 /** 20b, in 01 Company overview: what the company's presentation says it is building. Nothing for a company Discover has not placed. */
 export function BuildCard({ symbol, name }: { symbol: string; name: string }) {
-  const d = useDiscoverFor(symbol), co = short(name), ui = useUIMaybe();
+  const d = useDiscoverFor(symbol), co = short(name);
   if (!d.company || d.failed || !d.ready) return null;
   const c = d.company, theme = d.mainName ?? c.theme, doc = c.document, words = c.words ?? [], shown = words.slice(0, 5), rest = words.slice(5);
-  const q = businessPassage(c.passages), s = d.stats, st = d.row?.st ?? null, verify = d.main?.verify?.[0];
-  const trendOpen = !!ui?.has("gold");     // the long-term trend is part of Gold, as on the Discover theme card (c.prismOpen)
+  const q = businessPassage(c.passages), st = d.row?.st ?? null, verify = d.main?.verify?.[0];
   // Task #312 (developer file 20, change 2): compact (435 px, 862 on a phone): the header with the stage on the right; one sentence with the
   // presentation's date and pages, then its words; the four theme figures in one strip (2 x 2 on narrow screens); what to check; the actions with the
   // figures' date and "Information only" in one fine line. "Its presentation also mentions" goes (it is in the header line); so does the passage.
@@ -126,15 +124,11 @@ export function BuildCard({ symbol, name }: { symbol: string; name: string }) {
       <div className="dtc-h"><span className="dth-ck"><Spark />From Discover</span><h3>What it is building</h3>{st && <span title={STAGE[st]?.[0] ? cap(STAGE[st][0]) : undefined}><Stage st={st} /></span>}</div>
       <p className="dtc-lede"><b>{theme}</b> is the theme {possessive(co)} newest investor presentation talks about most{doc?.date ? <span className="dtc-src"> ({fmtDate(doc.date)}{doc.pages ? `, ${doc.pages} pages` : ""})</span> : null}.
         {shown.length > 0 && <span className="dtc-words"> Its words: {shown.map((w) => <i key={w}>{w}</i>)}{rest.length > 0 && <i className="dth-more" title={rest.join(", ")}>+{rest.length} more</i>}</span>}</p>
-      {s && <dl className="dtc-ctx" aria-label={`${theme} on Discover`}>
-        <div><dt>Companies in the theme</dt><dd><b>{s.n.toLocaleString("en-IN")}</b><small>{d.main?.also ? `${d.main.also} more mention it` : "no other company mentions it"}</small></dd></div>
-        <div><dt>3-month median</dt><dd><b>{pct(s.m3)}</b><small>{co} {d.row?.r3m != null ? pct(d.row.r3m) : "not available"}</small></dd></div>
-        <div><dt>1-year median</dt><dd><b>{pct(s.m1y)}</b><small>of the theme</small></dd></div>
-        <div><dt>In a long-term uptrend</dt><dd>{trendOpen ? <><b>{s.up}</b><small>of {s.n}</small></> : <b><Link to="/pricing" className="dth-lock" title="The technical views are part of Gold">Gold</Link></b>}</dd></div>
-      </dl>}
+      {/* developer file 47 (founder, 27 Nov 2026: "remove the four boxes from Discover, we are already showing them on the report"): the theme's four
+         figures (companies, 3-month and 1-year medians, long-term uptrend) are no longer drawn here; the header row's tooltip still counts the companies */}
       <p className="dtc-check"><b>What to check:</b> {verify ? `${verify.replace(/\.?\s*$/, ".")} ` : ""}A theme word alone is not proof of real business.</p>
       <div className="dtc-acts"><Link className={buttonClass("secondary", "md", "dth-btn")} to={themeLink(d.main?.name ?? c.theme, co)}>See the theme in Discover<Arrow /></Link>
         {doc?.link && <a className="dth-link" href={doc.link} target="_blank" rel="noopener noreferrer">Open the presentation ↗</a>}
-        {s && <span className="dth-fine">Theme figures as on Discover{d.asOf ? `, prices of ${fmtDate(d.asOf)}` : ""}</span>}</div>
+</div>
     </div>);
 }

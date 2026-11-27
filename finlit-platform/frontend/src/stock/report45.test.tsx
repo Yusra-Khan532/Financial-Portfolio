@@ -21,7 +21,7 @@ const GREEN_RED = /var\(--(k3|k6|k8|gain|loss|p-growth)\)/;
 
 describe("1 · one gold for the page's structure", () => {
   it("a section head takes no colour: its number, name and icon are the brand gold", () => {
-    const { container } = render(<SectionHead id="ratios" no="Ratios" icon="gauge" title="Valuation, returns, margins and debt" />);
+    const { container } = render(<SectionHead id="ratios" no="Ratios" icon="gauge" />);
     expect((container.querySelector(".sh") as HTMLElement).style.getPropertyValue("--sc")).toBe("var(--gold)");
   });
   it("no report section, head or card sets a colour of its own (they used 6 colours for the numbers and 5 for the Ratios cards)", () => {
@@ -55,7 +55,7 @@ describe("2 · green and red mean only up and down", () => {
     for (const g of GROUPS) expect(g.colour, g.key).not.toMatch(GREEN_RED);
     const atlas = read("charts/Atlas.tsx");
     expect(atlas).toContain('{ dividend: "var(--c1)", bonus: "var(--c2)", split: "var(--c3)", rights: "var(--c4)", other: "var(--cmp)" }');
-    expect(read("stock/MoreCharts.tsx")).toContain('["Cash", "cash", "var(--cmp)"]');
+    // (the balance sheet's assets chart, whose cash slice was grey, was removed in developer file 47)
   });
   it("inside the report the palette's third and fourth colours are violet and teal, not green", () => {
     expect(read("styles/report45.css")).toContain("section.block { --c3: var(--k7); --c4: color-mix(in srgb, var(--k1) 45%, var(--k3)); }");

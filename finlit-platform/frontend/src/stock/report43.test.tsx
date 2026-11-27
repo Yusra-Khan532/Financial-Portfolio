@@ -20,7 +20,7 @@ const read = (p: string) => readFileSync(resolve(__dirname, "..", p), "utf8");
 
 describe("1 · Profit and loss in charts: three view tabs, one chart at a time", () => {
   it("the walk, the ₹100 chart and the growth grid are the report's view tabs (they stood one under the other)", () => {
-    const more = read("stock/MoreCharts.tsx"), pl = more.slice(more.indexOf("export function PlCharts"), more.indexOf("/* ---------------------------------------------------------------- balance sheet */"));
+    const more = read("stock/MoreCharts.tsx"), pl = more.slice(more.indexOf("export function PlCharts"), more.indexOf("/* ---------------------------------------------------------------- balance sheet"));
     expect(pl).toContain('<TabGroup label="Profit and loss in charts" views={[');
     expect([...pl.matchAll(/\{ key: "([a-z]+)", label: "([^"]+)"/g)].map((m) => [m[1], m[2]])).toEqual([["growth", "Growth by line"], ["walk", "Revenue to net profit"], ["hundred", "Where each ₹100 goes"]]);   // developer file 44: Growth by line first
     expect(pl).not.toContain('className="cl-grid"');
@@ -54,7 +54,7 @@ describe("2 · How the mix has changed: one line a segment", () => {
 describe("3 · Where it stands: each tab's notes as a ●●● pill, as on the equity portfolio", () => {
   it("the tabs' rows of boxes are the things-to-know pill (KnowButton) at the tab's top right; the two one-off notes beside a chart stay", () => {
     const ws = read("stock/pack/WhereStands.tsx");
-    for (const sc of ["ws-industry", "ws-peers", "ws-risk"]) expect(ws).toContain(`<Know scope="${sc}"`);
+    expect(ws).toContain('<Know scope="ws-industry"');   // developer file 47: the peers and risk tabs are gone, so their pills went with them
     expect(ws).toContain('import { KnowButton } from "../../portfolio/pack/Round388";');
     expect(ws).toContain('<div className="ws-know"><KnowButton items={items} scope={scope} inline /></div>');
     expect(ws.match(/<Cards items=/g)).toHaveLength(2);                          // "May change box next week", "Not a like-for-like swap"
@@ -63,14 +63,14 @@ describe("3 · Where it stands: each tab's notes as a ●●● pill, as on the 
 });
 
 describe("4 · Where it stands has no price chart of its own: 03 Price & technicals draws the price", () => {
-  it("three tabs (Its industry, Against peers, Risk); no 12-month chart, no trend and return tiles, no price notes; the trend reading links to 03", () => {
+  it("no 12-month chart, no trend and return tiles, no price notes; the trend reading links to 03 (developer file 47: and no tabs, the industry only)", () => {
     const ws = read("stock/pack/WhereStands.tsx");
-    expect(ws).toContain('type Tab = "industry" | "peers" | "risk";');
+    expect(ws).not.toContain("type Tab =");
     for (const gone of ["function ChartTab", "Share price, last 12 months", "ws-tiles", "usePrice(", "priceCards", 'open("chart")']) expect(ws, gone).not.toContain(gone);
     expect(ws).toContain('<a className="ws-go" href="#price" onClick={toPrice}>{sectionNo("price")} Price &amp; technicals ↑</a>');
     expect(ws).toContain('revealAndScroll(document.getElementById("price")');                 // a phone opens 03's row first
-    expect(ws).toContain('sub="Its industry, its peers and its risk: one question per tab."');
-    expect(read("lib/sectionNav.ts")).toContain('"Its industry, its peers and its risk, one question per tab"');
+    expect(ws).not.toContain("sub=\"Its industry, its peers and its risk: one question per tab.\"");
+    expect(read("lib/sectionNav.ts")).toContain('"Its industry against the others, and where the company ranks inside it"');
     expect(read("lib/standsPack.ts")).not.toContain("export function priceCards");
     expect(read("stock/pack/stands.css")).not.toMatch(/\.ws-(px|tiles)\b/);
     expect(read("stock/pack/stands.css")).toContain(".ws-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }");

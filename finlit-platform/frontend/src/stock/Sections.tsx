@@ -22,11 +22,10 @@ import { Plain } from "../components/Plain";
 import { ChartZoom } from "../components/ChartZoom";
 import { TabGroup } from "../components/TabGroup";
 import { ForecastCard } from "./ForecastCard";
-import { BsCharts, CfCharts, PlCharts, PriceStats } from "./MoreCharts";
+import { CfCharts, PlCharts, PriceStats } from "./MoreCharts";
 import { Defer } from "./Defer";
 import { sectionNo } from "../lib/sectionNav";
 
-const css = (v: string) => `var(${v})`;
 /** Section header (task #216, compact): the number large (40 px; 32 on phones), a thin rule, the eyebrow with the plan badge, the title (24 px), and under it
  *  one line: the counts as coloured chips (if any), a dot, then the description (13 px, muted). Controls (toggles, a link) go on the right in `aside`.
  *  The number comes from the report's one order (lib/sectionNav); a heading without one keeps its icon tile. */
@@ -47,15 +46,18 @@ export function CountChips({ counts }: { counts: HeadCount[] }) {
   return <span className="cchips">{counts.map((c) => <span key={c.label} className={"cchip " + (c.n === 0 ? "zero" : c.tone)}><b>{c.n}</b> {c.label}</span>)}</span>;
 }
 /** Developer file 45 (founder, 27 Nov 2026: "too many colours? yes"): every section's number, name and icon are the one brand gold (they were six colours with no
- *  pattern), so the head takes no colour of its own. */
-export function SectionHead({ id, no, icon, tier, title, sub, aside, counts }: { id: string; no: string; icon: string; tier?: "basic" | "silver" | "gold"; title: string; sub?: string; aside?: React.ReactNode; counts?: HeadCount[] }) {
+ *  pattern), so the head takes no colour of its own.
+ *  Developer file 47 (founder, 27 Nov 2026: "why are we showing two headings in each section ... the main headings are way too big and no need to write the
+ *  company name"): one plain heading, the section's name, at a modest size, with the number before it and the plan chip after it; the old second heading
+ *  (often a question with the company's name) is gone, and the one-line description stays under it, small. */
+export function SectionHead({ id, no, icon, tier, sub, aside, counts }: { id: string; no: string; icon: string; tier?: "basic" | "silver" | "gold"; sub?: string; aside?: React.ReactNode; counts?: HeadCount[] }) {
   // developer file 41: a report section's number comes from the one order in lib/sectionNav (pass its name only); "07 · Name" still works elsewhere
   const n = sectionNo(id), m = /^(\d{1,2})\s*·\s*(.+)$/.exec(no) ?? (n ? [no, n, no] : null);
   return (
     <div className="sh" id={id} style={{ "--sc": "var(--gold)" } as React.CSSProperties}>
       <div className="sh-l">
-        {m ? <><span className="sh-n" aria-hidden="true">{m[1]}</span><span className="sh-rule" aria-hidden="true" /></> : <div className="sh-ic"><Icon name={icon} /></div>}
-        <div><div className="no">{m ? m[2] : no} {tier && <TierChip tier={tier} />}</div><h2>{title}</h2>
+        {m ? <span className="sh-n" aria-hidden="true">{m[1]}</span> : <div className="sh-ic"><Icon name={icon} /></div>}
+        <div className="sh-t"><div className="sh-tl"><h2>{m ? m[2] : no}</h2>{tier && <TierChip tier={tier} />}</div>
           {(counts?.length || sub) ? <p className="sh-desc">{counts?.length ? <CountChips counts={counts} /> : null}{counts?.length && sub ? <span className="sh-dot" aria-hidden="true">·</span> : null}{sub ? <span>{sub}</span> : null}</p> : null}
         </div>
       </div>
@@ -100,7 +102,7 @@ export function PriceSection({ s, symbol, ratios }: { s: Summary; symbol: string
   };
   return (
     <section className="block">
-      <SectionHead id="price" no="Price & technicals" icon="line" tier="basic" title="How the stock has traded" sub="Intraday bars from Dhan for 1D, 5D and 1M; daily closes up to one year, weekly closes beyond. Hover the chart for detail." />
+      <SectionHead id="price" no="Price & technicals" icon="line" tier="basic" sub="Intraday bars from Dhan for 1D, 5D and 1M; daily closes up to one year, weekly closes beyond. Hover the chart for detail." />
       {intra && idata?.series && chg != null && <Plain tone={chg >= 0 ? "good" : "warn"}>Since the open {idata.sessions.length > 1 ? "of " + istDay(idata.sessions[0]) : "on " + istDay(idata.session ?? "")}, the price {chg >= 0 ? "rose" : "fell"} {nf(Math.abs(chg), 2)}%.</Plain>}
       {!intra && chg != null && <Plain tone={chg >= 0 ? "good" : "warn"}>Over this period the price {chg >= 0 ? "rose" : "fell"} {nf(Math.abs(chg), 1)}%.{t?.vsEma200Pct != null && <> It trades {nf(Math.abs(t.vsEma200Pct), 1)}% {t.vsEma200Pct < 0 ? "below" : "above"} its 200-day average, {longTrend(t)}.</>}</Plain>}
       <div className="grid g3">
@@ -216,7 +218,7 @@ export function FinancialsSection({ f: page }: { f?: Financials }) {
   const alt = useSection<Financials>(sym, "financials", !!page && basis === "consolidated" && years > 0 && years < 5 && !wasChosen(sym), "standalone");
   const altYears = alt.data?.yearly.pl.periods.length ?? 0;
   useEffect(() => { if (basis === "consolidated" && years > 0 && altYears >= years + 2) setBasis(sym, "standalone", true); }, [basis, years, altYears, sym]);
-  if (!page) return <section className="block"><SectionHead id="financials" no="Financials" icon="bars" tier="basic" title="Profit and loss, balance sheet and cash flow, quarterly and yearly" /><div className="skeleton" style={{ height: 380 }} /></section>;
+  if (!page) return <section className="block"><SectionHead id="financials" no="Financials" icon="bars" tier="basic" /><div className="skeleton" style={{ height: 380 }} /></section>;
   const name = (b: Basis) => (b === "consolidated" ? "Consolidated" : "Standalone");
   const active: Basis = chosen ?? page.meta.statement;
   const basisSeg = (
@@ -235,7 +237,7 @@ export function FinancialsSection({ f: page }: { f?: Financials }) {
         : `Loading ${(chosen as Basis)} accounts…`;
     return (
       <section className="block">
-        <SectionHead id="financials" no="Financials" icon="bars" tier="basic" title="Profit and loss, balance sheet and cash flow, quarterly and yearly" sub={`${name(chosen as Basis)}, ₹ crore. L Cr = lakh crore. FY = April–March.`} />
+        <SectionHead id="financials" no="Financials" icon="bars" tier="basic" sub={`${name(chosen as Basis)}, ₹ crore. L Cr = lakh crore. FY = April–March.`} />
         <div className="card acc">
           <div className="tools"><span className="faint" style={{ fontSize: "var(--fs-13)" }}>Accounts</span><div className="tools-r">{basisSeg}</div></div>
           <p className={noneFor || other.isError ? "muted" : "faint"} role="status" style={{ fontSize: "var(--fs-14)", margin: "6px 0 0" }}>{why}</p>
@@ -253,17 +255,20 @@ export function FinancialsSection({ f: page }: { f?: Financials }) {
   const last = tbl.periods.length - 1;
   return (
     <section className="block">
-      <SectionHead id="financials" no="Financials" icon="bars" tier="basic" title="Profit and loss, balance sheet and cash flow, quarterly and yearly" sub={`${f.meta.statement === "consolidated" ? "Consolidated" : "Standalone"}, ₹ crore. L Cr = lakh crore. FY = April–March.`} aside={<ForecastCard f={f} />} />
-      {(() => { const [rv, np, , mg] = tiles; return rv.delta != null && np.delta != null ? <Plain tone={np.delta >= 0 ? "good" : "warn"}>Sales {rv.delta >= 0 ? "grew" : "fell"} {nf(Math.abs(rv.delta), 1)}% last year and profit {np.delta >= 0 ? "rose" : "fell"} {nf(Math.abs(np.delta), 1)}%.{typeof mg.value === "number" && <> Out of every ₹100 of sales, about ₹{nf(mg.value, 1)} is kept as profit.</>}</Plain> : null; })()}
-      <div className="grid g4" style={{ marginBottom: 16 }}>
-        {tiles.map((t) => (
-          <div className="ftile hover-lift" key={t.k} style={{ "--fc": css(t.color) } as React.CSSProperties}>
-            <div className="k"><Icon name={t.icon} />{t.k} · {t.fy}</div>
-            <div className="v">{t.value == null ? "—" : t.unit === "cr" ? "₹" + cr(t.value) + (Math.abs(t.value) >= 100000 ? " Cr" : " Cr") : nf(t.value) + "%"}</div>
-            <div className="row"><span className={"chip " + ((t.delta ?? 0) >= 0 ? "up" : "down")}>{t.delta == null ? "—" : signed(t.delta, 1, t.suffix)} YoY</span><Spark values={t.series} color={`var(${t.color})`} w={96} h={34} /></div>
-          </div>
-        ))}
+      <SectionHead id="financials" no="Financials" icon="bars" tier="basic" sub={`${f.meta.statement === "consolidated" ? "Consolidated" : "Standalone"}, ₹ crore. L Cr = lakh crore. FY = April–March.`} />
+      {/* developer file 47 (founder, 27 Nov 2026: "highlight the forecast in section 5, and the 4 boxes are way too big"): the forecast is a gold band under
+          the heading (it sat at the heading's right, leaving the left half empty), and the four key figures are one strip of four cells with a small trend line
+          (they were four 155 px tiles whose trend lines were too faint to see) */}
+      <div className="fin-top"><ForecastCard f={f} />
+        <div className="fstrip" role="list" aria-label="Key figures, latest year">{tiles.map((t) => (
+          <div className="fs-c" role="listitem" key={t.k}>
+            <p className="fs-k"><Icon name={t.icon} />{t.k} · {t.fy}</p>
+            <p className="fs-v"><b>{t.value == null ? "—" : t.unit === "cr" ? "₹" + cr(t.value) + " Cr" : nf(t.value) + "%"}</b><span className={"chip " + ((t.delta ?? 0) >= 0 ? "up" : "down")}>{t.delta == null ? "—" : signed(t.delta, 1, t.suffix)} YoY</span></p>
+            <Spark values={t.series} color="var(--c1)" w={84} h={28} />
+          </div>))}
+        </div>
       </div>
+      {(() => { const [rv, np, , mg] = tiles; return rv.delta != null && np.delta != null ? <Plain tone={np.delta >= 0 ? "good" : "warn"}>Sales {rv.delta >= 0 ? "grew" : "fell"} {nf(Math.abs(rv.delta), 1)}% last year and profit {np.delta >= 0 ? "rose" : "fell"} {nf(Math.abs(np.delta), 1)}%.{typeof mg.value === "number" && <> Out of every ₹100 of sales, about ₹{nf(mg.value, 1)} is kept as profit.</>}</Plain> : null; })()}
       {!chosen && wasAutomatic(sym) && basis === "standalone" && <p className="faint" style={{ fontSize: "var(--fs-13)", margin: "0 0 10px" }}>Showing standalone accounts ({f.yearly.pl.periods.length} years) because this company's consolidated accounts cover far fewer. Press Consolidated to see the group's accounts.</p>}
       {shownBasis && shownBasis !== basis && chosen && <p className="faint" style={{ fontSize: "var(--fs-13)", margin: "0 0 10px" }}>This section now shows {shownBasis} accounts; the rest of this page uses {basis} accounts.</p>}
       {f.yearly.pl.periods.length > 0 && f.yearly.pl.periods.length < 5 && (chosen || !wasAutomatic(sym)) && <p className="faint" style={{ fontSize: "var(--fs-13)", margin: "0 0 10px" }}>Only {f.yearly.pl.periods.length} year{f.yearly.pl.periods.length === 1 ? "" : "s"} of {shownBasis} statements are available for this company (it may be newly listed, or have started publishing these accounts recently).</p>}
@@ -293,9 +298,10 @@ export function FinancialsSection({ f: page }: { f?: Financials }) {
             <tr key={k} className={tot ? "tot" : ""} data-row-key={k}><td>{kind === "bs" || kind === "cf" ? label : (PL_LABEL[k] ?? label)}{(kind === "pl" || kind === "q") && PL_INFO[k] && <> <Info g={PL_INFO[k]} /></>}</td>{v.map((x, i) => <td key={i} className={i === last ? "latest" : ""}>{plCell(k, x)}</td>)}{kind === "q" ? <>{cell(y)}{cell(y4)}</> : kind !== "cf" && cell(y)}<td><Spark values={v} color="var(--muted)" w={76} h={24} /></td></tr>); })}</tbody>
         </table></HScroll></div>
       </div>
-      {/* developer file 41: the old Chart lab's charts of the statement shown (yearly), on the same accounts as the table */}
-      <div className="rp-more"><p className="label rp-more-h">{{ pl: "Profit and loss", q: "Profit and loss", bs: "Balance sheet", cf: "Cash flow" }[kind]} in charts{kind === "q" ? ", yearly" : ""}</p>
-        {kind === "bs" ? <BsCharts f={f} /> : kind === "cf" ? <CfCharts f={f} /> : <PlCharts f={f} />}</div>
+      {/* developer file 41: the old Chart lab's charts of the statement shown (yearly), on the same accounts as the table. Developer file 47 (founder,
+          27 Nov 2026: "remove balance sheet in charts"): the balance sheet has its table only. */}
+      {kind !== "bs" && <div className="rp-more"><p className="label rp-more-h">{{ pl: "Profit and loss", q: "Profit and loss", cf: "Cash flow" }[kind]} in charts{kind === "q" ? ", yearly" : ""}</p>
+        {kind === "cf" ? <CfCharts f={f} /> : <PlCharts f={f} />}</div>}
     </section>
   );
 }
