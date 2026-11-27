@@ -280,7 +280,9 @@ class Sources:
         base, key = self.relay
         self.calls += 1
         try:
-            r = await self.web.get(base + "/fetch", params={"u": NSE_FIIDII},
+            # never follow a redirect the relay hands back: that would send this server to NSE itself (27 Nov 2026: NSE moved its API from
+            # www.nseindia.com to www.nseindia.in; the relay's 302 was followed from AWS and refused, 40 failed runs). The relay follows it itself.
+            r = await self.web.get(base + "/fetch", params={"u": NSE_FIIDII}, follow_redirects=False,
                                    headers={"X-Relay-Key": key, "X-Fwd-User-Agent": hdr["User-Agent"], "X-Fwd-Referer": hdr["Referer"], "X-Fwd-Accept": hdr["Accept"]})
         except httpx.TransportError:
             return None

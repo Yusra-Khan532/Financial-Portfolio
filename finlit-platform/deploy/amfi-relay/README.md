@@ -43,3 +43,18 @@ The server sends these through the relay by itself whenever `AMFI_RELAY_URL` is 
 **Founder step (once):** Cloudflare > Workers & Pages > `finlit-amfi-relay` > Edit code > replace everything with the new `worker.js` > Deploy.
 Until then the three parts keep timing out exactly as before; nothing else changes. After it, the next `portfolios` run (or a manual run) fills them:
 `/api/mf/151130/facts` then shows benchmark "Nifty Smallcap 250 TRI", risk-o-meter "Very High" and an exit load.
+
+## 27 Nov 2026: NSE moved its API to www.nseindia.in (flows-nse failing since 25 Nov)
+
+NSE now answers `www.nseindia.com/api/...` with a redirect to `www.nseindia.in/api/...`. The old worker did not allow `nseindia.in` and handed the
+302 back; the server followed it from its own AWS address, and NSE refused it (`flows-nse`: 40 failed runs, then held). Now:
+- **The worker** allows `nseindia.in`, and follows up to 3 redirects itself, to allowed hosts only, each with that host's own cookie. Its answer
+  carries `X-Relay-Final` (the host and path it ended on).
+- **The server** (`flows.py`, `deals.py`) never follows a redirect the relay hands back. That counts as the relay not reaching NSE.
+
+**Founder step (once):** Cloudflare > Workers & Pages > `finlit-amfi-relay` > Edit code > replace everything with the new `worker.js` > Deploy.
+The held job tries again by itself. Run it at once on the server:
+
+```bash
+docker exec finlit-jobs-1 python -m finlit.worker refresh-flows --only nse
+```
