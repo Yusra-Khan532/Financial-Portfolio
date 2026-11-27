@@ -207,3 +207,26 @@
   .rv-dr .rv-share .btn { flex: 1 1 100%; justify-content: center; }
 }
 @media (prefers-reduced-motion: reduce) { .rv-own-d > summary > span::before { transition: none; } }
+
+/* QA 27 Nov (owner's live check at 1150px with the side panel open). Section bar: off a phone it fits itself (SectionNav sets data-fit):
+   0 = full labels with icons, 1 = full labels without icons, 2 = short labels; a phone keeps full labels and scrolls sideways. */
+.rv-snb .rv-sns { display: none; }
+@media (min-width: 761px) {
+  .rv-sn-row[data-fit="1"], .rv-sn-row[data-fit="2"] { gap: 2px; }
+  .rv-sn-row[data-fit="1"] .rv-snb svg, .rv-sn-row[data-fit="2"] .rv-snb svg { display: none; }
+  .rv-sn-row[data-fit="1"] .rv-snb, .rv-sn-row[data-fit="2"] .rv-snb { padding: 0 2px 0 8px; }
+  .rv-sn-row[data-fit="2"] .rv-snb .rv-snl { display: none; }
+  .rv-sn-row[data-fit="2"] .rv-snb .rv-sns { display: inline; }
+}
+/* Miss scenarios: a change keeps its "(-2.0 pp)" with it, so a one-change row is the name over one line; the scenario column takes the room the
+   figures do not need; on a laptop the table fits its card (no inner sideways scroll), the last header keeps clear of the card's edge. */
+.rv-chg { white-space: nowrap; }
+.rv-mt col.c-s { width: 40%; }
+.rv-mt thead th:last-child, .rv-mt tbody td:last-child { padding-right: 16px; }
+.rv-mt thead th .rv-th { white-space: normal; }
+@media (min-width: 761px) { .rv-mt table { min-width: 0; } }
+/* Sensitivity grid: the cell the price needs keeps the solid outline; the break-even cells (the first combinations whose value reaches today's price)
+   are dashed and thinner, and the legend names both. */
+.rv-heat td.edge { outline: 1.5px dashed var(--gain); outline-offset: -3px; }
+.rv-heat td.mid, .rv-heat td.mid.edge { outline: 2px solid var(--gain); outline-offset: -3px; }
+.rv-lge i { border-style: dashed !important; }
