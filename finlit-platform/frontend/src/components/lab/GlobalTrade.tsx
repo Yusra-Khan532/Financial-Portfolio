@@ -1,18 +1,30 @@
 // Trading Lab > Order Flow (Global) > Global trade (docs/GLOBAL-MARKETS.md): India's merchandise trade with the world from UN Comtrade: the latest
 // month against the same month a year before, 13 months of exports, imports and the gap, the largest partners and products each way, with a
-// hover card on every bar (backend lab/trade.py). Facts only.
+// hover card on every bar (backend lab/trade.py). Plus the world map of partners (TradeMap.tsx), the partner and product drill-down
+// (TradeDrill.tsx; ?pt=<partner code> or ?hs=<chapter> in the address) and the WTO's world totals with India's share (WorldTrade.tsx). Facts only.
 import { useQuery } from "@tanstack/react-query";
+import { useSearchParams } from "react-router";
 import { ApiError, apiGet } from "../../lib/api";
 import { useTip } from "./FlowTips";
 import { ChartZoom } from "../ChartZoom";
+import { TradeMap } from "./TradeMap";
+import { TradeDrill, type Pick } from "./TradeDrill";
+import { WorldTrade } from "./WorldTrade";
 
 export type TradeRow = { code: string; name: string; iso3?: string; value: number; yoyPct: number | null; share: number | null };
 export type TradeMonth = { period: string; label: string; exports: number; imports: number; balance: number };
+export type TradeFlowCell = { value: number; share: number | null; momPct: number | null; yoyPct: number | null };
+export type TradeMapRow = { code: string; name: string; iso3: string; exports: TradeFlowCell | null; imports: TradeFlowCell | null };
+export type DrillItem = { code: string; name: string; iso3?: string; exports: number; imports: number };
+export type DrillIndex = { partners: DrillItem[]; products: DrillItem[]; partnerCover: { exports: number | null; imports: number | null };
+  productCover: { exports: number | null; imports: number | null }; at: string | null; lastYearRead: boolean };
+type ShareCell = { world: number | null; india: number | null; share: number | null; worldYoyPct?: number | null };
+export type WorldTrade = { ready: false; reason: string } | { ready: true; years: { year: number; exports: ShareCell; imports: ShareCell }[]; unit: string; at: string | null; source: string };
 export type Trade =
-  | { ready: false; reason: string }
-  | { ready: true; latest: string; label: string; lastYear: string; exports: number; imports: number; balance: number; exportsYoyPct: number | null;
+  | { ready: false; reason: string; world?: WorldTrade }
+  | { ready: true; latest: string; label: string; lastYear: string; prevMonth: string; exports: number; imports: number; balance: number; exportsYoyPct: number | null;
       importsYoyPct: number | null; trend: TradeMonth[]; exportPartners: TradeRow[]; importPartners: TradeRow[]; exportProducts: TradeRow[];
-      importProducts: TradeRow[]; at: string | null; source: string };
+      importProducts: TradeRow[]; map: TradeMapRow[]; drill: DrillIndex | null; world?: WorldTrade; at: string | null; source: string };
 
 const getTrade = () => apiGet<Trade>("/api/lab/trade");
 /** US dollars in billions (or millions under a billion), with a sign when asked. */
@@ -88,6 +100,10 @@ export function TradeTrend({ t }: { t: Extract<Trade, { ready: true }> }) {
 export function GlobalTrade() {
   const q = useQuery({ queryKey: ["lab-trade"], queryFn: getTrade, retry: false, staleTime: 3600_000 });
   const t = q.data;
+  const [params, setParams] = useSearchParams();
+  const pt = params.get("pt"), hs = params.get("hs");
+  const pick: Pick | null = hs ? { kind: "product", code: hs } : pt ? { kind: "partner", code: pt } : null;
+  const choose = (p: Pick) => setParams((o) => { const n = new URLSearchParams(o); n.delete("pt"); n.delete("hs"); if (p.code) n.set(p.kind === "partner" ? "pt" : "hs", p.code); return n; }, { replace: true, preventScrollReset: true });
   return (
     <section className="card oflow-board trd" aria-labelledby="trd-h">
       <div className="oflow-hero-h"><div><h2 id="trd-h">Global trade</h2>{t && t.ready && <p className="oflow-money-line">{tradeLine(t)}</p>}</div></div>
@@ -100,6 +116,8 @@ export function GlobalTrade() {
           <div><dt>Imports, {t.label}</dt><dd className="loss">{usdBn(t.imports)} <small>{yoy(t.importsYoyPct)}</small></dd></div>
           <div><dt>Trade balance</dt><dd className={tone(t.balance)}>{usdBn(t.balance, true)}</dd></div>
         </dl>
+        <TradeMap t={t} selected={pick?.kind === "partner" ? pick.code : null} onSelect={(code) => choose({ kind: "partner", code })} />
+        <TradeDrill t={t} pick={pick} onPick={choose} />
         <div className="mood-panel"><h3>Last 13 months</h3><ChartZoom label="India's trade by month"><TradeTrend t={t} /></ChartZoom>
           <p className="muted opul-legend"><i className="sw trd-sw-x" /> exports · <i className="sw trd-sw-m" /> imports · <i className="sw trd-sw-b" /> trade balance</p></div>
         <div className="mood-two">
@@ -109,7 +127,8 @@ export function GlobalTrade() {
           <div className="mood-panel"><h3 className="loss">Largest imports by product</h3><Bars rows={t.importProducts.slice(0, 10)} flow="imports" t={t} label="Largest imports by product" /></div>
         </div>
       </>}
-      <details className="oflow-how"><summary>How it is worked out</summary><p className="muted oflow-method">India's merchandise trade as reported to the United Nations (UN Comtrade), in US dollars: exports and imports with every partner country each month, and by product (the 97 chapters of the Harmonized System) for the latest month and the same month a year before. The UN publishes a month about two to three months after it ends, so the latest month here is not last month. Changes compare the same month a year earlier. Services trade is not included.</p></details>
+      {t && <WorldTrade w={t.world} />}
+      <details className="oflow-how"><summary>How it is worked out</summary><p className="muted oflow-method">India's merchandise trade as reported to the United Nations (UN Comtrade), in US dollars: exports and imports with every partner country each month, and by product (the 97 chapters of the Harmonized System) for the latest month and the same month a year before. The UN publishes a month about two to three months after it ends, so the latest month here is not last month. Changes compare the same month a year earlier (on the map also the month before). Services trade is not included. The map shades each country by its share of India's exports or imports that month (Natural Earth's 1:110m country shapes, public domain). The partner and product detail is read from the same source for India's largest partners (15 each way) and largest product chapters (10 each way), for the latest month and the same month a year before; UN Comtrade's free preview gives at most 500 rows and one period a call, so the job reads it in small pieces and the rest of the world is not broken down. World trade comes from the World Trade Organization (WTO Timeseries API, yearly merchandise trade in US dollars); India's share is India's exports or imports as a share of the world's.</p></details>
     </section>
   );
 }

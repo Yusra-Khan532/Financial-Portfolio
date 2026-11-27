@@ -150,3 +150,45 @@ describe-only (calls such as "likely cap", "what's next" or strangle picks stay 
   on tiles, sector heads, KPIs, bars and balance rows. US dollars as the Global pages write them ($182.4 bn, $256 mn, $4.42 tn).
 - **Tests:** `backend/tests/test_lab_global_companies.py` (real SEC answers for JPMorgan and Walmart, a trimmed real load of five companies in
   `tests/fixtures/global/`), `frontend/src/components/lab/usCompanies.test.tsx`, `pages/orderFlowGlobal.test.tsx`.
+
+## Order Flow > Global > Global trade: world map, drill-down and world totals (27 Nov 2026; HANDOVER-GLOBAL-MARKETS.md "Upgrades worth doing after")
+
+`/lab/flow?view=trade&m=global` (`&pt=<UN Comtrade partner code>` picks a partner, `&hs=<HS chapter>` a product). Page:
+`components/lab/GlobalTrade.tsx` with `TradeMap.tsx`, `TradeDrill.tsx`, `WorldTrade.tsx` and `tradeWorld.ts`; backend `lab/trade.py` and `lab/wto.py`.
+
+- **World map of India's partners** (latest month UN Comtrade has published; Aug 2026 on 27 Nov 2026): every partner country shaded by its share
+  of India's exports or imports (a switch), in six steps (10% or more down to under 0.25%; `color-mix` on `--gain` / `--loss`, India in gold, no
+  trade in a neutral tone). A hover card per country: India's exports to it and imports from it, each with its share of India's total and the change
+  on the month before and on the same month a year before, and the trade balance with it. A click or tap picks the country: its card under the map
+  (phones: touch shows no floating card, so the card is in the page) and its products in the drill-down. Under the map, every partner country
+  ranked (15, then "Show N more") with the same figures, for a phone and a keyboard. In `ChartZoom`.
+- **Geometry:** Natural Earth 1:110m countries (public domain), as packaged by `world-atlas@2.0.2` (ISC; `countries-110m.json`, 107,761 bytes of
+  TopoJSON; already a site dependency, pinned in package-lock), loaded lazily (its own chunk) with `topojson-client` and `d3-geo`, projected once
+  (Natural Earth projection, Antarctica left out). A shape joins a partner by ISO alpha-3 through `ATLAS_ISO3` in `tradeWorld.ts` (built from
+  Comtrade's own partner list). Areas Comtrade names no country for ("Other Asia, nes", "Areas, nes", bunkers) are listed, not drawn; the countries
+  hold 98.6% of India's exports in Aug 2026.
+- **Drill-down:** by partner (its HS chapters exported and imported, value, share of that partner's flow, change on the same month a year before)
+  or by product (the countries India exports the chapter to and imports it from). A name in a row opens the other view. Read for the 25 largest
+  partners (the 15 largest each way: 69.6% of exports and 76.1% of imports in Aug 2026) and the 15 largest chapters (10 each way: 69.9% and 82.4%);
+  a partner outside them says so plainly. Route `GET /api/lab/trade/drill?partner=<code>` or `?product=<chapter>` (`lab_ctx`: 401 / 403;
+  `Cache-Control: no-store`; 400 for a bad or double request, 404 for one not read; 120 a minute per member).
+- **World trade (WTO):** world merchandise exports and imports by year, India's exports and imports and its share of each (ITS_MTV_AX and
+  ITS_MTV_AM, reporters 000 and 356, partner world, total merchandise, million US dollars), four figures for the latest year and a chart of India's
+  share by year. Needs the WTO's free subscription key, read from the environment variable **`WTO_API_KEY`** (`config.Settings.wto_api_key`; set
+  only in `/opt/finlit/.env.aws`; sent in the `Ocp-Apim-Subscription-Key` header, never in the address). Without it the panel says "The WTO's world
+  trade totals need a free WTO API key on the server (the setting WTO_API_KEY) ..." and nothing else changes. The WTO's terms and endpoint matched
+  the plan, so no other source was needed. Tests use WTO-shaped answers whose values are the WTO's own annual totals as the World Bank republishes
+  them (TX.VAL.MRCH.CD.WT, TM.VAL.MRCH.CD.WT), because the key exists only on the server.
+- **UN Comtrade preview limits** (help wiki, checked 27 Nov 2026): no key, at most 500 records and one period a call, one product code a call (AG2,
+  every chapter, counts as one); no daily quota published for the preview. Each call asks for one period and one product code and is sized under
+  500 rows (five partners x 98 chapters = 490; one chapter with both flows about 200 to 400 rows); an answer of exactly 500 rows may be cut, so it is
+  asked again one flow at a time. Calls go one at a time, 3 s apart. The monthly partner totals now take one call a month for both flows (was two).
+- **Job:** `global-trade` (`refresh-global-trade --max-minutes 10`, limit 15): a normal day about 5 calls; a new month about 67 (measured 27 Nov
+  2026: 67 calls in 419 s); the latest month's drill-down is read again after a week (revisions), the year-before month once; no new call after the
+  deadline, the rest goes first next run (recorded partial). WTO: two calls every three days with the key, none without. `docs/JOBS.md`.
+- **Wording:** describes the flows only (value, share, change); no word of advice. Tests scan the rendered page, the route answers and the source
+  strings for advice words.
+- **Tests:** `backend/tests/test_lab_trade.py` (parsing, the map rows of a real month, the drill-down, which partners and chapters are read, the
+  preview's limits and the 500-row split, the deadline, WTO with and without a key, job registration and worker command, routes 401/403/200/400/404,
+  wording; real fixtures `tests/fixtures/global/trade_india_drill.json`, `wto_merch_totals.json`), `frontend/src/components/lab/globalTrade.test.tsx`
+  (map, hover, tap, list fallback, drill-down flow, WTO with and without key, wording) and `ChartZoomCoverage.test.tsx`.

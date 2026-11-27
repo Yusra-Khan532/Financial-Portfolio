@@ -215,7 +215,7 @@ LIMIT_POLICY: Dict[str, str] = {
     "alerts-live": "fixed: members' own alerts only; measured about 3 s",
     "global-em": "fixed: seven World Bank calls, one per figure for all seventeen countries; measured about 10 s",
     "global-companies": "deadline: no new company after --max-minutes 10 (limit 15); one SEC call at a time with a 0.2 s pause (at most five a second, the SEC allows ten), about 17 calls a company (measured: 39 companies, 663 calls, 197 s); the companies read longest ago go first, so a stopped run continues next time",
-    "global-trade": "fixed: about 6 UN Comtrade calls on a normal day (new months and the latest two again), 4 s apart; the first load about 32 calls, 3 minutes",
+    "global-trade": "deadline: no new UN Comtrade call after --max-minutes 10 (limit 15); one call at a time, 3 s apart, each for one period and one product code and under the preview's 500-row cap (a full answer is asked again in halves); a normal day about 5 calls (the latest two months and the latest products again); a new month, or the first load, about 67 calls (measured 27 Nov 2026: 67 calls, 419 s: 13 months, products, and the drill-down of 25 partners and 15 chapters for that month and a year before); what is left goes first next run. Plus at most 2 WTO calls every 3 days (none without WTO_API_KEY)",
     "global-flow": "fixed: one Nasdaq screener call (every US-listed share); skips itself in a few milliseconds outside the US session",
     "market-mood": "fixed: sixteen Google News topics (eight for India and the world, eight US sectors), about 200 new headlines scored by the sentiment model; measured about 45 s",
     "global-cues": "fixed: nine small FRED downloads (one series each); measured about 10 s",
@@ -394,10 +394,11 @@ def build_jobs(env: Optional[Mapping[str, str]] = None) -> List[Job]:
             interval_min=10080, sla=Sla("hours", 24 * 9), catchup=True,
             what="Trading Lab US companies: revenue, operating and net income, diluted EPS (10 years and 9 quarters) and the year-end balance sheet of "
                  "39 large US companies from their SEC filings (data.sec.gov XBRL), weekly, each company's SEC id checked first (lab/companies.py)"),
-        Job("global-trade", ("refresh-global-trade",), priority=40, max_runtime_min=10, weight_mb=60, windows=(W("MORNING", 6),), interval_min=720,
+        Job("global-trade", ("refresh-global-trade", "--max-minutes", "10"), priority=40, max_runtime_min=15, weight_mb=60, windows=(W("MORNING", 6),), interval_min=720,
             sla=Sla("hours", 48), catchup=True,
-            what="Trading Lab Global trade: India's exports and imports by partner country (13 months) and by product (the latest month and a year before) "
-                 "from UN Comtrade's public preview, paced to its limit (lab/trade.py)"),
+            what="Trading Lab Global trade: India's exports and imports by partner country (13 months) and by product (the latest month and a year before), "
+                 "the partner-by-product detail of its largest partners and chapters, from UN Comtrade's public preview within its documented limits, and the "
+                 "WTO's world merchandise totals with India's share (free key WTO_API_KEY; skipped without it) (lab/trade.py, lab/wto.py)"),
         Job("global-flow", ("refresh-global-flow",), priority=7, max_runtime_min=3, weight_mb=60, honours_pause=False, stall_min=3,
             interval_min=5, catchup=False,
             what="Trading Lab Order Flow, Global: the 500 largest US companies (price, change, volume, sector) and the day's path of each, every five "

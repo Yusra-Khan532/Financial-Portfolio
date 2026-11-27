@@ -77,6 +77,7 @@ class Settings:
     metalprice_api_key: str = field(default_factory=lambda: os.getenv("METALPRICEAPI_KEY", "").strip())
     twelvedata_api_key: str = field(default_factory=lambda: os.getenv("TWELVEDATA_API_KEY", "").strip())       # task #294: the global markets card's Europe and Asia indices, gold and same-day moves (optional; set in .env.aws)
     eodhd_api_key: str = field(default_factory=lambda: os.getenv("EODHD_API_KEY", "").strip())             # task #298: the free EODHD plan for the Europe and Asia indices and gold (set in .env.aws)
+    wto_api_key: str = field(default_factory=lambda: os.getenv("WTO_API_KEY", "").strip())                 # Trading Lab Global trade: the WTO Timeseries API's free key for world trade totals (lab/wto.py; set only in .env.aws; empty = that part is skipped)
     metals_dev_poll_seconds: int = field(default_factory=lambda: max(30, int(os.getenv("METALS_DEV_POLL_SECONDS", "60"))))        # $19.99 plan: 60 s fits 50,000 requests a month
     metalprice_poll_seconds: int = field(default_factory=lambda: max(30, int(os.getenv("METALPRICEAPI_POLL_SECONDS", "600"))))   # $12 plan: 10-minute data
     # DECISION PENDING: set to 1 only after Dhan and MCX have said in writing that prices may be shown publicly. Until then the page never says "Live".

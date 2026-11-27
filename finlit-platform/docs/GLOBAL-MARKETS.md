@@ -20,7 +20,7 @@ FinLit shows data to its members on a commercial website. A source is usable onl
 | Currencies | ECB euro reference rates (no key); RBI/FBIL USD/INR (already stored) | yes | yes, with the source named | **Use** |
 | Emerging and world economies | World Bank API (no key): GDP growth, inflation, current account, trade share | yes | yes: CC BY 4.0 | **Use** |
 | India's trade by country and product | Ministry of Commerce TradeStat (DGCI&S) | yes | Government of India data; source named | **Use** (monthly) |
-| World trade | WTO Timeseries API (free key) | yes | terms to be confirmed before use | Later, after reading the terms |
+| World trade | WTO Timeseries API (free key) | yes | internal Lab, founder's decision of 26-27 Nov 2026 | **Used (27 Nov 2026)** in Global trade: world merchandise exports and imports by year and India's share (ITS_MTV_AX, ITS_MTV_AM); the key is read from `WTO_API_KEY` (server only); without it that panel says so |
 | World trade by product | UN Comtrade | free tier 500 calls/day | **no**: free use is internal; redistribution needs a UNSD licence | Out |
 | IMF data (DOTS, WEO) | IMF SDMX API | yes | commercial reuse needs IMF permission (copyright@imf.org) | Out until permission |
 | Global company financials (JPMorgan, Apple, ...) | SEC EDGAR companyfacts (data.sec.gov, no key, 10 requests/s, a User-Agent naming FinLit) | yes | yes: US government, public domain | **Use** |

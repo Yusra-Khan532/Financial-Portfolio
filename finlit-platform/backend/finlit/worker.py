@@ -1244,7 +1244,8 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("refresh-global-em", help="weekly: the Trading Lab's Emerging markets figures from the World Bank (lab/em.py)")
     p_gco = sub.add_parser("refresh-global-companies", help="weekly: the Trading Lab's US companies, 39 large US companies' reported figures from their SEC filings (lab/companies.py)")
     p_gco.add_argument("--max-minutes", type=float, default=10.0, help="start no new company after this long; the rest keep their last load and go first next run")
-    sub.add_parser("refresh-global-trade", help="daily: the Trading Lab's Global trade, India's exports and imports by partner and product from UN Comtrade (lab/trade.py)")
+    p_gt = sub.add_parser("refresh-global-trade", help="twice a day: the Trading Lab's Global trade, India's exports and imports by partner and product, the partner-by-product detail from UN Comtrade and the WTO's world totals (lab/trade.py, lab/wto.py)")
+    p_gt.add_argument("--max-minutes", type=float, default=10.0, help="start no new UN Comtrade call after this long; what is left is read first next run")
     p_gf = sub.add_parser("refresh-global-flow", help="every 5 minutes: the Trading Lab's Global Order Flow snapshot of the largest US companies while the US session is open (lab/global_flow.py)")
     p_gf.add_argument("--force", action="store_true", help="take a snapshot even when the US market is closed (the last session's numbers)")
     sub.add_parser("refresh-market-mood", help="every 30 minutes in the day: the Trading Lab's Market mood world headlines from Google News, scored by the sentiment model (lab/mood.py)")
@@ -1536,7 +1537,13 @@ async def main(argv: Optional[List[str]] = None, settings: Optional[Settings] = 
         if args.cmd == "refresh-global-trade":
             from .lab import trade
             from .mf import record_run
-            result = await trade.refresh(store)
+            result = await trade.refresh(store, max_minutes=args.max_minutes, wto_key=settings.wto_api_key)
+            if result["status"] == "ok" and result.get("left"):    # stopped at its own deadline: degraded, tried again; the rest go first next run
+                from .jobs.reasons import PARTIAL_EXIT
+                result = {**result, "status": "partial", "why": f"{len(result['left'])} pieces left at the {args.max_minutes:g}-minute deadline; read first on the next run"}
+                await record_run(store, args.cmd, result)
+                print(result)
+                return PARTIAL_EXIT
             await record_run(store, args.cmd, result)
             print(result)
             return 0 if result["status"] == "ok" else 1
