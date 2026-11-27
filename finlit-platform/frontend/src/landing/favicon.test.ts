@@ -5,7 +5,8 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const FE = process.cwd();
-const html = readFileSync(resolve(FE, "index.html"), "utf8");
+const read = (p: string) => readFileSync(resolve(FE, p), "utf8");
+const html = read("index.html");
 
 /** Width and height of a PNG from its IHDR chunk. */
 const pngSize = (b: Buffer) => [b.readUInt32BE(16), b.readUInt32BE(20)];
@@ -30,4 +31,16 @@ describe("tab icon: the FinLit logo", () => {
     expect(readFileSync(resolve(FE, "public/favicon-48.png")).length).toBeGreaterThan(1000);
     expect(existsSync(resolve(FE, "public/favicon-64.png"))).toBe(false);
   });
+
+  it("the home-screen and app icons are the same full mark, square at their declared sizes", () => {
+    const manifest = JSON.parse(readFileSync(resolve(FE, "public/manifest.webmanifest"), "utf8")) as { icons: { src: string; sizes: string }[] };
+    const icons = [["apple-touch-icon.png", 180], ...manifest.icons.map((i) => [i.src, Number(i.sizes.split("x")[0])])] as [string, number][];
+    for (const [f, n] of icons) {
+      const b = readFileSync(resolve(FE, "public", f));
+      expect(pngSize(b)).toEqual([n, n]);
+      expect(b.length).toBeGreaterThan(n * 20);                          // the detailed full mark, not a near-empty crop
+    }
+    expect(read("scripts/make-favicons.py")).toContain("icon-maskable-512.png");
+  });
 });
+
