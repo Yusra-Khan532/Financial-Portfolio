@@ -9,6 +9,9 @@
 // Every value written into the page goes through esc() first.
 import { AREAS, PLANS, CLIPS, COMBINED } from "./goliveData.js";
 
+/** Task #436: the one switch for the landing page's plan prices (false until payments open). */
+export const FL_PRICES_LIVE = false;
+
 /** @param {{ navigate: (to: string) => void, searchIndex: () => Promise<{ rows: [string, string][], sectors?: string[], sec?: number[], mc?: number[] }>, quote: (symbol: string) => Promise<{ price: number | null, changePct: number | null, priceDate: string | null } | null> }} opts
  *  @returns {() => void} */
 export function initGoLive(opts) {
@@ -48,7 +51,11 @@ ex();
 /* task #411 (pack of 27 Nov 2026): the combined plan is the table's sixth column (plan 5), not a separate card. Its name, colour and price are
    COMBINED's and its value in each row is the row's sixth value, both in ./goliveData.js; the shared PLANS object is never changed. /plans keeps the
    separate card (opts.combinedCard), so it shows the five-column table as before. */
-var CMB=!opts.combinedCard,CQ={P:PLANS.P.concat([[COMBINED.head[0],'',COMBINED.head[1],'',{y:COMBINED.y}]]),G:PLANS.G,n:PLANS.n,AP:PLANS.AP,cnt:PLANS.cnt.slice()};
+/* task #436 (pack of 28 Nov 2026): prices are hidden on the landing page until payments open. One switch: FL_PRICES_LIVE. While it is false every paid
+   plan reads "Coming soon", the add-ons show no yearly price and the notes name no figure; setting it to true brings the prices back with no other change.
+   /plans keeps its prices (opts.pricesLive). */
+var LIVE=opts.pricesLive!=null?!!opts.pricesLive:FL_PRICES_LIVE;
+var CMB=!opts.combinedCard,CQ={P:PLANS.P.concat([[COMBINED.head[0],'',COMBINED.head[1],'',{y:COMBINED.y}]]),G:PLANS.G,n:PLANS.n,AP:LIVE?PLANS.AP:{},cnt:PLANS.cnt.slice()};
 CQ.cnt[5]=0;CQ.G.forEach(function(g){g.rows.forEach(function(r){if(r.v[5]!=='N'&&r.v[5]!=='A')CQ.cnt[5]++})});
 var CS={open:{},det:{},plan:null,hl:null},COLS=CMB?[0,3,4,1,2,5]:[0,3,4,1,2];
 var TICK='<svg class="lq-y" viewBox="0 0 20 20" width="18" height="18" role="img" aria-label="In the plan"><path d="M4.5 10.6l3.6 3.6 7.4-8.2" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>',NO='<i class="lq-no" role="img" aria-label="Not in the plan"></i>';
@@ -67,6 +74,7 @@ function cqLow(r){var k=[0,3,4].filter(function(x){return cqHas(r.v[x])})[0];ret
 function inr(n){return '\u20b9'+Math.round(n).toLocaleString('en-IN')}
 function cqPrice(k,cls){var p=CQ.P[k],q=p[4];
  if(!q)return '<div class="lq-pr free'+(cls||'')+'"><span class="lq-pm"><strong>\u20b90</strong></span></div>';
+ if(!LIVE)return '<div class="lq-pr lq-soon'+(cls||'')+'"><span class="lq-pm"><strong>Coming soon</strong></span><em class="lq-py"><span class="lq-y1">Yearly plan</span></em></div>';
  return '<div class="lq-pr'+(cls||'')+'"><span class="lq-pm"><strong>'+inr(q.y/12)+'</strong><i>/month</i></span><em class="lq-py"><span class="lq-y1">'+inr(q.y)+' + GST</span> <span class="lq-y2">billed yearly</span></em></div>'}
 /* cols: plan indexes, with 'gap' between the main plans and the one-area plans */
 function cqTable(cols){var wd=innerWidth>=1100,tpl=(wd?'minmax(360px,3fr) ':'minmax(240px,2.2fr) ')+cols.map(function(k){return k==='gap'?'16px':(wd?'minmax(0,1fr)':'minmax(90px,1fr)')}).join(' '),st=' style="grid-template-columns:'+tpl+'"';
@@ -76,7 +84,7 @@ function cqTable(cols){var wd=innerWidth>=1100,tpl=(wd?'minmax(360px,3fr) ':'min
  var h='<div class="lq-t"'+(CS.hl!=null?' data-hl="'+CS.hl+'"':'')+' role="table" aria-label="What each plan gives you">';
  var bi=cols.indexOf(1);if(CMB&&bi>0){var c1=bi+2,c2=cols.length+2;h+='<div class="lq-r lq-band" aria-hidden="true"'+st+'><span class="lq-band-l">Compare plans<small>'+CQ.n+' tools in '+CQ.G.length+' areas</small></span><span class="lq-band-a" style="grid-column:2/'+c1+'">Standard plans<small>Everything grows with the plan</small></span><span class="lq-band-b" style="grid-column:'+c1+'/'+c2+'">Plans for one need<small>Pick by what you hold</small></span></div>'}
  var KEY='<span>'+TICK+'In the plan</span><span><b>20 a week</b>With a limit</span><span>'+NO+'Not in the plan</span><span><em class="lq-add">Add-on</em>Buy just that tool</span>';
- h+='<div class="lq-r lq-head"'+st+'>'+(CMB?'<div class="lq-lead lq-lead2"><p class="lq-lt">What each plan gives you</p><p class="lq-ls">Yearly plans, shown per month. Prices before GST.</p><p class="lq-key lq-key-in">'+KEY+'</p><span class="lq-lc">Tools by area <i aria-hidden="true">↓</i></span></div>':'<div class="lq-lead">'+CQ.n+' tools in '+CQ.G.length+' areas</div>')+each(function(k,c){var p=CQ.P[k];return '<div class="lq-p'+c+'">'+(CS.hl===k?'<em class="lq-fit">Fits you</em>':'')+'<b><i style="background:'+p[2]+'"></i>'+esc(p[0])+'</b>'+cqPrice(k)+(k===5?'<span class="lq-sub" title="Equity Portfolio + Mutual Fund + ETF, plus five tools from Gold"><em>'+inr(CQ.P[1][4].y+CQ.P[2][4].y-COMBINED.y)+' less than both</em></span>':'')+'<small>'+CQ.cnt[k]+' of '+CQ.n+' tools</small></div>'})+'</div>';
+ h+='<div class="lq-r lq-head"'+st+'>'+(CMB?'<div class="lq-lead lq-lead2"><p class="lq-lt">What each plan gives you</p><p class="lq-ls">'+(LIVE?'Yearly plans, shown per month. Prices before GST.':'Prices are coming soon. Start on Free today.')+'</p><p class="lq-key lq-key-in">'+KEY+'</p><span class="lq-lc">Tools by area <i aria-hidden="true">↓</i></span></div>':'<div class="lq-lead">'+CQ.n+' tools in '+CQ.G.length+' areas</div>')+each(function(k,c){var p=CQ.P[k];return '<div class="lq-p'+c+'">'+(CS.hl===k?'<em class="lq-fit">Fits you</em>':'')+'<b><i style="background:'+p[2]+'"></i>'+esc(p[0])+'</b>'+cqPrice(k)+(k===5?'<span class="lq-sub" title="Equity Portfolio + Mutual Fund + ETF, plus five tools from Gold"><em>'+(LIVE?inr(CQ.P[1][4].y+CQ.P[2][4].y-COMBINED.y)+' less than both':'Both plans in one')+'</em></span>':'')+'<small>'+CQ.cnt[k]+' of '+CQ.n+' tools</small></div>'})+'</div>';
  CQ.G.forEach(function(g){var open=!!CS.open[g.id];
   h+='<div class="lq-g'+(open?' on':'')+(g.addon?' lq-ao':'')+'"><button type="button" class="lq-r lq-gh"'+st+' data-cqg="'+g.id+'" aria-expanded="'+open+'"><span class="lq-gl"><span class="lq-ch">'+CHEV+'</span><span><b>'+esc(g.name)+'</b><small>'+(g.addon?g.rows.length+' add-ons · a yearly price each':g.rows.length+' tools · '+esc(g.line))+'</small></span></span>'+each(function(k,c){return '<span class="lq-s'+c+'">'+cqSum(g,k)+'</span>'})+'</button>';
   if(open){g.rows.forEach(function(r){var d=!!CS.det[r.n],has=r.subs.length>0,lab='<span class="lq-n"><b>'+esc(r.n)+(r.usp?CROWN:'')+(r.new?'<em class="lq-new">New</em>':'')+'</b><small>'+esc(r.k||r.line)+'</small></span>';
@@ -113,7 +121,7 @@ function cqBundle(){var a=CQ.P[2],b=CQ.P[1],g=CQ.P[3],names=CQ_BUN.extras.map(fu
   +'<p class="lq-bun-up">Need Discover, the chart builder, DCF or Results? '+esc(g[0])+' has '+CQ.cnt[3]+' of '+CQ.n+' tools for '+inr(g[4].y)+' a year.</p>'
   +'</section>'}
 function cq(){var el=document.getElementById('lp-cq');if(!el)return;var m=cqMode(),allG=CQ.G.every(function(g){return CS.open[g.id]});
- el.className='lp-cq-'+m;el.innerHTML=(m==='small'?cqPhone():cqTable(COLS))+(CMB?'':cqBundle())+'<details class="lq-notes"'+(CS.notes?' open':'')+'><summary><span class="lq-ch">'+CHEV+'</span><b>About these plans</b><small>One-area plans, do-it-yourself add-ons, prices and GST</small></summary><div class="lq-notes-b"><p class="lq-foot">A one-area plan is added to your Free account, so its column shows everything you get, Free included. Both one-area plans bought separately are '+inr(CQ.P[1][4].y+CQ.P[2][4].y)+' a year. The combined plan'+(CMB?'':' above')+' has both for '+inr(COMBINED.y)+', plus All my investments, the full dashboard, watchlists, the forum and FinLit AI. Gold includes everything in it, and more.</p><p class="lq-room"><b>Do-it-yourself add-ons.</b> A tool marked <em class="lq-add">Add-on</em> is not in that plan, but you can buy just that tool and add it to your plan for the yearly price shown under it. Any plan can also add more room for ₹199 a year each: 25 more watchlist stocks, 25 more holdings, 25 more alerts a week, or 10 more baskets. If your add-ons would cost more than the next plan, we offer you the plan instead.</p><p class="lq-n2">Expected prices, before GST. Plans are yearly: the monthly figure is the yearly price spread over 12 months, and you pay for the year at once. Payments are not live yet: start on Free and ask for a plan from your account; the team switches it on and confirms by email. Features and limits can change. FinLit gives readings, not tips: it never tells you to buy or sell. FinLit Ventures is a technology company and is not registered with SEBI or AMFI as an adviser or research analyst.</p></div></details>';
+ el.className='lp-cq-'+m;el.innerHTML=(m==='small'?cqPhone():cqTable(COLS))+(CMB?'':cqBundle())+'<details class="lq-notes"'+(CS.notes?' open':'')+'><summary><span class="lq-ch">'+CHEV+'</span><b>About these plans</b><small>'+(LIVE?'One-area plans, do-it-yourself add-ons, prices and GST':'One-area plans, do-it-yourself add-ons and when plans open')+'</small></summary><div class="lq-notes-b"><p class="lq-foot">A one-area plan is added to your Free account, so its column shows everything you get, Free included. '+(LIVE?'Both one-area plans bought separately are '+inr(CQ.P[1][4].y+CQ.P[2][4].y)+' a year. The combined plan'+(CMB?'':' above')+' has both for '+inr(COMBINED.y)+', plus':'The combined plan has both, plus')+' All my investments, the full dashboard, watchlists, the forum and FinLit AI. Gold includes everything in it, and more.</p><p class="lq-room"><b>Do-it-yourself add-ons.</b> A tool marked <em class="lq-add">Add-on</em> is not in that plan, but you can buy just that tool and add it to your plan'+(LIVE?' for the yearly price shown under it. Any plan can also add more room for ₹199 a year each:':'. Any plan can also add more room:')+' 25 more watchlist stocks, 25 more holdings, 25 more alerts a week, or 10 more baskets. If your add-ons would cost more than the next plan, we offer you the plan instead.</p><p class="lq-n2">'+(LIVE?'Expected prices, before GST. Plans are yearly: the monthly figure is the yearly price spread over 12 months, and you pay for the year at once.':'Prices will be announced soon. Plans will be yearly.')+' Payments are not live yet: start on Free and ask for a plan from your account; the team switches it on and confirms by email. Features and limits can change. FinLit gives readings, not tips: it never tells you to buy or sell. FinLit Ventures is a technology company and is not registered with SEBI or AMFI as an adviser or research analyst.</p></div></details>';
  var ld=document.querySelector('.lp-cq-lede');if(ld)ld.textContent=m==='small'?'Tap a plan to see what it gives you. Open an area to see every tool in it.':'Open an area to see its tools. Open a tool to see its parts and limits.';
  var kb=document.querySelector('.lq-bar');if(kb){kb.hidden=false;var kk=kb.querySelector('.lq-key');if(kk)kk.style.visibility=!CMB||m==='small'?'':'hidden'}
  document.querySelector('[data-cq=groups]').textContent=allG?'Close all areas':'Open all areas';
@@ -127,7 +135,7 @@ cq();var cqM=cqMode();
  gos.forEach(function(b){var k=+b.dataset.goplan,p=CQ.P[k],q=p[4],lb=b.querySelector('b');if(!lb||!p)return;
   b.style.setProperty('--pc',p[2]);
   var x=document.createElement('span');x.className='lp-go-x';lb.parentNode.insertBefore(x,lb);x.appendChild(lb);
-  x.insertAdjacentHTML('beforeend','<span class="lp-go-s"><span class="lp-go-q" aria-hidden="true">See the plan that fits</span><span class="lp-go-p"><i></i><span>'+esc(p[0])+'</span>'+(q?'<em>'+inr(q.y/12)+'/month</em>':'')+'</span></span>');
+  x.insertAdjacentHTML('beforeend','<span class="lp-go-s"><span class="lp-go-q" aria-hidden="true">See the plan that fits</span><span class="lp-go-p"><i></i><span>'+esc(p[0])+'</span>'+(LIVE?(q?'<em>'+inr(q.y/12)+'/month</em>':''):(q?'<em>Price coming soon</em>':'<em>Free</em>'))+'</span></span>');
   function on(){if(!fine.matches)return;clearTimeout(tm);if(!saved){keep=CS.hl;saved=true}if(CS.hl!==k){CS.hl=k;cq()}}
   function off(){clearTimeout(tm);tm=setTimeout(function(){if(saved){saved=false;if(CS.hl!==keep){CS.hl=keep;cq()}}},90)}
   b.addEventListener('mouseenter',on);b.addEventListener('mouseleave',off);
@@ -259,13 +267,16 @@ function lit(feat,on){var sec=feat.closest('.hpz');var cb=sec.querySelector('[da
 })();
 /* ===== laptop: the hero fills the first screen, scaled up to use the space; the section bar comes in on scroll ===== */
 (function(){
- var mq=window.matchMedia('(min-width:1100px)'),hero=document.querySelector('main .hh .hh-top'),wrap=hero&&hero.querySelector(':scope>.wrap'),head=document.querySelector('header.top');
+ /* task #436: the hero fills the first screen from 761px (tablets too); the content is scaled up only on laptops (1100px and wider) */
+ var mq=window.matchMedia('(min-width:1100px)'),mf=window.matchMedia('(min-width:761px)'),hero=document.querySelector('main .hh .hh-top'),wrap=hero&&hero.querySelector(':scope>.wrap'),head=document.querySelector('header.top');
  if(!hero||!wrap)return;
  function fit(){wrap.style.zoom='';hero.classList.remove('lp-fill');
-  if(!mq.matches||/^#view-/.test(location.hash))return;
+  if(!mf.matches||/^#view-/.test(location.hash))return;
   hero.classList.add('lp-fill');
-  var h=head?head.offsetHeight:0,w0=wrap.offsetWidth,h0=wrap.offsetHeight,zw=(window.innerWidth*.94)/w0,zh=(window.innerHeight-h-48)/h0,z=Math.max(1,Math.min(zw,zh,1.5)*.9);
+  var h=head?head.offsetHeight:0;
   document.documentElement.style.setProperty('--lp-hdr',h+'px');
+  if(!mq.matches)return;
+  var w0=wrap.offsetWidth,h0=wrap.offsetHeight,zw=(window.innerWidth*.94)/w0,zh=(window.innerHeight-h-48)/h0,z=Math.max(1,Math.min(zw,zh,1.5)*.9);
   if(z>1.02)wrap.style.zoom=z.toFixed(3)}
  var t=0;on(window,'resize',function(){clearTimeout(t);t=setTimeout(fit,80)});
  on(window,'hashchange',function(){setTimeout(fit,30)});

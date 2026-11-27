@@ -82,7 +82,8 @@ describe("task #407: the interactive parts on the site's data", () => {
     const navigate = vi.fn(), quote = vi.fn(async (s: string) => ({ price: s === "INFY" ? 1183 : 400, changePct: 0.82, priceDate: "2026-11-26" }));
     const { container } = render(<GoLiveMarkup tour={TOUR} />);
     let stop = () => {};
-    act(() => { stop = initGoLive({ navigate, searchIndex: async () => index, quote }); });
+    // task #436: prices are hidden on the landing page (FL_PRICES_LIVE); these tests draw the table with prices on, as the switch brings them back
+    act(() => { stop = initGoLive({ navigate, searchIndex: async () => index, quote, pricesLive: true }); });
     return { container, navigate, quote, stop: () => stop() };
   };
   // task #411 (pack of 27 Nov 2026): the tour's chapter buttons and the separate combined-plan card are gone from the landing page; the combined

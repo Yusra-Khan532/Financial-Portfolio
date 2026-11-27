@@ -27,7 +27,8 @@ beforeAll(() => {
 });
 afterEach(() => { cleanup(); setWidth(1024); document.documentElement.removeAttribute("data-theme"); });
 
-function landing(width = 1440, extra: { combinedCard?: boolean } = {}) {
+// task #436: prices are hidden on the landing page until payments open (FL_PRICES_LIVE); the tests of the price figures pass pricesLive: true
+function landing(width = 1440, extra: { combinedCard?: boolean; pricesLive?: boolean } = {}) {
   setWidth(width);
   const { container } = render(<GoLiveMarkup tour={TOUR} />);
   let stop = () => {};
@@ -148,7 +149,7 @@ describe("task #411: the explorer", () => {
 describe("task #411: the plans table", () => {
   const cells = (row: Element) => [...row.children];
   it("six columns: Free · Gold · Platinum | Mutual Fund + ETF · Equity Portfolio · Combined; Combined is ₹375 a month, 27 of 40, ₹501 less than both", () => {
-    const { container, stop } = landing();
+    const { container, stop } = landing(1440, { pricesLive: true });
     const head = container.querySelector(".lq-head")!;
     const plans = cells(head).slice(1);
     expect(plans.map((p) => p.querySelector("b")!.textContent)).toEqual(["Free", "Gold", "Platinum", "Mutual Fund + ETF", "Equity Portfolio", "Combined"]);
@@ -161,7 +162,7 @@ describe("task #411: the plans table", () => {
     stop();
   });
   it("a band over the two groups (aligned to the columns), the solid line's column class, and the top-left cells filled", () => {
-    const { container, stop } = landing();
+    const { container, stop } = landing(1440, { pricesLive: true });
     const band = container.querySelector(".lq-t > .lq-band")!;
     expect(band.querySelector(".lq-band-l")!.textContent).toBe("Compare plans40 tools in 6 areas");
     const a = band.querySelector(".lq-band-a") as HTMLElement, b = band.querySelector(".lq-band-b") as HTMLElement;
@@ -194,7 +195,7 @@ describe("task #411: the plans table", () => {
     stop();
   });
   it("the notes say the combined plan has both (no longer 'above')", () => {
-    const { container, stop } = landing();
+    const { container, stop } = landing(1440, { pricesLive: true });
     const t = container.querySelector(".lq-notes")!.textContent!;
     expect(t).toContain("The combined plan has both for ₹4,499");
     expect(t).not.toContain("combined plan above");
@@ -204,7 +205,7 @@ describe("task #411: the plans table", () => {
     stop();
   });
   it("phone: Combined is the sixth plan button; its line and its count", () => {
-    const { container, stop } = landing(390);
+    const { container, stop } = landing(390, { pricesLive: true });
     const tabs = [...container.querySelectorAll(".lp-pp-b")];
     expect(tabs.map((b) => b.textContent)).toEqual(["Free", "Gold", "Platinum", "MF + ETF", "Equity", "Combined"]);
     act(() => { (tabs[5] as HTMLElement).click(); });
@@ -219,7 +220,7 @@ describe("task #411: the plans table", () => {
     setWidth(1440);
     const { container } = render(<GoLiveCompare />);
     let stop = () => {};
-    act(() => { stop = initGoLive({ ...noop, combinedCard: true }); });
+    act(() => { stop = initGoLive({ ...noop, combinedCard: true, pricesLive: true }); });   // as pages/Plans.tsx starts it
     expect([...container.querySelector(".lq-head")!.children].slice(1).map((p) => p.querySelector("b")!.textContent)).toEqual(["Free", "Gold", "Platinum", "Mutual Fund + ETF", "Equity Portfolio"]);
     expect(container.querySelector(".lq-band")).toBeNull();
     expect(container.querySelector(".lq-bun")!.textContent).toMatch(/₹375/);
@@ -258,13 +259,12 @@ describe("task #411: wording and styles", () => {
     expect(t).not.toMatch(/\b(buy|sell|hold) (this|these|now)\b|\btarget price\b/i);
     stop();
   });
-  it("the pack's CSS is in: one page background in light mode, the same feature boxes, the 2px line, the hero no longer fills the screen", () => {
+  it("the pack's CSS is in: one page background in light mode, the same feature boxes, the 2px line (task #436: the hero fills the first screen again, see golive436)", () => {
     const css = src("golive.css");
     expect(css).toMatch(/:root\[data-theme=light\] \.hh \.hh-top \{\n  background: var\(--bg\)!important;/);
     expect(css).toMatch(/--hh-hero-a: var\(--bg\);\n  --hh-hero-b: var\(--bg\);/);
     expect(css).toMatch(/\.lp-ex-d \.lp-tls>li\.lp-tl,\.lp-ex-di \.lp-tls>li\.lp-tl \{\n  margin: 0;\n  border: 1px solid var\(--border\);\n  background: var\(--s1\);/);
     expect(css).toMatch(/\.lq-t:has\(\.lq-band\) \.lq-c\.k1 \{\n  border-left: 2px solid var\(--border-strong\)!important;/);
-    expect(css).toMatch(/main \.hh \.hh-top\.lp-fill \{\n    min-height: 0!important;/);
     // the dark text tokens change the landing page only
     expect(css).toMatch(/:root\[data-theme=dark\]:has\(\.hh\) \{\n  --text: #f8f7f3;/);
     expect(css).not.toMatch(/^:root\[data-theme=dark\] ?\{/m);
