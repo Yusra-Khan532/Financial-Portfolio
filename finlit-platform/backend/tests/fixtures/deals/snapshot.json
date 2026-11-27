@@ -1,0 +1,17 @@
+{"as_on_date": "27-Nov-2026",
+ "BULK_DEALS_DATA": [
+  {"date": "27-Nov-2026", "symbol": "IGIL", "name": "International Gemmological Inst (I) L", "clientName": "BCP ASIA II TOPCO PTE. LTD.", "buySell": "SELL", "qty": "21000000", "watp": "371.25", "remarks": "-"},
+  {"date": "27-Nov-2026", "symbol": "IGIL", "name": "International Gemmological Inst (I) L", "clientName": "SBI MUTUAL FUND", "buySell": "BUY", "qty": "6000001", "watp": "371.25", "remarks": "-"},
+  {"date": "27-Nov-2026", "symbol": "ACMESOLAR", "name": "ACME Solar Holdings Limited", "clientName": "GRAVITON RESEARCH CAPITAL LLP", "buySell": "BUY", "qty": "3512880", "watp": "268.43", "remarks": "-"},
+  {"date": "27-Nov-2026", "symbol": "ACMESOLAR", "name": "ACME Solar Holdings Limited", "clientName": "GRAVITON RESEARCH CAPITAL LLP", "buySell": "SELL", "qty": "3510112", "watp": "268.61", "remarks": "-"},
+  {"date": "27-Nov-2026", "symbol": "SMLT", "name": "Sarthak Metals Limited", "clientName": "NEO APEX VENTURE PRIVATE LIMITED", "buySell": "BUY", "qty": "102000", "watp": "112.40", "remarks": "Weighted average trade price"}
+ ],
+ "BLOCK_DEALS_DATA": [
+  {"date": "27-Nov-2026", "symbol": "IGIL", "name": "International Gemmological Inst (I) L", "clientName": "BCP ASIA II TOPCO PTE . LTD .", "buySell": "SELL", "qty": "21000000", "watp": "371.25", "remarks": null},
+  {"date": "27-Nov-2026", "symbol": "IGIL", "name": "International Gemmological Inst (I) L", "clientName": "SBI MUTUAL FUND", "buySell": "BUY", "qty": "6000000", "watp": "371.25", "remarks": null},
+  {"date": "27-Nov-2026", "symbol": "IGIL", "name": "International Gemmological Inst (I) L", "clientName": "HDFC MUTUAL FUND", "buySell": "BUY", "qty": "7500000", "watp": "371.25", "remarks": null}
+ ],
+ "SHORT_DEALS_DATA": [
+  {"date": "27-Nov-2026", "symbol": "IDEA", "name": "Vodafone Idea Limited", "qty": "1,25,000", "clientName": null, "buySell": null, "watp": null},
+  {"date": "27-Nov-2026", "symbol": "YESBANK", "name": "Yes Bank Limited", "qty": "50000", "clientName": null, "buySell": null, "watp": null}
+ ]}

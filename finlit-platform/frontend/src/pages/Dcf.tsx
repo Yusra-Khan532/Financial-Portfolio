@@ -11,7 +11,7 @@ import { PageHeader } from "../components/PageHeader";
 import { useIndexFilter } from "../components/SearchFilters";
 import { useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useSearchParams } from "react-router";
+import { useSearchParams } from "react-router";
 import { apiGet, apiSend, type ApiError, type Glossary } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { DEMO } from "../lib/demo";
@@ -22,6 +22,7 @@ import { csvText, dateIN, nf } from "../lib/format";
 import { Gate } from "../components/Gate";
 import { Info } from "../components/Info";
 import { DcfIntro, useIntroOpen, useOpenPref } from "../components/DcfIntro";
+import { DcfDisclaimer } from "../components/DcfDisclaimer";
 import {
   GROWTH_PRESETS, INDIA_DEFAULTS, MOS_PRESETS, STATUS_TEXT, around, costOfCapital, defaultScenarios, impliedGrowth, impliedReturn, run, scenarios, sensitivity,
   type CostOfCapital, type DcfInputs, type DcfResult, type GrowthPreset, type Scenario,
@@ -754,7 +755,7 @@ export function DcfPage() {
           </div>
         </Gate>
         <Methodology member={user?.id ?? null} />
-        <p className="faint dcf-disc">A DCF value is only as good as its assumptions: small changes in growth or discount rate move it a lot. This is a calculation tool for education, not investment advice. The intrinsic value is an estimate from the inputs above, not a forecast of the future share price. <Link to="/glossary#discounted-cash-flow-dcf">What is a DCF?</Link></p>
+        <DcfDisclaimer member={user?.id ?? null} />
       </div>
     </>
   );

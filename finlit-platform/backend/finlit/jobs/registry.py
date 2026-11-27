@@ -212,6 +212,7 @@ LIMIT_POLICY: Dict[str, str] = {
     "coverage": "deadline: stops itself after --max-minutes 13 and records what it checked (limit 22)",
     "calendars": "fixed: two provider calendars (IPO and results dates); measured about 9 s",
     "ipo-prices": "deadline: no new file after --max-minutes 10 and at most --max-dates 250 listing dates a run, one file a second (limit 14)",
+    "deals": "deadline: no new request after --max-minutes 8, today's three NSE files plus at most --backfill-months 1 month of history (three requests), one a second, and it stops after 5 refusals (limit 12)",
     "ipo-gmp": "deadline: no new page or NSE request after --max-minutes 10, at most --limit 300 pages and --nse-limit 80 NSE books a run, one a second (limit 14)",
     "quotes": "deadline: no new slice after --max-minutes 7 (each slice followed up inside it), Dhan phase 90 s, a company 30 s (limit 10)",
     "alerts-live": "fixed: members' own alerts only; measured about 3 s",
@@ -285,6 +286,11 @@ def build_jobs(env: Optional[Mapping[str, str]] = None) -> List[Job]:
         Job("ipo-prices", ("refresh-ipo-prices", "--max-dates", "250", "--max-minutes", "10"), priority=3, max_runtime_min=14, weight_mb=120, honours_pause=False,
             stall_min=12, interval_min=30, sla=Sla("none"),
             what="Each listed IPO's listing-day open, high, low and close, and its latest close, from the NSE and BSE daily price files (all-IPOs table, IPO report)"),
+        # NSE posts the day's bulk and block files after the close: every 30 minutes from 16:00 to 22:00 IST on weekdays, and once in the morning
+        # (the previous evening's files if the evening runs missed them, and the next month of history). docs/DEALS.md
+        Job("deals", ("refresh-deals", "--backfill-months", "1", "--max-minutes", "8"), priority=3, max_runtime_min=12, weight_mb=60, honours_pause=False,
+            stall_min=10, interval_min=30, active_hours=(16, 21), day_rule=_weekdays, windows=(W("MORNING", 10),), sla=Sla("none"),
+            deploy_hold_exempt=True, what="NSE's bulk, block and short-selling deals (today's files, then two years of history a month a run): Bulk & Block Deals page, IPO report, company report"),
         Job("calendars", ("refresh-calendars",), priority=3, max_runtime_min=10, weight_mb=60, honours_pause=False, stall_min=10,
             interval_min=40, active_hours=(8, 23), windows=(W("MORNING", 4),), sla=Sla("active", 1.0), visitor_gate="env:RESULTS_NEED_VISITOR",
             owns=("results_calendar", "ipo_calendar"), what="IPO and results calendars (board-meeting dates)"),

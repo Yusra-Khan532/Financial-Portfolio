@@ -94,7 +94,7 @@ const LINES: [string, string][] = [
   ["pages/Faqs.tsx", "questions across {PAGE_FAQS.length} pages; each page also lists its own at the bottom."],
   ["pages/Research.tsx", "Prism score, statements, ratios, ownership and peers for"],
   ["pages/Services.tsx", "From your first investment to a portfolio review. Not sure which fits? Book a first session."],
-  ["pages/About.tsx", "Stock research, portfolio reviews and planning. If we cannot explain it plainly, we do not share it."],
+  ["pages/About.tsx", "FinLit is an Indian stock and mutual fund research platform: company filings explained in plain English."],   // search growth M1 (27 Nov 2026): the first sentence says what FinLit is
   ["pages/ConnectAI.tsx", "A free, read-only connection that lets AI assistants look up FinLit's Indian market data."],
   ["pages/LeadershipLabel.tsx", "How a stock's last 12 months compare with similar companies. It looks back; it does not predict."],
   ["pages/Contact.tsx", "Tell us what you need. A person reads every message; we usually reply within one working day."],

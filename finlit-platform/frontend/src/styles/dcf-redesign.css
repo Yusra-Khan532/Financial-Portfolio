@@ -272,6 +272,23 @@
 .dcx-mg{display:grid;grid-template-columns:1fr 1fr;gap:4px 32px}
 .dcx-mg p{margin:0 0 10px;font:var(--fs-13)/1.65 var(--sans);color:var(--muted)}
 .dcx-mg b{color:var(--text)}
+/* task #425: the disclaimer under the calculator is a drop-down like the Methodology card (task #412) and the SIP disclaimer (#424).
+   The closed row keeps the "Disclaimer" title and "Information only, not investment advice." in view; the whole row opens it. */
+.dcx-dsc{padding:18px 22px}
+.dcx-dsc h2{margin:0;font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif);color:var(--text)}
+.dcx-dsc>summary{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:2px 16px;cursor:pointer;list-style:none;border-radius:var(--r-ctl)}
+.dcx-dsc>summary::-webkit-details-marker{display:none}
+.dcx-dsc>summary:focus-visible{outline:2px solid var(--dcx-acc);outline-offset:4px}
+.dcx-dsc>summary h2{grid-column:1}
+.dcx-dsc .dcx-dsc-l{grid-column:1;font:var(--fs-13)/1.45 var(--sans);color:var(--muted)}
+.dcx-dsc .dcx-dsc-tg{grid-column:2;grid-row:1/span 2;display:inline-flex;align-items:center;gap:8px;min-height:36px;padding:0 14px;border:1px solid var(--border-strong);border-radius:var(--ui-r-pill);background:var(--s1);color:var(--text);font:600 var(--fs-13) var(--sans)}
+.dcx-dsc>summary:hover .dcx-dsc-tg{border-color:var(--dcx-acc)}
+.dcx-dsc[open]>summary{margin-bottom:12px}
+.dcx-dsc-b{margin:0;padding:0 0 0 18px;max-width:100ch;display:grid;gap:6px}
+.dcx-dsc-b li{font:var(--fs-13)/1.6 var(--sans);color:var(--muted)}
+.dcx-dsc-b b{color:var(--text)}
+.dcx-dsc-f{margin:10px 0 0;font:var(--fs-13)/1.5 var(--sans)}
+@media (max-width:720px){.dcx-dsc{padding:16px 14px}.dcx-dsc .dcx-dsc-tg{min-height:44px;padding:0 12px}}
 /* summary strip: shows while the result card is off screen */
 .dcx-mini{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));z-index:120;display:flex;align-items:center;gap:14px;width:max-content;max-width:calc(100vw - 24px);padding:10px 12px 10px 16px;border-radius:var(--r-ctl);background:var(--pop-bg);color:#f4efe3;font:var(--fs-14) var(--sans);box-shadow:0 14px 32px -10px #000a;transform:translate(-50%,160%);transition:transform .2s;pointer-events:none}
 .dcx-mini.show{transform:translate(-50%,0);pointer-events:auto}

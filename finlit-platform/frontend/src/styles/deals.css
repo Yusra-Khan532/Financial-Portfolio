@@ -1,0 +1,101 @@
+/* Bulk & Block Deals (pages/Deals.tsx, /ipo?view=deals). Every rule is scoped to .bbd; the table, cards, toolbar and count line reuse the All IPOs
+   classes (ipo-all.css, ipo-all-compact.css) and the Discover toolbar (discover.css). Tokens only (ui-tokens.css). */
+.bbd { gap: 14px; }
+.bbd .bbd-head { display: grid; gap: 8px; padding: 16px 18px; }
+.bbd .bbd-meta { display: flex; flex-wrap: wrap; gap: 4px 18px; font-size: var(--fs-13); color: var(--muted); }
+.bbd .bbd-meta b { color: var(--text); font-weight: 600; }
+.bbd .bbd-line { margin: 0; font: 600 var(--fs-16) var(--sans); color: var(--text); }
+.bbd .bbd-ex summary { cursor: pointer; font: 600 var(--fs-13) var(--sans); color: var(--text); }
+.bbd .bbd-ex summary:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.bbd .bbd-ex dl { display: grid; gap: 8px; margin: 10px 0 0; }
+.bbd .bbd-ex dt { font: 600 var(--fs-13) var(--sans); } .bbd .bbd-ex dd { margin: 2px 0 0; font-size: var(--fs-13); line-height: 1.55; color: var(--muted); }
+
+.bbd .bbd-tools { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: flex-end; }
+.bbd .bbd-seg { display: grid; gap: 4px; min-width: 0; }
+.bbd .bbd-seg > span { font: 600 var(--fs-12) var(--sans); color: var(--muted); }
+.bbd .bbd-seg .dbx-seg button { flex: none; flex-direction: row; padding: 8px 12px; white-space: nowrap; }
+.bbd .bbd-dates { display: flex; gap: 10px; flex-wrap: wrap; }
+.bbd .bbd-dates label { display: grid; gap: 4px; font: 600 var(--fs-12) var(--sans); color: var(--muted); }
+.bbd .bbd-dates input { height: 36px; padding: 0 8px; border: 1px solid var(--ui-field-line); border-radius: var(--r-ctl); background: var(--bg); color: var(--text); font: var(--fs-14) var(--sans); }
+.bbd a.p4-csv { text-decoration: none; } .bbd a.p4-csv[aria-disabled] { opacity: .5; cursor: default; }
+
+.bbd .bbd-note { margin: 0; padding: 10px 14px; border: 1px solid var(--border); border-radius: var(--r-ctl); background: var(--s2); font-size: var(--fs-13); line-height: 1.5; }
+.bbd .bbd-note span + span::before { content: " "; }
+.bbd .bbd-sec { display: grid; gap: 10px; }
+.bbd .bbd-h { margin: 0; font: 600 var(--fs-18) var(--sans); } .bbd .bbd-h small { font: 400 var(--fs-13) var(--sans); color: var(--muted); margin-left: 6px; }
+.bbd .bbd-lg { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.bbd .bbd-lc { display: grid; gap: 4px; padding: 14px; align-content: start; }
+.bbd .bbd-lc p { margin: 0; }
+.bbd .bbd-lh { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.bbd .bbd-ls { font: 600 var(--fs-16) var(--sans); color: var(--text); text-decoration: none; } .bbd .bbd-ls:hover { text-decoration: underline; }
+.bbd .bbd-ln { font-size: var(--fs-13); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bbd .bbd-lv { font: 600 var(--fs-20) var(--sans); font-variant-numeric: tabular-nums; }
+.bbd .bbd-lm { font-size: var(--fs-13); color: var(--muted); font-variant-numeric: tabular-nums; }
+.bbd .bbd-lcl { font-size: var(--fs-13); }
+
+.bbd .bbd-b { display: inline-block; padding: 1px 8px; border-radius: var(--ui-r-pill); font: 600 var(--fs-12) var(--sans); background: var(--s2); color: var(--text); vertical-align: middle; }
+.bbd .bbd-b.buy { background: color-mix(in srgb, var(--gain) 16%, transparent); color: var(--gain); }
+.bbd .bbd-b.sell { background: color-mix(in srgb, var(--loss) 14%, transparent); color: var(--loss); }
+.bbd .bbd-tag { display: inline-block; margin-left: 6px; padding: 0 6px; border: 1px solid var(--border); border-radius: var(--ui-r-mark); font: 500 var(--fs-12) var(--sans); color: var(--muted); white-space: nowrap; }
+.bbd .bbd-cl { border: 0; background: none; padding: 0; color: var(--text); font: inherit; text-align: left; cursor: pointer; text-decoration: underline; text-decoration-color: var(--border-strong); text-underline-offset: 2px; }
+.bbd .bbd-cl:hover { text-decoration-color: currentColor; } .bbd .bbd-cl:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+.bbd .bbd-strip { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.bbd .bbd-sb { padding: 14px; display: grid; gap: 8px; align-content: start; }
+.bbd .bbd-sb h4 { margin: 0; font: 600 var(--fs-14) var(--sans); } .bbd .bbd-sb h4 small { font-weight: 400; color: var(--muted); }
+.bbd .bbd-sb dl { display: grid; gap: 6px; margin: 0; }
+.bbd .bbd-sb dt { font: 600 var(--fs-12) var(--sans); color: var(--muted); } .bbd .bbd-sb dd { margin: 0; font-size: var(--fs-13); font-variant-numeric: tabular-nums; }
+.bbd .bbd-sb small { color: var(--muted); margin-left: 4px; }
+.bbd .bbd-sb ol { margin: 0; padding: 0 0 0 18px; display: grid; gap: 5px; font-size: var(--fs-13); }
+.bbd .bbd-sb li { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 8px; }
+.bbd .bbd-sb li .bbd-cl { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bbd .bbd-sb li span { font-variant-numeric: tabular-nums; } .bbd .bbd-sb li small { grid-column: 1 / -1; margin: 0; }
+.bbd .up { color: var(--gain); } .bbd .down { color: var(--loss); }
+
+.bbd .bbd-t tbody tr { cursor: default; }
+.bbd .bbd-t .bbd-ct { white-space: normal; min-width: 200px; max-width: 320px; }
+.bbd .bbd-t td small { white-space: normal; }
+.bbd .bbd-c .ia-ch b a { color: var(--text); }
+.bbd .bbd-cc { margin: 0; font-size: var(--fs-13); }
+.bbd .bbd-empty { display: grid; gap: 10px; justify-items: center; } .bbd .bbd-empty p { margin: 0; }
+
+.bbd .bbd-cp { padding: 16px; display: grid; gap: 10px; }
+.bbd .bbd-cph { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+.bbd .bbd-cph h3 { margin: 0; font: 600 var(--ui-fs-h3) var(--sans); } .bbd .bbd-cph p { margin: 4px 0 0; font-size: var(--fs-13); }
+.bbd .bbd-cph .dbx-ddb svg { width: 14px; height: 14px; }
+.bbd .bbd-both { margin: 0; font-size: var(--fs-13); }
+.bbd .bbd-cpt { overflow-x: auto; }
+.bbd .bbd-cpt .ia-t tbody tr { cursor: default; }
+
+@media (max-width: 1100px) { .bbd .bbd-lg { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 860px) {
+  .bbd .bbd-strip { grid-template-columns: minmax(0, 1fr); }
+  .bbd .bbd-tools { display: grid; grid-template-columns: minmax(0, 1fr); }
+  .bbd .bbd-seg .dbx-seg { display: grid; grid-template-columns: repeat(auto-fit, minmax(84px, 1fr)); }
+  .bbd .bbd-seg .dbx-seg button { justify-content: center; padding: 8px 6px; min-height: 44px; border-left: 0; box-shadow: inset 0 0 0 .5px var(--border); }
+}
+@media (max-width: 760px) {
+  .bbd .bbd-tw { display: none; } .bbd .bbd-cards { display: grid; }
+  .bbd .bbd-lg { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: 82%; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 4px; }
+  .bbd .bbd-lc { scroll-snap-align: start; }
+  .bbd .bbd-cph { flex-direction: column; }
+}
+
+/* The company report's Ownership tab "Bulk & block deals" (stock/own/OwnDeals.tsx) and the IPO report's "Deals since listing". */
+.bbd.bbd-own { display: grid; gap: 12px; padding: 4px 0 0; }
+.bbd .bbd-ol { margin: 0; font-size: var(--fs-14); line-height: 1.55; }
+.bbd .bbd-ch { position: relative; margin: 0; }
+.bbd .bbd-ch svg { display: block; width: 100%; height: auto; }
+.bbd .bbd-gl { stroke: var(--border); stroke-width: 1; }
+.bbd .bbd-tx { fill: var(--muted); font: var(--fs-12) var(--sans); }
+.bbd .bbd-ln2 { fill: none; stroke: var(--text); stroke-width: 1.6; opacity: .75; }
+.bbd .bbd-dot { stroke: var(--card, var(--bg)); stroke-width: 1.5; cursor: pointer; }
+.bbd .bbd-dot.buy { fill: var(--gain); } .bbd .bbd-dot.sell { fill: var(--loss); }
+.bbd .bbd-dot:focus-visible { outline: none; stroke: var(--gold); stroke-width: 3; }
+.bbd .bbd-tip { position: absolute; top: 8px; transform: translateX(-50%); display: grid; gap: 2px; max-width: 240px; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--r-ctl); background: var(--card, var(--bg)); font-size: var(--fs-12); box-shadow: 0 6px 18px color-mix(in srgb, var(--text) 14%, transparent); pointer-events: none; }
+.bbd .bbd-key { display: inline-block; width: 9px; height: 9px; border-radius: var(--ui-r-pill); margin: 0 4px 0 8px; vertical-align: middle; }
+.bbd .bbd-key.buy { background: var(--gain); } .bbd .bbd-key.sell { background: var(--loss); }
+.bbd.bbd-ir .bbd-irl { margin: 8px 0; } .bbd.bbd-ir .bbd-irn { margin: 8px 0 0; font-size: var(--fs-13); }
+.bbd.bbd-lk .ia-tw { max-height: none; }
+.bbd .bbd-fl { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: var(--fs-13); }
+.bbd .bbd-fl .dbx-ddb { height: auto; min-height: 36px; padding: 6px 12px; white-space: normal; text-align: left; max-width: none; }

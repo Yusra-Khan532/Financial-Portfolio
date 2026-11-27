@@ -14,6 +14,7 @@ import type { IpoRow } from "../lib/ipoHistory";
 const st = vi.hoisted(() => ({ data: [] as unknown[], gmp: undefined as unknown }));
 const HIST = vi.hoisted(() => ({ items: [] as unknown[], asOf: "2026-10-20", updatedAt: null, note: "",
   sources: { issue: { name: "InvestorGain", url: "https://www.investorgain.com/", what: "" }, nse: { name: "NSE", url: null, what: "" }, prices: { name: "NSE", url: null, what: "" } } }));
+vi.mock("../lib/deals", async (orig) => ({ ...(await orig<typeof import("../lib/deals")>()), useIpoDeals: () => ({ data: undefined, isLoading: true, isError: false }) }));
 vi.mock("../lib/ipo", async (orig) => ({ ...(await orig<typeof import("../lib/ipo")>()), useIpos: () => ({ data: st.data, isLoading: false, isError: false }),
   useGmpRecord: () => ({ data: st.gmp, isLoading: false, isError: false }) }));
 vi.mock("../lib/ipoHistory", async (orig) => ({ ...(await orig<typeof import("../lib/ipoHistory")>()), useIpoHistory: () => ({ data: HIST, isLoading: false, isError: false }) }));
@@ -80,11 +81,11 @@ describe("rules 1-3: the address, the redirect, which view opens", () => {
     cleanup(); page("/ipo?view=all");
     expect(panel("now").hidden).toBe(true); expect(panel("all").hidden).toBe(false);
   });
-  it("the bar: '2 views · press one to switch', two numbered views with their counts, 'Showing: …'", () => {
+  it("the bar: '3 views · press one to switch' (Bulk & block deals added as the third), the numbered views with their counts, 'Showing: …'", () => {
     page();
     const bar = document.querySelector(".ctabs") as HTMLElement;
-    expect(bar.querySelector(".ctabs-h")!.textContent).toBe("⇆2 viewsSee 1 more→")   // developer file 46: See N more stands in for the hint until each view was opened;
-    expect(within(bar).getAllByRole("tab").map((t) => t.textContent)).toEqual(["1Open and upcoming1", "2All IPOs since 202063"]);
+    expect(bar.querySelector(".ctabs-h")!.textContent).toBe("⇆3 viewsSee 2 more→")   // developer file 46: See N more stands in for the hint until each view was opened; Bulk & block deals is the third view
+    expect(within(bar).getAllByRole("tab").map((t) => t.textContent)).toEqual(["1Open and upcoming1", "2All IPOs since 202063", "3Bulk & block deals"]);
     expect(bar.querySelector(".ct-aside")!.textContent).toBe("Showing: Open, upcoming, about to list, and listed in the last 30 days");
     fireEvent.click(tab(/All IPOs since 2020/));
     expect(bar.querySelector(".ct-aside")!.textContent).toBe("Showing: Every mainboard and SME issue: listing, subscription, GMP and return since");
