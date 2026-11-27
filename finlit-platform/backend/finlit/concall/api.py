@@ -399,14 +399,24 @@ async def _upgrade_unlock(store: Any, link: str, token: str) -> None:
         pass
 
 
-async def _rewrite_old(request: Request, row: Dict[str, Any], kept: Any, name: str) -> Optional[str]:
+async def _within_rate(request: Request, user_id: Any) -> bool:
+    """The member's summary rate (4 a minute, the same budget as writing a new one). Over it, or the limiter unreachable: no rewrite now (the old
+    summary is shown, never an error), so one member cannot set off many paid rewrites across different calls in a burst."""
+    try:
+        allowed, _ = await request.app.state.limiter.hit("concall:sum", f"u:{user_id}", 4, 60)
+        return bool(allowed)
+    except Exception:
+        return False
+
+
+async def _rewrite_old(request: Request, row: Dict[str, Any], kept: Any, name: str, user_id: Any) -> Optional[str]:
     """Task #432: an old short summary written again in the new form, at FinLit's cost (nobody's summaries are used). Guarded so that a call can
     never trigger repeated paid writes: one rewrite of a call at a time (a 3-minute lock), and after one that fails (the file not given, no text,
     the model failing or every point dropped) the call is not tried again for 24 hours; the old summary is shown meanwhile. None: keep the old one."""
     from ..ask import docstore
     from ..ask.pages import _read_pages
     store, st, link = request.app.state.store, request.app.state.settings, row["link"]
-    if await _upgrade_blocked(store, link):
+    if await _upgrade_blocked(store, link) or not await _within_rate(request, user_id):
         return None
     token = await _upgrade_lock(store, link)
     if token is None:
@@ -449,7 +459,7 @@ async def summary(request: Request, body: SummaryIn, ctx: Ctx = Depends(secure_c
     if kept:      # written before: opens free, for everyone on the plan
         n = await quota.used(store.pool, ctx.user_id, month, "summary")
         if not is_sectioned(kept["text"]) and st.anthropic_api_key:   # task #432: the old short form, rewritten once (guarded, see _rewrite_old)
-            text = await _rewrite_old(request, row, kept, name)
+            text = await _rewrite_old(request, row, kept, name, ctx.user_id)
             if text:
                 return _json({"text": text, "source": row["kind"], "link": body.link, "written": None, "cached": True, "rewritten": True,
                               **quota.status(cap, n, month), "disclaimer": DISCLAIMER})

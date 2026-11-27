@@ -144,6 +144,32 @@ async def test_while_one_rewrite_runs_another_request_makes_no_call(app, monkeyp
     assert not await app.state.store.redis.exists(A._ukey("lock", link))      # the lock is let go after the rewrite
 
 
+@pytest.mark.integration
+async def test_a_rate_limited_member_opening_an_old_summary_gets_the_old_text_and_no_ai_call(app, monkeypatch):
+    calls = []
+
+    async def write(request, row, pages, name):
+        calls.append(row["link"])
+        return "## Revenue\n- Revenue grew (p. 1)"
+    link, m = await _old_summary(app, monkeypatch, write, "cc432r@example.com")
+
+    real_hit = app.state.limiter.hit
+
+    async def over(name, key, count, seconds, fail_open=False):   # this member has used the summary rate of this minute
+        if name != "concall:sum":
+            return await real_hit(name, key, count, seconds, fail_open=fail_open)
+        assert key.startswith("u:")
+        return False, 30
+    monkeypatch.setattr(app.state.limiter, "hit", over)
+    r = await m.post("/api/concalls/summary", json={"link": link})
+    assert r.status_code == 200                                               # opening never fails
+    assert r.json()["text"].startswith("**What the quarter looked like**") and "rewritten" not in r.json() and calls == []
+    assert not await app.state.store.redis.exists(A._ukey("failed", link))    # not a failure: the next open within the rate rewrites it
+    monkeypatch.setattr(app.state.limiter, "hit", real_hit)                   # the next minute
+    r = (await m.post("/api/concalls/summary", json={"link": link})).json()
+    assert r["rewritten"] is True and calls == [link]
+
+
 class _Down:
     """A Redis that cannot be reached."""
     async def exists(self, *a): raise ConnectionError("down")
