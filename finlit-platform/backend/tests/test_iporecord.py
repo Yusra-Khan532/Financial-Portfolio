@@ -204,3 +204,11 @@ async def test_job_stores_the_record_and_the_nse_book_and_the_api_serves_them(ap
         r = (await c.get("/api/ipos/record/1849")).json()
         assert r["detail"]["reservation"]["rows"][0]["key"] == "anchor" and r["nseBook"]["total"] == 241.22 and [g["gmp"] for g in r["gmpHistory"]] == [18.0, 69.0]
         assert (await c.get("/api/ipos/record/99999")).status_code == 404 and (await c.get("/api/ipos/record/0")).status_code == 422
+        # an old copy is sent at once and rebuilt behind it: a change shows on the next request after the rebuild, not on this one
+        async with store_.pool.acquire() as conn:
+            await conn.execute("UPDATE ipo_gmp SET name = 'BLS Polymers (renamed)' WHERE ig_id = 1849")
+        ipoapi._history["t"] -= ipoapi.HISTORY_TTL_S + 1
+        assert (await c.get("/api/ipos/history")).json()["items"][0]["name"] == "BLS Polymers"
+        if ipoapi._history.get("task"):
+            await ipoapi._history["task"]
+        assert (await c.get("/api/ipos/history")).json()["items"][0]["name"] == "BLS Polymers (renamed)"
