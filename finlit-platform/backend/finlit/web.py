@@ -77,7 +77,7 @@ def mount_frontend(app: FastAPI, dist: Path) -> bool:
                 try:    # search growth, Phase 1: the company's own stored figures; any failure here leaves the page with its name and sector, never an error
                     facts, group = await company_facts(conn, sym, row.get("has_consolidated") is not False)
                 except Exception:
-                    log.warning("seo company facts failed for %s", sym, exc_info=True)
+                    log.warning("seo company facts failed for %s", sym.replace("\r", "").replace("\n", ""), exc_info=True)   # SYMBOL already allows no line break; stripped for the log anyway
         value = (row["name"], row["sector"], facts, group) if row else None
         seo.remember(sym, value)    # type: ignore[arg-type]
         return value
