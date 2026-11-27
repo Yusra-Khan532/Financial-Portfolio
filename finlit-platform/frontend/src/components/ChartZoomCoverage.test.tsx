@@ -21,6 +21,7 @@ const ZOOM = [
   "components/lab/OptionPulse.tsx",   // Trading Lab > Order Flow > Option Pulse: the OI ladder and the max pain curve
   "components/lab/GlobalCues.tsx",    // Trading Lab > Order Flow > Global cues: a small line per cue
   "components/lab/GlobalTrade.tsx",   // Trading Lab > Order Flow > Global trade: 13 months of exports and imports
+  "components/lab/EmergingMarkets.tsx", // Trading Lab > Order Flow > Emerging markets: growth against inflation
   "components/lab/MarketMood.tsx",    // Trading Lab > Order Flow > Market mood: the 30-day tone chart
   // company page
   "charts/MiniBars.tsx", "charts/PriceChart.tsx", "charts/IntradayChart.tsx", "charts/FinChart.tsx", "charts/LineChart.tsx", "charts/RoeLines.tsx", "charts/Waterfall.tsx", "charts/Radar.tsx", "charts/OutlookChart.tsx",

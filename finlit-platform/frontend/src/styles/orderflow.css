@@ -651,3 +651,20 @@ a.oflow-tab:hover:not([aria-current]) { background: color-mix(in srgb, var(--gol
 .trd-bars .b { height: 10px; background: var(--s2); border-radius: var(--ui-r-pill); overflow: hidden; }
 .trd-bars .b i { display: block; height: 100%; border-radius: var(--ui-r-pill); } .trd-bars .b i.exports { background: var(--gain); } .trd-bars .b i.imports { background: var(--loss); }
 @media (max-width: 560px) { .trd-stats { grid-template-columns: minmax(0, 1fr); } .trd-bars li { grid-template-columns: minmax(0, 110px) minmax(0, 1fr) 70px 48px; } }
+
+/* ---- Emerging markets (components/lab/EmergingMarkets.tsx) ---- */
+.em-scatter { display: block; width: 100%; height: auto; }
+.em-scatter .zero { stroke: var(--border); stroke-dasharray: 3 3; } .em-scatter .ax { font-size: var(--fs-12); fill: var(--muted); }
+.em-dot circle { fill: color-mix(in srgb, var(--c1) 30%, transparent); stroke: var(--c1); stroke-width: 1.5; transition: fill 0.15s ease; }
+.em-dot text { font-size: var(--fs-12); font-weight: 700; fill: var(--text); pointer-events: none; }
+.em-dot .em-over { font-size: var(--fs-12); font-weight: 700; fill: var(--loss); }
+.em-dot:hover circle { fill: color-mix(in srgb, var(--gold) 35%, transparent); stroke: var(--gold); }
+.em-dot.india circle { fill: color-mix(in srgb, var(--gold) 45%, transparent); stroke: var(--gold); stroke-width: 2.5; filter: drop-shadow(0 0 6px var(--gold)); }
+.em-sort { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.em-table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--r-card); }
+.em-table { width: 100%; border-collapse: collapse; font-size: var(--fs-13); font-variant-numeric: tabular-nums; }
+.em-table th { text-align: left; font-size: var(--fs-12); font-weight: 600; color: var(--muted); padding: 8px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.em-table td { padding: 7px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.em-table td small { display: block; font-size: var(--fs-12); }
+.em-table .n { text-align: right; } .em-table tbody tr:hover { background: color-mix(in srgb, var(--gold) 6%, transparent); }
+.em-table tr.india { background: color-mix(in srgb, var(--gold) 12%, transparent); }

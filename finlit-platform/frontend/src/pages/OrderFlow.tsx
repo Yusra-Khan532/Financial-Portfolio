@@ -21,6 +21,7 @@ import { OptionPulse } from "../components/lab/OptionPulse";
 import { GlobalCues } from "../components/lab/GlobalCues";
 import { GlobalMarketMood, MarketMood } from "../components/lab/MarketMood";
 import { GlobalTrade } from "../components/lab/GlobalTrade";
+import { EmergingMarkets } from "../components/lab/EmergingMarkets";
 import { BucketPop, Candles, DirectionPop, SectorPop, StockPop, TipLayer, tiltHandlers, useTip } from "../components/lab/FlowTips";
 import "../styles/portfolio-disc.css";
 import "../styles/tradinglab.css";
@@ -33,15 +34,16 @@ export const FLOW_TABS = [
   { id: "options", name: "Option Pulse", ready: true },
   { id: "global", name: "Global cues", ready: true },
   { id: "trade", name: "Global trade", ready: true },
+  { id: "em", name: "Emerging markets", ready: true },
   { id: "mood", name: "Market mood", ready: true },
   { id: "zones", name: "Stock zones", ready: false },
   { id: "journal", name: "Trading journal", ready: false },
 ];
 
 /** The views the Global switch has (the rest are India-only until their global version is built). */
-export const GLOBAL_TABS = ["depth", "board", "money", "options", "global", "trade", "mood"];
+export const GLOBAL_TABS = ["depth", "board", "money", "options", "global", "trade", "em", "mood"];
 /** Views only the Global switch has. */
-export const GLOBAL_ONLY = ["trade"];
+export const GLOBAL_ONLY = ["trade", "em"];
 
 const DISCLAIMER = "Order Flow describes how F&O stocks are moving from exchange prices and futures open interest, worked out by fixed formulas and shown with a delay of a few minutes. It does not tell anyone to buy, sell or hold, it never places an order, and a build-up or a count of facts is not a forecast. Intraday and F&O trading carry a high risk of loss; most people who trade them lose money. Information only, not investment advice.";
 
@@ -649,6 +651,7 @@ function Depth({ d }: { d: Ready }) {
 function Flow({ view, market }: { view: string; market: FlowMarket }) {
   if (view === "options") return <TipLayer><OptionPulse key={market} market={market} /></TipLayer>;   // its own data (the option chain), not the Order Flow snapshot
   if (view === "global") return <TipLayer><GlobalCues /></TipLayer>;      // its own data (FRED series and the international ETFs on NSE)
+  if (view === "em") return <TipLayer><EmergingMarkets /></TipLayer>;       // its own data (World Bank, Yahoo)
   if (view === "trade") return <TipLayer><GlobalTrade /></TipLayer>;        // its own data (UN Comtrade)
   if (view === "mood") return <TipLayer>{market === "global" ? <GlobalMarketMood /> : <MarketMood />}</TipLayer>;        // its own data (scored news and headlines)
   return <FlowSnapshotView view={view} market={market} />;

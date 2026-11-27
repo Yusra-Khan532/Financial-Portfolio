@@ -213,6 +213,7 @@ LIMIT_POLICY: Dict[str, str] = {
     "ipo-gmp": "deadline: no new page or NSE request after --max-minutes 10, at most --limit 300 pages and --nse-limit 80 NSE books a run, one a second (limit 14)",
     "quotes": "deadline: no new slice after --max-minutes 7 (each slice followed up inside it), Dhan phase 90 s, a company 30 s (limit 10)",
     "alerts-live": "fixed: members' own alerts only; measured about 3 s",
+    "global-em": "fixed: seven World Bank calls, one per figure for all seventeen countries; measured about 10 s",
     "global-trade": "fixed: about 6 UN Comtrade calls on a normal day (new months and the latest two again), 4 s apart; the first load about 32 calls, 3 minutes",
     "global-flow": "fixed: one Nasdaq screener call (every US-listed share); skips itself in a few milliseconds outside the US session",
     "market-mood": "fixed: sixteen Google News topics (eight for India and the world, eight US sectors), about 200 new headlines scored by the sentiment model; measured about 45 s",
@@ -384,6 +385,10 @@ def build_jobs(env: Optional[Mapping[str, str]] = None) -> List[Job]:
             what="News sentiment (task #365): scores every news item and exchange filing not scored yet with the financial-news language model "
                  "(finlit/sentiment.py: an int8 ONNX DistilRoBERTa, one thread, about 300 MB), newest first, up to 40,000 a run; the score is "
                  "P(positive) - P(negative) from -1 to +1. Database only; continues where it stopped"),
+        Job("global-em", ("refresh-global-em",), priority=41, max_runtime_min=5, weight_mb=50, windows=(W("MORNING", 6),), interval_min=10080,
+            sla=Sla("hours", 24 * 9), catchup=True,
+            what="Trading Lab Emerging markets: GDP growth, inflation, current account, trade, GDP per person and reserves of India and sixteen other "
+                 "emerging economies from the World Bank's open data, weekly (lab/em.py)"),
         Job("global-trade", ("refresh-global-trade",), priority=40, max_runtime_min=10, weight_mb=60, windows=(W("MORNING", 6),), interval_min=720,
             sla=Sla("hours", 48), catchup=True,
             what="Trading Lab Global trade: India's exports and imports by partner country (13 months) and by product (the latest month and a year before) "
