@@ -180,7 +180,7 @@ describe("the DCF page (task #396)", () => {
     expect(document.querySelector(".dcx-ivs")?.textContent).toBe("Estimated from your assumptions · not a forecast of the share price");
     expect([...document.querySelectorAll(".dcx-bridge .op")].map((e) => e.textContent)).toEqual(["", "+", "", "=", "−", "=", "÷", "="]);
     expect(screen.getByRole("heading", { name: "Methodology and important notes" })).toBeTruthy();
-    expect(document.querySelector(".dcf-disc")?.textContent).toMatch(/not a forecast of the future share price/);
+    expect(document.querySelector("details.dcx-dsc")?.textContent).toMatch(/not a forecast of the future share price/);
   });
   it("task #412: the methodology card is a drop-down, closed at first; its title row opens and closes it, remembered per member", async () => {
     localStorage.clear();
