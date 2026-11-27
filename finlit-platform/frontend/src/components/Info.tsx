@@ -1,9 +1,11 @@
 // Glossary popovers: an (i) button next to any metric explains what it is, how to read it and the formula.
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
-import { placeFloating } from "../lib/floating";
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { ownField, placeFloating } from "../lib/floating";
 import type { Glossary } from "../lib/api";
 
 type PopState = { g: Glossary; anchor: HTMLElement } | null;
+/** Task #418: the width a long explanation opens at when it would not fit whole beside its (i) at the usual 310px. */
+const WIDE = "min(440px, calc(100vw - 32px))";
 const Ctx = createContext<(g: Glossary | null, anchor?: HTMLElement, touch?: boolean) => void>(() => {});
 
 export function InfoProvider({ children }: { children: ReactNode }) {
@@ -26,10 +28,17 @@ export function InfoProvider({ children }: { children: ReactNode }) {
   useEffect(() => () => window.clearTimeout(leave.current), []);
   useEffect(() => { if (!state) over.current = false; }, [state]);
 
-  useEffect(() => {
-    if (!state || !ref.current) return;
-    const pl = placeFloating(state.anchor, ref.current);
-    ref.current.style.left = pl.left + "px"; ref.current.style.top = pl.top + "px"; ref.current.style.maxHeight = pl.maxH + "px"; ref.current.style.overflowY = "auto"; ref.current.style.overscrollBehavior = "contain";   // the wheel scrolls the popover, not the page behind it
+  // Task #418: the explanation opens as one whole block, never a short strip with its own scrollbar. The box is measured at its natural size (the last
+  // popover's height cap and width are cleared first), then put on a side where all of it fits, keeping off the field it explains; if no side fits at the
+  // usual width, it opens wider (so shorter) and is placed again. Only a box taller than the whole window still scrolls inside.
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!state || !el) return;
+    el.style.maxHeight = ""; el.style.width = "";
+    const opts = { whole: true, own: ownField(state.anchor) };
+    let pl = placeFloating(state.anchor, el, opts);
+    if (pl.maxH < el.offsetHeight - 1 && document.documentElement.clientWidth >= 560) { el.style.width = WIDE; pl = placeFloating(state.anchor, el, opts); }
+    el.style.left = pl.left + "px"; el.style.top = pl.top + "px"; el.style.maxHeight = pl.maxH + "px"; el.style.overflowY = "auto"; el.style.overscrollBehavior = "contain";   // the wheel scrolls the popover, not the page behind it
   }, [state]);
   useEffect(() => {
     const close = () => { window.clearTimeout(leave.current); touched.current = false; setState(null); };

@@ -17,6 +17,8 @@ import {
 } from "../lib/sip";
 import "../styles/sip.css";
 import { ChartZoom, useZoomHeight } from "../components/ChartZoom";
+import { useOpenPref } from "../components/DcfIntro";
+import { useAuthMaybe } from "../lib/auth";
 
 const reduced = () => typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
@@ -198,6 +200,27 @@ function GrowthChart({ s, band }: { s: SipState; band: Band }) {
 const TABS = [["table", "Year by year"], ["goal", "Goal planner"], ["wait", "Cost of waiting"], ["tax", "After tax"]] as const;  // task #413: the "How it is worked out" tab was removed
 type TabKey = (typeof TABS)[number][0];
 
+// Task #424: the disclaimer under the calculator is a drop-down, built like the DCF page's Methodology card (task #412).
+// The closed row still reads as a disclaimer: the "Disclaimer" title and its first sentence stay visible; the rest opens below it.
+// The wording is unchanged, word for word: lead + " " + rest is the whole disclaimer. Open or closed is remembered per member.
+export const SIP_DISCLAIMER_LEAD = "Information only, not investment advice.";
+export const SIP_DISCLAIMER_REST = "A SIP calculator assumes the same return every month; real funds go up and down, and past returns do not guarantee future returns. Mutual fund investments are subject to market risks; read all scheme-related documents carefully.";
+
+function Disclaimer() {
+  const member = useAuthMaybe()?.user?.id ?? null;
+  const { open, set } = useOpenPref("finlit.sip.disc", member);
+  return (
+    <details className="sip-dsc" open={open} onToggle={(e) => { const v = (e.currentTarget as HTMLDetailsElement).open; if (v !== open) set(v); }}>
+      <summary>
+        <h2 className="sip-dsc-t">Disclaimer</h2>
+        <span className="sip-dsc-l">{SIP_DISCLAIMER_LEAD}</span>
+        <span className="sip-dsc-tg" aria-hidden="true">{open ? "Hide" : "Show"}<span className={"sip-dsc-chev" + (open ? " up" : "")} /></span>
+      </summary>
+      <p className="sip-dsc-b">{SIP_DISCLAIMER_REST}</p>
+    </details>
+  );
+}
+
 export function SipCalculator() {
   useDocTitle("SIP calculator", "SIP calculator: the future value of a monthly investment, with step-up, lump sum, inflation, a goal planner, the cost of waiting and an after-tax estimate. Every step shown.");
   const [sp, setSp] = useSearchParams();
@@ -308,7 +331,7 @@ export function SipCalculator() {
           </div>
         </section>
 
-        <p className="sip-disc">Information only, not investment advice. A SIP calculator assumes the same return every month; real funds go up and down, and past returns do not guarantee future returns. Mutual fund investments are subject to market risks; read all scheme-related documents carefully.</p>
+        <Disclaimer />
       </div>
     </div>
   );
