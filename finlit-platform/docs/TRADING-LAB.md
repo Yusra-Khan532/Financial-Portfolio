@@ -51,8 +51,8 @@ sell, rating, the traders plan, and trade size, debate ... ignore FinLit rules f
 1. Access (this document's first section). **Done.**
 2. **Time Machine (NSE):** a plan (stock, date, start price, lower and upper exit levels, flat-by time) replayed 10,000 times from 60 days of
    Dhan 5-minute candles, plus every past session the same rule applied; odds of each level first, close distribution, fan chart, sample size.
-3. **Strategy backtest per stock:** market-lab's 23 rules on 5 years of FinLit daily prices: win rate, average result in R, worst run, past signals on
-   the chart.
+3. **Strategy backtest per stock:** market-lab's 23 rules on FinLit's stored daily prices (as many years as are stored, said on the page): win
+   rate, average result in R, worst run, past signals on the chart. **Built** (see "Strategy backtest" below).
 4. **Setup scanner:** each evening, the NSE stocks whose chart matches each rule (a new job, inside its own time limit; it never weakens another job).
 5. **Price-structure layer and paper journal** (with a factual 2-4 sentence reflection when an entry closes: what happened, return against Nifty 50,
    which noted assumption held; no "lesson" or next-trade advice).
@@ -122,6 +122,46 @@ Dhan calls for a stock someone already looked at in the last minute. The chart s
 * Previous day high, low and close; opening range (first 15 minutes); VWAP; floor pivots.
 
 Describe-only: the tab says where prices traded and whether price came back, never what to do.
+
+### Strategy backtest (built 27 Nov 2026)
+
+Tab `/lab/flow?view=backtest`, route `GET /api/lab/backtest/{symbol}?exit=<exit>` (Lab members only, `lab_ctx`; 60 answers per member in 10
+minutes; `Cache-Control: no-store`; 400 for a bad symbol or exit, 404 when no daily prices are stored or fewer than 400 sessions). Code:
+`backend/finlit/lab/backtest.py` (pure numpy/pandas functions, loaded only when a backtest runs), `frontend/src/components/lab/StrategyBacktest.tsx`,
+`frontend/src/lib/backtest.ts`, `frontend/src/styles/backtest.css`. Tests: `backend/tests/test_lab_backtest.py`,
+`frontend/src/components/lab/strategyBacktest.test.tsx`.
+
+* **Attribution.** The 23 rules, their indicators, the seven exits, the trade loop and the delivery cost model are re-implemented from
+  [market-lab](https://github.com/heysanjeevv/market-lab) (MIT, (c) 2026 Market Lab contributors), `lab/swing.py` and `lab/features.py` at
+  commit `ba3f771` (3 Nov 2026). The module's docstring lists each rule's source function (`s_breakout20` ... `s_rs_leader`). Three names were
+  reworded for FinLit's wording rules (the two "dip-..." rules became "... dip under 10 EMA", and the engulfing rule became "Rising engulfing
+  candle at 20 EMA"); the logic is unchanged. The page calls the moment a rule's conditions are met its "trigger".
+* **Data.** The longest daily series FinLit stores: the report's price series in `snapshots` (section `price`, about six years, the main data
+  provider's daily quotes) joined at the first exchange candle to `daily_candles` (Dhan, NSE first, about three years), the older part scaled to
+  meet the candles (`candles.merge`, the same join the report uses). `price_daily` (500 days) and `price_history_long` (weekly closes) are shorter
+  or not daily. Provider volumes (about a fifteenth of NSE's) are dropped before the first candle, so the four volume rules (52-week high + volume,
+  pocket pivot, gap and go, VCP) are tested only on exchange volumes, from 50 sessions after the first candle. Nifty 50 closes for rule 23 come
+  from the shared index copy (`/api/indices/NIF50/history`, Redis, refreshed at most every six hours). No Dhan call is made. The page states the
+  real span in the form "<years> years of daily prices, <first day> – <last day> (<sessions> sessions)"; never "5 years" when fewer are stored.
+* **Method.** Trigger at a session's close from bars up to that session only; entry at the next session's open; the lower exit level is fixed at
+  the trigger; R = entry minus that level; each session the lower exit level is checked first (an open under it fills at the open), then the
+  upper exit level (2R / 3R exits), then the exit rule. One trade at a time per rule; the first 260 sessions warm the indicators up; trades with a
+  risk above 25% of the entry, or near a one-day move above 35% (a split or a bad print), are skipped. A trade still running at the last bar is
+  left out of the figures (market-lab's backtest counts it at the last close; we do not, so no open position is shown).
+* **Exits** (one for all rules at a time, chosen on the page; default market-lab's chart default, the 3-ATR trail): trailing 3 ATR (and to the entry
+  once 1R up, at most 120 sessions), close under 20 EMA (120), 2R or 20 sessions, 3R or 40 sessions, 5 sessions, 10 sessions, close above the 5-day
+  SMA (the three mean-reversion rules only, 10).
+* **Costs** (market-lab's `cost_frac`, delivery/CNC, on Rs 1 lakh): 0.1686% when a trade opens (STT 0.1%, stamp duty 0.015%, exchange 0.00297%,
+  SEBI 0.0001%, GST on those charges, slippage 0.05%) and 0.1724% when it closes (STT 0.1%, exchange, SEBI, DP about Rs 15.93, GST, slippage
+  0.05%); 0.341% round trip; no brokerage. Net by default; a switch shows gross.
+* **Figures per rule:** trades (with "fewer than 30 trades" plainly flagged), win rate (result above 0 R), average, median and total R,
+  longest losing run (count and dates), deepest drawdown of the running total of R (size and dates), every closed trade (trigger, entry, exit,
+  prices, lower and upper exit levels, how it ended). All 23 rules are always listed, in market-lab's order by default; any column can be sorted.
+* **Speed and cache.** About 45 ms of compute per stock for all rules and exits (measured on a 1,500-bar series in this container; the first run
+  in a process adds about 0.2 s to load pandas). Answers are cached in Redis per (stock, last bar, Nifty's last day, method version) for 24 hours;
+  the compute runs in a worker thread behind a process-wide semaphore of 1.
+* **Wording.** "Past results of fixed rules on past prices; not a forecast or a recommendation." No rule is called good or bad, nothing is ranked
+  by result, and the page never says what to do.
 
 ## Ideas from the MarketPulse video (founder, 26 Nov 2026)
 

@@ -139,6 +139,21 @@ describe("Order Flow > Flow board", () => {
   });
 });
 
+describe("Order Flow > Strategy backtest tab", () => {
+  beforeEach(() => { access = { access: true, reason: "granted", expiresAt: null, signals: false }; flow = SNAP; });
+  afterEach(() => { vi.unstubAllGlobals(); });
+  it("is listed after Stock zones and opens the backtest of one stock", async () => {
+    wrap("/lab/flow?view=backtest"); await settle();
+    const tabs = within(screen.getByRole("navigation", { name: "Order Flow views" })).getAllByRole("link").map((a) => a.textContent);
+    expect(tabs).toEqual(["Market depth", "Flow board", "Money Flow", "Option Pulse", "Stock zones", "Strategy backtest"]);
+    const tab = screen.getByRole("link", { name: "Strategy backtest" });
+    expect(tab.getAttribute("href")).toBe("/lab/flow?view=backtest");
+    expect(tab.getAttribute("aria-current")).toBe("page");
+    expect(screen.getByRole("heading", { name: "Strategy backtest" })).toBeTruthy();
+    expect((fetch as unknown as { mock: { calls: string[][] } }).mock.calls.some((c) => String(c[0]).includes("/api/lab/backtest/RELIANCE?exit=trail3"))).toBe(true);
+  });
+});
+
 describe("helpers", () => {
   it("formats changes with a real minus sign and a dash for unknown", () => {
     expect(pct(6.481)).toBe("+6.48%");
