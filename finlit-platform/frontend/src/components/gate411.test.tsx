@@ -16,9 +16,10 @@ afterEach(cleanup);
 const STOCK = join(__dirname, "../stock");
 
 describe("task #411 bug 1: no Silver badge on the company report", () => {
-  it("section 03's heading shows the Gold badge, drawn as Gold (no silver class, no Silver text)", () => {
-    const { container } = render(<SectionHead id="notes" no="03 · What's going well and what to watch" icon="notes" tier="silver" title="What's going well and what to watch" color="--gold-deep" />);
-    const chip = container.querySelector(".no .tier")!;
+  it("the Strengths and weaknesses heading shows the Gold badge, drawn as Gold (no silver class, no Silver text)", () => {
+    // developer file 47/49: one heading line (number, name from lib/sectionNav HEADING, plan chip); the chip sits beside the name
+    const { container } = render(<SectionHead id="notes" no="Strengths and weaknesses" icon="notes" tier="silver" />);
+    const chip = container.querySelector(".sh-tl .tier")!;
     expect(chip.textContent).toBe("Gold");
     expect(chip.className).toBe("tier gold");
     expect(container.querySelector(".tier.silver")).toBeNull();
