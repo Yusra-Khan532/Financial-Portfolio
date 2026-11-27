@@ -86,3 +86,22 @@ describe("the site's Docker build", () => {
     expect(own.split("\n").filter((l) => /^\s*import\b.*from\s+["']\.\.\/\.\.\/extension/.test(l))).toEqual([]);
   });
 });
+
+describe("the FinLit Ventures logo in the extension (owner, 27 Nov 2026: the new logo everywhere, after task #400)", () => {
+  const read = async (f: string) => {
+    const { readFileSync } = await import("node:fs"); const { fileURLToPath } = await import("node:url");
+    return readFileSync(fileURLToPath(new URL(`../../extension/${f}`, import.meta.url)), "utf8");
+  };
+  it("shows the logo file in the button, the card and the toolbar menu, never the old bar-chart mark", async () => {
+    const content = await read("content.js"), popup = await read("popup.html");
+    for (const src of [content, popup]) expect(src).not.toMatch(/M5 20v-5|M12 20V10|M19 20V4/);
+    expect(content).toContain('chrome.runtime.getURL("icons/icon48.png")');
+    expect(content).toMatch(/bubble\.appendChild\(mark\(30\)\)/);
+    expect(content).toMatch(/lg\.appendChild\(mark\(20\)\)/);
+    expect(popup).toContain('src="icons/icon48.png"');
+  });
+  it("lets pages load only the logo, behind an address that changes (so a page cannot use it to tell the extension is installed)", async () => {
+    const manifest = JSON.parse(await read("manifest.json"));
+    expect(manifest.web_accessible_resources).toEqual([{ resources: ["icons/icon48.png"], matches: ["http://*/*", "https://*/*"], use_dynamic_url: true }]);
+  });
+});

@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "FinLit Ventures: select to understand",
   "short_name": "FinLit",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "description": "Select a financial term or a listed company on any web page to see its FinLit glossary meaning or its FinLit Prism score (on a plan that has it). Reads only the words you select.",
   "icons": {
     "16": "icons/icon16.png",
@@ -65,5 +65,17 @@
       "description": "Look up the selected text on FinLit"
     }
   },
-  "minimum_chrome_version": "102"
+  "minimum_chrome_version": "102",
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "icons/icon48.png"
+      ],
+      "matches": [
+        "http://*/*",
+        "https://*/*"
+      ],
+      "use_dynamic_url": true
+    }
+  ]
 }
