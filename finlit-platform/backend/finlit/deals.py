@@ -308,7 +308,7 @@ class Nse:
         await asyncio.sleep(self.pause_s)
         self.requests += 1
         try:
-            r = await self.http.get(base + "/fetch", params={"u": full}, headers={"X-Relay-Key": key, "X-Fwd-User-Agent": BROWSER["User-Agent"],
+            r = await self.http.get(base + "/fetch", params={"u": full}, follow_redirects=False, headers={"X-Relay-Key": key, "X-Fwd-User-Agent": BROWSER["User-Agent"],
                                                                               "X-Fwd-Referer": BROWSER["Referer"], "X-Fwd-Accept": BROWSER["Accept"]})
         except Exception:                                         # noqa: BLE001
             self._count("relay-error")
