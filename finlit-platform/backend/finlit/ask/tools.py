@@ -181,7 +181,7 @@ DOING = {"search_stocks": "Finding the company", "get_stock_quote": "Reading the
          "get_company_profile": "Reading the company profile", "get_financials": "Reading the financial statements", "get_ratios": "Reading the ratios",
          "get_shareholding": "Reading the shareholding", "get_price_history": "Reading the price history", "get_finlit_score": "Reading FinLit Prism",
          "get_quarter_results": "Reading the results", "get_results_calendar": "Reading the results calendar", "screen_stocks": "Running the screener",
-         "get_market_overview": "Reading the market overview", "get_fii_dii_flows": "Reading FII and DII flows", "get_ipo_calendar": "Reading the IPO calendar",
+         "get_market_overview": "Reading the market overview", "get_fii_dii_flows": "Reading FII and DII flows", "get_ipo_calendar": "Reading the IPO calendar", "get_bulk_block_deals": "Reading NSE's bulk and block deals",
          "search_funds": "Finding the fund", "get_fund_details": "Reading the fund details", "list_etfs": "Reading the ETF list", "get_etf": "Reading the ETF",
          "get_data_freshness": "Checking how fresh the data is", "get_my_portfolio": "Reading your portfolio", "get_my_funds": "Reading your mutual funds",
          "get_my_watchlists": "Reading your watchlists", "get_company_card": "Reading the company page", "get_finlit_prism": "Reading FinLit Prism",

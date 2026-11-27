@@ -66,7 +66,8 @@ Written 17 Nov 2026 from a full read of the repository, the team workspace and t
   | Alerts | `alert*.py`, `notify.py` |
   | Accounts | `auth/` |
   | Community | `forum.py`, `page_feedback.py` |
-  | MCP server | `mcp/` |
+  | MCP server | `mcp/` (21 tools; `get_bulk_block_deals` also feeds Ask FinLit AI) |
+  | Bulk & block deals | `deals.py` (NSE files, the `deals` job, the duplicate rule, follow notifications), `dealsapi.py` (`/api/deals*`, `/api/me/deal-follows`); page `/ipo?view=deals` (`pages/Deals.tsx`, `lib/deals.ts`); docs/DEALS.md |
   | Other tools | `stress/`, `outlook/`, `earnings/`, `company_brief/` |
   | Trading Lab (admin-granted access, `docs/TRADING-LAB.md`) | `lab/` (access: `user_grants`, Console > Trading Lab access, `/lab`) |
 - **Jobs:**
@@ -80,7 +81,7 @@ Written 17 Nov 2026 from a full read of the repository, the team workspace and t
   - Nightly scores export (task #326, `docs/SCORES-EXPORT.md`): job `scores-export` after presets writes one file per market day to the `scores_export` volume; the owner's Mac reads `/internal/export/scores` with `X-Export-Key` (`EXPORT_KEY` in `/opt/finlit/.env.aws`).
   - Monitoring (owner, 24 Nov 2026, `docs/MONITORING.md`): the `gatus` container checks the public site every minute and emails on failure and recovery through Resend's SMTP (`RESEND_API_KEY`, `ALERT_EMAIL_TO` in `.env.aws`); GitHub Actions `platform-uptime.yml` (outside check, every 5 min) and `platform-load.yml` (k6, nightly and Sunday night); optional `uptime-kuma` (`COMPOSE_PROFILES=kuma`). Public `/status`, admin Console → Monitoring (`backend/finlit/monitoring.py`).
 - **Database:**
-  - `finlit/migrations/NNN_*.sql` are applied in filename order. The latest is `140_company_brief_writer_retry.sql` (25 Nov 2026), so the next one is `141_`: always the highest number plus one (`ls backend/finlit/migrations | tail -1`). Numbers have gaps (20, 22–26, 29–31, 36, 66–69, 75, 89); never fill one, as it would sort before migrations already applied. Each file is recorded in `schema_migrations` by its full name.
+  - `finlit/migrations/NNN_*.sql` are applied in filename order. The latest is `148_market_deals.sql` (27 Nov 2026, bulk and block deals), so the next one is `149_`: always the highest number plus one (`ls backend/finlit/migrations | tail -1`). Numbers have gaps (20, 22–26, 29–31, 36, 66–69, 75, 89); never fill one, as it would sort before migrations already applied. Each file is recorded in `schema_migrations` by its full name.
   - Migrations only go forward: a rollback does not undo them.
   - A one-time data change that needs Python runs from `Store.migrate()` after the SQL files and records its own version in `schema_migrations`
     (it never raises, so it cannot stop a deploy or a job). The first is task #283 PR D's `finlit/iq_retire.py` (`123_iq_to_prism`): members' saved

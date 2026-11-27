@@ -1026,6 +1026,8 @@ def page_links(calls: Iterable[Tuple[str, Dict[str, Any]]]) -> List[Dict[str, st
             add("/results", "Results calendar")
         elif name == "get_ipo_calendar":
             add("/ipo", "IPO calendar")
+        elif name == "get_bulk_block_deals":
+            add("/ipo?view=deals", "Bulk & block deals")
         elif name == "get_my_portfolio":
             add("/holdings", "Your Equity portfolio")
         elif name == "get_my_funds":

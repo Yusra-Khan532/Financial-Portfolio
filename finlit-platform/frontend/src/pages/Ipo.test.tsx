@@ -11,6 +11,7 @@ import { listingMove, timeline } from "../lib/ipo";
 const st = vi.hoisted(() => ({ data: [] as unknown[], gmp: undefined as unknown, board: "" }));
 const HIST = vi.hoisted(() => ({ items: [] as unknown[], asOf: "2026-10-20", updatedAt: null, note: "",
   sources: { issue: { name: "InvestorGain", url: "https://www.investorgain.com/", what: "" }, nse: { name: "NSE", url: null, what: "" }, prices: { name: "NSE", url: null, what: "" } } }));
+vi.mock("../lib/deals", async (orig) => ({ ...(await orig<typeof import("../lib/deals")>()), useIpoDeals: () => ({ data: undefined, isLoading: true, isError: false }) }));
 vi.mock("../lib/ipo", async (orig) => ({ ...(await orig<typeof import("../lib/ipo")>()), useIpos: () => ({ data: st.data, isLoading: false, isError: false }),
   useGmpRecord: (b: string) => { st.board = b; return { data: st.gmp, isLoading: false, isError: false }; } }));
 vi.mock("../lib/title", () => ({ useDocTitle: () => undefined }));

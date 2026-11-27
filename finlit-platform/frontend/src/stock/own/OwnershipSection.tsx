@@ -10,6 +10,7 @@ import { OwnFacts } from "./OwnFacts";
 import { OwnInsightCards } from "./OwnInsightCards";
 import { OwnMoves } from "./OwnMoves";
 import { OwnersToday } from "./OwnersToday";
+import { OwnDeals } from "./OwnDeals";
 
 const HEAD = { id: "ownership", no: "12 · Ownership", icon: "pie", tier: "basic" as const, title: "Who owns the company", color: "--p-balance" };
 
@@ -20,8 +21,9 @@ export function seriesOf(o?: Ownership, ins?: OwnInsights): OwnSeries | null {
   return null;
 }
 
-/** Section 10. `ins` is the stored ownership insights (never the premium endpoint); `insWhy` is the reason when they cannot be had. */
-export function OwnershipSection({ o, ins, insWhy }: { o?: Ownership; ins?: OwnInsights; insWhy?: string | null }) {
+/** Section 10. `ins` is the stored ownership insights (never the premium endpoint); `insWhy` is the reason when they cannot be had. `symbol` (the
+ *  report's share) adds the tab "Bulk & block deals": NSE's deals in the share, dots on its price chart (pages/Deals.tsx has every share). */
+export function OwnershipSection({ o, ins, insWhy, symbol }: { o?: Ownership; ins?: OwnInsights; insWhy?: string | null; symbol?: string }) {
   const [pick, setPick] = useState<number | null>(null);
   const [q, setQ] = useState(CMP_OPTIONS[1].q);
   const series = seriesOf(o, ins);
@@ -53,6 +55,7 @@ export function OwnershipSection({ o, ins, insWhy }: { o?: Ownership; ins?: OwnI
         { key: "changed", label: "What changed", content: <OwnInsightCards ins={ins} why={insWhy} stale={stale} /> },
         { key: "pattern", label: "Pattern over time", content: <OwnCharts series={series} /> },
         { key: "facts", label: "Filing facts & top holders", content: <OwnFacts ins={stale ? undefined : ins} /> },
+        ...(symbol ? [{ key: "deals", label: "Bulk & block deals", content: <OwnDeals symbol={symbol} /> }] : []),
       ]} />
       <p className="ow-foot">pts = percentage points of the company. From quarterly shareholding filings. Information only, not advice.</p>
     </section>
