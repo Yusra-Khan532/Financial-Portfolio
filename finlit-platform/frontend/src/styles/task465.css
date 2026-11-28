@@ -1,0 +1,8 @@
+/* Task #465 (team, 28 Nov 2026), ETFs: "make this ui correction why is it overlapping". With a filter on, the Filters header held
+   Filters, the "1 on" chip, Reset all and Hide filters in one row of a 280px panel (about 275px of content in 246px): Reset all broke
+   over two lines and Hide filters was cut off at the panel edge. Now the title row keeps Filters, the chip and Hide filters (right), and
+   Reset all sits on its own row under the title. Nothing in the header wraps inside itself. Scoped to the ETF list. */
+.etf-list .etf-side-h { flex-wrap: wrap; row-gap: 4px; }
+.etf-list .etf-side-h > * { white-space: nowrap; flex-shrink: 0; }
+.etf-list .etf-side-h:has(.etf-resetl)::after { content: ""; order: 2; flex-basis: 100%; height: 0; }
+.etf-list .etf-side-h .etf-resetl { order: 3; padding: 0; min-height: 0; line-height: 1.4; }
