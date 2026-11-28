@@ -34,7 +34,7 @@ vi.mock("../../lib/api", async (orig) => {
 import { ChartPanel, type PanelRow } from "./ChartPanel";
 import { ListChart } from "./presets/ListChart";
 import { samePricePlaceholder, type PriceRange } from "../../lib/api";
-import { axisPrice, behindNote, changeTo, chartToMark, datedWeeks, emaSeries, factValue, factsHeading, isPartWeek, legendHead, levelTitle, lineLabel, listClose, rupees, singleMark, volumeLine, weekOf, weeklyEmas, type Bar } from "./chartPanelParts";
+import { axisPrice, rightRoom, behindNote, changeTo, chartToMark, datedWeeks, emaSeries, factValue, factsHeading, isPartWeek, legendHead, levelTitle, lineLabel, listClose, rupees, singleMark, volumeLine, weekOf, weeklyEmas, type Bar } from "./chartPanelParts";
 
 /** Daily candles from 1 Jun to `end` (weekdays), close rising by 1 from 100, volume 1,000 (the last day 2,000). */
 function dailyTo(end: string) {
@@ -265,21 +265,36 @@ describe("Task #394 QA of 26 Nov 2026: weekly averages, the 1M volume, the retur
   });
 });
 
-describe("W2: 3Y and 5Y on weekly candles", () => {
+describe("W2: 3Y and 5Y on weekly candles; 3Y stays on daily candles on D (re-check 28 Nov)", () => {
   const weeklyS = { t: ["2026-11-13", "2026-11-20"], o: [1, 2], h: [2, 3], l: [1, 1], c: [2, 3], v: [1, 1], ema50: [1, 1], ema200: [1, 1] };
-  it("says so under the buttons and keeps D off when the server has no daily candles for the range", () => {
-    const d = dailyTo("2026-11-23");
-    priceState = (range) => (range === "3Y" ? { ...ok(range, weeklyS), data: { ...ok(range, weeklyS).data, grain: "weekly" } } : ok(range, d));
-    localStorage.setItem("fl.chart.v2", JSON.stringify({ range: "3Y" }));
-    panel();
-    expect(document.querySelector(".cp-wk")!.textContent).toBe("3Y, 5Y and MAX show weekly candles; the averages on them are weekly.");
-    expect(screen.getByRole("button", { name: "D" }).hasAttribute("disabled")).toBe(true);
-  });
-  it("lets D ask for ?grain=daily when the weekly answer says dailyAvailable", () => {
+  const wk = (range: string) => ({ ...ok(range, weeklyS), data: { ...ok(range, weeklyS).data, grain: "weekly" } });
+  it("on D, clicking 3Y asks for daily candles and stays on D (the founder: '3Y switches to 1W')", () => {
     const d = dailyTo("2026-11-23"), asked: string[] = [];
-    priceState = (range, grain) => { asked.push(`${range}:${grain ?? ""}`); return range === "3Y" && !grain ? { ...ok(range, weeklyS), data: { ...ok(range, weeklyS).data, grain: "weekly", dailyAvailable: true } } : ok(range, d); };
+    priceState = (range, grain) => { asked.push(`${range}:${grain ?? ""}`); return range === "3Y" && !grain ? { ...wk(range), data: { ...wk(range).data, dailyAvailable: false } } : ok(range, d); };
+    localStorage.setItem("fl.chart.v2", JSON.stringify({ range: "1Y", weekly: false }));
+    panel();
+    fireEvent.click(screen.getByRole("button", { name: "3Y" }));
+    expect(asked).toContain("3Y:daily");                      // even when the stored flag reads false
+    expect(screen.getByRole("button", { name: "3Y" }).getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByRole("button", { name: "D" }).getAttribute("aria-pressed")).toBe("true");
+    expect(document.querySelector(".cp-wk")).toBeNull();
+  });
+  it("falls back to the weekly 3Y, says why and keeps D off when the daily candles do not reach back three years", () => {
+    const d = dailyTo("2026-11-23");
+    priceState = (range) => (range === "3Y" ? wk(range) : ok(range, d));      // the server answers ?grain=daily with the weekly 3Y
     localStorage.setItem("fl.chart.v2", JSON.stringify({ range: "3Y" }));
     panel();
+    expect(document.querySelector(".cp-wk")!.textContent).toBe("3Y shows weekly candles for this company: its daily candles do not reach back three years. The averages on them are weekly.");
+    expect(screen.getByRole("button", { name: "D" }).hasAttribute("disabled")).toBe(true);
+    expect(screen.getByRole("button", { name: "W" }).getAttribute("aria-pressed")).toBe("true");
+  });
+  it("W on 3Y shows the weekly candles; D brings the daily ones back", () => {
+    const d = dailyTo("2026-11-23"), asked: string[] = [];
+    priceState = (range, grain) => { asked.push(`${range}:${grain ?? ""}`); return range === "3Y" && !grain ? wk(range) : ok(range, d); };
+    localStorage.setItem("fl.chart.v2", JSON.stringify({ range: "3Y", weekly: true }));
+    panel();
+    expect(asked).not.toContain("3Y:daily");
+    expect(document.querySelector(".cp-wk")!.textContent).toBe("Weekly candles; the averages on them are weekly. D shows 3Y on daily candles.");
     const D = screen.getByRole("button", { name: "D" });
     expect(D.hasAttribute("disabled")).toBe(false);
     fireEvent.click(D);
@@ -287,9 +302,42 @@ describe("W2: 3Y and 5Y on weekly candles", () => {
     expect(screen.getByRole("button", { name: "D" }).getAttribute("aria-pressed")).toBe("true");
     expect(document.querySelector(".cp-wk")).toBeNull();
   });
+  it("5Y and MAX stay weekly and say so", () => {
+    const d = dailyTo("2026-11-23");
+    priceState = (range) => (range === "5Y" ? wk(range) : ok(range, d));
+    localStorage.setItem("fl.chart.v2", JSON.stringify({ range: "5Y" }));
+    panel();
+    expect(document.querySelector(".cp-wk")!.textContent).toBe("5Y and MAX show weekly candles; the averages on them are weekly.");
+    expect(screen.getByRole("button", { name: "D" }).hasAttribute("disabled")).toBe(true);
+  });
   it("shows no line on the daily ranges", () => {
     panel();
     expect(document.querySelector(".cp-wk")).toBeNull();
+  });
+});
+
+describe("re-check 28 Nov: a mark's words over the last candle are not cut by the price axis", () => {
+  it("keeps the usual 4 bars when there is no mark or it sits far from the end", () => {
+    expect(rightRoom(250, 10, null, 0, 580)).toBe(4);
+    expect(rightRoom(250, 10, 100, 21, 580)).toBe(4);
+  });
+  it("adds room for 'Closed above · 27 Nov' on the last candle of a 1Y chart, enough for half the words", () => {
+    const r = rightRoom(250, 10, 249, "Closed above · 27 Nov".length, 580);
+    expect(r).toBeGreaterThan(4);
+    expect(r * (580 / (250 + 10 + r))).toBeGreaterThanOrEqual(("Closed above · 27 Nov".length * 7) / 2 + 6);
+  });
+});
+
+describe("re-check 28 Nov: a chart waiting in a busy build queue says so", () => {
+  it("while it asks again, and when it stops asking", () => {
+    priceState = () => ({ isLoading: true, isError: false, data: undefined, failureReason: { status: 429 }, refetch: vi.fn() });
+    panel();
+    expect(document.querySelector(".cp-m")!.textContent).toBe("Many company charts are being prepared right now. This one is next in line and opens here on its own.");
+    cleanup();
+    priceState = () => ({ isLoading: false, isError: true, data: undefined, error: { status: 429 }, refetch: vi.fn() });
+    panel();
+    expect(document.querySelector(".cp-m")!.textContent).toContain("Please try again in a minute.");
+    expect(screen.getByRole("button", { name: "Try again" })).toBeTruthy();
   });
 });
 
