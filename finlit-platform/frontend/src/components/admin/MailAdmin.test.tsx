@@ -1,87 +1,228 @@
 // @vitest-environment jsdom
-// Task #387: Console > Email shows the counts, the upload result with its reasons, the problems SES reported, and the steps in order.
+// Console > Email. Task #387 built it; the founder made it easy on 28 Nov 2026 ("too much confusing to send ... make it easy to use, easy to send
+// the mail"): one "Send an email" screen with who gets it (all FinLit members and/or a list, with the count), subject, message, the mail as people
+// see it, Send me a test and Send to N people; problems in plain words at the top; the send's progress and the mails sent before; lists folded away.
 import { afterEach, describe, expect, it, vi, beforeEach } from "vitest";
-import { cleanup, render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router";
 
-const st = vi.hoisted(() => ({ summary: null as unknown, sent: [] as { path: string; body: unknown }[], reply: {} as unknown }));
+type Sent = { path: string; body: unknown };
+const st = vi.hoisted(() => ({ summary: null as unknown, sent: [] as Sent[], reply: {} as unknown, replies: {} as Record<string, unknown> }));
 vi.mock("../../lib/api", async (orig) => ({
   ...(await orig<typeof import("../../lib/api")>()),
   apiGet: async () => st.summary,
-  apiSend: async (_m: string, path: string, body: unknown) => { st.sent.push({ path, body }); return st.reply; },
+  apiSend: async (_m: string, path: string, body: unknown) => {
+    st.sent.push({ path, body });
+    const k = Object.keys(st.replies).filter((p) => path.split("?")[0].startsWith(p)).sort((a, b) => b.length - a.length)[0];   // the most specific
+    return k ? st.replies[k] : st.reply;
+  },
 }));
 vi.mock("../../lib/auth", () => ({ useAuth: () => ({ user: { email: "owner@finlit.test" } }) }));
-import { MailAdmin, parsePasted, pastedCsv } from "./MailAdmin";
+import { MailAdmin, adviceWords, missing, parsePasted, pastedCsv, whyLine } from "./MailAdmin";
 import { Unsubscribe } from "../../pages/Unsubscribe";
 
-const SUMMARY = { ready: true, from: "FinLit Ventures <contact@finlitventures.com>", ratePerSecond: 8, sendingNow: false,
-  contacts: [{ source: "XYZ Hackathon, Oct 2026", status: "active", n: 3980 }, { source: "XYZ Hackathon, Oct 2026", status: "unsubscribed", n: 12 }],
-  campaigns: [{ id: 7, subject: "Thanks for joining XYZ", body: "Hi {name}", why: "You registered for XYZ.", button_text: "Create your free account", button_url: "https://finlitventures.com/signup",
-    created_at: "2026-11-24", queued: 0, sent: 500, failed: 3, skipped: 2, remaining: 3478 }],
-  errors: [{ campaign_id: 7, error: "SES 400: Illegal address", n: 3, last: null }] };
-afterEach(cleanup);
+const SUMMARY = { ready: true, from: "FinLit Ventures <contact@finlitventures.com>", ratePerSecond: 8, sendingNow: false, halted: null,
+  account: { read: true, production: true, sendingEnabled: true, max24h: 50000, sent24h: 120, maxPerSecond: 14 },
+  members: { members: 1240, unconfirmed: 40, mailable: 1235, optedout: 5 }, lists: [{ source: "XYZ Hackathon, Oct 2026", n: 3980, out: 12 }],
+  contacts: [{ source: "XYZ Hackathon, Oct 2026", status: "active", n: 3980 }, { source: "XYZ Hackathon, Oct 2026", status: "unsubscribed", n: 12 },
+    { source: "FinLit members", status: "active", n: 1235 }],
+  campaigns: [{ id: 7, subject: "Thanks for joining XYZ", body: "Hi {name}", why: "You registered for XYZ.", button_text: null, button_url: null,
+    created_at: "2026-11-24T10:00:00Z", queued: 0, sent: 500, failed: 3, skipped: 2, remaining: 3478 }],
+  errors: [{ campaign_id: 7, error: "SES 400: Illegal address", plain: "This address cannot receive mail (it is malformed or its domain has no mail server).", n: 3, last: null }] };
+afterEach(() => { cleanup(); try { localStorage.clear(); } catch { /* none */ } });
 const wrap = (ui: React.ReactNode) => render(<QueryClientProvider client={new QueryClient()}><MemoryRouter>{ui}</MemoryRouter></QueryClientProvider>);
+const sentTo = (p: string) => st.sent.filter((s) => s.path === p);
 
-describe("Console > Email", () => {
-  beforeEach(() => { st.summary = SUMMARY; st.sent = []; st.reply = {}; });
-  it("shows readiness, the list counts, each mail's progress and the problems in SES's own words", async () => {
+describe("Console > Email: Send an email", () => {
+  beforeEach(() => {
+    st.summary = SUMMARY; st.sent = []; st.reply = {};
+    st.replies = { "/api/admin/mail/audience": { n: 1235 }, "/api/admin/mail/preview": { html: "<p>Hi Priya,</p>", adviceWords: [] }, "/api/admin/mail/campaigns": { id: 9 } };
+  });
+
+  it("one screen: who gets it with counts (all members ticked first), subject, message, the mail beside it, and two buttons", async () => {
     wrap(<MailAdmin />);
     expect(await screen.findByText("Ready to send")).toBeTruthy();
-    expect(screen.getAllByText("3,980").length).toBe(2);                  // can be mailed: the total and the source row
-    expect(screen.getByText("Thanks for joining XYZ")).toBeTruthy();
-    expect(screen.getByText("3,478")).toBeTruthy();                       // left to send
-    expect(screen.getByText(/3 × SES 400: Illegal address/)).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Change it" })).toBeNull(); // a mail already sent is not changed
-    for (const h of ["People on the list", "Write a mail", "Your mails: look, test, send"]) expect(screen.getByText(h)).toBeTruthy();
+    expect(screen.getByText(/Daily limit:/).textContent).toMatch(/Daily limit: 50,000 mails · sent in the last 24 hours: 120/);
+    const to = screen.getByRole("group", { name: "To" });
+    const all = within(to).getByRole("checkbox", { name: /All FinLit members/ }) as HTMLInputElement;
+    expect(all.checked).toBe(true);
+    expect(within(to).getAllByText("1,235").length).toBeGreaterThan(0);
+    expect(within(to).getByText(/40 have not confirmed their address yet · 5 unsubscribed and are left out/)).toBeTruthy();
+    expect((within(to).getByRole("checkbox", { name: /XYZ Hackathon, Oct 2026/ }) as HTMLInputElement).checked).toBe(false);
+    expect(await within(to).findByText(/Will go to/)).toBeTruthy();
+    expect(screen.getByRole("textbox", { name: "Subject" })).toBeTruthy();
+    expect(screen.getByRole("textbox", { name: "Message" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Send me a test" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Send to 1,235 people" })).toBeTruthy();
+    expect(await screen.findByTitle("How the mail looks")).toBeTruthy();
+    expect(screen.queryByRole("spinbutton")).toBeNull();                                 // no batch-count field unless "Send in steps" is chosen
+    expect(screen.getByText(/Still needed: a subject · the message/)).toBeTruthy();
   });
-  it("says plainly when SES is not set up", async () => {
+
+  it("ticking a list counts everyone once and the footer line follows who it goes to", async () => {
+    wrap(<MailAdmin />);
+    const to = await screen.findByRole("group", { name: "To" });
+    st.replies["/api/admin/mail/audience"] = { n: 5100 };
+    fireEvent.click(within(to).getByRole("checkbox", { name: /XYZ Hackathon/ }));
+    await waitFor(() => expect(sentTo("/api/admin/mail/audience").some((s) => JSON.stringify(s.body) === JSON.stringify({ members: true, sources: ["XYZ Hackathon, Oct 2026"] }))).toBe(true));
+    expect(await screen.findByRole("button", { name: "Send to 5,100 people" })).toBeTruthy();
+    expect(within(to).getByText(/\(each person once\)/)).toBeTruthy();
+    expect((screen.getByLabelText(/Why they get this/) as HTMLInputElement).value).toBe("You get this because you have a FinLit account or registered for XYZ Hackathon, Oct 2026.");
+  });
+
+  it("Send to N people: one confirm naming the count and the subject, then everyone chosen is queued (no count), and the form clears", async () => {
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+    st.replies["/api/admin/mail/campaigns/9/send"] = { queued: 1235 };
+    wrap(<MailAdmin />);
+    await screen.findByRole("group", { name: "To" });
+    fireEvent.change(screen.getByRole("textbox", { name: "Subject" }), { target: { value: "FinLit is open" } });
+    fireEvent.change(screen.getByRole("textbox", { name: "Message" }), { target: { value: "Hi {name},\n\nYour FinLit account is ready to use." } });
+    const send = await screen.findByRole("button", { name: "Send to 1,235 people" }) as HTMLButtonElement;
+    await waitFor(() => expect(send.disabled).toBe(false));
+    fireEvent.click(send);
+    expect(confirm.mock.calls[0][0]).toMatch(/^Send "FinLit is open" to 1,235 people now\?/);
+    await waitFor(() => expect(sentTo("/api/admin/mail/campaigns/9/send")).toHaveLength(1));
+    const saved = sentTo("/api/admin/mail/campaigns")[0].body as Record<string, unknown>;
+    expect(saved).toMatchObject({ subject: "FinLit is open", why: "You get this because you have a FinLit account.", buttonText: null, buttonUrl: null,
+      format: "plain", fromName: null });                                                          // plain email unless the form says otherwise
+    expect(sentTo("/api/admin/mail/campaigns/9/send")[0].body).toEqual({ members: true, sources: [], count: undefined });
+    expect(await screen.findByText(/Sending to 1,235 people/)).toBeTruthy();
+    expect((screen.getByRole("textbox", { name: "Subject" }) as HTMLInputElement).value).toBe("");
+    confirm.mockRestore();
+  });
+
+  it("Send me a test saves the draft itself and sends to the admin's own address", async () => {
+    wrap(<MailAdmin />);
+    await screen.findByRole("group", { name: "To" });
+    fireEvent.change(screen.getByRole("textbox", { name: "Subject" }), { target: { value: "FinLit is open" } });
+    fireEvent.change(screen.getByRole("textbox", { name: "Message" }), { target: { value: "Hi {name},\n\nYour FinLit account is ready to use." } });
+    fireEvent.click(screen.getByRole("button", { name: "Send me a test" }));
+    await waitFor(() => expect(sentTo("/api/admin/mail/campaigns/9/test")).toHaveLength(1));
+    expect(sentTo("/api/admin/mail/campaigns/9/test")[0].body).toEqual({ to: "owner@finlit.test" });
+    expect(await screen.findByText(/Test sent to owner@finlit.test/)).toBeTruthy();
+  });
+
+  it("advice words are named as they are typed and the send waits for them to go", async () => {
+    wrap(<MailAdmin />);
+    await screen.findByRole("group", { name: "To" });
+    fireEvent.change(screen.getByRole("textbox", { name: "Subject" }), { target: { value: "Best stocks now" } });
+    fireEvent.change(screen.getByRole("textbox", { name: "Message" }), { target: { value: "Hi {name},\n\nTime to buy, says nobody at FinLit." } });
+    expect(screen.getByText(/Please take out:/).textContent).toMatch(/Please take out: best stocks, buy/);
+    expect((await screen.findByRole("button", { name: /^Send to/ }) as HTMLButtonElement).disabled).toBe(true);
+    expect(adviceWords("Read the report", "how a company is doing")).toEqual([]);
+  });
+
+  it("plain words at the top: not set up, test mode with the fix, a stopped send with Carry on", async () => {
     st.summary = { ...SUMMARY, ready: false };
     wrap(<MailAdmin />);
     expect(await screen.findByText("Not set up")).toBeTruthy();
-  });
-  it("saves a mail with its button and sends a test to the admin's own address by default", async () => {
+    cleanup();
+    st.summary = { ...SUMMARY, account: { ...SUMMARY.account, production: false } };
     wrap(<MailAdmin />);
-    await screen.findByText("Ready to send");
-    fireEvent.change(screen.getByLabelText("Subject"), { target: { value: "Hello XYZ" } });
-    fireEvent.change(screen.getByLabelText("Mail text"), { target: { value: "Hi {name}, thank you for taking part." } });
-    fireEvent.click(screen.getByRole("button", { name: "Save the mail" }));
-    await waitFor(() => expect(st.sent.some((s) => s.path === "/api/admin/mail/campaigns")).toBe(true));
-    const saved = st.sent.find((s) => s.path === "/api/admin/mail/campaigns")!.body as Record<string, string>;
-    expect(saved.buttonText).toBe("Create your free account");
-    expect(saved.why).toBe("You get this because you registered for XYZ Hackathon, Oct 2026.");
-    fireEvent.click(screen.getByRole("button", { name: "Send test" }));
-    await waitFor(() => expect(st.sent.some((s) => s.path === "/api/admin/mail/campaigns/7/test")).toBe(true));
-    expect(st.sent.find((s) => s.path.endsWith("/test"))!.body).toEqual({ to: "owner@finlit.test" });
+    expect(await screen.findByText("Test mode")).toBeTruthy();
+    expect(screen.getByText(/Request production access/)).toBeTruthy();
+    cleanup();
+    st.summary = { ...SUMMARY, halted: { reason: "Amazon SES is still in test mode (the sandbox): …", error: "SES 400: Email address is not verified." },
+      campaigns: [{ ...SUMMARY.campaigns[0], id: 8, subject: "FinLit is open", queued: 1200, sent: 35, failed: 0, skipped: 0 }, SUMMARY.campaigns[0]] };
+    wrap(<MailAdmin />);
+    expect(await screen.findByText("Sending stopped")).toBeTruthy();
+    expect(screen.getByText("Stopped: FinLit is open")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Carry on sending" }));
+    await waitFor(() => expect(sentTo("/api/admin/mail/resume")).toHaveLength(1));
+  });
+
+  it("the mails sent before show their counts, why some failed in plain words, and Try the failed ones again", async () => {
+    st.replies["/api/admin/mail/campaigns/7/retry"] = { queued: 3 };
+    wrap(<MailAdmin />);
+    expect(await screen.findByText("Thanks for joining XYZ")).toBeTruthy();
+    expect(screen.getByText(/3 × This address cannot receive mail/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Try the failed ones again" }));
+    await waitFor(() => expect(sentTo("/api/admin/mail/campaigns/7/retry")).toHaveLength(1));
+    expect(await screen.findByText("3 queued again.")).toBeTruthy();
+  });
+
+  it("founder, 28 Nov 2026: 'Hi there,' (no invented name), Plain email chosen first, an optional From name, and the Primary-tab hint", async () => {
+    wrap(<MailAdmin />);
+    const msgBox = await screen.findByRole("textbox", { name: "Message" }) as HTMLTextAreaElement;
+    expect(msgBox.value).toBe("Hi there,\n\n");
+    expect(msgBox.value).not.toContain("{name}");
+    expect((screen.getByRole("radio", { name: /Plain email/ }) as HTMLInputElement).checked).toBe(true);
+    expect((screen.getByRole("radio", { name: /Designed email with a button/ }) as HTMLInputElement).checked).toBe(false);
+    expect(screen.getByText(/Gmail decides the tab for each person, so Primary is likely, not guaranteed/)).toBeTruthy();
+    expect(screen.getByText("Add a link line")).toBeTruthy();                                       // in a plain email the button is a line
+    fireEvent.change(screen.getByRole("textbox", { name: /From name/ }), { target: { value: "Pranshu from FinLit Ventures" } });
+    fireEvent.change(screen.getByRole("textbox", { name: "Subject" }), { target: { value: "FinLit is open" } });
+    fireEvent.change(msgBox, { target: { value: "Hi there,\n\nYour FinLit account is ready to use." } });
+    await waitFor(() => expect(sentTo("/api/admin/mail/preview").some((s) => (s.body as { fromName: string }).fromName === "Pranshu from FinLit Ventures")).toBe(true));
+    fireEvent.click(screen.getByRole("button", { name: "Send me a test" }));
+    await waitFor(() => expect(sentTo("/api/admin/mail/campaigns").length).toBe(1));
+    expect(sentTo("/api/admin/mail/campaigns")[0].body).toMatchObject({ format: "plain", fromName: "Pranshu from FinLit Ventures" });
+  });
+
+  it("a mail saved but not sent (Mail 2) opens in the form, switches to Plain email and is sent as that same mail", async () => {
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+    const mail2 = { id: 2, subject: "Welcome to FinLit", body: "Hi {name},\n\nYour FinLit account is ready to use.", why: "You get this because you have a FinLit account.",
+      button_text: "Open FinLit", button_url: "https://finlitventures.com", format: "html" as const, from_name: null, created_at: "2026-11-28T05:00:00Z",
+      queued: 0, sent: 0, failed: 0, skipped: 0, remaining: 1235 };
+    st.summary = { ...SUMMARY, campaigns: [mail2, ...SUMMARY.campaigns] };
+    st.replies["/api/admin/mail/campaigns/2/send"] = { queued: 1235 };
+    wrap(<MailAdmin />);
+    expect(await screen.findByText("Saved, not sent yet")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Open in the form" }));
+    expect(await screen.findByText("Send an email: Welcome to FinLit")).toBeTruthy();
+    expect((screen.getByRole("textbox", { name: "Subject" }) as HTMLInputElement).value).toBe("Welcome to FinLit");
+    expect((screen.getByRole("radio", { name: /Designed email with a button/ }) as HTMLInputElement).checked).toBe(true);   // as it was saved
+    fireEvent.click(screen.getByRole("radio", { name: /Plain email/ }));
+    const send = await screen.findByRole("button", { name: "Send to 1,235 people" }) as HTMLButtonElement;
+    await waitFor(() => expect(send.disabled).toBe(false));
+    fireEvent.click(send);
+    await waitFor(() => expect(sentTo("/api/admin/mail/campaigns/2/send")).toHaveLength(1));
+    expect(st.sent.find((s) => s.path === "/api/admin/mail/campaigns?id=2")!.body).toMatchObject({ format: "plain", subject: "Welcome to FinLit", buttonText: "Open FinLit" });
+    confirm.mockRestore();
+  });
+
+  it("the helpers: the footer line and what is still needed", () => {
+    expect(whyLine(true, [])).toBe("You get this because you have a FinLit account.");
+    expect(whyLine(false, ["A"])).toBe("You get this because you registered for A.");
+    expect(whyLine(false, ["A", "B"])).toBe("You get this because you gave us your address at a FinLit event.");
+    const ok = { subject: "Hello", body: "Hi there,\n\nA full message here.", why: "You get this because you have a FinLit account.", buttonText: "", buttonUrl: "",
+      format: "plain" as const, fromName: "" };
+    expect(missing({ ...ok, body: "Hi there,\n\n" }, 10, true, [])).toEqual(["the message"]);        // the greeting alone is not a message
+    expect(missing(ok, 10, true, [])).toEqual([]);
+    expect(missing(ok, 10, false, [])).toEqual(["choose who gets it"]);
+    expect(missing({ ...ok, buttonText: "Open" }, 10, true, [])).toEqual(["the button's link"]);
+    expect(missing({ ...ok, buttonText: "Open", buttonUrl: "http://x.in" }, 10, true, [])).toEqual(["a button link that starts with https://"]);
   });
 });
 
 describe("/unsubscribe", () => {
   it("changes nothing until the button is pressed", async () => {
-    st.sent = []; st.reply = { status: "unsubscribed" };
+    st.sent = []; st.reply = { status: "unsubscribed" }; st.replies = {};
     render(<MemoryRouter initialEntries={["/unsubscribe?t=5.abc"]}><Unsubscribe /></MemoryRouter>);
     expect(st.sent).toHaveLength(0);
     fireEvent.click(screen.getByRole("button", { name: "Unsubscribe" }));
     expect(await screen.findByText(/You will not get FinLit Ventures mails/)).toBeTruthy();
     expect(st.sent[0]).toEqual({ path: "/api/mail/unsubscribe", body: { t: "5.abc" } });
   });
+});
 
-  it("Add people: addresses can be pasted, one or many, without a file (owner, 25 Nov 2026)", async () => {
-    st.summary = SUMMARY; st.sent = [];
-    st.reply = { rows: 3, added: 2, alreadyThere: 1, duplicates: 0, invalid: [], invalidCount: 0, typos: [], typoCount: 0, noMailServer: [], noMailServerCount: 0 };
+describe("Add people from a list", () => {
+  beforeEach(() => { st.summary = SUMMARY; st.sent = []; st.replies = { "/api/admin/mail/audience": { n: 1235 }, "/api/admin/mail/preview": { html: "", adviceWords: [] } }; });
+  it("addresses can be pasted, one or many, without a file (owner, 25 Nov 2026)", async () => {
+    st.replies["/api/admin/mail/import"] = { rows: 3, added: 2, alreadyThere: 1, duplicates: 0, invalid: [], invalidCount: 0, typos: [], typoCount: 0, noMailServer: [], noMailServerCount: 0 };
     wrap(<MailAdmin />);
     const box = await screen.findByRole("textbox", { name: /Email addresses/ });
-    expect((screen.getByRole("radio", { name: "Paste addresses" }) as HTMLInputElement).checked).toBe(true);   // pasting is the first choice; no file needed
+    expect((screen.getByRole("radio", { name: "Paste addresses" }) as HTMLInputElement).checked).toBe(true);
     expect(screen.queryByLabelText("File")).toBeNull();
     const add = screen.getByRole("button", { name: "Check and add" }) as HTMLButtonElement;
     expect(add.disabled).toBe(true);
-    fireEvent.change(screen.getByRole("textbox", { name: /Where these people gave their address/ }), { target: { value: "Owner's contacts, Nov 2026" } });
+    fireEvent.change(screen.getByRole("textbox", { name: /Name of this list/ }), { target: { value: "Owner's contacts, Nov 2026" } });
     fireEvent.change(box, { target: { value: "priya@example.com\nRahul Verma <rahul@example.com>; anu@example.com\nhello there" } });
     expect(screen.getByText(/3 addresses found · 1 piece is not an address and will be left out/)).toBeTruthy();
     fireEvent.click(add);
-    await waitFor(() => expect(st.sent).toHaveLength(1));
-    const sent = st.sent[0] as { path: string; body: { filename: string; data: string; source: string } };
-    expect(sent.path).toBe("/api/admin/mail/import");                                  // the same import as a file: same checks, nobody added twice
+    await waitFor(() => expect(sentTo("/api/admin/mail/import")).toHaveLength(1));
+    const sent = sentTo("/api/admin/mail/import")[0] as { path: string; body: { filename: string; data: string; source: string } };
     expect(sent.body.filename).toBe("pasted.csv"); expect(sent.body.source).toBe("Owner's contacts, Nov 2026");
     expect(atob(sent.body.data)).toBe("email,name\npriya@example.com,\nrahul@example.com,Rahul Verma\nanu@example.com,\n");
     expect(await screen.findByText("2 added")).toBeTruthy();
@@ -89,7 +230,6 @@ describe("/unsubscribe", () => {
     expect((box as HTMLTextAreaElement).value).toBe("");
   });
   it("one address alone works; Upload a file still offers the file", async () => {
-    st.summary = SUMMARY;
     wrap(<MailAdmin />);
     fireEvent.click(await screen.findByRole("radio", { name: "Upload a file" }));
     expect(screen.getByLabelText("File")).toBeTruthy();
@@ -100,7 +240,7 @@ describe("/unsubscribe", () => {
     expect(parsePasted('"Shah, Priya" <priya@example.com>\r\n, ,b@x.in;c@y.co').rows).toEqual([{ email: "priya@example.com", name: "Shah, Priya" }, { email: "b@x.in", name: "" }, { email: "c@y.co", name: "" }]);
     expect(parsePasted("Priya Shah <priya@example.com>").rows).toEqual([{ email: "priya@example.com", name: "Priya Shah" }]);
     expect(parsePasted("a@b.com, c@d.com ; e@f.com\n\ng@h.com").rows.map((r) => r.email)).toEqual(["a@b.com", "c@d.com", "e@f.com", "g@h.com"]);
-    expect(parsePasted("not an email\nbad@").skipped).toEqual(["not an email"]);                           // "bad@" goes on, and the server names it as not valid
+    expect(parsePasted("not an email\nbad@").skipped).toEqual(["not an email"]);
     expect(pastedCsv([{ email: "a@b.com", name: 'Ann "A", Ltd' }])).toBe('email,name\na@b.com,"Ann ""A"", Ltd"\n');
   });
 });
