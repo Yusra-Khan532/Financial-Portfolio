@@ -159,9 +159,10 @@
 .mfs-glance-h { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .mfs-glance-h h2 { margin: 0; font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif); color: var(--text); }
 .mfs-glance-h .btn { min-height: 36px; }
-.mfs-glance { --t-equity: #3B5A86; --t-hybrid: #2E7D5B; --t-debt: #C9A24E; --t-other: #8A8F98; }
-:root[data-theme="dark"] .mfs-glance { --t-equity: #8FAEDB; --t-hybrid: #6CC79A; --t-debt: #E2C27A; --t-other: #A4A9B2; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .mfs-glance { --t-equity: #8FAEDB; --t-hybrid: #6CC79A; --t-debt: #E2C27A; --t-other: #A4A9B2; } }
+/* Task #447: the colours sit on the figure too, so the enlarged view (drawn outside .mfs-glance) keeps them; it showed every dot black. */
+.mfs-glance, .mfs-fig { --t-equity: #3B5A86; --t-hybrid: #2E7D5B; --t-debt: #C9A24E; --t-other: #8A8F98; }
+:root[data-theme="dark"] .mfs-glance, :root[data-theme="dark"] .mfs-fig { --t-equity: #8FAEDB; --t-hybrid: #6CC79A; --t-debt: #E2C27A; --t-other: #A4A9B2; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .mfs-glance, :root:not([data-theme="light"]) .mfs-fig { --t-equity: #8FAEDB; --t-hybrid: #6CC79A; --t-debt: #E2C27A; --t-other: #A4A9B2; } }
 .mfs-sc-cap { margin: 0 0 6px; font-size: var(--fs-13); }
 .mfs-sc-box { position: relative; }
 .mfs-sc .dot { fill-opacity: .72; stroke-width: .8; transition: r .12s, fill-opacity .12s; }
