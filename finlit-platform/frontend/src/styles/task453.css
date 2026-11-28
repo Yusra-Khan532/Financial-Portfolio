@@ -1,0 +1,3 @@
+/* Task #453: the Mutual Fund Screener's NAV column, straight after the Mutual Fund Score. Only .mfs-navc / .mfs-navv (grep: no other use). */
+.mfs-table td.mfs-navc .mfs-navv { display: inline-flex; flex-direction: column; align-items: flex-end; gap: 2px; line-height: 1.25; }
+.mfs-table td.mfs-navc .mfs-navv small { color: var(--muted); font: 400 var(--fs-12) var(--sans); }

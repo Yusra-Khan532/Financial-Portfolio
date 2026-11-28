@@ -4,6 +4,7 @@
 // below Gold a lock, never a value), and the Fund column frozen while the table scrolls sideways.
 import { Link } from "react-router";
 import { HScroll } from "../../components/HScroll";
+import "../../styles/task453.css";   // task #453: the NAV column
 import { dateIN, MINUS, nf } from "../../lib/format";
 import { GROWTH_RETURNS_LABEL, PLAN_SCORE_NOTE, aumText, categoryShort, growthFigure, navText, noReturnsText, pctText, terText } from "../../lib/mf";
 import { figureOf, type ScreenRow, type SQ } from "../../lib/mfScreen";
@@ -53,6 +54,15 @@ function GrowthRet({ r, id }: { r: ScreenRow; id: "r1y" | "r3y" | "r5y" }) {
     {pctText(g, 1, false).replace("-", MINUS)}<small className="mf-gr">{GROWTH_RETURNS_LABEL}</small></span>;
 }
 
+// Task #453 (team, 28 Nov 2026): "add nav in the columns. 1st column Mutual fund score then nav". The NAV moves out of the fund cell into its own
+// sortable column straight after the score, with the day it is for under it; a plan with no NAV says why.
+const NAV_HINT = "Net asset value of one unit of this plan, in rupees, from AMFI, with the day it is for";
+const NO_NAV = "AMFI has not published a NAV for this plan.";
+function NavCell({ r }: { r: ScreenRow }) {
+  if (r.nav == null) return <span className="mf-na" title={NO_NAV} aria-label={`No figure. ${NO_NAV}`}>—</span>;
+  return <span className="mfs-navv"><span>{navText(r.nav)}</span>{r.navDate && <small>{dateIN(r.navDate, { day: "numeric", month: "short" })}</small>}</span>;
+}
+
 export function ResultTable({ rows, q, onSort, loading, score, pick }: { rows: ScreenRow[]; q: SQ; onSort: (key: string) => void; loading: boolean; score: ScoreProps; pick: PickProps }) {
   const cols = columnsFor(q);
   const sorted = (k?: string) => (k && q.sort === k ? (q.dir === "asc" ? "ascending" : "descending") : k ? "none" : undefined);
@@ -65,6 +75,8 @@ export function ResultTable({ rows, q, onSort, loading, score, pick }: { rows: S
             <th scope="col" className="mfs-n" aria-sort={sorted("name")}><span className="mfs-nh"><span className="mfs-tick-h" title="Tick up to 4 funds to compare them">Compare</span><button type="button" className="mf-sort" onClick={() => onSort("name")}>Fund{q.sort === "name" && <i aria-hidden="true">{q.dir === "asc" ? "▲" : "▼"}</i>}</button></span></th>
             <th scope="col" className="mfs-hs" title={`The Mutual Fund Score of this plan, 0 to 100, with its band. ${PLAN_SCORE_NOTE}`} aria-sort={score.gold ? sorted("score") : undefined}>
               {score.gold ? <button type="button" className="mf-sort" onClick={() => onSort("score")}>Mutual Fund Score{q.sort === "score" && <i aria-hidden="true">{q.dir === "asc" ? "▲" : "▼"}</i>}</button> : "Mutual Fund Score"}</th>
+            <th scope="col" className="num mfs-navc" title={NAV_HINT} aria-sort={sorted("nav")}>
+              <button type="button" className="mf-sort" onClick={() => onSort("nav")}>NAV{q.sort === "nav" && <i aria-hidden="true">{q.dir === "asc" ? "▲" : "▼"}</i>}</button></th>
             {cols.map((c) => (
               <th key={c.id} scope="col" className="num" title={c.hint} aria-sort={sorted(c.sort)}>
                 {c.sort ? <button type="button" className="mf-sort" onClick={() => onSort(c.sort!)}>{c.label}{q.sort === c.sort && <i aria-hidden="true">{q.dir === "asc" ? "▲" : "▼"}</i>}</button> : c.label}</th>))}
@@ -78,9 +90,10 @@ export function ResultTable({ rows, q, onSort, loading, score, pick }: { rows: S
                 <span className="mfs-nm"><Link to={`/funds/${r.code}`}>{r.name}</Link>
                 <small><span className="mf-house">{r.amc}</span><PlanChip plan={r.plan} option={r.option} category={r.category} />
                   {!r.active && <span className="chip ghost">Stopped publishing</span>}</small>
-                <small className="mfs-nav"><span className="mfs-cat" title={r.category}>{categoryShort(r.category)}</span>{r.nav != null && <> · NAV <span className="mono">{navText(r.nav)}</span>{r.navDate ? ` on ${dateIN(r.navDate, { day: "numeric", month: "short" })}` : ""}</>}</small></span></span>
+                <small className="mfs-nav"><span className="mfs-cat" title={r.category}>{categoryShort(r.category)}</span></small></span></span>
               </th>
               <td className="mfs-hs"><ScoreCell item={score.items.get(r.code)} locked={!score.gold} why={NO_SCORE} loading={score.loading} etf={isEtfCategory(r.category)} /></td>
+              <td className="num mfs-navc"><NavCell r={r} /></td>
               {cols.map((c) => { const t = c.cell(r); const g = !t && RET_IDS.has(c.id) ? <GrowthRet r={r} id={c.id as "r1y" | "r3y" | "r5y"} /> : null;
                 return <td key={c.id} className="num">{t ? t.replace("-", MINUS) : growthFigure(r, c.id as "r1y") != null ? g : <span className="mf-na" title={c.why?.(r)} aria-label={`No figure. ${c.why?.(r) ?? ""}`}>—</span>}</td>; })}
             </tr>))}

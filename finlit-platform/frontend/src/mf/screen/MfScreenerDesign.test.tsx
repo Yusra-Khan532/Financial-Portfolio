@@ -191,13 +191,16 @@ describe("task #131: the Mutual Fund Screener as the team's design", () => {
     expect((p.querySelector("#mfs-groups") as HTMLElement).hidden).toBe(false);
     expect(screen.queryByRole("dialog")).toBeNull();                     // in place, not a sheet
   });
-  it("the table's columns carry the pack's names, and each fund reads 'house · plan · option' then 'category · NAV ₹… on <date>'", async () => {
+  it("the table's columns carry the pack's names, and each fund reads 'house · plan · option' then its category (task #453: the NAV has its own column)", async () => {
     mount(); await screen.findAllByText("Alpha Mid Cap Fund");
     const heads = [...document.querySelectorAll(".mfs-table thead th")].map((th) => th.textContent!.replace(/[▲▼]/g, "").trim());
-    expect(heads.slice(2)).toEqual(["1 year", "3 yrs a year", "5 yrs a year", "Expense", "Size", "Volatility 3 yrs", "Biggest fall", "Rank 3 yrs"]);
+    expect(heads.slice(1)).toEqual(["Mutual Fund Score", "NAV", "1 year", "3 yrs a year", "5 yrs a year", "Expense", "Size", "Volatility 3 yrs", "Biggest fall", "Rank 3 yrs"]);
     const cell = document.querySelector(".mfs-table tbody th.mfs-n")!;
     expect(cell.querySelectorAll("small")[0].textContent).toMatch(/^Alpha Mutual Fund/);
-    expect(cell.querySelector(".mfs-nav")!.textContent).toMatch(/^Mid Cap.* · NAV ₹?10(\.0+)? on 20 Oct$/);
+    expect(cell.querySelector(".mfs-nav")!.textContent).toMatch(/^Mid Cap/);
+    expect(cell.textContent).not.toMatch(/NAV/);                                   // moved, not duplicated
+    const nav = document.querySelector(".mfs-table tbody td.mfs-navc")!;
+    expect(nav.textContent).toMatch(/^₹?10(\.0+)?20 Oct$/);                         // the value, then the day it is for
   });
   it("carries the AMFI risk line with the disclaimer (the pack's common rules)", async () => {
     mount(); await screen.findAllByText("Alpha Mid Cap Fund");
