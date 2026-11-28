@@ -48,6 +48,9 @@ export function RangeFilter({ def, hist, lo, hi, nodata, onRange, onNodata, wait
   const uid = useId();
   const edges = hist?.edges ?? [];
   const ok = edges.length >= 3;
+  // Task #458: the bars count the funds that pass every OTHER filter. When none of them has this figure (or no fund passes the others), every bar is 0:
+  // say so in one short line instead of leaving a blank gap where the bars go. The boxes and quick ranges stay, so a range can still be typed or cleared.
+  const drawn = ok && (hist?.bins ?? []).some((c) => c > 0);
   const setLo = lo == null ? 0 : Math.round(toPos(edges, lo) * STEPS), setHi = hi == null ? STEPS : Math.round(toPos(edges, hi) * STEPS);
   const [drag, setDrag] = useState<[number, number] | null>(null);
   const timer = useRef<number | null>(null);
@@ -67,7 +70,7 @@ export function RangeFilter({ def, hist, lo, hi, nodata, onRange, onNodata, wait
     <div className={"mfs-rf" + (active ? " is-on" : "")} data-field={def.key}>
       {!hideHead && <div className="mfs-rfh"><b>{def.label}</b>{active && <button type="button" className="fgx-link" onClick={() => onRange("", "")}>Clear</button>}</div>}
       {def.hint && !hideHead && <p className="fgx-note">{def.hint}</p>}
-      {ok ? (
+      {ok && drawn ? (
         <>
           <div className="mfs-hist" role="img" aria-label={`${summary} Selected range: ${dispLo == null ? "any" : lab(dispLo)} to ${dispHi == null ? "any" : lab(dispHi)}.`}>
             {hist!.bins.map((c, i) => (
@@ -83,7 +86,8 @@ export function RangeFilter({ def, hist, lo, hi, nodata, onRange, onNodata, wait
           </div>
           <div className="mfs-axis" aria-hidden="true"><span>{lab(edges[0])}</span><span>{lab(edges[Math.floor(edges.length / 2)])}</span><span>{lab(edges[edges.length - 1])}</span></div>
         </>
-      ) : <div className="mfs-hist is-empty" role="status">{waiting ? "Loading the spread of funds…" : "The spread of funds is not available yet."}</div>}
+      ) : ok && hist ? <p className="mfs-hist-none" role="status">{(hist.m ?? 0) === 0 ? "No bars to draw: no fund passes the other filters you chose." : "No bars to draw: no fund here has this figure."}</p>
+        : <div className="mfs-hist is-empty" role="status">{waiting ? "Loading the spread of funds…" : "The spread of funds is not available yet."}</div>}
       <div className="mfs-mm" role="group" aria-label={`${def.label}, exact range`}>
         <Box label={`${def.label}, minimum`} value={lo} ph="Min" onCommit={(v) => onRange(v, hi == null ? "" : String(hi))} />
         <span aria-hidden="true">to</span>

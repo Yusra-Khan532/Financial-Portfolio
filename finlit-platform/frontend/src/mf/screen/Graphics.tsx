@@ -10,6 +10,7 @@ import { Link } from "react-router";
 import { MINUS, nf } from "../../lib/format";
 import type { FundType, ScreenFacets } from "../../lib/mfScreen";
 import { ChartZoom } from "../../components/ChartZoom";
+import { keyLabel } from "../../lib/mfCategories";
 
 /** About `count` round tick values covering [lo, hi]. */
 export function niceTicks(lo: number, hi: number, count = 4): number[] {
@@ -71,7 +72,7 @@ export type FlowRow = { key: string; label: string; total: number; month: string
  *  When the largest is more than three times the next, the scale is set by the next one and the largest is drawn to the edge and marked cut, so one
  *  large category does not flatten the others. `width` is the share of half the track, 0 to 1. */
 export function flowRows(flows: ScreenFacets["flows"]): FlowRow[] {
-  const rows = flows.map((f) => { let i = f.net.length - 1; while (i >= 0 && !(f.net[i] != null && Number.isFinite(f.net[i] as number))) i--; return i < 0 ? null : { key: f.key, label: f.label, total: f.net[i] as number, month: f.months[i] ?? "" }; })
+  const rows = flows.map((f) => { let i = f.net.length - 1; while (i >= 0 && !(f.net[i] != null && Number.isFinite(f.net[i] as number))) i--; return i < 0 ? null : { key: f.key, label: !f.label || f.label === f.key ? keyLabel(f.key) : f.label, total: f.net[i] as number, month: f.months[i] ?? "" }; })
     .filter((r): r is { key: string; label: string; total: number; month: string } => r != null).sort((a, b) => b.total - a.total);
   const abs = rows.map((r) => Math.abs(r.total)).sort((a, b) => b - a);
   const scale = abs.length > 1 && abs[1] > 0 && abs[0] > 3 * abs[1] ? abs[1] * 1.25 : abs[0] || 1;

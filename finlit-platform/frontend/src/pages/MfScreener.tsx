@@ -21,6 +21,7 @@ import {
   DEFAULTS, PAGE_SIZE, PRESETS, PRESET_GROUPS, chipsFor, isDefault, loadSaved, parseQuery, presetOn, queryToParams, statusSplit, storeSaved, useScreenFacets, useScreenList, type Saved, type SQ,
 } from "../lib/mfScreen";
 import { SORTS } from "../lib/mfScreenDefs";
+import { keyLabel } from "../lib/mfCategories";
 import "../styles/task356.css";   // task #356: the preset rows
 import { FlowBars, RiskReturn } from "../mf/screen/Graphics";
 import { Panel } from "../mf/screen/Panel";
@@ -31,7 +32,8 @@ import "../styles/fgx.css";
 import "../styles/mf.css";
 import "../styles/mfscreen.css";
 import "../styles/task354.css";   // task #354: the Hide filters outline
-import "../styles/task373.css";   // task #373: the disclaimer drop-down under the table
+import "../styles/task373.css";
+import "../styles/task458.css";   // task #458: the no-fund state's chips and the empty histograms   // task #373: the disclaimer drop-down under the table
 import "../styles/tools.css";
 import { SIDE, SplitDivider, useSideWidth } from "../components/SplitDivider";
 
@@ -73,7 +75,7 @@ export function MfScreenerPage() {
   useEffect(() => { if (text.trim() === q.q) return; const t = window.setTimeout(() => set((s) => ({ ...s, q: text.trim(), page: 1 })), 350); return () => window.clearTimeout(t); }, [text]);   // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { setText(q.q); }, [q.q]);
 
-  const subLabel = (k: string) => fac?.subs.find((s) => s.key === k)?.label ?? k.replace(/-/g, " ");
+  const subLabel = (k: string) => fac?.subs.find((s) => s.key === k)?.label ?? keyLabel(k);   // #458: the name, not "fixed term", when no fund of it is left in the result
   const tagLabel = (k: string) => fac?.tags.find((t) => t.tag === k)?.label ?? k;
   const chips = chipsFor(q, subLabel, tagLabel);
   const shown = chips.length;
@@ -174,7 +176,7 @@ export function MfScreenerPage() {
           {list.isError ? <div className="state" role="alert"><h2>Could not load the funds</h2><p>The fund data did not answer. <button className="btn" onClick={() => list.refetch()}>Try again</button></p></div>
             : noMatch ? <div className="mfs-empty" role="status"><h2>No fund passes all these filters</h2>
               <p>{chips.length ? "Remove a filter to widen the result:" : "There are no funds to show."}</p>
-              <div>{chips.slice(0, 8).map((c) => <button key={c.id} type="button" className="fchip" onClick={() => set((s) => c.clear(s))}>{c.label} <span aria-hidden="true">×</span></button>)}</div>
+              <div className="mfs-empty-chips">{chips.slice(0, 8).map((c) => <button key={c.id} type="button" className="fchip" onClick={() => set((s) => c.clear(s))}>{c.label} <span aria-hidden="true">×</span></button>)}</div>
               <button type="button" className="btn" onClick={reset}>Reset all filters</button></div>
               : <ResultTable rows={rows} q={q} onSort={onSort} loading={list.isFetching} score={{ gold, items: scoreMap, loading: scores.isFetching }} pick={{ picked: tray, onPick: pick }} />}
 

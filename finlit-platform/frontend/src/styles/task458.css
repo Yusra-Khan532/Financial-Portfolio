@@ -1,0 +1,5 @@
+/* Task #458 (28 Nov 2026), Mutual fund screener. */
+/* A range filter with nothing to draw (no fund here has the figure, or none passes the other filters): one short line, not a 62px blank gap. */
+.mfs-rf .mfs-hist-none { margin: 2px 0 4px; padding: 8px 10px; border: 1px dashed var(--border-strong); border-radius: var(--r-ctl); color: var(--muted); font-size: var(--fs-13); line-height: 1.4; }
+/* "No fund passes all these filters": the chips wrap as a tidy, centred row with space between them. */
+.mfs-empty .mfs-empty-chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; max-width: 720px; }
