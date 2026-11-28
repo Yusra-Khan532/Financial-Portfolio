@@ -53,13 +53,13 @@ describe("task #430: numbers only in the Mutual funds table", () => {
     expect(titles).toMatch(/Insufficient history/);                   // the young fund's dashes
     expect(titles).toContain(GROWTH_RETURNS_LABEL);                    // the IDCW row's figures are its Growth option's, named on hover
   });
-  it("an IDCW row still shows its Growth option's return, never as its own: marked (italics, dotted underline) and named for screen readers", () => {
+  it("an IDCW row still shows its Growth option's return, never as its own: marked with a small G (task #444) and named for screen readers", () => {
     const { container } = draw();
     const row = container.querySelectorAll("tbody tr")[1];
     const g = row.querySelector("td.mf-c-r3y .mf-grf")!;
     expect(g.textContent).toContain("+12.98%");
+    expect(g.querySelector(".mf-gmark")!.textContent).toBe("G");
     expect(g.querySelector(".sr-only")!.textContent).toContain(GROWTH_RETURNS_LABEL);
-    expect(src("styles/mf341.css")).toMatch(/\.mf-list \.mf-table td \.mf-grf > span:first-child \{ font-style: italic; text-decoration: underline dotted;/);
   });
   it("the score cell on the list shows the figure and the four part letters, the word only for screen readers", () => {
     const item = { code: 153964, symbol: null, plan: "Direct", group: "EQ-BROAD", final: 58.7, label: "Average", status: "RATED", reason: null, rank: null, rankOf: null, flags: [], confidence: 0.9,
@@ -81,6 +81,6 @@ describe("task #430: numbers only in the Mutual funds table", () => {
     expect(page).not.toContain("The small word under");
     expect(page).not.toContain("The word under the fund size");
     expect(page).toContain("The table shows figures only; hover or tap a return to see its band");
-    expect(page).toContain("in italics with a dotted underline");
+    expect(page).toContain("with a small <b>G</b> after it");
   });
 });

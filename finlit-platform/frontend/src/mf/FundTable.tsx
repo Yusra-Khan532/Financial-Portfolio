@@ -65,9 +65,11 @@ function cell(c: ColDef, r: FundRow, peers?: Record<string, PeerStats>, scores?:
       const years = c.id === "r1y" ? 1 : c.id === "r3y" ? 3 : 5;
       const own = r[c.id] ?? null;
       const g = own == null ? growthFigure(r, c.id) : null;   // task #281: an IDCW row shows its Growth option's return, labelled; never as its own
-      if (g != null && r.growthReturns) {   // task #281: never shown as the IDCW option's own figure: in italics, dotted underline, named on hover and to screen readers
+      if (g != null && r.growthReturns) {   // task #281: never shown as the IDCW option's own figure: a small "G" after it, named on hover and to screen readers
+        // task #444 (team, 28 Nov 2026: "the boxes have different colour for different filter chosen so uniformity in this aspect is still missing"): the
+        // figure looks exactly like a Growth row's (same tinted cell, weight and colour; see tint() below); only the small "G" tells it apart.
         return <span className="mf-rf mf-grf" title={`${GROWTH_RETURNS_LABEL}: ${r.growthReturns.name} (${r.plan}, Growth). This option's own NAV change is not shown because payouts would make it wrong.`}>
-          <Fig v={g} why="" /><span className="sr-only"> {GROWTH_RETURNS_LABEL}</span></span>;
+          <span className="mf-gfig"><Fig v={g} why="" /><sup className="mf-gmark" aria-hidden="true">G</sup></span><span className="sr-only"> {GROWTH_RETURNS_LABEL}</span></span>;
       }
       const v = own;
       const band = returnBand(c.id, v);
@@ -154,10 +156,12 @@ export function FundTable({ rows, cols, q, onSort, picked, onPick, peers, wish }
   for (const c of defs) { const last = runs[runs.length - 1]; if (last && last.group === c.group) last.n++; else runs.push({ group: c.group, n: 1 }); }
   const sorted = (key: SortKey | null) => (key && q.sort === key ? (q.dir === "asc" ? "ascending" : "descending") : key ? "none" : undefined);
   const scale: Scale = {};
-  for (const id of ["r1y", "r3y", "r5y", "sip3y", "sip5y"] as const) scale[id] = Math.max(0, ...rows.map((r) => Math.abs(r[id] ?? 0)));
+  // task #444: the figure a cell shows (an IDCW row's 1, 3 and 5-year cells show its Growth option's return), so that cell is tinted like a Growth row's
+  const shownFig = (r: FundRow, id: "r1y" | "r3y" | "r5y" | "sip3y" | "sip5y") => r[id] ?? (id === "sip3y" || id === "sip5y" ? null : growthFigure(r, id));
+  for (const id of ["r1y", "r3y", "r5y", "sip3y", "sip5y"] as const) scale[id] = Math.max(0, ...rows.map((r) => Math.abs(shownFig(r, id) ?? 0)));
   const tint = (c: ColDef, r: FundRow): React.CSSProperties | undefined => {
     if (c.id !== "r1y" && c.id !== "r3y" && c.id !== "r5y" && c.id !== "sip3y" && c.id !== "sip5y") return undefined;
-    const t = tintOf(r[c.id], scale[c.id] ?? 0);
+    const t = tintOf(shownFig(r, c.id), scale[c.id] ?? 0);
     // task #310 G: the share runs through --ui-heat-scale (1 in light, .66 in dark), so green figures on the green tint keep 4.5:1 in dark (were 3.8 to 4.4)
     return t ? ({ "--tint": `color-mix(in srgb, var(${t.tone === "pos" ? "--gain" : "--loss"}) calc(${Math.round(8 + t.k * 22)}% * var(--ui-heat-scale)), transparent)` } as React.CSSProperties) : undefined;
   };
