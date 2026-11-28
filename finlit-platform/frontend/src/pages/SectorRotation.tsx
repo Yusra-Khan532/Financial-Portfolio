@@ -13,7 +13,7 @@ import { useWatchlist } from "../lib/watchlist";
 import { ApiError, apiGet } from "../lib/api";
 import { failureText, useRotationMap } from "../lib/rotation";
 import { useSectorBoard, type GroupRow } from "../lib/sectors";
-import { allSectors, ofSectors, short } from "../lib/pulsePack";
+import { NSE_SECTOR_COUNT, allSectors, short } from "../lib/pulsePack";   // task #448 (05 §1): "22 NSE sectors, 3 too small to rank", never "19 sectors"
 import { fullCards, gw, mayMoveRows, movedRows } from "../lib/rotationPack";
 import { BOX_TABS, firstVisit, mineOf, openTab, readTab, saveTab, type BoxId, type MemberShares } from "../lib/rotation332";
 import { TabGroup } from "../components/TabGroup";
@@ -104,7 +104,7 @@ export function SectorRotationPage() {
   const nRanked = m?.rows.filter((r) => r.rank != null).length ?? 0;
   // fault 3 (37 ranked, 38 in boxes): the data is right to give such a group a box (its 6-month and 1-month readings exist) and no rank (a rank compares a full year,
   // which it does not have yet), so the header says why it has a box and no rank
-  const meta = m ? <>Updated after the weekly close, {d ? `${WEEKDAY[d.getUTCDay()]} ${m.date_label ?? m.date}` : m.date} · {sectors ? ofSectors(nRanked) : gw(nRanked)} ranked<Tip text={rw("Each week every industry with a full year of readings is ranked, 1 the strongest. One with less has a box (it has the 6-month and 1-month readings) but no rank yet.")} />
+  const meta = m ? <>Updated after the weekly close, {d ? `${WEEKDAY[d.getUTCDay()]} ${m.date_label ?? m.date}` : m.date} · {sectors ? `${NSE_SECTOR_COUNT} NSE sectors, ${NSE_SECTOR_COUNT - nRanked} too small to rank` : `${gw(nRanked)} ranked`}<Tip text={rw("Each week every industry with a full year of readings is ranked, 1 the strongest. One with less has a box (it has the 6-month and 1-month readings) but no rank yet.")} />
     {unranked.length > 0 && <> · {unranked.join(", ")} {unranked.length === 1 ? "has" : "have"} a box but no rank yet: a rank needs a full year of readings</>}</> : null;
   const disclaimer = m ? tw(`Describes past prices of NSE industry groups against the average group; not a forecast and not a recommendation to buy, sell or hold any security. NSE daily data, equal-weighted industry groups, the same counted stocks as Sector Pulse. Data as of ${d ? `${WEEKDAY[d.getUTCDay()]} ${m.date_label ?? m.date}` : m.date}, after the close.`) : "";
   const allName = m ? (sectors ? allSectors(m.rows.length) : `All ${m.rows.length} groups`) : "All";   // task #436: "19 of the 22 sectors"

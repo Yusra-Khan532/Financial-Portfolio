@@ -12,7 +12,7 @@ const overlay = css("overlay.css");
 /** The class list of the one opaque-surface rule in overlay.css. */
 const surfaceRule = overlay.match(/:root:root :is\(([^{]*?)\)\s*\{\s*--s1: var\(--ov-surface\)[^}]*background: var\(--ov-surface\)/);
 const covered = new Set((surfaceRule?.[1] ?? "").match(/\.[a-zA-Z][\w-]*/g)?.map((c) => c.slice(1)));
-const BACKDROPS = ["scrim", "gs-scrim", "shell-scrim", "ipo-dr-bg", "qb-scrim", "sx-back", "gx-backdrop"];
+const BACKDROPS = ["scrim", "gs-scrim", "shell-scrim", "ipo-dr-bg", "qb-scrim", "sx-back", "sx-panel-bg", "gx-backdrop"];   // sx-panel-bg: task #448, the ⋯ menu's panel
 
 /** Rules (outside overlay.css) that float (fixed/absolute with a z-index) and have a see-through background. */
 function translucentFloaters() {

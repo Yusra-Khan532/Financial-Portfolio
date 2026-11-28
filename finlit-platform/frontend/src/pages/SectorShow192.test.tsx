@@ -40,7 +40,7 @@ import { SectorPulsePage } from "./SectorPulse";
 import { SectorRotationPage } from "./SectorRotation";
 
 function Where() { const l = useLocation(); return <output data-testid="where">{l.pathname + l.search}</output>; }
-beforeEach(() => { localStorage.clear(); vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} }); st.loaded = true; st.asked = []; });
+beforeEach(() => { sessionStorage.clear(); for (const v of ["industries", "sectors"]) sessionStorage.setItem(`finlit:steps:sp:${v}`, JSON.stringify({ mode: "all" }));   /* task #448: every step on the page (the step bar's "All sections") */ localStorage.clear(); vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} }); st.loaded = true; st.asked = []; });
 afterEach(cleanup);
 const at = (el: React.ReactNode, path: string) => render(<QueryClientProvider client={new QueryClient()}><MemoryRouter initialEntries={[path]}>{el}<Where /></MemoryRouter></QueryClientProvider>);
 const sw = () => screen.getByRole("group", { name: "Show sectors or industries" });
@@ -80,14 +80,15 @@ describe("Sector Pulse: Show: Sectors | Industries", () => {
     expect(pills.every((b) => b.classList.contains("sp-vbtn"))).toBe(true);                                      // styled like the View pills
     expect(pressed()).toEqual(["Sectors"]);
     expect(st.asked).toContain("board:sectors");
-    expect(document.body.textContent).toContain(`NSE's ${SECTOR_NAMES.length + 1} sectors: ${SECTOR_NAMES.length} with a reading, 1 too small for one`);   // task #436: the whole set, then how many are read
+    expect(document.body.textContent).toContain(`${SECTOR_NAMES.length + 1} NSE sectors, 1 too small for a reading`);   // task #448 (05 §1): the whole set, then how many are too small
   });
   it("words every section for sectors: no 'industry' is left outside the switch and the yardstick", () => {
     at(<SectorPulsePage />, "/sectors");
     const h2 = screen.getAllByRole("heading", { level: 2 }).map((h) => (h.textContent ?? "").replace(/i$/, ""));
-    expect(h2).toEqual(expect.arrayContaining(["How your sectors are doing", "Momentum and strength, side by side"]));
+    expect(h2).toEqual(expect.arrayContaining(["Today in one minute", "Momentum and strength, side by side"]));
+    expect(screen.getByTestId("no-shares").textContent).toContain("Add them and both pages show your sectors first.");   // task #448: no shares, no Your step
     // task #333: the closed rows and the second box's tabs are worded for sectors too
-    expect([...document.querySelectorAll("details.sx-fold > summary b")].map((x) => x.textContent)).toContain("Standout stocks in weak sectors");
+    expect(screen.getAllByRole("heading", { level: 2 }).map((h) => (h.textContent ?? "").replace(/i$/, ""))).toContain("Standout stocks in weak sectors");   // task #448: step 6, no longer a closed row
     expect(within(screen.getByRole("tablist", { name: "Three checks on the price picture" })).getAllByRole("tab").map((t) => t.textContent)).toContain("1Against other sectors");
     expect(industryWords()).toEqual([]);
     expect(document.querySelector(".sp-disclaimer")?.textContent).toMatch(/^Describes price data for NSE sectors; not a recommendation to buy, sell or hold any security\./);
@@ -106,8 +107,9 @@ describe("Sector Pulse: Show: Sectors | Industries", () => {
     expect(pressed()).toEqual(["Industries"]);
     expect(screen.getByTestId("where").textContent).toBe("/sectors?show=industries");
     expect(st.asked).toContain("board:industries");
-    expect(document.body.textContent).toContain("38 groups: 33 industries and 5 sectors, as NSE groups them");
-    expect(screen.getAllByRole("heading", { level: 2 }).map((h) => (h.textContent ?? "").replace(/i$/, ""))).toEqual(expect.arrayContaining(["How your industries are doing"]));
+    expect(document.body.textContent).toMatch(/(\d+ NSE industries, read as )?38 groups/);   // task #448 (01 §2): "59 NSE industries, read as 38 groups" once the taxonomy is in
+    expect(screen.getByRole("button", { name: "About “NSE industries”" })).toBeTruthy();
+    expect(screen.getByTestId("no-shares").textContent).toContain("Add them and both pages show your industries first.");   // task #448: the words follow the view
     const groupLinks = Array.from(document.querySelectorAll<HTMLAnchorElement>("a[href^='/sectors/']")).map((a) => a.getAttribute("href")!).filter((h) => !h.startsWith("/sectors/rotation"));
     expect(groupLinks.some((h) => h.includes("show=sectors"))).toBe(false);
   });

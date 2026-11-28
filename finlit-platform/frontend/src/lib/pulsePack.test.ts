@@ -47,7 +47,7 @@ describe("How your industries are doing (pack 05)", () => {
     expect(meansForYou(row("Petroleum Products")).text).toBe("Recovering, and already ahead of most industries.");
     expect(meansForYou(row("Aerospace & Defense")).text).toBe("Recovering; its lead over other industries has slowed.");
     expect(meansForYou(row("Banks")).text).toBe("Sold off and behind most industries, but most of its stocks have started rising again. An early sign.");
-    expect(meansForYou(row("Pharmaceuticals & Biotechnology")).text).toBe("Sold off lately, though still ahead of most industries over the last few months.");
+    expect(meansForYou(row("Pharmaceuticals & Biotechnology")).text).toBe("Sold off now, though still ahead of most industries over 6 months."   /* task #448 (05 §3) */);
     expect(meansForYou(row("Media Entertainment & Publication")).text).toBe("Its recent rise is losing support.");
     expect(meansForYou(row("Industrial Products")).text).toBe("Sold off, and its lead over other industries is fading.");
   });
@@ -75,7 +75,7 @@ describe("Full table (pack 06)", () => {
     // Numbers come first (CLAUDE.md), so the page says the true count in the pack's words.
     expect(c[0]).toEqual({ kind: "good", title: "Breadth is improving fast", text: "32 groups now have more than half their stocks above the short trend. A week ago the market was in a broad sell-off." });
     // the pack's 29 counts the four industries at exactly 50%, so the words say "half or fewer" (the pack's "fewer than half" would be 25)
-    expect(c[1].text).toBe("In 29 of 38 groups half or fewer of the stocks are above their longer trend. Bounces need time to become uptrends.");
+    expect(c[1].text).toBe("In 29 of 38 groups, half or fewer of the stocks are above their longer trend. Bounces need time to become uptrends.");
   });
 });
 

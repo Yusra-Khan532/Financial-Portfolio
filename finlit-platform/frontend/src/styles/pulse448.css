@@ -1,0 +1,433 @@
+/* Task #448: Sector Pulse, developer file 42 (28 Nov 2026). The new parts of the page; colours only from ui-tokens.css (the #448 block). Scoped to .sx-new
+   (the Sector Pulse page) unless a part is shared with Sector Rotation (task #449, file 43), which says so. */
+
+/* 04 §1 The wallet mark, "in your portfolio": an inline box (padding and a background image), 6 px after the name, so it never sits alone on a line. */
+.sp-wal { display: inline; margin-left: 6px; padding: 3px 10px; border-radius: 50%; font-size: var(--fs-12); line-height: 1;
+  background: var(--ui-wal-img) center / 13px 13px no-repeat, var(--ui-wal-bg); -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+.sp-wal::before { content: "\2060"; }
+/* in a flex or grid row (list links, drop-down headings) it is a 20 px item */
+.sp-wal.flex, :is(.sx-l-row, .sx-dd-h) > .sp-wal { display: inline-block; width: 20px; height: 20px; padding: 0; margin-left: 6px; flex: none; }
+/* the "My sectors" filter pill: the 13 px icon in the text's own colour, before the label */
+.sp-wal-s { display: inline-block; width: 13px; height: 13px; margin-right: 5px; vertical-align: text-bottom; background: currentColor;
+  -webkit-mask: var(--ui-wal-mask) center / contain no-repeat; mask: var(--ui-wal-mask) center / contain no-repeat; }
+
+/* 03 §7 Filter pills: the count is a plain, lighter number after the label (never "· N"), at 4.5:1 (07 Contrast). */
+.sx-new .sx-fl button small, .sx-new .sx-fl button .ct, .sx-new .sp-ftab .ct { color: var(--ui-count-ink); opacity: 1; font-weight: 500; }
+.sx-new .sx-fl button[aria-pressed="true"] small, .sx-new .sx-fl button[aria-pressed="true"] .ct { color: inherit; }
+
+/* 01 §2 The header: the facts as lines (a fact after an i starts its own line); the backdrop line; the wallet key */
+.sx-new .sp-meta { display: block; }
+.sx-new .sx-ml { margin: 0 0 2px; font-size: var(--fs-14); line-height: 1.6; color: var(--sp-mute); }
+.sx-new .sx-ml b { color: var(--sp-ink); font-weight: 600; }
+.sx-new .sx-walkey .sp-wal { margin: 0 6px 0 0; }
+
+/* 01 §3 The ⋯ button after Find, its menu, and the panel that opens a reference block over the page */
+.sx-dots { position: relative; flex: none; }
+.sx-dots-b { display: grid; place-items: center; width: 40px; height: 40px; padding: 0; border: 1px solid var(--sp-line); border-radius: 50%; background: var(--bg); color: var(--sp-ink);
+  font: 700 var(--fs-18)/1 var(--sans); cursor: pointer; }
+.sx-dots-b[aria-expanded="true"], .sx-dots-b:hover { border-color: var(--sp-ink); }
+.sx-dots-l { position: absolute; right: 0; top: calc(100% + 6px); z-index: 60; min-width: 260px; margin: 0; padding: 6px; list-style: none; border: 1px solid var(--border-strong);
+  border-radius: var(--r-ctl); background: var(--s1); box-shadow: var(--ui-pop-shadow); }
+.sx-dots-l button { display: block; width: 100%; min-height: 40px; padding: 8px 12px; border: 0; border-radius: var(--ui-r-mark); background: none; color: var(--sp-ink); text-align: left;
+  font: 500 var(--fs-14)/1.3 var(--sans); cursor: pointer; }
+.sx-dots-l button:hover, .sx-dots-l button:focus-visible { background: var(--s2); }
+.sx-panel-bg { position: fixed; inset: 0; z-index: var(--z-modal, 300); display: grid; place-items: start center; padding: 6vh 16px; overflow-y: auto; background: var(--ov-backdrop); }
+.sx-panel { width: min(920px, 100%); padding: 20px 24px 24px; border-radius: var(--r-card); background: var(--s1); color: var(--sp-ink); box-shadow: var(--ui-pop-shadow); outline: none; }
+.sx-panel-h { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.sx-panel-h h2 { margin: 0; font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif); }
+.sx-x { display: grid; place-items: center; flex: none; width: 36px; height: 36px; padding: 0; border: 1px solid var(--sp-line); border-radius: 50%; background: var(--bg); color: var(--sp-ink);
+  font: 400 var(--fs-20)/1 var(--sans); cursor: pointer; }
+.sx-panel .sp-sec { margin: 0; padding: 0; border: 0; box-shadow: none; background: none; }
+.sx-panel .sp-guide.sx-in-panel { margin: 0; border: 0; background: none; padding: 0; }
+
+/* 01 §4 Things to know: the quiet list (Today) and the pill with its popover (elsewhere) */
+.sx-ql { position: relative; margin: 12px 0 0; padding: 6px 16px; border: 1px solid var(--sp-line); border-radius: var(--r-card); background: var(--sp-panel); }
+.sx-ql-top { display: flex; justify-content: flex-end; padding: 4px 0; }
+.sx-ql-all { min-height: 32px; padding: 0 4px; border: 0; background: none; color: var(--sp-ink); font: 600 var(--fs-13)/1 var(--sans); text-decoration: underline; cursor: pointer; }
+.sx-ql ul { margin: 0; padding: 0; list-style: none; }
+.sx-ql-r + .sx-ql-r { border-top: 1px solid var(--sp-line); }
+.sx-ql-b { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 8px 0; border: 0; background: none; color: var(--sp-ink); text-align: left; cursor: pointer; font: 400 var(--fs-14)/1.35 var(--sans); }
+.sx-ql-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--sp-good); }
+.sx-ql-k { flex: none; font: 700 var(--fs-12)/1 var(--sans); letter-spacing: .06em; text-transform: uppercase; color: var(--sp-mute); }
+.sx-ql-t { flex: 1; font-weight: 600; }
+.sx-ql-ar { flex: none; font-size: var(--fs-12); color: var(--sp-mute); }
+.sx-ql-x { margin: 0 0 10px 18px; font-size: var(--fs-14); line-height: 1.5; color: var(--sp-ink); }
+.sx-k-good .sx-ql-dot, .sx-ttk-dots .sx-k-good { background: var(--sp-good); }
+.sx-k-watch .sx-ql-dot, .sx-ttk-dots .sx-k-watch { background: var(--sp-watch); }
+.sx-k-bad .sx-ql-dot, .sx-ttk-dots .sx-k-bad { background: var(--sp-bad); }
+.sx-k-info .sx-ql-dot, .sx-ttk-dots .sx-k-info { background: var(--sp-info); }
+.sx-new .sp-sec-h { flex-wrap: wrap; }
+.sx-new .sp-sec-h > div:first-child { flex: 1 1 420px; min-width: 0; }   /* the title row wraps, so its tools never push the page sideways */
+.sx-tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; flex: 0 1 auto; max-width: 100%; margin-left: auto; }   /* always at the right end of the title row (01 §4, §5) */
+.sx-ttk-slot { display: contents; }
+.sx-ttk { position: relative; display: inline-flex; }
+.sx-ttk-b { display: inline-flex; align-items: center; gap: 8px; min-height: 32px; padding: 0 12px; border: 1px solid var(--sp-line); border-radius: var(--ui-r-pill); background: var(--bg); color: var(--sp-ink);
+  font: 600 var(--fs-13)/1 var(--sans); cursor: pointer; white-space: nowrap; }
+.sx-ttk-b[aria-expanded="true"] { border-color: var(--sp-ink); }
+.sx-ttk-dots { display: inline-flex; gap: 3px; } .sx-ttk-dots i { width: 7px; height: 7px; border-radius: 50%; }
+.sx-ttk-pop { position: absolute; right: 0; top: calc(100% + 6px); z-index: 70; width: min(420px, calc(100vw - 32px)); padding: 12px 14px; border: 1px solid var(--border-strong); border-radius: var(--r-card);
+  background: var(--s1); box-shadow: var(--ui-pop-shadow); text-align: left; }
+.sx-ttk-h { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.sx-ttk-pop .sx-ql { margin: 6px 0 0; padding: 0; border: 0; }
+.sx-bar-ttk { display: inline-flex; align-items: center; margin-left: auto; }
+.sx-new .sx-barw { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.sx-new .sx-barw > .sx-bar { flex: 1 1 auto; min-width: 0; }
+
+/* 01 §5 Why it matters: a small outlined button at the right end of the title row; its text opens below the title */
+.sx-whyb { min-height: 32px; padding: 0 12px; border: 1px solid var(--sp-line); border-radius: var(--ui-r-pill); background: var(--bg); color: var(--sp-ink); font: 700 var(--fs-12)/1 var(--sans);
+  letter-spacing: .06em; text-transform: uppercase; cursor: pointer; white-space: nowrap; }
+.sx-whyb[aria-expanded="true"] { border-color: var(--sp-ink); }
+.sx-why-x { margin: 8px 0 4px; padding: 10px 14px; border-left: 3px solid var(--gold); background: var(--s2); border-radius: var(--ui-r-mark); font-size: var(--fs-14); line-height: 1.5; }
+
+/* 04 §2 Peer labels (also the labels card) */
+.sx-pl { display: inline-flex; align-items: center; min-height: 24px; padding: 0 9px; border-radius: var(--ui-r-pill); font: 600 var(--fs-12)/1 var(--sans); white-space: nowrap; text-decoration: none; }
+.sx-pl-lead { background: var(--ui-peer-lead-bg); color: var(--ui-peer-lead-ink); }
+.sx-pl-line { background: var(--ui-peer-line-bg); color: var(--ui-peer-line-ink); }
+.sx-pl-lag { background: var(--ui-peer-lag-bg); color: var(--ui-peer-lag-ink); }
+.sx-pl-none { border: 1px solid var(--border-strong); color: var(--sp-mute); }
+
+/* 04 §4 What the labels mean */
+.sx-labels-lead { margin: 0 0 12px; color: var(--sp-mute); font-size: var(--fs-14); }
+.sx-labels-p + .sx-labels-p { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--sp-line); }
+.sx-labels-h { max-width: none; margin: 0 0 8px; font: 400 var(--fs-14)/1.5 var(--sans); color: var(--sp-ink); }
+.sx-labels-p dl { display: grid; grid-template-columns: minmax(150px, max-content) minmax(0, 1fr); gap: 6px 16px; margin: 0; }
+.sx-labels-p dl > div { display: contents; }
+.sx-labels-p dt { font: 600 var(--fs-14)/1.45 var(--sans); } .sx-labels-p dd { margin: 0; font-size: var(--fs-14); line-height: 1.45; color: var(--sp-ink); }
+.sx-labels-wal .sp-wal { margin: 0 6px 0 0; }
+@media (max-width: 620px) {
+  .sx-labels-p dl { grid-template-columns: minmax(0, 1fr); gap: 2px; } .sx-labels-p dd { margin-bottom: 8px; }
+  .sx-ttk-b, .sx-whyb { min-height: 40px; }
+  .sx-tools { width: 100%; justify-content: flex-start; }
+  .sx-panel { padding: 16px; }
+}
+
+/* 01 §1 The step bar (shared with Sector Rotation): sticks under the site header on a laptop, scrolls sideways on a phone */
+.sx-stepbar { position: sticky; top: 70px; z-index: 30; margin: 12px 0 14px; }
+.sx-stepnav { position: relative; display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--sp-line); border-radius: var(--r-card); background: var(--sp-panel); box-shadow: var(--ui-row-shadow); }
+.sx-stepnav ol { display: flex; align-items: center; gap: 4px; flex: 1 1 auto; min-width: 0; margin: 0; padding: 0; list-style: none; overflow-x: auto; scrollbar-width: none; }
+.sx-stepnav ol::-webkit-scrollbar { display: none; }
+.sx-stepnav ol > li { flex: none; }
+.sx-step { position: relative; display: inline-flex; align-items: center; gap: 8px; min-height: 46px; padding: 0 14px 0 6px; border: 0; border-radius: var(--ui-r-pill); background: none;
+  color: var(--sp-ink); font: 600 var(--fs-14)/1 var(--sans); white-space: nowrap; cursor: pointer; }
+.sx-step i { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--s2); font: 700 var(--fs-13)/1 var(--sans); font-style: normal; }
+.sx-step:hover { background: var(--s2); }
+.sx-step.on { background: var(--sp-ink); color: var(--sp-panel); }
+.sx-step.on i { background: var(--sp-panel); color: var(--sp-ink); }
+.sx-step:focus-visible, .sx-allsec:focus-visible, .sx-stepgo:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.sx-step-ar { color: var(--sp-mute); font-size: var(--fs-14); }
+.sx-deeper { padding: 0 8px 0 12px; border-left: 1px solid var(--sp-line); color: var(--sp-mute); font: 700 var(--fs-12)/1 var(--sans); letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; }
+.sx-new-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--sp-bad); }
+.sx-step .sx-new-dot { position: absolute; top: 6px; right: 4px; }
+.sx-allsec { flex: none; min-height: 46px; padding: 0 18px; border: 1px solid var(--sp-line); border-radius: var(--ui-r-pill); background: var(--bg); color: var(--sp-ink);
+  font: 600 var(--fs-14)/1 var(--sans); cursor: pointer; white-space: nowrap; }
+.sx-allsec[aria-pressed="true"] { border-color: var(--sp-ink); }
+.sx-newkey { display: flex; align-items: center; justify-content: flex-end; gap: 6px; margin: 6px 4px 0; font-size: var(--fs-13); color: var(--sp-mute); }
+.sx-skip { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }   /* shows only when it has focus */
+.sx-skip:focus { left: 10px; top: 8px; z-index: 2; width: auto; height: auto; overflow: visible; clip: auto; padding: 8px 12px; border-radius: var(--r-ctl); background: var(--sp-ink); color: var(--sp-panel); font: 600 var(--fs-13)/1 var(--sans); }
+html:has(.sx-stepbar) { scroll-padding-top: calc(70px + 72px + 12px); }   /* 07: focus never hides under the sticky bars */
+.sx-stepview h2[tabindex], .sx-stepview h2:focus { outline: none; }
+
+/* the previous / next row at the end of each step */
+.sx-prevnext { display: flex; align-items: center; gap: 16px; margin: 14px 0 22px; }
+.sx-prevnext .sx-next { margin-left: auto; }
+.sx-stepgo { min-height: 40px; padding: 0 16px; border: 1px solid transparent; border-radius: var(--ui-r-pill); background: none; color: var(--sp-ink); font: 600 var(--fs-14)/1 var(--sans); cursor: pointer; }
+.sx-next { border-color: var(--sp-ink); }
+.sx-quick { margin: 0; font-size: var(--fs-14); color: var(--sp-ink); }
+
+@media (max-width: 860px) {
+  .sx-stepbar { position: static; }
+  .sx-stepnav { padding: 6px; }
+  .sx-stepnav ol { -webkit-mask-image: linear-gradient(90deg, transparent, black 18px, black calc(100% - 18px), transparent); mask-image: linear-gradient(90deg, transparent, black 18px, black calc(100% - 18px), transparent); }
+  .sx-step, .sx-allsec { min-height: 44px; }
+  .sx-allsec { padding: 0 12px; }
+  .sx-stepgo { min-height: 44px; }
+  .sx-prevnext { flex-wrap: wrap; }
+  .sx-quick { order: 3; flex-basis: 100%; }
+}
+
+/* 02 §1.5 (fix 9) no shares and no watchlist: one short row on Today */
+.sx-noshares { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; margin: 14px 0 0; padding: 12px 16px; border: 1px solid var(--sp-line); border-radius: var(--r-card); background: var(--s2); }
+.sx-noshares p { flex: 1 1 320px; margin: 0; font-size: var(--fs-14); color: var(--sp-ink); }
+
+/* 02 §1.3 the headline box: one box, tinted by the headline's kind (red: selling spreading, amber: shifting, green: rises spreading) */
+.sx-hlbox { margin: 14px 0 6px; padding: 14px 18px; border: 1px solid var(--sp-good-bd); border-left: 4px solid var(--sp-good); border-radius: var(--r-card); background: var(--sp-good-bg); }
+.sx-hlbox-bad { border-color: var(--sp-bad-bd); border-left-color: var(--sp-bad); background: var(--sp-bad-bg); }
+.sx-hlbox-watch { border-color: var(--sp-watch-bd); border-left-color: var(--sp-watch); background: var(--sp-watch-bg); }
+.sx-hlbox .sp-lead { margin: 0; }
+.sx-hlbox .sp-lead-sub { margin: 6px 0 0; }
+.sx-hlbox .sx-hl { padding: 0; border: 0; background: none; box-shadow: none; }
+.sx-hlbox-bad .sx-hl { color: var(--sp-bad); } .sx-hlbox-watch .sx-hl { color: var(--ui-watch-ink); } .sx-hlbox-good .sx-hl { color: var(--sp-good); }
+.sx-upline b { color: var(--sp-ink); }
+
+/* small text buttons (07 B3: at least a 32 px touch area, 44 px on phones) */
+.sx-tlink { min-height: 32px; padding: 0; border: 0; background: none; color: var(--sp-ink); font: 600 var(--fs-14)/1.3 var(--sans); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.sx-bell { flex: none; vertical-align: -2px; }
+
+/* 02 §1.1 the first-visit line */
+.sx-newhere { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 12px 0 0; padding: 10px 14px; border-radius: var(--r-card); background: var(--s2); font-size: var(--fs-14); }
+.sx-newhere a { color: var(--sp-ink); font-weight: 600; }
+.sx-newhere .sx-tlink { font-size: var(--fs-14); }
+
+/* 02 §1.2 For you this week */
+.sx-fy { margin: 14px 0 0; padding: 16px 18px; border: 1px solid var(--sp-line); border-radius: var(--r-card); background: var(--sp-panel); }
+.sx-fy-h { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+.sx-fy-t { margin: 0; font: 700 var(--fs-14)/1.3 var(--sans); }
+.sx-fy-sub { font-size: var(--fs-13); color: var(--sp-mute); }
+.sx-fy-h .sx-ma { margin-left: auto; }
+.sx-fy-lead { margin: 12px 0 4px; font: 400 var(--fs-18)/1.4 var(--serif); color: var(--sp-ink); }
+.sx-fy-val, .sx-fy-mean { margin: 0 0 6px; font-size: var(--fs-14); color: var(--sp-ink); }
+.sx-was { display: block; margin-top: 4px; font-size: var(--fs-13); color: var(--sp-mute); } .sx-was b { color: var(--sp-ink); font-weight: 600; }
+.sx-fy-end { margin: 8px 0 0; }
+@media (max-width: 620px) { .sx-fy-sub { flex-basis: 100%; order: 2; } .sx-fy-h .sx-ma { margin-left: 0; } }
+
+/* the one alert for all your sectors */
+.sx-ma { position: relative; display: inline-flex; }
+.sx-ma-b { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 14px; border: 1px solid var(--sp-line); border-radius: var(--ui-r-pill); background: var(--bg); color: var(--sp-ink);
+  font: 600 var(--fs-13)/1 var(--sans); cursor: pointer; white-space: nowrap; }
+.sx-ma-b.on { border-color: var(--sp-good); color: var(--sp-good); }
+.sx-ma-pop { position: absolute; right: 0; top: calc(100% + 6px); z-index: 70; width: min(360px, calc(100vw - 32px)); padding: 14px 16px; border: 1px solid var(--border-strong); border-radius: var(--r-card);
+  background: var(--s1); box-shadow: var(--ui-pop-shadow); font-size: var(--fs-14); }
+.sx-ma-pop label { display: flex; align-items: center; gap: 8px; min-height: 32px; }
+.sx-ma-pop p { margin: 8px 0; color: var(--sp-mute); }
+.sx-ma-pop > div { display: flex; gap: 8px; }
+@media (max-width: 620px) { .sx-ma-b { min-height: 44px; } .sx-ma-pop { left: 0; right: auto; } }
+
+/* 04 §2 share pills by peer label: a dot, the symbol, at least 24 px tall */
+.sx-peerpills { display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.sx-pl i { width: 6px; height: 6px; margin-right: 6px; border-radius: 50%; background: currentColor; opacity: .8; }
+a.sx-pl:hover { text-decoration: underline; }
+.sx-pl.sx-wl { outline: 1px dashed var(--border-strong); outline-offset: 1px; }
+.sx-pmore2 { min-height: 24px; padding: 0 9px; border: 1px dashed var(--border-strong); border-radius: var(--ui-r-pill); background: none; color: var(--sp-ink); font: 600 var(--fs-12)/1 var(--sans); cursor: pointer; }
+
+/* 02 §2 the short Your-sectors view */
+.sx-countby { display: inline-flex; align-items: center; gap: 6px; margin-left: 10px; padding-left: 12px; border-left: 1px solid var(--sp-line); }
+.sx-countby > span { display: inline-flex; align-items: center; color: var(--sp-mute); }
+.sx-new .sx-src .sx-countby .sp-i { min-height: 0; width: 18px; height: 18px; padding: 0; border-radius: 50%; }   /* the i keeps its own shape inside the pill row */
+.sx-countby button[aria-pressed="true"] { border-color: var(--sp-ink); background: var(--sp-ink); color: var(--sp-panel); }
+.sx-yr-lead { margin: 12px 0 8px; font: 400 var(--fs-18)/1.4 var(--serif); color: var(--sp-ink); }
+.sx-vbar { display: flex; gap: 2px; height: 12px; margin: 0 0 12px; border-radius: var(--ui-r-mark); overflow: hidden; }
+.sx-vbar i { display: block; height: 100%; min-width: 3px; }
+.sx-vbar-none { background: var(--border-strong); }
+.sx-peerline { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 12px; font-size: var(--fs-14); }
+.sx-peernote { flex-basis: 100%; color: var(--sp-ink); }
+.sx-stabs .sx-dot { display: inline-block; width: 9px; height: 9px; margin-right: 7px; border-radius: 50%; }
+.sx-yr-hd, .sx-yr-row { display: grid; grid-template-columns: minmax(210px, 1.3fr) minmax(200px, 1fr) minmax(170px, .9fr) minmax(220px, 1.4fr); gap: 12px 24px; align-items: center; }
+.sx-yr-hd { margin: 8px 0 8px; padding: 10px 16px; border-radius: var(--r-ctl); background: var(--s2); font: 700 var(--fs-12)/1.3 var(--sans); letter-spacing: .06em; text-transform: uppercase; color: var(--sp-mute); }
+.sx-longkey { margin-left: 8px; font-weight: 500; letter-spacing: 0; text-transform: none; }
+.sx-long { display: inline-block; width: 8px; height: 8px; margin-left: 8px; border-radius: 50%; background: var(--gold); vertical-align: middle; }
+.sx-yr-card { margin: 0 0 12px; border: 1px solid var(--sp-line); border-radius: var(--r-card); overflow: hidden; }
+.sx-yr-ch { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 10px 16px; background: var(--s2); font: 600 var(--fs-14)/1.3 var(--sans); }
+.sx-yr-mean { margin: 0; padding: 10px 16px; border-top: 1px solid var(--sp-line); background: color-mix(in srgb, var(--s2) 55%, transparent); font-size: var(--fs-13); color: var(--sp-ink); }
+.sx-yr-row { padding: 12px 16px; border-top: 1px solid color-mix(in srgb, var(--border-strong) 85%, transparent); }
+.sx-yr-row > span { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-width: 0; font-size: var(--fs-14); }
+.sx-yr-row small { color: var(--sp-mute); font-size: var(--fs-13); }
+.sx-yr-row > span:nth-child(2) { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 8px; }
+.sx-yr-card > .sx-tlink { margin: 8px 16px 12px; }
+.sx-yr-keys { margin: 4px 0 10px; font-size: var(--fs-13); color: var(--sp-mute); }
+.sx-tbl-toggle { margin: 6px 0 10px; }
+@media (max-width: 860px) {
+  .sx-yr-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .sx-yr-row > span:first-child, .sx-yr-row > span:last-child { grid-column: 1 / -1; }
+  .sx-countby { margin-left: 0; padding-left: 0; border-left: 0; flex-basis: 100%; }
+  .sx-tlink { min-height: 44px; }
+}
+
+/* 02 §3 All sectors by state: the state tabs and Show on one row */
+.sx-stabrow { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; margin: 0 0 10px; }
+.sx-stabrow .sx-fl { margin: 0; }
+
+/* 02 §3 Map: the key after the toggles (the ring is the text colour, so it reads in both themes) */
+.sx-mapkey { display: inline-flex; align-items: center; gap: 8px; margin-left: 6px; font-size: var(--fs-13); color: var(--ui-count-ink); }
+.sx-ring { width: 12px; height: 12px; border: 2px solid var(--text); border-radius: 50%; }
+
+/* 02 §3 Over time: the market's mood, one slider chart */
+.sx-moodkey { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 0 0 10px; padding: 0; list-style: none; font-size: var(--fs-13); color: var(--sp-ink); }
+.sx-moodkey li { display: inline-flex; align-items: center; gap: 7px; }
+.sx-moodkey i { width: 11px; height: 11px; border-radius: var(--ui-r-mark); }
+.sx-mk-up, .sx-mood-up { background: var(--sp-good); fill: var(--sp-good); }
+.sx-mk-dn, .sx-mood-dn { background: var(--sp-watch); fill: var(--sp-watch); }
+.sx-mk-rest { background: var(--border-strong); }
+.sx-moodc { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px; }
+.sx-moody { display: flex; flex-direction: column; justify-content: space-between; padding: 4px 0 26px; font-size: var(--fs-12); color: var(--ui-count-ink); text-align: right; }
+.sx-moodbox { position: relative; padding-bottom: 22px; border-radius: var(--r-ctl); cursor: crosshair; touch-action: pan-y; }
+.sx-moodbox:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
+.sx-moodbox svg { display: block; width: 100%; height: 220px; }
+.sx-mood-mid { stroke: var(--border-strong); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+.sx-mood-hl { fill: var(--s2); }
+.sx-moodx { position: absolute; left: 0; right: 0; bottom: 0; height: 18px; }
+.sx-moodx span { position: absolute; transform: translateX(-50%); font-size: var(--fs-12); color: var(--ui-count-ink); }
+.sx-mood-read { margin: 10px 0 0; font-size: var(--fs-14); color: var(--sp-ink); }
+@media (max-width: 620px) { .sx-moodbox svg { height: 180px; } }
+
+/* 02 §4 Momentum and strength: three lists, each group a drop-down closed at first; the three cards one height */
+.sx-nowrap { white-space: nowrap; }
+.sx-cnt { display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 7px; border-radius: var(--ui-r-pill); background: var(--s2); color: var(--sp-ink); font: 700 var(--fs-12)/1 var(--sans); }
+.sx-mx3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; align-items: stretch; margin-top: 10px; }
+.sx-mx3-card { display: flex; flex-direction: column; gap: 8px; padding: 14px; border: 1px solid var(--sp-line); border-top: 4px solid var(--sp-good); border-radius: var(--r-card); background: var(--sp-panel); }
+.sx-mx3-watch { border-top-color: var(--sp-watch); } .sx-mx3-bad { border-top-color: var(--sp-bad); }
+.sx-mx3-t { display: flex; align-items: center; gap: 8px; margin: 0; font: 700 var(--fs-16)/1.3 var(--sans); }
+.sx-mx3-line { margin: 0 0 4px; font-size: var(--fs-13); color: var(--sp-mute); }
+.sx-dd { border: 1px solid var(--sp-line); border-radius: var(--r-ctl); background: var(--bg); }
+.sx-dd-h { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 44px; padding: 6px 12px; border: 0; background: none; color: var(--sp-ink); text-align: left; font: 600 var(--fs-13)/1.3 var(--sans); cursor: pointer; }
+.sx-dd-w { flex: 1; }
+.sx-dd-ar { transition: transform .15s; } .sx-dd-h[aria-expanded="true"] .sx-dd-ar { transform: rotate(180deg); }
+@media (prefers-reduced-motion: reduce) { .sx-dd-ar { transition: none; } }
+.sx-dd-l { margin: 0; padding: 0 0 4px; list-style: none; border-top: 1px solid var(--sp-line); }
+.sx-l-row { display: flex; align-items: center; min-height: 40px; padding: 6px 12px; color: var(--sp-ink); text-decoration: none; font-size: var(--fs-14); }
+.sx-l-row:hover { background: var(--s2); }
+.sx-l-row > span:first-child { flex: 1; }
+.sx-l-ar { margin-left: 8px; color: var(--sp-mute); }
+@media (max-width: 860px) { .sx-mx3 { grid-template-columns: minmax(0, 1fr); } }
+
+/* 02 §4 What happened next: one state at a time; the chip column fixed at 224 px so every bar starts at the same place; chips centred, 5 px after the arrow */
+.sx-nx-sent { margin: 8px 0 10px; font-size: var(--fs-14); line-height: 1.55; color: var(--sp-ink); }
+.sx-nxl2 { margin: 0; padding: 0; list-style: none; }
+.sx-nxl2 li { display: grid; grid-template-columns: 224px minmax(0, 1fr) 40px; align-items: center; gap: 10px; min-height: 34px; }
+.sx-nxl2 .sx-nxw { display: inline-flex; align-items: center; gap: 5px; }
+.sx-nxl2 .sp-chip { align-items: center; }
+.sx-nxl2 .sx-nb { height: 10px; border-radius: var(--ui-r-pill); background: var(--s2); overflow: hidden; }
+.sx-nxl2 .sx-nb i { display: block; height: 100%; }
+.sx-nxl2 b { text-align: right; }
+@media (max-width: 620px) { .sx-nxl2 li { grid-template-columns: minmax(0, 1fr) 70px 32px; } }
+.sx-nxl2 .sx-nb i { opacity: 1; }
+.sx-nxl2 .sx-nxw { overflow: visible; } .sx-nxl2 .sx-nxw .sp-chip { display: inline-flex; overflow: visible; text-overflow: clip; }   /* 03 §6: chips never break or get cut */
+
+/* 02 §4 Against results: the summary line; 03 §6 a short 1 px divider where two text columns meet (24 px shorter than the row) */
+.sx-rsum { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.sx-rsum-l { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.sx-new td.sx-div, .sx-new th.sx-div { position: relative; padding-left: 18px; }
+.sx-new td.sx-div::before, .sx-new th.sx-div::before { content: ""; position: absolute; left: 0; top: 12px; bottom: 12px; width: 1px; background: color-mix(in srgb, var(--border-strong) 80%, transparent); }
+
+/* 04 §3 Technical chips: mark, word and signed score; fills from the site's green / red tokens, ink from ui-tokens.css (#448 block) */
+.sx-tech { display: inline-block; padding: 3px 8px; border-radius: var(--ui-r-mark); font: 600 var(--fs-13)/1.3 var(--sans); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.sx-tech-strongpos { background: color-mix(in srgb, var(--ui-tech-green) 22%, transparent); color: var(--ui-tech-up2-ink); }
+.sx-tech-pos { background: color-mix(in srgb, var(--ui-tech-green) 12%, transparent); color: var(--ui-tech-up-ink); }
+.sx-tech-neutral { background: var(--s2); color: var(--text); }
+.sx-tech-neg { background: color-mix(in srgb, var(--ui-tech-red) 12%, transparent); color: var(--ui-tech-dn-ink); }
+.sx-tech-strongneg { background: color-mix(in srgb, var(--ui-tech-red) 22%, transparent); color: var(--ui-tech-dn2-ink); }
+.sx-fl button[aria-disabled="true"] { opacity: .55; cursor: not-allowed; }
+
+/* 04 §5 The sector list box (the native select stays hidden and keeps the value) */
+.sx-slb { position: relative; display: inline-flex; align-items: center; gap: 8px; }
+.sx-slb-k { font: 600 var(--fs-14)/1.3 var(--sans); color: var(--muted); }
+.sx-slb-b { min-width: 280px; min-height: 40px; display: inline-flex; align-items: center; gap: 6px; padding: 6px 34px 6px 12px; position: relative; text-align: left;
+  border: 1px solid var(--ui-field-line); border-radius: var(--r-ctl); background: var(--s1); color: var(--text); font: 500 var(--fs-14)/1.3 var(--sans); cursor: pointer; }
+.sx-slb-b::after { content: ""; position: absolute; right: 13px; top: 50%; width: 7px; height: 7px; margin-top: -6px; border: solid var(--muted); border-width: 0 2px 2px 0; transform: rotate(45deg); }
+.sx-slb-b[aria-expanded="true"]::after { transform: rotate(-135deg); margin-top: -2px; }
+.sx-slb-b:focus-visible, .sx-slb-u:focus-visible { outline: 2px solid var(--focus, var(--gold)); outline-offset: 2px; }
+.sx-slb-u { position: absolute; z-index: 30; top: calc(100% + 4px); left: 0; min-width: 100%; max-height: 320px; overflow: auto; margin: 0; padding: 4px; list-style: none;
+  background: var(--bg-elevated, var(--s1)); border: 1px solid var(--border-strong); border-radius: var(--r-ctl); box-shadow: var(--ui-pop-shadow); }
+.sx-slb-u li { display: flex; align-items: center; gap: 6px; padding: 8px 10px; border-radius: var(--ui-r-mark); cursor: pointer; font: 400 var(--fs-14)/1.3 var(--sans); color: var(--text); }
+.sx-slb-u li.act { background: color-mix(in srgb, var(--gold) 14%, transparent); }
+.sx-slb-u li.on { font-weight: 600; }
+.sx-slb-ck { width: 14px; flex: none; color: var(--gain); }
+
+/* 02 §5 phones: the stocks read as cards, 5 first, then "Show the other 7" */
+.sx-narrow { display: none; }
+@media (max-width: 620px) {
+  .sx-slb { display: flex; flex-wrap: wrap; width: 100%; }
+  .sx-slb-b { width: 100%; min-width: 0; min-height: 44px; }
+  .sx-slb-u { left: 0; right: 0; }
+  .sx-wide { display: none; } .sx-narrow { display: inline; }
+  .sx-new table.sx-incards thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .sx-new table.sx-incards, .sx-new table.sx-incards tbody, .sx-new table.sx-incards tbody tr { display: block !important; width: 100% !important; min-width: 0 !important; }
+  .sx-new table.sx-incards tbody tr { display: grid !important; grid-template-columns: 1fr 1fr; gap: 10px 16px; padding: 12px 0; margin: 0; border: 0; border-bottom: 1px solid var(--border-strong); background: transparent !important; }
+  .sx-new table.sx-incards tbody td { background: transparent !important; display: block !important; width: auto !important; min-width: 0 !important; padding: 0 !important; border: 0 !important; text-align: left !important; white-space: normal; position: static !important; }
+  .sx-new table.sx-incards tbody td:first-child, .sx-new table.sx-incards tbody td[colspan] { grid-column: 1 / -1; }
+  .sx-new table.sx-incards tbody td.sx-div::before { display: none; }
+  .sx-new table.sx-incards tbody td[data-label]::before { content: attr(data-label); display: block; margin-bottom: 2px; color: var(--muted); font: 500 var(--fs-12)/1.3 var(--sans); letter-spacing: .06em; text-transform: uppercase; }
+  .sx-new table.sx-incards tbody td.sx-div[data-label]::before { display: block; position: static; width: auto; height: auto; background: none; }
+}
+
+/* 03 §5 Standout stocks: every column sorts; a faint ↕ (40%, 12 px+) becomes ▲ / ▼; one short "Sorted by" line; a "Sort by" select on phones */
+.sx-sorth > button { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; font: inherit; color: inherit; letter-spacing: inherit; text-transform: inherit; }
+.sx-sorth > button:focus-visible { outline: 2px solid var(--focus, var(--gold)); outline-offset: 2px; border-radius: var(--ui-r-mark); }
+.sx-arr { font-size: var(--fs-12); opacity: .4; }
+.sx-sorth[aria-sort="ascending"] .sx-arr, .sx-sorth[aria-sort="descending"] .sx-arr { opacity: 1; }
+.sx-so-line { margin: 6px 0 8px; font: 400 var(--fs-14)/1.4 var(--sans); color: var(--text); }
+.sx-so-sel { display: none; }
+@media (max-width: 620px) {
+  .sx-so-line { display: none; }
+  .sx-so-sel { display: flex; flex-direction: column; gap: 4px; margin: 8px 0 10px; font: 600 var(--fs-14)/1.3 var(--sans); color: var(--muted); }
+  .sx-so-sel select { min-height: 44px; width: 100%; padding: 6px 10px; border: 1px solid var(--ui-field-line); border-radius: var(--r-ctl); background: var(--s1); color: var(--text); font: 400 var(--fs-14)/1.3 var(--sans); }
+}
+
+/* 03 §3 Full table "Every sector, every number" */
+.sx-new .sx-ft.sx-key > thead > tr:first-child { display: table-row; }             /* the captions show in Key figures too, spanning the columns showing */
+.sx-new .sx-ft .sp-xrow thead tr:first-child { display: table-row; }                  /* the opened sector's stock list keeps its own header (the site's descendant selector hid it) */
+.sx-new .sx-ft thead th { vertical-align: bottom; }                                    /* every header label on one baseline; an i never lifts its label */
+.sx-new .sx-ft .sp-full-g .sx-cap { position: relative; text-align: left; color: var(--text) !important; border-bottom: 0 !important; padding: 8px 10px 6px; font: 700 var(--fs-12)/1.3 var(--sans); letter-spacing: .06em; text-transform: uppercase; }
+.sx-new .sx-ft .sp-full-g .sx-cap::after { content: ""; position: absolute; left: 10px; right: 10px; bottom: 0; height: 1px; background: var(--border-strong); }
+.sx-new .sx-ft .sp-full-g td { border: 0; background: transparent; }
+.sx-new .sx-ft .sx-ftn { min-width: 210px; }
+.sx-new .sx-ft .sx-ftn .sp-exp { white-space: normal; align-items: flex-start; }
+.sx-new .sx-ft .sx-ftn-t { display: block; }
+.sx-new .sx-ft .sx-ftn-t b { white-space: normal; }
+.sx-new .sx-ft .sx-ftn-t .sp-wal { margin-left: 4px; }
+.sx-new .sx-ft .sx-ftn-t small { display: block; margin-left: 0; }                    /* 03 §2: the stock count on its own line below the name */
+.sx-new .sx-so-full { margin: 10px 0 8px; }
+/* 03 §4: the pinned header (lib/pinnedHead.ts moves the real <thead>) */
+.sx-new .sx-ft thead.sx-pinned, .sx-new .sx-ft thead.sx-pinned th { position: relative; z-index: 6; }
+.sx-new .sx-ft thead.sx-pinned th { background: var(--s2) !important; box-shadow: 0 1px 0 var(--border-strong); }
+.sx-new .sx-ft .sp-xrow thead.sx-pinned th { z-index: 7; }
+/* 03 §6 lines: one 1 px line under each row at 85% of --border-strong; label chips never break */
+.sx-new .sp-tb tbody td { border-bottom: 1px solid color-mix(in srgb, var(--border-strong) 85%, transparent); }
+.sx-new .sp-peer, .sx-new .sx-peer, .sx-new .sx-vs, .sx-new .sp-chip, .sx-new .sx-prism, .sx-new .sx-tech { white-space: nowrap; }
+/* 03 §2: names elsewhere may wrap when the table is tight; the wallet never sits alone (a word joiner sits before it) */
+.sx-new td:has(> a.sp-ind) { white-space: normal; }
+.sx-new td:has(> a.sp-ind) a.sp-ind { white-space: normal; }
+@media (max-width: 620px) { .sx-new .sx-ft .sx-ftn { min-width: 150px; } }
+@media (prefers-reduced-motion: reduce) { .sx-new .sx-dd-ar { transition: none !important; } }
+
+/* 03 §8: the Momentum grid reads as a list on phones (Grid view only), each cell labelled with its column */
+@media (max-width: 620px) {
+  .sx-new .sx-mx { display: block !important; min-width: 0 !important; }
+  .sx-new .sx-mx .sp-mx-corner, .sx-new .sx-mx .sp-mx-col { display: none !important; }
+  .sx-new .sx-mx .sp-mx-row { margin-top: 14px; border: 0; background: transparent; padding: 0 0 6px; }
+  .sx-new .sx-mx .sp-mx-cell { margin: 0 0 8px; }
+  .sx-new .sx-mx .sp-mx-cell::before { content: attr(data-label); display: block; margin-bottom: 4px; color: var(--muted); font: 500 var(--fs-12)/1.3 var(--sans); letter-spacing: .06em; text-transform: uppercase; }
+}
+/* 07 M2: an i beside a sort arrow sits 10 px clear of it, both 24 px targets */
+.sx-new .sx-sorth > button + .sp-i { margin-left: 10px; }
+.sx-new .sx-sorth > button { min-height: 24px; }
+@media (max-width: 620px) {
+  .sx-new table.sx-incards tbody tr { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sx-new table.sx-incards.sx-cards1 tbody tr { grid-template-columns: minmax(0, 1fr); }   /* wide state chips: one value per line */
+  .sx-new table.sx-incards tbody tr.sx-mine > td:first-child { padding-left: 10px !important; }
+}
+
+/* 07 M1: every capital-letter label uses the same 0.06em letter spacing */
+.sx-new .sp-tb th, .sx-new .sp-eyebrow, .sx-new .sp-cap, .sx-new .sx-why summary, .sx-new .sx-new-b { letter-spacing: .06em; }
+/* 07 M2: the i beside a sort arrow keeps its full 18 px button (it was squeezed to 4 px) */
+.sx-new .sx-sorth .sp-i { flex: none; display: inline-flex; width: 18px; min-width: 18px; height: 18px; vertical-align: middle; }
+@media (max-width: 620px) {
+  .sx-new .sp-i, .sx-new .sx-sorth .sp-i { width: 24px; min-width: 24px; height: 24px; }      /* the site's i buttons are 24 px on phones */
+  /* 07 B3: Today's squares wrap into rows of about 28 px squares instead of one row of 13 px squares */
+  .sx-new .sx-today .sp-squares { flex-wrap: wrap; gap: 5px; }
+  .sx-new .sx-today .sp-squares li { flex: 0 0 28px; width: 28px; max-width: 28px; }
+}
+
+/* 03 §1 even gaps (lib/evenGaps.ts): measured one line per column, then one equal gap, half each side of a cell, 16 px at the edges */
+.sx-new table.sx-measure { width: max-content !important; min-width: 0 !important; table-layout: auto !important; }
+.sx-new table.sx-measure th, .sx-new table.sx-measure td { padding-left: 0 !important; padding-right: 0 !important; white-space: nowrap !important; }
+.sx-new table.sx-measure tr:has(> td[colspan]) { display: none; }
+.sx-new table.sx-even { table-layout: auto; }
+.sx-new table.sx-even:not(.sx-tight) { width: 100%; }
+.sx-new table.sx-even > * > tr > th, .sx-new table.sx-even > * > tr > td { padding-left: calc(var(--sx-gap) / 2) !important; padding-right: calc(var(--sx-gap) / 2) !important; }
+.sx-new table.sx-even > * > tr > :first-child { padding-left: 16px !important; }
+.sx-new table.sx-even > * > tr > :last-child { padding-right: 16px !important; }
+.sx-new table.sx-even > * > tr > td[colspan] { padding-left: 16px !important; padding-right: 16px !important; }
+.sx-new table.sx-tight > tbody > tr > td:first-child { min-width: 210px; }
+.sx-new table.sx-even th.sx-nb { white-space: nowrap; }
+@media (max-width: 620px) { .sx-new table.sx-tight > tbody > tr > td:first-child { min-width: 150px; } }
+.sx-new table.sx-tight > thead > tr > th:not(.sx-nb) { white-space: normal; }
+
+/* 07 M2 control sizes: filters and toggles 32 px (40 on phones); buttons and in-step tabs 40 px (44); text buttons a 32 px touch area (44) */
+.sx-new .sx-fl button, .sx-new .sp-fbtn, .sx-new .rp-tg, .sx-new .sx-colset button, .sx-new .sx-whyb { min-height: 32px; }
+.sx-new .sx-bar [role="tab"], .sx-new .sx-stepgo button, .sx-new .sx-ab, .sx-new .sx-ma-b { min-height: 40px; }
+.sx-new .sx-tlink, .sx-new .sp-showall, .sx-new .sp-morebtn { display: inline-flex; align-items: center; min-height: 32px; }
+@media (max-width: 620px) {
+  .sx-new .sx-fl button, .sx-new .sp-fbtn, .sx-new .rp-tg, .sx-new .sx-colset button, .sx-new .sx-whyb { min-height: 40px; }
+  .sx-new .sx-bar [role="tab"], .sx-new .sx-stepgo button, .sx-new .sx-ab, .sx-new .sx-ma-b { min-height: 44px; }
+  .sx-new .sx-tlink, .sx-new .sp-showall, .sx-new .sp-morebtn { min-height: 44px; }
+}

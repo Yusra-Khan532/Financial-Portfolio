@@ -9,6 +9,7 @@
 import { Fragment, useEffect, useState, type ReactNode } from "react";
 import { useSearchParams } from "react-router";
 import { foldAnchor, revealAndScroll } from "../../PhoneFold";
+import { TtkSlot } from "./Common";
 
 export type NavStop = { id: string; label: string };
 export function SxNav({ items }: { items: NavStop[] }) {
@@ -51,7 +52,9 @@ export type BoxTab = { key: string; label: string; isNew?: boolean; content: Rea
 const read = (k: string) => { try { return localStorage.getItem(k); } catch { return null; } };
 const write = (k: string, v: string) => { try { localStorage.setItem(k, v); } catch { /* private window: not remembered */ } };
 
-export function SxBox({ id, label, sub, tabs, param, store }: { id: string; label: string; sub: string; tabs: BoxTab[]; param?: string; store: string }) {
+export function SxBox({ id, label, sub, tabs, param, store, ttk }: { id: string; label: string; sub: string; tabs: BoxTab[]; param?: string; store: string;
+  /** task #448 (01 §4, 07 B2): things to know beside the tab bar, outside the tab list (a tablist holds only tabs) */ ttk?: ReactNode }) {
+  const [slot, setSlot] = useState<HTMLElement | null>(null);
   const [params, setParams] = useSearchParams();
   const keys = tabs.map((t) => t.key);
   const asked = param ? params.get(param) : null, saved = read(store);
@@ -71,12 +74,16 @@ export function SxBox({ id, label, sub, tabs, param, store }: { id: string; labe
   };
   return (
     <div className="sx-box" id={id} data-box={id}>
+      <div className="sx-barw">
       <div className="sx-bar" role="tablist" aria-label={label}>
         <span className="sx-bar-ic" aria-hidden="true">⇆</span>
         <span className="sx-bar-k">{label}<small>{sub}</small></span>
         {tabs.map((t, i) => <button key={t.key} id={`${id}-t-${t.key}`} type="button" role="tab" aria-selected={cur === t.key} aria-controls={`${id}-p-${t.key}`} tabIndex={cur === t.key ? 0 : -1}
           className={cur === t.key ? "on" : undefined} onClick={() => pick(t.key)} onKeyDown={(e) => onKey(e, i)}><i>{i + 1}</i>{t.label}{t.isNew && <span className="n"> new</span>}</button>)}
       </div>
+      {ttk && <span className="sx-ttk-slot sx-bar-ttk" ref={setSlot} />}
+      </div>
+      {ttk && <TtkSlot.Provider value={slot}>{ttk}</TtkSlot.Provider>}
       {tabs.map((t) => (seen.has(t.key) || cur === t.key) && (
         <div key={t.key} id={`${id}-p-${t.key}`} className="sx-pane" role="tabpanel" aria-labelledby={`${id}-t-${t.key}`} hidden={cur !== t.key}>{t.content}</div>))}
     </div>

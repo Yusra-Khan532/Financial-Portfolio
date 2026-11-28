@@ -6,7 +6,9 @@
 
 The choices are kept in the member's preferences as `sectorAlerts`, one entry per alert: "<kind>:<view>:<slug>" (view: sectors or industries, the page's Show
 switch), so a sector of the Sectors view and an industry of the Industries view are told apart. Each group with at least one alert counts as one of the member's
-alerts (alertapi: ALERT_LIMITS). Everything is read from the live release's nightly files; nothing here writes them. Dedupe is auto_alert_sent's primary key
+alerts (alertapi: ALERT_LIMITS). Task #448 (developer file 42, 02 §1.2): the slug "mine" is one alert for all the member's sectors (or industries): at each run
+it is the groups of the shares the member holds then (their portfolio, owned shares), so the sectors of shares added later are covered too; it counts as one
+alert. Everything is read from the live release's nightly files; nothing here writes them. Dedupe is auto_alert_sent's primary key
 (user, "@<view>:<slug>", kind, the week's closing date). Messages describe what happened; never advice."""
 from __future__ import annotations
 
@@ -114,10 +116,50 @@ def message(name: str, view: str, ev: Dict[str, Any]) -> Tuple[str, str]:
             f"At this week's close {name} is {where} on Sector Rotation. {FOOTER}")
 
 
-def wanted(entries: Iterable[Tuple[str, str, str]]) -> Dict[Tuple[str, str], set]:
+MINE = "mine"
+
+
+def held_symbols(portfolio: Any) -> List[str]:
+    """The member's shares, each once: the portfolio's holdings that are owned (owned is not false) and not a sale."""
+    if isinstance(portfolio, str):
+        try:
+            portfolio = json.loads(portfolio)
+        except ValueError:
+            portfolio = {}
+    hs = portfolio.get("holdings") if isinstance(portfolio, dict) else None
+    out: List[str] = []
+    for h in hs if isinstance(hs, list) else []:
+        sym = str(h.get("symbol") or "").strip().upper() if isinstance(h, dict) else ""
+        if sym and h.get("owned") is not False and h.get("side") != "sell" and sym not in out:
+            out.append(sym)
+    return out
+
+
+def groups_of(rel, view: str, symbols: Iterable[str]) -> List[str]:
+    """The Sector Pulse groups (slugs) of these shares in one view, as /api/sectors/membership answers it; shares with no group are left out."""
+    from .sector_api import _group_maps, _nse_classes   # imported here: sector_api is the web layer
+    base = rel / sd.LEVELS_DIR if view == "sectors" else rel
+    board = sd.read_json(base / "sectors" / "_board.json")
+    if not isinstance(board, dict):
+        return []
+    by_ind, by_sec = _group_maps(board)
+    cls, out = _nse_classes(), []
+    for sym in symbols:
+        if sym not in cls:
+            continue
+        ind, sec = cls[sym]
+        hit = (by_sec.get(sec) if sec else None) if view == "sectors" else (by_ind.get(ind) or (by_sec.get(sec) if sec else None))
+        if hit and hit["slug"] not in out:
+            out.append(hit["slug"])
+    return out
+
+
+def wanted(entries: Iterable[Tuple[str, str, str]], mine: Optional[Dict[str, List[str]]] = None) -> Dict[Tuple[str, str], set]:
+    """(view, slug) -> the kinds asked. A "mine" entry adds its kinds to each of the member's groups in that view (`mine`: view -> slugs)."""
     out: Dict[Tuple[str, str], set] = {}
     for k, v, s in entries:
-        out.setdefault((v, s), set()).add(k)
+        for slug in ((mine or {}).get(v, []) if s == MINE else [s]):
+            out.setdefault((v, slug), set()).add(k)
     return out
 
 
@@ -131,12 +173,19 @@ async def auto_sector_alerts(pool, mailer, site_url: str, release=None) -> int:
     sent = 0
     async with pool.acquire() as conn:
         users = await conn.fetch(
-            "SELECT u.id, u.email, s.prefs FROM users u JOIN user_state s ON s.user_id = u.id "
+            "SELECT u.id, u.email, s.prefs, s.portfolio FROM users u JOIN user_state s ON s.user_id = u.id "
             "WHERE u.status = 'active' AND u.email_verified_at IS NOT NULL AND u.plan IN ('silver', 'gold', 'mfetf', 'equity', 'combined', 'platinum') "
             "AND (u.plan_until IS NULL OR u.plan_until > now())")
         for u in users:
             prefs = json.loads(u["prefs"]) if isinstance(u["prefs"], str) else (u["prefs"] or {})
-            asked = wanted(parse(prefs.get("sectorAlerts")))
+            entries = parse(prefs.get("sectorAlerts"))
+            mine: Dict[str, List[str]] = {}
+            for view in {v for _, v, sl in entries if sl == MINE}:
+                try:
+                    mine[view] = groups_of(rel, view, held_symbols(u["portfolio"]))
+                except Exception:
+                    log.exception("sector alert: the member's groups could not be read")
+            asked = wanted(entries, mine)
             n = 0
             for (view, slug), kinds in asked.items():
                 if (view, slug) not in cache:

@@ -8,16 +8,16 @@
 //  - MoodWeeks: "The market's mood, week by week": one column per weekly close (week_ends of /api/sector-history). Opens on Simple: 3 groups; a switch shows all
 //    6 states. Pointing at or pressing a column shows that week's counts and the change on the week before in a line under the chart.
 // Describes, never advises. Styles: styles/sector-pages.css.
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { ApiError, apiGet } from "../../../lib/api";
 import type { Board, GroupRow, StateCode } from "../../../lib/sectors";
 import type { IndustryMap } from "../../../lib/sectorExtra";
 import type { SectorHistory, StateKey } from "../../../lib/sectorHistory";
-import { COLOUR, MEANING, OF_CODE, WORD, allSectors, belowHigh, dayMon, groupsN, ofSectors, keyOf, risingOf, short } from "../../../lib/pulsePack";
+import { COLOUR, MEANING, OF_CODE, WORD, belowHigh, dayMon, groupsN, keyOf, risingOf, short } from "../../../lib/pulsePack";
 import { gl, sq, tw, wordsShow } from "../../../lib/groupWords";
-import { BoxChip, Cards, Scroll, Section, StateChip } from "./Common";
+import { Wallet, BoxChip, Cards, Scroll, Section, StateChip } from "./Common";
 import { placeLabels } from "./PulseSimple";
 
 // ------------------------------------------------------------------------------------------------ the hover card
@@ -25,7 +25,7 @@ export function HoverCard({ r, mine, at }: { r: GroupRow; mine: boolean; at: { x
   const up = risingOf(r), pts = r.rotation?.strength_pts;
   return (
     <div className="sx-hc" role="tooltip" style={{ left: at.x, top: at.y }}>
-      <b>{short(r.name)}{mine && <em>Yours</em>}</b>
+      <b>{short(r.name)}{mine && <Wallet />}</b>
       <div className="sx-hcc"><StateChip k={keyOf(r)} /><BoxChip corner={r.rotation?.corner} /></div>
       <dl>
         <div><dt>Stocks rising</dt><dd>{up ?? "–"} of {r.stocks_counted}</dd></div>
@@ -89,9 +89,10 @@ export function SectorMap({ m, b, mine }: { m: IndustryMap; b: Board; mine: Set<
         {MAP_ORDER.map((k) => <button key={k} type="button" className={"rp-tg" + (off.has(k) ? "" : " on")} aria-pressed={!off.has(k)} onClick={() => tog(k)}><span className="rp-tick" aria-hidden="true">✓</span><i className="sx-dot" style={{ background: COLOUR[k] }} aria-hidden="true" />{WORD[k]} <small>{counts(k)}</small></button>)}
         {mine.size > 0 && <button type="button" className={"rp-tg" + (onlyMine ? " on" : "")} aria-pressed={onlyMine} onClick={() => setOnlyMine(!onlyMine)}><span className="rp-tick" aria-hidden="true">✓</span>{tw("Only my industries")}</button>}
         <button type="button" className={"rp-tg" + (names ? " on" : "")} aria-pressed={names} onClick={() => setNames(!names)}><span className="rp-tick" aria-hidden="true">✓</span>Names</button>
+        {mine.size > 0 && <span className="sx-mapkey"><i className="sx-ring" aria-hidden="true" />Ringed dot: in your portfolio</span>}{/* task #448 (02 §3 Map, 04 §1) */}
       </div>
       <div className="sp-chartw sx-mapw" ref={wrap} onMouseLeave={hv.hide}>
-        <svg viewBox={`0 0 ${W} ${H}`} role="img" data-testid="map-chart" aria-label={`${groupsN(m.rows.length)} by stocks rising and distance below their 1-year high${latest ? "" : `, at the close of ${weeks[at] ? dayMon(weeks[at]) : ""}`}.`}>
+        <svg viewBox={`0 0 ${W} ${H}`} role="group" data-testid="map-chart" aria-label={`${wordsShow() === "sectors" ? "Sectors with a reading," : groupsN(m.rows.length)} by stocks rising and distance below their 1-year high${latest ? "" : `, at the close of ${weeks[at] ? dayMon(weeks[at]) : ""}`}.`}>
           <rect className="sp-zone-up" x={x(50)} y={y(0)} width={x(100) - x(50)} height={y(-15) - y(0)} />
           <rect className="sp-zone-dn" x={x(0)} y={y(-15)} width={x(50) - x(0)} height={y(lo) - y(-15)} />
           {[0, 25, 50, 75, 100].map((v) => <g key={v}><line className={v === 50 ? "sp-mid" : "sp-grd"} x1={x(v)} x2={x(v)} y1={T} y2={H - B} /><text className="sp-ax" x={x(v)} y={H - B + 18} textAnchor="middle">{v}</text></g>)}
@@ -127,39 +128,62 @@ export function SectorMap({ m, b, mine }: { m: IndustryMap; b: Board; mine: Set<
 }
 
 // ------------------------------------------------------------------------------------------------ the mood, week by week
-const SIMPLE: { key: string; label: string; ks: StateKey[]; colour: string }[] = [
-  { key: "up", label: "Rising or bouncing back", ks: ["crash", "bouncing", "rising"], colour: COLOUR.bouncing },
-  { key: "none", label: "No clear signal", ks: ["no_signal"], colour: COLOUR.no_signal },
-  { key: "down", label: "Losing steam or sold off", ks: ["losing", "sold_off"], colour: COLOUR.sold_off },
-];
-const ALL6: StateKey[] = ["crash", "bouncing", "rising", "no_signal", "losing", "sold_off"];
+/** Task #448 (developer file 42, 02 §3 Over time): "The market's mood, week by week" as one chart. Each weekly close is a thin column: groups rising or bouncing
+ *  back are drawn up from a middle line, groups losing steam or sold off down from it; the rest (no clear signal) are left out of the bars and named in the
+ *  readout. The chart is one slider (role="slider"): ← → / ↑ ↓ / Home / End or a pointer pick a week; it opens on the latest. */
+const UP: StateKey[] = ["rising", "bouncing", "crash"], DOWN: StateKey[] = ["losing", "sold_off"];
+const MONTH = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+export function moodLead(up: number, down: number, up4: number | null, down4: number | null, ns: string): { b: string; rest: string } {
+  const b = up < down ? `More ${ns} are being sold than rising.` : up > down ? `More ${ns} are rising than being sold.` : "Rising and selling are even.";
+  return { b, rest: ` This week ${up} ${up === 1 ? "is" : "are"} rising or bouncing back and ${down} ${down === 1 ? "is" : "are"} losing steam or sold off${up4 != null && down4 != null ? `; four weeks ago it was ${up4} and ${down4}` : ""}.` };
+}
 export function MoodWeeks({ h }: { h: SectorHistory }) {
-  const ends = h.week_ends ?? [], total = h.groups.length;
-  const [all, setAll] = useState(false), [on, setOn] = useState(ends.length - 1);
-  const layers = all ? ALL6.map((k) => ({ key: k, label: WORD[k], ks: [k], colour: COLOUR[k] })) : SIMPLE;
-  const count = (i: number, ks: StateKey[]) => h.groups.filter((g) => g.states[i] && ks.includes(g.states[i]!)).length;
-  const col = (j: number) => layers.map((l) => ({ ...l, n: count(ends[j], l.ks) }));
-  const cur = on >= 0 && on < ends.length ? col(on) : [], prev = on > 0 ? col(on - 1) : null;
-  const line: ReactNode = cur.length ? <>{cur.map((l, i) => { const d = prev ? l.n - prev[i].n : null; return <span key={l.key}><i className="sx-dot" style={{ background: l.colour }} aria-hidden="true" /> {l.label} <b>{l.n}</b>{d == null ? "" : d === 0 ? " (no change)" : <span className={d > 0 ? "sx-d-up" : "sx-d-dn"}> ({d > 0 ? "▲" : "▼"}{Math.abs(d)})</span>}</span>; })}</> : null;
+  const ends = h.week_ends ?? [], n = ends.length;
+  const [on, setOn] = useState(n - 1);
+  const box = useRef<HTMLDivElement>(null);
+  const cnt = (i: number, ks: StateKey[]) => h.groups.filter((g) => g.states[i] && ks.includes(g.states[i]!)).length;
+  const cols = ends.map((i) => ({ date: h.dates[i], up: cnt(i, UP), down: cnt(i, DOWN), rest: h.groups.filter((g) => g.states[i] && !UP.includes(g.states[i]!) && !DOWN.includes(g.states[i]!)).length }));
+  if (!n) return <div className="sp-sec"><p className="sp-empty">The history is not available right now.</p></div>;
+  const max = Math.max(1, ...cols.map((c) => Math.max(c.up, c.down)));
+  const W = 1000, H = 230, top = 10, mid = 105, half = 90, step = W / n, bw = Math.max(4, Math.min(18, step * 0.55));
+  const ns = tw("industries"), last = cols[n - 1], four = n >= 5 ? cols[n - 5] : null;
+  const lead = moodLead(last.up, last.down, four?.up ?? null, four?.down ?? null, ns);
+  const months: { j: number; label: string }[] = [];
+  cols.forEach((c, j) => { const m = Number(c.date.slice(5, 7)) - 1, prev = j ? Number(cols[j - 1].date.slice(5, 7)) - 1 : -1;
+    if (m !== prev && (!months.length || j - months[months.length - 1].j >= 3)) months.push({ j, label: MONTH[m] }); });
+  const pickAt = (clientX: number) => { const r = box.current?.getBoundingClientRect(); if (!r) return; setOn(Math.max(0, Math.min(n - 1, Math.floor(((clientX - r.left) / r.width) * n)))); };
+  const key = (e: React.KeyboardEvent) => {
+    const j = e.key === "ArrowRight" || e.key === "ArrowUp" ? Math.min(n - 1, on + 1) : e.key === "ArrowLeft" || e.key === "ArrowDown" ? Math.max(0, on - 1) : e.key === "Home" ? 0 : e.key === "End" ? n - 1 : -1;
+    if (j >= 0) { e.preventDefault(); setOn(j); }
+  };
+  const c = cols[on] ?? last;
+  const text = `${dayMon(c.date)}: ${c.up} rising or bouncing back, ${c.rest} no clear signal, ${c.down} losing steam or sold off`;
   return (
-    <Section id="sp-mood" title="The market's mood, week by week" help={`The market's mood. At every weekly close each of ${wordsShow() === "sectors" ? ofSectors(total) : `the ${groupsN(total)}`} has one state. Each column stacks how many were in each state, so it always adds up to ${total}. Point at or press a column to read it.`}
-      sub={`${allSectors(total)} at each weekly close: each colour is how many were in that state. Read it like weather for the whole market.`}>
-      <div className="sx-mh">
-        <div className="sx-seg" role="group" aria-label="Detail"><button type="button" aria-pressed={!all} onClick={() => setAll(false)}>Simple: 3 groups</button><button type="button" aria-pressed={all} onClick={() => setAll(true)}>All 6 states</button></div>
-        <ul className="sx-lg">{layers.map((l) => <li key={l.key}><i style={{ background: l.colour }} aria-hidden="true" />{l.label}</li>)}</ul>
-      </div>
-      <div className="sx-mood">
-        <div className="sx-my" aria-hidden="true"><span>{total}</span><span>{Math.round(total / 2)}</span><span>0</span></div>
-        <div className="sx-mc" role="group" aria-label={tw("How many industries were in each state at each weekly close")}>
-          {ends.map((i, j) => (
-            <button key={i} type="button" className={"sx-col" + (j === on ? " on" : "")} aria-pressed={j === on} aria-label={`${dayMon(h.dates[i])}: ${col(j).map((l) => `${l.n} ${l.label.toLowerCase()}`).join(", ")}`}
-              onMouseEnter={() => setOn(j)} onFocus={() => setOn(j)} onClick={() => setOn(j)}>
-              <span className="sx-stack">{[...col(j)].reverse().map((l) => <i key={l.key} style={{ flexGrow: l.n, background: l.colour }} />)}</span>
-              <small>{(ends.length - 1 - j) % 4 === 0 ? dayMon(h.dates[i]) : ""}</small>
-            </button>))}
+    <Section id="sp-mood" title="The market's mood, week by week" help={tw("The market's mood. At every weekly close each industry with a reading has one state. Above the line: how many were rising or bouncing back; below it: how many were losing steam or sold off.")}
+      sub={tw("Each column is one weekly close: industries rising or bouncing back above the line, industries losing steam or sold off below it.")}>
+      <p className="sx-yr-lead"><b>{lead.b}</b>{lead.rest}</p>
+      <ul className="sx-moodkey">
+        <li><i className="sx-mk-up" aria-hidden="true" />Rising or bouncing back (above the line)</li>
+        <li><i className="sx-mk-dn" aria-hidden="true" />Losing steam or sold off (below the line)</li>
+        <li><i className="sx-mk-rest" aria-hidden="true" />The rest: no clear signal</li>
+      </ul>
+      <div className="sx-moodc">
+        <div className="sx-moody" aria-hidden="true"><span>{max}</span><span>0</span><span>{max}</span></div>
+        <div ref={box} className="sx-moodbox" role="slider" tabIndex={0} aria-label="The market's mood, week by week" aria-valuemin={0} aria-valuemax={n - 1} aria-valuenow={on} aria-valuetext={text}
+          onKeyDown={key} onPointerMove={(e) => pickAt(e.clientX)} onPointerDown={(e) => pickAt(e.clientX)}>
+          <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" aria-hidden="true">
+            <line className="sx-mood-mid" x1={0} x2={W} y1={mid} y2={mid} />
+            {cols.map((k, j) => { const x = j * step + (step - bw) / 2, u = (k.up / max) * half, d = (k.down / max) * half; return (
+              <g key={j} className={j === on ? "on" : undefined}>
+                {j === on && <rect className="sx-mood-hl" x={j * step} y={top - 6} width={step} height={2 * half + 12} />}
+                <rect className="sx-mood-up" x={x} y={mid - u} width={bw} height={u} />
+                <rect className="sx-mood-dn" x={x} y={mid} width={bw} height={d} />
+              </g>); })}
+          </svg>
+          <div className="sx-moodx" aria-hidden="true">{months.map((m) => <span key={m.j} style={{ left: `${((m.j + 0.5) / n) * 100}%` }}>{m.label}</span>)}</div>
         </div>
       </div>
-      {cur.length > 0 && <p className="sx-mr"><b>{dayMon(h.dates[ends[on]])}</b>{line}<span className="sx-sm">{prev ? "In brackets: the change on the week before." : "The first week shown."} {tw("A thick yellow band means most industries were being sold; green growing from the bottom means bounces are spreading.")}</span></p>}
+      <p className="sx-mood-read"><b>{dayMon(c.date)}</b> · {c.up} rising or bouncing back · {c.rest} no clear signal · {c.down} losing steam or sold off</p>
     </Section>
   );
 }
