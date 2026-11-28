@@ -27,7 +27,8 @@ import re
 import time
 from datetime import datetime, timezone
 from email.message import EmailMessage
-from email.utils import formataddr, make_msgid
+from email import message_from_bytes, policy as email_policy
+from email.utils import formataddr, formatdate, make_msgid, parseaddr
 from html import escape
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 from urllib.parse import quote
@@ -90,6 +91,16 @@ class SesError(Exception):
     pass
 
 
+def raw_sender(raw: bytes) -> str:
+    """The address a raw mail is sent from: its own From when that is on the finlitventures.com domain (a personal address such as
+    pranshu@finlitventures.com, which SES's domain identity allows), otherwise contact@."""
+    try:
+        addr = parseaddr(str(message_from_bytes(raw, policy=email_policy.default).get("From", "")))[1].lower()
+    except Exception:
+        return FROM_ADDRESS
+    return addr if valid_from_address(addr) else FROM_ADDRESS
+
+
 async def ses_send_raw(http: httpx.AsyncClient, to: str, raw: bytes) -> str:
     """Send one raw message through SES v2; returns SES's MessageId. Raises SesError with SES's own reason."""
     cfg = ses_config()
@@ -97,7 +108,7 @@ async def ses_send_raw(http: httpx.AsyncClient, to: str, raw: bytes) -> str:
         raise SesError("SES is not set up on the server (SES_REGION, SES_ACCESS_KEY_ID, SES_SECRET_ACCESS_KEY)")
     region, key_id, secret = cfg
     host, path = f"email.{region}.amazonaws.com", "/v2/email/outbound-emails"
-    body = json.dumps({"FromEmailAddress": FROM_ADDRESS, "Destination": {"ToAddresses": [to]},   # the shown name is the raw mail's own From
+    body = json.dumps({"FromEmailAddress": raw_sender(raw), "Destination": {"ToAddresses": [to]},   # the shown name is the raw mail's own From
                        "Content": {"Raw": {"Data": base64.b64encode(raw).decode("ascii")}}}).encode("utf-8")
     headers = {"content-type": "application/json"}
     headers.update(sigv4_headers("POST", host, path, "", body, region, "ses", key_id, secret, extra=headers))
@@ -277,14 +288,39 @@ def _html_para(p: str) -> str:
     return "<br>".join(LINK.sub(lambda m: f'<a href="{m.group(1)}" style="color:#1F6F50">{m.group(1)}</a>', escape(line)) for line in p.split("\n"))
 
 
-FORMATS = ("plain", "html")
+FORMATS = ("personal", "plain", "html")
+# "Personal note" (founder, 28 Nov 2026: a plain-text test still landed in Gmail's Promotions): a mail from a person, for small sends only.
+PERSONAL_MAX = 500
+PERSONAL_FOOT = "Rather not hear from us? Reply 'stop' and we won't write again.\n\nInformation only, not investment advice."
+DOMAIN = FROM_ADDRESS.split("@", 1)[1]
+LOCAL_OK = re.compile(r"^[a-z0-9._-]{1,40}$")
+
+
+def valid_from_address(addr: Optional[str]) -> bool:
+    """An address on our own domain only (SES's domain identity sends from any of them), with a simple local part."""
+    a = (addr or "").strip().lower()
+    local, _, dom = a.partition("@")
+    return dom == DOMAIN and bool(LOCAL_OK.match(local)) and not local.startswith(".") and ".." not in local
+
+
+def from_address_of(value: Optional[str]) -> Optional[str]:
+    """The form's From address (a local part such as "pranshu", or the whole address) as the full address; None for contact@ or empty.
+    Raises ValueError when it is not an address on our domain."""
+    v = (value or "").strip().lower()
+    if not v:
+        return None
+    full = v if "@" in v else f"{v}@{DOMAIN}"
+    if not valid_from_address(full):
+        raise ValueError(f"The From address must be on {DOMAIN}, like pranshu@{DOMAIN} (letters, digits, dots, dashes).")
+    return None if full == FROM_ADDRESS else full
 # A "From name" is shown in the inbox before the subject; the address is always contact@. Printable words only: no address, no line break.
 FROM_NAME_OK = re.compile(r"^[^\r\n<>@\"\x00-\x1f]{2,80}$")
 
 
-def from_header(from_name: Optional[str]) -> str:
+def from_header(from_name: Optional[str], from_address: Optional[str] = None) -> str:
     n = (from_name or "").strip()
-    return formataddr((n if n and FROM_NAME_OK.match(n) else FROM_NAME, FROM_ADDRESS))
+    addr = from_address if valid_from_address(from_address) else FROM_ADDRESS
+    return formataddr((n if n and FROM_NAME_OK.match(n) else FROM_NAME, addr))
 
 
 def personal(body: str, name: Optional[str]) -> str:
@@ -295,21 +331,29 @@ def personal(body: str, name: Optional[str]) -> str:
 
 def build_message(subject: str, body: str, why: str, to: str, name: Optional[str], unsub_url: str,
                   button_text: Optional[str] = None, button_url: Optional[str] = None, fmt: str = "html",
-                  from_name: Optional[str] = None) -> EmailMessage:
-    """One mail with the one-click unsubscribe headers. Two formats:
+                  from_name: Optional[str] = None, from_address: Optional[str] = None) -> EmailMessage:
+    """One mail. Three formats:
+    - "personal" (the default for new mails since 28 Nov 2026, for at most PERSONAL_MAX people): a mail from a person: text only, no
+      List-Unsubscribe headers, Reply-To the sender's own address, a two-line footer ("reply 'stop'"); a 'stop' reply is recorded in the Console.
+    The other two carry the one-click unsubscribe headers:
     - "plain" (the default for new mails since 28 Nov 2026): text only, like a mail one person writes to another, which Gmail most often keeps in
       Primary; links are written out, the button is a line "words: link", no HTML part and nothing to track;
     - "html": the designed mail with the button, plus the same text as a plain copy."""
     text = personal(body, name)
     if button_text and button_url:
         text += f"\n\n{button_text.strip()}: {button_url.strip()}"
-    foot = f"{why.strip()}\nUnsubscribe: {unsub_url}\n{DISCLAIMER}\nFinLit Ventures · {FROM_ADDRESS} · https://finlitventures.com"
+    sender = from_address if valid_from_address(from_address) else FROM_ADDRESS
     m = EmailMessage()
-    m["From"] = from_header(from_name)
+    m["From"] = from_header(from_name, sender)
     m["To"] = to
     m["Subject"] = subject.strip()
-    m["Reply-To"] = FROM_ADDRESS
+    m["Date"] = formatdate(localtime=False)
+    m["Reply-To"] = sender
     m["Message-ID"] = make_msgid(domain="finlitventures.com")
+    if fmt == "personal":
+        m.set_content(f"{text}\n\n{PERSONAL_FOOT}\n")
+        return m
+    foot = f"{why.strip()}\nUnsubscribe: {unsub_url}\n{DISCLAIMER}\nFinLit Ventures · {FROM_ADDRESS} · https://finlitventures.com"
     m["List-Unsubscribe"] = f"<{unsub_url}>, <mailto:{FROM_ADDRESS}?subject={quote('unsubscribe')}>"
     m["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click"
     m.set_content(f"{text}\n\n--\n{foot}\n")
@@ -331,13 +375,13 @@ def build_message(subject: str, body: str, why: str, to: str, name: Optional[str
     return m
 
 
-CAMPAIGN_COLS = "subject, body, why, button_text, button_url, format, from_name"
+CAMPAIGN_COLS = "subject, body, why, button_text, button_url, format, from_name, from_address"
 
 
 def message_for(k: Any, to: str, name: Optional[str], unsub: str, subject_prefix: str = "") -> EmailMessage:
     """One stored mail (a mail_campaigns row with CAMPAIGN_COLS) for one person."""
     return build_message(subject_prefix + k["subject"], k["body"], k["why"], to, name, unsub, k["button_text"], k["button_url"],
-                         k["format"] or "html", k["from_name"])
+                         k["format"] or "html", k["from_name"], k["from_address"])
 
 
 def preview_html(m: EmailMessage) -> str:
@@ -447,19 +491,55 @@ async def sync_members(conn) -> int:
         "SELECT count(*) FROM ins", MEMBERS)
 
 
-# The people one send reaches: active list rows that are members (when chosen) or come from a chosen list. $1 members?, $2 the lists.
-AUDIENCE = ("c.status = 'active' AND (($1::bool AND c.email IN (SELECT lower(u.email) FROM users u WHERE u.status = 'active')) "
-            "OR c.source = ANY($2::text[]))")
+# The people one send reaches: active list rows that are members (when chosen), come from a chosen list, or are among the addresses pasted into
+# "These addresses" (owner, 28 Nov 2026: "I can send the mail for like 5 to 6 persons"). m: members?, s: the lists, e: the pasted addresses.
+def audience_sql(m: str = "$1", s: str = "$2", e: str = "$3") -> str:
+    return (f"c.status = 'active' AND (({m}::bool AND c.email IN (SELECT lower(u.email) FROM users u WHERE u.status = 'active')) "
+            f"OR c.source = ANY({s}::text[]) OR c.email = ANY({e}::text[]))")
 
 
-async def audience_count(conn, members: bool, sources: List[str], campaign: Optional[int] = None) -> int:
-    """How many people a send to this audience reaches (leaving out those who already had `campaign`)."""
+AUDIENCE = audience_sql()
+
+
+def hand_source(now: Optional[datetime] = None) -> str:
+    """The list name pasted addresses are kept under, e.g. "Added by hand, 28 Nov 2026"."""
+    d = now or datetime.now(timezone.utc)
+    return f"Added by hand, {d.day} {d.strftime('%b %Y')}"
+
+
+def pasted_split(emails: Iterable[str]) -> Dict[str, Any]:
+    """The pasted addresses through the import's own checks (valid, not a misspelt domain, once each); no guess at a correction."""
+    return clean({"email": e} for e in emails)
+
+
+async def add_pasted(conn, emails: List[str]) -> Dict[str, Any]:
+    """Put pasted addresses on the list (under today's "Added by hand" name; an address already there keeps its row and its status, so an
+    unsubscribed person stays unsubscribed). Returns the addresses to mail and every one left out, with its reason."""
+    c = pasted_split(emails)
+    async with httpx.AsyncClient(timeout=httpx.Timeout(8.0, connect=5.0)) as http:
+        nomx = set(await domains_without_mail(http, (e.split("@", 1)[1] for e in c["good"])))
+    no_server = [e for e in c["good"] if e.split("@", 1)[1] in nomx]
+    good = [e for e in c["good"] if e.split("@", 1)[1] not in nomx]
+    if good:
+        await conn.execute("INSERT INTO mail_contacts (email, name, source) SELECT e, NULL, $2 FROM unnest($1::text[]) AS e "
+                           "ON CONFLICT (email) DO NOTHING", good, hand_source())
+    gone = await conn.fetch("SELECT email FROM mail_contacts WHERE email = ANY($1::text[]) AND status <> 'active' ORDER BY email", good)
+    return {"emails": good, "invalid": c["invalid"], "typos": c["typos"], "noMailServer": no_server, "unsubscribed": [r["email"] for r in gone]}
+
+
+async def audience_count(conn, members: bool, sources: List[str], campaign: Optional[int] = None, emails: Optional[List[str]] = None) -> int:
+    """How many people a send to this audience reaches (leaving out those who already had `campaign`). Pasted addresses not on the list yet
+    count too (they are added when the mail is sent); each person counts once."""
+    pasted = list(pasted_split(emails or [])["good"])
     q = f"SELECT count(*) FROM mail_contacts c WHERE {AUDIENCE}"  # nosec B608 - a constant; the values are parameters
-    args: List[Any] = [members, sources]
+    args: List[Any] = [members, sources, pasted]
     if campaign:
-        q += " AND NOT EXISTS (SELECT 1 FROM mail_sends s WHERE s.campaign_id = $3 AND s.contact_id = c.id)"
+        q += " AND NOT EXISTS (SELECT 1 FROM mail_sends s WHERE s.campaign_id = $4 AND s.contact_id = c.id)"
         args.append(campaign)
-    return await conn.fetchval(q, *args)
+    n = await conn.fetchval(q, *args)
+    if pasted:
+        n += await conn.fetchval("SELECT count(*) FROM unnest($1::text[]) AS e WHERE NOT EXISTS (SELECT 1 FROM mail_contacts c WHERE c.email = e)", pasted)
+    return n
 
 
 async def halted(redis) -> Optional[Dict[str, Any]]:
@@ -486,7 +566,7 @@ async def summary(request: Request, _ctx=Depends(admin_ctx)):
                                  "FROM mail_contacts WHERE source <> $1 GROUP BY source ORDER BY min(created_at) DESC", MEMBERS)
         contacts = await conn.fetch("SELECT source, status, count(*) AS n FROM mail_contacts GROUP BY source, status ORDER BY source, status")
         camps = await conn.fetch(
-            "SELECT k.id, k.subject, k.body, k.why, k.button_text, k.button_url, k.format, k.from_name, k.created_at, k.updated_at, "
+            "SELECT k.id, k.subject, k.body, k.why, k.button_text, k.button_url, k.format, k.from_name, k.from_address, k.created_at, k.updated_at, "
             "(SELECT count(*) FROM mail_contacts c WHERE c.status = 'active' AND NOT EXISTS (SELECT 1 FROM mail_sends x WHERE x.campaign_id = k.id "
             "AND x.contact_id = c.id)) AS remaining, "
             "count(s.id) FILTER (WHERE s.status = 'queued' OR s.status = 'sending') AS queued, count(s.id) FILTER (WHERE s.status = 'sent') AS sent, "
@@ -515,6 +595,7 @@ async def summary(request: Request, _ctx=Depends(admin_ctx)):
 class AudienceIn(BaseModel):
     members: bool = False
     sources: List[str] = Field(default_factory=list, max_length=50)
+    emails: List[str] = Field(default_factory=list, max_length=MAX_BATCH)    # "These addresses", pasted
 
 
 @router.post("/admin/mail/audience")
@@ -523,7 +604,7 @@ async def audience(request: Request, body: AudienceIn, campaign: Optional[int] =
     async with request.app.state.store.pool.acquire() as conn:
         if body.members:
             await sync_members(conn)
-        n = await audience_count(conn, body.members, [s for s in body.sources if s], campaign)
+        n = await audience_count(conn, body.members, [s for s in body.sources if s], campaign, body.emails)
     return out({"n": n})
 
 
@@ -533,8 +614,9 @@ class DraftIn(BaseModel):
     why: str = Field(default="", max_length=300)
     buttonText: Optional[str] = Field(default=None, max_length=60)
     buttonUrl: Optional[str] = Field(default=None, max_length=500)
-    format: str = Field(default="plain", pattern="^(plain|html)$")
+    format: str = Field(default="personal", pattern="^(personal|plain|html)$")
     fromName: Optional[str] = Field(default=None, max_length=80)
+    fromAddress: Optional[str] = Field(default=None, max_length=120)
 
 
 def admin_name(ctx: Any) -> Optional[str]:
@@ -546,9 +628,13 @@ def admin_name(ctx: Any) -> Optional[str]:
 async def preview_draft(request: Request, body: DraftIn, ctx=Depends(admin_ctx)):
     """The mail as it will look, from the form as it stands (nothing saved); {name} is the admin's own first name. Also names any advice words."""
     bt, bu = (body.buttonText or "").strip() or None, (body.buttonUrl or "").strip() or None
+    try:
+        fa = from_address_of(body.fromAddress)
+    except ValueError:
+        fa = None
     m = build_message(body.subject or "(no subject)", body.body or "", body.why or "", "preview@example.com", admin_name(ctx),
                       f"{request.app.state.settings.public_site_url}/api/mail/unsubscribe?t=preview", bt if bu else None, bu if bt else None,
-                      body.format, body.fromName)
+                      body.format, body.fromName, fa)
     return out({"html": preview_html(m), "from": m["From"], "adviceWords": wording_problems(body.subject, body.body, bt or "")})
 
 
@@ -598,8 +684,9 @@ class CampaignIn(BaseModel):
     why: str = Field(min_length=10, max_length=300)
     buttonText: Optional[str] = Field(default=None, max_length=60)
     buttonUrl: Optional[str] = Field(default=None, max_length=500)
-    format: str = Field(default="plain", pattern="^(plain|html)$")      # plain unless the form chose the designed mail
+    format: str = Field(default="personal", pattern="^(personal|plain|html)$")      # a personal note unless the form chose another
     fromName: Optional[str] = Field(default=None, max_length=80)
+    fromAddress: Optional[str] = Field(default=None, max_length=120)                # e.g. "pranshu" or pranshu@finlitventures.com; empty: contact@
 
 
 @router.post("/admin/mail/campaigns")
@@ -608,6 +695,10 @@ async def save_campaign(request: Request, body: CampaignIn, id: Optional[int] = 
     fn = (body.fromName or "").strip() or None
     if fn and not FROM_NAME_OK.match(fn):
         return out({"detail": "The From name can have 2 to 80 letters, without an @ sign, quotes or angle brackets."}, 422)
+    try:
+        fa = from_address_of(body.fromAddress)
+    except ValueError as e:
+        return out({"detail": str(e)}, 422)
     if bool(bt) != bool(bu):
         return out({"detail": "A button needs both its words and its link."}, 422)
     if bu and not re.match(r"^https://[^\s<>\"']+$", bu):
@@ -620,12 +711,12 @@ async def save_campaign(request: Request, body: CampaignIn, id: Optional[int] = 
             if await conn.fetchval("SELECT count(*) FROM mail_sends WHERE campaign_id = $1", id):
                 return out({"detail": "This mail has already been sent to some people; make a new mail instead of changing it."}, 409)
             row = await conn.fetchrow("UPDATE mail_campaigns SET subject = $2, body = $3, why = $4, button_text = $5, button_url = $6, format = $7, "
-                                      "from_name = $8, updated_at = now() WHERE id = $1 RETURNING id", id, body.subject, body.body, body.why, bt, bu,
-                                      body.format, fn)
+                                      "from_name = $8, from_address = $9, updated_at = now() WHERE id = $1 RETURNING id", id, body.subject, body.body,
+                                      body.why, bt, bu, body.format, fn, fa)
         else:
-            row = await conn.fetchrow("INSERT INTO mail_campaigns (subject, body, why, button_text, button_url, format, from_name, created_by) "
-                                      "VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id", body.subject, body.body, body.why, bt, bu, body.format, fn,
-                                      ctx.user_id)
+            row = await conn.fetchrow("INSERT INTO mail_campaigns (subject, body, why, button_text, button_url, format, from_name, from_address, "
+                                      "created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id", body.subject, body.body, body.why, bt, bu,
+                                      body.format, fn, fa, ctx.user_id)
     return out({"id": row["id"]} if row else {"detail": "No such mail"}, 200 if row else 404)
 
 
@@ -640,27 +731,41 @@ async def preview(request: Request, cid: int, ctx=Depends(admin_ctx)):
 
 
 class TestIn(BaseModel):
-    to: str = Field(max_length=254)
+    to: str = Field(max_length=1300)      # one address, or up to MAX_TESTS separated by commas, semicolons or spaces
+
+
+MAX_TESTS = 5
 
 
 @router.post("/admin/mail/campaigns/{cid}/test")
 async def send_test(request: Request, cid: int, body: TestIn, ctx=Depends(admin_ctx)):
-    """A test to one address, exactly as the people will get it; {name} is the signed-in admin's own first name ("there" when none is set)."""
-    to = body.to.strip().lower()
-    if not EMAIL.match(to):
-        return out({"detail": "That is not an email address."}, 422)
+    """A test, exactly as the people will get it, to one address or up to five (the admin and a few colleagues); each is marked [Test]. {name} is
+    the signed-in admin's own first name ("there" when none is set)."""
+    tos = list(dict.fromkeys(t.strip().strip("<>").lower() for t in re.split(r"[,;\s]+", body.to or "") if t.strip()))
+    if not tos:
+        return out({"detail": "Type the address to send the test to."}, 422)
+    if len(tos) > MAX_TESTS:
+        return out({"detail": f"A test goes to at most {MAX_TESTS} addresses."}, 422)
+    bad = [t for t in tos if not EMAIL.match(t)]
+    if bad:
+        return out({"detail": f"Not an email address: {', '.join(bad)}"}, 422)
     async with request.app.state.store.pool.acquire() as conn:
         k = await conn.fetchrow(f"SELECT {CAMPAIGN_COLS} FROM mail_campaigns WHERE id = $1", cid)  # nosec B608 - a constant
     if not k:
         return out({"detail": "No such mail"}, 404)
-    m = message_for(k, to, admin_name(ctx), f"{request.app.state.settings.public_site_url}/api/mail/unsubscribe?t=test", "[Test] ")
-    try:
-        async with httpx.AsyncClient(timeout=httpx.Timeout(20.0, connect=10.0)) as http:
-            mid = await ses_send_raw(http, to, m.as_bytes())
-    except (SesError, httpx.HTTPError) as e:
-        words, _stop = plain_error(str(e))
-        return out({"detail": words, "ses": str(e)[:300]}, 502)
-    return out({"status": "sent", "messageId": mid})
+    sent: List[str] = []
+    failed: List[Dict[str, str]] = []
+    async with httpx.AsyncClient(timeout=httpx.Timeout(20.0, connect=10.0)) as http:
+        for to in tos:
+            m = message_for(k, to, admin_name(ctx), f"{request.app.state.settings.public_site_url}/api/mail/unsubscribe?t=test", "[Test] ")
+            try:
+                await ses_send_raw(http, to, m.as_bytes())
+                sent.append(to)
+            except (SesError, httpx.HTTPError) as e:
+                failed.append({"to": to, "detail": plain_error(str(e))[0], "ses": str(e)[:300]})
+    if not sent:
+        return out({"detail": failed[0]["detail"], "ses": failed[0]["ses"], "failed": failed}, 502)
+    return out({"status": "sent", "sent": sent, "failed": failed})
 
 
 class SendIn(BaseModel):
@@ -668,6 +773,8 @@ class SendIn(BaseModel):
     members: bool = False
     sources: List[str] = Field(default_factory=list, max_length=50)
     source: Optional[str] = Field(default=None, max_length=160)
+    # "These addresses": pasted addresses, added to the list (as "Added by hand, <date>") with the import's checks, then sent to like the rest.
+    emails: List[str] = Field(default_factory=list, max_length=MAX_BATCH)
     # How many now: everyone chosen when left out; a number only for "send in steps" (a new sender's warm-up), under More options.
     count: Optional[int] = Field(default=None, ge=1, le=100000)
 
@@ -680,24 +787,57 @@ async def send_batch(request: Request, cid: int, body: SendIn, _ctx=Depends(admi
         return out({"detail": plain_error("not set up")[0]}, 503)
     sources = [s for s in ([*body.sources, body.source] if body.source else body.sources) if s]
     members = body.members
+    left: Dict[str, Any] = {}
     async with request.app.state.store.pool.acquire() as conn:
-        if not await conn.fetchval("SELECT 1 FROM mail_campaigns WHERE id = $1", cid):
+        fmt = await conn.fetchval("SELECT format FROM mail_campaigns WHERE id = $1", cid)
+        if fmt is None:
             return out({"detail": "No such mail"}, 404)
+        if fmt == "personal":
+            # A personal note has no one-click unsubscribe header, which Gmail requires of bulk senders: small sends only.
+            had = await conn.fetchval("SELECT count(*) FROM mail_sends WHERE campaign_id = $1", cid)
+            more = await audience_count(conn, members, sources, cid, body.emails)
+            if body.count is not None:
+                more = min(more, body.count)
+            if had + more > PERSONAL_MAX:
+                return out({"detail": f"A personal note goes to at most {PERSONAL_MAX} people (this would be {had + more:,}). Choose Plain email for a "
+                                      "send this size: it keeps the one-click unsubscribe that Gmail requires of bulk senders."}, 422)
         if members:
             await sync_members(conn)
-        if not members and not sources:
+        emails: List[str] = []
+        if body.emails:
+            left = await add_pasted(conn, body.emails)
+            emails = left.pop("emails")
+        if not members and not sources and not body.emails:
             if body.count is None:
-                return out({"detail": "Choose who gets this mail: FinLit members and/or a list."}, 422)
+                return out({"detail": "Choose who gets this mail: FinLit members, a list, or addresses under These addresses."}, 422)
             where, args = "c.status = 'active'", []     # the older form without a source: everyone on the list
         else:
-            where, args = AUDIENCE.replace("$1", "$3").replace("$2", "$4"), [members, sources]
+            where, args = audience_sql("$3", "$4", "$5"), [members, sources, emails]
         queued = await conn.fetchval(
             f"WITH ins AS (INSERT INTO mail_sends (campaign_id, contact_id) SELECT $1, c.id FROM mail_contacts c WHERE {where} "  # nosec B608 - constants
             "AND NOT EXISTS (SELECT 1 FROM mail_sends s WHERE s.campaign_id = $1 AND s.contact_id = c.id) "
             "ORDER BY c.id LIMIT $2 ON CONFLICT DO NOTHING RETURNING 1) SELECT count(*) FROM ins", cid, body.count, *args)
     await request.app.state.store.redis.delete(HALT_KEY)
     start_sender(request.app)
-    return out({"queued": queued})
+    return out({"queued": queued, "leftOut": left} if body.emails else {"queued": queued})
+
+
+class StopIn(BaseModel):
+    email: str = Field(max_length=254)
+
+
+@router.post("/admin/mail/unsubscribe")
+async def record_stop(request: Request, body: StopIn, _ctx=Depends(admin_ctx)):
+    """Someone replied 'stop' to a personal note: they are never mailed again. An address not on the list yet is added as unsubscribed."""
+    e = body.email.strip().strip("<>").lower()
+    if not EMAIL.match(e):
+        return out({"detail": "That is not an email address."}, 422)
+    async with request.app.state.store.pool.acquire() as conn:
+        await conn.execute("INSERT INTO mail_contacts (email, source, status, unsubscribed_at) VALUES ($1, 'Unsubscribed by reply', 'unsubscribed', now()) "
+                           "ON CONFLICT (email) DO UPDATE SET status = 'unsubscribed', unsubscribed_at = coalesce(mail_contacts.unsubscribed_at, now())", e)
+        dropped = await conn.fetchval("WITH d AS (UPDATE mail_sends s SET status = 'skipped', error = 'address is unsubscribed' FROM mail_contacts c "
+                                      "WHERE s.contact_id = c.id AND c.email = $1 AND s.status = 'queued' RETURNING 1) SELECT count(*) FROM d", e)
+    return out({"status": "unsubscribed", "email": e, "droppedFromQueue": dropped})
 
 
 @router.post("/admin/mail/resume")
