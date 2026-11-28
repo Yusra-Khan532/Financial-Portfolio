@@ -397,6 +397,14 @@ def build_jobs(env: Optional[Mapping[str, str]] = None) -> List[Job]:
             what="News sentiment (task #365): scores every news item and exchange filing not scored yet with the financial-news language model "
                  "(finlit/sentiment.py: an int8 ONNX DistilRoBERTa, one thread, about 300 MB), newest first, up to 40,000 a run; the score is "
                  "P(positive) - P(negative) from -1 to +1. Database only; continues where it stopped"),
+        # task #365 re-check (28 Nov 2026): the filings' own words for the sentiment job, which until then read only the exchange's subject line. Light
+        # (network-bound, one small PDF at a time, about 120 MB), its own lane beside the bulk jobs; resumable: every outcome is kept, the next run continues.
+        Job("filing-text", ("read-filings", "--max-minutes", "20", "--limit", "300"), priority=45, max_runtime_min=30, weight_mb=150, stall_min=20,
+            windows=(W("NIGHT", 20), W("MORNING", 14)), interval_min=180, sla=Sla("hours", 30), resumable=True, catchup=True, max_attempts=5,
+            what="Filing text (task #365): the opening paragraphs of exchange filings that have no text beyond their subject line, from the first two pages "
+                 "of their PDFs on the exchange's archive (letterhead, addresses and signatures taken out), for the sentiment score; newest first, 300 a run, "
+                 "none started after 20 min, one request at a time with a pause, robots.txt obeyed; routine filings are not fetched; a file that fails is "
+                 "tried again after 3, 9 and 27 days, a scan with no text is not asked for again (finlit/filing_text.py)"),
         Job("feed-sort", ("feed-sort", "--max-minutes", "20"), priority=45, max_runtime_min=30, weight_mb=120, stall_min=20,
             windows=(W("NIGHT", 20), W("MORNING", 14)), interval_min=180, sla=Sla("hours", 30), resumable=True, catchup=True,
             what="News & filings sorting (task #309): when the feed's sorting rules change (feed.SORT_RULES), re-sorts every stored filing once into result / "

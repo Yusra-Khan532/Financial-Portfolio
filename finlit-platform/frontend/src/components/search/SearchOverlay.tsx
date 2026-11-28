@@ -1,7 +1,7 @@
 // Site-wide search (Ctrl K or "/"): stocks, mutual funds, ETFs and news in one box, with filter pills, recent visits, live prices,
 // scores, logos and a preview of the highlighted result. Stocks are matched in the browser over every listed company (no wait); funds,
 // ETFs and news are asked from the server after a short pause in typing. Information only: no buy or sell words anywhere.
-import { SENT_WORD, fmtScore, type Sentiment } from "../../lib/sentiment";   // task #365
+import { ROUTINE_WORD, SENT_WORD, fmtScore, isReading, type Sentiment } from "../../lib/sentiment";   // task #365
 import { useUniverse } from "../../lib/screener";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useNavigate } from "react-router";
@@ -87,7 +87,7 @@ const etfItems = (rows: EtfItem[] | undefined, logos: Quotes["amcLogos"] | undef
   metrics: [{ label: "1Y return", value: r.ret1y }, { label: "From 52W high", value: r.from52 }],
 }));
 const newsItems = (rows: News[] | undefined): Item[] => (rows || []).map((n) => ({
-  kind: "news", key: "news:" + n.id, title: n.title, sub: [n.company, dateIN(n.date, { day: "numeric", month: "short" }), n.sentiment ? `Sentiment ${fmtScore(n.sentiment.score)} ${SENT_WORD[n.sentiment.band]}` : null].filter(Boolean).join(" · "),   // task #365
+  kind: "news", key: "news:" + n.id, title: n.title, sub: [n.company, dateIN(n.date, { day: "numeric", month: "short" }), n.sentiment ? (isReading(n.sentiment) ? `Sentiment ${fmtScore(n.sentiment.score)} ${SENT_WORD[n.sentiment.band]}` : ROUTINE_WORD) : null].filter(Boolean).join(" · "),   // task #365
   href: n.link || (n.symbol ? `/stocks/${encodeURIComponent(n.symbol)}` : "/news"), external: !!n.link, tag: n.category || "News", meta: n.source || undefined,
 }));
 
