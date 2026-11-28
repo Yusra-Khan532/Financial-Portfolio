@@ -12,7 +12,7 @@ import { ApiError, apiGet, apiSend, apiUrl } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import "../../styles/mailadmin.css";
 
-type Campaign = { id: number; subject: string; body: string; why: string; button_text: string | null; button_url: string | null; format?: Format | null; from_name?: string | null; created_at: string;
+type Campaign = { id: number; subject: string; body: string; why: string; button_text: string | null; button_url: string | null; format?: Format | null; from_name?: string | null; from_address?: string | null; created_at: string;
   queued: number; sent: number; failed: number; skipped: number; remaining: number };
 type Account = { read: boolean; production?: boolean; sendingEnabled?: boolean; max24h?: number | null; sent24h?: number | null; maxPerSecond?: number | null; why?: string };
 type Summary = { ready: boolean; from: string; ratePerSecond: number; sendingNow: boolean; halted?: { reason: string; error?: string; at?: string } | null;
@@ -20,33 +20,37 @@ type Summary = { ready: boolean; from: string; ratePerSecond: number; sendingNow
   contacts: { source: string; status: string; n: number }[]; campaigns: Campaign[]; errors: { campaign_id: number; error: string; plain?: string; n: number; last: string | null }[] };
 type ImportResult = { rows: number; added: number; alreadyThere: number; duplicates: number; invalid: string[]; invalidCount: number; typos: string[]; typoCount: number;
   noMailServer: string[]; noMailServerCount: number };
-type Format = "plain" | "html";
-type Draft = { subject: string; body: string; why: string; buttonText: string; buttonUrl: string; format: Format; fromName: string };
+type Format = "personal" | "plain" | "html";
+type Draft = { subject: string; body: string; why: string; buttonText: string; buttonUrl: string; format: Format; fromName: string; fromAddress: string };
 
 const msg = (e: unknown) => (e instanceof ApiError ? (typeof e.body.detail === "string" ? e.body.detail : e.body.status) || `Failed (${e.status})` : "Could not reach the server.");
 const nf = (n: number | null | undefined) => (n == null ? "—" : Math.round(n).toLocaleString("en-IN"));
 const MEMBERS = "FinLit members";
 // "Hi there," (founder, 28 Nov 2026): no name is filled in unless the mail itself asks for one with {name}. Plain email first: a mail that reads like one
 // person writing to another is the one Gmail most often keeps in Primary.
-const EMPTY: Draft = { subject: "", body: "Hi there,\n\n", why: "", buttonText: "", buttonUrl: "", format: "plain", fromName: "" };
+const EMPTY: Draft = { subject: "", body: "Hi there,\n\n", why: "", buttonText: "", buttonUrl: "", format: "personal", fromName: "", fromAddress: "" };
+const DOMAIN = "finlitventures.com";
+/** "Personal note" (founder, 28 Nov 2026: a plain-text test still landed in Promotions): no unsubscribe header, so small sends only. */
+export const PERSONAL_MAX = 500;
+/** The From address box holds the part before @finlitventures.com; empty means contact@. */
+export const fromLocalOk = (v: string) => !v.trim() || /^[a-z0-9._-]{1,40}$/.test(v.trim().toLowerCase());
 const DRAFT_KEY = "finlit-mail-draft";
 // The same words the server refuses (finlit/mailer.py ADVICE): shown as the person types, so a send is never refused at the last step.
 const ADVICE = /\b(buy|sell|hold|accumulate|avoid|reduce|target price|top pick|multibagger|sure[- ]shot|guaranteed returns?|best stocks?)\b/gi;
 export const adviceWords = (...t: string[]) => [...new Set(t.flatMap((x) => (x.match(ADVICE) ?? []).map((w) => w.toLowerCase())))].sort();
 
 /** The footer line "why you get this", from who the mail goes to. */
-export function whyLine(members: boolean, sources: string[]): string {
-  const lists = sources.length === 1 ? `registered for ${sources[0]}` : sources.length > 1 ? "gave us your address at a FinLit event" : "";
-  if (members && lists) return `You get this because you have a FinLit account or ${lists}.`;
-  if (members) return "You get this because you have a FinLit account.";
-  if (lists) return `You get this because you ${lists}.`;
-  return "";
+export function whyLine(members: boolean, sources: string[], hand = false): string {
+  const parts = [members ? "have a FinLit account" : "", sources.length === 1 ? `registered for ${sources[0]}` : sources.length > 1 ? "gave us your address at a FinLit event" : "",
+    hand ? "shared your email address with FinLit Ventures" : ""].filter(Boolean);
+  return parts.length ? `You get this because you ${parts.join(" or ")}.` : "";
 }
 
-/** What still has to be filled in before the mail can go, in the order of the form. Empty when it is ready. */
-export function missing(f: Draft, n: number | null, members: boolean, sources: string[]): string[] {
+/** What still has to be filled in before the mail can go, in the order of the form. Empty when it is ready. `hand`: how many addresses are pasted
+ *  under "These addresses" (when that choice is ticked). */
+export function missing(f: Draft, n: number | null, members: boolean, sources: string[], hand = 0): string[] {
   const out: string[] = [];
-  if (!members && !sources.length) out.push("choose who gets it");
+  if (!members && !sources.length && !hand) out.push("choose who gets it");
   else if (n === 0) out.push("the people chosen have all had this mail or unsubscribed");
   if (f.subject.trim().length < 3) out.push("a subject");
   if (f.body.replace(/^\s*Hi (there|\{name\}),/, "").trim().length < 10 || f.body.trim().length < 20) out.push("the message");
@@ -60,7 +64,7 @@ export function missing(f: Draft, n: number | null, members: boolean, sources: s
   return out;
 }
 
-function readDraft(): (Draft & { members?: boolean; sources?: string[]; whyEdited?: boolean }) | null {
+function readDraft(): (Draft & { members?: boolean; sources?: string[]; whyEdited?: boolean; hand?: boolean; pasted?: string }) | null {
   try { const v = localStorage.getItem(DRAFT_KEY); return v ? JSON.parse(v) : null; } catch { return null; }
 }
 function writeDraft(v: unknown) { try { if (v) localStorage.setItem(DRAFT_KEY, JSON.stringify(v)); else localStorage.removeItem(DRAFT_KEY); } catch { /* blocked storage: the draft just is not kept */ } }
@@ -72,7 +76,8 @@ function toBase64(f: File): Promise<string> {
 
 /** A stored mail back in the form (an unsent one, such as a mail written before this screen). */
 export const draftOf = (c: Campaign): Draft => ({ subject: c.subject, body: c.body, why: c.why, buttonText: c.button_text ?? "", buttonUrl: c.button_url ?? "",
-  format: c.format === "html" ? "html" : "plain", fromName: c.from_name ?? "" });
+  format: c.format === "html" || c.format === "personal" ? c.format : "plain", fromName: c.from_name ?? "",
+  fromAddress: (c.from_address ?? "").replace(`@${DOMAIN}`, "") });
 
 export function MailAdmin() {
   const { user } = useAuth(), qc = useQueryClient();
@@ -90,12 +95,13 @@ export function MailAdmin() {
       {live && <Progress c={live} halted={!!d.halted} />}
       <Composer key={open ? `mail-${open.id}` : "new"} start={open} d={d} me={user?.email ?? ""} onSent={() => { setOpen(null); refresh(); }} onClose={() => setOpen(null)} />
       <History d={d} onChange={refresh} onOpen={(c) => { setOpen(c); document.querySelector("#mla-h")?.scrollIntoView?.({ behavior: "smooth" }); }} />
+      <StopBox onDone={refresh} />
       <details className="card mla-sec mla-add">
         <summary><h3>Add people from a list</h3><span className="faint">Paste addresses or upload a CSV or Excel file (for example people from an event)</span></summary>
         <ListCounts d={d} />
         <Upload onDone={refresh} />
       </details>
-      <p className="faint mla-foot">Every mail carries a one-click unsubscribe link; anyone who unsubscribes is never mailed again. Nobody gets the same mail twice. Addresses that bounce or are marked as spam are held back by Amazon SES.</p>
+      <p className="faint mla-foot">Plain and designed mails carry a one-click unsubscribe link; a personal note asks people to reply 'stop' (record it above). Anyone who unsubscribes is never mailed again. Nobody gets the same mail twice. Addresses that bounce or are marked as spam are held back by Amazon SES.</p>
     </div>
   );
 }
@@ -137,12 +143,41 @@ function Progress({ c, halted }: { c: Campaign; halted: boolean }) {
   );
 }
 
+type LeftOut = { invalid: string[]; typos: string[]; noMailServer: string[]; unsubscribed: string[] };
+type TestResult = { status: string; sent?: string[]; failed?: { to: string; detail: string }[] };
+
+/** "Send a test to": up to five addresses, separated by commas, semicolons or spaces. */
+export function testAddresses(text: string): { list: string[]; ok: boolean; why: string } {
+  const list = [...new Set(text.split(/[,;\s]+/).map((t) => t.trim().replace(/^<|>$/g, "").toLowerCase()).filter(Boolean))];
+  const bad = list.filter((t) => !/^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test(t));
+  if (!list.length) return { list, ok: false, why: "Type an address for the test." };
+  if (bad.length) return { list, ok: false, why: `Not an email address: ${bad.join(", ")}` };
+  if (list.length > 5) return { list, ok: false, why: "A test goes to at most 5 addresses." };
+  return { list, ok: true, why: "" };
+}
+
+/** Which pasted addresses were not mailed, and why (from the server's checks at send time). */
+function LeftOutNote({ l }: { l: LeftOut }) {
+  const rows: [string, string[]][] = [["not valid email addresses", l.invalid], ["look misspelt (for example gmial.com)", l.typos],
+    ["have a domain that cannot receive mail", l.noMailServer], ["unsubscribed earlier, so they are never mailed", l.unsubscribed]];
+  if (!rows.some(([, xs]) => xs?.length)) return null;
+  return <div className="mla-res" role="status"><p><b>Some pasted addresses were left out:</b></p>
+    {rows.map(([t, xs]) => (xs?.length ? <Left key={t} title={t} n={xs.length} xs={xs} /> : null))}</div>;
+}
+
 function Composer({ d, me, onSent, start, onClose }: { d: Summary; me: string; onSent: () => void; start?: Campaign | null; onClose?: () => void }) {
   const saved = useMemo(() => (start ? null : readDraft()), [start]);
   const lists = (d.lists ?? []).filter((l) => l.source !== MEMBERS);
   const [f, setF] = useState<Draft>(start ? draftOf(start) : saved ? { ...EMPTY, ...saved } : EMPTY);
   const [members, setMembers] = useState<boolean>(saved?.members ?? true);
   const [sources, setSources] = useState<string[]>((saved?.sources ?? []).filter((x) => lists.some((l) => l.source === x)));
+  // "These addresses" (owner, 28 Nov 2026: "I can send the mail for like 5 to 6 persons ... just paste at there and send"): any addresses pasted here
+  const [hand, setHand] = useState<boolean>(!!saved?.hand), [pasted, setPasted] = useState<string>(saved?.pasted ?? "");
+  const paste = useMemo(() => parsePasted(pasted), [pasted]);
+  const emails = useMemo(() => (hand ? [...new Set(paste.rows.map((r) => r.email.trim().toLowerCase()))] : []), [hand, paste]);
+  const [testTo, setTestTo] = useState(me);
+  useEffect(() => { if (me) setTestTo((t) => t || me); }, [me]);
+  const [leftOut, setLeftOut] = useState<LeftOut | null>(null);
   const [whyEdited, setWhyEdited] = useState(start ? true : !!saved?.whyEdited);   // an opened mail keeps its own footer line
   const [steps, setSteps] = useState(false), [stepCount, setStepCount] = useState(500);
   const [id, setId] = useState<number | null>(start?.id ?? null);
@@ -150,30 +185,34 @@ function Composer({ d, me, onSent, start, onClose }: { d: Summary; me: string; o
   const [btnOpen, setBtnOpen] = useState(!!(f.buttonText || f.buttonUrl));
 
   // the footer follows who it goes to, until someone writes their own
-  useEffect(() => { if (!whyEdited) setF((x) => ({ ...x, why: whyLine(members, sources) })); }, [members, sources, whyEdited]);
-  useEffect(() => { if (!start) writeDraft({ ...f, members, sources, whyEdited }); }, [f, members, sources, whyEdited, start]);
+  useEffect(() => { if (!whyEdited) setF((x) => ({ ...x, why: whyLine(members, sources, hand) })); }, [members, sources, hand, whyEdited]);
+  useEffect(() => { if (!start) writeDraft({ ...f, members, sources, whyEdited, hand, pasted }); }, [f, members, sources, whyEdited, start, hand, pasted]);
 
-  const aud = useQuery<{ n: number }>({ queryKey: ["mail-aud", members, sources.join("|")], queryFn: () => apiSend("POST", "/api/admin/mail/audience", { members, sources }),
-    enabled: members || sources.length > 0, retry: false });
-  const n = members || sources.length ? (aud.data?.n ?? null) : 0;
+  const chosen = members || sources.length > 0 || emails.length > 0;
+  const aud = useQuery<{ n: number }>({ queryKey: ["mail-aud", members, sources.join("|"), emails.join("|")],
+    queryFn: () => apiSend("POST", "/api/admin/mail/audience", { members, sources, emails }), enabled: chosen, retry: false });
+  const n = chosen ? (aud.data?.n ?? null) : 0;
 
   const [pv, setPv] = useState<{ html: string; adviceWords: string[]; from?: string } | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => {
     clearTimeout(timer.current);
-    timer.current = setTimeout(() => { apiSend<{ html: string; adviceWords: string[]; from?: string }>("POST", "/api/admin/mail/preview", { ...f, fromName: f.fromName.trim() || null }).then(setPv).catch(() => setPv(null)); }, 400);
+    timer.current = setTimeout(() => { apiSend<{ html: string; adviceWords: string[]; from?: string }>("POST", "/api/admin/mail/preview", { ...f, fromName: f.fromName.trim() || null, fromAddress: f.fromAddress.trim() || null }).then(setPv).catch(() => setPv(null)); }, 400);
     return () => clearTimeout(timer.current);
   }, [f]);
 
-  const todo = missing(f, n, members, sources);
+  const todo = [...missing(f, n, members, sources, emails.length),
+    ...(f.format === "personal" && n != null && n > PERSONAL_MAX ? [`at most ${nf(PERSONAL_MAX)} people for a personal note (choose Plain email for more: it keeps the one-click unsubscribe Gmail requires of bulk senders)`] : []),
+    ...(fromLocalOk(f.fromAddress) ? [] : [`a From address of letters, digits, dots or dashes before @${DOMAIN}`])];
   const bad = adviceWords(f.subject, f.body, f.buttonText);
   const set = (k: keyof Draft) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => { setF({ ...f, [k]: e.target.value }); setNote(""); };
-  const plain = f.format === "plain";
+  const plain = f.format !== "html";   // text only: a personal note or a plain email
   const toggle = (src: string) => setSources((xs) => (xs.includes(src) ? xs.filter((x) => x !== src) : [...xs, src]));
 
   /** Save the draft as a mail (a new one once the last one has gone out), returning its id. */
   async function save(): Promise<number> {
-    const body = { ...f, buttonText: f.buttonText.trim() || null, buttonUrl: f.buttonUrl.trim() || null, fromName: f.fromName.trim() || null };
+    const body = { ...f, buttonText: f.buttonText.trim() || null, buttonUrl: f.buttonUrl.trim() || null, fromName: f.fromName.trim() || null,
+      fromAddress: f.fromAddress.trim().toLowerCase() || null };
     if (id) {
       try { await apiSend("POST", `/api/admin/mail/campaigns?id=${id}`, body); return id; } catch (e) { if (!(e instanceof ApiError && e.status === 409)) throw e; }
     }
@@ -181,14 +220,23 @@ function Composer({ d, me, onSent, start, onClose }: { d: Summary; me: string; o
     setId(r.id);
     return r.id;
   }
-  const test = useMutation({ mutationFn: async () => { const cid = await save(); return apiSend("POST", `/api/admin/mail/campaigns/${cid}/test`, { to: me }); },
-    onSuccess: () => { setErr(""); setNote(`Test sent to ${me}. Look in that inbox (and Spam) in a minute.`); }, onError: (e) => { setErr(msg(e)); setNote(""); } });
+  const tests = testAddresses(testTo);
+  const test = useMutation({
+    mutationFn: async (to: string) => { const cid = await save(); return apiSend<TestResult>("POST", `/api/admin/mail/campaigns/${cid}/test`, { to }); },
+    onSuccess: (r, to) => {
+      const ok = r.sent?.length ? r.sent : [to];
+      setErr(r.failed?.length ? r.failed.map((x) => `${x.to}: ${x.detail}`).join(" · ") : "");
+      setNote(`Test sent to ${ok.join(", ")}. Look in ${ok.length === 1 ? "that inbox" : "those inboxes"} (and Spam) in a minute.`);
+    },
+    onError: (e) => { setErr(msg(e)); setNote(""); } });
   const send = useMutation({
-    mutationFn: async () => { const cid = await save(); return apiSend<{ queued: number }>("POST", `/api/admin/mail/campaigns/${cid}/send`, { members, sources, count: steps ? stepCount : undefined }); },
+    mutationFn: async () => { const cid = await save(); return apiSend<{ queued: number; leftOut?: LeftOut }>("POST", `/api/admin/mail/campaigns/${cid}/send`,
+      { members, sources, emails: emails.length ? emails : undefined, count: steps ? stepCount : undefined }); },
     onSuccess: (r) => {
       setErr("");
+      setLeftOut(r.leftOut ?? null);
       setNote(r.queued ? `Sending to ${nf(r.queued)} ${r.queued === 1 ? "person" : "people"}: see the progress at the top.` : "Everyone chosen already has this mail.");
-      if (r.queued) { setF({ ...EMPTY, why: whyEdited ? f.why : whyLine(members, sources) }); setId(null); setBtnOpen(false); writeDraft(null); document.querySelector(".mla")?.scrollIntoView?.({ behavior: "smooth" }); }
+      if (r.queued) { setF({ ...EMPTY, why: whyEdited ? f.why : whyLine(members, sources, hand) }); setId(null); setBtnOpen(false); setPasted(""); writeDraft(null); document.querySelector(".mla")?.scrollIntoView?.({ behavior: "smooth" }); }
       onSent();
     },
     onError: (e) => { setErr(msg(e)); setNote(""); },
@@ -212,18 +260,29 @@ function Composer({ d, me, onSent, start, onClose }: { d: Summary; me: string; o
                 {d.members && (d.members.unconfirmed > 0 || d.members.optedout > 0) && <small className="faint">{[d.members.unconfirmed ? `${nf(d.members.unconfirmed)} have not confirmed their address yet` : "", d.members.optedout ? `${nf(d.members.optedout)} unsubscribed and are left out` : ""].filter(Boolean).join(" · ")}</small>}</span></label>
             {lists.map((l) => <label key={l.source} className="mla-check"><input type="checkbox" checked={sources.includes(l.source)} onChange={() => toggle(l.source)} />
               <span><span className="mla-who"><b>{l.source}</b> <span className="mla-n">{nf(l.n)}</span></span></span></label>)}
-            {!lists.length && <small className="faint">To mail people who are not members (for example from an event), add them under "Add people from a list" below.</small>}
-            <p className="mla-total" aria-live="polite">{!members && !sources.length ? "Choose who gets it." : n == null ? "Counting…" : <>Will go to <b>{nf(n)}</b> {n === 1 ? "person" : "people"}{members && sources.length ? " (each person once)" : ""}.</>}</p>
+            <label className="mla-check"><input type="checkbox" checked={hand} onChange={(e) => setHand(e.target.checked)} />
+              <span><span className="mla-who"><b>These addresses</b>{hand && emails.length > 0 && <span className="mla-n">{nf(emails.length)}</span>}</span>
+                <small className="faint">Paste the addresses of the people you want: one or many.</small></span></label>
+            {hand && <label className="mla-paste">Email addresses<textarea value={pasted} onChange={(e) => { setPasted(e.target.value); setNote(""); }} rows={4} spellCheck={false}
+              placeholder={"priya@example.com, rahul@example.com\nAnu Shah <anu@example.com>"} />
+              <small className="faint" aria-live="polite">{emails.length ? `${nf(emails.length)} ${emails.length === 1 ? "address" : "addresses"} found` : "No address yet"}{paste.skipped.length ? ` · ${nf(paste.skipped.length)} not ${paste.skipped.length === 1 ? "an address" : "addresses"} (left out)` : ""}. One per line, or separated by commas or semicolons.</small></label>}
+            {!lists.length && !hand && <small className="faint">To mail a whole list (for example from an event), add it under "Add people from a list" below.</small>}
+            <p className="mla-total" aria-live="polite">{!chosen ? "Choose who gets it." : n == null ? "Counting…" : <>Will go to <b>{nf(n)}</b> {n === 1 ? "person" : "people"}{[members, sources.length > 0, emails.length > 0].filter(Boolean).length > 1 ? " (each person once)" : ""}.</>}</p>
           </fieldset>
           <fieldset className="mla-to mla-fmt">
             <legend>Kind of email</legend>
-            <label className="mla-check"><input type="radio" name="mla-fmt" checked={plain} onChange={() => setF({ ...f, format: "plain" })} />
-              <span><b>Plain email</b><small className="faint">Text only, like a mail one person writes to another: the best chance of Gmail's main (Primary) inbox. Links are written out; a button becomes a line "words: link".</small></span></label>
-            <label className="mla-check"><input type="radio" name="mla-fmt" checked={!plain} onChange={() => setF({ ...f, format: "html" })} />
+            <label className="mla-check"><input type="radio" name="mla-fmt" checked={f.format === "personal"} onChange={() => setF({ ...f, format: "personal" })} />
+              <span><b>Personal note</b><small className="faint">Reads like a mail from a person (no unsubscribe header, short footer). The best chance of Gmail's Primary tab for small sends (up to {nf(PERSONAL_MAX)} people). Gmail still decides per person.</small></span></label>
+            <label className="mla-check"><input type="radio" name="mla-fmt" checked={f.format === "plain"} onChange={() => setF({ ...f, format: "plain" })} />
+              <span><b>Plain email</b><small className="faint">Text only, with the one-click unsubscribe link and footer: for big sends (Gmail requires one-click unsubscribe from bulk senders). Links are written out.</small></span></label>
+            <label className="mla-check"><input type="radio" name="mla-fmt" checked={f.format === "html"} onChange={() => setF({ ...f, format: "html" })} />
               <span><b>Designed email with a button</b><small className="faint">Styled, with a green button. Gmail more often files designed mail under Promotions.</small></span></label>
-            <small className="faint">Gmail decides the tab for each person, so Primary is likely, not guaranteed. A plain, personal mail with few links has the best chance.</small>
+            <small className="faint">Gmail decides the tab for each person, so Primary is likely, not guaranteed. A short personal mail with few links has the best chance.</small>
           </fieldset>
-          <label>From name <span className="faint">(optional)</span><input value={f.fromName} onChange={set("fromName")} maxLength={80} placeholder="FinLit Ventures (e.g. Pranshu from FinLit Ventures)" /></label>
+          <div className="mla-two">
+            <label>From name <span className="faint">(optional)</span><input value={f.fromName} onChange={set("fromName")} maxLength={80} placeholder="FinLit Ventures (e.g. Pranshu from FinLit Ventures)" /></label>
+            <label>From address <span className="faint">(optional)</span><span className="mla-addr"><input value={f.fromAddress} onChange={set("fromAddress")} maxLength={40} spellCheck={false} placeholder="contact" aria-describedby="mla-addr-d" /><span id="mla-addr-d">@{DOMAIN}</span></span></label>
+          </div>
           <label>Subject<input value={f.subject} onChange={set("subject")} maxLength={150} placeholder="e.g. FinLit is open: your account is ready" /></label>
           <label>Message<textarea rows={10} value={f.body} onChange={set("body")} maxLength={20000} /></label>
           <p className="faint mla-hint">Write it as you would to one person. Only if you type {"{name}"} is it replaced by each person's first name ("there" when it is not known). A blank line starts a new paragraph.</p>
@@ -245,11 +304,17 @@ function Composer({ d, me, onSent, start, onClose }: { d: Summary; me: string; o
             {steps && <label>People in this step<input type="number" min={1} max={100000} value={stepCount} onChange={(e) => setStepCount(Math.max(1, Math.min(100000, Number(e.target.value) || 1)))} /></label>}
           </details>
           <div className="mla-acts mla-send">
-            <button type="button" className="btn" disabled={test.isPending || send.isPending || missing(f, 1, true, []).length > 0 || !me} onClick={() => test.mutate()}>{test.isPending ? "Sending the test…" : "Send me a test"}</button>
+            <button type="button" className="btn" disabled={test.isPending || send.isPending || missing(f, 1, true, []).length > 0 || !me} onClick={() => test.mutate(me)}>{test.isPending ? "Sending the test…" : "Send me a test"}</button>
             <button type="submit" className="btn primary" disabled={todo.length > 0 || send.isPending || !d.ready}>{send.isPending ? "Starting…" : `Send to ${n == null ? "…" : nf(n)} ${n === 1 ? "person" : "people"}`}</button>
           </div>
+          <div className="mla-row mla-testto">
+            <label>Send a test to <small className="faint">(up to 5, separated by commas)</small><input value={testTo} onChange={(e) => setTestTo(e.target.value)} spellCheck={false} placeholder="you@example.com, colleague@example.com" /></label>
+            <button type="button" className="btn" disabled={test.isPending || send.isPending || missing(f, 1, true, []).length > 0 || !tests.ok} onClick={() => test.mutate(tests.list.join(", "))}>Send test</button>
+          </div>
+          {!tests.ok && testTo.trim() !== "" && <p className="faint mla-todo">{tests.why}</p>}
           {todo.length > 0 && <p className="faint mla-todo">Still needed: {todo.join(" · ")}.</p>}
           {note && <p className="mla-ok" role="status">{note}</p>}{err && <p className="mla-err" role="alert">{err}</p>}
+          {leftOut && <LeftOutNote l={leftOut} />}
         </form>
         <div className="mla-look">
           <p className="faint">How it looks{f.body.includes("{name}") ? " ({name} shown with your own first name)" : ""}</p>
@@ -279,7 +344,7 @@ function History({ d, onChange, onOpen }: { d: Summary; onChange: () => void; on
     {drafts.length > 0 && <section className="card mla-sec" aria-labelledby="mla-drafts">
       <h3 id="mla-drafts">Saved, not sent yet</h3>
       {drafts.map((c) => <div key={c.id} className="mla-camp mla-draft">
-        <div className="mla-camp-h"><b>{c.subject}</b><span className="faint">Mail {c.id} · {c.format === "html" ? "Designed email" : "Plain email"}</span></div>
+        <div className="mla-camp-h"><b>{c.subject}</b><span className="faint">Mail {c.id} · {c.format === "html" ? "Designed email" : c.format === "personal" ? "Personal note" : "Plain email"}</span></div>
         <div className="mla-acts"><button type="button" className="btn small primary" onClick={() => onOpen(c)}>Open in the form</button></div>
       </div>)}
     </section>}
@@ -345,6 +410,24 @@ export function parsePasted(text: string): { rows: { email: string; name: string
 const csvCell = (v: string) => (/[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
 export const pastedCsv = (rows: { email: string; name: string }[]) => ["email,name", ...rows.map((r) => `${csvCell(r.email)},${csvCell(r.name)}`)].join("\n") + "\n";
 const textBase64 = (t: string) => { const b = new TextEncoder().encode(t); let s = ""; b.forEach((x) => { s += String.fromCharCode(x); }); return btoa(s); };
+
+/** Someone replied 'stop' to a personal note: record it, and they are never mailed again (an address not on the list yet is added as unsubscribed). */
+function StopBox({ onDone }: { onDone: () => void }) {
+  const [email, setEmail] = useState(""), [note, setNote] = useState(""), [err, setErr] = useState("");
+  const go = useMutation({ mutationFn: () => apiSend<{ email: string; droppedFromQueue: number }>("POST", "/api/admin/mail/unsubscribe", { email: email.trim() }),
+    onSuccess: (r) => { setErr(""); setNote(`${r.email} is unsubscribed and will never be mailed again.${r.droppedFromQueue ? ` ${nf(r.droppedFromQueue)} queued mail to them was dropped.` : ""}`); setEmail(""); onDone(); },
+    onError: (e) => { setErr(msg(e)); setNote(""); } });
+  return (
+    <details className="card mla-sec mla-add">
+      <summary><h3>Unsubscribe an address</h3><span className="faint">Someone replied 'stop'? Record it here so they are never mailed again</span></summary>
+      <form className="form mla-row mla-testto" onSubmit={(e) => { e.preventDefault(); if (email.trim()) go.mutate(); }}>
+        <label>Email address<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@example.com" required /></label>
+        <button className="btn" disabled={go.isPending || !email.trim()}>{go.isPending ? "Saving…" : "Unsubscribe"}</button>
+      </form>
+      {note && <p className="mla-ok" role="status">{note}</p>}{err && <p className="mla-err" role="alert">{err}</p>}
+    </details>
+  );
+}
 
 function Upload({ onDone }: { onDone: () => void }) {
   const [source, setSource] = useState(""), [file, setFile] = useState<File | null>(null), [res, setRes] = useState<ImportResult | null>(null), [err, setErr] = useState("");

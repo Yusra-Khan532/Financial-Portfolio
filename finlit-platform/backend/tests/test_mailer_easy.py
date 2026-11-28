@@ -208,7 +208,7 @@ async def test_mail_2_keeps_working_switches_to_plain_and_the_test_uses_the_admi
         old = await conn.fetchval("INSERT INTO mail_campaigns (subject, body, why, button_text, button_url, format) VALUES "
                                   "('Mail 2', 'Hi {name},\n\nWelcome to FinLit.', 'You get this because you have a FinLit account.', 'Open FinLit', "
                                   "'https://finlitventures.com', 'html') RETURNING id")
-        assert await conn.fetchval("SELECT column_default FROM information_schema.columns WHERE table_name = 'mail_campaigns' AND column_name = 'format'") == "'plain'::text"
+        assert await conn.fetchval("SELECT column_default FROM information_schema.columns WHERE table_name = 'mail_campaigns' AND column_name = 'format'") == "'personal'::text"   # migration 151: personal note is the default
     admin = await _admin(app)
     s = (await admin.get("/api/admin/mail")).json()
     k = next(c for c in s["campaigns"] if c["id"] == old)
@@ -227,6 +227,140 @@ async def test_mail_2_keeps_working_switches_to_plain_and_the_test_uses_the_admi
     assert "From: Pranshu from FinLit Ventures <contact@finlitventures.com>" in raw and "List-Unsubscribe-Post: List-Unsubscribe=One-Click" in raw
     pv = (await admin.get(f"/api/admin/mail/campaigns/{old}/preview")).text
     assert "<!--email_off-->contact@finlitventures.com<!--/email_off-->" in pv
-    # a new mail without a format is plain
+    # a new mail without a format is a personal note (the default since migration 151)
     new = (await admin.post("/api/admin/mail/campaigns", json={k2: v for k2, v in body.items() if k2 not in ("format", "fromName")})).json()["id"]
-    assert next(c for c in (await admin.get("/api/admin/mail")).json()["campaigns"] if c["id"] == new)["format"] == "plain"
+    assert next(c for c in (await admin.get("/api/admin/mail")).json()["campaigns"] if c["id"] == new)["format"] == "personal"
+
+
+# ------------------------------------------------------------------------------------------------ "These addresses" (founder, 28 Nov 2026)
+def test_hand_list_name_and_the_paste_checks():
+    from datetime import datetime, timezone
+    assert mailer.hand_source(datetime(2026, 11, 28, tzinfo=timezone.utc)) == "Added by hand, 28 Nov 2026"
+    c = mailer.pasted_split(["A@X.in", "a@x.in", "not-an-address", "b@gmial.com", "c@y.in"])
+    assert list(c["good"]) == ["a@x.in", "c@y.in"] and c["invalid"] == ["not-an-address"] and c["typos"] == ["b@gmial.com"] and c["duplicates"] == 1
+
+
+@pytest.mark.integration
+async def test_send_to_pasted_addresses_and_a_test_to_several(app, monkeypatch):  # noqa: F811
+    sent = []
+
+    async def fake_send(http, to, raw):
+        if to == "refused@x.in":
+            raise mailer.SesError("SES 400: Illegal address")
+        sent.append(to)
+        return "mid"
+
+    async def nomx(http, domains):
+        return [d for d in domains if d == "nomail.in"]
+    monkeypatch.setattr(mailer, "ses_send_raw", fake_send)
+    monkeypatch.setattr(mailer, "domains_without_mail", nomx)
+    monkeypatch.setattr(mailer, "start_sender", lambda app: None)
+    monkeypatch.setattr(mailer, "RATE_PER_SECOND", 50)
+    for k, v in (("SES_REGION", "ap-southeast-2"), ("SES_ACCESS_KEY_ID", "AKIDTEST"), ("SES_SECRET_ACCESS_KEY", "x")):
+        monkeypatch.setenv(k, v)
+    async with app.state.store.pool.acquire() as conn:
+        await conn.execute("TRUNCATE mail_sends, mail_campaigns, mail_contacts RESTART IDENTITY CASCADE")
+        await conn.execute("INSERT INTO mail_contacts (email, source, status) VALUES ('gone@x.in', 'Old list', 'unsubscribed'), ('there@x.in', 'Old list', 'active')")
+    await app.state.store.redis.delete(mailer.HALT_KEY)
+    admin = await _admin(app)
+    draft = {"subject": "A quick request", "body": "Hi there,\n\nPlease share your feedback.", "why": "You get this because you shared your email address with FinLit Ventures."}
+    cid = (await admin.post("/api/admin/mail/campaigns", json=draft)).json()["id"]
+
+    pasted = ["one@x.in", "Two@X.in", "two@x.in", "there@x.in", "gone@x.in", "bad", "typo@gmial.com", "who@nomail.in"]
+    # the count before sending: one@, two@ (new, once each), there@ (on a list), who@nomail.in (its domain is checked only at send); gone@ unsubscribed
+    assert (await admin.post("/api/admin/mail/audience", json={"emails": pasted})).json()["n"] == 4
+    r = (await admin.post(f"/api/admin/mail/campaigns/{cid}/send", json={"emails": pasted})).json()
+    assert r["queued"] == 3
+    left = r["leftOut"]
+    assert left["invalid"] == ["bad"] and left["typos"] == ["typo@gmial.com"] and left["noMailServer"] == ["who@nomail.in"] and left["unsubscribed"] == ["gone@x.in"]
+    await mailer.drain(app)
+    assert sorted(sent) == ["one@x.in", "there@x.in", "two@x.in"]                                    # never the unsubscribed one
+    async with app.state.store.pool.acquire() as conn:
+        assert await conn.fetchval("SELECT source FROM mail_contacts WHERE email = 'one@x.in'") == mailer.hand_source()
+        assert await conn.fetchval("SELECT source FROM mail_contacts WHERE email = 'there@x.in'") == "Old list"   # an existing row keeps its list
+    assert (await admin.post(f"/api/admin/mail/campaigns/{cid}/send", json={"emails": ["one@x.in", "three@x.in"]})).json()["queued"] == 1   # never twice
+    assert (await admin.post("/api/admin/mail/audience", json={"emails": ["one@x.in"]}, params={"campaign": cid})).json()["n"] == 0
+
+    # a test to several addresses (at most five), each marked [Test]; one refused address does not stop the others
+    sent.clear()
+    r = (await admin.post(f"/api/admin/mail/campaigns/{cid}/test", json={"to": "boss@example.com, a@x.in; refused@x.in"})).json()
+    assert r["status"] == "sent" and r["sent"] == ["boss@example.com", "a@x.in"] and r["failed"][0]["to"] == "refused@x.in"
+    assert sent == ["boss@example.com", "a@x.in"]
+    assert (await admin.post(f"/api/admin/mail/campaigns/{cid}/test", json={"to": "a@x.in,b@x.in,c@x.in,d@x.in,e@x.in,f@x.in"})).status_code == 422
+    assert (await admin.post(f"/api/admin/mail/campaigns/{cid}/test", json={"to": "a@x.in, nope"})).status_code == 422
+
+
+# ------------------------------------------------------------------------------------------------ "Personal note" (founder, 28 Nov 2026)
+def test_personal_note_reads_like_a_mail_from_a_person():
+    m = mailer.build_message("A quick request", "Hi there,\n\nPlease share your feedback: https://forms.gle/x", "Why we write.", "a@x.in", None, UNSUB,
+                             fmt="personal", from_name="Pranshu from FinLit Ventures", from_address="pranshu@finlitventures.com")
+    assert [p.get_content_type() for p in m.walk()] == ["text/plain"]
+    for h in ("List-Unsubscribe", "List-Unsubscribe-Post", "Precedence"):
+        assert m[h] is None
+    assert m["From"] == "Pranshu from FinLit Ventures <pranshu@finlitventures.com>" and m["Reply-To"] == "pranshu@finlitventures.com"
+    assert m["Message-ID"] and m["Date"]
+    text = m.get_content()
+    assert text == ("Hi there,\n\nPlease share your feedback: https://forms.gle/x\n\n"
+                    "Rather not hear from us? Reply 'stop' and we won't write again.\n\nInformation only, not investment advice.\n")
+    assert "--" not in text and "Unsubscribe:" not in text and "Why we write." not in text and UNSUB not in text
+    assert mailer.raw_sender(m.as_bytes()) == "pranshu@finlitventures.com"                           # SES is asked to send from it
+    # only an address on our own domain; anything else falls back to contact@
+    assert mailer.from_address_of("pranshu") == "pranshu@finlitventures.com" and mailer.from_address_of("contact") is None
+    assert mailer.from_address_of("") is None
+    for bad in ("me@gmail.com", "a b", "x@finlitventures.com.evil.in", "two..dots"):
+        with pytest.raises(ValueError):
+            mailer.from_address_of(bad)
+    other = mailer.build_message("S", "Hi", "Why.", "a@x.in", None, UNSUB, fmt="personal", from_address="me@gmail.com")
+    assert other["From"] == "FinLit Ventures <contact@finlitventures.com>" and mailer.raw_sender(other.as_bytes()) == "contact@finlitventures.com"
+    # the other formats still carry the one-click unsubscribe
+    assert mailer.build_message("S", "Hi", "Why.", "a@x.in", None, UNSUB, fmt="plain")["List-Unsubscribe-Post"] == "List-Unsubscribe=One-Click"
+
+
+@pytest.mark.integration
+async def test_personal_note_saves_its_address_caps_the_send_and_a_stop_reply_is_recorded(app, monkeypatch):  # noqa: F811
+    sent = []
+
+    async def fake_send(http, to, raw):
+        sent.append((to, raw))
+        return "mid"
+
+    async def nomx(http, domains):
+        return []
+    monkeypatch.setattr(mailer, "ses_send_raw", fake_send)
+    monkeypatch.setattr(mailer, "domains_without_mail", nomx)
+    monkeypatch.setattr(mailer, "start_sender", lambda app: None)
+    monkeypatch.setattr(mailer, "RATE_PER_SECOND", 50)
+    monkeypatch.setattr(mailer, "PERSONAL_MAX", 3)
+    for k, v in (("SES_REGION", "ap-southeast-2"), ("SES_ACCESS_KEY_ID", "AKIDTEST"), ("SES_SECRET_ACCESS_KEY", "x")):
+        monkeypatch.setenv(k, v)
+    async with app.state.store.pool.acquire() as conn:
+        await conn.execute("TRUNCATE mail_sends, mail_campaigns, mail_contacts RESTART IDENTITY CASCADE")
+    await app.state.store.redis.delete(mailer.HALT_KEY)
+    admin = await _admin(app)
+    draft = {"subject": "A quick request", "body": "Hi there,\n\nPlease share your feedback.", "why": "You get this because you shared your email address.",
+             "fromName": "Pranshu from FinLit Ventures", "fromAddress": "pranshu"}
+    assert (await admin.post("/api/admin/mail/campaigns", json={**draft, "fromAddress": "me@gmail.com"})).status_code == 422
+    cid = (await admin.post("/api/admin/mail/campaigns", json=draft)).json()["id"]
+    k = next(c for c in (await admin.get("/api/admin/mail")).json()["campaigns"] if c["id"] == cid)
+    assert (k["format"], k["from_address"]) == ("personal", "pranshu@finlitventures.com")
+    assert (await admin.post(f"/api/admin/mail/campaigns/{cid}/test", json={"to": "boss@example.com"})).json()["status"] == "sent"
+    raw = sent[-1][1].decode()
+    assert "From: Pranshu from FinLit Ventures <pranshu@finlitventures.com>" in raw and "List-Unsubscribe" not in raw and "Reply 'stop'" in raw
+    pv = (await admin.post("/api/admin/mail/preview", json={**draft, "format": "personal"})).json()
+    assert pv["from"] == "Pranshu from FinLit Ventures <pranshu@finlitventures.com>"
+
+    # at most PERSONAL_MAX people a personal note (3 here): a bigger send is refused with the reason, a smaller one goes
+    r = await admin.post(f"/api/admin/mail/campaigns/{cid}/send", json={"emails": ["p1@x.in", "p2@x.in", "p3@x.in", "p4@x.in"]})
+    assert r.status_code == 422 and "Plain email" in r.json()["detail"] and "at most 3" in r.json()["detail"]
+    # a 'stop' reply recorded in the Console: never mailed, even when pasted again
+    st = (await admin.post("/api/admin/mail/unsubscribe", json={"email": "P2@x.in"})).json()
+    assert st["status"] == "unsubscribed" and st["email"] == "p2@x.in"
+    assert (await admin.post("/api/admin/mail/unsubscribe", json={"email": "nope"})).status_code == 422
+    r = (await admin.post(f"/api/admin/mail/campaigns/{cid}/send", json={"emails": ["p1@x.in", "p2@x.in", "p3@x.in"]})).json()
+    assert r["queued"] == 2 and r["leftOut"]["unsubscribed"] == ["p2@x.in"]
+    sent.clear()
+    await mailer.drain(app)
+    assert sorted(t for t, _ in sent) == ["p1@x.in", "p3@x.in"]
+    assert all(b"List-Unsubscribe" not in raw for _, raw in sent)
+    async with app.state.store.pool.acquire() as conn:
+        assert await conn.fetchval("SELECT status FROM mail_contacts WHERE email = 'p2@x.in'") == "unsubscribed"
