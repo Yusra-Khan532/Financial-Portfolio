@@ -203,8 +203,11 @@
 .mf-list .mf-main > * { margin-top: 0; margin-bottom: 0; }
 
 /* Task #430 (team, 27 Nov 2026: "no need of write up ... just the numbers ... for all the columns"): the cells hold their figure only (FundTable.tsx).
-   A Growth option's return shown on an IDCW row (task #281) is still told apart without words: in italics with a dotted underline, named on hover. */
-.mf-list .mf-table td .mf-grf > span:first-child { font-style: italic; text-decoration: underline dotted; text-underline-offset: 3px; }
+   A Growth option's return shown on an IDCW row (task #281) is still told apart without words. Task #444 (team, 28 Nov 2026: "the boxes have different
+   colour for different filter chosen so uniformity in this aspect is still missing"): it no longer has a style of its own (it was italic, underlined and
+   on an untinted cell); the figure and its tinted cell look exactly like a Growth row's, and a small muted "G" after it says whose return it is. */
+.mf-list .mf-table td .mf-gfig { display: inline-flex; align-items: flex-start; gap: 2px; }
+.mf-list .mf-table td .mf-gmark { font-size: var(--fs-12); font-weight: 600; line-height: 1; color: var(--muted); vertical-align: baseline; position: static; cursor: help; }
 /* the words kept for screen readers (sr-only, absolutely placed) are anchored inside their cell, so they stay inside the table's scroll box and never
    widen the page (without this the page scrolled sideways by up to 190px when the table was wider than the screen) */
 .mf-list .mf-table td .mf-rf, .mf-list .mf-table td .mfs-cell, .mf-list .mf-table td .mf-na-x { position: relative; }
