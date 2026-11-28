@@ -6,6 +6,7 @@
 .sx-new .ctabs.sx-bar .ctabs-h { display: flex; align-items: center; gap: 10px; }
 .sx-new .ctabs.sx-bar .ct-title { display: block; font: 700 var(--fs-14)/1.2 var(--sans); color: var(--text); white-space: nowrap; }
 .sx-new .ctabs.sx-bar .ct-title small { display: block; font: 400 var(--fs-12)/1.3 var(--sans); color: var(--muted); }
+@media (max-width: 600px) { .sx-new .ctabs.sx-bar .ctabs-h { flex: 1 1 100%; min-width: 0; flex-wrap: wrap; } .sx-new .ctabs.sx-bar .ct-title { white-space: normal; min-width: 0; } }   /* task #436: "19 of the 22 sectors, every number" wraps on a phone instead of widening the page */
 .sx-new .ctabs.sx-bar .ct-list { flex-wrap: wrap; overflow: visible; }
 .sx-new .ctabs.sx-bar .ct-sc { font: 600 var(--fs-12)/1 var(--sans); font-style: normal; opacity: .75; }
 .sx-new .sx-box > .ct-panels > .ctab-panel > .sp-sec,

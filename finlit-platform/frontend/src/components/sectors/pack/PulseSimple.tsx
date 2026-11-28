@@ -11,7 +11,7 @@ import { useSectorHistory, type SectorHistory, type StateKey } from "../../../li
 import { useIndustryMap } from "../../../lib/sectorExtra";
 import type { Board, GroupRow } from "../../../lib/sectors";
 import {
-  BOX, BOX_ORDER, COLOUR, MEANING, ORDER, WORD, groupsN, groupsSplit, belowHigh, dayMon, bouncedAgo, byState, headline, howStrong, isEarly, keyOf, matrix, matrixCards, meansForYou, newHigh, risingOf, short, statesAt, todayThree, yourCards, yourOrder,
+  BOX, BOX_ORDER, COLOUR, MEANING, ORDER, WORD, allSectors, groupsN, groupsSplit, sectorsIn, belowHigh, dayMon, bouncedAgo, byState, headline, howStrong, isEarly, keyOf, matrix, matrixCards, meansForYou, newHigh, risingOf, short, statesAt, todayThree, yourCards, yourOrder,
   type Holding,
 } from "../../../lib/pulsePack";
 import { BoxChip, Cards, InsideLine, InsightCard, Scroll, Section, Spark, StateChip, Swatch, Tip, useAccount, useShowAll } from "./Common";
@@ -31,7 +31,7 @@ export function TodayMinute({ b, h, mine = new Set<string>() }: { b: Board; h: S
   // task #333 (file 30, polish 5): the squares run across the top, the counts are tiles in one row (number, state, change on last week), and three callouts sit in
   // one row under them; the headline's first sentence is a coloured chip (fix 2)
   const rows = b.rows, now = statesAt(h, 0), week = statesAt(h, 1);
-  const hd = headline(rows, now, week), cards = todayThree(rows);
+  const hd = headline(rows, now, week, sectorsIn(b)), cards = todayThree(rows);
   const squares = ORDER.flatMap((k) => rows.filter((r) => keyOf(r) === k).sort((a, c) => a.name.localeCompare(c.name)));
   const shown = ORDER.filter((k) => k !== "no_signal" || rows.some((r) => keyOf(r) === k));
   return (
@@ -41,8 +41,8 @@ export function TodayMinute({ b, h, mine = new Set<string>() }: { b: Board; h: S
       <p className="sp-lead"><b className={"sx-hl sx-hl-" + hd.tone}>{hd.lead}</b>{tw(hd.rest)}</p>
       {hd.sub && <p className="sp-lead-sub">{tw(hd.sub)}</p>}
       <div className="sx-today" ref={box} onMouseLeave={hv.hide}>
-        <p className="sp-cap">All {groupsSplit(rows)}, one square each</p>
-        <ul className="sp-squares" aria-label={`All ${groupsN(rows.length)}, coloured by their state`}>
+        <p className="sp-cap">{rows.every((r) => r.kind === "sector") ? allSectors(rows.length, sectorsIn(b)) : `All ${groupsSplit(rows)}`}, one square each</p>
+        <ul className="sp-squares" aria-label={`${allSectors(rows.length, sectorsIn(b))}, coloured by their state`}>
           {squares.map((r) => <li key={r.slug}><Link to={gl(r.slug)} style={{ background: COLOUR[keyOf(r)] }} aria-label={`${short(r.name)}: ${WORD[keyOf(r)]}`}
             onMouseEnter={(e) => hv.show(r.slug, e.currentTarget)} onFocus={(e) => hv.show(r.slug, e.currentTarget)} onBlur={hv.hide} /></li>)}
         </ul>
@@ -176,7 +176,7 @@ export function ByState({ b, mine }: { b: Board; mine: Set<string> }) {
   const early = g.flatMap((x) => x.rows).filter(isEarly);          // in the group's own order (most stocks rising first)
   const order = [...g.filter((x) => x.key !== "sold_off" && x.key !== "no_signal"), ...g.filter((x) => x.key === "sold_off" || x.key === "no_signal")];
   return (
-    <Section id="sp-bystate" title={`All ${groupsN(b.rows.length)}, by state`} help="All groups, by state. Every group with a reading, grouped by its state today. Inside each state the freshest bounce or the most stocks rising comes first; the bar is how many of its counted stocks are above their medium trend." sub={tw("Grouped by state. Inside each group, the freshest bounce or the most stocks rising comes first. Select an industry to open its page.")}>
+    <Section id="sp-bystate" title={`${allSectors(b.rows.length, sectorsIn(b))}, by state`} help="All groups, by state. Every group with a reading, grouped by its state today. Inside each state the freshest bounce or the most stocks rising comes first; the bar is how many of its counted stocks are above their medium trend." sub={tw("Grouped by state. Inside each group, the freshest bounce or the most stocks rising comes first. Select an industry to open its page.")}>
       {fin && <div className="sp-howrow"><b>How to read a row:</b><span className="sp-howex">{short(fin.name)}<span className="sp-bar"><i style={{ width: `${fin.breadth.above_20}%`, background: COLOUR[keyOf(fin)] }} /></span><b>{risingOf(fin)} of {fin.stocks_counted}</b></span>
         <p>means {risingOf(fin)} of the {fin.stocks_counted} counted {short(fin.name).toLowerCase()} stocks are above their medium-term trend. The bar fills up as more of them rise; past halfway, most are rising.</p></div>}
       {mine.size > 0 && <div className="sx-fl" role="group" aria-label="Show"><span>Show</span>

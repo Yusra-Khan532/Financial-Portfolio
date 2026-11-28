@@ -5,7 +5,7 @@ import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
 import { playFrames, FOUR_SHOW } from "../../../lib/rotation332";
 import { Link, useNavigate } from "react-router";
 import { Cards, InsightCard, Scroll, Section, Tip, BoxChip, useShowAll } from "../../sectors/pack/Common";
-import { BOX, groupsN, short, type Card } from "../../../lib/pulsePack";
+import { BOX, ofSectors, short, type Card } from "../../../lib/pulsePack";
 import { mapGeometry, placeLabels, sparkPath, type RotationMap, type RotationRow } from "../../../lib/rotation";
 import type { GroupRow } from "../../../lib/sectors";
 import {
@@ -74,7 +74,7 @@ export function MapRot({ m, mine, pulse, watched, cards = 99, hover }: { m: Rota
       </div>
       <div className="rp-mapwrap">
         <div className="rp-mapbox" role="region" aria-label="the map" tabIndex={0}>
-          <svg viewBox={`0 0 ${W} ${H}`} className="rp-map" role="group" aria-label={`Map of ${groupsN(rows.length)} ranked against the average grory`}>
+          <svg viewBox={`0 0 ${W} ${H}`} className="rp-map" role="group" aria-label={`Map of ${ofSectors(rows.length)} ranked against the average group`}>
             {q(geo.left, geo.top, geo.x0, geo.y0, "behind_gaining")}{q(geo.x0, geo.top, geo.right, geo.y0, "ahead_gaining")}{q(geo.left, geo.y0, geo.x0, geo.bottom, "behind_slipping")}{q(geo.x0, geo.y0, geo.right, geo.bottom, "ahead_slowing")}
             <line className="rp-axis" x1={geo.left} x2={geo.right} y1={geo.y0} y2={geo.y0} /><line className="rp-axis" x1={geo.x0} x2={geo.x0} y1={geo.top} y2={geo.bottom} />
             {xTicks.map((t) => <text key={"x" + t} className="rp-tk" x={geo.x(t)} y={H - 20} textAnchor="middle">{t > 0 ? "+" : t < 0 ? "−" : ""}{Math.abs(t)}%</text>)}
@@ -138,7 +138,7 @@ export function AheadRot({ m, cards = 99 }: { m: RotationMap; cards?: number }) 
     <Section id="rp-ahead" title="Who is ahead, and which way they are moving" help={rw("Who is ahead. Each industry's return over 6 months against the average group (the bar) and over the last month (the dot), in percentage points.")}
       sub={rw("Bars: each industry's return over 6 months against the average group, in points. Dot: the same for the last month.")}>
       <ul className="sp-lgd"><li><i className="rp-lg rp-lg-up" />ahead over 6 months</li><li><i className="rp-lg rp-lg-dn" />behind over 6 months</li><li><i className="rp-lg rp-lg-dot" />last month</li></ul>
-      <div className="rp-ahead" role="img" aria-label={`${groupsN(rows.length)} by their 6-month return against the average group, with last month's`}>
+      <div className="rp-ahead" role="img" aria-label={`${ofSectors(rows.length)} by their 6-month return against the average group, with last month's`}>
         <div className="rp-ah-head" aria-hidden="true"><span /><span className="rp-ah-axis" style={{ ["--z" as string]: zero + "%" }}><small>average group</small><em className="dn">◀ behind</em><em className="up">ahead ▶</em></span><b>6 months</b><b>Last month</b></div>
         {bars.map((r) => { const s = sixMonths(r)!, l = lastMonth(r); return (
           <div key={r.slug} className="rp-ah-row">

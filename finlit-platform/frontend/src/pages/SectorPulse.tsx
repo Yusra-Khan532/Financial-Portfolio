@@ -4,7 +4,7 @@
 import { useMemo } from "react";
 import { useSearchParams } from "react-router";
 import { useDocTitle } from "../lib/title";
-import { groupsN, groupsParen, groupsSplit } from "../lib/pulsePack";
+import { allSectors, groupsN, groupsParen, groupsSplit, sectorsIn } from "../lib/pulsePack";
 import { PulseGuide } from "../components/sectors/pack/Guide";
 import { PhoneFold } from "../components/PhoneFold";
 import { SxBox, SxFold, SxNav } from "../components/sectors/pack/PulseLayout";
@@ -62,9 +62,9 @@ export function SectorPulsePage() {
         : "Which stocks are counted, and the groups too small for a reading",
     };
   }, [b]);
-  const meta = b ? <>Updated every weekend, to the close of {d ? `${WEEKDAY[d.getUTCDay()]} ${b.date_label ?? b.date}` : b.date} · {b.universe ? b.universe.counted_in_groups_with_reading.toLocaleString("en-IN") : b.stocks_counted.toLocaleString("en-IN")} actively traded stocks<Tip text="Only actively traded, established stocks are counted, so a few rarely traded names cannot swing the reading. The list is reviewed once a month." /> · {groupsSplit(b.rows)}, as NSE groups them<Tip text={show === "sectors" ? "Each group is one of NSE's 22 sectors, read with all its industries together. A sector with too few actively traded stocks for a steady reading is listed under Too small." : "Each group is an NSE industry with enough actively traded stocks for a steady reading; small industries of the same NSE sector are read together as one sector group."} /></> : null;
+  const meta = b ? <>Updated every weekend, to the close of {d ? `${WEEKDAY[d.getUTCDay()]} ${b.date_label ?? b.date}` : b.date} · {b.universe ? b.universe.counted_in_groups_with_reading.toLocaleString("en-IN") : b.stocks_counted.toLocaleString("en-IN")} actively traded stocks<Tip text="Only actively traded, established stocks are counted, so a few rarely traded names cannot swing the reading. The list is reviewed once a month." /> · {show === "sectors" && b.rows.length && b.rows.every((r) => r.kind === "sector") ? `NSE's ${sectorsIn(b)} sectors: ${b.rows.length} with a reading, ${sectorsIn(b) - b.rows.length} too small for one` : `${groupsSplit(b.rows)}, as NSE groups them`}<Tip text={show === "sectors" ? "Each group is one of NSE's 22 sectors, read with all its industries together. A sector with too few actively traded stocks for a steady reading is listed under Too small." : "Each group is an NSE industry with enough actively traded stocks for a steady reading; small industries of the same NSE sector are read together as one sector group."} /></> : null;
   const n = b?.rows.length ?? 0, sectorsView = show === "sectors";
-  const allLabel = sectorsView ? `All ${n} sectors` : `All ${n} groups`;          // final check 2: the Industries view's 38 are 33 industries and 5 sector groups
+  const allLabel = sectorsView ? allSectors(n, sectorsIn(b)) : `All ${n} groups`;   // task #436: "19 of the 22 sectors"          // final check 2: the Industries view's 38 are 33 industries and 5 sector groups
   return (
     <div className={"wrap sx sp sx-new" + (view === "full" ? " sx-full" : "")} data-testid="sector-pulse">
       <PackHead page="pulse" title={TITLE} desc={tw(HEAD_DESC)} meta={meta} view={view} onView={setView} industries={b?.rows ?? []} show={show} onShow={setShow}
