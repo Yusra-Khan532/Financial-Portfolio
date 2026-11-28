@@ -1,0 +1,6 @@
+/* Task #461 (team, 28 Nov 2026), ETFs: "take this inside the box in etf filter box". The Ranges labels ("1-year price return",
+   "5-year price return (total)") were each fieldset's legend, drawn on the box's top border. A floated legend is laid out inside the
+   fieldset instead, so each label now sits inside its box, on its own line above the from / to inputs. Still the fieldset's legend, so
+   screen readers name the group the same. Scoped to the ETF list. */
+.etf-list .etf-range { padding: 10px 12px 12px; row-gap: 8px; }
+.etf-list .etf-range legend { float: left; width: 100%; padding: 0; margin: 0; line-height: 1.4; }
