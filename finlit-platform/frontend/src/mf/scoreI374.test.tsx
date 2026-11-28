@@ -17,7 +17,7 @@ describe("task #374: the i on a missing score", () => {
     const i = container.querySelector(".mf-na-i")!;
     expect(container.textContent).toContain("—");
     expect(i.getAttribute("data-tip")).toBe("Missing data from AMFI. Not scored: under a year of NAV history.");
-    expect(i.getAttribute("tabindex")).toBe("0");
+    expect(i.tagName).toBe("BUTTON");   // task #440: a button (focusable by itself) that opens the shared popover
     expect(i.getAttribute("aria-label")).toBe("No score. Missing data from AMFI. Not scored: under a year of NAV history.");
   });
   it("with no score item at all, the page's own reason follows", () => {
@@ -57,9 +57,8 @@ describe("task #374: the caption in line with the Columns and enlarge buttons", 
     expect(css).toMatch(/\.mf-tbar-cap \{ display: flex; align-items: center; min-height: 40px;[^}]*margin: 0 0 8px; padding: 0 252px 0 10px; \}/);
     expect(css).toMatch(/@media \(max-width: 760px\) \{ \.mf-list \.mf-tablecard > \.mf-tbar-cap \{ min-height: 0; padding: 52px/);
   });
-  it("the i has a 44px tap area, a focus ring and a tooltip on hover and focus", () => {
+  it("the i has a 44px tap area and a focus ring (task #440: its explanation is the shared popover, see scoreI440.test.tsx)", () => {
     expect(css).toMatch(/\.mf-na-i::before \{ content: ""; position: absolute; inset: -13px; \}/);
     expect(css).toMatch(/\.mf-na-i:focus-visible \{ outline: 2px solid/);
-    expect(css).toMatch(/\.mf-na-i\[data-tip\]:hover::after, \.mf-na-i\[data-tip\]:focus::after/);
   });
 });

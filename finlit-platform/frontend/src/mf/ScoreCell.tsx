@@ -1,4 +1,6 @@
 // Mutual Fund Score cell of a table row (funds list, ETF list): the number with its colour band and label; a lock below Gold; the specific reason where there is no score.
+import { useRef } from "react";
+import { useInfoPop } from "../components/Info";
 import { Icon } from "../lib/icons";
 import "../styles/task374.css";   // task #374: the "i" on a missing score
 import { GROWTH_SCORE_LABEL, PLAN_SCORE_NOTE } from "../lib/mf";
@@ -9,7 +11,24 @@ import "../styles/task371.css";   // task #371: a bigger score and parts; each p
 
 /** Task #374 (team, 24 Nov 2026): a missing score shows an "i"; hovering, focusing or tapping it names why, in the team's words first ("Missing data from
  *  AMFI", or for an ETF "Scoring not available"), then the specific reason. */
-export const missingScoreTip = (etf: boolean, reason: string) => `${etf ? "Scoring not available" : "Missing data from AMFI"}. ${reason}`;
+export const missingScoreHead = (etf: boolean) => (etf ? "Scoring not available" : "Missing data from AMFI");
+export const missingScoreTip = (etf: boolean, reason: string) => `${missingScoreHead(etf)}. ${reason}`;
+
+/** Task #440 (team, 28 Nov 2026: "'i' box is getting hidden inside the columns"): the explanation was a CSS box drawn inside the score's table cell. A
+ *  stopped scheme's cells are faded with opacity (mf.css, mfscreen.css), and opacity makes every cell its own layer, so the next cells (NAV, returns) and
+ *  the frozen Scheme column were painted over the box, the box was faded too, and on a phone the table's sideways-scroll box cut it off. The i now opens
+ *  the site's shared explanation popover (components/Info.tsx: drawn once at the page's top level, fixed, placed whole inside the window by
+ *  lib/floating.ts), so no cell, column or scroll box can cover or cut it. Hover, keyboard focus and a tap open it, as for every other i; Escape closes it;
+ *  a tap keeps it open until a tap outside it (task #398). */
+function NoScoreI({ head, reason }: { head: string; reason: string }) {
+  const show = useInfoPop();
+  const touch = useRef(false);
+  const g = { key: "mf-noscore", label: head, what: reason };
+  return <button type="button" className="mf-na-i" data-tip={`${head}. ${reason}`} aria-label={`No score. ${head}. ${reason}`}
+    onPointerDown={(e) => { touch.current = e.pointerType === "touch"; }}
+    onMouseEnter={(e) => show(g, e.currentTarget)} onMouseLeave={() => show(null)} onFocus={(e) => show(g, e.currentTarget)} onBlur={() => show(null)}
+    onClick={(e) => { e.stopPropagation(); show(g, e.currentTarget, touch.current); }}>i</button>;
+}
 export const isEtfCategory = (category?: string | null) => /\bETFs?\b/i.test(category ?? "");
 
 export function ScoreCell({ item, locked, why, loading = false, etf = false, bare = false }: { item?: ScoreItem; locked: boolean; why: string; loading?: boolean; etf?: boolean;
@@ -17,9 +36,9 @@ export function ScoreCell({ item, locked, why, loading = false, etf = false, bar
    *  in the cell's hover text and are read out to screen readers. The four part letters stay (the team asked for them, tasks #358 and #378). */ bare?: boolean }) {
   if (locked) return <span className="mf-na" title="The Mutual Fund Score is part of the Gold plan."><Icon name="lock" /><span className="sr-only">Locked: Gold plan</span></span>;
   if (loading && !item) return <span className="mf-na" aria-busy="true"><span className="sr-only">Loading</span>…</span>;
-  if (!item || item.final == null) { const tip = missingScoreTip(etf || !!item?.symbol, item?.reason || why);
+  if (!item || item.final == null) { const isEtf = etf || !!item?.symbol;
     return <span className="mf-na mf-na-x"><span aria-hidden="true">—</span>{item?.status === "NOT RATED" && (bare ? <span className="sr-only">not rated</span> : <small>not rated</small>)}
-      <i className="mf-na-i" tabIndex={0} role="img" data-tip={tip} aria-label={`No score. ${tip}`}>i</i></span>; }
+      <NoScoreI head={missingScoreHead(isEtf)} reason={item?.reason || why} /></span>; }
   const band = bandOf(item.final);
   const inh = item.inherited;   // task #281: an IDCW row shows its same-plan Growth option's score, labelled as that option's
   return <span className="mfs-cell" title={`${inh ? `${GROWTH_SCORE_LABEL} (${inh.name}). ${inh.why} ` : ""}${item.label}${item.status === "PROVISIONAL" ? ", provisional" : ""}. ${PLAN_SCORE_NOTE} Describes the past; not a recommendation.`}>
