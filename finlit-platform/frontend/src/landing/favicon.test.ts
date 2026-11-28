@@ -1,5 +1,6 @@
-// Owner, 27 Nov 2026: "We want our company's logo at that fav icon". The tab icon was a crop of the logo's "L + chart bars"; it is now the whole
-// FinLit mark (scripts/make-favicons.py), and /favicon.ico exists (it returned 404, and some browsers and search engines ask for it first).
+// Owner, 27 Nov 2026: "We want our company's logo at that fav icon"; 28 Nov 2026: "below FinLit there is also written VENTURES ... strictly change
+// this logo to every place". Every tab and app icon is the WHOLE artwork as given (square, with VENTURES, nothing cropped or stretched), made by
+// scripts/make-favicons.py, and /favicon.ico exists.
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -27,7 +28,11 @@ describe("tab icon: the FinLit logo", () => {
     expect(sizes).toEqual([16, 32, 48]);
   });
 
-  it("the icon is the full mark (a larger file than the old one-letter crop) and no unused size is shipped", () => {
+  it("every icon is made from the whole square artwork, only scaled, and no unused size is shipped", () => {
+    const py = read("scripts/make-favicons.py");
+    expect(py).toContain('SRC = "../scripts/assets/finlit-ventures-logo-2000.webp"');
+    expect(py).toContain("art.resize((n, n)");                        // the whole square, no crop
+    expect(py).not.toMatch(/\.crop\(|rounded_rectangle/);
     expect(readFileSync(resolve(FE, "public/favicon-48.png")).length).toBeGreaterThan(1000);
     expect(existsSync(resolve(FE, "public/favicon-64.png"))).toBe(false);
   });

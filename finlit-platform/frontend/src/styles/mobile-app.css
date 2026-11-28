@@ -8,7 +8,7 @@
 @media (max-width: 860px) {
   /* ---- the top bar: logo, a search box that says what it finds, Ask FinLit AI (and the bell for a member) ---- */
   :root .top .wrap { gap: 8px; padding-inline: 12px; min-height: 56px; height: 56px; }
-  :root .top .lg-mark { height: 32px; }
+  :root .top .lg-mark { height: 44px; }   /* the whole logo with VENTURES (owner, 28 Nov 2026): as large as the 56px bar allows */
   :root:root .top > .wrap > :is(.grow, .wod-top, .av-btn, .acct-dd, .mob-cta, .signin-ph) { display: none !important; }
   :root:root .top > .wrap > .logo { order: 0; flex: none; }
   :root:root .top > .wrap > .search { order: 1; flex: 1 1 auto; width: auto; min-width: 0; height: 40px; padding: 0 12px; justify-content: flex-start; gap: 8px;
