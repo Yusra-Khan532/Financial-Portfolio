@@ -27,7 +27,7 @@ import { SectorPulsePage } from "./SectorPulse";
 
 const B = board as unknown as Board;
 const SHARES = [{ id: "1", symbol: "FINA", qty: 10, price: 100 }, { id: "2", symbol: "FINB", qty: 5, price: 50 }, { id: "3", symbol: "PWRA", qty: 1, price: 10 }, { id: "4", symbol: "SOLD", qty: 1, price: 1, owned: false }];
-beforeEach(() => { localStorage.clear(); vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} }); st.holdings = []; });
+beforeEach(() => { sessionStorage.clear(); for (const v of ["industries", "sectors"]) sessionStorage.setItem(`finlit:steps:sp:${v}`, JSON.stringify({ mode: "all" }));   /* task #448: every step on the page (the step bar's "All sections") */ localStorage.clear(); vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} }); st.holdings = []; });
 afterEach(cleanup);
 const at = (path = "/sectors") => render(<QueryClientProvider client={new QueryClient()}><MemoryRouter initialEntries={[path]}><SectorPulsePage /></MemoryRouter></QueryClientProvider>);
 const text = () => (document.body.textContent ?? "").replace(/\s+/g, " ");

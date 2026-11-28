@@ -17,6 +17,8 @@ import {
 import { Wallet, BoxChip, Cards, InsideLine, QuietList, InsightCard, Scroll, Section, Spark, StateChip, Swatch, Tip, useAccount, useShowAll } from "./Common";
 import { coTitle, shortLabel } from "../../../lib/companyLabel";
 import { SxFold } from "./PulseLayout";
+import { MySectorsAlert, YourShort, usePeerLabels } from "./YourSectors";
+import type { HeldShare } from "../../../lib/yourSectors";
 import { AlertBell } from "./SectorAlert";
 import { HoverCard, useHover } from "./PulseMap";
 import { useWatchlist } from "../../../lib/watchlist";
@@ -25,21 +27,46 @@ import { gl, sq, tw, wordsShow } from "../../../lib/groupWords";
 const n0 = (v: number) => v.toLocaleString("en-IN");
 
 // ------------------------------------------------------------------------------------------------ Today in one minute
+/** Task #448 (02 §1.3, fix 2): "the Nifty 50 is just 50 large companies, 7.3% above their 200-day average. Across all 1,235 stocks, only 48 in 100 are rising."
+ *  Only when the Nifty 50 is above its 200-day average and more than half the groups are Sold off or Losing steam. The rising figure is every group's stocks above
+ *  their medium trend, weighted by the stocks each group counts. */
+export function marketUpLine(b: Board): string | null {
+  const m = b.market, rows = b.rows;
+  if (!m || m.above_200d !== true || m.pct_vs_200d == null || !rows.length) return null;
+  const weak = rows.filter((r) => keyOf(r) === "sold_off" || keyOf(r) === "losing").length;
+  if (weak * 2 <= rows.length) return null;
+  const counted = rows.reduce((t, r) => t + (r.stocks_counted || 0), 0);
+  const rising = rows.reduce((t, r) => t + ((r.breadth?.above_20 ?? 0) / 100) * (r.stocks_counted || 0), 0);
+  if (!counted) return null;
+  return `the Nifty 50 is just 50 large companies, ${m.pct_vs_200d.toFixed(1)}% above their 200-day average. Across all ${counted.toLocaleString("en-IN")} stocks, only ${Math.round((rising / counted) * 100)} in 100 are rising.`;
+}
 export const TODAY_HELP = "Today in one minute. What changed at the latest close: how many groups are in each state now and a week ago, one square per group, and the few things worth knowing.";
-export function TodayMinute({ b, h, mine = new Set<string>() }: { b: Board; h: SectorHistory | undefined; mine?: Set<string> }) {
+export function TodayMinute({ b, h, mine = new Set<string>(), noShares = false, signedIn = false, forYou, onLabels }: { b: Board; h: SectorHistory | undefined; mine?: Set<string>;
+  /** task #448 (02 §1.5, fix 9): no shares and no watchlist: one row after the squares and tiles */ noShares?: boolean; signedIn?: boolean;
+  /** task #448 (02 §1.2): For you this week, under the first-visit line */ forYou?: React.ReactNode; /** opens "What the labels mean" from the ⋯ menu */ onLabels?: () => void }) {
+  const [newHere, setNewHere] = useState(() => { try { return localStorage.getItem("finlit-pulse-newhere") !== "closed"; } catch { return true; } });
   const box = useRef<HTMLDivElement>(null), hv = useHover(box), hovered = hv.h ? b.rows.find((r) => r.slug === hv.h!.slug) : undefined;
   // task #333 (file 30, polish 5): the squares run across the top, the counts are tiles in one row (number, state, change on last week), and three callouts sit in
   // one row under them; the headline's first sentence is a coloured chip (fix 2)
   const rows = b.rows, now = statesAt(h, 0), week = statesAt(h, 1);
-  const hd = headline(rows, now, week, sectorsIn(b)), cards = todayThree(rows);
+  const hd = headline(rows, now, week, sectorsIn(b)), cards = todayThree(rows), upLine = marketUpLine(b);
   const squares = ORDER.flatMap((k) => rows.filter((r) => keyOf(r) === k).sort((a, c) => a.name.localeCompare(c.name)));
   const shown = ORDER.filter((k) => k !== "no_signal" || rows.some((r) => keyOf(r) === k));
   return (
     <section className="sp-sec" aria-labelledby="sx-today">
       <h2 id="sx-today">Today in one minute<Tip text={TODAY_HELP} label="About “Today in one minute”" /></h2>
       <p className="sp-sub">{tw("What changed in the industries, and what to keep an eye on.")}</p>
-      <p className="sp-lead"><b className={"sx-hl sx-hl-" + hd.tone}>{hd.lead}</b>{tw(hd.rest)}</p>
-      {hd.sub && <p className="sp-lead-sub">{tw(hd.sub)}</p>}
+      {/* task #448 (02 §1.1, fixes 1 and 4): the two pages cover different spans; closed with ×, it stays closed in this browser */}
+      {newHere && <p className="sx-newhere" data-testid="new-here"><span><b>New here?</b> Sector Pulse covers the last few weeks; <Link to={`/sectors/rotation${wordsShow() === "sectors" ? "?show=sectors" : "?show=industries"}`}>Sector Rotation</Link> covers 6 months. So {tw("an industry")} can read differently on each. {onLabels && <button type="button" className="sx-tlink" onClick={onLabels}>What the labels mean</button>}</span>
+        <button type="button" className="sx-x" aria-label="Close: New here?" onClick={() => { setNewHere(false); try { localStorage.setItem("finlit-pulse-newhere", "closed"); } catch { /* private window: closed for this view only */ } }}>×</button></p>}
+      {forYou}
+      {/* task #448 (02 §1.3): the headline and its detail line read as one box, tinted by the headline's kind; fix 2: when the Nifty 50 is above its 200-day
+          average but more than half the groups are Sold off or Losing steam, one more line says so, with the share of all counted stocks rising */}
+      <div className={"sx-hlbox sx-hlbox-" + hd.tone}>
+        <p className="sp-lead"><b className={"sx-hl sx-hl-" + hd.tone}>{hd.lead}</b>{tw(hd.rest)}</p>
+        {hd.sub && <p className="sp-lead-sub">{tw(hd.sub)}</p>}
+        {upLine && <p className="sp-lead-sub sx-upline"><b>Yet the market is up:</b> {upLine}</p>}
+      </div>
       <div className="sx-today" ref={box} onMouseLeave={hv.hide}>
         <p className="sp-cap">{rows.every((r) => r.kind === "sector") ? allSectors(rows.length, sectorsIn(b)) : `All ${groupsSplit(rows)}`}, one square each</p>
         <ul className="sp-squares" aria-label={`${allSectors(rows.length, sectorsIn(b))}, coloured by their state`}>
@@ -53,6 +80,8 @@ export function TodayMinute({ b, h, mine = new Set<string>() }: { b: Board; h: S
             <small>{d == null ? "–" : d === 0 ? "same as last week" : `${Math.abs(d)} ${d > 0 ? "more" : "fewer"} than last week`}</small></li>;
         })}</ul>
       </div>
+      {noShares && <div className="sx-noshares" data-testid="no-shares"><p><b>See where your own shares sit.</b> {tw("Add them and both pages show your industries first.")}</p>
+        <Link className="sx-go" to={signedIn ? "/portfolio" : "/login?next=/portfolio"}>Add my shares</Link><Link className="sx-go2" to="/watchlists">Start a watchlist</Link></div>}
       <QuietList items={cards} />{/* task #448 (01 §4): on Today, things to know are one quiet list */}
     </section>
   );
@@ -70,7 +99,8 @@ function Pills({ syms }: { syms: { symbol: string; wl: boolean }[] }) {
       {syms.length > 3 && <button type="button" className="sx-pmore" aria-expanded={open} onClick={() => setOpen(!open)}>{open ? "fewer" : `+${syms.length - 3}`}</button>}</div>
   );
 }
-export function YourIndustries({ b, h, symbols, signedIn }: { b: Board; h: SectorHistory | undefined; symbols: string[]; signedIn: boolean }) {
+export function YourIndustries({ b, h, symbols, signedIn, heldShares = [] }: { b: Board; h: SectorHistory | undefined; symbols: string[]; signedIn: boolean;
+  /** task #448 (06): the member's shares with quantity, last close and group, for value */ heldShares?: HeldShare[] }) {
   // task #333 (file 30, addition 6): the switch My portfolio · My watchlist · Both; every row shown; a bell in its own last column (addition 5); no shares and no
   // watchlist: "Your sectors will show here"
   const wl = useWatchlist();
@@ -87,9 +117,22 @@ export function YourIndustries({ b, h, symbols, signedIn }: { b: Board; h: Secto
   const spark = (slug: string) => h?.groups.find((g) => g.slug === slug)?.rising ?? [];
   const portfolioHeld: Holding[] = symbols.flatMap((s) => (q.data?.groups[s] ? [{ symbol: s, slug: q.data.groups[s].slug }] : []));
   const empty = !symbols.length && !watchSyms.length;
+  // task #448 (02 §2): the short grouped view first, the table one press away; Count by on My portfolio only (Value by default)
+  const [by, setBy] = useState<"value" | "count">("value"), [table, setTable] = useState(false), [allRows, setAllRows] = useState(false);
+  const count = cur === "hold" ? by : "count";
+  const bySym = new Map(heldShares.map((x) => [x.symbol, x]));
+  const srcShares: HeldShare[] = pick.map((sym) => ({ symbol: sym, qty: cur === "watch" ? 0 : bySym.get(sym)?.qty ?? 0, price: bySym.get(sym)?.price ?? null, slug: q.data?.groups[sym]?.slug ?? null }));
+  const labels = usePeerLabels(mine.map((r) => r.slug));
+  const wlOnly = new Set(watchSyms.filter((x) => !own.has(x)));
+  const inGroups = srcShares.filter((x) => x.slug && mine.some((r) => r.slug === x.slug)).length;
+  const sharesWord = cur === "watch" ? "watchlist shares" : "shares";
+  const sharesLine = !mine.length ? undefined : inGroups === pick.length
+    ? tw(`${mine.length} ${mine.length === 1 ? "industry holds" : "industries hold"} your ${pick.length} ${pick.length === 1 ? sharesWord.replace("shares", "share") : sharesWord}.`)
+    : tw(`${mine.length} ${mine.length === 1 ? "industry holds" : "industries hold"} ${inGroups} of your ${pick.length} ${sharesWord} (${pick.length - inGroups} ${pick.length - inGroups === 1 ? "has" : "have"} no NSE industry).`);
+  const tableRows = allRows ? mine : mine.slice(0, 8);
   return (
     <Section id="sx-yours" title={tw("How your industries are doing")} help={tw("Your industries: the NSE industries of the shares in your portfolio or on your watchlist. Each one's state today, how it compares with other industries (Sector Rotation) and how many of its stocks have been rising over 6 months.")}
-      sub={mine.length ? tw(`The ${mine.length} ${mine.length === 1 ? tw("industry") : tw("industries")} your ${held.length} ${held.length === 1 ? "share belongs" : "shares belong"} to: is each one rising or falling, and is it beating other industries?`) : undefined}
+      sub={sharesLine} right={mine.length ? <MySectorsAlert count={mine.length} /> : undefined}
       why={tw("A share rarely swims against its whole industry for long. Knowing whether your industries are rising or falling tells you what your shares are up against.")}>
       {empty ? (
         <div className="sx-empty" data-testid="your-empty"><b>{tw("Your industries will show here")}</b>
@@ -99,18 +142,22 @@ export function YourIndustries({ b, h, symbols, signedIn }: { b: Board; h: Secto
         <div className="sx-src" role="group" aria-label="Which shares"><span>{tw("Industries of")}</span>
           <button type="button" aria-pressed={cur === "hold"} onClick={() => setSrc("hold")}>My portfolio <small>{symbols.length} {symbols.length === 1 ? "share" : "shares"}</small></button>
           <button type="button" aria-pressed={cur === "watch"} onClick={() => setSrc("watch")}>My watchlist <small>{watchSyms.length} {watchSyms.length === 1 ? "share" : "shares"}</small></button>
-          <button type="button" aria-pressed={cur === "both"} onClick={() => setSrc("both")}>Both</button></div>
+          <button type="button" aria-pressed={cur === "both"} onClick={() => setSrc("both")}>Both</button>
+          {cur === "hold" && <span className="sx-countby" role="group" aria-label="Count by"><span>Count by<Tip label="About “Count by”" text="Value weighs each share by what you hold in it (quantity × last close). Number of shares counts every share once, whatever its size." /></span>
+            <button type="button" aria-pressed={by === "value"} onClick={() => setBy("value")}>Value</button><button type="button" aria-pressed={by === "count"} onClick={() => setBy("count")}>Number of shares</button></span>}</div>
         {q.isLoading ? <div className="sx-skel" style={{ height: 120 }} role="status" aria-label={tw("Loading your industries")} />
           : !pick.length ? <p className="sp-empty">{cur === "hold" ? "Your portfolio has no shares yet." : "Your watchlist has no shares yet."}</p>
           : !mine.length ? <p className="sp-empty">None of these {pick.length} {tw("shares is in an industry with a reading today: NSE has not given them an industry, or their industry has too few counted stocks.")}</p>
           : <>
             {cur === "hold" && <Cards items={yourCards(b.rows, portfolioHeld).slice(0, 1)} />}{/* the callout is about the portfolio, so it shows only on My portfolio */}
-            <Scroll label={tw("your industries")}><table className="sp-tb sp-yours">
+            {!table && <YourShort b={b} h={h} held={srcShares} by={count} labels={labels} labelOf={(k) => WORD[k]} wlSet={wlOnly} />}
+            <p className="sx-tbl-toggle"><button type="button" className="sx-tlink" aria-expanded={table} onClick={() => setTable(!table)}>{table ? "Back to the short view ▴" : "See every column, as a table ▾"}</button></p>
+            {table && <><Scroll label={tw("your industries")}><table className="sp-tb sp-yours">
               <thead><tr><th scope="col">{tw("Industry and your shares")}</th><th scope="col">Its state today<Tip text={tw("The industry's state at the latest close: sold off, bouncing back, rising together or losing steam.")} /></th>
                 <th scope="col">{tw("Against other industries")}<Tip text="Its Sector Rotation box and rank: how it has done against the average group over 6 months and over the last month." /></th>
                 <th scope="col">Stocks rising · last 6 months<Tip text="The line: out of every 100 of its counted stocks, how many were above their medium trend each day for 6 months. Dashed: half." /></th><th scope="col">What it means for you</th>
                 <th scope="col" className="sx-alh">Alert</th></tr></thead>
-              <tbody>{mine.map((r) => {
+              <tbody>{tableRows.map((r) => {
                 const m = meansForYou(r), syms = held.filter((x) => x.slug === r.slug).map((x) => ({ symbol: x.symbol, wl: !own.has(x.symbol) })), up = risingOf(r);
                 return (<tr key={r.slug}>
                   <td><Link className="sp-ind" to={gl(r.slug)}>{short(r.name)}</Link><Pills syms={syms} /></td>
@@ -122,6 +169,7 @@ export function YourIndustries({ b, h, symbols, signedIn }: { b: Board; h: Secto
                 </tr>);
               })}</tbody>
             </table></Scroll>
+            {mine.length > 8 && <button type="button" className="sp-showall" aria-expanded={allRows} onClick={() => setAllRows(!allRows)}>{allRows ? "Show fewer ▴" : tw(`Show all ${mine.length} industries ▾`)}</button>}</>}
           </>}
       </>}
     </Section>

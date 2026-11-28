@@ -32,11 +32,13 @@ vi.mock("../lib/title", () => ({ useDocTitle: () => undefined }));
 import { SectorPulsePage } from "./SectorPulse";
 
 void (board as unknown as Board);
-beforeEach(() => { localStorage.clear(); st.holdings = []; st.watch = []; st.prefs.sectorAlerts = []; st.set.mockClear(); vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} }); });
+beforeEach(() => { sessionStorage.clear(); for (const v of ["industries", "sectors"]) sessionStorage.setItem(`finlit:steps:sp:${v}`, JSON.stringify({ mode: "all" }));   /* task #448: every step on the page (the step bar's "All sections") */ localStorage.clear(); st.holdings = []; st.watch = []; st.prefs.sectorAlerts = []; st.set.mockClear(); vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} }); });
 afterEach(cleanup);
 const at = () => render(<QueryClientProvider client={new QueryClient()}><MemoryRouter initialEntries={["/sectors?show=industries"]}><SectorPulsePage /></MemoryRouter></QueryClientProvider>);
 const yours = () => document.getElementById("sx-yours")!.closest("section")!;
 const rows = () => [...yours().querySelectorAll(".sp-yours tbody tr")];
+/** Task #448 (02 §2): the table is one press away from the short view. */
+const asTable = async () => { const b = await waitFor(() => within(yours()).getByRole("button", { name: "See every column, as a table ▾" })); fireEvent.click(b); };
 
 describe("Your industries: portfolio, watchlist or both (task #333, addition 6)", () => {
   it("switches between the portfolio, the watchlist and both; a share in both shows once; watchlist pills are dashed", async () => {
@@ -46,6 +48,7 @@ describe("Your industries: portfolio, watchlist or both (task #333, addition 6)"
     const sw = within(yours()).getByRole("group", { name: "Which shares" });
     expect(within(sw).getByRole("button", { name: /My portfolio/ }).textContent).toBe("My portfolio 5 shares");
     expect(within(sw).getByRole("button", { name: /My portfolio/ }).getAttribute("aria-pressed")).toBe("true");
+    await asTable();
     await waitFor(() => expect(rows().length).toBeGreaterThan(0));
     expect(rows().map((r) => r.querySelector(".sp-ind")!.textContent).sort()).toEqual(["Finance", "Power"]);
     // four Finance shares: three pills, then +1 which opens the rest
@@ -64,13 +67,16 @@ describe("Your industries: portfolio, watchlist or both (task #333, addition 6)"
     expect(yours().querySelector('a.sp-sym[href="/stocks/NTPC"]')!.className).not.toContain("sx-wl");
     expect(within(yours()).queryByRole("button", { name: /^Show all/ })).toBeNull();
   });
-  it("no shares and no watchlist: 'Your industries will show here' with Add my shares and Open my watchlist", () => {
+  it("task #448 (01 §1, 02 §1.5, fix 9): no shares and no watchlist: no Your step, and one row on Today with Add my shares and Start a watchlist", () => {
+    sessionStorage.clear();                                                   // the default: one section at a time
     at();
-    const box = screen.getByTestId("your-empty");
-    expect(box.textContent).toContain("Your industries will show here");
-    expect(within(box).getByRole("link", { name: "Add my shares" }).getAttribute("href")).toBe("/portfolio");
-    expect(within(box).getByRole("link", { name: "Open my watchlist" }).getAttribute("href")).toBe("/watchlists");
-    expect(document.querySelectorAll("tr.sx-mine, .sp-yourtag")).toHaveLength(0);
+    const bar = screen.getByRole("navigation", { name: "Steps on this page" });
+    expect(within(bar).queryByRole("button", { name: /Your industries/ })).toBeNull();
+    const row = screen.getByTestId("no-shares");
+    expect(row.textContent).toContain("See where your own shares sit. Add them and both pages show your industries first.");
+    expect(within(row).getByRole("link", { name: "Add my shares" }).getAttribute("href")).toBe("/portfolio");
+    expect(within(row).getByRole("link", { name: "Start a watchlist" }).getAttribute("href")).toBe("/watchlists");
+    expect(document.querySelectorAll(".sp-wal, .sx-walkey")).toHaveLength(0);
   });
 });
 
@@ -78,6 +84,7 @@ describe("Alert me (task #333, addition 5)", () => {
   it("the bell opens the card with three tick boxes and the plan line; Set alert saves the choice and the bell reads Alert set", async () => {
     st.holdings = [{ symbol: "NTPC" }];
     at();
+    await asTable();
     await waitFor(() => expect(rows().length).toBeGreaterThan(0));
     const bell = within(yours()).getByRole("button", { name: "Alert me about Power" });
     fireEvent.click(bell);
@@ -88,6 +95,7 @@ describe("Alert me (task #333, addition 5)", () => {
     fireEvent.click(within(card).getByRole("button", { name: "Set alert" }));
     expect(st.set).toHaveBeenCalledWith({ sectorAlerts: ["state:industries:power", "box:industries:power", "top5:industries:power"] });
     cleanup(); at();
+    await asTable();
     await waitFor(() => expect(rows().length).toBeGreaterThan(0));
     expect(within(yours()).getByRole("button", { name: "Alert set for Power" }).className).toContain("on");
   });

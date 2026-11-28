@@ -49,3 +49,23 @@ def test_events_from_a_release_folder(tmp_path):
     # until the week has closed nothing is sent
     (base / "rotation" / "_map.json").write_text(json.dumps({"week_closed": False, "rows": []}))
     assert sa.events(tmp_path, "sectors", "power") == []
+
+
+def test_one_alert_for_all_my_sectors_448(tmp_path, monkeypatch):
+    """Task #448 (developer file 42, 02 §1.2): "mine" is one alert for all the member's groups, worked out at each run from the shares they hold then (so a
+    share added later is covered), and it counts as one alert. Made-up symbols."""
+    from finlit import sector_api
+    monkeypatch.setattr(sector_api, "_nse_classes", lambda: {"AAA": ("Power", "Power"), "BBB": ("Banks", "Financial Services"), "CCC": ("Cement", "Construction Materials")})
+    base = tmp_path / "by-sector"
+    (base / "sectors").mkdir(parents=True)
+    (base / "sectors" / "_board.json").write_text(json.dumps({"rows": [{"slug": "power", "name": "Power", "kind": "sector"}, {"slug": "financial-services", "name": "Financial Services", "kind": "sector"}]}))
+    portfolio = {"holdings": [{"symbol": "aaa", "qty": 1}, {"symbol": "AAA", "qty": 2}, {"symbol": "BBB", "qty": 1}, {"symbol": "CCC", "qty": 1}, {"symbol": "DDD", "qty": 1, "owned": False}]}
+    assert sa.held_symbols(portfolio) == ["AAA", "BBB", "CCC"]
+    assert sa.held_symbols(json.dumps(portfolio)) == ["AAA", "BBB", "CCC"]
+    assert sa.held_symbols(None) == []
+    mine = {"sectors": sa.groups_of(tmp_path, "sectors", sa.held_symbols(portfolio))}
+    assert mine == {"sectors": ["power", "financial-services"]}            # CCC's sector has no reading: left out
+    entries = sa.parse(["state:sectors:mine", "box:sectors:mine", "top5:sectors:power"])
+    assert sa.wanted(entries, mine) == {("sectors", "power"): {"state", "box", "top5"}, ("sectors", "financial-services"): {"state", "box"}}
+    assert sa.wanted(entries) == {("sectors", "power"): {"top5"}}          # no groups worked out: "mine" adds nothing
+    assert sa.groups_alerted({"sectorAlerts": ["state:sectors:mine", "box:sectors:mine"]}) == 1

@@ -6,8 +6,13 @@ import { useSearchParams } from "react-router";
 import { useDocTitle } from "../lib/title";
 import { allSectors, groupsParen, groupsSplit, sectorsLine } from "../lib/pulsePack";
 import { PulseGuide } from "../components/sectors/pack/Guide";
-import { PhoneFold } from "../components/PhoneFold";
-import { SxBox, SxFold, SxNav } from "../components/sectors/pack/PulseLayout";
+import { SxBox } from "../components/sectors/pack/PulseLayout";
+import { Steps } from "../components/sectors/pack/Steps";
+import { useWatchlist } from "../lib/watchlist";
+import { ForYouCard, usePeerLabels } from "../components/sectors/pack/YourSectors";
+import type { HeldShare } from "../lib/yourSectors";
+import { quoteMap } from "../lib/globalSearch";
+import { WORD } from "../lib/pulsePack";
 import { InsideSector, PriceVsResults, WhatNext } from "../components/sectors/pack/PulseChecks";
 import { MoodWeeks, SectorMap } from "../components/sectors/pack/PulseMap";
 import { useAuth } from "../lib/auth";
@@ -16,7 +21,7 @@ import { failureText, useSectorBoard } from "../lib/sectors";
 import { useSectorHistory } from "../lib/sectorHistory";
 import { useIndustryMap } from "../lib/sectorExtra";
 import { useQuery } from "@tanstack/react-query";
-import { ApiError, apiGet } from "../lib/api";
+import { ApiError, apiGet, useSearchQuotes } from "../lib/api";
 import { Blank } from "../components/sectors/Parts";
 import { Tip, TtkMode, Wallet, WhyFold, useFirstVisit } from "../components/sectors/pack/Common";
 import { BackdropLine, PackHead, type View } from "../components/sectors/pack/PulseHead";
@@ -52,8 +57,18 @@ export function SectorPulsePage() {
   const key = [...symbols].sort().join(",");
   const mem = useQuery<{ groups: Record<string, { slug: string }> }, ApiError>({ queryKey: ["sectors", "membership", key, show], queryFn: () => apiGet(`/api/sectors/membership?symbols=${encodeURIComponent(key)}` + showQuery(show, false)), enabled: symbols.length > 0, staleTime: 3_600_000, retry: false });
   const mine = useMemo(() => new Set(Object.values(mem.data?.groups ?? {}).map((g) => g.slug)), [mem.data]);
+  // task #448 (06): each held share once, with its quantity across lots, its last close (quantity × last close is its value) and its group (none: no NSE sector)
+  const quotes = useSearchQuotes(symbols.length > 0);
+  const heldShares: HeldShare[] = useMemo(() => {
+    const qm = quoteMap(quotes.data), qty = new Map<string, number>();
+    for (const x of held) if (x.owned !== false && x.side !== "sell") qty.set(x.symbol.toUpperCase(), (qty.get(x.symbol.toUpperCase()) ?? 0) + (x.qty || 0));
+    return symbols.map((sym) => ({ symbol: sym, qty: qty.get(sym) ?? 0, price: qm.get(sym)?.price ?? null, slug: mem.data?.groups[sym]?.slug ?? null }));
+  }, [symbols, held, quotes.data, mem.data]);
+  const peerLabels = usePeerLabels([...mine]);
   const b = q.data, h = hq.data;
   const tax = useTaxonomyIndex();
+  const wl = useWatchlist();
+  const watchSyms = useMemo(() => [...new Set(wl.lists.flatMap((l) => l.symbols.map((x) => x.toUpperCase())))], [wl]);
   const [askMenu, setAskMenu] = useState<string | null>(null);   // the first-visit line opens "What the labels mean" (02 §1)
   const firstVisit = useFirstVisit("sector-pulse");   // task #333 (fix 3): "Why it matters" opens on a member's first visit, closed after
   const d = b?.date ? new Date(b.date + "T00:00:00Z") : null;
@@ -80,6 +95,10 @@ export function SectorPulsePage() {
   const n = b?.rows.length ?? 0, sectorsView = show === "sectors";
   const allLabel = sectorsView ? allSectors(n) : `All ${n} groups`;   // task #448 (05 §1): "All sectors", never "All 19"; the Industries view's 38 groups
   const noun = sectorsView ? "sector" : "industry";
+  // 01 §1: no shares and no watchlist leaves "Your …" out of the bar; the dots: Your … when one of the member's groups changed state, All … when any did
+  const hasYours = symbols.length > 0 || watchSyms.length > 0;
+  const changed = h?.changed_this_week ?? [];
+  const anyChanged = changed.length > 0, yoursChanged = changed.some((g) => mine.has(g.slug));
   // task #448 (01 §3): the reference blocks that sat on the page open from the ⋯ menu, over the page
   const menuItems: MoreItem[] = b ? [
     { key: "guide", label: "How to read and use this page", content: <PulseGuide inPanel stocks={b.universe?.counted_in_groups_with_reading ?? b.stocks_counted} groups={groupsParen(b.rows)} /> },
@@ -96,34 +115,27 @@ export function SectorPulsePage() {
       {(q.isLoading || !ready) && <div className="sx-skel sp-sec" role="status" aria-label="Loading the sector readings" />}
       {q.isError && <div className="sp-sec"><Blank title={show === "sectors" ? "The Sectors view is not available right now" : "Sector Pulse is not available right now"} reason={failureText(q.error)}>
         <button type="button" className="btn" onClick={() => q.refetch()}>Try again</button>{show === "sectors" && <button type="button" className="btn" onClick={() => setShow("industries")}>Show industries</button>}</Blank></div>}
-      {/* task #333 (file 30): the section bar, frozen under the site header, every stop with its real name (Simple); the Full table has its own frozen box bar */}
-      {b && view === "simple" && <SxNav items={[
-        { id: "sx-today", label: "Today" }, { id: "sx-yours", label: tw("Your industries") }, { id: "sx-all", label: allLabel }, { id: "sx-chk", label: "Price checks" }, { id: "sx-inside", label: tw("Inside an industry") },
-        { id: "sx-standouts", label: "Standout stocks" },
-      ]} />}
+      {/* task #448 (developer file 42, 01 §1): the step bar replaces "On this page"; one section at a time, or All sections */}
       {b && view === "simple" && (
         <TtkMode.Provider value="pill"><WhyFold.Provider value={firstVisit}>
-          <TodayMinute b={b} h={h} mine={mine} />
-          <YourIndustries b={b} h={h} symbols={symbols} signedIn={!!user} />
-          {/* task #333 follow-up: on a phone (860 px and under) the sections after the second start closed, as task #310 fix 6 had them; the section bar opens one */}
-          <PhoneFold page="sectors" id="all" title={allLabel} line="By state · Map · Over time">
-          <SxBox id="sx-all" store="finlit-sx-box-all" param="tab" label={allLabel} sub="3 ways to look · press one" tabs={[
-            { key: "state", label: "By state", content: <ByState b={b} mine={mine} /> },
-            { key: "map", label: "Map", content: mq.data ? <SectorMap m={mq.data} b={b} mine={mine} /> : <div className="sp-sec"><p className="sp-empty">{mq.isLoading ? "Loading the map…" : tw("The map is not available right now.")}</p></div> },
-            { key: "time", label: "Over time", content: h ? <MoodWeeks h={h} /> : <div className="sp-sec"><p className="sp-empty">{hq.isLoading ? "Loading the history…" : "The history is not available right now."}</p></div> },
+          <Steps page="sp" view={show} date={b.date} quick={hasYours ? 2 : 1} steps={[
+            { key: "today", label: "Today", line: tw("What changed in the industries, and what to keep an eye on."), dot: true, content: <TodayMinute b={b} h={h} mine={mine} noShares={!hasYours} signedIn={!!user} onLabels={() => setAskMenu("labels")} forYou={symbols.length > 0 ? <ForYouCard b={b} h={h} held={heldShares} labels={peerLabels} labelOf={(k) => WORD[k]} /> : null} /> },
+            ...(hasYours ? [{ key: "yours", label: tw("Your industries"), line: tw("How your industries are doing"), dot: yoursChanged, content: <YourIndustries b={b} h={h} symbols={symbols} signedIn={!!user} heldShares={heldShares} /> }] : []),
+            { key: "all", label: sectorsView ? "All sectors" : "All groups", line: "By state · Map · Over time", dot: anyChanged, content: (
+              <SxBox id="sx-all" store="finlit-sx-box-all" param="tab" label={allLabel} sub="3 ways to look · press one" tabs={[
+                { key: "state", label: "By state", content: <ByState b={b} mine={mine} /> },
+                { key: "map", label: "Map", content: mq.data ? <SectorMap m={mq.data} b={b} mine={mine} /> : <div className="sp-sec"><p className="sp-empty">{mq.isLoading ? "Loading the map…" : tw("The map is not available right now.")}</p></div> },
+                { key: "time", label: "Over time", content: h ? <MoodWeeks h={h} /> : <div className="sp-sec"><p className="sp-empty">{hq.isLoading ? "Loading the history…" : "The history is not available right now."}</p></div> },
+              ]} />) },
+            { key: "chk", label: "Price checks", line: tw("Against other industries · Against results · What happened next"), content: (
+              <SxBox id="sx-chk" store="finlit-sx-box-chk" label="Three checks on the price picture" sub="press one" tabs={[
+                { key: "others", label: tw("Against other industries"), content: <Momentum b={b} mine={mine} /> },
+                { key: "results", label: "Against results", isNew: true, content: <PriceVsResults b={b} mine={mine} /> },
+                { key: "next", label: "What happened next", isNew: true, content: <div><Cycle b={b} /><WhatNext /></div> },
+              ]} />) },
+            { key: "inside", label: tw("Inside an industry"), line: tw("Its 12 strongest stocks, with FinLit Prism"), content: <InsideSector b={b} mine={mine} symbols={symbols} /> },
+            { key: "standouts", label: "Standout stocks", line: foldLine.standouts, content: <Standouts b={b} mine={mine} /> },
           ]} />
-          </PhoneFold>
-          <PhoneFold page="sectors" id="chk" title="Three checks on the price picture" line={tw("Against other industries · Against results · What happened next")}>
-          <SxBox id="sx-chk" store="finlit-sx-box-chk" label="Three checks on the price picture" sub="press one" tabs={[
-            { key: "others", label: tw("Against other industries"), content: <Momentum b={b} mine={mine} /> },
-            { key: "results", label: "Against results", isNew: true, content: <PriceVsResults b={b} mine={mine} /> },
-            { key: "next", label: "What happened next", isNew: true, content: <div><Cycle b={b} /><WhatNext /></div> },
-          ]} />
-          </PhoneFold>
-          <PhoneFold page="sectors" id="inside" title={tw("Inside an industry")} line={tw("Its 12 strongest stocks, with FinLit Prism")}>
-          <InsideSector b={b} mine={mine} symbols={symbols} />
-          </PhoneFold>
-          <SxFold id="sx-standouts" title={tw("Standout stocks in weak industries")} line={foldLine.standouts}><Standouts b={b} mine={mine} /></SxFold>
         </WhyFold.Provider></TtkMode.Provider>
       )}
       {b && view === "full" && (

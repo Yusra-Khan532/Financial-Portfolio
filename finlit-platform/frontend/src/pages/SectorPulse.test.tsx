@@ -24,7 +24,7 @@ vi.mock("../lib/taxonomy", async (orig) => ({ ...(await orig<typeof import("../l
 import { SectorPulsePage } from "./SectorPulse";
 
 const B = board as unknown as Board;
-beforeEach(() => { localStorage.clear(); vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} }); st.board = B; st.user = { id: "u" }; });
+beforeEach(() => { sessionStorage.clear(); for (const v of ["industries", "sectors"]) sessionStorage.setItem(`finlit:steps:sp:${v}`, JSON.stringify({ mode: "all" }));   /* task #448: every step on the page (the step bar's "All sections") */ localStorage.clear(); vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} }); st.board = B; st.user = { id: "u" }; });
 afterEach(cleanup);
 const at = (path = "/sectors") => render(<QueryClientProvider client={new QueryClient()}><MemoryRouter initialEntries={[path]}><SectorPulsePage /></MemoryRouter></QueryClientProvider>);
 const h2 = () => screen.getAllByRole("heading", { level: 2 }).map((h) => (h.textContent ?? "").replace(/i$/, ""));   // the (i) button inside a title writes "i" after it
@@ -52,9 +52,9 @@ describe("Sector Pulse, the pack's header", () => {
 });
 
 describe("Sector Pulse, Simple view (pack 05)", () => {
-  it("task #333 (file 30): Today, Your industries, the two boxes and the three closed rows, in that order, each title once", () => {
+  it("task #333 (file 30), task #448: Today, the two boxes and Standout stocks, in that order, each title once (no shares: no Your step)", () => {
     at();
-    const order = ["Today in one minute", "How your industries are doing", "All 38 groups, by state", "Momentum and strength, side by side"].map((t) => h2().findIndex((x) => x?.startsWith(t)));
+    const order = ["Today in one minute", "All 38 groups, by state", "Momentum and strength, side by side", "Standout stocks in weak industries"].map((t) => h2().findIndex((x) => x?.startsWith(t)));
     expect(order.every((v, i) => v >= 0 && (i === 0 || v > order[i - 1]))).toBe(true);
     // box 1 opens on By state; Map and Over time are its other tabs; box 2 opens on Against other industries
     const all = screen.getByRole("tablist", { name: "All 38 groups" });
@@ -67,10 +67,8 @@ describe("Sector Pulse, Simple view (pack 05)", () => {
     fireEvent.click(within(chk).getByRole("tab", { name: /What happened next/ }));
     expect(h2()).toContain("The cycle industries move through");
     // the closed rows: title, one line and Show; nothing inside is drawn until opened
-    // task #448 (01 §3): Which stocks are counted and Words on this page moved to the ⋯ menu; Standout stocks stays a closed row until the step bar
-    const folds = [...document.querySelectorAll("details.sx-fold > summary b")].map((b) => b.textContent);
-    expect(folds).toEqual(["Standout stocks in weak industries"]);
-    expect(document.querySelectorAll("details.sx-fold .sx-fs").length).toBe(1);
+    // task #448 (01 §1, §3): no closed rows: Which stocks are counted and Words on this page are in the ⋯ menu, Standout stocks is step 6
+    expect(document.querySelectorAll("details.sx-fold").length).toBe(0);
     expect(said()).not.toMatch(ADVICE);
   });
   it("a link can open box 1 on a tab (&tab=map, &tab=time)", () => {
@@ -97,8 +95,6 @@ describe("Sector Pulse, Simple view (pack 05)", () => {
   it("for Basic the standout stocks are locked in words, never an empty table", () => {
     st.board = { ...B, leader_flags: null, rows: B.rows.map((r) => ({ ...r, leader_flags: null })), locked: { leader_flags: "silver" } } as Board;
     at();
-    const fold = document.getElementById("sx-standouts") as HTMLDetailsElement;
-    fold.open = true; fireEvent(fold, new Event("toggle"));
     expect(screen.getByText("The standout stocks are part of the Platinum plan")).toBeTruthy();   // task #333: Silver is retired
   });
   it("when the data is not loaded it says why, with the server's sentence and Try again", () => {
@@ -176,16 +172,34 @@ describe("task #192 round 4a-2 (SECTOR-PAGES.md 2 to 8), Sector Pulse", () => {
     expect(card.textContent).not.toContain("In your portfolio");
     expect(card.textContent).not.toMatch(/\ba industry\b/);
   });
-  it("task #333: the section bar names every stop (task #448: Stocks counted and Words explained moved to the ⋯ menu); pressing a closed row's name opens it", () => {
+  it("task #448 (01 §1): the step bar: the page's sections as steps, GO DEEPER before step 2 when the Your step is left out; one section at a time by default, and All sections", () => {
+    sessionStorage.clear();
     at();
-    const bar = screen.getByRole("navigation", { name: "On this page" });
-    expect(within(bar).getAllByRole("link").map((a) => a.textContent)).toEqual(["1Today", "2Your industries", "3All 38 groups", "4Price checks", "5Inside an industry", "6Standout stocks"]);
-    fireEvent.click(within(bar).getByRole("link", { name: /Standout stocks$/ }));
-    expect((document.getElementById("sx-standouts") as HTMLDetailsElement).open).toBe(true);
+    const bar = screen.getByRole("navigation", { name: "Steps on this page" });
+    const steps = within(bar).getAllByRole("button").filter((b) => b.classList.contains("sx-step"));
+    expect(steps.map((b) => b.textContent)).toEqual(["1Today", "2All groups", "3Price checks", "4Inside an industry", "5Standout stocks"]);
+    expect(bar.querySelector(".sx-deeper")!.textContent).toBe("Go deeper");
+    expect(steps[0].getAttribute("aria-current")).toBe("step");
+    expect(steps.filter((b) => b.getAttribute("aria-current") === "step")).toHaveLength(1);
+    expect(steps.map((b) => b.tabIndex)).toEqual([0, -1, -1, -1, -1]);             // a roving tabindex
+    expect(h2()).toContain("Today in one minute");
+    expect(h2().some((t) => t.startsWith("All 38 groups"))).toBe(false);           // one section at a time
+    expect(screen.getByRole("button", { name: "Go deeper: 2 All groups →" })).toBeTruthy();
+    expect(document.body.textContent).toContain("That's the quick check. The steps after this cover the whole market, for when you have more time.");
+    fireEvent.keyDown(steps[0], { key: "ArrowRight" });
+    expect(within(bar).getByRole("button", { name: /^2 All groups/ }).getAttribute("aria-current")).toBe("step");
+    expect(h2().some((t) => t.startsWith("All 38 groups"))).toBe(true);
+    expect(h2()).not.toContain("Today in one minute");
+    fireEvent.keyDown(within(bar).getByRole("button", { name: /^2 All groups/ }), { key: "End" });
+    expect(screen.getByRole("button", { name: "Back to 1 Today ↑" })).toBeTruthy();
+    expect(JSON.parse(sessionStorage.getItem("finlit:steps:sp:industries")!)).toEqual({ mode: "one", cur: "standouts" });   // remembered for the session
+    fireEvent.click(within(bar).getByRole("button", { name: "All sections" }));
+    expect(within(bar).getByRole("button", { name: "One section at a time" }).getAttribute("aria-pressed")).toBe("true");
+    expect(h2()).toEqual(expect.arrayContaining(["Today in one minute", "Momentum and strength, side by side", "Standout stocks in weak industries"]));
   });
   it("keeps the i buttons on titles and group headers, none beside a chip in a table row", () => {
     at();
-    for (const t of ["Today in one minute", "All 38 groups, by state", "How your industries are doing"]) expect(screen.getByRole("button", { name: `About “${t}”` })).toBeTruthy();
+    for (const t of ["Today in one minute", "All 38 groups, by state", "Standout stocks in weak industries"]) expect(screen.getByRole("button", { name: `About “${t}”` })).toBeTruthy();
     expect(document.querySelectorAll(".sp-yours tbody .sp-i").length).toBe(0);
   });
   it("starts each state group at 5 rows with Show all, and turns 'and 12 more' into +12 more ▾", () => {

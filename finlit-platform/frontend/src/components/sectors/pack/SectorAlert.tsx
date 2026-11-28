@@ -12,6 +12,7 @@ import { prefs, usePrefs } from "../../../lib/prefs";
 import { placeFloating } from "../../../lib/floating";
 import { useUI } from "../../../lib/ui";
 import { wordsShow } from "../../../lib/groupWords";
+import { BellIcon } from "./YourSectors";
 
 export type AlertKind = "state" | "box" | "top5";
 const KINDS: { k: AlertKind; label: (unit: string) => string }[] = [
@@ -60,7 +61,7 @@ export function AlertBell({ slug, name, compact }: { slug: string; name: string;
       <button ref={btn} type="button" className={"sx-al" + (on ? " on" : "") + (compact ? " sx-al-s" : "")} aria-expanded={open} aria-controls={open ? id : undefined}
         aria-label={on ? `Alert set for ${name}` : `Alert me about ${name}`} title={on ? `Alert set for ${name}` : `Alert me about ${name}`}
         onClick={() => { setPick(set.length ? set : ["state", "box"]); setOpen((v) => !v); }}>
-        <span aria-hidden="true">🔔</span>{compact ? null : on ? " Alert set" : " Alert me"}
+        <BellIcon />{compact ? null : on ? " Alert set" : " Alert me"}{/* task #448 (07 M8): one drawn bell, not the emoji */}
       </button>
       {open && createPortal(
         <div ref={card} id={id} role="dialog" aria-label={`Alert me about ${name}`} className="sx-apop" style={pos ? { left: pos.left, top: pos.top } : { visibility: "hidden" }}>

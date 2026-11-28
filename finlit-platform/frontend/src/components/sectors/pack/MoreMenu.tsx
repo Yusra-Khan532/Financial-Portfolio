@@ -1,7 +1,7 @@
 // Task #448 (Sector Pulse, developer file 42, 01 §3; shared with Sector Rotation, file 43): the round ⋯ button after Find. Its menu holds the reference blocks that
 // used to sit on the page (How to read and use this page, What the labels mean, Which stocks are counted / Too small for a reading, Words on this page); an item
 // opens the block itself over the page, with a dimmed backdrop and a ×. Focus stays inside the panel, × / the backdrop / Esc close it and focus goes back to the
-// button that opened it; the page behind does not scroll meanwhile. Styles: styles/pulse448.css (sx-more, sx-panel).
+// button that opened it; the page behind does not scroll meanwhile. Styles: styles/pulse448.css (sx-dots, sx-panel).
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
@@ -42,7 +42,7 @@ export function RefPanel({ title, onClose, children, back }: { title: string; on
 export function MoreMenu({ items, ask, onAsked }: { items: MoreItem[]; ask?: string | null; onAsked?: () => void }) {
   const [menu, setMenu] = useState(false), [cur, setCur] = useState<string | null>(null);
   const btn = useRef<HTMLButtonElement>(null), list = useRef<HTMLUListElement>(null), backTo = useRef<HTMLElement | null>(null);
-  const id = "sx-more-" + useId().replace(/[^a-zA-Z0-9_-]/g, "");
+  const id = "sx-dots-" + useId().replace(/[^a-zA-Z0-9_-]/g, "");
   useEffect(() => { if (ask && items.some((i) => i.key === ask)) { backTo.current = document.activeElement as HTMLElement; setCur(ask); onAsked?.(); } }, [ask]);   // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!menu) return;
@@ -62,10 +62,10 @@ export function MoreMenu({ items, ask, onAsked }: { items: MoreItem[]; ask?: str
   };
   const item = items.find((i) => i.key === cur);
   return (
-    <div className="sx-more">
-      <button type="button" ref={btn} className="sx-more-b" aria-haspopup="menu" aria-expanded={menu} aria-controls={id}
+    <div className="sx-dots">
+      <button type="button" ref={btn} className="sx-dots-b" aria-haspopup="menu" aria-expanded={menu} aria-controls={id}
         aria-label={`More on this page: ${items.map((i) => i.label).join(", ")}`} title="More on this page" onClick={() => setMenu((v) => !v)}>⋯</button>
-      {menu && <ul ref={list} id={id} className="sx-more-l" role="menu" aria-label="More on this page" onKeyDown={onKey}>
+      {menu && <ul ref={list} id={id} className="sx-dots-l" role="menu" aria-label="More on this page" onKeyDown={onKey}>
         {items.map((i) => <li key={i.key} role="none"><button type="button" role="menuitem" onClick={() => { backTo.current = btn.current; setMenu(false); setCur(i.key); }}>{i.label}</button></li>)}
       </ul>}
       {item && <RefPanel title={item.label} onClose={() => setCur(null)} back={backTo.current ?? btn.current}>{item.content}</RefPanel>}

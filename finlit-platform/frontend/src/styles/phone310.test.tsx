@@ -166,13 +166,13 @@ describe("fix 6: long pages open on tap", () => {
   });
   it("the dashboard's steps after the second, Sector Pulse's sections after the second, and the funds table's notes start closed on a phone", () => {
     expect(read("pages/Dashboard.tsx")).toMatch(/return ui\.sec !== "all" \|\| gi < 2 \? cells : <PhoneFold key=\{"fold-" \+ g\.step\.id\} page="dashboard"/);   // task #316: one section picked in the filter is drawn open
-    // task #333 (file 30) replaces Sector Pulse's phone folds: the page is shorter on every width (two boxes with a switch, three closed rows)
-    const sp = read("pages/SectorPulse.tsx");
-    expect(sp.indexOf("<TodayMinute")).toBeLessThan(sp.indexOf("<SxBox"));
-    expect(sp.match(/<SxFold id=/g)?.length).toBe(1);   // task #448 (01 §3): Stocks counted, Words and Too small moved to the ⋯ menu; Standout stocks stays
-    // task #333 follow-up: on a phone the sections after the second (the two boxes and Inside a sector) start closed again
-    expect(sp.match(/<PhoneFold page="sectors" id="(all|chk|inside)"/g)?.length).toBe(3);
-    expect(sp.indexOf("<YourIndustries")).toBeLessThan(sp.indexOf("<PhoneFold"));   // Simple: Standout stocks, Stocks counted; Full table: Too small for a reading
+    // task #448 (01 §1) replaces Sector Pulse's phone folds: the step bar shows one section at a time; in All sections every section after the first folds
+    // behind the site's fold row (PhoneFold), its line cut at 90 characters
+    const sp = read("pages/SectorPulse.tsx"), steps = read("components/sectors/pack/Steps.tsx");
+    expect(sp).toContain("<Steps page=\"sp\"");
+    expect(sp.indexOf('key: "today"')).toBeLessThan(sp.indexOf('key: "all"'));
+    expect(steps).toMatch(/i === 0 \? s\.content : <PhoneFold page=\{`steps-\$\{page\}-\$\{view\}`\}/);
+    expect(steps).toContain("s.line.length > 90 ? s.line.slice(0, 89)");
     expect(read("pages/Funds.tsx")).toMatch(/<details className="mf-howto">\s*<summary>/);   // task #376: closed on every width, at the top of the page
     for (const f of ["components/StepsBar.tsx", "components/sectors/pack/Guide.tsx"]) expect(read(f), f).toMatch(/revealAndScroll\(/);
   });
