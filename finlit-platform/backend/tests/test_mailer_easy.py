@@ -364,3 +364,16 @@ async def test_personal_note_saves_its_address_caps_the_send_and_a_stop_reply_is
     assert all(b"List-Unsubscribe" not in raw for _, raw in sent)
     async with app.state.store.pool.acquire() as conn:
         assert await conn.fetchval("SELECT status FROM mail_contacts WHERE email = 'p2@x.in'") == "unsubscribed"
+
+
+def test_ses_is_told_the_display_name_too():
+    """28 Nov 2026: Gmail showed "pranshu" because SES was given the bare address; the name must travel with it."""
+    from finlit import mailer
+    m = mailer.build_message("S", "Hi there,\n\nText here for the test.", "why line here", "a@example.com", None, "https://x/u",
+                             fmt="personal", from_name="Pranshu Mishra", from_address="pranshu@finlitventures.com")
+    assert mailer.raw_from_header(m.as_bytes()) == "Pranshu Mishra <pranshu@finlitventures.com>"
+    plain = mailer.build_message("S", "Hi there,\n\nText here for the test.", "why line here", "a@example.com", None, "https://x/u", fmt="plain")
+    assert mailer.raw_from_header(plain.as_bytes()) == "FinLit Ventures <contact@finlitventures.com>"
+    odd = mailer.build_message("S", "Hi there,\n\nText here for the test.", "why line here", "a@example.com", None, "https://x/u",
+                               fmt="personal", from_name="Pranshu Mishra", from_address="someone@evil.example")
+    assert mailer.raw_from_header(odd.as_bytes()).endswith("<contact@finlitventures.com>")
