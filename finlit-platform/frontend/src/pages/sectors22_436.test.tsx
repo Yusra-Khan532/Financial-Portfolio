@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 // Task #436, bug 3 of the live-site list (27 Nov 2026): Sector Pulse and Sector Rotation said "19 sectors" / "All 19 sectors" while the plans, the landing page and
 // the site spec say 22. The founder (28 Nov 2026): "sector count - 22". In the Sectors view every count that names the whole set now says NSE's 22 sectors, and a
-// count of the sectors with a reading says so ("19 of the 22 sectors"); the too-small sectors stay listed as too small. The Industries view is unchanged.
+// count of the sectors with a reading says so; the too-small sectors stay listed as too small. Task #448 (developer file 42, 05 §1, 28 Nov 2026) sets the words:
+// "22 NSE sectors, 3 too small for a reading" for the whole set, "All sectors" and "All" for the read ones, "12 sectors" for some of them. The Industries view is unchanged.
 import { cleanup, render } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, useLocation } from "react-router";
@@ -13,7 +14,7 @@ import type { Board } from "../lib/sectors";
 import type { RotationMap } from "../lib/rotation";
 import { renderHook } from "@testing-library/react";
 import { useShowWords } from "../lib/groupWords";
-import { NSE_SECTOR_COUNT, allChip, allSectors, headline, ofSectors, sectorsIn } from "../lib/pulsePack";
+import { NSE_SECTOR_COUNT, allChip, allSectors, headline, nOf, ofSectors, sectorsIn, sectorsLine } from "../lib/pulsePack";
 
 // NSE's own sector names (taxonomy/sectors.csv), put on the fixture's rows: the Sectors view's board has one row per sector, kind "sector"
 const SECTOR_NAMES = ["Financial Services", "Healthcare", "Information Technology", "Capital Goods", "Chemicals", "Automobile and Auto Components", "Fast Moving Consumer Goods",
@@ -57,46 +58,49 @@ describe("the words (task #436)", () => {
     expect(sectorsIn(SB)).toBe(T);
     expect(sectorsIn(B)).toBe(22);   // an Industries board falls back to NSE's list
   });
-  it("in the Sectors view: '19 of the 22 sectors', 'All 22 sectors' when every one is read, 'All 19 of 22' on a chip", () => {
+  it("task #448 (developer file 42, 05 §1): in the Sectors view no count of the read sectors as if they were all of them: 'All sectors', 'All', '12 sectors'", () => {
     const h = renderHook(() => useShowWords("sectors"));
-    expect(ofSectors(19, 22)).toBe("19 of the 22 sectors");
-    expect(allSectors(19, 22)).toBe("19 of the 22 sectors");
-    expect(allSectors(22, 22)).toBe("All 22 sectors");
-    expect(allChip(19, 22)).toBe("All 19 of 22");
-    expect(allChip(22, 22)).toBe("All 22");
+    expect(allSectors(19, 22)).toBe("All sectors");
+    expect(allChip(19, 22)).toBe("All");
+    expect(ofSectors(19, 22)).toBe("every sector with a reading");
+    expect(nOf(12, 19)).toBe("12 sectors");
+    expect(nOf(1, 19)).toBe("1 sector");
+    expect(sectorsLine(SB)).toBe(`${T} NSE sectors, 1 too small for a reading`);
+    expect(sectorsLine(SB, true)).toBe(`${T} NSE sectors, 1 too small to rank`);
     h.unmount();
   });
   it("in the Industries view the words are as before", () => {
     const h = renderHook(() => useShowWords("industries"));
     expect(allSectors(38)).toBe("All 38 groups");
     expect(allChip(38)).toBe("All 38");
+    expect(nOf(12, 38)).toBe("12 of 38 groups");
     expect(headline(B.rows, null, null, 22).rest).toMatch(new RegExp(`of ${B.rows.length} groups (is|are) bouncing back`));
     h.unmount();
   });
 });
 
-describe("Sector Pulse and Sector Rotation, Sectors view (task #436)", () => {
-  it("Sector Pulse names NSE's sectors in full and never 'All N sectors' for the read ones", () => {
+describe("Sector Pulse and Sector Rotation, Sectors view (task #448: never '19 sectors')", () => {
+  it("Sector Pulse says '22 NSE sectors, 3 too small for a reading' and never counts the read ones as all of them, on screen or in spoken names", () => {
     at(<SectorPulsePage />, "/sectors?show=sectors");
     const t = text();
-    expect(t).toContain(`NSE's ${T} sectors: ${N} with a reading, 1 too small for one`);
-    expect(t).toMatch(new RegExp(`of the ${T} sectors (is|are) bouncing back`));
-    expect(t).toContain(`${N} of the ${T} sectors, one square each`);
+    expect(t).toContain(`${T} NSE sectors, 1 too small for a reading`);
+    expect(t).toMatch(/\d+ sectors? (is|are) bouncing back/);
+    expect(t).toContain("All sectors, one square each");
     expect(t).not.toMatch(bare(N));
-    expect(labels().filter((l) => bare(N).test(l))).toEqual([]);
-    expect(t).toContain("1 sector too small for a reading");   // the too-small sector is still listed as too small
+    expect(t).not.toMatch(/of the \d+ sectors|All \d+ sectors|All \d+ of \d+/);
+    expect(labels().filter((l) => bare(N).test(l) || /of the \d+ sectors/.test(l))).toEqual([]);
   });
-  it("Sector Rotation says how many of the 22 are ranked and boxed", () => {
+  it("Sector Rotation says '22 NSE sectors, N too small to rank'", () => {
     at(<SectorRotationPage />, "/sectors/rotation?show=sectors");
     const t = text();
-    expect(t).toMatch(/\d+ of the 22 sectors ranked/);
-    expect(t).toContain(`${N} of the 22 sectors by box`);
+    expect(t).toMatch(/22 NSE sectors, \d+ too small to rank/);
+    expect(t).toContain("All sectors by box");
     expect(t).not.toMatch(bare(N));
     expect(labels().filter((l) => bare(N).test(l))).toEqual([]);
   });
   it("the Industries view keeps its own words", () => {
     at(<SectorPulsePage />, "/sectors?show=industries");
-    expect(text()).toContain("as NSE groups them");
-    expect(text()).not.toMatch(/of the 22 sectors/);
+    expect(text()).toMatch(/read as 38 groups|38 groups/);
+    expect(text()).not.toMatch(/NSE sectors, \d+ too small/);
   });
 });

@@ -58,8 +58,63 @@ export function InsightCard({ c }: { c: Card }) {
   );
 }
 export function Cards({ items, cols }: { items: Card[]; cols?: number }) {
+  const mode = useContext(TtkMode), slot = useContext(TtkSlot);
   if (!items.length) return null;
+  if (mode === "pill") return slot ? createPortal(<TtkPill items={items} />, slot) : <TtkPill items={items} />;   // task #448: in the section's title row
   return <div className="sp-cards" style={{ ["--cols" as string]: cols ?? items.length }}>{items.map((c) => <InsightCard key={c.title} c={c} />)}</div>;
+}
+
+/** Task #448 (developer file 42, 01 §4): on Sector Pulse the callout cards no longer sit open on the page. The page provides "pill": each section's cards become one
+ *  "N things to know" button at the right end of its title row (TtkSlot), and Today shows them as a quiet list (QuietList). Without a provider (Sector Rotation, a
+ *  group's page, a stock page) the cards stay open as before. */
+export const TtkMode = createContext<"open" | "pill">("open");
+/** The title row's place for the things-to-know button (and the order: title, Why it matters, Alert, things to know). */
+export const TtkSlot = createContext<HTMLElement | null>(null);
+const KIND_DOT: Record<Card["kind"], string> = { good: "good", watch: "watch", insight: "info", warning: "bad" };
+
+/** One row per card: a coloured dot, the kind in small capitals, the title in bold and ▸; pressing the row opens the card's text under it. "Open all" with two or more. */
+export function QuietList({ items, label = "Things to know" }: { items: Card[]; label?: string }) {
+  const [open, setOpen] = useState<Set<number>>(() => new Set());
+  if (!items.length) return null;
+  const all = open.size === items.length;
+  const flip = (i: number) => setOpen((o) => { const n = new Set(o); if (n.has(i)) n.delete(i); else n.add(i); return n; });
+  return (
+    <div className="sx-ql" role="group" aria-label={label}>
+      {items.length > 1 && <div className="sx-ql-top"><button type="button" className="sx-ql-all" onClick={() => setOpen(all ? new Set() : new Set(items.map((_, i) => i)))}>{all ? "Close all" : "Open all"}</button></div>}
+      <ul>{items.map((c, i) => (
+        <li key={c.title} className={"sx-ql-r sx-k-" + KIND_DOT[c.kind]}>
+          <button type="button" className="sx-ql-b" aria-expanded={open.has(i)} onClick={() => flip(i)}>
+            <i className="sx-ql-dot" aria-hidden="true" /><span className="sx-ql-k">{KIND_WORD[c.kind]}</span><b className="sx-ql-t">{tw(c.title).replace("{more}", "")}</b><span className="sx-ql-ar" aria-hidden="true">{open.has(i) ? "▾" : "▸"}</span>
+          </button>
+          {open.has(i) && <p className="sx-ql-x"><MoreText text={tw(c.text)} more={c.more} /></p>}
+        </li>))}</ul>
+    </div>
+  );
+}
+
+/** The things-to-know button: one coloured dot per card and "N things to know"; it opens a small popover with the same list, titled, with a ×. */
+export function TtkPill({ items }: { items: Card[] }) {
+  const [open, setOpen] = useState(false);
+  const btn = useRef<HTMLButtonElement>(null), pop = useRef<HTMLDivElement>(null), id = "sx-ttk-" + useId().replace(/[^a-zA-Z0-9_-]/g, "");
+  useEffect(() => {
+    if (!open) return;
+    const key = (e: KeyboardEvent) => { if (e.key === "Escape") { setOpen(false); btn.current?.focus(); } };
+    const away = (e: MouseEvent) => { const t = e.target as Node; if (!btn.current?.contains(t) && !pop.current?.contains(t)) setOpen(false); };
+    addEventListener("keydown", key); addEventListener("mousedown", away);
+    return () => { removeEventListener("keydown", key); removeEventListener("mousedown", away); };
+  }, [open]);
+  const word = items.length === 1 ? "One thing to know" : `${items.length} things to know`;
+  return (
+    <span className="sx-ttk">
+      <button type="button" ref={btn} className="sx-ttk-b" aria-expanded={open} aria-controls={id} onClick={() => setOpen((v) => !v)}>
+        <span className="sx-ttk-dots" aria-hidden="true">{items.map((c, i) => <i key={i} className={"sx-k-" + KIND_DOT[c.kind]} />)}</span>{items.length === 1 ? "1 thing to know" : `${items.length} things to know`}
+      </button>
+      {open && <div ref={pop} id={id} className="sx-ttk-pop" role="dialog" aria-label={word}>
+        <div className="sx-ttk-h"><b>{word}</b><button type="button" className="sx-x" aria-label="Close" onClick={() => { setOpen(false); btn.current?.focus(); }}>×</button></div>
+        <QuietList items={items} label={word} />
+      </div>}
+    </span>
+  );
 }
 
 const STATE_ICON: Record<StateKey, ReactNode> = {
@@ -86,6 +141,15 @@ export function BoxChip({ corner, help }: { corner: CornerCode | null | undefine
     </span>
   );
 }
+/** Task #448 (developer file 42, 04 §1): the wallet mark, "in your portfolio": a sector, industry, group or stock the member holds shares in (it does not follow the
+ *  portfolio / watchlist switch). A 20 px gold circle with the side menu's Portfolio icon, drawn as an inline box right after the name, so a line can never break
+ *  between the name's last word and the mark. Mid-sentence (a subtitle or a key line) it is spoken as "The wallet mark". `small`: the 13 px icon in the text's own
+ *  colour, before the label of a "My sectors" filter pill. */
+export function Wallet({ spoken = false, small = false, title = "In your portfolio" }: { spoken?: boolean; small?: boolean; title?: string }) {
+  if (small) return <span className="sp-wal-s" aria-hidden="true" />;
+  return <span className="sp-wal" role="img" aria-label={spoken ? "The wallet mark" : title} title={title} />;
+}
+
 /** The square swatch of a state (legends, the squares). */
 export const Swatch = ({ k }: { k: StateKey }) => <i className="sp-sw" style={{ background: COLOUR[k] }} aria-hidden="true" />;
 
@@ -127,11 +191,18 @@ export function Why({ children }: { children: ReactNode }) {
 /** A pack section: the white rounded panel, the serif title with its (i), the line under it, and Hide / Show when `hide` names it. */
 export function Section({ id, title, help, how, sub, why, hide, right, info, children }: { id: string; title: string; help?: string; how?: string; sub?: ReactNode; why?: ReactNode; hide?: boolean; right?: ReactNode;
   /** task #391: the page's own i button in place of this plain i (All my investments) */ info?: ReactNode; children: ReactNode }) {
+  const fold = useContext(WhyFold), mode = useContext(TtkMode);
+  const [slot, setSlot] = useState<HTMLElement | null>(null);
+  const [whyOpen, setWhyOpen] = useState(!!fold);
+  // task #448 (01 §5): on Sector Pulse "Why it matters" is a small outlined button at the right end of the title row (title, Why it matters, Alert, things to know);
+  // its text opens below the title
+  const tools = mode === "pill";
   const body = (
     <section className="sp-sec" aria-labelledby={id}>
-      <div className="sp-sec-h"><div><h2 id={id}>{title}{info ?? (help && <Tip text={help} how={how} label={`About “${title}”`} />)}</h2>{sub && <p className="sp-sub">{sub}</p>}</div>{right}</div>
-      {why && <Why>{why}</Why>}
-      {children}
+      <div className="sp-sec-h"><div><h2 id={id}>{title}{info ?? (help && <Tip text={help} how={how} label={`About “${title}”`} />)}</h2>{sub && <p className="sp-sub">{sub}</p>}</div>
+        {tools ? <div className="sx-tools">{why && <button type="button" className="sx-whyb" aria-expanded={whyOpen} aria-controls={id + "-why"} onClick={() => setWhyOpen(!whyOpen)}>Why it matters {whyOpen ? "▴" : "▾"}</button>}{right}<span className="sx-ttk-slot" ref={setSlot} /></div> : right}</div>
+      {why && (tools ? whyOpen && <p className="sx-why-x" id={id + "-why"}>{why}</p> : <Why>{why}</Why>)}
+      <TtkSlot.Provider value={slot}>{children}</TtkSlot.Provider>
     </section>
   );
   return hide ? <Hideable id={"pack." + id} title={title} sub={typeof sub === "string" ? sub : undefined}>{body}</Hideable> : body;
@@ -151,11 +222,11 @@ export function InsideLine({ list }: { list: { industry: string; companies: numb
 
 /** A card text with the token {more} where a cut list goes on: "+N more ▾" opens the rest in place, "show fewer ▴" closes it (task #192, SECTOR-PAGES.md 6). */
 export function MoreText({ text, more }: { text: string; more?: string[] }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(false), pill = useContext(TtkMode) === "pill";
   if (!text.includes("{more}")) return <>{text}</>;
   const [a, b] = text.split("{more}");
   if (!more?.length) return <>{a.replace(/[, ]+$/, "")}{b}</>;
-  return <>{a}{open && <>{more.join(", ")} </>}<button type="button" className="sp-more-in" aria-expanded={open} onClick={() => setOpen(!open)}>{open ? "show fewer ▴" : `+${more.length} more ▾`}</button>{b}</>;
+  return <>{a}{open && <>{more.join(", ")} </>}<button type="button" className="sp-more-in" aria-expanded={open} onClick={() => setOpen(!open)}>{open ? "show fewer ▴" : pill ? `and ${more.length} more ▸` : `+${more.length} more ▾`}</button>{b}</>;
 }
 
 /** "Show all N ▾" under a list that starts short (task #192, SECTOR-PAGES.md 5): the first `first` rows, the rest one click away. */

@@ -17,7 +17,7 @@ import { useUI } from "../../../lib/ui";
 import { useWatchlist } from "../../../lib/watchlist";
 import { gl, sq, tw, wordsShow } from "../../../lib/groupWords";
 import { LockedBlock } from "../Parts";
-import { Scroll, Section, StateChip } from "./Common";
+import { Wallet, Scroll, Section, StateChip } from "./Common";
 import { AlertBell } from "./SectorAlert";
 
 const n0 = (v: number) => v.toLocaleString("en-IN");
@@ -109,12 +109,12 @@ export function PriceVsResults({ b, mine }: { b: Board; mine: Set<string> }) {
         : <>
           <div className="sx-fl" role="group" aria-label="Show"><span>Show</span>
             {([["all", allChip(rows.length)], ...(mine.size ? [["mine", tw("My industries")]] : []), ["weak-ahead", "Price weak, results ahead"], ["both-ahead", "Both ahead"], ["both-behind", "Both behind"], ["strong-behind", "Price strong, results behind"]] as [PvFilter, string][])
-              .map(([k, label]) => <button key={k} type="button" aria-pressed={f === k} onClick={() => setF(k)}>{label}{k !== "all" && <small> {count(k)}</small>}</button>)}</div>
+              .map(([k, label]) => <button key={k} type="button" aria-pressed={f === k} onClick={() => setF(k)}>{k === "mine" && <Wallet small />}{label}{k !== "all" && <> <small>{count(k)}</small></>}</button>)}</div>
           <Scroll label={tw("price against results")}><table className="sp-tb sx-t">
             <thead><tr><th scope="col">{tw("Industry")}</th><th scope="col">Price</th><th scope="col">Results this quarter</th><th scope="col">Read together</th></tr></thead>
             <tbody>{shown.map(({ r, g, read }) => (
               <tr key={r.slug} className={mine.has(r.slug) ? "sx-mine" : undefined}>
-                <td><Link className="sp-ind" to={gl(r.slug)}>{short(r.name)}</Link>{mine.has(r.slug) && <em className="sp-yours">Yours</em>}</td>
+                <td><Link className="sp-ind" to={gl(r.slug)}>{short(r.name)}</Link>{mine.has(r.slug) && <Wallet />}</td>
                 <td><StateChip k={keyOf(r)} /><span className="sx-sm">{Math.round(r.breadth?.above_20 ?? 0)} of 100 stocks rising</span></td>
                 <td>{g.shown.length ? <ul className="sx-inds">{g.shown.map(({ g: x, label }) => <li key={x.name}>{label} {x.vsMarket ? <i className={"sx-vs sx-vs-" + x.vsMarket.toLowerCase().replace(" ", "")}>{x.vsMarket}</i> : <span>no reading yet</span>}
                   {x.medianRevenueYoY != null && <span> · revenue {pct(x.medianRevenueYoY)}, profit {pct(x.medianProfitYoY)}</span>}</li>)}
@@ -177,7 +177,7 @@ export function InsideSector({ b, mine, symbols }: { b: Board; mine: Set<string>
             <thead><tr><th scope="col">Stock</th><th scope="col" className="num">6-month return</th><th scope="col">Against its peers</th><th scope="col">FinLit Prism</th><th scope="col">Short-term trend</th><th scope="col">Long-term trend</th></tr></thead>
             <tbody>{shown.map((s) => { const sc = scoreOf(s.symbol); return (
               <tr key={s.symbol} className={held.has(s.symbol) ? "sx-mine" : undefined}>
-                <td><Link className="sx-stk" to={`/stocks/${s.symbol}`}><b>{s.symbol}{held.has(s.symbol) && <em className="sp-yours">Yours</em>}</b><small>{s.name}</small></Link></td>
+                <td><Link className="sx-stk" to={`/stocks/${s.symbol}`}><b>{s.symbol}{held.has(s.symbol) && <Wallet />}</b><small>{s.name}</small></Link></td>
                 <td className={"num " + ((s.return_6m_pct ?? 0) >= 0 ? "sp-good" : "sp-red")}>{pct(s.return_6m_pct)}</td>
                 <td>{s.peer_label ? <span className={"sx-peer sx-peer-" + s.peer_label.toLowerCase().replace(/\s+/g, "")}>{s.peer_label}</span> : p.data?.locked?.peer_label ? <span className="sp-nil">Gold</span> : "–"}</td>
                 <td>{!gold ? <span className="sp-nil">Gold</span> : sc?.rated ? <span className={"sx-prism sx-prism-" + (sc.label ?? "").toLowerCase()}>{sc.label} <b>{Math.round(sc.final ?? 0)}</b></span> : prism[s.symbol] === undefined ? "…" : <span className="sp-nil">Not rated yet</span>}</td>

@@ -80,7 +80,7 @@ describe("Sector Pulse: Show: Sectors | Industries", () => {
     expect(pills.every((b) => b.classList.contains("sp-vbtn"))).toBe(true);                                      // styled like the View pills
     expect(pressed()).toEqual(["Sectors"]);
     expect(st.asked).toContain("board:sectors");
-    expect(document.body.textContent).toContain(`NSE's ${SECTOR_NAMES.length + 1} sectors: ${SECTOR_NAMES.length} with a reading, 1 too small for one`);   // task #436: the whole set, then how many are read
+    expect(document.body.textContent).toContain(`${SECTOR_NAMES.length + 1} NSE sectors, 1 too small for a reading`);   // task #448 (05 §1): the whole set, then how many are too small
   });
   it("words every section for sectors: no 'industry' is left outside the switch and the yardstick", () => {
     at(<SectorPulsePage />, "/sectors");
@@ -106,7 +106,8 @@ describe("Sector Pulse: Show: Sectors | Industries", () => {
     expect(pressed()).toEqual(["Industries"]);
     expect(screen.getByTestId("where").textContent).toBe("/sectors?show=industries");
     expect(st.asked).toContain("board:industries");
-    expect(document.body.textContent).toContain("38 groups: 33 industries and 5 sectors, as NSE groups them");
+    expect(document.body.textContent).toMatch(/(\d+ NSE industries, read as )?38 groups/);   // task #448 (01 §2): "59 NSE industries, read as 38 groups" once the taxonomy is in
+    expect(screen.getByRole("button", { name: "About “NSE industries”" })).toBeTruthy();
     expect(screen.getAllByRole("heading", { level: 2 }).map((h) => (h.textContent ?? "").replace(/i$/, ""))).toEqual(expect.arrayContaining(["How your industries are doing"]));
     const groupLinks = Array.from(document.querySelectorAll<HTMLAnchorElement>("a[href^='/sectors/']")).map((a) => a.getAttribute("href")!).filter((h) => !h.startsWith("/sectors/rotation"));
     expect(groupLinks.some((h) => h.includes("show=sectors"))).toBe(false);

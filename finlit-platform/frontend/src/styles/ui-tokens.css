@@ -194,3 +194,26 @@
   --ui-sort-accent: #e0bd6e;
   --ui-sort-ink: #e0bd6e;
 }
+
+/* Task #448 (Sector Pulse, developer file 42, 04 §1, 07 Dark mode): the wallet mark for "in your portfolio" (the side menu's Portfolio icon, 13 px, on a 20 px
+   gold circle; icon #6b4e08 in light, #f1cd6b in dark), the peer-label and technical chip colours, and the filter-count ink (#5e5a50 / #c9c3b4).
+   Used only by styles/sectors-pack.css (sp-wal, sp-peer, sp-tech, sx-fl counts). */
+:root, :root[data-theme="light"] {
+  --ui-wal-img: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b4e08' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M19 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-4'/%3E%3Cpath d='M21 11h-5a2 2 0 0 0 0 4h5z'/%3E%3C/svg%3E");
+  --ui-wal-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M19 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-4'/%3E%3Cpath d='M21 11h-5a2 2 0 0 0 0 4h5z'/%3E%3C/svg%3E");
+  --ui-wal-bg: color-mix(in srgb, var(--gold) 30%, transparent);
+  --ui-count-ink: #5e5a50;
+  --ui-peer-lead-bg: #cdeeda; --ui-peer-lead-ink: #0c4f2b;
+  --ui-peer-line-bg: #ece6d6; --ui-peer-line-ink: #3a362c;
+  --ui-peer-lag-bg: #f8d0d2; --ui-peer-lag-ink: #70111b;
+  --ui-tech-up2-ink: #0c4f2b; --ui-tech-up-ink: #145c35; --ui-tech-dn-ink: #8a2a22; --ui-tech-dn2-ink: #70111b;
+  --ui-tech-green: #1f8a4c; --ui-tech-red: #c0392b;
+  --ui-watch-ink: #7f5507;
+}
+:root[data-theme="dark"],
+:root:not([data-theme="light"]) {
+  --ui-wal-img: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f1cd6b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M19 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-4'/%3E%3Cpath d='M21 11h-5a2 2 0 0 0 0 4h5z'/%3E%3C/svg%3E");
+  --ui-count-ink: #c9c3b4;
+  --ui-tech-up2-ink: #9fe0b8; --ui-tech-up-ink: #9fe0b8; --ui-tech-dn-ink: #f4a9a2; --ui-tech-dn2-ink: #f4a9a2;
+  --ui-watch-ink: #e3b55c;
+}

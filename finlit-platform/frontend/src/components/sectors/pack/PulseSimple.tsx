@@ -11,10 +11,10 @@ import { useSectorHistory, type SectorHistory, type StateKey } from "../../../li
 import { useIndustryMap } from "../../../lib/sectorExtra";
 import type { Board, GroupRow } from "../../../lib/sectors";
 import {
-  BOX, BOX_ORDER, COLOUR, MEANING, ORDER, WORD, allSectors, groupsN, groupsSplit, sectorsIn, belowHigh, dayMon, bouncedAgo, byState, headline, howStrong, isEarly, keyOf, matrix, matrixCards, meansForYou, newHigh, risingOf, short, statesAt, todayThree, yourCards, yourOrder,
+  BOX, BOX_ORDER, COLOUR, MEANING, ORDER, WORD, allChip, allSectors, groupsN, groupsSplit, sectorsIn, belowHigh, dayMon, bouncedAgo, byState, headline, howStrong, isEarly, keyOf, matrix, matrixCards, meansForYou, newHigh, risingOf, short, statesAt, todayThree, yourCards, yourOrder,
   type Holding,
 } from "../../../lib/pulsePack";
-import { BoxChip, Cards, InsideLine, InsightCard, Scroll, Section, Spark, StateChip, Swatch, Tip, useAccount, useShowAll } from "./Common";
+import { Wallet, BoxChip, Cards, InsideLine, QuietList, InsightCard, Scroll, Section, Spark, StateChip, Swatch, Tip, useAccount, useShowAll } from "./Common";
 import { coTitle, shortLabel } from "../../../lib/companyLabel";
 import { SxFold } from "./PulseLayout";
 import { AlertBell } from "./SectorAlert";
@@ -50,10 +50,10 @@ export function TodayMinute({ b, h, mine = new Set<string>() }: { b: Board; h: S
         <ul className="sx-tiles" style={{ ["--n" as string]: shown.length }} aria-label="How many are in each state, and the change on last week">{shown.map((k) => {
           const v = rows.filter((r) => keyOf(r) === k).length, was = week?.[k], d = was == null ? null : v - was;
           return <li key={k} className="sx-tile"><b>{v}</b><span className="sx-tile-k"><Swatch k={k} />{WORD[k]}<Tip text={MEANING[k]} label={`About “${WORD[k]}”`} /></span>
-            <small>{d == null ? "–" : d === 0 ? "no change" : `${d > 0 ? "▲" : "▼"}${Math.abs(d)} vs last week`}</small></li>;
+            <small>{d == null ? "–" : d === 0 ? "same as last week" : `${Math.abs(d)} ${d > 0 ? "more" : "fewer"} than last week`}</small></li>;
         })}</ul>
       </div>
-      <Cards items={cards} />
+      <QuietList items={cards} />{/* task #448 (01 §4): on Today, things to know are one quiet list */}
     </section>
   );
 }
@@ -107,7 +107,7 @@ export function YourIndustries({ b, h, symbols, signedIn }: { b: Board; h: Secto
             {cur === "hold" && <Cards items={yourCards(b.rows, portfolioHeld).slice(0, 1)} />}{/* the callout is about the portfolio, so it shows only on My portfolio */}
             <Scroll label={tw("your industries")}><table className="sp-tb sp-yours">
               <thead><tr><th scope="col">{tw("Industry and your shares")}</th><th scope="col">Its state today<Tip text={tw("The industry's state at the latest close: sold off, bouncing back, rising together or losing steam.")} /></th>
-                <th scope="col">{tw("Against other industries")}<Tip text="Its Sector Rotation box and rank: how it has done against the average group over recent months and weeks." /></th>
+                <th scope="col">{tw("Against other industries")}<Tip text="Its Sector Rotation box and rank: how it has done against the average group over 6 months and over the last month." /></th>
                 <th scope="col">Stocks rising · last 6 months<Tip text="The line: out of every 100 of its counted stocks, how many were above their medium trend each day for 6 months. Dashed: half." /></th><th scope="col">What it means for you</th>
                 <th scope="col" className="sx-alh">Alert</th></tr></thead>
               <tbody>{mine.map((r) => {
@@ -160,7 +160,7 @@ function StateGroup({ k, rows: all, mine, every }: { k: StateKey; rows: GroupRow
         <thead><tr><th scope="col">{tw("Industry")}</th><th scope="col">Stocks rising<Tip text={tw("Out of the industry's counted stocks, how many are above their medium trend. The bar fills up as more of them rise; past halfway, most are rising.")} /></th>
           <th scope="col" className="r">{bounce ? "Bounced" : "Below 1-yr high"}<Tip text={bounce ? "When most of its stocks turned up together, in trading days." : tw("How far the industry (its stocks averaged equally) is below its highest point of the past year.")} /></th></tr></thead>
         <tbody>{rows.map((r) => { const up = risingOf(r) ?? 0; return (
-          <tr key={r.slug} className={mine.has(r.slug) ? "sx-mine" : undefined}><td><Link className="sp-ind" to={gl(r.slug)}>{short(r.name)}</Link>{mine.has(r.slug) && <span className="sp-tag sp-yourtag">Yours</span>}{isEarly(r) && <span className="sp-tag sp-early">Early sign</span>}</td>
+          <tr key={r.slug} className={mine.has(r.slug) ? "sx-mine" : undefined}><td><Link className="sp-ind" to={gl(r.slug)}>{short(r.name)}</Link>{mine.has(r.slug) && <Wallet />}{isEarly(r) && <span className="sp-tag sp-early">Early sign</span>}</td>
             <td><span className="sp-barw"><span className="sp-bar"><i style={{ width: `${Math.min(100, (r.breadth.above_20 ?? 0))}%`, background: COLOUR[k] }} /></span><b>{up} of {r.stocks_counted}</b></span></td>
             <td className="r">{bounce ? bouncedAgo(r) ?? "–" : belowHigh(r.index_vs_52w_high) ?? "–"}</td></tr>); })}</tbody>
       </table>
@@ -180,8 +180,8 @@ export function ByState({ b, mine }: { b: Board; mine: Set<string> }) {
       {fin && <div className="sp-howrow"><b>How to read a row:</b><span className="sp-howex">{short(fin.name)}<span className="sp-bar"><i style={{ width: `${fin.breadth.above_20}%`, background: COLOUR[keyOf(fin)] }} /></span><b>{risingOf(fin)} of {fin.stocks_counted}</b></span>
         <p>means {risingOf(fin)} of the {fin.stocks_counted} counted {short(fin.name).toLowerCase()} stocks are above their medium-term trend. The bar fills up as more of them rise; past halfway, most are rising.</p></div>}
       {mine.size > 0 && <div className="sx-fl" role="group" aria-label="Show"><span>Show</span>
-        <button type="button" aria-pressed={!only} onClick={() => setOnly(false)}>All {b.rows.length}</button>
-        <button type="button" aria-pressed={only} onClick={() => setOnly(true)}>{tw("My industries")} <small>{b.rows.filter((r) => mine.has(r.slug)).length}</small></button></div>}
+        <button type="button" aria-pressed={!only} onClick={() => setOnly(false)}>{allChip(b.rows.length)}</button>
+        <button type="button" aria-pressed={only} onClick={() => setOnly(true)}><Wallet small />{tw("My industries")} <small>{b.rows.filter((r) => mine.has(r.slug)).length}</small></button></div>}
       <div className="sx-cols">
         {order.map((x) => <StateGroup key={x.key} k={x.key} rows={x.rows} mine={mine} every={only} />)}
         {early.length >= 2 && <InsightCard c={{ kind: "insight", title: `Why are ${short(early[0].name)} and ${short(early[1].name)} here, with so many stocks rising?`, text: tw("An industry moves to Bouncing back only when most of its stocks turn up together, quickly. Industries marked EARLY SIGN have been climbing slowly instead: most of their stocks are already above their short trend. Worth watching.") }} />}
@@ -219,7 +219,7 @@ export function Momentum({ b, mine }: { b: Board; mine: Set<string> }) {
       <Cards items={cards.slice(0, 1)} />{/* task #333: one callout */}
       <Scroll label="momentum and strength"><div className="sp-mx sx-mx">
         <div className="sp-mx-c sp-mx-corner">{tw("Stocks turning up? ↓ · Beating other industries? →")}</div>
-        {BOX_ORDER.map((c) => <div key={c} className={"sp-mx-c sp-mx-col sp-box-" + BOX[c].tone}><b aria-hidden="true">{BOX[c].arrow}</b> {BOX[c].word}<Tip text={tw("A Sector Rotation box: how the industry has done against the average group over recent months and weeks.")} /></div>)}
+        {BOX_ORDER.map((c) => <div key={c} className={"sp-mx-c sp-mx-col sp-box-" + BOX[c].tone}><b aria-hidden="true">{BOX[c].arrow}</b> {BOX[c].word}<Tip text={tw("A Sector Rotation box: how the industry has done against the average group over 6 months and over the last month.")} /></div>)}
         {mx.states.map((k) => <>
           <div key={k} className="sp-mx-c sp-mx-row"><StateChip k={k} help /></div>
           {BOX_ORDER.map((c) => { const cell = mx.cells[k + ":" + c]; return (
@@ -227,11 +227,11 @@ export function Momentum({ b, mine }: { b: Board; mine: Set<string> }) {
               {cell.mark && <p className="sp-mx-mark">{cell.mark === "strongest" ? "Strongest mix" : "Weakest mix"}</p>}
               {/* task #333 (second pass 5): each name is its own chip, the member's own bold with a gold edge, and the cell says how many it holds */}
               {cell.names.length ? <><b className="sx-mxn" aria-label={`${cell.names.length} in this cell`}>{cell.names.length}</b>
-                <ul className="sx-mxl">{cell.names.map((nm) => <li key={nm} className={mine.has(slugOf(nm)) ? "sx-mxm" : undefined}><Link to={gl(slugOf(nm))}>{short(nm)}</Link></li>)}</ul></> : "none"}
+                <ul className="sx-mxl">{cell.names.map((nm) => <li key={nm}><Link to={gl(slugOf(nm))}>{short(nm)}</Link>{mine.has(slugOf(nm)) && <Wallet />}</li>)}</ul></> : "none"}
             </div>); })}
         </>)}
       </div></Scroll>
-      {mine.size > 0 && <p className="sp-note">{tw("Yours are in bold with a gold edge. The number is how many are in the cell.")}</p>}
+      {mine.size > 0 && <p className="sp-note"><Wallet spoken /> marks {tw("your industries")}. The number is how many are in the cell.</p>}{/* task #448 (04 §1): the wallet, not bold with a gold edge */}
     </Section>
   );
 }
@@ -310,12 +310,14 @@ const WORDS: [string, string][] = [
   ["Stocks rising", tw("Out of every 100 actively traded stocks in the industry, how many are trading above their medium trend. Above 50 means most of them are going up.")],
   ["Short trend", tw("How many of the industry's stocks are above their average price of the last few weeks. It reacts first, so it moves a lot.")],
   ["Medium trend", "How many are above their average price of roughly the last month. The main reading on this page."],
-  ["Longer trend", "How many are above their average price of the last few months. It moves slowly and shows the bigger picture."],
+  ["Longer trend", "How many are above their average price over about the last two and a half months. It moves slowly and shows the bigger picture."],
   ["Below its 1-year high", tw("How far the industry (all its stocks averaged equally) is from its highest point of the past year. 0% means it is at the top.")],
   ["Standout stocks", tw("Stocks at a new 1-year high while their industry is still well below its own high. They are holding up better than their neighbours.")],
-  ["Box (Sector Rotation)", tw("Each week every industry is compared with the average group over the last few months and over recent weeks. The two answers put it in one of four boxes: Ahead and gaining, Ahead but slowing, Behind but gaining, Behind and slipping.")],
+  ["Box (Sector Rotation)", tw("Each week every industry is compared with the average group over 6 months and over the last month. The two answers put it in one of four boxes: Ahead and gaining, Ahead but slowing, Behind but gaining, Behind and slipping.")],
   ["Market backdrop", "Whether the Nifty 50 is above or below its long-term average price. Above it, the market as a whole is in an uptrend."],
 ];
+/** Task #448 (01 §3): the words alone, for the ⋯ menu's "Words on this page" panel. */
+export const WordsList = ({ items = WORDS }: { items?: [string, string][] }) => <dl className="sp-words">{items.map(([t, d]) => <div key={t}><dt>{tw(t)}.</dt><dd>{tw(d)}</dd></div>)}</dl>;
 export function Words({ items = WORDS, line }: { items?: [string, string][]; line?: string }) {
   // task #333 (file 30): on the new Sector Pulse it is a closed row with its one line ("Words explained" in the section bar)
   if (line) return <SxFold id="sx-words" title="Words on this page" line={line}><dl className="sp-words">{items.map(([t, d]) => <div key={t}><dt>{tw(t)}.</dt><dd>{tw(d)}</dd></div>)}</dl></SxFold>;

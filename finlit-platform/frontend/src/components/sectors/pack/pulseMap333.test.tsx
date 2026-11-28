@@ -72,12 +72,12 @@ describe("The map: playback (addition 4)", () => {
 });
 
 describe("The hover card (second pass 1)", () => {
-  it("pointing at a square shows its name, Yours, its chips, stocks rising, below its high, rank and 6 months against the average", () => {
+  it("pointing at a square shows its name, the wallet mark (task #448: in your portfolio), its chips, stocks rising, below its high, rank and 6 months against the average", () => {
     wrap(<TodayMinute b={B} h={H} mine={new Set([B.rows[0].slug])} />);
     const sq = document.querySelector(`.sp-squares a[href^="/sectors/${B.rows[0].slug}"]`)!;
     fireEvent.mouseEnter(sq);
     const card = screen.getByRole("tooltip");
-    expect(card.textContent).toContain("Yours");
+    expect(within(card).getByRole("img", { name: "In your portfolio" })).toBeTruthy();
     for (const t of ["Stocks rising", "Below its 1-year high", "Rank", "6 months against the average", "Press to open its page."]) expect(card.textContent).toContain(t);
     fireEvent.mouseLeave(document.querySelector(".sx-today")!);
     expect(screen.queryByRole("tooltip")).toBeNull();

@@ -58,25 +58,28 @@ export function accountFor(b: Pick<Board, "rows" | "too_few_stocks">, nse: { ind
   return { inside, placed, line };
 }
 
-/** Task #436 bug 3 (founder, 28 Nov 2026: "sector count - 22"): in the Sectors view a count that names the whole set says NSE's 22 sectors, as the landing page,
- *  the plans and the site spec do. The pages read only the sectors with enough actively traded stocks (19 on 20 Nov 2026); the rest are listed under Too small,
- *  so a count of the read ones says "19 of the 22 sectors", never "All 19 sectors". The total comes from the data (read + too small) when the board is at hand,
- *  else from NSE's own list of sectors. The Industries view keeps its words. */
+/** NSE's 22 sectors (task #436): the total comes from the data (read + too small) when the board is at hand, else from NSE's own list of sectors. */
 export const NSE_SECTOR_COUNT: number = NSE_SECTOR_NAMES.length;
 export const sectorsIn = (b: Pick<Board, "rows" | "too_few_stocks"> | undefined | null): number =>
   b && b.rows.length && b.rows.every((r) => r.kind === "sector") ? b.rows.length + (b.too_few_stocks ?? []).filter((g) => g.kind === "sector").length : NSE_SECTOR_COUNT;
-/** "19 of the 22 sectors" (or "all 22 sectors" when every one has a reading) in the Sectors view; "38 groups" in the Industries view. */
-export const ofSectors = (n: number, total = NSE_SECTOR_COUNT): string =>
-  wordsShow() !== "sectors" ? groupsN(n) : n >= total ? `all ${total} sectors` : `${n} of the ${total} sectors`;
-/** The same at the start of a title: "19 of the 22 sectors" / "All 22 sectors"; "All 38 groups" in the Industries view. */
-export const allSectors = (n: number, total = NSE_SECTOR_COUNT): string => {
-  const s = ofSectors(n, total);
-  return wordsShow() !== "sectors" ? `All ${s}` : s[0].toUpperCase() + s.slice(1);
+/** Task #448 (developer file 42, 05 §1, owner-approved 28 Nov 2026): NSE has 22 sectors, 19 with a reading and 3 too small, so the Sectors view never counts the
+ *  read ones as if they were all of them: no "19 sectors", no "All 19", no "19 of the 22 sectors" (task #436's wording, replaced by this pack). A count of the
+ *  whole set says "22 NSE sectors, 3 too small for a reading" (sectorsLine); everywhere else the words need no number. The Industries view keeps its counts. */
+/** For a spoken name or a sentence about all of them: "every sector with a reading" in the Sectors view; "38 groups" in the Industries view. */
+export const ofSectors = (n: number, _total = NSE_SECTOR_COUNT): string => (wordsShow() !== "sectors" ? groupsN(n) : "every sector with a reading");
+/** At the start of a title: "All sectors" in the Sectors view; "All 38 groups" in the Industries view. */
+export const allSectors = (n: number, _total = NSE_SECTOR_COUNT): string => (wordsShow() !== "sectors" ? `All ${groupsN(n)}` : "All sectors");
+/** After "N of" in the Industries view ("14 of 38 groups"); kept for that view only: use nOf() for a count of some of them. */
+export const ofWhole = (n: number, _total = NSE_SECTOR_COUNT): string => (wordsShow() === "sectors" ? "the sectors with a reading" : groupsN(n));
+/** "16 sectors" in the Sectors view ("In 12 of 19 sectors" becomes "In 12 sectors"); "16 of 38 groups" in the Industries view. */
+export const nOf = (k: number, n: number): string => (wordsShow() === "sectors" ? `${k} ${k === 1 ? "sector" : "sectors"}` : `${k} of ${groupsN(n)}`);
+/** A filter chip's "All": "All" in the Sectors view (never "All 19"), "All 38" in the Industries view. */
+export const allChip = (n: number, _total = NSE_SECTOR_COUNT): string => (wordsShow() === "sectors" ? "All" : `All ${n}`);
+/** The header's count (01 §2, 05 §1): "22 NSE sectors, 3 too small for a reading" (Rotation: "too small to rank"), worked out from the feed. */
+export const sectorsLine = (b: Pick<Board, "rows" | "too_few_stocks">, rank = false): string => {
+  const few = (b.too_few_stocks ?? []).filter((g) => g.kind === "sector").length, all = b.rows.length + few;
+  return `${all} NSE sectors${few ? `, ${few} too small ${rank ? "to rank" : "for a reading"}` : ""}`;
 };
-/** After "N of": "the 22 sectors" in the Sectors view ("14 of the 22 sectors"), "38 groups" in the Industries view. */
-export const ofWhole = (n: number, total = NSE_SECTOR_COUNT): string => (wordsShow() === "sectors" ? `the ${total} sectors` : groupsN(n));
-/** A filter chip's "All": "All 19 of 22" in the Sectors view, "All 38" in the Industries view. */
-export const allChip = (n: number, total = NSE_SECTOR_COUNT): string => (wordsShow() === "sectors" && n < total ? `All ${n} of ${total}` : `All ${n}`);
 
 /** "38 groups (33 industries and 5 sectors)", for the middle of a sentence. */
 export const groupsParen = (rows: { kind?: string }[]) => { const x = groupsSplit(rows); return x.includes(": ") ? x.replace(": ", " (") + ")" : x; };
@@ -149,8 +152,8 @@ export function headline(rows: GroupRow[], _now: Record<StateKey, number> | null
   else if (rise * 2 >= n) lead = tw("Most industries are rising together.");
   else if (b * 2 >= n) lead = "Bounces are broad.";
   else lead = "A mixed picture.";
-  const of = total != null && wordsShow() === "sectors" ? `the ${total} sectors` : `${n} groups`;   // task #436: "2 of the 22 sectors" in the Sectors view
-  const bounce = `${b} of ${of} ${b === 1 ? "is" : "are"} bouncing back` + (bWeek != null ? `; a week ago ${bWeek === 1 ? "just 1 was" : bWeek === 0 ? "none was" : `${bWeek} were`}` : "") + ".";
+  void total;   // task #448 (05 §1): "2 sectors are bouncing back" in the Sectors view, never "2 of 19 sectors"; "2 of 38 groups" in the Industries view
+  const bounce = `${nOf(b, n)} ${b === 1 ? "is" : "are"} bouncing back` + (bWeek != null ? `; a week ago ${bWeek === 1 ? "just 1 was" : bWeek === 0 ? "none was" : `${bWeek} were`}` : "") + ".";
   const together = rise === 0 ? " None has most of its stocks rising together yet." : ` ${plural(rise, "group has", "groups have")} most of ${rise === 1 ? "its" : "their"} stocks rising together.`;
   const sub = sWeek != null ? `Sold off: ${plural(sWeek, "group", "groups")} a week ago, ${sold} today.` : lose ? `Losing steam: ${lose} today.` : null;
   // task #333 (fix 2): the headline chip is red when selling is spreading, green when rises or bounces are spreading, amber when the picture is shifting
@@ -178,7 +181,7 @@ export function todayCards(rows: GroupRow[]): Card[] {
     text: early.map((r) => `${short(r.name)} (${risingOf(r, "above_9")} of ${r.stocks_counted})`).join("; ") + ": most of their stocks are already above their short trend." });
   const lose = by("losing");
   if (lose.length) out.push({ kind: "warning", title: `${plural(lose.length, "group is", "groups are")} losing steam`, text: `${list(lose.map((r) => short(r.name)))}: fewer of ${lose.length === 1 ? "its" : "their"} stocks are still rising.` });
-  else if (by("sold_off").length * 2 >= rows.length) out.push({ kind: "warning", title: `${by("sold_off").length} of ${ofWhole(rows.length)} are sold off`, text: "Most groups have most of their stocks below their trend, with no broad bounce yet." });
+  else if (by("sold_off").length * 2 >= rows.length) out.push({ kind: "warning", title: `${nOf(by("sold_off").length, rows.length)} are sold off`, text: "Most groups have most of their stocks below their trend, with no broad bounce yet." });
   return out.slice(0, 4);
 }
 
@@ -205,11 +208,11 @@ export function meansForYou(r: GroupRow): { text: string; tone: "good" | "watch"
     if (box === "behind_gaining") return { text: tw("Recovering, and catching up with other industries."), tone: "good" };
     return { text: tw("Recovering, though still behind most industries."), tone: "good" };
   }
-  if (k === "rising") return { text: ahead ? tw("Rising broadly, and ahead of most industries.") : tw("Rising broadly, though behind most industries over recent months."), tone: "good" };
+  if (k === "rising") return { text: ahead ? tw("Rising broadly, and ahead of most industries.") : tw("Rising broadly, though behind most industries over 6 months."), tone: "good" };
   if (k === "losing") return { text: "Its recent rise is losing support.", tone: "watch" };
   if (k === "sold_off") {
     if (isEarly(r) && !ahead) return { text: tw("Sold off and behind most industries, but most of its stocks have started rising again. An early sign."), tone: "watch" };
-    if (box === "ahead_gaining") return { text: tw("Sold off lately, though still ahead of most industries over the last few months."), tone: "watch" };
+    if (box === "ahead_gaining") return { text: tw("Sold off now, though still ahead of most industries over 6 months."), tone: "watch" };
     if (box === "ahead_slowing") return { text: tw("Sold off, and its lead over other industries is fading."), tone: "watch" };
     if (box === "behind_gaining") return { text: tw("Sold off, though it has been catching up with other industries."), tone: "watch" };
     return { text: tw("Sold off, and falling further behind other industries."), tone: "watch" };
@@ -282,7 +285,7 @@ export function tableCards(rows: GroupRow[], week: Record<StateKey, number> | nu
   const shortUp = rows.filter((r) => (r.breadth.above_9 ?? 0) > 50).length, longDown = rows.filter((r) => (r.breadth.above_50 ?? 100) <= 50).length;   // half or fewer (four industries sit at exactly 50%: the pack counts them)
   const out: Card[] = [{ kind: shortUp * 2 >= rows.length ? "good" : "watch", title: shortUp * 2 >= rows.length ? "Breadth is improving fast" : "Breadth is still narrow",   // task #333: no "Good sign" on a box with no good news
     text: `${groupsN(shortUp)} now have more than half their stocks above the short trend.${week && week.sold_off * 2 >= rows.length ? " A week ago the market was in a broad sell-off." : ""}` }];
-  if (longDown) out.push({ kind: "watch", title: "The longer trend has not turned", text: `In ${longDown} of ${ofWhole(rows.length)} half or fewer of the stocks are above their longer trend. Bounces need time to become uptrends.` });
+  if (longDown) out.push({ kind: "watch", title: "The longer trend has not turned", text: `In ${nOf(longDown, rows.length)}, half or fewer of the stocks are above their longer trend. Bounces need time to become uptrends.` });
   const crash = rows.filter((r) => keyOf(r) === "crash" && r.held_up != null).sort((a, b) => (a.held_up ?? 100) - (b.held_up ?? 100)).slice(0, 2);
   if (crash.length === 2) out.push({ kind: "insight", title: `${brief(crash[0].name)} and ${brief(crash[1].name)} fell hardest`, text: "Both made their low with almost every stock falling, and both have now bounced." });
   return out;

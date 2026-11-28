@@ -17,7 +17,7 @@ import type { IndustryMap } from "../../../lib/sectorExtra";
 import type { SectorHistory, StateKey } from "../../../lib/sectorHistory";
 import { COLOUR, MEANING, OF_CODE, WORD, allSectors, belowHigh, dayMon, groupsN, ofSectors, keyOf, risingOf, short } from "../../../lib/pulsePack";
 import { gl, sq, tw, wordsShow } from "../../../lib/groupWords";
-import { BoxChip, Cards, Scroll, Section, StateChip } from "./Common";
+import { Wallet, BoxChip, Cards, Scroll, Section, StateChip } from "./Common";
 import { placeLabels } from "./PulseSimple";
 
 // ------------------------------------------------------------------------------------------------ the hover card
@@ -25,7 +25,7 @@ export function HoverCard({ r, mine, at }: { r: GroupRow; mine: boolean; at: { x
   const up = risingOf(r), pts = r.rotation?.strength_pts;
   return (
     <div className="sx-hc" role="tooltip" style={{ left: at.x, top: at.y }}>
-      <b>{short(r.name)}{mine && <em>Yours</em>}</b>
+      <b>{short(r.name)}{mine && <Wallet />}</b>
       <div className="sx-hcc"><StateChip k={keyOf(r)} /><BoxChip corner={r.rotation?.corner} /></div>
       <dl>
         <div><dt>Stocks rising</dt><dd>{up ?? "–"} of {r.stocks_counted}</dd></div>

@@ -11,8 +11,8 @@ import { CoLogo } from "../../CoLogo";
 import { LockedBlock } from "../Parts";
 import type { Board, GroupRow, IndustryPage, RankedStock } from "../../../lib/sectors";
 import type { SectorHistory, StateKey } from "../../../lib/sectorHistory";
-import { COLOUR, MEANING, ORDER, WORD, allChip, groupsN, groupsSplit, bounceIndex, bouncedShort, byState, dayMon, fridayCards, fridays, howStrong, inTableFilter, isEarly, keyOf, risingOf, short, sectorsIn, standoutCounts, statesAt, tableCards, type Card, type TableFilter } from "../../../lib/pulsePack";
-import { BoxChip, Cards, InsideLine, InsightCard, Scroll, Spark, StateChip, Swatch, Tip, Why, useAccount } from "./Common";
+import { COLOUR, MEANING, ORDER, WORD, allChip, groupsN, groupsSplit, bounceIndex, bouncedShort, byState, dayMon, fridayCards, fridays, howStrong, inTableFilter, isEarly, keyOf, risingOf, short, standoutCounts, statesAt, tableCards, type Card, type TableFilter } from "../../../lib/pulsePack";
+import { Wallet, BoxChip, Cards, InsideLine, InsightCard, Scroll, Spark, StateChip, Swatch, Tip, Why, useAccount } from "./Common";
 import { AlertBell } from "./SectorAlert";
 import { coTitle, shortLabel, subLine, titleOf } from "../../../lib/companyLabel";
 import { gl, sq, tw, wordsShow } from "../../../lib/groupWords";
@@ -35,8 +35,9 @@ export function PulseTable({ b, h, mine }: { b: Board; h: SectorHistory | undefi
   const setCols = (c: "key" | "all") => { setColsRaw(c); try { localStorage.setItem(COLS_KEY, c); } catch { /* private window */ } };
   const groups = useMemo(() => byState(b.rows.filter((r) => inTableFilter(r, f, mine))), [b.rows, f, mine]);
   const n = (x: TableFilter) => b.rows.filter((r) => inTableFilter(r, x, mine)).length;
-  const filters: [TableFilter, string][] = [["all", allChip(b.rows.length, sectorsIn(b))], ["bounce", `Bouncing back · ${n("bounce")}`], ["sold_off", `Sold off · ${n("sold_off")}`], ["losing", `Losing steam · ${n("losing")}`],
-    ...(b.leader_flags != null ? [["standouts", `With standout stocks · ${n("standouts")}`] as [TableFilter, string]] : []), ...(mine.size ? [["yours", tw(`Your industries · ${n("yours")}`)] as [TableFilter, string]] : [])];
+  // task #448 (03 §7): each pill's count is a plain, lighter number after its label (never "· N"); "My sectors" carries the wallet; the Sectors view's "All" has no 19
+  const filters: [TableFilter, string, number | null][] = [["all", allChip(b.rows.length), null], ["bounce", "Bouncing back", n("bounce")], ["sold_off", "Sold off", n("sold_off")], ["losing", "Losing steam", n("losing")],
+    ...(b.leader_flags != null ? [["standouts", "With standout stocks", n("standouts")] as [TableFilter, string, number]] : []), ...(mine.size ? [["yours", tw("My industries"), n("yours")] as [TableFilter, string, number]] : [])];
   const hist = (slug: string) => h?.groups.find((g) => g.slug === slug);
   return (
     <>
@@ -44,14 +45,14 @@ export function PulseTable({ b, h, mine }: { b: Board; h: SectorHistory | undefi
         <div className="sp-sec-h"><div><h2 id="sp-every">{tw("Every industry, every number")}<Tip text={tw("Every industry, every number. Every group with a reading on one table: its state and since when, how many of its counted stocks are above their short, medium and longer trend, how far it is below its 1-year high, its Sector Rotation box and the last bounce.")} label={tw("About “Every industry, every number”")} /></h2><p className="sp-sub">{tw("Grouped by state. Click any industry to see the stocks inside it, strongest 6 months first.")}</p></div></div>{/* task #333 (file 30): Download CSV removed; no plan offers downloads (Pranjal, 23 Nov 2026) */}
         <div className="sx-src sx-colset" role="group" aria-label="Columns"><span>Columns</span>
           <button type="button" aria-pressed={cols === "key"} onClick={() => setCols("key")}>Key figures</button><button type="button" aria-pressed={cols === "all"} onClick={() => setCols("all")}>All columns</button></div>
-        <div className="sp-filters" role="group" aria-label="Show">{filters.map(([k, label]) => <button key={k} type="button" className={"sp-fbtn" + (f === k ? " on" : "")} aria-pressed={f === k} onClick={() => setF(k)}>{label}</button>)}</div>
+        <div className="sp-filters" role="group" aria-label="Show">{filters.map(([k, label, ct]) => <button key={k} type="button" className={"sp-fbtn" + (f === k ? " on" : "")} aria-pressed={f === k} onClick={() => setF(k)}>{k === "yours" && <Wallet small />}{label}{ct != null && <> <span className="ct">{ct}</span></>}</button>)}</div>
         <div className="sp-ckey"><span><b>How to read the 6-month chart:</b> the <b>line</b> is the share of its stocks rising each day (dashed = half); the <b>shading</b> is its state that day; ▲ marks its last bounce.</span>
           {(["sold_off", "bouncing", "crash", "rising", "losing", "no_signal"] as StateKey[]).map((k) => <span key={k} className="sp-keyi"><Swatch k={k} />{WORD[k]}</span>)}</div>
         <Scroll label={tw("every industry, every number")}><table className={"sp-tb sp-full sx-ft" + (cols === "key" ? " sx-key" : "")}>
           <thead>
             <tr className="sp-full-g"><th colSpan={2} /><th colSpan={3} className="sp-g-trend">Above their trend<Tip text={tw("Out of the industry's counted stocks, the share above their short (about 2 weeks), medium (about a month) and longer (about 3 months) average price.")} /></th>
               <th colSpan={2} className="sp-g-fall">Depth of fall<Tip text={tw("How deep the fall was. Below high: how far the industry's typical stock is below its 1-year high. Held up: at the industry's last low, the share of stocks that stayed above their earlier low. A low figure (in red) means almost every stock fell to a new low: a crash.")} /></th>
-              <th colSpan={2} /><th colSpan={3} className="sp-g-vs">{tw("Vs other industries")}<Tip text={tw("The Sector Rotation box and rank: how the industry has done against the average group over recent months and weeks.")} /></th></tr>
+              <th colSpan={2} /><th colSpan={3} className="sp-g-vs">{tw("Vs other industries")}<Tip text={tw("The Sector Rotation box and rank: how the industry has done against the average group over 6 months and over the last month.")} /></th></tr>
             <tr><th scope="col">{tw("Industry")}</th><th scope="col">Last 6 months<Tip text="The line: out of every 100 of its counted stocks, how many were above their medium trend each day. The shading: its state that day." /></th>
               <th scope="col" className="r sx-cx">Short</th><th scope="col" className="r"><span className="sx-lk">Stocks rising</span><span className="sx-lf">Medium</span></th><th scope="col" className="r sx-cx">Longer</th>
               <th scope="col" className="r"><span className="sx-lk">Below 1-yr high</span><span className="sx-lf">Below high</span></th><th scope="col" className="r sx-cx">Held up</th>
@@ -64,7 +65,7 @@ export function PulseTable({ b, h, mine }: { b: Board; h: SectorHistory | undefi
               {g.rows.map((r) => { const hh = hist(r.slug), isOpen = open === r.slug; return (<Fragment key={r.slug}>
                 <tr className={"sp-row" + (isOpen ? " on" : "") + (mine.has(r.slug) ? " sx-mine" : "")}>
                   <td><button type="button" className="sp-exp" aria-expanded={isOpen} aria-controls={"sp-x-" + r.slug} onClick={() => setOpen(isOpen ? null : r.slug)}><span aria-hidden="true">{isOpen ? "▼" : "▶"}</span>
-                    <span><b>{short(r.name)}</b>{mine.has(r.slug) && <em className="sp-yours">Yours</em>}<small>{r.stocks_counted} stocks</small></span></button></td>
+                    <span><b>{short(r.name)}</b>{mine.has(r.slug) && <Wallet />}<small>{r.stocks_counted} stocks</small></span></button></td>
                   <td>{hh?.rising ? <Spark values={hh.rising} states={hh.states} mark={h ? bounceIndex(h.dates, r) : null} label={`${short(r.name)}: stocks rising over 6 months`} w={150} h={40} /> : <span className="sp-nil">–</span>}</td>
                   <td className="r sx-cx">{pct0(r.breadth.above_9)}</td><td className="r">{pct0(r.breadth.above_20)}</td><td className="r sx-cx">{pct0(r.breadth.above_50)}</td>
                   <td className="r">{r.index_vs_52w_high == null ? "–" : `${Math.abs(r.index_vs_52w_high).toFixed(1)}%`}</td>
@@ -121,11 +122,11 @@ export function StandoutsFull({ b }: { b: Board }) {
   const c = standoutCounts(f), shown = all ? f : f.slice(0, 24);
   return (
     <section className="sp-sec" aria-labelledby="sp-stand-f">
-      <h2 id="sp-stand-f">Standout stocks · {f.length}<Tip text={tw("Standout stocks. Stocks at a new 1-year high while their industry is still well below its own high. They are holding up better than their neighbours.")} /></h2>
+      <h2 id="sp-stand-f">Standout stocks: {f.length}<Tip label="About “Standout stocks”" text={tw("Standout stocks. Stocks at a new 1-year high while their industry is still well below its own high. They are holding up better than their neighbours.")} /></h2>
       <p className="sp-sub">{tw("Stocks at a 1-year high while their industry is still well below its own high.")}</p>
       <div className="sp-two sp-two-tight">
-        <div className="sp-sumc sp-good-bg"><b>Strong · {c.strong}</b><Tip text={tw("Strong standout. The stock is at a 1-year high while its industry is still far below its own high. It stands out the most.")} /><p>{tw("Industry far below its high, so the stock stands out the most.")}</p></div>
-        <div className="sp-sumc sp-watch-bg"><b>Early · {c.early}</b><Tip text={tw("Early standout. The stock is at a 1-year high while its industry is somewhat below its own high.")} /><p>{tw("Industry somewhat below its high.")}</p></div>
+        <div className="sp-sumc sp-good-bg"><b>Strong <span className="ct">{c.strong}</span></b><Tip label="About “Strong”" text={tw("Strong standout. The stock is at a 1-year high while its industry is still far below its own high. It stands out the most.")} /><p>{tw("Industry far below its high, so the stock stands out the most.")}</p></div>
+        <div className="sp-sumc sp-watch-bg"><b>Early <span className="ct">{c.early}</span></b><Tip label="About “Early”" text={tw("Early standout. The stock is at a 1-year high while its industry is somewhat below its own high.")} /><p>{tw("Industry somewhat below its high.")}</p></div>
       </div>
       <Why>{tw("These are the stocks holding up most strongly inside weak industries: a research list, not a recommendation.")}</Why>
       <ul className="sp-standlist">{shown.map((x) => { const s = howStrong(x); return <li key={x.symbol + x.group_slug}><Link to={`/stocks/${x.symbol}`}><b title={coTitle(x)}>{shortLabel(x)}</b></Link> <span>{short(x.group)}</span><span className={"sp-q " + (s === "Strong" ? "sp-standout" : "sp-early-q")}>{s}</span></li>; })}</ul>

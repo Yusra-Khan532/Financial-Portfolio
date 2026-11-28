@@ -1,0 +1,102 @@
+/* Task #448: Sector Pulse, developer file 42 (28 Nov 2026). The new parts of the page; colours only from ui-tokens.css (the #448 block). Scoped to .sx-new
+   (the Sector Pulse page) unless a part is shared with Sector Rotation (task #449, file 43), which says so. */
+
+/* 04 §1 The wallet mark, "in your portfolio": an inline box (padding and a background image), 6 px after the name, so it never sits alone on a line. */
+.sp-wal { display: inline; margin-left: 6px; padding: 3px 10px; border-radius: 50%; font-size: var(--fs-12); line-height: 1;
+  background: var(--ui-wal-img) center / 13px 13px no-repeat, var(--ui-wal-bg); -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+.sp-wal::before { content: "\2060"; }
+/* in a flex or grid row (list links, drop-down headings) it is a 20 px item */
+.sp-wal.flex, :is(.sx-l-row, .sx-dd-h) > .sp-wal { display: inline-block; width: 20px; height: 20px; padding: 0; margin-left: 6px; flex: none; }
+/* the "My sectors" filter pill: the 13 px icon in the text's own colour, before the label */
+.sp-wal-s { display: inline-block; width: 13px; height: 13px; margin-right: 5px; vertical-align: text-bottom; background: currentColor;
+  -webkit-mask: var(--ui-wal-mask) center / contain no-repeat; mask: var(--ui-wal-mask) center / contain no-repeat; }
+
+/* 03 §7 Filter pills: the count is a plain, lighter number after the label (never "· N"), at 4.5:1 (07 Contrast). */
+.sx-new .sx-fl button small, .sx-new .sx-fl button .ct, .sx-new .sp-ftab .ct { color: var(--ui-count-ink); opacity: 1; font-weight: 500; }
+.sx-new .sx-fl button[aria-pressed="true"] small, .sx-new .sx-fl button[aria-pressed="true"] .ct { color: inherit; }
+
+/* 01 §2 The header: the facts as lines (a fact after an i starts its own line); the backdrop line; the wallet key */
+.sx-new .sp-meta { display: block; }
+.sx-new .sx-ml { margin: 0 0 2px; font-size: var(--fs-14); line-height: 1.6; color: var(--sp-mute); }
+.sx-new .sx-ml b { color: var(--sp-ink); font-weight: 600; }
+.sx-new .sx-walkey .sp-wal { margin: 0 6px 0 0; }
+
+/* 01 §3 The ⋯ button after Find, its menu, and the panel that opens a reference block over the page */
+.sx-more { position: relative; flex: none; }
+.sx-more-b { display: grid; place-items: center; width: 40px; height: 40px; padding: 0; border: 1px solid var(--sp-line); border-radius: 50%; background: var(--bg); color: var(--sp-ink);
+  font: 700 var(--fs-18)/1 var(--sans); cursor: pointer; }
+.sx-more-b[aria-expanded="true"], .sx-more-b:hover { border-color: var(--sp-ink); }
+.sx-more-l { position: absolute; right: 0; top: calc(100% + 6px); z-index: 60; min-width: 260px; margin: 0; padding: 6px; list-style: none; border: 1px solid var(--border-strong);
+  border-radius: var(--r-ctl); background: var(--s1); box-shadow: var(--ui-pop-shadow); }
+.sx-more-l button { display: block; width: 100%; min-height: 40px; padding: 8px 12px; border: 0; border-radius: var(--ui-r-mark); background: none; color: var(--sp-ink); text-align: left;
+  font: 500 var(--fs-14)/1.3 var(--sans); cursor: pointer; }
+.sx-more-l button:hover, .sx-more-l button:focus-visible { background: var(--s2); }
+.sx-panel-bg { position: fixed; inset: 0; z-index: var(--z-modal, 300); display: grid; place-items: start center; padding: 6vh 16px; overflow-y: auto; background: var(--ov-backdrop); }
+.sx-panel { width: min(920px, 100%); padding: 20px 24px 24px; border-radius: var(--r-card); background: var(--s1); color: var(--sp-ink); box-shadow: var(--ui-pop-shadow); outline: none; }
+.sx-panel-h { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.sx-panel-h h2 { margin: 0; font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif); }
+.sx-x { display: grid; place-items: center; flex: none; width: 36px; height: 36px; padding: 0; border: 1px solid var(--sp-line); border-radius: 50%; background: var(--bg); color: var(--sp-ink);
+  font: 400 var(--fs-20)/1 var(--sans); cursor: pointer; }
+.sx-panel .sp-sec { margin: 0; padding: 0; border: 0; box-shadow: none; background: none; }
+.sx-panel .sp-guide.sx-in-panel { margin: 0; border: 0; background: none; padding: 0; }
+
+/* 01 §4 Things to know: the quiet list (Today) and the pill with its popover (elsewhere) */
+.sx-ql { position: relative; margin: 12px 0 0; padding: 6px 16px; border: 1px solid var(--sp-line); border-radius: var(--r-card); background: var(--sp-panel); }
+.sx-ql-top { display: flex; justify-content: flex-end; padding: 4px 0; }
+.sx-ql-all { min-height: 32px; padding: 0 4px; border: 0; background: none; color: var(--sp-ink); font: 600 var(--fs-13)/1 var(--sans); text-decoration: underline; cursor: pointer; }
+.sx-ql ul { margin: 0; padding: 0; list-style: none; }
+.sx-ql-r + .sx-ql-r { border-top: 1px solid var(--sp-line); }
+.sx-ql-b { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 8px 0; border: 0; background: none; color: var(--sp-ink); text-align: left; cursor: pointer; font: 400 var(--fs-14)/1.35 var(--sans); }
+.sx-ql-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--sp-good); }
+.sx-ql-k { flex: none; font: 700 var(--fs-12)/1 var(--sans); letter-spacing: .06em; text-transform: uppercase; color: var(--sp-mute); }
+.sx-ql-t { flex: 1; font-weight: 600; }
+.sx-ql-ar { flex: none; font-size: var(--fs-12); color: var(--sp-mute); }
+.sx-ql-x { margin: 0 0 10px 18px; font-size: var(--fs-14); line-height: 1.5; color: var(--sp-ink); }
+.sx-k-good .sx-ql-dot, .sx-ttk-dots .sx-k-good { background: var(--sp-good); }
+.sx-k-watch .sx-ql-dot, .sx-ttk-dots .sx-k-watch { background: var(--sp-watch); }
+.sx-k-bad .sx-ql-dot, .sx-ttk-dots .sx-k-bad { background: var(--sp-bad); }
+.sx-k-info .sx-ql-dot, .sx-ttk-dots .sx-k-info { background: var(--sp-info); }
+.sx-new .sp-sec-h { flex-wrap: wrap; }
+.sx-new .sp-sec-h > div:first-child { flex: 1 1 420px; min-width: 0; }   /* the title row wraps, so its tools never push the page sideways */
+.sx-tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; flex: 0 1 auto; max-width: 100%; margin-left: auto; }   /* always at the right end of the title row (01 §4, §5) */
+.sx-ttk-slot { display: contents; }
+.sx-ttk { position: relative; display: inline-flex; }
+.sx-ttk-b { display: inline-flex; align-items: center; gap: 8px; min-height: 32px; padding: 0 12px; border: 1px solid var(--sp-line); border-radius: var(--ui-r-pill); background: var(--bg); color: var(--sp-ink);
+  font: 600 var(--fs-13)/1 var(--sans); cursor: pointer; white-space: nowrap; }
+.sx-ttk-b[aria-expanded="true"] { border-color: var(--sp-ink); }
+.sx-ttk-dots { display: inline-flex; gap: 3px; } .sx-ttk-dots i { width: 7px; height: 7px; border-radius: 50%; }
+.sx-ttk-pop { position: absolute; right: 0; top: calc(100% + 6px); z-index: 70; width: min(420px, calc(100vw - 32px)); padding: 12px 14px; border: 1px solid var(--border-strong); border-radius: var(--r-card);
+  background: var(--s1); box-shadow: var(--ui-pop-shadow); text-align: left; }
+.sx-ttk-h { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.sx-ttk-pop .sx-ql { margin: 6px 0 0; padding: 0; border: 0; }
+.sx-bar-ttk { display: inline-flex; align-items: center; margin-left: auto; }
+.sx-new .sx-barw { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.sx-new .sx-barw > .sx-bar { flex: 1 1 auto; min-width: 0; }
+
+/* 01 §5 Why it matters: a small outlined button at the right end of the title row; its text opens below the title */
+.sx-whyb { min-height: 32px; padding: 0 12px; border: 1px solid var(--sp-line); border-radius: var(--ui-r-pill); background: var(--bg); color: var(--sp-ink); font: 700 var(--fs-12)/1 var(--sans);
+  letter-spacing: .06em; text-transform: uppercase; cursor: pointer; white-space: nowrap; }
+.sx-whyb[aria-expanded="true"] { border-color: var(--sp-ink); }
+.sx-why-x { margin: 8px 0 4px; padding: 10px 14px; border-left: 3px solid var(--gold); background: var(--s2); border-radius: var(--ui-r-mark); font-size: var(--fs-14); line-height: 1.5; }
+
+/* 04 §2 Peer labels (also the labels card) */
+.sp-peer { display: inline-flex; align-items: center; min-height: 24px; padding: 0 9px; border-radius: var(--ui-r-pill); font: 600 var(--fs-12)/1 var(--sans); white-space: nowrap; text-decoration: none; }
+.sp-peer-lead { background: var(--ui-peer-lead-bg); color: var(--ui-peer-lead-ink); }
+.sp-peer-line { background: var(--ui-peer-line-bg); color: var(--ui-peer-line-ink); }
+.sp-peer-lag { background: var(--ui-peer-lag-bg); color: var(--ui-peer-lag-ink); }
+.sp-peer-none { border: 1px solid var(--border-strong); color: var(--sp-mute); }
+
+/* 04 §4 What the labels mean */
+.sx-lab-lead { margin: 0 0 12px; color: var(--sp-mute); font-size: var(--fs-14); }
+.sx-lab-p + .sx-lab-p { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--sp-line); }
+.sx-lab-h { max-width: none; margin: 0 0 8px; font: 400 var(--fs-14)/1.5 var(--sans); color: var(--sp-ink); }
+.sx-lab-p dl { display: grid; grid-template-columns: minmax(150px, max-content) minmax(0, 1fr); gap: 6px 16px; margin: 0; }
+.sx-lab-p dl > div { display: contents; }
+.sx-lab-p dt { font: 600 var(--fs-14)/1.45 var(--sans); } .sx-lab-p dd { margin: 0; font-size: var(--fs-14); line-height: 1.45; color: var(--sp-ink); }
+.sx-lab-wal .sp-wal { margin: 0 6px 0 0; }
+@media (max-width: 620px) {
+  .sx-lab-p dl { grid-template-columns: minmax(0, 1fr); gap: 2px; } .sx-lab-p dd { margin-bottom: 8px; }
+  .sx-ttk-b, .sx-whyb { min-height: 40px; }
+  .sx-tools { width: 100%; justify-content: flex-start; }
+  .sx-panel { padding: 16px; }
+}
