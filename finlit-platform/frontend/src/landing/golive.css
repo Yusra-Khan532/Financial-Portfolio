@@ -11768,13 +11768,24 @@ main .hh>#begin {
   box-shadow: none!important;
   border-color: var(--border)!important;
 }
-/* 1. the hero no longer fills the whole first screen; the next section starts 36px under it */
-@media (min-width:1100px) {
+/* task #436 (change 12): the hero fills the first screen again on tablets and laptops (761px and wider), its content centred, so "The Platform"
+   shows only once the visitor scrolls. This replaces task #411's shorter hero (the next section peeking in). */
+@media (min-width:761px) {
   main .hh .hh-top.lp-fill {
-    min-height: 0!important;
-    padding-top: 28px!important;
-    padding-bottom: 28px!important;
+    min-height: calc(100svh - var(--lp-hdr,62px))!important;
+    padding-top: 24px!important;
+    padding-bottom: 32px!important;
+    display: flex!important;
+    flex-direction: column!important;
+    justify-content: center!important;
+    box-sizing: border-box;
   }
+  main .hh .hh-top.lp-fill>.wrap {
+    width: 100%;
+    box-sizing: border-box;
+  }
+}
+@media (min-width:1100px) {
   #platform {
     padding-top: 36px!important;
   }
@@ -11802,7 +11813,7 @@ main .hh>#begin {
 }
 .lq-lead2 .lq-lt {
   margin: 0;
-  font: 500 20px/1.2 var(--serif);
+  font: 500 20px/1.2 var(--serif);   /* the pack's 22px is off the site's one type scale (docs/TYPE-SCALE.md); 20px is the scale step #411 chose */
   color: var(--text);
 }
 .lq-lead2 .lq-ls {
@@ -11849,4 +11860,22 @@ main .hh>#begin {
   .lq-lead2 .lq-key-in {
     grid-template-columns: minmax(0,1fr);
   }
+}
+
+/* task #436 (change 11): "Coming soon" in place of plan prices while FL_PRICES_LIVE is false (see golive.js) */
+.lq-head .lq-pr.lq-soon .lq-pm strong {
+  font: 600 18px/1.2 var(--serif);   /* the pack's 17px, on the site's type scale */
+  letter-spacing: 0;
+  color: var(--text);
+  white-space: nowrap;
+}
+.lq-head .lq-pr.lq-soon .lq-py {
+  font-size: var(--fs-12);
+  color: var(--muted);
+}
+.lq-pr.lq-soon .lq-pm {
+  justify-content: center;
+}
+.lp-go-p em {
+  font-style: normal;
 }

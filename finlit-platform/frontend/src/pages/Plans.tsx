@@ -30,6 +30,8 @@ export function PlansPage() {
     quote: () => Promise.resolve(null),
     // task #411: the landing page moved the combined plan into its table; /plans keeps its own layout (five columns, the combined plan's card)
     combinedCard: true,
+    // task #436 hides prices on the landing page only; /plans keeps showing them
+    pricesLive: true,
   }), [navigate]);
   return (
     <div className="pl410">
