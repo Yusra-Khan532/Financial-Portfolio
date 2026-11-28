@@ -38,6 +38,11 @@ NSDL = "https://www.fpi.nsdl.co.in/web"
 # fiidiiTradeReact is the combined NSE, BSE and MSEI report (what the page shows); the cookie is taken from the same host.
 NSE_HOME = "https://www.nseindia.in/"
 NSE_FIIDII = "https://www.nseindia.in/api/fiidiiTradeReact"
+# 28 Nov 2026: NSE's Akamai refuses AWS and Cloudflare for the JSON API and the home page, but answers the CSV the page's Download button fetches
+# (seen through the relay: 200) when asked with a desktop-browser agent. The job reads that CSV through the relay; the JSON stays the first try.
+NSE_FIIDII_CSV = NSE_FIIDII + "?csv=true"
+CSV_HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
+               "Accept": "text/csv,application/json,text/plain,*/*", "Referer": "https://www.nseindia.in/reports/fii-dii"}
 NSE_OI = "https://archives.nseindia.com/content/nsccl/fao_participant_oi_{:%d%m%Y}.csv"
 USER_AGENT = "FinLit-data/1.0 (+https://finlitventures.com)"
 PAUSE = 1.0                                   # seconds between two requests to NSDL (a month of history is one request)
@@ -276,21 +281,30 @@ class Sources:
         raise RuntimeError("the exchange's FII/DII report did not answer" + ("" if self.relay else " (and no relay is set: EXCHANGE_RELAY_URL / EXCHANGE_RELAY_KEY)"))
 
     async def _nse_via_relay(self, hdr: Dict[str, str]) -> Optional[str]:
-        """The FII/DII report through the relay, or None. A relay that could not reach NSE never stands in for NSE's own answer."""
+        """The FII/DII report through the relay, as JSON text, or None: the CSV first (the form NSE answers, 28 Nov 2026), converted to the JSON
+        shape, then the JSON API. A relay that could not reach NSE never stands in for NSE's own answer."""
         if not self.relay:
             return None
+        from . import flows_sources as S
         base, key = self.relay
-        self.calls += 1
-        try:
-            # never follow a redirect the relay hands back: that would send this server to NSE itself (27 Nov 2026: NSE moved its API from
-            # www.nseindia.com to www.nseindia.in; the relay's 302 was followed from AWS and refused, 40 failed runs). The relay follows it itself.
-            r = await self.web.get(base + "/fetch", params={"u": NSE_FIIDII}, follow_redirects=False,
-                                   headers={"X-Relay-Key": key, "X-Fwd-User-Agent": hdr["User-Agent"], "X-Fwd-Referer": hdr["Referer"], "X-Fwd-Accept": hdr["Accept"]})
-        except httpx.TransportError:
-            return None
-        if r.headers.get("x-relay-error") or not r.headers.get("x-relay"):
-            return None
-        return r.text if r.status_code == 200 and r.text.lstrip().startswith("[") else None
+        for url, h, want in ((NSE_FIIDII_CSV, CSV_HEADERS, "csv"), (NSE_FIIDII, hdr, "json")):
+            self.calls += 1
+            try:
+                # never follow a redirect the relay hands back: that would send this server to NSE itself (27 Nov 2026: NSE moved its API from
+                # www.nseindia.com to www.nseindia.in; the relay's 302 was followed from AWS and refused, 40 failed runs). The relay follows it itself.
+                r = await self.web.get(base + "/fetch", params={"u": url}, follow_redirects=False,
+                                       headers={"X-Relay-Key": key, "X-Fwd-User-Agent": h["User-Agent"], "X-Fwd-Referer": h["Referer"], "X-Fwd-Accept": h["Accept"]})
+            except httpx.TransportError:
+                continue
+            if r.headers.get("x-relay-error") or not r.headers.get("x-relay") or r.status_code != 200:
+                continue
+            if want == "csv":
+                as_json = S.nse_csv_to_json(r.text)
+                if as_json:
+                    return as_json
+            elif r.text.lstrip().startswith("["):
+                return r.text
+        return None
 
     async def nifty(self):
         if self._nifty is not None:
