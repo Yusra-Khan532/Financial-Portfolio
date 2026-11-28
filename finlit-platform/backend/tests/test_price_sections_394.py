@@ -467,3 +467,15 @@ async def test_a_company_with_no_report_gets_its_chart_from_the_candles_at_once(
         none = await api.get("/api/stocks/ZZNONE/price", params={"range": "1Y"})
         assert none.status_code != 200 or "series" not in none.json()                        # no candles: the usual path (the report is queued)
     await _clean(store, "ZZNOREP")
+
+
+def test_a_chart_from_the_providers_series_is_never_current_so_the_job_rewrites_it():
+    """Task #394 re-check (28 Nov 2026): a report rebuilt on demand before the fix kept the provider's charts (source None) ending on the same
+    day as the candles; the job took them for current and left them. Now only a chart written from the candles is current."""
+    stored = {name: body for name, body in stored_report().items()}
+    last = stored["price-1M"]["priceAsOf"]
+    assert stored["price-1M"]["source"] is None
+    assert price_sections.is_current(stored, last) is False
+    for body in stored.values():
+        body["source"] = "NSE"
+    assert price_sections.is_current(stored, last) is True

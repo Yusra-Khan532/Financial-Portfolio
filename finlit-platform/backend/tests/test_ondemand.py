@@ -522,3 +522,39 @@ async def test_queue_serves_the_newest_request_first_and_a_repeat_moves_to_the_f
     assert await store.claim(1) == [("AVANTEL", "consolidated")]           # the visitor's company, not yesterday's
     await store.enqueue("OLDA", "consolidated")                            # opened again: to the front
     assert await store.claim(2) == [("OLDA", "consolidated"), ("OLDB", "consolidated")]
+
+
+async def test_a_report_built_on_demand_draws_its_charts_from_the_exchange_candles(store):  # noqa: F811
+    """Task #394 re-check (28 Nov 2026): Hikal's report, rebuilt because it was opened, drew 1M-MAX from the provider's series (231.85, 27,834
+    shares on 27 Nov) while the list and the 3Y daily chart read the exchange candles (230.86, 3,31,721). Both on-demand steps read the candles now."""
+    from datetime import date as _d
+    from test_price_sections_394 import candle_rows
+    async with store.pool.acquire() as conn:
+        await conn.execute("DELETE FROM daily_candles WHERE symbol = 'TCS'")
+    await worker.refresh_universe(FinEdgeClient(make_settings()), store)
+    first, _ = await worker.ingest_essential(client_with(SlowTransport(0.0)), store, "TCS", "consolidated")    # the provider's series alone
+    assert first["status"] in ("ok", "warnings")
+    provider = orjson.loads((await store.get_section("TCS", "consolidated", "price-1M"))[0])
+    assert provider["source"] is None
+    base = candle_rows()
+    rows = candle_rows(scale=provider["series"]["c"][-1] / base["c"][-1])   # candles on the company's own price scale, so the quality gate passes
+    async with store.pool.acquire() as conn:
+        await conn.executemany("INSERT INTO daily_candles (symbol, day, open, high, low, close, volume, exch) VALUES ($1, $2, $3, $4, $5, $6, $7, 'NSE')",
+                               [("TCS", _d.fromisoformat(t), o, h, lo, c, v) for t, o, h, lo, c, v in
+                                zip(rows["t"], rows["o"], rows["h"], rows["l"], rows["c"], rows["v"])])
+    try:
+        c = client_with(SlowTransport(0.0))
+        await worker.refresh_universe(FinEdgeClient(make_settings()), store)
+        res, bundle = await worker.ingest_essential(c, store, "TCS", "consolidated")
+        assert res["status"] in ("ok", "warnings") and bundle is not None
+        for step in ("first paint", "rest"):
+            for rng in ("1M", "1Y", "3Y"):
+                chart = orjson.loads((await store.get_section("TCS", "consolidated", f"price-{rng}"))[0])
+                assert chart["source"] == "NSE", (step, rng)
+                assert chart["series"]["t"][-1] == rows["t"][-1] and chart["series"]["c"][-1] == rows["c"][-1], (step, rng)
+            if step == "first paint":
+                done = await worker.ingest_rest(c, store, "TCS", "consolidated", bundle)
+                assert done["status"] in ("ok", "warnings")
+    finally:
+        async with store.pool.acquire() as conn:
+            await conn.execute("DELETE FROM daily_candles WHERE symbol = 'TCS'")

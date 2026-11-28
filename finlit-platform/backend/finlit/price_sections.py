@@ -154,8 +154,10 @@ def build(stored: Dict[str, dict], rows: Dict[str, Any], meta: dict) -> Dict[str
 def is_current(stored: Dict[str, dict], last_candle: str) -> bool:
     """The report's charts already end on its newest candle, written by this job or by a rebuild of today's code (resumable runs skip it)."""
     one = stored.get("price-1M") or {}
+    # task #394 re-check (28 Nov 2026): a chart drawn from the provider's own series (source None: a report rebuilt on demand before the on-demand
+    # builds read the candles) is never current, even when it ends on the same day; the job writes it again from the candles
     return (one.get("priceAsOf") == last_candle and one.get("provisionalLastBar") is False and "dailyAvailable" in (stored.get("price-3Y") or {})
-            and all(name in stored for name in PRICE_SECTIONS))
+            and one.get("source") is not None and all(name in stored for name in PRICE_SECTIONS))
 
 
 # ---------------------------------------------------------------- W1: 3Y on daily candles, on demand
