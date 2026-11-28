@@ -11,6 +11,7 @@ import { NUM_BY, unitText } from "../../lib/mfScreenDefs";
 import { PlanChip } from "../Bits";
 import { isEtfCategory, ScoreCell } from "../ScoreCell";
 import type { ScoreItem } from "../../lib/mfScore";
+import "../../styles/task451.css";   // task #451: an IDCW row's Growth-option figures in italics, no words under them
 
 type Col = { id: string; label: string; sort?: string; field?: string; hint: string; cell: (r: ScreenRow) => string; why?: (r: ScreenRow) => string };
 const noRet = (r: ScreenRow) => noReturnsText(r.noReturns) || "Not enough NAV history for this period.";
@@ -45,19 +46,25 @@ export type PickProps = { picked: number[]; onPick: (code: number) => void };
 const NO_SCORE = "This plan has no Mutual Fund Score yet (funds younger than a year and some categories are not scored; an IDCW option shows its same-plan Growth option's score when there is one).";
 const RET_IDS = new Set(["r1y", "r3y", "r5y"]);
 
-/** Task #281: an IDCW row's empty return shows its same-plan Growth option's figure, labelled as that option's (before payouts), never as its own. */
+/** Task #281: an IDCW row's empty return shows its same-plan Growth option's figure, labelled as that option's (before payouts), never as its own.
+ *  Task #451 (team, 28 Nov 2026: "the 3rd image shows what we have to remove from the content"): the words no longer sit under the figure (they made
+ *  IDCW rows about three times as tall as Growth rows); the figure is in italics with a dotted underline, the words are in its hover text and read out
+ *  to screen readers, and IDCW_NOTE under the table says what the italics mean. The same as the Mutual funds list (task #430). */
+export const IDCW_NOTE = "On an IDCW (payout) row, a return or score in italics with a dotted underline is the same plan's Growth option's (returns before payouts); hover or tap it for the fund's name.";
 function GrowthRet({ r, id }: { r: ScreenRow; id: "r1y" | "r3y" | "r5y" }) {
   const g = growthFigure(r, id);
   if (g == null || !r.growthReturns) return null;
-  return <span className="mf-grf" title={`${GROWTH_RETURNS_LABEL}: ${r.growthReturns.name} (${r.plan}, Growth). This option's own NAV change is not shown because payouts would make it wrong.`}>
-    {pctText(g, 1, false).replace("-", MINUS)}<small className="mf-gr">{GROWTH_RETURNS_LABEL}</small></span>;
+  return <span className="mf-grf mfs-grf451" title={`${GROWTH_RETURNS_LABEL}: ${r.growthReturns.name} (${r.plan}, Growth). This option's own NAV change is not shown because payouts would make it wrong.`}>
+    {pctText(g, 1, false).replace("-", MINUS)}<span className="sr-only"> {GROWTH_RETURNS_LABEL}</span></span>;
 }
 
 export function ResultTable({ rows, q, onSort, loading, score, pick }: { rows: ScreenRow[]; q: SQ; onSort: (key: string) => void; loading: boolean; score: ScoreProps; pick: PickProps }) {
   const cols = columnsFor(q);
   const sorted = (k?: string) => (k && q.sort === k ? (q.dir === "asc" ? "ascending" : "descending") : k ? "none" : undefined);
   return (
-    <HScroll className="mfs-tw" label="funds table" tall>
+    <HScroll className="mfs-tw" label="funds table" tall
+      // task #451: the note sits under the sideways-scrolling box (it scrolled with the columns and ran past the card's edge on a phone)
+      foot={<p className="mf-plannote" data-testid="plan-note">{PLAN_SCORE_NOTE} {IDCW_NOTE}</p>}>
       <table className={"mfs-table" + (loading ? " is-loading" : "")}>
         <caption className="sr-only">Mutual funds that match the filters. Use the column buttons to sort.</caption>
         <thead>
@@ -80,13 +87,12 @@ export function ResultTable({ rows, q, onSort, loading, score, pick }: { rows: S
                   {!r.active && <span className="chip ghost">Stopped publishing</span>}</small>
                 <small className="mfs-nav"><span className="mfs-cat" title={r.category}>{categoryShort(r.category)}</span>{r.nav != null && <> · NAV <span className="mono">{navText(r.nav)}</span>{r.navDate ? ` on ${dateIN(r.navDate, { day: "numeric", month: "short" })}` : ""}</>}</small></span></span>
               </th>
-              <td className="mfs-hs"><ScoreCell item={score.items.get(r.code)} locked={!score.gold} why={NO_SCORE} loading={score.loading} etf={isEtfCategory(r.category)} /></td>
+              <td className="mfs-hs"><ScoreCell item={score.items.get(r.code)} locked={!score.gold} why={NO_SCORE} loading={score.loading} etf={isEtfCategory(r.category)} quietInherited /></td>
               {cols.map((c) => { const t = c.cell(r); const g = !t && RET_IDS.has(c.id) ? <GrowthRet r={r} id={c.id as "r1y" | "r3y" | "r5y"} /> : null;
                 return <td key={c.id} className="num">{t ? t.replace("-", MINUS) : growthFigure(r, c.id as "r1y") != null ? g : <span className="mf-na" title={c.why?.(r)} aria-label={`No figure. ${c.why?.(r) ?? ""}`}>—</span>}</td>; })}
             </tr>))}
         </tbody>
       </table>
-      <p className="mf-plannote" data-testid="plan-note">{PLAN_SCORE_NOTE}</p>
     </HScroll>
   );
 }

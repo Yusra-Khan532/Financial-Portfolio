@@ -12,7 +12,9 @@ import "../styles/task371.css";   // task #371: a bigger score and parts; each p
 export const missingScoreTip = (etf: boolean, reason: string) => `${etf ? "Scoring not available" : "Missing data from AMFI"}. ${reason}`;
 export const isEtfCategory = (category?: string | null) => /\bETFs?\b/i.test(category ?? "");
 
-export function ScoreCell({ item, locked, why, loading = false, etf = false, bare = false }: { item?: ScoreItem; locked: boolean; why: string; loading?: boolean; etf?: boolean;
+export function ScoreCell({ item, locked, why, loading = false, etf = false, bare = false, quietInherited = false }: { item?: ScoreItem; locked: boolean; why: string; loading?: boolean; etf?: boolean;
+  /** task #451 (the Mutual Fund Screener): no "Growth option's score" line under an IDCW row's score; the score is in italics with a dotted underline instead,
+   *  and the words stay in the hover text and for screen readers (the screener's note under the table says what the italics mean). */ quietInherited?: boolean;
   /** task #430 (the Mutual funds list): the figure only, no words under it ("Average", "Growth option's score", "provisional", "not rated"); the words stay
    *  in the cell's hover text and are read out to screen readers. The four part letters stay (the team asked for them, tasks #358 and #378). */ bare?: boolean }) {
   if (locked) return <span className="mf-na" title="The Mutual Fund Score is part of the Gold plan."><Icon name="lock" /><span className="sr-only">Locked: Gold plan</span></span>;
@@ -23,9 +25,9 @@ export function ScoreCell({ item, locked, why, loading = false, etf = false, bar
   const band = bandOf(item.final);
   const inh = item.inherited;   // task #281: an IDCW row shows its same-plan Growth option's score, labelled as that option's
   return <span className="mfs-cell" title={`${inh ? `${GROWTH_SCORE_LABEL} (${inh.name}). ${inh.why} ` : ""}${item.label}${item.status === "PROVISIONAL" ? ", provisional" : ""}. ${PLAN_SCORE_NOTE} Describes the past; not a recommendation.`}>
-    <b className={"mfs-pv b-" + band}>{scoreText(item.final)}</b>
+    <b className={"mfs-pv b-" + band + (inh && quietInherited ? " mfs-pv-inh" : "")}>{scoreText(item.final)}</b>
     {bare ? <span className="sr-only">{item.label}{item.status === "PROVISIONAL" ? ", provisional" : ""}{inh ? `, ${GROWTH_SCORE_LABEL}` : ""}</span>
-      : <><small>{item.label}{item.status === "PROVISIONAL" ? " · provisional" : ""}</small>{inh && <small className="mfs-inh">{GROWTH_SCORE_LABEL}</small>}</>}
+      : <><small>{item.label}{item.status === "PROVISIONAL" ? " · provisional" : ""}</small>{inh && (quietInherited ? <span className="sr-only">, {GROWTH_SCORE_LABEL}</span> : <small className="mfs-inh">{GROWTH_SCORE_LABEL}</small>)}</>}
     <Parts parts={item.pillars} scores={item.pillarScores} /></span>;
 }
 
