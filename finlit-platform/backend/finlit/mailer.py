@@ -101,6 +101,18 @@ def raw_sender(raw: bytes) -> str:
     return addr if valid_from_address(addr) else FROM_ADDRESS
 
 
+def raw_from_header(raw: bytes) -> str:
+    """What SES is told the mail is from: the raw mail's own From WITH its display name ("Pranshu Mishra <pranshu@finlitventures.com>").
+    SES puts FromEmailAddress in the From the person sees, so a bare address here dropped the name (founder's test, 28 Nov 2026: Gmail showed
+    "pranshu" instead of "Pranshu Mishra"). The address is always the checked one from raw_sender."""
+    addr = raw_sender(raw)
+    try:
+        name = parseaddr(str(message_from_bytes(raw, policy=email_policy.default).get("From", "")))[0].strip()
+    except Exception:
+        name = ""
+    return formataddr((name or FROM_NAME, addr))
+
+
 async def ses_send_raw(http: httpx.AsyncClient, to: str, raw: bytes) -> str:
     """Send one raw message through SES v2; returns SES's MessageId. Raises SesError with SES's own reason."""
     cfg = ses_config()
@@ -108,7 +120,7 @@ async def ses_send_raw(http: httpx.AsyncClient, to: str, raw: bytes) -> str:
         raise SesError("SES is not set up on the server (SES_REGION, SES_ACCESS_KEY_ID, SES_SECRET_ACCESS_KEY)")
     region, key_id, secret = cfg
     host, path = f"email.{region}.amazonaws.com", "/v2/email/outbound-emails"
-    body = json.dumps({"FromEmailAddress": raw_sender(raw), "Destination": {"ToAddresses": [to]},   # the shown name is the raw mail's own From
+    body = json.dumps({"FromEmailAddress": raw_from_header(raw), "Destination": {"ToAddresses": [to]},   # the shown name is the raw mail's own From
                        "Content": {"Raw": {"Data": base64.b64encode(raw).decode("ascii")}}}).encode("utf-8")
     headers = {"content-type": "application/json"}
     headers.update(sigv4_headers("POST", host, path, "", body, region, "ses", key_id, secret, extra=headers))
