@@ -226,12 +226,13 @@ export function EtfListPage() {
                     <button className="btn" disabled={to >= data.total} onClick={() => update({ offset: state.offset + PAGE })}>Next {PAGE} →</button>
                   </nav>)}
                 {tray.length > 0 && <CompareBar tray={tray} remove={remove} clear={clear} />}
-                <p className="etf-foot faint">— means the figure is not available; the word under it says why (hover or open the ETF for the full reason). 1 day is the change from the previous close. 1 year and 5 years are price returns; 5 years is the total change over the five years, not a yearly rate. Dividends are not included. Expense ratio: a year, from AMFI's TER file or the fund house's own figure. Price vs NAV: the last close against AMFI's NAV of the same day. Traded a day: the average over the last 20 sessions. More periods, risk and the chart are on each ETF's page.</p>
                 {data && data.excluded > 0 && <p className="etf-foot">{data.excluded} ETF{data.excluded === 1 ? " was" : "s were"} left out because {data.excluded === 1 ? "it has" : "they have"} no figure for a range you chose (for example, listed less than a year).</p>}
               </>)}
 
-            <p className="etf-foot faint">Categories are read from each fund's registered name (AMFI); where the name does not say clearly, the category is left blank rather than guessed.</p>
-            <DataNote asOf={data?.asOf} updatedAt={data?.updatedAt} source={data?.source} />
+            <DataNote asOf={data?.asOf} updatedAt={data?.updatedAt} source={data?.source} fold notes={<>   {/* task #463: the notes under the table, in the Disclaimer drop-down */}
+              <p>— means the figure is not available; the word under it says why (hover or open the ETF for the full reason). 1 day is the change from the previous close. 1 year and 5 years are price returns; 5 years is the total change over the five years, not a yearly rate. Dividends are not included. Expense ratio: a year, from AMFI's TER file or the fund house's own figure. Price vs NAV: the last close against AMFI's NAV of the same day. Traded a day: the average over the last 20 sessions. More periods, risk and the chart are on each ETF's page.</p>
+              <p>Categories are read from each fund's registered name (AMFI); where the name does not say clearly, the category is left blank rather than guessed.</p>
+            </>} />
           </div>
         </div>
       </div>
