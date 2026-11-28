@@ -121,6 +121,8 @@ export default function App() {
             {/* task #283: the Basic stock screener is retired with its score; an old link (any query string) opens the Advanced stock screener. The server answers 301 too (finlit/seo.py REDIRECTS). */}
             <Route path="score-screener" element={<Navigate to="/advanced-score-screener" replace />} />
             <Route path="advanced-score-screener" element={<AdvancedScoreScreener />} />
+            {/* task #394 re-check (28 Nov): "/screener/advanced" (typed in the founder's check) opens the Advanced stock screener, not "page not found" */}
+            <Route path="screener/advanced" element={<Navigate to="/advanced-score-screener" replace />} />
             <Route path="premium" element={<PremiumHub />} />
             <Route path="premium/markets" element={<MarketsPage />} />
             {/* Task #317 (developer file 23): Company financials is off the site; its old address goes to the Company report (a 301 on the server). */}

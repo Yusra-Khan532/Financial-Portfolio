@@ -116,6 +116,7 @@ PARAM_PREFIXES = ("ipo", "funds", "etfs", "prism", "sectors", "blog", "legal", "
 # opens FinLit Prism's, and the entries of the IQ's five pillars and its rating words (Mixed, Watch) open the glossary.
 REDIRECTS: Dict[str, str] = {
     "score-screener": "/advanced-score-screener",
+    "screener/advanced": "/advanced-score-screener",     # task #394 re-check (28 Nov 2026): the address typed in the founder's check
     "glossary/finlit-iq": "/glossary/finlit-prism",
     "glossary/finlit-score": "/glossary/finlit-prism",
     "glossary/pillars-quality-growth-profitability-balance-sheet-technical": "/glossary",

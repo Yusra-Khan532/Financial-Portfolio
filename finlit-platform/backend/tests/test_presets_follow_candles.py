@@ -44,7 +44,11 @@ async def market(store):  # noqa: F811
         await conn.execute("DELETE FROM preset_meta WHERE key = 'last_run'")
         for d in (date(2026, 11, 19), date(2026, 11, 20), D23):
             await _candles(conn, d, 120)          # complete sessions
-    return store
+    yield store
+    async with store.pool.acquire() as conn:      # the made-up companies' candles do not stay for the tests after (their newest session is 25 Nov)
+        await conn.execute("DELETE FROM daily_candles WHERE symbol = ANY($1::text[])", SYMS)
+        await conn.execute("DELETE FROM preset_results")
+        await conn.execute("DELETE FROM preset_meta WHERE key = 'last_run'")
 
 
 async def test_the_night_of_25_nov_replayed_lists_follow_the_candles_as_soon_as_they_catch_up(market):
@@ -80,3 +84,41 @@ def test_a_freshness_line_says_when_the_lists_are_behind():
     assert line["label"] == "Ready-made screens" and line["status"] == "stale" and line["actual"] == "2026-11-23"
     fresh = freshness.evaluate_facts({"lists_day": D25, "found_target": D25}, now)
     assert next(d for d in fresh["datasets"] if d["key"] == "ready_lists")["status"] == "fresh"
+
+
+async def test_28_nov_the_official_close_replaces_the_first_one_and_the_lists_are_built_again(market):
+    """Task #394 re-check (28 Nov 2026): the list day's first closes (Hikal 230.86) were replaced by the exchange's official ones (231.85) after the
+    build; the lists kept the first, so the list and its figures disagreed with the chart. A build saves the day's fingerprint (closesSig)."""
+    async with market.pool.acquire() as conn:
+        await _candles(conn, D25, 120)
+        sig = await listday.closes_sig(conn, D25)
+        await _lists_on(conn, D25)
+        await conn.execute("UPDATE preset_meta SET value = value || jsonb_build_object('coverage', 120, 'closesSig', $1::text) WHERE key = 'last_run'", sig)
+    assert await listday.has_work(market, BUILD) is False              # built on these closes: nothing to do
+
+    async with market.pool.acquire() as conn:
+        await conn.execute("UPDATE daily_candles SET close = 10.42, volume = 1200 WHERE symbol = 'S007' AND day = $1", D25)   # the official close lands
+    assert await listday.has_work(market, BUILD) is True               # before: the lists kept the first close until the next session
+
+    async with market.pool.acquire() as conn:
+        new = await listday.closes_sig(conn, D25)
+        assert new != sig
+        await conn.execute("UPDATE preset_meta SET value = value || jsonb_build_object('closesSig', $1::text) WHERE key = 'last_run'", new)
+    assert await listday.has_work(market, BUILD) is False              # rebuilt on the official closes: no loop
+
+
+async def test_a_build_without_a_fingerprint_is_judged_as_before(market):
+    async with market.pool.acquire() as conn:
+        await _candles(conn, D25, 120)
+        await _lists_on(conn, D25)
+        await conn.execute("UPDATE preset_meta SET value = value || '{\"coverage\": 120}'::jsonb WHERE key = 'last_run'")
+        await conn.execute("UPDATE daily_candles SET close = 10.42 WHERE symbol = 'S007' AND day = $1", D25)
+    assert await listday.has_work(market, BUILD) is False              # an old build (no closesSig) does not start a loop; the next build saves one
+
+
+async def test_load_carries_the_fingerprint_the_build_saves(market):
+    async with market.pool.acquire() as conn:
+        await _candles(conn, D25, 120)
+        sig = await listday.closes_sig(conn, D25)
+    m = await listday.load(market, SYMS, D25)
+    assert m.day == D25 and m.sig == sig

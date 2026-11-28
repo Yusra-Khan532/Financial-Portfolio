@@ -604,6 +604,22 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
                     if daily is not None:
                         await rebuild_if_old(sym, statement, weekly[0])
                         return await serve_hit(request, sym, statement, "price-3Y-daily", daily, started)
+        # Task #394 re-check (28 Nov): a company with no report yet (on a ready-made list, which is built from the exchange candles) gets its chart
+        # from those candles at once, instead of waiting on a report build that a busy queue answers with 429 for minutes. The report is still
+        # queued as before when the company's other sections are asked for (the page, its summary).
+        sym = symbol.strip().upper()
+        if name in PRICE_SECTIONS and SYMBOL.match(sym) and statement in ("consolidated", "standalone") \
+                and await app.state.store.get_section(sym, statement, name) is None:
+            from . import price_sections
+            started = time.perf_counter()
+            try:
+                built = await price_sections.from_candles(app.state.store, sym, statement, range.upper(), grain.strip().lower() == "daily")
+            except Exception:   # the candles could not be read: the usual path (queue the report) answers
+                log.exception("chart from the candles not built for %s", sym)
+                built = None
+            if built is not None:
+                daily3 = name == "price-3Y" and grain.strip().lower() == "daily"
+                return await serve_hit(request, sym, statement, "price-3Y-daily" if daily3 else name, built, started)   # trimmed to the plan as a stored chart
         return await section(request, symbol, name, statement)
 
     async def broken(symbol: str, statement: str, body: bytes) -> bool:

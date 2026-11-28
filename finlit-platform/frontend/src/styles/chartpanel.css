@@ -9,6 +9,7 @@
 .cp-p .up { color: var(--gain); } .cp-p .dn { color: var(--loss); }
 .cp-p .cp-asof { font-size: var(--fs-13); color: var(--muted); font-weight: var(--ui-fw-medium); }   /* QA 23 Nov: the day of the last candle beside the price */
 .cp-p > span { white-space: nowrap; }   /* "6M -1.82%" never breaks across two lines (task #100) */
+.cp-p > .cp-ghost { visibility: hidden; } .cp-p > .cp-ghost::before { content: attr(data-t); }   /* task #394 re-check: keeps the header as wide on 1M as on the other ranges */
 .cp-f a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
 .cp-bar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .cp-bar button { border: 1px solid var(--border); background: transparent; color: inherit; border-radius: var(--ui-r-pill); padding: 4px 11px; font-size: var(--fs-13); cursor: pointer; min-height: 32px; }
