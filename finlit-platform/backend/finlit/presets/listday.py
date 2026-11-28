@@ -207,6 +207,7 @@ async def has_work(store, now=None) -> bool:
         built = await conn.fetchval("SELECT value->>'asOf' FROM preset_meta WHERE key = 'last_run'")
         had = await conn.fetchval("SELECT value->>'coverage' FROM preset_meta WHERE key = 'last_run'")
         had_sig = await conn.fetchval("SELECT value->>'closesSig' FROM preset_meta WHERE key = 'last_run'")
+        has_sig_key = await conn.fetchval("SELECT value ? 'closesSig' FROM preset_meta WHERE key = 'last_run'")
         day = list_day(sessions_from_counts(counts, expected), expected)
         now_sig = await closes_sig(conn, day) if day is not None and had_sig and built and built[:10] == day.isoformat() else None
     if day is None:
@@ -214,6 +215,10 @@ async def has_work(store, now=None) -> bool:
     if not built or built < day.isoformat():
         return True
     if now_sig is not None and now_sig != had_sig:      # the same day, its closes rewritten since the build (the official close replaced the first)
+        return True
+    # the first run after this rule shipped (28 Nov 2026): the lists of the day were built before builds saved a fingerprint, on the first closes;
+    # built once more, they read the official ones and save closesSig (null only when the candles could not be read: then no rebuild, no loop)
+    if has_sig_key is False and built[:10] == day.isoformat():
         return True
     # 26 Nov 2026 (the founder: work with whatever closes are loaded, and keep updating): the same day, built while its closes were still arriving,
     # is built again once clearly more of them are in (at least GROWTH_MIN companies and GROWTH_SHARE more than at the build)

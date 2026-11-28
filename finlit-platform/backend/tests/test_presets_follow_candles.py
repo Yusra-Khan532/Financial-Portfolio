@@ -29,11 +29,14 @@ async def _candles(conn, day: date, n: int) -> None:
                            "ON CONFLICT (symbol, day) DO NOTHING", [(s, day) for s in SYMS[:n]])
 
 
-async def _lists_on(conn, day: date) -> None:
+async def _lists_on(conn, day: date, fingerprint: bool = True) -> None:
     await conn.execute("INSERT INTO preset_results (preset_id, chips, registry, as_of, body) VALUES ('top-large', 'none', $1, $2, '{}'::jsonb) "
                        "ON CONFLICT (preset_id, chips, registry) DO UPDATE SET as_of = $2", REGISTRY_VERSION, day)
     await conn.execute("INSERT INTO preset_meta (key, value) VALUES ('last_run', $1::jsonb) ON CONFLICT (key) DO UPDATE SET value = $1::jsonb",
                        '{"asOf": "%s"}' % day.isoformat())
+    if fingerprint:      # a build saves the fingerprint of its day's closes (28 Nov 2026); pass False for a build from before that
+        await conn.execute("UPDATE preset_meta SET value = value || jsonb_build_object('closesSig', $1::text) WHERE key = 'last_run'",
+                           await listday.closes_sig(conn, day))
 
 
 @pytest.fixture
@@ -107,13 +110,20 @@ async def test_28_nov_the_official_close_replaces_the_first_one_and_the_lists_ar
     assert await listday.has_work(market, BUILD) is False              # rebuilt on the official closes: no loop
 
 
-async def test_a_build_without_a_fingerprint_is_judged_as_before(market):
+async def test_a_build_from_before_fingerprints_is_built_once_more_then_never_loops(market):
     async with market.pool.acquire() as conn:
         await _candles(conn, D25, 120)
-        await _lists_on(conn, D25)
+        await _lists_on(conn, D25, fingerprint=False)
         await conn.execute("UPDATE preset_meta SET value = value || '{\"coverage\": 120}'::jsonb WHERE key = 'last_run'")
         await conn.execute("UPDATE daily_candles SET close = 10.42 WHERE symbol = 'S007' AND day = $1", D25)
-    assert await listday.has_work(market, BUILD) is False              # an old build (no closesSig) does not start a loop; the next build saves one
+    assert await listday.has_work(market, BUILD) is True               # a build from before fingerprints: built once more, on the closes as they are now
+    async with market.pool.acquire() as conn:
+        sig = await listday.closes_sig(conn, D25)
+        await conn.execute("UPDATE preset_meta SET value = value || jsonb_build_object('closesSig', $1::text) WHERE key = 'last_run'", sig)
+    assert await listday.has_work(market, BUILD) is False              # that build saved its fingerprint: no loop
+    async with market.pool.acquire() as conn:
+        await conn.execute("UPDATE preset_meta SET value = value || '{\"closesSig\": null}'::jsonb WHERE key = 'last_run'")
+    assert await listday.has_work(market, BUILD) is False              # a build that could not read the candles (null) does not loop either
 
 
 async def test_load_carries_the_fingerprint_the_build_saves(market):
