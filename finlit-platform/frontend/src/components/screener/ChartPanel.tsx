@@ -369,9 +369,13 @@ export function ChartPanel({ row, onClose, onStep, extra, inline = false, onChar
         {!inline && <button type="button" className="cp-x" onClick={onClose} aria-label="Close chart">×</button>}
       </header>
       <div className="cp-p">{lc ? <><b>₹{num(lc.price)}</b><small className="cp-asof" title={`The list's official close of ${candleDay(lc.day)}, the same day as the list`}>{candleDay(lc.day)} close</small></>
+        : !lastBar && row.priceOn != null && row.listDay ? <><b>₹{num(row.priceOn)}</b><small className="cp-asof" title={`The list's official close of ${candleDay(row.listDay)}`}>{candleDay(row.listDay)} close</small></>
         : <><b>₹{num(lastBar?.c ?? row.price)}</b>{!lastBar && row.price != null && <small className="cp-asof" title="The price in the list; the chart's close shows when it has loaded">list price</small>}{lastBar && <small className="cp-asof" title="The chart's last candle. The list beside it shows the latest close, which can be newer while this chart is refreshed.">close of {candleDay(lastBar.t)}</small>}</>}
         {r1 != null && <span title={lc ? `Change over the month to ${candleDay(lc.day)}` : "Change over the last month"}>1M {pct(r1)}</span>}{r3 != null && <span title={lc ? `Change over the 3 months to ${candleDay(lc.day)}` : "Change over the last 3 months"}>3M {pct(r3)}</span>}
         {chg != null && opt.range !== "1M" && <span className="cp-rng" title={`Change over the chart range (${opt.range})`}>{opt.range} {pct(chg)}</span>}
+        {/* task #394 re-check (28 Nov): on 1M the range's figure is the 1M one already shown; an invisible copy keeps the header the same width, so it
+            wraps the same way and the buttons below do not jump 37px between 1M and the other ranges */}
+        {chg != null && opt.range === "1M" && <span className="cp-rng cp-ghost" aria-hidden="true" data-t={`1M ${chg >= 0 ? "+" : ""}${num(chg)}%`} />}
         {model && <ScoreChip className="cp-badge" v={scoreView(prismMap[row.symbol])} />}</div>
       {note && <p className="cp-note" role="note"><b>{note[0]}</b> {note[1]}</p>}
       {!!row.facts?.filter(([, v]) => v != null).length && <div className="cp-fbox" aria-label="What the chart shows"><b>{factsHeading(row.factsAsOf)}</b>

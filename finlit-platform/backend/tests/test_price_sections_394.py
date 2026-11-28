@@ -440,3 +440,30 @@ async def test_the_candles_job_runs_again_when_dhan_has_a_session_the_store_lack
         await store.redis.delete(TARGET_KEY)
         async with store.pool.acquire() as conn:
             await conn.execute("DELETE FROM daily_candles WHERE symbol LIKE 'ZZP%'")
+
+
+async def test_a_company_with_no_report_gets_its_chart_from_the_candles_at_once(store):  # noqa: F811
+    """Task #394 re-check (28 Nov 2026): AJMERA and AGARWALEYE were on the ready-made lists (built from the exchange candles) with no report
+    stored; their charts asked for a report build that the busy queue answered with 429 for minutes. Now the chart is drawn from the candles."""
+    await _clean(store, "ZZNOREP")
+    rows = candle_rows()
+    async with store.pool.acquire() as conn:
+        await conn.executemany("INSERT INTO daily_candles (symbol, day, open, high, low, close, volume, exch) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+                               [("ZZNOREP", date.fromisoformat(t), o, h, lo, c, v, "NSE") for t, o, h, lo, c, v in
+                                zip(rows["t"], rows["o"], rows["h"], rows["l"], rows["c"], rows["v"])])
+    for k in [k async for k in store.redis.scan_iter("pfc:ZZNOREP:*")]:
+        await store.redis.delete(k)
+    app, transport = await _api(store)
+    async with app.router.lifespan_context(app), httpx.AsyncClient(transport=transport, base_url="http://test") as api:
+        one = await api.get("/api/stocks/ZZNOREP/price", params={"range": "1Y"})
+        body = one.json()
+        assert one.status_code == 200 and body["grain"] == "daily" and body["range"] == "1Y" and body["meta"]["fromCandles"] is True
+        assert body["series"]["t"][-1] == "2026-11-23" and body["series"]["c"][-1] == rows["c"][-1] and body["source"] == "NSE"
+        wk = (await api.get("/api/stocks/ZZNOREP/price", params={"range": "3Y"})).json()
+        assert wk["grain"] == "weekly" and wk["dailyAvailable"] is True
+        d3 = (await api.get("/api/stocks/ZZNOREP/price", params={"range": "3Y", "grain": "daily"})).json()
+        assert d3["grain"] == "daily" and len(d3["series"]["t"]) > 700
+        assert len([k async for k in store.redis.scan_iter("pfc:ZZNOREP:*")]) == 3          # kept for 30 minutes, one key a range
+        none = await api.get("/api/stocks/ZZNONE/price", params={"range": "1Y"})
+        assert none.status_code != 200 or "series" not in none.json()                        # no candles: the usual path (the report is queued)
+    await _clean(store, "ZZNOREP")

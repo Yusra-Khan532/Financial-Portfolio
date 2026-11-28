@@ -201,6 +201,48 @@ async def daily_3y(store, symbol: str, statement: str, weekly: Tuple[bytes, str]
     return (body, etag_of(body)) if body is not None else None
 
 
+# ---------------------------------------------------------------- re-check 28 Nov: a chart before the company's report exists
+
+FROM_CANDLES_TTL = 1800     # seconds an answer is kept in Redis (as DAILY_3Y_TTL)
+
+
+def from_candles_key(symbol: str, statement: str, label: str, daily: bool) -> str:
+    return f"pfc:{symbol.upper()}:{statement}:{label}:{'d' if daily else 'r'}"
+
+
+async def from_candles(store, symbol: str, statement: str, label: str, daily: bool = False) -> Optional[Tuple[bytes, str]]:
+    """(body, etag) of one chart section built only from the company's exchange candles, for a company whose report is not built yet, or None
+    when it has no candles. The founder's check of 28 Nov: AJMERA and AGARWALEYE were on the ready-made lists (built from these candles) but
+    their charts waited minutes on a report build the busy queue kept refusing (429). The chart code is the stored sections' (chart_section);
+    `daily` answers 3Y on daily candles (the D button). 5Y and MAX hold what the candles reach (about three years; `complete` says so)."""
+    if label not in PRICE_RANGES:
+        return None
+    key = from_candles_key(symbol, statement, label, daily)
+    try:
+        hit = await store.redis.get(key)
+    except Exception:
+        hit = None
+    if hit is not None:
+        return None if hit == DAILY_3Y_NONE else (hit, etag_of(hit))
+    rows = await candles.rows_for(store, symbol, READ_DAYS)
+    body: Optional[bytes] = None
+    if rows:
+        hist = history_from({"t": [r["day"].isoformat() for r in rows], "o": [r["open"] for r in rows], "h": [r["high"] for r in rows],
+                             "l": [r["low"] for r in rows], "c": [r["close"] for r in rows], "v": [r["volume"] for r in rows]})
+        grain = "daily" if daily and label == "3Y" else PRICE_RANGES[label][1]
+        meta = {"symbol": symbol.upper(), "statement": statement, "fromCandles": True}
+        section = chart_section(hist, ema_lines(hist), label, grain, meta, indicators.technical_snapshot(hist["c"]), rows[-1]["exch"])
+        if label == "3Y" and grain == "weekly":
+            wt = section["series"]["t"]
+            section["dailyAvailable"] = daily_3y_covers(hist["t"], wt[0] if wt else None)
+        body = orjson.dumps(section)
+    try:
+        await store.redis.set(key, body if body is not None else DAILY_3Y_NONE, ex=FROM_CANDLES_TTL)
+    except Exception:   # nosec B110 - the answer is still served; the next request builds it again
+        pass
+    return (body, etag_of(body)) if body is not None else None
+
+
 def _note(names: List[str], text: str, limit: int = 40) -> None:
     if len(names) < limit:
         names.append(text)

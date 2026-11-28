@@ -341,6 +341,33 @@ describe("re-check 28 Nov: a chart waiting in a busy build queue says so", () =>
   });
 });
 
+describe("re-check 28 Nov: the header holds still and names the list's close", () => {
+  it("on 1M an invisible copy of the range figure keeps the header as wide, without saying 1M twice", () => {
+    localStorage.setItem("fl.chart.v2", JSON.stringify({ range: "1M" }));
+    panel();
+    const p = document.querySelector(".cp-p")!;
+    const ghost = p.querySelector(".cp-ghost") as HTMLElement;
+    expect(ghost).toBeTruthy();
+    expect(ghost.getAttribute("aria-hidden")).toBe("true");
+    expect(ghost.textContent).toBe("");
+    expect(ghost.getAttribute("data-t")).toMatch(/^1M [+-]?[\d.,]+%$/);
+    expect(p.textContent!.match(/1M/g)?.length ?? 0).toBeLessThanOrEqual(1);
+  });
+  it("shows no copy on the other ranges", () => {
+    localStorage.setItem("fl.chart.v2", JSON.stringify({ range: "6M" }));
+    panel();
+    expect(document.querySelector(".cp-p .cp-ghost")).toBeNull();
+  });
+  it("before the chart loads, the header shows the list's close of its day, not 'list price'", () => {
+    priceState = () => ({ isLoading: true, isError: false, data: undefined, refetch: vi.fn() });
+    panel({ price: 127.51, priceOn: 127.51, listDay: "2026-11-27" });
+    const p = document.querySelector(".cp-p")!.textContent!;
+    expect(p).toContain("₹127.51");
+    expect(p).toContain("27 Nov close");
+    expect(p).not.toContain("list price");
+  });
+});
+
 describe("F7: stepping between companies", () => {
   it("keeps the previous answer only for the same company", () => {
     const prev = { meta: { symbol: "CRAFTSMAN" } } as PriceRange;
