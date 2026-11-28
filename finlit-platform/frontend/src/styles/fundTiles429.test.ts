@@ -16,6 +16,8 @@ describe("Mutual funds summary tiles (task #429)", () => {
   });
   it("the tinted classes are overridden on the list page, so none shows its own colour", () => {
     for (const t of ["t-blue", "t-green", "t-amber", "t-teal", "t-grey"]) expect(css).toContain(`.mf-list .mf-sc.${t}`);
-    expect((tsx.match(/className="mf-sc /g) || []).length).toBe(6);
+    // task #468: the six figures are now cells of one Fund Market Overview panel, all on the same surface (one class, no tint classes at all)
+    expect(tsx).toContain('className="mf-ov468-cell"');
+    expect(tsx).not.toMatch(/\bt-(blue|green|amber|teal|grey)\b/);
   });
 });

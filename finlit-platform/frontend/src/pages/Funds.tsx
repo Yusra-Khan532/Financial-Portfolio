@@ -43,6 +43,7 @@ import "../styles/task376.css";   // task #376: How to read this table as a drop
 import { ChartZoom } from "../components/ChartZoom";
 import { useFundWishlist, useWishRows, WISH_MAX } from "../lib/fundWishlist";   // task #375: the Wishlist tab and the star on each scheme
 import "../styles/task375.css";
+import "../styles/task468.css";   // task #468: the six figures as one Fund Market Overview panel
 /** Task #311 (developer file 21, fund page row 1): the formula is off the page; one plain sentence behind the (i). */
 const VOL_TIP = "How much the NAV moves from day to day, shown as a yearly figure.";
 
@@ -230,6 +231,16 @@ export function FundListPage() {
   }, [wishRows.data, q.sort, q.dir]);
   const facts = (ready ? hot.data : wishing ? wishRows.data : d) || filt.data;
   const t = filt.data?.totals;
+  // Task #468: the "Fund Market Overview" panel carries the count line on its right ("14,010 schemes • NAVs up to …"); the publishing / stopped split
+  // and the Status filter note move into its (i), so nothing the old line said is lost.
+  const overview = !ready && !wishing && !none && !!d && d.total > 0 && summarise(d.items).n > 0;
+  const ovMeta = d ? <>{d.total.toLocaleString("en-IN")} scheme{d.total === 1 ? "" : "s"}{q.tab === "all" ? (q.plan === "" && q.option === "All" ? ", every plan and option" : "") : " in the chosen categories"}
+    {facts?.dataDate && <> • NAVs up to {dateIN(facts.dataDate)}</>}</> : null;
+  const ovAbout = [
+    d && t && q.tab === "all" && !q.status && d.total === t.schemes ? `Of the ${t.schemes.toLocaleString("en-IN")} schemes, ${t.active.toLocaleString("en-IN")} are still publishing a NAV and ${(t.schemes - t.active).toLocaleString("en-IN")} have stopped.` : "",
+    t && q.tab === "all" && q.status === "active" ? `${(t.schemes - t.active).toLocaleString("en-IN")} schemes that stopped publishing are left out by the Status filter.` : "",
+    facts?.dataDate ? `NAVs are AMFI's, up to ${dateIN(facts.dataDate)}.` : "",
+  ].filter(Boolean).join(" ");
 
   return (
     <>
@@ -267,7 +278,7 @@ export function FundListPage() {
             <button aria-pressed={ready} onClick={() => set({ view: "ready" })}>Ready list ({hot.data?.items.length ?? 100})</button>
             <button aria-pressed={wishing} onClick={() => set({ view: "wish" })}><svg className="mf-wish-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.6l2.6 5.3 5.8.8-4.2 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.2-4.1 5.8-.8z" /></svg>Wishlist{wish.signedIn ? ` (${wish.codes.length})` : ""}</button>
           </div>
-          <p className="mf-count" role="status" aria-live="polite">
+          <p className={"mf-count" + (overview ? " mf-count468" : "")} role="status" aria-live="polite">{/* task #468: while the overview panel shows, its header carries this line; it stays here for screen readers */}
             {wishing ? (!wish.signedIn ? "Your wishlist: the mutual funds and ETFs you keep, for a signed-in member." : wish.loading ? "Loading your wishlist…"
               : <>Your wishlist: <b>{wish.codes.length}</b> scheme{wish.codes.length === 1 ? "" : "s"} you keep (mutual funds and ETFs), newest first. Press the star on any scheme to add or remove it.</>)
               : ready ? (hot.data ? <>The <b>{hot.data.items.length}</b> schemes kept ready for instant opening, from every category.</> : "Loading…")
@@ -314,7 +325,7 @@ export function FundListPage() {
             <button className="btn" onClick={() => { setText(""); setSp(new URLSearchParams(), { replace: true }); }}>Clear search and filters</button></div>
         ) : (
           <>
-          <SummaryCards items={d.items} total={d.total} plan={q.plan} scope={q.tab === "all" ? "across all categories" : "in the chosen categories"} />
+          <SummaryCards items={d.items} total={d.total} plan={q.plan} scope={q.tab === "all" ? "across all categories" : "in the chosen categories"} meta={ovMeta} about={ovAbout} />
           {summarise(d.items).extrasLoading && <LoadingNotice />}
           {historyLoading(d.items) && <p className="mf-note" role="status"><Icon name="info" /><span><b>Return history is still loading.</b> None of the funds on this page has its 1, 3 or 5 year return yet because the NAV history from AMFI is loaded one fund house at a time. The figures appear as each house finishes; nothing here is missing for good.</span></p>}
           <SortPills q={eq} onSort={(sort, dir) => set({ sort: sort as SortKey, dir })} />
