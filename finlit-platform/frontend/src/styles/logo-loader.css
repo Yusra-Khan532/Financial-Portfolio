@@ -1,9 +1,10 @@
 /* The FinLit logo and its loading animation (components/LogoLoader.tsx). One file for the first-load splash in index.html (before any script has run)
    and the React component. Movement only for people who have not asked for less; otherwise the finished logo, still.
-   Colours are the artwork's own in both themes (owner, 28 Nov 2026): black frame, dark green panel, white letters, yellow, the teal gradient. */
-.ll { --ll-d: 3.6s; --ll-ink: #FFFFFF; --ll-gold: #F3BF4E; display: block; width: 190px; height: auto; overflow: visible; }   /* the artwork's own colours, both themes (owner, 28 Nov 2026) */
+   Colours follow the theme: --ll-ink (near-black; near-white in the dark theme), --ll-gold, the teal gradient in the SVG (the FinLit Ventures logo, task #400). */
+.ll { --ll-d: 3.6s; --ll-ink: #1C1A15; --ll-gold: #C8921E; display: block; width: 190px; height: auto; overflow: visible; }
+html[data-theme="dark"] .ll { --ll-ink: #F4F2EC; --ll-gold: #F4C04F; }   /* task #400: the FinLit Ventures logo's yellow and teal */
 .ll-sm { width: 70px; } .ll-md { width: 120px; } .ll-lg { width: 200px; } .ll-xl { width: 320px; }
-.ll-frame { fill: #000; } .ll-panel { fill: #001206; } .ll-ink { fill: var(--ll-ink); } .ll-gold { fill: var(--ll-gold); } .ll-grad { fill: url(#ll-grad); }
+.ll-ink { fill: var(--ll-ink); } .ll-gold { fill: var(--ll-gold); } .ll-grad { fill: url(#ll-grad); }
 .ll-stack { display: flex; flex-direction: column; align-items: center; }
 .ll-full { display: grid; place-items: center; min-height: 46vh; padding: 24px; }
 .ll-splash { position: fixed; inset: 0; z-index: 100000; display: grid; place-items: center; background: var(--bg); }
@@ -27,7 +28,6 @@ html[data-splash="seen"] #ll-boot { display: none; }
   .ll-play .ll-b2 { animation: ll-bar2 var(--ll-d) cubic-bezier(.2, .9, .3, 1.15) infinite; }
   .ll-play .ll-b3 { animation: ll-bar3 var(--ll-d) cubic-bezier(.2, .9, .3, 1.15) infinite; }
   .ll-play .ll-arrow { animation: ll-sweep var(--ll-d) ease-in-out infinite; }
-  .ll-play .ll-v { animation: ll-rise-v var(--ll-d) ease-out infinite; }
 }
 
 @keyframes ll-life { 0%, 94% { opacity: 1; } 99.5%, 100% { opacity: 0; } }
@@ -52,5 +52,4 @@ html[data-splash="seen"] #ll-boot { display: none; }
 @keyframes ll-bar1 { 0%, 52% { transform: scaleY(0); } 62%, 100% { transform: scaleY(1); } }
 @keyframes ll-bar2 { 0%, 57% { transform: scaleY(0); } 67%, 100% { transform: scaleY(1); } }
 @keyframes ll-bar3 { 0%, 62% { transform: scaleY(0); } 72%, 100% { transform: scaleY(1); } }
-@keyframes ll-rise-v { 0%, 72% { opacity: 0; transform: translateY(10px); } 84%, 100% { opacity: 1; transform: translateY(0); } }
 @keyframes ll-sweep { 0%, 66% { clip-path: inset(0 100% 0 0); } 82%, 100% { clip-path: inset(0 0 0 0); } }

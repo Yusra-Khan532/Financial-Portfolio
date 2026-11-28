@@ -36,10 +36,16 @@ describe("task #400: no old FinLit logo anywhere on the site", () => {
     for (const f of ["logo-on-light", "logo-on-dark"]) expect(existsSync(resolve(FE, `public/brand/finlit-ventures-${f}.png`))).toBe(true);   // the tour's end card (record-home-tour.mjs)
     // owner, 28 Nov 2026: the logo is shown whole, with VENTURES, as the artwork; the cut-down wordmarks without VENTURES are gone
     for (const f of ["wordmark-on-light", "wordmark-on-dark"]) expect(existsSync(resolve(FE, `public/brand/finlit-ventures-${f}.png`))).toBe(false);
-    expect(existsSync(resolve(FE, "public/brand/finlit-ventures-logo.webp"))).toBe(true);
+    // owner, 28 Nov 2026: the logo has no background: black Fin and VENTURES on the light site, white on the dark site
+    for (const v of ["light", "dark"]) expect(existsSync(resolve(FE, `public/brand/finlit-ventures-logo-${v}.webp`))).toBe(true);
+    expect(existsSync(resolve(FE, "public/brand/finlit-ventures-logo.webp"))).toBe(false);
+    const css = read("src/styles/finlit.css");
+    expect(css).toContain('url("/brand/finlit-ventures-logo-light.webp")');
+    expect(css).toMatch(/:root\[data-theme="dark"\] \.lg-mark, footer \.lg-mark \{ background-image: url\("\/brand\/finlit-ventures-logo-dark\.webp"\)/);
   });
 
-  it("the loading animation (and the first-load splash) is traced from the new artwork: white person and head, no old gold hair", () => {
+  it("the loading animation (and the first-load splash) is the earlier one (owner, 28 Nov 2026: a new animation is made separately): no frame, no VENTURES", () => {
+    expect(read("src/components/logoPaths.ts")).not.toMatch(/LOGO_VENTURES|LOGO_PANEL/);
     const paths = read("src/components/logoPaths.ts");
     expect(paths).toContain("from scripts/assets/finlit-ventures-logo-source.webp");
     expect(paths).not.toContain("LOGO_HAIR");

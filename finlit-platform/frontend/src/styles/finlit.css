@@ -133,9 +133,11 @@ a { color: inherit; }
 .top { position: sticky; top: 0; z-index: 40; background: var(--header); border-bottom: 1px solid var(--border); padding-top: env(safe-area-inset-top, 0px); }
 .top .wrap { display: flex; align-items: center; gap: 12px; height: 62px; }
 .logo { display: inline-flex; align-items: center; text-decoration: none; flex: none; line-height: 0; }
-/* The FinLit Ventures logo exactly as the team's artwork (owner, 28 Nov 2026: "strictly change this logo to every place"): the whole logo with
-   "VENTURES", its dark green panel and black band, its own colours and proportions (1791 x 1140), the same in light and dark. */
-.lg-mark { display: block; height: 52px; aspect-ratio: 1791 / 1140; background: url("/brand/finlit-ventures-logo.webp") center / contain no-repeat; }
+/* The FinLit Ventures logo with no background (owner, 28 Nov 2026): the light site shows Fin, the person, the first steps and VENTURES in black; the dark site
+   shows them in white; the gold L, stairs, i, t and rules and the teal bars and arrow stay the same. The footer is dark in both themes, so it always takes the
+   white version. Made by scripts/make-logo-versions.py; proportions 1758 x 1065. */
+.lg-mark { display: block; height: 52px; aspect-ratio: 1758 / 1065; background: url("/brand/finlit-ventures-logo-light.webp") center / contain no-repeat; }
+:root[data-theme="dark"] .lg-mark, footer .lg-mark { background-image: url("/brand/finlit-ventures-logo-dark.webp"); }
 .fcta .lg-mark { height: 64px; }
 .topnav { display: flex; gap: 2px; margin-left: 8px; }
 .topnav a { text-decoration: none; font-size: var(--fs-14); font-weight: 500; color: var(--muted); padding: 8px 10px; border-radius: var(--r-ctl); transition: color .15s, background-color .15s; white-space: nowrap; }
