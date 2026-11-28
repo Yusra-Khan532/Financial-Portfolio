@@ -1,0 +1,10 @@
+/* Task #463 (team, 28 Nov 2026), the ETF list: the notes and the disclaimer under the table sit in the same Disclaimer drop-down as the Mutual fund pages
+   (.mfs-disc, styles/task373.css), the full width of the table column, with no empty space under it. */
+.etf-disc463 { margin-top: 16px; color: var(--muted); font-size: var(--fs-14); line-height: 1.6; }
+.etf-disc463 .mfs-disc { border-radius: var(--r-card, var(--r-ctl)); }
+.etf-disc463 .mfs-disc-l { color: var(--text); }
+.etf-disc463 .mfs-disc > p { margin: 0; padding: 0 16px 8px; }
+.etf-disc463 .mfs-disc > p:first-of-type { padding-top: 12px; }
+.etf-disc463 .mfs-disc > p:last-child { padding-bottom: 14px; }
+.etf-disc463 .mfs-disc > p b { color: var(--text); }
+.etf-disc463 .mfs-disc > p a { color: var(--gold); }
