@@ -1168,6 +1168,9 @@ def build_parser() -> argparse.ArgumentParser:
     p_ss = sub.add_parser("score-sentiment", help="nightly: the sentiment score of every news item and filing not scored yet (task #365; finlit/sentiment.py)")
     p_ss.add_argument("--limit", type=int, default=40000, help="items scored in this run")
     p_ss.add_argument("--max-minutes", type=float, default=30.0, help="stop after this many minutes; the next run continues")
+    p_rf = sub.add_parser("read-filings", help="nightly: the opening words of exchange filings that have none, from the first two pages of their PDFs, for the sentiment score (task #365; finlit/filing_text.py)")
+    p_rf.add_argument("--limit", type=int, default=300, help="PDFs read in this run")
+    p_rf.add_argument("--max-minutes", type=float, default=20.0, help="start no new PDF after this many minutes; the next run continues")
     p_dc = sub.add_parser("refresh-discovery", help="nightly: read each company's newest investor presentation (Documents) and put it in the Discovery themes (docs/DISCOVERY.md)")
     p_dc.add_argument("--limit", type=int, default=300, help="presentations read in this run")
     p_dc.add_argument("--max-minutes", type=float, default=40.0, help="start no new presentation after this many minutes")
@@ -1777,6 +1780,17 @@ async def main(argv: Optional[List[str]] = None, settings: Optional[Settings] = 
             from . import sentiment as sentiment_mod
             from .mf import record_run
             res = await sentiment_mod.score_pending(store, limit=args.limit, max_minutes=args.max_minutes)
+            await record_run(store, args.cmd, res)
+            print(json.dumps(res, default=str)[:3000])
+            if res.get("status") == "partial":     # the scores are stored; most of a kind read neutral: shown as degraded with the reason, never a failure
+                from .jobs.reasons import PARTIAL_EXIT
+                log.warning("score-sentiment: %s", res.get("why"))
+                return PARTIAL_EXIT
+            return 0
+        if args.cmd == "read-filings":
+            from . import filing_text
+            from .mf import record_run
+            res = await filing_text.read_pending(store, limit=args.limit, max_minutes=args.max_minutes)
             await record_run(store, args.cmd, res)
             print(json.dumps(res, default=str)[:3000])
             return 0

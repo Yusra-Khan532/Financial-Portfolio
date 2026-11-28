@@ -225,6 +225,13 @@ async def save_announcements(conn, symbol: str, company: str, announcements: Lis
         "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) "
         "ON CONFLICT (dedupe) DO UPDATE SET kind = EXCLUDED.kind, topic = EXCLUDED.topic "
         "WHERE feed_items.auto AND (feed_items.kind, feed_items.topic) IS DISTINCT FROM (EXCLUDED.kind, EXCLUDED.topic)", rows)
+    # task #365 re-check: when the stored title is a cut of a long description, the whole description is the filing's lead (its own words for the
+    # sentiment model; finlit/filing_text.py). Only a row with no lead yet, so a lead read from the PDF is never replaced.
+    from .filing_text import exchange_lead
+    leads = [(r[-1], ld) for r, a in zip(rows, [a for a in announcements if a.get("date")]) if (ld := exchange_lead(a.get("description"), r[1]))]
+    if leads:
+        await conn.execute("UPDATE feed_items f SET lead = u.lead, lead_src = 'exchange' FROM unnest($1::text[], $2::text[]) AS u(dedupe, lead) "
+                           "WHERE f.dedupe = u.dedupe AND f.auto AND f.lead IS NULL", [x[0] for x in leads], [x[1] for x in leads])
     return len(rows)
 
 

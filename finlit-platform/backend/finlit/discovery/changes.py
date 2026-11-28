@@ -17,12 +17,10 @@ from . import board as B
 MAX_SYMBOLS = 300
 
 
-def _sentiment(score: Any) -> Optional[Dict[str, Any]]:
-    """Task #365: a filing's score and band as /api/feed gives them, or None while it is not scored."""
-    from ..sentiment import band
-    if score is None:
-        return None
-    return {"score": round(float(score), 2), "band": band(float(score))}
+def _sentiment(score: Any, state: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    """Task #365: a filing's score and band as /api/feed gives them (a routine filing: band "routine", no score), or None while it is not scored."""
+    from ..sentiment import sentiment_json
+    return sentiment_json(score, state)
 
 
 async def changes(store, symbols: List[str]) -> Dict[str, Any]:
@@ -31,7 +29,7 @@ async def changes(store, symbols: List[str]) -> Dict[str, Any]:
         placed = {r["symbol"]: (r["company"] or r["symbol"]) for r in await conn.fetch(
             "SELECT symbol, company FROM discovery_companies WHERE symbol = ANY($1::text[]) AND primary_bucket IS NOT NULL", syms)}
         rows = [dict(r) for r in await conn.fetch(
-            "SELECT d.symbol, d.item_date, d.event, d.title, d.link, fs.score AS s_score FROM discovery_signals d "
+            "SELECT d.symbol, d.item_date, d.event, d.title, d.link, fs.score AS s_score, fs.state AS s_state FROM discovery_signals d "
             "LEFT JOIN feed_sentiment fs ON fs.feed_id = d.feed_id WHERE d.symbol = ANY($1::text[]) AND d.event = ANY($2::text[]) "
             "AND d.item_date >= current_date - $3::int ORDER BY d.item_date DESC, d.feed_id DESC", list(placed), list(B.EVENTS), B.NEWS_DAYS)] if placed else []
         names = {r["symbol"]: r["name"] for r in await conn.fetch("SELECT symbol, name FROM companies WHERE symbol = ANY($1::text[])", syms)}
@@ -41,14 +39,14 @@ async def changes(store, symbols: List[str]) -> Dict[str, Any]:
         key = (x["symbol"], x["item_date"], (x["title"] or "").strip().lower())
         if key in seen:        # the same filing stored as news and as a document is one filing; a score on either copy counts
             if seen[key] is not None and seen[key]["snt"] is None:
-                seen[key]["snt"] = _sentiment(x["s_score"])
+                seen[key]["snt"] = _sentiment(x["s_score"], x["s_state"])
             continue
         e = by.setdefault(x["symbol"], {}).get(x["event"])
         seen[key] = None
         if e is None:
             e = by[x["symbol"]][x["event"]] = {"n": 1, "d": x["item_date"].isoformat(), "t": B.clean_title(x["title"]) or None,
                                                "l": x["link"] if B.safe_link(x["link"]) else None,
-                                               "dates": [x["item_date"].isoformat()], "snt": _sentiment(x["s_score"])}
+                                               "dates": [x["item_date"].isoformat()], "snt": _sentiment(x["s_score"], x["s_state"])}
             seen[key] = e
         else:
             e["n"] += 1

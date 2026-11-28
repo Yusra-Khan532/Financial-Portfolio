@@ -21,7 +21,7 @@ describe("task #365: sentiment of news and filings", () => {
     expect(render(<SentimentChip s={null} />).container.innerHTML).toBe("");
   });
   it("a tab's average leaves out what is not scored", () => {
-    expect(meanSentiment([{ score: 0.6, band: "clearly_positive" }, null, { score: 0, band: "neutral" }])).toEqual({ score: 0.3, band: "positive" });
+    expect(meanSentiment([{ score: 0.6, band: "clearly_positive" }, null, { score: 0, band: "neutral" }])).toEqual({ score: 0.3, band: "positive", n: 2 });
     expect(meanSentiment([null, undefined])).toBeNull();
   });
   it("finds a filing's feed title as the backend writes it", () => {
@@ -49,6 +49,6 @@ describe("task #365: section 18 shows each filing's score and each tab's average
     const rows = [...container.querySelectorAll(".nf-r .snt")].map((x) => x.className);
     expect(rows).toEqual(expect.arrayContaining(["snt snt-clearly_positive", "snt snt-negative"]));
     const all = container.querySelector(".nf-f .chip-b .snt")!;   // the "All" tab: the mean of the scored filings
-    expect(all.textContent).toBe("+0.25");
+    expect(all.textContent).toBe("+0.25· 2 read");
   });
 });
