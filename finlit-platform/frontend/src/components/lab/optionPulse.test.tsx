@@ -26,6 +26,7 @@ const CHAIN: Chain = { underlying: und, expiry: "2026-12-02", daysToExpiry: 6, s
 const json = (body: unknown) => new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } });
 const urls: string[] = [];
 beforeEach(() => { urls.length = 0; vi.stubGlobal("fetch", vi.fn(async (url: string) => { urls.push(String(url));
+  if (String(url).includes("/api/lab/oiflow/")) return json({ status: "ok", underlying: "NIFTY", session: null, today: false, marketOpen: false, available: false, detail: "No snapshot yet today." });
   return String(url).includes("/underlyings") ? json({ indices: [und], stocks: [{ key: "RELIANCE", name: "Reliance Industries", securityId: 2885, lotSize: 500 }], connected: true })
     : String(url).includes("/expiries") ? json({ underlying: und, expiries: ["2026-12-02", "2026-12-09"], asOf: "", state: "fresh" }) : json(CHAIN); })); });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });

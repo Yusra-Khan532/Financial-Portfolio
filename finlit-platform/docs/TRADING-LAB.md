@@ -143,3 +143,14 @@ describe-only (calls such as "likely cap", "what's next" or strangle picks stay 
 4. **Liquidity map**: price with option walls, inside Stock zones (Order Flow step 4).
 5. **Stock radar**: the five facts drawn as a radar.
 6. **F&O Academy**: lessons with quizzes, inside Learn.
+
+## OI Flow (built after the Trading journal)
+
+Inside Option Pulse, for the five indices (NIFTY, BANKNIFTY, FINNIFTY, MIDCPNIFTY, SENSEX): how fast call and put open interest changes by strike.
+- Job `lab-oi-flow` (every 3 minutes in market hours; `refresh-lab-oi-flow`): for each index the nearest unexpired expiry's chain through the
+  site's own cached fetch (`options.cached`, key `oc:chain:<u>:<expiry>`), so a copy younger than 45 s costs no Dhan call and a new one is
+  asked in the site-wide chain turn (one request in 3.1 s for the whole site). An index whose turn is more than 15 s away is skipped until the
+  next run; nothing waits. Each snapshot keeps call and put OI of the 20 strikes either side of ATM in Redis (`lab:oi:series:<u>:<day>`, 4 days).
+- `GET /api/lab/oiflow/{u}` (Lab members): OI change over 15 minutes and 1 hour (against the latest snapshot at least that long ago; the real gap
+  is shown) and today (against the previous close), the largest additions and closures each side, and the strike-by-time heat map of the change
+  between consecutive snapshots. Every figure is a plain difference of stored OI; nothing is estimated and nothing tells anyone what to do.
