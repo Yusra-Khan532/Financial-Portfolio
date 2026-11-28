@@ -1,0 +1,6 @@
+/* Task #454: the Mutual Fund Screener table's colour rule (mf/screen/Results.tsx). Only .mfs-t-* and .mfs-key454 (grep: no other use).
+   The tokens --gain / --loss are the site's own, with their light and dark values. */
+.mfs-table td.num .mfs-t-pos { color: var(--gain); }
+.mfs-table td.num .mfs-t-neg { color: var(--loss); }
+.mfs-table td.num .mfs-t-plain { color: inherit; }
+.mfs-key454 { margin-bottom: 0; }
