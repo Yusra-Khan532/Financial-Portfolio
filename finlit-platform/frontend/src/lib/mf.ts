@@ -402,6 +402,13 @@ export function trayName(code: number): string | null {
   try { const m = JSON.parse(sessionStorage.getItem(TRAY_NAMES_KEY) || "{}"); return typeof m[code] === "string" ? m[code] : null; } catch { return null; }
 }
 export const compareUrl = (codes: number[]) => `/funds/compare?ids=${codes.join(",")}`;
+/** Task #452 (team, 28 Nov 2026: "after clicking in check box just give a small alert that it is added in compare list"): the short, polite message
+ *  shown for a moment (the app's toast, a live region) when a fund is ticked or unticked for comparison. `count` is the number in the list afterwards. */
+export function compareToast(added: boolean, name: string | null | undefined, count: number): string {
+  const who = name?.trim() || "The fund";
+  return added ? `${who} added to the compare list (${count} of ${TRAY_MAX}).${count < 2 ? " Tick one more to compare." : ""}`
+    : `${who} removed from the compare list.`;
+}
 /** ?ids=1,2,3 -> up to 4 distinct positive whole numbers. */
 export function parseIds(s: string | null): number[] {
   return [...new Set((s || "").split(",").map((x) => Number(x.trim())).filter((n) => Number.isInteger(n) && n > 0 && n < 1e7))].slice(0, TRAY_MAX);
