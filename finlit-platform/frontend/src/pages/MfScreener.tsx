@@ -12,7 +12,7 @@ import { SortMenu, Toolbar } from "../components/screener/PageParts";
 import { Icon } from "../lib/icons";
 import { nf, dateIN } from "../lib/format";
 import { loadUi, saveUi, isBool } from "../lib/persist";
-import { DISCLAIMER, compareUrl, useTray } from "../lib/mf";
+import { DISCLAIMER, compareToast, compareUrl, useTray } from "../lib/mf";
 import { useScores } from "../lib/mfScore";
 import { DEMO } from "../lib/demo";
 import { useDocTitle } from "../lib/title";
@@ -63,7 +63,18 @@ export function MfScreenerPage() {
   const scores = useScores(rows.map((r) => r.code), gold);
   const scoreMap = useMemo(() => new Map((scores.data?.items ?? []).filter((s) => s.code != null).map((s) => [s.code as number, s])), [scores.data]);
   const [names, setNames] = useState<Record<number, string>>({});
-  const pick = (code: number) => { const r = rows.find((x) => x.code === code); if (r) setNames((m) => ({ ...m, [code]: r.name })); if (!toggleTray(code)) toast("You can compare up to 4 funds at a time."); };
+  // task #452: ticking or unticking a fund (or × on its chip) says so in a small message that goes by itself (the app's toast, read out politely)
+  const pick = (code: number) => {
+    // task #452: the plan and option name a fund apart from its siblings (a fund's Direct, Regular, Growth and IDCW rows share one name), in the
+    // message and on its chip in the compare bar
+    const r = rows.find((x) => x.code === code);
+    const kind = r ? [r.plan !== "Unspecified" && r.plan, r.option].filter(Boolean).join(", ") : "";
+    const label = r ? (kind ? `${r.name} (${kind})` : r.name) : names[code];
+    if (r) setNames((m) => ({ ...m, [code]: label ?? r.name }));
+    const had = tray.includes(code);
+    if (!toggleTray(code)) { toast("You can compare up to 4 funds at a time."); return; }
+    toast(compareToast(!had, label, had ? tray.length - 1 : tray.length + 1));
+  };
   const total = list.data?.total ?? 0, pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const title = "Mutual Fund Screener";
   useDocTitle(title, "Screen every Indian mutual fund and ETF by type, category, fund house, plan, size, returns, cost, risk, portfolio and what its category is doing. Free. Information only.");
@@ -182,7 +193,7 @@ export function MfScreenerPage() {
             <div className="mfs-tray" role="region" aria-label="Funds chosen to compare">
               <b>Compare</b>
               <span className="mfs-tray-l">{tray.map((c) => <span key={c} className="mfs-tray-c">{names[c] ?? rows.find((r) => r.code === c)?.name ?? `Scheme ${c}`}
-                <button type="button" aria-label={`Remove ${names[c] ?? rows.find((r) => r.code === c)?.name ?? `scheme ${c}`} from compare`} onClick={() => toggleTray(c)}>×</button></span>)}</span>
+                <button type="button" aria-label={`Remove ${names[c] ?? rows.find((r) => r.code === c)?.name ?? `scheme ${c}`} from compare`} onClick={() => pick(c)}>×</button></span>)}</span>
               <span className="mfs-tray-b">{tray.length < 2 && <small>Tick one more fund to compare.</small>}
                 <button type="button" className="btn" onClick={clearTray}>Clear</button>
                 <button type="button" className="btn primary" disabled={tray.length < 2} onClick={() => nav(compareUrl(tray))}>Compare {tray.length} fund{tray.length === 1 ? "" : "s"} <Icon name="arrow" /></button></span>

@@ -202,13 +202,16 @@
 .mfs-table th.mfs-hs, .mfs-table td.mfs-hs { text-align: left; }
 .mfs-table td.mfs-hs .mfs-cell { align-items: flex-start; }
 .mfs-table td.mfs-hs .mfs-pv { display: inline-block; padding: 2px 8px; border-radius: var(--r-ctl); font-size: var(--fs-13); background: color-mix(in srgb, currentColor 14%, transparent); }
-.mfs-tray { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin: 12px 0 0; padding: 12px 14px; border-radius: var(--r-ctl); background: var(--text); color: var(--bg, var(--s1)); }
+/* task #452 (team, 28 Nov 2026: "correct the ui why is it coming as white in colour"): the bar was the text colour inverted (white in dark mode, near-black
+   in light); it now follows the theme like the ETF screener's compare bar (.etf-cbar): a gold edge on the soft gold tint, chips on the card colour */
+.mfs-tray { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin: 12px 0 0; padding: 12px 14px; border: 1px solid var(--gold); border-radius: var(--r-ctl); background: var(--gold-soft); color: var(--text); }
 .mfs-tray > b { font: 600 var(--fs-14) var(--sans); }
 .mfs-tray-l { display: flex; flex-wrap: wrap; gap: 6px; flex: 1 1 260px; min-width: 0; }
-.mfs-tray-c { display: inline-flex; align-items: center; gap: 4px; padding: 4px 6px 4px 10px; border-radius: var(--ui-r-pill); background: color-mix(in srgb, var(--bg) 16%, transparent); font-size: var(--fs-13); }
-.mfs-tray-c button { border: 0; background: none; color: inherit; font-size: var(--fs-16); line-height: 1; padding: 0 4px; cursor: pointer; min-width: 24px; min-height: 24px; }
+.mfs-tray-c { display: inline-flex; align-items: center; gap: 4px; padding: 4px 6px 4px 10px; border: 1px solid var(--border-strong); border-radius: var(--ui-r-pill); background: var(--s1); font-size: var(--fs-13); }
+.mfs-tray-c button { border: 0; background: none; color: var(--muted); border-radius: 50%; font-size: var(--fs-16); line-height: 1; padding: 0 4px; cursor: pointer; min-width: 24px; min-height: 24px; }
 .mfs-tray-b { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; } .mfs-tray-b small { font-size: var(--fs-12); }
-.mfs-tray .btn:not(.primary) { background: transparent; color: inherit; border-color: color-mix(in srgb, var(--bg) 40%, transparent); }
+.mfs-tray-c button:hover { color: var(--loss); background: var(--loss-soft); }
+.mfs-tray-b small { color: var(--muted); }
 @media (max-width: 640px) { .mfs-tray .btn { min-height: 44px; } .mfs-tick { width: 22px; height: 22px; } }
 /* the fund's name and its line in normal case, as the design draws them (a site-wide table rule set row headings in capitals) */
 .mfs-table tbody th.mfs-n, .mfs-table tbody th.mfs-n * { text-transform: none; letter-spacing: normal; }
