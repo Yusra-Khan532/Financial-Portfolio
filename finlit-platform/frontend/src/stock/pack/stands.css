@@ -13,7 +13,7 @@
 .ws-peer { display: inline-block; padding: 1px 8px; border-radius: var(--ui-r-pill); font: 700 var(--fs-12) var(--sans); }
 .ws-peer.leader { background: var(--sp-good-bg); color: var(--sp-good); } .ws-peer.in_line { background: var(--s2); color: var(--sp-ink); } .ws-peer.laggard { background: var(--sp-watch-bg); color: var(--sp-watch); }
 
-.ws-tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.ws-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }   /* three tabs since developer file 43 (the price chart left) */
 .ws-tabs button { display: grid; gap: 2px; padding: 12px 14px; border: 1px solid var(--sp-line); border-radius: var(--r-ctl); background: var(--sp-panel); color: var(--sp-ink); text-align: left; cursor: pointer; }
 .ws-tabs button b { font: 700 var(--fs-16) var(--sans); } .ws-tabs button small { font-size: var(--fs-13); color: var(--sp-mute); }
 .ws-tabs button[aria-selected="true"] { background: var(--ui-on-bg); border-color: var(--ui-on-bg); color: var(--ui-on-fg); } .ws-tabs button[aria-selected="true"] small { color: color-mix(in srgb, var(--ui-on-fg) 85%, transparent); }
@@ -28,7 +28,7 @@
 .ws-row span { display: inline-flex; align-items: center; gap: 4px; } .ws-row b { font-variant-numeric: tabular-nums; text-align: right; }
 .ws-small { display: block; margin: 2px 0 6px; font-size: var(--fs-12); color: var(--sp-mute); }
 .ws-spark { width: 100%; max-width: 420px; height: 60px; display: block; }
-.ws-area { fill: color-mix(in srgb, #0E6471 10%, transparent); } .ws-line { stroke: #0E6471; stroke-width: 1.6; } .ws-mid { stroke: var(--sp-mute); stroke-dasharray: 3 3; stroke-width: 1; }
+.ws-area { fill: color-mix(in srgb, var(--cmp) 10%, transparent); } .ws-line { stroke: var(--cmp); stroke-width: 1.6; }   /* developer file 45: the industry is context, grey */ .ws-mid { stroke: var(--sp-mute); stroke-dasharray: 3 3; stroke-width: 1; }
 .ws-h3 { display: flex; align-items: center; gap: 6px; margin: 0 0 4px; font: 400 var(--fs-24)/1.25 var(--serif); color: var(--sp-ink); }
 
 .ws-bars { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 4px; max-width: 600px; }
@@ -48,18 +48,15 @@
 .ws-bc.me { border-color: var(--gold); } .ws-bc:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .ws-bc dl { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin: 0; } .ws-bc dt { font: 700 var(--fs-12) var(--sans); letter-spacing: .06em; text-transform: uppercase; color: var(--sp-mute); } .ws-bc dd { margin: 0; font: 600 var(--fs-14) var(--sans); }
 
-.ws-px { width: 100%; height: auto; display: block; } .ws-pl { stroke: #0E6471; stroke-width: 1.8; } .ws-pd { fill: #0E6471; }
-.ws-tiles { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; margin-top: 10px; }
-.ws-tiles .ip-tile b { font: 600 var(--fs-16) var(--sans); }
 .ws-risk { display: flex; gap: 16px; align-items: center; }
 .ws-ring { --c: #0F6B3A; flex: none; display: grid; place-items: center; width: 64px; height: 64px; border-radius: 50%; background: radial-gradient(closest-side, var(--sp-panel) 78%, transparent 80% 100%), conic-gradient(var(--c) calc(var(--v) * 1%), var(--s2) 0); }
 .ws-ring b { font: 700 var(--fs-16) var(--sans); } .ws-rk { display: flex; align-items: center; gap: 6px; margin: 0 0 4px; font: 600 var(--fs-18) var(--sans); color: var(--sp-ink); }
 .ws-foot { margin: 0; }
 .ws .sp-scroll { position: relative; }
 
-@media (max-width: 1000px) { .ws-tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-@media (max-width: 760px) { .ws-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); } .ws-two { grid-template-columns: minmax(0, 1fr); } .ws-lead { font-size: var(--fs-20); } }
-@media (max-width: 480px) { .ws-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } .ws-biz { grid-template-columns: minmax(0, 1fr); } .ws-bars li { grid-template-columns: 84px minmax(0, 1fr) 56px; } }
+
+@media (max-width: 760px) { .ws-tabs small { display: none; } .ws-two { grid-template-columns: minmax(0, 1fr); } .ws-lead { font-size: var(--fs-20); } }
+@media (max-width: 480px) { .ws-biz { grid-template-columns: minmax(0, 1fr); } .ws-bars li { grid-template-columns: 84px minmax(0, 1fr) 56px; } }
 
 /* Task #222 (19 Nov pack B1, B2). B1: the Sector Pulse and Sector Rotation cards stretch to the taller one and their "Open … →" links sit on one line
    (phones stack them, each at its own height). B2: "Inside its industry" uses the full width, with a rank column, the rank line, "N more" gap lines and
@@ -80,3 +77,95 @@
 .ws-all:hover { border-color: currentColor; }
 @media (min-width: 900px) { .ws-bars.long.all { display: block; columns: 2; column-gap: 40px; } .ws-bars.long.all > li { break-inside: avoid; margin-bottom: 4px; } }
 @media (max-width: 560px) { .ws-bars li { grid-template-columns: 20px 100px minmax(0, 1fr) 54px; font-size: var(--fs-12); } }
+
+/* developer file 43: a tab's notes as a "●●● 3 things to know" pill at the top right of the tab (Round388 KnowButton), in place of a row of boxes */
+.ws-know { display: flex; justify-content: flex-end; margin: 0 0 10px; }
+.ws-know .eq8k-btn { margin: 0; }
+
+/* developer file 43: the "Its own chart" reading links to 03 Price & technicals (an <a>, like the readings' buttons) */
+a.ws-go { text-decoration: none; }
+
+/* developer file 43 (founder, 27 Nov 2026: "reduce the size"): "Inside its industry" as one strip of dots by 6-month return, the ranked list in a drop-down */
+.ws6 { position: relative; margin: 4px 0 10px; padding: 0 10px; overflow-x: clip; }
+.ws6-lab { position: relative; height: 22px; margin: 0; font-size: var(--fs-13); color: var(--sp-ink); }
+.ws6-lab span { position: absolute; bottom: 2px; white-space: nowrap; font-weight: 700; }
+.ws6-lab span.hot { font-weight: 600; } .ws6-lab small { font-size: var(--fs-12); font-weight: 400; color: var(--sp-mute); }
+.ws6-track { position: relative; border-bottom: 1px solid var(--sp-line); background: linear-gradient(var(--s1), var(--s1)) bottom / 100% 6px no-repeat; }
+.ws6-zero, .ws6-med { position: absolute; top: 0; bottom: -4px; width: 0; }
+.ws6-zero { border-left: 1.5px solid var(--sp-mute); }
+.ws6-med, .ws6-medk { border-left: 1.5px dashed var(--gold); }
+.ws6-medk { display: inline-block; width: 0; height: 11px; margin: 0 5px 0 1px; vertical-align: -1px; }
+.ws6-dot { position: absolute; width: 10px; height: 10px; margin: 0 0 0 -5px; padding: 0; border: 1px solid var(--sp-panel); border-radius: 50%; cursor: pointer; transform: translateY(50%); }
+.ws6-dot.pos { background: var(--sp-good); } .ws6-dot.neg { background: var(--sp-bad); }
+.ws6-dot.me { z-index: 2; width: 14px; height: 14px; margin-left: -7px; box-shadow: 0 0 0 2px var(--sp-panel), 0 0 0 4px var(--sp-ink); }
+.ws6-dot.on, .ws6-dot:hover { z-index: 3; box-shadow: 0 0 0 2px var(--sp-panel), 0 0 0 3.5px var(--gold); }
+.ws6-dot.me.on, .ws6-dot.me:hover { box-shadow: 0 0 0 2px var(--sp-panel), 0 0 0 4px var(--gold); }
+.ws6.dense .ws6-dot { width: 8px; height: 8px; margin-left: -4px; } .ws6.dense .ws6-dot.me { width: 12px; height: 12px; margin-left: -6px; }
+.ws6-dot:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
+.ws6-dot::before { content: ""; position: absolute; inset: -6px; border-radius: 50%; }   /* a 22 px target for a finger */
+.ws6-ends { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 16px; margin: 6px 0 0; font-size: var(--fs-12); color: var(--sp-mute); }
+.ws6-ends span:last-child { margin-left: auto; text-align: right; }
+.ws6-ends b { font-weight: 700; }
+details.ws6-dd { margin: 0 0 4px; }
+details.ws6-dd .ws-bars { margin-top: 0; }
+@media (prefers-reduced-motion: no-preference) { .ws6-dot { transition: box-shadow .12s; } }
+
+/* Developer files 51 and 52: "In numbers", 14's fourth tab (stock/pack/IndustryNumbers.tsx). File 52 (founder: "I am not able to understand what it is"): no
+   dot strips; who makes up the industry as one bar, then one row a measure in words. This company is blue (--c1), the others grey (--cmp), the typical
+   company the section's dashed gold mark, as developer file 45's colour roles say. A phone row stacks: what it measures, the two figures, where it sits. */
+.in-sec { display: grid; gap: 14px; }
+.in-part { margin: 0; }
+.in-txt { margin: 2px 0 10px; max-width: none; font-size: var(--fs-14); line-height: 1.5; color: var(--sp-ink); }
+.in-bar { display: flex; gap: 2px; height: 18px; overflow: hidden; border-radius: var(--r-ctl); }
+.in-bar i, .in-bar-key i { min-width: 3px; background: color-mix(in srgb, var(--cmp) 55%, var(--s1)); }
+.in-bar i.me, .in-bar-key li.me i { background: var(--c1); }
+.in-bar i.rest, .in-bar-key li.rest i { background: color-mix(in srgb, var(--cmp) 22%, var(--s1)); }
+.in-bar-key { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 8px 0 0; padding: 0; list-style: none; font-size: var(--fs-13); color: var(--sp-mute); }
+.in-bar-key li { display: inline-flex; align-items: center; gap: 6px; } .in-bar-key b { font-weight: 600; color: var(--sp-ink); }
+.in-bar-key i { display: inline-block; width: 10px; height: 10px; border-radius: var(--ui-r-mark); }
+.in-stand { margin: 0 0 10px; padding: 10px 14px; border: 1px solid var(--sp-line); border-radius: var(--r-ctl); background: var(--sp-panel); }
+.in-stand ul { margin: 4px 0 0; padding-left: 18px; } .in-stand li { margin: 3px 0; font-size: var(--fs-14); line-height: 1.5; color: var(--sp-ink); }
+.in-gt { margin: 0; font-size: var(--fs-12); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--sp-mute); }
+.in-tab { display: grid; }
+.in-row { display: grid; grid-template-columns: minmax(200px, 1.5fr) minmax(90px, .6fr) minmax(110px, .6fr) minmax(230px, 1.4fr); align-items: center; gap: 4px 16px; padding: 8px; border-bottom: 1px solid var(--sp-line); }
+.in-row.hl { background: color-mix(in srgb, var(--c1) 7%, transparent); }
+.in-hd { padding-block: 4px 6px; font-size: var(--fs-12); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--sp-mute); }
+.in-hd small { margin-left: 4px; font-weight: 400; letter-spacing: 0; text-transform: none; }
+.in-grp > .in-gt { padding: 12px 8px 2px; }
+.in-what { display: flex; flex-direction: column; gap: 1px; font-size: var(--fs-14); color: var(--sp-ink); }
+.in-what small { display: inline-flex; align-items: center; gap: 4px; font-size: var(--fs-12); color: var(--sp-mute); }
+.in-me { font-size: var(--fs-16); font-weight: 600; color: var(--c1); font-variant-numeric: tabular-nums; }
+.in-ty { font-size: var(--fs-14); color: var(--sp-ink); font-variant-numeric: tabular-nums; }
+.in-lab { display: none; }
+.in-sit { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.in-meter { position: relative; flex: none; width: 96px; height: 8px; border-radius: var(--ui-r-pill); background: linear-gradient(90deg, color-mix(in srgb, var(--cmp) 16%, var(--s1)), color-mix(in srgb, var(--cmp) 42%, var(--s1))); }
+.in-meter .mid { position: absolute; top: -4px; bottom: -4px; left: 50%; border-left: 1.5px dashed var(--gold); }
+.in-meter .dot { position: absolute; top: 50%; width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 50%; background: var(--c1); box-shadow: 0 0 0 2px var(--sp-panel); }
+.in-sw { display: flex; flex-direction: column; min-width: 0; font-size: var(--fs-14); color: var(--sp-ink); } .in-sw small { font-size: var(--fs-12); color: var(--sp-mute); }
+.in-foot { margin-top: 10px; }
+@media (max-width: 760px) {
+  .in-hd { display: none; }
+  .in-row { grid-template-columns: 1fr 1fr; gap: 6px 12px; padding: 10px 6px; }
+  .in-what, .in-sit { grid-column: 1 / -1; }
+  .in-lab { display: inline; margin-right: 6px; font-size: var(--fs-12); font-weight: 400; color: var(--sp-mute); }   /* the label beside its figure: one line, not two */
+  .in-row { gap: 4px 12px; padding: 8px 6px; } .in-what small { margin-top: 0; }
+}
+
+/* Developer file 52 (founder, 27 Nov 2026, 5:22 pm: "improve section 14 top box"): the lead with "3 things to know" beside it, then the four readings as
+   one row of four equal cells (two by two on a phone), each a link that opens its tab ("Open ↓"); the company's own chart is one line under them. */
+.ws-headtop { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px 16px; }
+.ws-headtop .ws-lead { flex: 1; min-width: 0; }
+.ws-headtop .ws-know { flex: none; margin: 14px 0 0; }
+.ws-glance { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 10px; }
+a.ws-cell { display: flex; flex-direction: column; gap: 4px; min-width: 0; padding: 10px 12px; border: 1px solid var(--sp-line); border-radius: var(--r-ctl); background: var(--sp-panel); color: var(--sp-ink); text-decoration: none; }
+a.ws-cell:hover { border-color: var(--gold); }
+a.ws-cell:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.ws-cell .ws-k { font-size: var(--fs-12); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--sp-mute); }
+.ws-cell .ws-v { display: flex; align-items: center; min-height: 24px; }
+.ws-cell .ws-l { font-size: var(--fs-13); line-height: 1.4; color: var(--sp-ink); }
+.ws-cell .ws-open { margin-top: auto; padding-top: 2px; font-size: var(--fs-12); font-weight: 600; color: var(--gold); }
+.ws-ownline { margin: 10px 0 0; font-size: var(--fs-13); color: var(--sp-mute); }
+.ws-ownline .ws-go { margin-left: 6px; }
+.ws-box.ws-wide { max-width: 760px; }
+@media (max-width: 900px) { .ws-glance { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 760px) { .ws-headtop { flex-direction: column; } .ws-headtop .ws-know { margin: 0; } }

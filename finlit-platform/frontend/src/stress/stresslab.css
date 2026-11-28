@@ -454,3 +454,26 @@ input.edit:focus-visible{outline:2px solid var(--teal);outline-offset:1px}
   .step p{margin-top:2px}
   .kpi .v{font-size:var(--fs-20)}
 }
+
+/* QA 27 Nov: "Every scenario at a glance" keeps its column widths when a row opens (the shocks row spans the table); the whole row is the button */
+#every table.evt{table-layout:fixed;width:100%}
+#every table.evt col.c-n{width:30%}#every table.evt col.c-s{width:9%}#every table.evt col.c-l{width:17%}
+#every table.evt thead th{white-space:normal;overflow-wrap:break-word;vertical-align:bottom;line-height:1.3}
+#every table.evt tbody tr.click{cursor:pointer}
+#every table.evt tbody tr.click:focus-visible{outline:2px solid var(--gain);outline-offset:-2px}
+@media (max-width:760px){#every table.evt{table-layout:auto;min-width:620px}}
+/* QA 27 Nov: "What stands out" lays out by its own width and the number of cards (3 for one company, 4 for another; the brief keeps three kinds):
+   all in one row when they fit; four cards never as 3 + 1 (two rows of two instead); one column on a narrow screen. */
+.calls{container-type:inline-size}
+.callsg.n2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.callsg.n3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.callsg.n4{grid-template-columns:repeat(4,minmax(0,1fr))}
+/* founder re-check 27 Nov: four cards stay in one row on desktop, also at a 1150px window with the side menu open (the page is then about 820px);
+   between 701 and 1000px of width the icon steps aside so each card keeps room for its words (the kind label above the title keeps its colour) */
+@container (min-width:701px) and (max-width:1000px){.callsg.n4 .call{grid-template-columns:minmax(0,1fr) auto;padding:12px}.callsg.n4 .call .ic{display:none}.callsg.n4 .call span.d{grid-column:1/-1}}
+@container (max-width:700px){.callsg.n4{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@container (max-width:620px){.callsg.n2,.callsg.n3,.callsg.n4{grid-template-columns:1fr}}
+/* founder re-check 27 Nov: the opened (picked) row is tinted across every cell. The row hover colour beat it on all but the first cell, and the pointer is
+   still on the row just after the click, so only the scenario cell looked picked. Its open detail row carries the same left bar. */
+table.t tbody tr.on td,table.t tbody tr.click.on:hover td{background:var(--heef5f4)}
+table.t tbody tr.on+tr.xrow td:first-child{box-shadow:inset 3px 0 0 var(--teal)}

@@ -214,8 +214,9 @@ export function Trend({ years }: { years: Year[] }) {
           );
         })}
         {years.map((yr, i) => {
-          const step = years.length > 1 ? pw / (years.length - 1) : pw, w = Math.max(24, step);
-          return <rect role="img" key={"h" + yr.period} className="rcx-hit" x={x(i) - w / 2} y={mt} width={w} height={ph + mb} tabIndex={0}
+          // developer file 49: each year's hover area stays inside the chart (the first and last reached 25 to 30 px past the card, with their focus ring)
+          const step = years.length > 1 ? pw / (years.length - 1) : pw, w = Math.max(24, step), x0 = Math.max(0, x(i) - w / 2), x1 = Math.min(W, x(i) + w / 2);
+          return <rect role="img" key={"h" + yr.period} className="rcx-hit" x={x0} y={mt} width={Math.max(0, x1 - x0)} height={ph + mb} tabIndex={0}
             aria-label={`${yr.period}: revenue growth ${fmtPct(yr.revenueGrowth, 1, true)}, OCF margin ${fmtPct(yr.ocfMargin)}`}
             onMouseEnter={() => setOn(i)} onMouseLeave={() => setOn((c) => (c === i ? null : c))} onFocus={() => setOn(i)} onBlur={() => setOn((c) => (c === i ? null : c))}
             onKeyDown={(e) => { if (e.key === "Escape") (e.target as SVGElement).blur(); if (e.key === "ArrowRight") { e.preventDefault(); (e.currentTarget.nextElementSibling as SVGElement | null)?.focus(); } if (e.key === "ArrowLeft") { e.preventDefault(); (e.currentTarget.previousElementSibling as SVGElement | null)?.focus(); } }} />;

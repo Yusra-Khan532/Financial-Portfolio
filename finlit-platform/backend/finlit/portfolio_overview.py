@@ -205,7 +205,7 @@ def holding(sym: str, parts: Dict[str, Any], prism: Optional[Dict[str, Any]], go
 
 async def member_ctx(request: Request, ctx: Ctx = Depends(secure_ctx)) -> Ctx:
     if not sees_all(ctx) and not has(ctx.plan, "silver"):
-        raise fail(403, "plan_required", "Equity portfolio scores are part of the Silver plan.", plan="silver")
+        raise fail(403, "plan_required", "Equity portfolio scores are part of every paid plan.", plan="silver")
     return ctx
 
 

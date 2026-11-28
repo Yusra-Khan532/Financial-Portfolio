@@ -55,6 +55,7 @@ from . import search as search_api
 from . import ext_api
 from . import macro as macro_api
 from . import clienterrors as clienterrors_api
+from . import visits as visits_api
 from . import markets as markets_api
 from . import flows as flows_api
 from . import fundjobs, sysctl, wake
@@ -228,7 +229,8 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
             try:
                 if await leadership_api.public_now(app.state.store):
                     async with app.state.store.pool.acquire() as conn:
-                        lead = {x["symbol"]: {**dict(x), "label": leadership_api.agreeing(x["label"], x["raw_label"], x["rel52"])} for x in await conn.fetch("SELECT symbol, label, raw_label, rel52, rank, ranked, group_short FROM leadership WHERE label IS NOT NULL")}
+                        lead = {x["symbol"]: dict(x) for x in await conn.fetch(   # task #409: the weekly record's label (written into leadership), never replaced on read
+                        "SELECT symbol, label, raw_label, rel52, rank, ranked, group_short FROM leadership WHERE label IS NOT NULL")}
             except Exception:
                 logging.getLogger("finlit.api").exception("screener universe: leadership labels not read")
         nse: dict = {}
@@ -479,6 +481,7 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
         register_stock_admin(app, settings.site_api_url)  # must come before the /api/stocks/{symbol}/{section} routes
     app.include_router(__import__("finlit.ipogmp", fromlist=["router"]).router)   # /api/ipos/gmp-record: GMP against the actual listing (IPO calendar)
     app.include_router(__import__("finlit.ipoapi", fromlist=["router"]).router)   # /api/ipos/history and /api/ipos/record/{id}: all IPOs and the IPO report
+    app.include_router(__import__("finlit.dealsapi", fromlist=["router"]).router)   # /api/deals*: bulk, block and short-selling deals (IPO page, Deals view)
     app.include_router(intraday.router)   # /api/stocks/{symbol}/intraday: also before the /api/stocks/{symbol}/{section} route
     app.include_router(leadership_api.router)   # /api/stocks/{symbol}/leadership and /leadership-history: likewise
     app.include_router(ownership_insights.router)   # /api/stocks/{symbol}/ownership-insights: likewise
@@ -601,6 +604,22 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
                     if daily is not None:
                         await rebuild_if_old(sym, statement, weekly[0])
                         return await serve_hit(request, sym, statement, "price-3Y-daily", daily, started)
+        # Task #394 re-check (28 Nov): a company with no report yet (on a ready-made list, which is built from the exchange candles) gets its chart
+        # from those candles at once, instead of waiting on a report build that a busy queue answers with 429 for minutes. The report is still
+        # queued as before when the company's other sections are asked for (the page, its summary).
+        sym = symbol.strip().upper()
+        if name in PRICE_SECTIONS and SYMBOL.match(sym) and statement in ("consolidated", "standalone") \
+                and await app.state.store.get_section(sym, statement, name) is None:
+            from . import price_sections
+            started = time.perf_counter()
+            try:
+                built = await price_sections.from_candles(app.state.store, sym, statement, range.upper(), grain.strip().lower() == "daily")
+            except Exception:   # the candles could not be read: the usual path (queue the report) answers
+                log.exception("chart from the candles not built for %s", sym)
+                built = None
+            if built is not None:
+                daily3 = name == "price-3Y" and grain.strip().lower() == "daily"
+                return await serve_hit(request, sym, statement, "price-3Y-daily" if daily3 else name, built, started)   # trimmed to the plan as a stored chart
         return await section(request, symbol, name, statement)
 
     async def broken(symbol: str, statement: str, body: bytes) -> bool:
@@ -835,6 +854,7 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
     app.include_router(screener_qapi.router)
     app.include_router(__import__("finlit.presets.api", fromlist=["router"]).router)   # /api/screener/presets (Gold)
     app.include_router(__import__("finlit.presets.api", fromlist=["gainers_router"]).gainers_router)   # /api/screener/gainers
+    app.include_router(__import__("finlit.presets.api", fromlist=["membership_router"]).membership_router)   # /api/screener/membership (Gold, task #408)
     app.include_router(__import__("finlit.presets.selfcheck", fromlist=["router"]).router)   # /api/screener/selfcheck: the screen checks, pass or fail only
     app.include_router(__import__("finlit.earnings.api", fromlist=["router"]).router)   # /api/earnings-calls (the list is open; the answers are Gold)
     app.include_router(__import__("finlit.concall.api", fromlist=["router"]).router)   # /api/concalls: the Concall Monitor (task #278)
@@ -859,6 +879,7 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
     app.include_router(__import__("finlit.macro_sectors", fromlist=["router"]).router)   # /api/macro/sectors: the macro backdrop per sector (Gold, switched on in the Console)
     app.include_router(markets_api.router)
     app.include_router(clienterrors_api.router)
+    app.include_router(visits_api.router)   # POST /api/visits (cookie-free page counter) and GET /api/admin/visitors (Console > Visitors)
     app.include_router(flows_api.router)
     app.include_router(flows_api.admin)
     app.include_router(fundjobs.router)

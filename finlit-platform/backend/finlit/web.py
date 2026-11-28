@@ -7,6 +7,7 @@ Unknown paths fall back to the app shell so client-side routes (/stocks/TCS) wor
 
 from __future__ import annotations
 
+import json
 import logging
 import time
 from datetime import date, datetime, timezone
@@ -16,9 +17,12 @@ from typing import Optional
 from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
 
-from . import seo
+from . import sector_api, seo
+from .auth.entitlements import redact_section
+from .auth.service import ANON
 
 log = logging.getLogger("finlit.web")
+SEO_SECTIONS = ("summary", "financials", "ownership", "peers", "events")   # the stored report sections the company page's crawler HTML reads (search growth, Phase 1)
 
 SITE_HEADERS = {
     "Strict-Transport-Security": "max-age=63072000; includeSubDomains",
@@ -67,10 +71,37 @@ def mount_frontend(app: FastAPI, dist: Path) -> bool:
         if hit:
             return value
         async with request.app.state.store.pool.acquire() as conn:
-            row = await conn.fetchrow("SELECT name, sector FROM companies WHERE symbol = $1", sym)
-        value = (row["name"], row["sector"]) if row else None
-        seo.remember(sym, value)
+            row = await conn.fetchrow("SELECT name, sector, has_consolidated FROM companies WHERE symbol = $1", sym)
+            facts, group = None, None
+            if row:
+                try:    # search growth, Phase 1: the company's own stored figures; any failure here leaves the page with its name and sector, never an error
+                    facts, group = await company_facts(conn, sym, row.get("has_consolidated") is not False)
+                except Exception:
+                    log.warning("seo company facts failed for %s", sym.replace("\r", "").replace("\n", ""), exc_info=True)   # SYMBOL already allows no line break; stripped for the log anyway
+        value = (row["name"], row["sector"], facts, group) if row else None
+        seo.remember(sym, value)    # type: ignore[arg-type]
         return value
+
+    async def company_facts(conn, sym: str, consolidated: bool) -> tuple:
+        """The facts the crawler HTML shows, from the same stored sections the report reads, trimmed to what a visitor who is not signed in is sent
+        (redact_section at the visitor's plan), so the page never says more than the app shows that visitor. One query; the parsed facts are small (about 2 KB)."""
+        rows = await conn.fetch("SELECT statement, section, body FROM snapshots WHERE symbol = $1 AND section = ANY($2::text[])", sym, list(SEO_SECTIONS))
+        want = "consolidated" if consolidated else "standalone"
+        got = {r["statement"] for r in rows if r["section"] == "summary"}
+        statement = want if want in got else next(iter(sorted(got)), None)
+        if statement is None:
+            return None, None
+        sections = {}
+        for r in rows:
+            if r["statement"] == statement:
+                body = r["body"]
+                sections[r["section"]] = redact_section(r["section"], json.loads(body if isinstance(body, str) else bytes(body)), ANON.plan)
+        facts = seo.company_facts(sections)
+        try:
+            group = sector_api.group_of(sym)
+        except Exception:
+            group = None
+        return facts, group
 
     async def directory(request: Request) -> dict:
         """Every company grouped by the first letter of its name; kept for an hour (one query serves the index, every letter page and the sitemap)."""
@@ -106,7 +137,7 @@ def mount_frontend(app: FastAPI, dist: Path) -> bool:
                     return seo.render_directory(base, p.split("/", 1)[1], await directory(request))
                 if p.startswith("stocks/"):
                     c = await company(request, p.split("/", 1)[1])
-                    return seo.render_company(base, p.split("/", 1)[1], c[0], c[1]) if c else seo.not_found(base)
+                    return seo.render_company(base, p.split("/", 1)[1], c[0], c[1], c[2] if len(c) > 2 else None, c[3] if len(c) > 3 else None) if c else seo.not_found(base)
                 return seo.render_term(base, p.split("/", 1)[1]) or seo.not_found(base)
         except Exception:
             log.warning("seo lookup failed for %s", p, exc_info=True)

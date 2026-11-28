@@ -1,0 +1,98 @@
+/* Task #438 (developer pack of 28 Nov 2026): sort by any column on All my investments, and the Held key with its letter tooltips. The pack's
+   sortable-tables.css, scoped to the elements the feature adds (.fl-*, #fl-held-tip, th.fl-sortable, the sorted column, the Held letters' data-tip):
+   no tag, :root or body rules and no change to existing rules. The sorted column's cells are tinted through the table's data-fl-col (the 1-based
+   column) rather than a class on each cell. */
+
+/* accent: #a8843a light, #e0bd6e dark (ui-tokens.css --ui-sort-accent / --ui-sort-ink) */
+.fl-sortable, .fl-sortbar, table[data-fl-col], .fl-pinhead, .fl-pin-chip { --fl-accent: var(--ui-sort-accent); --fl-accent-ink: var(--ui-sort-ink); }
+
+/* ---------- headings ---------- */
+/* the heading's padding moves onto the button so the whole cell is clickable; 8px 10px is the table's heading padding */
+th.fl-sortable { padding: 0 !important; }
+th.fl-sortable .fl-sort {
+  all: unset; box-sizing: border-box;
+  display: flex; align-items: center; gap: 6px; width: 100%;
+  padding: var(--fl-th-pad, 8px 10px);
+  font: inherit; letter-spacing: inherit; text-transform: inherit; color: inherit;
+  text-align: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+th.fl-sortable.fl-r .fl-sort { justify-content: flex-end; }
+th.fl-sortable .fl-sort-t { min-width: 0; }
+th.fl-sortable .fl-sort-ar { flex: none; display: inline-grid; place-items: center; width: 9px; height: 12px; opacity: .35; transition: opacity .15s; }
+th.fl-sortable .fl-sort-ar svg { display: block; width: 9px; height: 12px; }
+/* task #438 rework (founder's check of 28 Nov 2026: the arrows made "Where your money sits" 18px too wide at 1920px and clipped "Open tab →"): the
+   arrow no longer sits after the words, it sits inside the heading's own end padding (10px → 12px), 2px from the cell's edge, so a heading is 2px
+   wider than without it, not 18px (a 12px arrow and a 6px gap before). Arrows stay visible (touch screens have no hover). */
+th.fl-sortable .fl-sort { position: relative; gap: 0; padding-inline-end: 12px; }
+th.fl-sortable .fl-sort-ar { position: absolute; right: 2px; top: 50%; margin-top: -6px; }
+th.fl-sortable .fl-sort:hover { background: color-mix(in srgb, currentColor 8%, transparent); color: var(--text); }
+th.fl-sortable .fl-sort:hover .fl-sort-ar,
+th.fl-sortable .fl-sort:focus-visible .fl-sort-ar { opacity: .8; }
+th.fl-sortable .fl-sort:focus-visible { outline: 2px solid var(--fl-accent); outline-offset: -2px; }
+@media (hover: none) { th.fl-sortable .fl-sort-ar { opacity: .55; } }
+
+/* the sorted heading: gold underline, tint, solid arrow (the th keeps its own opaque background) */
+th.fl-sortable[aria-sort=ascending], th.fl-sortable[aria-sort=descending] { box-shadow: inset 0 -2px 0 var(--fl-accent); color: var(--text); }
+th.fl-sortable[aria-sort=ascending] .fl-sort, th.fl-sortable[aria-sort=descending] .fl-sort { background: color-mix(in srgb, var(--fl-accent) 14%, transparent); }
+th.fl-sortable[aria-sort=ascending] .fl-sort-ar, th.fl-sortable[aria-sort=descending] .fl-sort-ar { opacity: 1; color: var(--fl-accent-ink); }
+
+/* the sorted column's cells: a tint laid over the cell's own background (background-image, so the sticky first column stays solid) */
+table[data-fl-col="1"] > tbody > tr > :nth-child(1):not([colspan]),
+table[data-fl-col="2"] > tbody > tr > :nth-child(2):not([colspan]),
+table[data-fl-col="3"] > tbody > tr > :nth-child(3):not([colspan]),
+table[data-fl-col="4"] > tbody > tr > :nth-child(4):not([colspan]),
+table[data-fl-col="5"] > tbody > tr > :nth-child(5):not([colspan]),
+table[data-fl-col="6"] > tbody > tr > :nth-child(6):not([colspan]),
+table[data-fl-col="7"] > tbody > tr > :nth-child(7):not([colspan]),
+table[data-fl-col="8"] > tbody > tr > :nth-child(8):not([colspan]),
+table[data-fl-col="9"] > tbody > tr > :nth-child(9):not([colspan]),
+table[data-fl-col="10"] > tbody > tr > :nth-child(10):not([colspan]),
+table[data-fl-col="11"] > tbody > tr > :nth-child(11):not([colspan]),
+table[data-fl-col="12"] > tbody > tr > :nth-child(12):not([colspan]) {
+  background-image: linear-gradient(color-mix(in srgb, var(--fl-accent) 8%, transparent), color-mix(in srgb, var(--fl-accent) 8%, transparent)) !important;   /* over the sticky column's background shorthand */
+}
+
+/* ---------- the line above each table ---------- */
+.fl-sortbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-height: 30px; margin: 8px 0 0; font: 400 var(--fs-13)/1.4 var(--sans); color: var(--muted); }
+.fl-sortbar .fl-sort-idle svg { width: 10px; height: 12px; vertical-align: -1px; margin-right: 2px; }
+.fl-sortbar .fl-sort-on { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; color: var(--text); border-radius: var(--ui-r-pill); padding: 3px 4px 3px 12px; background: color-mix(in srgb, var(--fl-accent) 18%, transparent); border: 1px solid color-mix(in srgb, var(--fl-accent) 45%, transparent); }
+.fl-sortbar .fl-sort-on b { font-weight: 700; }
+.fl-sortbar .fl-sort-reset { font: 600 var(--fs-13)/1.5 var(--sans); color: var(--text); background: transparent; border: 1px solid var(--border-strong); border-radius: var(--ui-r-pill); padding: 1px 10px; cursor: pointer; }
+.fl-sortbar .fl-sort-reset:focus-visible { outline: 2px solid var(--fl-accent); outline-offset: 2px; }
+@media (max-width: 760px) { .fl-sortbar .fl-sort-hint { display: none; } }
+
+/* ---------- the column names carried by the stuck filter row (EveryFilters' FilterRow, .mi7-fcols): the same sort buttons ---------- */
+/* task #438 rework (founder, 28 Nov 2026: mid-list the pinned names "have no arrows, don't show the sorted column, and clicking does nothing") */
+.mi7-fcols.fl-pinhead .fl-pin { all: unset; box-sizing: border-box; position: absolute; top: 0; height: 30px; display: flex; align-items: center; gap: 2px; padding: 0 3px 0 8px;
+  font: 700 var(--fs-12) var(--sans); color: var(--muted); white-space: nowrap; overflow: hidden; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.mi7-fcols.fl-pinhead .fl-pin span { position: static; height: auto; padding: 0; display: inline; }   /* mi7.css places every span of the row absolutely */
+.mi7-fcols.fl-pinhead .fl-pin.fl-r { justify-content: flex-end; }
+.mi7-fcols.fl-pinhead .fl-pin .fl-sort-t { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.mi7-fcols.fl-pinhead .fl-pin .fl-sort-ar { flex: none; display: inline-grid; place-items: center; width: 9px; height: 12px; opacity: .45; }
+.mi7-fcols.fl-pinhead .fl-pin .fl-sort-ar svg { display: block; width: 9px; height: 12px; }
+.mi7-fcols.fl-pinhead .fl-pin:hover { background: color-mix(in srgb, currentColor 8%, transparent); color: var(--text); }
+.mi7-fcols.fl-pinhead .fl-pin:focus-visible { outline: 2px solid var(--fl-accent); outline-offset: -2px; }
+.mi7-fcols.fl-pinhead .fl-pin.on { color: var(--text); background: color-mix(in srgb, var(--fl-accent) 14%, transparent); box-shadow: inset 0 -2px 0 var(--fl-accent); }
+.mi7-fcols.fl-pinhead .fl-pin.on .fl-sort-ar { opacity: 1; color: var(--fl-accent-ink); }
+/* "Sorted by … Reset", small, in the stuck row (the line above the table has scrolled away) */
+.fl-pin-chip { display: inline-flex; align-items: center; gap: 6px; flex: none; white-space: nowrap; font: 400 var(--fs-12)/1.3 var(--sans); color: var(--text); border-radius: var(--ui-r-pill);
+  padding: 2px 3px 2px 10px; background: color-mix(in srgb, var(--fl-accent) 18%, transparent); border: 1px solid color-mix(in srgb, var(--fl-accent) 45%, transparent); }
+.fl-pin-chip b { font-weight: 700; }
+.fl-pin-chip .fl-sort-reset { font: 600 var(--fs-12)/1.4 var(--sans); color: var(--text); background: transparent; border: 1px solid var(--border-strong); border-radius: var(--ui-r-pill); padding: 0 8px; cursor: pointer; }
+.fl-pin-chip .fl-sort-reset:focus-visible { outline: 2px solid var(--fl-accent); outline-offset: 2px; }
+@media (max-width: 760px) { .fl-pin-chip .fl-pin-dir { display: none; } }
+
+/* screen-reader announcement */
+.fl-sr { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
+
+/* ---------- Held key + tooltips (Every company table only) ---------- */
+.fl-held-key { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin: 8px 0 0; font: 400 var(--fs-13)/1.4 var(--sans); color: var(--muted); }
+.fl-held-key > b { font-weight: 700; font-size: var(--fs-12); letter-spacing: .06em; text-transform: uppercase; color: var(--text); }
+.fl-held-key > span { display: inline-flex; align-items: center; gap: 6px; }
+.fl-held-key .mi-held i { cursor: default; }
+table.mi-co .mi-held i[data-tip] { cursor: help; }
+#fl-held-tip { position: fixed; z-index: 1000; max-width: 260px; pointer-events: none; opacity: 0; transform: translateY(2px); transition: opacity .12s, transform .12s;
+  background: var(--text); color: var(--bg); font: 500 var(--fs-13)/1.35 var(--sans); padding: 7px 10px; border-radius: var(--ui-r-mark); box-shadow: var(--ui-pop-shadow); }
+#fl-held-tip.fl-on { opacity: 1; transform: none; }
+#fl-held-tip b { font-weight: 700; }
+@media (prefers-reduced-motion: reduce) { th.fl-sortable .fl-sort-ar, #fl-held-tip { transition: none; } }

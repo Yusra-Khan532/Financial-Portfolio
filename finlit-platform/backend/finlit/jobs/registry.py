@@ -131,6 +131,7 @@ class Job:
     ok_exit: Tuple[int, ...] = (0,)
     gate: Optional[Gate] = None
     visitor_gate: Optional[str] = None              # visitor | alerts | visitor_or_alerts | env:NAME (only when that env var is 1)
+    deploy_hold_exempt: bool = False                # 27 Nov 2026: a short job whose restart costs at most a re-run is never held by a waiting deploy
     catchup: bool = True                            # a job that never succeeded is due at once (first start / boot catch-up); False for jobs that send mail or follow visitors
     boot: bool = False                              # a first-start load: BOOT_LOAD_ENABLED=0 stops it from starting just because it never ran
     external: bool = False
@@ -211,6 +212,7 @@ LIMIT_POLICY: Dict[str, str] = {
     "coverage": "deadline: stops itself after --max-minutes 13 and records what it checked (limit 22)",
     "calendars": "fixed: two provider calendars (IPO and results dates); measured about 9 s",
     "ipo-prices": "deadline: no new file after --max-minutes 10 and at most --max-dates 250 listing dates a run, one file a second (limit 14)",
+    "deals": "deadline: no new request after --max-minutes 8, today's three NSE files plus at most --backfill-months 1 month of history (three requests), one a second, and it stops after 5 refusals (limit 12)",
     "ipo-gmp": "deadline: no new page or NSE request after --max-minutes 10, at most --limit 300 pages and --nse-limit 80 NSE books a run, one a second (limit 14)",
     "quotes": "deadline: no new slice after --max-minutes 7 (each slice followed up inside it), Dhan phase 90 s, a company 30 s (limit 10)",
     "alerts-live": "fixed: members' own alerts only; measured about 3 s",
@@ -227,6 +229,8 @@ LIMIT_POLICY: Dict[str, str] = {
     "scores-export": "database: reads stored scores and screen lists only, at most one new day plus 3 back-fill days a run; measured in seconds",
     "presets": "database: builds the prebuilt screens from tables already held and runs the eleven chart-pattern scans on the stored daily candles; screens about 4 s, scans a few minutes (its own guard, so a scan problem never stops the screens)",
     "leadership": "database: weekly labels from stored prices, Saturdays only",
+    "watchlist-prices": "database: reads members' saved watchlists and stored daily closes; writes only the missing added prices; measured in seconds",
+    "peer-labels": "database: one time, builds the weekly peer-label record from the stored weekly readings (task #409)",
     "score-mf": "database: scores from tables already held; measured about 2 s",
     "mf-screen": "database: one transaction over tables already held; measured about 4 s",
     "backtest-leadership": "database: quarterly, stored weekly prices only",
@@ -283,6 +287,11 @@ def build_jobs(env: Optional[Mapping[str, str]] = None) -> List[Job]:
         Job("ipo-prices", ("refresh-ipo-prices", "--max-dates", "250", "--max-minutes", "10"), priority=3, max_runtime_min=14, weight_mb=120, honours_pause=False,
             stall_min=12, interval_min=30, sla=Sla("none"),
             what="Each listed IPO's listing-day open, high, low and close, and its latest close, from the NSE and BSE daily price files (all-IPOs table, IPO report)"),
+        # NSE posts the day's bulk and block files after the close: every 30 minutes from 16:00 to 22:00 IST on weekdays, and once in the morning
+        # (the previous evening's files if the evening runs missed them, and the next month of history). docs/DEALS.md
+        Job("deals", ("refresh-deals", "--backfill-months", "1", "--max-minutes", "8"), priority=3, max_runtime_min=12, weight_mb=60, honours_pause=False,
+            stall_min=10, interval_min=30, active_hours=(16, 21), day_rule=_weekdays, windows=(W("MORNING", 10),), sla=Sla("none"),
+            deploy_hold_exempt=True, what="NSE's bulk, block and short-selling deals (today's files, then two years of history a month a run): Bulk & Block Deals page, IPO report, company report"),
         Job("calendars", ("refresh-calendars",), priority=3, max_runtime_min=10, weight_mb=60, honours_pause=False, stall_min=10,
             interval_min=40, active_hours=(8, 23), windows=(W("MORNING", 4),), sla=Sla("active", 1.0), visitor_gate="env:RESULTS_NEED_VISITOR",
             owns=("results_calendar", "ipo_calendar"), what="IPO and results calendars (board-meeting dates)"),
@@ -338,7 +347,7 @@ def build_jobs(env: Optional[Mapping[str, str]] = None) -> List[Job]:
         Job("price-sections", ("refresh-price-sections", "--max-minutes", "40"), cls="bulk", priority=11, max_runtime_min=50, weight_mb=200, resumable=True,
             prerequisites=("candles",), probe="price-sections", min_gap_min=30,
             windows=(W("AFTER_CLOSE", 0), W("MORNING", 0)), sla=Sla("session", 12), owns=("price_sections",),
-            what="the price charts (1M to MAX, and 3Y on daily candles) of every stored report from daily_candles, after the candles job: every chart ends on the latest close, no part-day candle; no provider calls"),
+            deploy_hold_exempt=True, what="the price charts (1M to MAX, and 3Y on daily candles) of every stored report from daily_candles, after the candles job: every chart ends on the latest close, no part-day candle; no provider calls"),
         # weekend nights only, at the lowest bulk priority (owner, 18 Nov 2026; docs/JOBS.md "The sector job on weekend nights"): one full build a week on the
         # week's data up to Friday's close; every daily and weekly job of the night goes first; never on a weekday night
         Job("sectors", ("refresh-sectors",), cls="bulk", priority=95, max_runtime_min=90, weight_mb=SECTORS_WEIGHT_MB, stall_min=45, prerequisites=("technicals",), resumable=True,
@@ -363,7 +372,7 @@ def build_jobs(env: Optional[Mapping[str, str]] = None) -> List[Job]:
         Job("presets", ("refresh-presets",), cls="bulk", priority=42, max_runtime_min=40, weight_mb=350, windows=(W("NIGHT", 20), W("MORNING", 14)), sla=Sla("hours", 30),
             prerequisites=("prism", "price-sections"), catchup=False,
             probe="presets", min_gap_min=60,   # task #394: candles that arrive after the night's run move the lists the same day, with the charts
-            what="prebuilt screens: momentum and growth scores, industry breadth and theme states, every screen's list into the cache (after the Prism batch; database only)"),
+            deploy_hold_exempt=True, what="prebuilt screens: momentum and growth scores, industry breadth and theme states, every screen's list into the cache (after the Prism batch; database only)"),
         # task #326: one file per market day for the owner's archive, started by the presets job's completion (its probe sees the finished day without a file;
         # presets is its prerequisite, so it never reads while the lists are being rewritten). Stored results only: a few seconds. Back-fill of earlier days,
         # a few a run, only in the night shift. A run with nothing to do is a success (weekends, holidays).
@@ -408,6 +417,14 @@ def build_jobs(env: Optional[Mapping[str, str]] = None) -> List[Job]:
         Job("leadership", ("refresh-leadership", "--if-stale", "--backfill-from", "2022-10-01"), cls="bulk", priority=45, max_runtime_min=60, weight_mb=250,
             windows=(W("NIGHT", 144),), day_rule=_saturday, sla=Sla("hours", 192), boot=True, owns=("leadership",),
             what="weekly Leader / In line / Laggard labels (Saturday, after Friday's close)"),
+        # task #408: the price each watchlist entry was added at ("Since added"). While an entry saved before the page stored it has a close to take (probe
+        # "watchlist-prices"), fill it from the stored daily closes. Idempotent: once every entry has its price the probe says no and it does not run.
+        Job("watchlist-prices", ("backfill-watchlist-prices",), priority=46, max_runtime_min=10, weight_mb=80, stall_min=8, probe="watchlist-prices", min_gap_min=60,
+            sla=Sla("none"), catchup=False, owns=(), what="watchlist entries without an added price: the close of the day they were added, from the stored daily prices (task #408)"),
+        # task #409: one time. While the weekly peer-label record is empty and stored weekly readings exist (probe "peer-labels"), build it from them with
+        # the two-run rule, so every page reads one label from the day this ships, not from the next Saturday. Afterwards the probe says no: it never runs again.
+        Job("peer-labels", ("rebuild-peer-labels",), cls="bulk", priority=44, max_runtime_min=20, weight_mb=250, probe="peer-labels", min_gap_min=30,
+            sla=Sla("none"), catchup=False, owns=(), what="one time: the weekly peer-label record from the stored weekly readings (task #409)"),
         Job("portfolios", ("refresh-portfolios",), cls="bulk", priority=50, max_runtime_min=120, weight_mb=200, group="funds", windows=night_morning,
             sla=Sla("hours", 26), resumable=True, gate=FUNDS_GATE, boot=True, what="fund holdings, sector split and exit loads (resumable)"),
         Job("score-mf", ("score-mf",), cls="bulk", priority=55, max_runtime_min=60, weight_mb=250, group="funds", windows=night_morning,

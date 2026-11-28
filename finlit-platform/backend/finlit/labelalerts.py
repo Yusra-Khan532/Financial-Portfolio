@@ -1,8 +1,10 @@
-"""'Tell me when a label changes' (the Watchlists page): a Silver or Gold member picks, per list, Any change, Only to Laggard or Only to Leader, and is told
-when a stock on that list moves to a new published Leader / In line / Laggard label in the weekly check. The choice is saved with the list in the
-member's watchlist (`labelAlert` on a list: "any", "laggard" or "leader"). Dedupe is the primary key of auto_alert_sent (user, symbol,
-kind = label_change, period = the run's Friday), so a member hears about one change of one stock once, however often the alert run repeats.
-Information only: the message says what the label now is and that it describes past prices, never what to do."""
+"""Peer label alerts (the Watchlists page): a member on a paid plan picks, per list, Any change, Only to Laggard, Only to Leader or Off, and is told when
+a stock on that list moves to a new published Leader / In line / Laggard label in the weekly check. Task #408 ("Alerts for this list", 05-alerts): the
+choice is the list's `alerts.peer` ("any", "laggard", "leader" or "off"); a list saved before it keeps its older `labelAlert` ("any", "laggard" or
+"leader"); a list with neither gets no peer-label alert (nothing changes until the member presses Save, though the page shows the pack's default,
+Any change). Dedupe is the primary key of auto_alert_sent (user, symbol, kind = label_change,
+period = the run's Friday), so a member hears about one change of one stock once, however often the alert run repeats.
+Information only: the message says what the label now is and that it describes the price, never what to do."""
 
 from __future__ import annotations
 
@@ -19,22 +21,35 @@ CHOICES = ("any", "laggard", "leader")
 WORD = {"leader": "Leader", "in_line": "In line", "laggard": "Laggard"}
 KIND = "label_change"
 PER_RUN = 20          # at most this many per member per run, so a first run cannot flood anyone
-FOOTER = "The label describes how the share price did over the last 12 months against similar companies. It is not investment advice."
+FOOTER = "This describes the price; it is not advice."
+
+
+def pick_of(lst: Dict[str, Any]) -> str:
+    """A list's peer-label choice: `alerts.peer` (task #408), else the older `labelAlert`, else "off" (a list never saved has none). "off" means none."""
+    al = lst.get("alerts")
+    if isinstance(al, dict) and (al.get("peer") in CHOICES or al.get("peer") == "off"):
+        return al["peer"]
+    if lst.get("labelAlert") in CHOICES:
+        return lst["labelAlert"]
+    return "off"
 
 
 def choices(raw: Any) -> Dict[str, Set[str]]:
-    """symbol -> the label-alert choices of every list it is on (a list without a choice adds nothing)."""
+    """symbol -> the peer-label choices of every list it is on (a list switched off adds nothing)."""
     try:
         data = json.loads(raw) if isinstance(raw, str) else (raw or {})
     except ValueError:
         return {}
     out: Dict[str, Set[str]] = {}
     for lst in (data.get("lists") or []) if isinstance(data, dict) else []:
-        if not isinstance(lst, dict) or lst.get("labelAlert") not in CHOICES:
+        if not isinstance(lst, dict):
+            continue
+        pick = pick_of(lst)
+        if pick not in CHOICES:
             continue
         for sym in lst.get("symbols") or []:
             if isinstance(sym, str) and sym:
-                out.setdefault(sym.upper(), set()).add(lst["labelAlert"])
+                out.setdefault(sym.upper(), set()).add(pick)
     return out
 
 
@@ -43,24 +58,29 @@ def wanted(picked: Set[str], new: str) -> bool:
 
 
 def message(row: Dict[str, Any]) -> Tuple[str, str]:
-    name, group = row.get("name") or row["symbol"], row.get("group_short") or row.get("group_name") or "similar"
-    title = f"{row['symbol']} is now {WORD[row['label']]} against its peers"
-    body = (f"{name} moved from {WORD[row['before']]} to {WORD[row['label']]} in the weekly check of {row['as_of'].strftime('%d %b %Y')}. "
-            f"It ranks {row['rank']} of {row['ranked']} {group} companies on price over 12 months. {FOOTER}")
+    """05-alerts: "{SYM} is now {label}" / "After the {d Mon} weekly check, {SYM} is {label} against its {group} peers (it was {previous}). ..." """
+    sym, group = row["symbol"], row.get("group_short") or row.get("group_name") or "similar"
+    day = row["as_of"]
+    title = f"{sym} is now {WORD[row['label']]}"
+    body = (f"After the {day.day} {day.strftime('%b')} weekly check, {sym} is {WORD[row['label']]} against its {group} peers (it was {WORD[row['before']]}). "
+            f"{FOOTER}")
     return title, body
 
 
 async def changes(conn) -> Tuple[Optional[Any], List[Dict[str, Any]]]:
-    """The stocks whose published label changed in the latest weekly run, with the label they had before. A stock seen for the first time has no 'before'
-    and is not a change."""
-    as_of = await conn.fetchval("SELECT max(as_of) FROM leadership")
-    if as_of is None:
+    """Task #409: the stocks whose label changed in the latest weekly run, from the weekly record (peerlabels.py): rows with changed = true of the
+    latest current run, written by a real weekly run (source 'run'). The one-time rebuild's rows never alert. 'before' is the label of the stock's
+    previous stored row. A stock seen for the first time is never 'changed'."""
+    week = await conn.fetchval("SELECT max(week_end) FROM peer_label_run WHERE status = 'current'")
+    if week is None:
         return None, []
     rows = await conn.fetch(
-        "SELECT l.symbol, l.name, l.label, l.rank, l.ranked, l.group_short, l.group_name, l.as_of, "
-        "(SELECT h.label FROM leadership_history h WHERE h.symbol = l.symbol AND h.run_date < l.as_of AND h.label IS NOT NULL ORDER BY h.run_date DESC LIMIT 1) AS before "
-        "FROM leadership l WHERE l.as_of = $1 AND l.label_since = $1 AND l.label IS NOT NULL", as_of)
-    return as_of, [dict(r) for r in rows if r["before"] and r["before"] != r["label"] and r["label"] in WORD and r["before"] in WORD]
+        "SELECT w.symbol, l.name, w.label, w.rank, w.ranked, l.group_short, l.group_name, w.week_end AS as_of, "
+        "(SELECT p.label FROM peer_label_week p JOIN peer_label_run pr ON pr.run_id = p.run_id AND pr.status = 'current' "
+        " WHERE p.symbol = w.symbol AND p.week_end < w.week_end ORDER BY p.week_end DESC LIMIT 1) AS before "
+        "FROM peer_label_week w JOIN peer_label_run r ON r.run_id = w.run_id AND r.status = 'current' LEFT JOIN leadership l ON l.symbol = w.symbol "
+        "WHERE w.week_end = $1 AND w.changed AND w.source = 'run'", week)
+    return week, [dict(r) for r in rows if r["before"] and r["before"] != r["label"] and r["label"] in WORD and r["before"] in WORD]
 
 
 async def auto_label_alerts(pool, mailer: Mailer, site_url: str) -> int:
@@ -71,7 +91,7 @@ async def auto_label_alerts(pool, mailer: Mailer, site_url: str) -> int:
             return 0
         users = await conn.fetch(
             "SELECT u.id, u.email, s.watchlist, s.prefs FROM users u JOIN user_state s ON s.user_id = u.id "
-            "WHERE u.status = 'active' AND u.email_verified_at IS NOT NULL AND u.plan IN ('silver', 'gold') "
+            "WHERE u.status = 'active' AND u.email_verified_at IS NOT NULL AND u.plan IN ('silver', 'gold', 'mfetf', 'equity', 'combined', 'platinum') "
             "AND (u.plan_until IS NULL OR u.plan_until > now())")
         for u in users:
             picks = choices(u["watchlist"])

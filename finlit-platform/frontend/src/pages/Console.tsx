@@ -6,8 +6,9 @@ import { ApiError, apiGet, apiSend, apiUrl } from "../lib/api";
 import { useIpos } from "../lib/ipo";
 import { useFeed } from "../lib/feed";
 import * as acct from "../lib/account";
-import { useAuth } from "../lib/auth";
-import { TIER, useUI } from "../lib/ui";
+import { keyOf, PLAN_KEYS, tierOf, useAuth } from "../lib/auth";
+import { planName } from "../lib/planNames";
+import { useUI } from "../lib/ui";
 import { Icon } from "../lib/icons";
 import { useDocTitle } from "../lib/title";
 import { ScoreAdminPanel } from "../mf/ScoreAdminPanel";
@@ -18,6 +19,7 @@ import { MacroAdmin } from "../components/admin/MacroAdmin";
 import { BriefAdmin } from "../components/admin/BriefAdmin";
 import { Monitoring } from "../components/admin/Monitoring";
 import { StorageAdmin } from "../components/admin/StorageAdmin";
+import { VisitorsAdmin } from "../components/admin/VisitorsAdmin";
 import { MailAdmin } from "../components/admin/MailAdmin";
 import { AnswerCheck } from "../components/admin/AnswerCheck";
 import { LabAccess } from "../components/admin/LabAccess";
@@ -73,10 +75,10 @@ function Features() {
 export function Console() {
   useDocTitle("Admin console", "FinLit administrators: manage members, plans and the audit log.");
   const { user, ready, isAdmin } = useAuth();
-  type Tab = "users" | "requests" | "lab" | "content" | "data" | "storage" | "monitoring" | "macro" | "brief" | "mail" | "ai" | "audit";
+  type Tab = "users" | "requests" | "lab" | "content" | "data" | "storage" | "visitors" | "monitoring" | "macro" | "brief" | "mail" | "ai" | "audit";
   const [sp] = useSearchParams();   // task #281 round 7: /console?tab=data opens Data health directly (a link, or a browser assistant following steps)
   const asked = sp.get("tab");
-  const [tab, setTab] = useState<Tab>((["users", "requests", "lab", "content", "data", "storage", "monitoring", "macro", "brief", "mail", "ai", "audit"] as Tab[]).includes(asked as Tab) ? (asked as Tab) : "requests");
+  const [tab, setTab] = useState<Tab>((["users", "requests", "lab", "content", "data", "storage", "visitors", "monitoring", "macro", "brief", "mail", "ai", "audit"] as Tab[]).includes(asked as Tab) ? (asked as Tab) : "requests");
   if (!ready) return <div className="wrap state" role="status"><div className="skeleton" style={{ height: 14, width: 200, margin: "40px auto" }} /></div>;
   if (!user) return <Navigate to="/login?next=%2Fconsole" replace />;
   if (!isAdmin) return <div className="wrap state"><h1 className="ui-title">Administrators only</h1><p className="muted">This area is for the FinLit team.</p><Link className="btn" to="/dashboard">Back to your dashboard</Link></div>;
@@ -85,7 +87,7 @@ export function Console() {
     <div className="wrap console">
       <header className="dash-h"><div><div className="eyebrow">Admin</div><h1 className="ui-title">Console</h1><p className="muted">Members, plan requests and the audit trail. Blog posts and website enquiries are in the <Link to="/admin">content tools</Link> (no second sign-in).</p></div></header>
       <div className="seg" role="tablist" aria-label="Console sections" style={{ marginBottom: 18 }}>
-        {([["requests", "Plan requests"], ["users", "Members"], ["lab", "Trading Lab access"], ["content", "Calendar & news"], ["data", "Data health"], ["storage", "Storage"], ["monitoring", "Monitoring"], ["macro", "Macro outlook"], ["brief", "Company brief"], ["mail", "Email"], ["ai", "FinLit AI"], ["audit", "Audit log"]] as const).map(([k, l]) => <button key={k} role="tab" aria-selected={tab === k} aria-pressed={tab === k} onClick={() => setTab(k)}>{l}</button>)}
+        {([["requests", "Plan requests"], ["users", "Members"], ["lab", "Trading Lab access"], ["content", "Calendar & news"], ["data", "Data health"], ["storage", "Storage"], ["visitors", "Visitors"], ["monitoring", "Monitoring"], ["macro", "Macro outlook"], ["brief", "Company brief"], ["mail", "Email"], ["ai", "FinLit AI"], ["audit", "Audit log"]] as const).map(([k, l]) => <button key={k} role="tab" aria-selected={tab === k} aria-pressed={tab === k} onClick={() => setTab(k)}>{l}</button>)}
       </div>
       {tab === "requests" && <Requests />}
       {tab === "users" && <Users />}
@@ -93,6 +95,7 @@ export function Console() {
       {tab === "content" && <ContentAdmin />}
       {tab === "data" && <><Health /><ScoreAdminPanel /><FundLoads /><AmfiImport /><FundFiles /><LogoCoverage /><Features /><NotifyList /></>}
       {tab === "storage" && <StorageAdmin />}
+      {tab === "visitors" && <VisitorsAdmin />}
       {tab === "monitoring" && <Monitoring />}
       {tab === "macro" && <MacroAdmin />}
       {tab === "brief" && <BriefAdmin />}
@@ -115,7 +118,7 @@ function Requests() {
       <h2>Open requests</h2>
       {!rows.length ? <p className="muted">No open requests.</p> : (
         <div className="tw"><table className="qtt"><thead><tr><th>Member</th><th>Has</th><th>Wants</th><th>Note</th><th>Asked</th><th /></tr></thead>
-          <tbody>{rows.map((r) => <tr key={r.id}><td>{r.email}</td><td><span className={"tier " + r.currentPlan}>{TIER[r.currentPlan].n}</span></td><td><span className={"tier " + r.plan}>{TIER[r.plan].n}</span></td><td>{r.note || "—"}</td><td>{day(r.createdAt)}</td>
+          <tbody>{rows.map((r) => <tr key={r.id}><td>{r.email}</td><td><span className={"tier " + tierOf(r.currentPlan)}>{planName(keyOf(r.currentPlan))}</span></td><td><span className={"tier " + tierOf(r.plan)}>{planName(r.plan === "silver" ? "gold" : keyOf(r.plan))}</span></td><td>{r.note || "—"}</td><td>{day(r.createdAt)}</td>
             <td className="ra"><button className="btn primary" disabled={grant.isPending} onClick={() => grant.mutate(r)}>Grant 1 year</button> <button className="btn" disabled={decline.isPending} onClick={() => decline.mutate(r.id)}>Decline</button></td></tr>)}</tbody></table></div>
       )}
       {(grant.isError || decline.isError) && <div className="formerr">{msg(grant.error || decline.error)}</div>}
@@ -138,7 +141,7 @@ function Users() {
       <div className="tw"><table className="qtt"><thead><tr><th>Member</th><th>Plan</th><th>Until</th><th>Status</th><th>2-step</th><th>Joined</th><th>Last sign-in</th></tr></thead>
         <tbody>{list.data?.users.map((u) => (
           <tr key={u.id}><td><b>{u.email}</b>{u.name ? <small className="muted"> · {u.name}</small> : null}{u.role === "admin" && <span className="chip gold" style={{ marginLeft: 6 }}>Admin</span>}{!u.verified && <><span className="chip" style={{ marginLeft: 6 }}>Unverified</span> <button className="btn" style={{ marginLeft: 6, padding: "2px 10px" }} onClick={() => patch.mutate({ id: u.id, b: { verify_email: true } })}>Confirm email</button></>}</td>
-            <td><select aria-label={`Plan for ${u.email}`} value={u.plan} onChange={(e) => patch.mutate({ id: u.id, b: { plan: e.target.value as acct.AdminUser["plan"], plan_days: e.target.value === "basic" ? undefined : 365 } })}>{(["basic", "silver", "gold"] as const).map((p) => <option key={p} value={p}>{TIER[p].n}</option>)}</select></td>
+            <td><select aria-label={`Plan for ${u.email}`} value={keyOf(u.plan)} onChange={(e) => patch.mutate({ id: u.id, b: { plan: e.target.value as acct.AdminUser["plan"], plan_days: e.target.value === "free" ? undefined : 365 } })}>{PLAN_KEYS.map((p) => <option key={p} value={p}>{planName(p)}</option>)}</select></td>
             <td>{day(u.planUntil)}</td>
             <td><button className="btn" onClick={() => patch.mutate({ id: u.id, b: { status: u.status === "active" ? "disabled" : "active" } })}>{u.status === "active" ? "Disable" : "Enable"}</button>{" "}<button className="btn" onClick={() => { const up = u.role !== "admin"; if (window.confirm(up ? `Make ${u.email} an administrator? They will set up their own authenticator app at their next sign-in.` : `Remove administrator access from ${u.email}?`)) patch.mutate({ id: u.id, b: { role: up ? "admin" : "investor" } }); }}>{u.role === "admin" ? "Remove admin" : "Make admin"}</button></td>
             <td>{u.mfa ? <Icon name="check" /> : "—"}</td><td>{day(u.createdAt)}</td><td>{day(u.lastLoginAt)}</td></tr>))}</tbody></table></div>

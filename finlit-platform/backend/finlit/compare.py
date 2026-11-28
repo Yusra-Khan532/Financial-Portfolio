@@ -13,7 +13,7 @@ from typing import List
 from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel, Field, field_validator
 
-from .auth.entitlements import LIMITS
+from .auth.entitlements import LIMITS, part_of
 from .auth.routes import NO_STORE, SYMBOL, fail, need_plan, read_limit, secure_ctx, user_ctx
 from .auth.service import Ctx, current
 from .screener.catalog import BY_KEY, GROUP_LABEL, allowed, offered
@@ -94,7 +94,7 @@ async def metrics(request: Request, body: MetricsIn):
     if locked:
         tier = "gold" if any(BY_KEY[k].tier == "gold" for k in locked) else "silver"
         names = ", ".join(BY_KEY[k].label for k in locked[:3])
-        raise fail(403, "plan_required", f"{names} {'is' if len(locked) == 1 else 'are'} part of the {tier.title()} plan.", plan=tier, keys=locked)
+        raise fail(403, "plan_required", f"{names} {'is' if len(locked) == 1 else 'are'} part of {part_of(tier)}.", plan=tier, keys=locked)
     t = await get_table(request.app.state.store)
     companies, values = [], {k: {} for k in body.keys}
     for sym in body.symbols:

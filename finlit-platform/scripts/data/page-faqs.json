@@ -176,7 +176,7 @@
    },
    {
     "q": "How many baskets can I keep?",
-    "a": "3 with a free account, 20 with Silver and 100 with Gold."
+    "a": "3 with a free account, 20 on Mutual Fund + ETF, Equity Portfolio and the combined plan, and 100 on Gold and Platinum."
    },
    {
     "q": "Why did a basket's count change?",
@@ -200,7 +200,7 @@
    },
    {
     "q": "What is in a report?",
-    "a": "The FinLit Prism score and how it has moved, then sections for the company, the macro and sector outlook, what is going well and what to watch, price, latest quarter, financials, trends, chart lab, ratios, DuPont analysis, earnings and cash quality, ownership, peers, where the company stands, triggers, segments, dividends and community discussions. Use All sections to jump between them. Labels such as Basic, Silver and Gold show which plan opens each section."
+    "a": "The FinLit Prism score and how it has moved, then sections that go from the company out to its industry, its sector and the economy: the company, what is going well and what to watch, price, latest quarter, financials, trends, segments, ratios, DuPont analysis, earnings and cash quality, dividends, ownership, peers, where the company stands, the economy and its sector, news and filings, and community discussions. Use All sections to jump between them. Labels such as Basic, Silver and Gold show which plan opens each section."
    },
    {
     "q": "What does the FinLit Prism score at the top mean?",
@@ -486,7 +486,7 @@
   "items": [
    {
     "q": "How is the SIP value worked out?",
-    "a": "With the standard formula: monthly SIP × ((1 + i)^n − 1) ÷ i, where i is the annual return ÷ 12 and n the number of monthly instalments, paid at the end of each month. How it is worked out shows your numbers in the formula."
+    "a": "With the standard formula: monthly SIP × ((1 + i)^n − 1) ÷ i, where i is the annual return ÷ 12 and n the number of monthly instalments, paid at the end of each month."
    },
    {
     "q": "Why is my result different from another app?",
@@ -943,31 +943,31 @@
   "items": [
    {
     "q": "How do I add a stock?",
-    "a": "Type it in “Add a stock to this list”. You can also add stocks from a company's report (Watchlist) or from the screeners (Add to watchlist)."
+    "a": "Type it in “Add a stock to this list”. You can also add stocks from a company’s report (Watchlist) or from the screeners (Add to watchlist)."
    },
    {
     "q": "Can I have more than one list?",
-    "a": "Yes. Select + New list and switch between your lists at the top. Rename or delete the list you are on with the links under them."
+    "a": "Yes. Select + New list and switch between your lists at the top. Rename or delete the list you are on with Rename and Delete this list beside them."
    },
    {
-    "q": "How do I group and sort my stocks?",
-    "a": "Group by Against peers, Industry or Size with the buttons over the table, and select a column name (Company, Price, P/E, ROE, Size, the score or Against peers) to sort by it. Select it again to reverse the order."
+    "q": "How do I switch columns, group and sort?",
+    "a": "Choose Price, Prism, Business or Sectors over the table to switch the columns, pick Against peers, Industry or Size under Group by, and select a column name to sort by it. Select it again to reverse the order."
    },
    {
     "q": "What are targets and notes for?",
     "a": "Your own reminders: set a target price and a note on why you are watching. Targets are not predictions, and FinLit does not tell you when to buy or sell."
    },
    {
-    "q": "What does \"Need a second look\" count?",
-    "a": "The cards over the table name the stocks worth a second look: a share price far ahead of the business score (or the other way round), most of the list in one industry, and stocks with no peer tag yet. They describe the figures; they are not advice."
+    "q": "What does “Needs a look” show?",
+    "a": "The stocks with something new: a price within 5% of your target, a move of 5% or more in a day, results due within 7 days, a peer label that changed in the weekly check, a new filing of one of Discover’s eight kinds, a price within 2% of its 52-week high or low, a screen in the Advanced screener it joined this week, an industry that moved in Sector Rotation, or a peer label that may change next week. They describe the figures; they are not advice."
    },
    {
     "q": "Can I set an alert from here?",
-    "a": "Yes. Select the bell on a stock to create an alert, or use “Tell me when a label changes” to hear when a stock on the list becomes a Leader, In line or a Laggard after the weekly check. The bin takes a stock off the list."
+    "a": "Yes. Select the bell on a stock for an alert on that stock, or use “Alerts for this list” for target, peer label and filing alerts on every stock on the list. Details on a stock has Remove from this list."
    },
    {
     "q": "Where are my lists saved?",
-    "a": "Lists, notes and targets are saved in this browser."
+    "a": "In your FinLit account, so the same lists, notes and targets show on every device you sign in on. Target alerts use the targets saved there."
    }
   ]
  },

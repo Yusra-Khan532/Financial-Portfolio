@@ -7,7 +7,7 @@ import { ApiError, apiGet } from "../../../lib/api";
 import { Hideable } from "../../Hideable";
 import { Cards, Scroll, Section, StateChip, Tip, BoxChip } from "../../sectors/pack/Common";
 import { LockedBlock } from "../../sectors/Parts";
-import { BOX, groupsN, keyOf, short } from "../../../lib/pulsePack";
+import { BOX, allChip, keyOf, ofSectors, short } from "../../../lib/pulsePack";
 import type { RotationMap, RotationRow } from "../../../lib/rotation";
 import type { GroupRow, IndustryPage, RankedStock } from "../../../lib/sectors";
 import { BOXES, BOX_HELP, BOX_MEANING, breadthWord, byBox, climbers26, fullCards, inRotFilter, lastMonth, move, nextBox, pc, rankAgo, rowSummary, sixMonthRankCards, sixMonths, threeMonths, twelveWeekCards, type Box, type RotFilter } from "../../../lib/rotationPack";
@@ -28,7 +28,7 @@ function Opened({ r }: { r: RotationRow }) {
     <div className="rp-open">
       <p>{rowSummary(r)} <Link to={gl(r.slug)} className="sp-link">Open the {short(r.name)} page →</Link></p>
       {q.isLoading ? <div className="sx-skel" style={{ height: 80 }} role="status" aria-label={`Loading the stocks of ${short(r.name)}`} />
-        : q.data && q.data.stocks == null ? <LockedBlock plan="silver" title={rw("The stocks of each industry are part of the Silver plan")}>{rw("The boxes and ranks are open to everyone. Silver lists each industry's stocks, strongest 6 months first.")}</LockedBlock>
+        : q.data && q.data.stocks == null ? <LockedBlock plan="silver" title={rw("The stocks of each industry are part of every paid plan")}>{rw("The boxes and ranks are open to everyone. Silver lists each industry's stocks, strongest 6 months first.")}</LockedBlock>
         : stocks.length ? <div className="rp-open-l"><div><p className="sp-cap sp-good">Strongest 6-month stocks</p><ul>{best.map(li)}</ul></div>{weak.length > 0 && <div><p className="sp-cap sp-red">Weakest</p><ul>{weak.map(li)}</ul></div>}</div>
         : <p className="sp-nil">{rw("No stock list for this industry right now.")}</p>}
     </div>
@@ -42,7 +42,7 @@ export function RankingRot({ m, mine, pulse, bell }: { m: RotationMap; mine: Set
   const rows = useMemo(() => m.rows.filter((r) => inRotFilter(r, f, mine)), [m, f, mine]);
   const groups = byBox(rows);
   const n = (x: RotFilter) => m.rows.filter((r) => inRotFilter(r, x, mine)).length;
-  const filters: [RotFilter, string][] = [["all", `All ${m.rows.length}`], ...BOXES.map((b) => [b, `${BOX[b].word} · ${n(b)}`] as [RotFilter, string]), ["next", `May change next week · ${n("next")}`], ...(mine.size ? [["yours", rw(`Your industries · ${n("yours")}`)] as [RotFilter, string]] : [])];
+  const filters: [RotFilter, string][] = [["all", allChip(m.rows.length)], ...BOXES.map((b) => [b, `${BOX[b].word} · ${n(b)}`] as [RotFilter, string]), ["next", `May change next week · ${n("next")}`], ...(mine.size ? [["yours", rw(`Your industries · ${n("yours")}`)] as [RotFilter, string]] : [])];
   const cls = (v: number | null) => (v == null ? "" : v > 0 ? "sp-good" : v < 0 ? "sp-red" : "");
   return (
     <Section id="rp-rank" title={rw("Ranking of every industry")} help={rw("Ranking of every industry. Every ranked group on one list this week, 1 the strongest, grouped by box: its rank and moves, its box and how long it has been there, how it did against the average group, how many of its stocks take part, and its rank over 26 weeks.")} sub={rw("Grouped by box, strongest rank first. Click an industry for its summary and its strongest and weakest stocks.")}>
@@ -103,7 +103,7 @@ export function SixMonthRanks({ m }: { m: RotationMap }) {
         <div className="sp-sec-h"><div><h2 id="rp-six">Six months of ranks<Tip text={rw("Each industry's rank at every weekly close for six months. Dark green is near the top of the ranking, dark red near the bottom.")} /></h2>
           <p className="sp-sub">{rw("Each row is an industry, each square a week. Dark green is near the top of the ranking, dark red near the bottom. Sorted by this week's rank.")}</p></div></div>
         <p className="rp-heatkey"><span>Rank 1 (strongest)</span><i aria-hidden="true" /><span>Rank {n} (weakest)</span></p>
-        <Scroll label="six months of ranks"><svg className="rp-heat" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Ranks of ${groupsN(rows.length)} at ${cols} weekly closes`}>
+        <Scroll label="six months of ranks"><svg className="rp-heat" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Ranks of ${ofSectors(rows.length)} at ${cols} weekly closes`}>
           {weeks.map((d, j) => (cols - 1 - j) % 4 === 0 && <text key={d} x={FX + j * FS + 10} y={14} className="rp-hd" textAnchor="middle">{dm(d)}</text>)}
           <text x={FX + cols * FS + 40} y={14} className="rp-hd" textAnchor="middle">4 wks</text>
           {rows.map((r, k) => { const y = FT + k * FR, by = new Map(r.rank_history.map((p) => [p.date, p.rank])); return (

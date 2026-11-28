@@ -275,7 +275,7 @@ def plan_payload(payload: Dict[str, Any], plan: str) -> Dict[str, Any]:
     if plan == "gold":
         return {**payload, "plan": "gold"}
     if plan != "silver":
-        raise ValueError("Stress Lab is on the Silver and Gold plans")
+        raise ValueError("Stress Lab is on the Platinum plan")
     return {**payload, "plan": "silver",
             "scenarios": [s for s in payload["scenarios"] if s["id"] in SILVER_SCENARIOS],
             "locked_scenarios": [{"id": s["id"], "name": s["name"]} for s in payload["scenarios"]

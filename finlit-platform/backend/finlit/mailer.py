@@ -1,6 +1,9 @@
 """Mail from contact@finlitventures.com through Amazon SES (task #387, owner's choice 24 Nov 2026).
 
-The team uploads a list (CSV or Excel) with where those people gave their address, writes one mail, sends a test to itself, then sends in batches.
+The team writes one mail on one screen ("Send an email", 28 Nov 2026): picks who gets it (every FinLit member and/or the lists it uploaded), sees it as
+people will, sends itself a test, then sends to everyone chosen with one click. Members are copied onto the mail list (source "FinLit members") so
+the same rules hold for them. Problems from Amazon SES are said in plain words with what to do (plain_error), and an account-level stop (test mode,
+daily limit, wrong keys, paused account) halts the sender instead of failing every remaining person.
 Every mail carries a one-click unsubscribe (List-Unsubscribe and List-Unsubscribe-Post headers, RFC 8058, plus a link in the footer); an address that
 unsubscribed is never mailed again. Bounces and complaints are held back by SES's account-level suppression list. Nobody gets the same mail twice
 (mail_sends is unique per mail and person). Administrators only (signed in with the authenticator code), except the unsubscribe link.
@@ -24,7 +27,8 @@ import re
 import time
 from datetime import datetime, timezone
 from email.message import EmailMessage
-from email.utils import formataddr, make_msgid
+from email import message_from_bytes, policy as email_policy
+from email.utils import formataddr, formatdate, make_msgid, parseaddr
 from html import escape
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 from urllib.parse import quote
@@ -87,6 +91,28 @@ class SesError(Exception):
     pass
 
 
+def raw_sender(raw: bytes) -> str:
+    """The address a raw mail is sent from: its own From when that is on the finlitventures.com domain (a personal address such as
+    pranshu@finlitventures.com, which SES's domain identity allows), otherwise contact@."""
+    try:
+        addr = parseaddr(str(message_from_bytes(raw, policy=email_policy.default).get("From", "")))[1].lower()
+    except Exception:
+        return FROM_ADDRESS
+    return addr if valid_from_address(addr) else FROM_ADDRESS
+
+
+def raw_from_header(raw: bytes) -> str:
+    """What SES is told the mail is from: the raw mail's own From WITH its display name ("Pranshu Mishra <pranshu@finlitventures.com>").
+    SES puts FromEmailAddress in the From the person sees, so a bare address here dropped the name (founder's test, 28 Nov 2026: Gmail showed
+    "pranshu" instead of "Pranshu Mishra"). The address is always the checked one from raw_sender."""
+    addr = raw_sender(raw)
+    try:
+        name = parseaddr(str(message_from_bytes(raw, policy=email_policy.default).get("From", "")))[0].strip()
+    except Exception:
+        name = ""
+    return formataddr((name or FROM_NAME, addr))
+
+
 async def ses_send_raw(http: httpx.AsyncClient, to: str, raw: bytes) -> str:
     """Send one raw message through SES v2; returns SES's MessageId. Raises SesError with SES's own reason."""
     cfg = ses_config()
@@ -94,7 +120,7 @@ async def ses_send_raw(http: httpx.AsyncClient, to: str, raw: bytes) -> str:
         raise SesError("SES is not set up on the server (SES_REGION, SES_ACCESS_KEY_ID, SES_SECRET_ACCESS_KEY)")
     region, key_id, secret = cfg
     host, path = f"email.{region}.amazonaws.com", "/v2/email/outbound-emails"
-    body = json.dumps({"FromEmailAddress": formataddr((FROM_NAME, FROM_ADDRESS)), "Destination": {"ToAddresses": [to]},
+    body = json.dumps({"FromEmailAddress": raw_from_header(raw), "Destination": {"ToAddresses": [to]},   # the shown name is the raw mail's own From
                        "Content": {"Raw": {"Data": base64.b64encode(raw).decode("ascii")}}}).encode("utf-8")
     headers = {"content-type": "application/json"}
     headers.update(sigv4_headers("POST", host, path, "", body, region, "ses", key_id, secret, extra=headers))
@@ -106,6 +132,72 @@ async def ses_send_raw(http: httpx.AsyncClient, to: str, raw: bytes) -> str:
             reason = r.text[:200]
         raise SesError(f"SES {r.status_code}: {reason}")
     return r.json().get("MessageId", "")
+
+
+MEMBERS = "FinLit members"     # the source name members get on the mail list
+HALT_KEY = "mail:halt"         # why the sender stopped (an account-level problem), until the next send or "Carry on"
+
+# SES's own reasons, said plainly with the fix. Order matters: the first match wins.
+PLAIN: List[Tuple["re.Pattern[str]", str, bool]] = [   # (pattern, plain words, stops the whole send)
+    (re.compile(r"not set up", re.I),
+     "Sending is not set up on the server: the Amazon SES keys (SES_REGION, SES_ACCESS_KEY_ID, SES_SECRET_ACCESS_KEY) are missing from .env.aws.", True),
+    (re.compile(r"not verified|sandbox", re.I),
+     "Amazon SES is still in test mode (the sandbox): it only delivers to addresses verified in SES. That is why a test to your own verified "
+     "address can arrive while the send to everyone fails. Fix: in the AWS console open SES, Account dashboard, then Request production access; "
+     "once Amazon approves it, press Try the failed ones again.", True),
+    (re.compile(r"daily message quota|sending quota|quota exceeded|max ?24 ?hour", re.I),
+     "Today's Amazon SES sending limit is used up. The rest can go when the limit resets (24 hours after the first mails): press Carry on then, "
+     "or ask AWS for a higher limit (SES, Account dashboard).", True),
+    (re.compile(r"security token|InvalidClientTokenId|SignatureDoesNotMatch|UnrecognizedClient|not authorized|AccessDenied|SES 403", re.I),
+     "Amazon SES refused the server's key: the key in .env.aws is wrong, expired or not allowed to send from finlitventures.com.", True),
+    (re.compile(r"paused|suspended", re.I),
+     "Amazon has paused sending for this account (often after too many bounces or spam reports). Open SES, Account dashboard, to see why.", True),
+    (re.compile(r"Maximum sending rate|Throttl|TooManyRequests|SES 429", re.I),
+     "Amazon SES asked to slow down; the sender waits and tries again by itself.", False),
+    (re.compile(r"Illegal address|Missing final|domain|mailbox", re.I),
+     "This address cannot receive mail (it is malformed or its domain has no mail server).", False),
+    (re.compile(r"timed out|Timeout|ConnectError|connection", re.I),
+     "Amazon SES did not answer in time; this person can be tried again.", False),
+]
+
+
+def plain_error(err: Optional[str]) -> Tuple[str, bool]:
+    """SES's reason in plain words, and whether it stops the whole send (an account problem, not one address)."""
+    for pat, words, stop in PLAIN:
+        if err and pat.search(err):
+            return words, stop
+    return (f"Amazon SES said: {err}" if err else "Unknown problem"), False
+
+
+_account_cache: Dict[str, Any] = {"at": 0.0, "v": None}
+
+
+async def ses_account() -> Dict[str, Any]:
+    """The SES account's state (GET /v2/email/account): test mode or not, the daily limit and what was sent in the last 24 hours. Kept a
+    minute. If the key may not read the account, the page says so quietly and carries on without it."""
+    cfg = ses_config()
+    if not cfg:
+        return {"read": False}
+    if _account_cache["v"] is not None and time.monotonic() - _account_cache["at"] < 60:
+        return _account_cache["v"]
+    region, key_id, secret = cfg
+    host, path = f"email.{region}.amazonaws.com", "/v2/email/account"
+    headers = sigv4_headers("GET", host, path, "", b"", region, "ses", key_id, secret)
+    v: Dict[str, Any]
+    try:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(8.0, connect=5.0)) as h:
+            r = await h.get(f"https://{host}{path}", headers=headers)
+        if r.status_code != 200:
+            v = {"read": False, "why": f"SES {r.status_code}"}
+        else:
+            j = r.json()
+            q = j.get("SendQuota") or {}
+            v = {"read": True, "production": bool(j.get("ProductionAccessEnabled")), "sendingEnabled": j.get("SendingEnabled", True) is not False,
+                 "max24h": q.get("Max24HourSend"), "sent24h": q.get("SentLast24Hours"), "maxPerSecond": q.get("MaxSendRate")}
+    except (httpx.HTTPError, ValueError) as e:
+        v = {"read": False, "why": str(e)[:120]}
+    _account_cache.update(at=time.monotonic(), v=v)
+    return v
 
 
 # ------------------------------------------------------------------------------------------------ the list
@@ -208,24 +300,80 @@ def _html_para(p: str) -> str:
     return "<br>".join(LINK.sub(lambda m: f'<a href="{m.group(1)}" style="color:#1F6F50">{m.group(1)}</a>', escape(line)) for line in p.split("\n"))
 
 
+FORMATS = ("personal", "plain", "html")
+# "Personal note" (founder, 28 Nov 2026: a plain-text test still landed in Gmail's Promotions): a mail from a person, for small sends only.
+PERSONAL_MAX = 500
+# Personal note: no footer at all, exactly as the founder writes it (founder, 28 Nov 2026: "remove these lines ... just send as a normal mail").
+# A "stop" reply is recorded with "Unsubscribe an address" in the Console.
+PERSONAL_FOOT = ""
+DOMAIN = FROM_ADDRESS.split("@", 1)[1]
+LOCAL_OK = re.compile(r"^[a-z0-9._-]{1,40}$")
+
+
+def valid_from_address(addr: Optional[str]) -> bool:
+    """An address on our own domain only (SES's domain identity sends from any of them), with a simple local part."""
+    a = (addr or "").strip().lower()
+    local, _, dom = a.partition("@")
+    return dom == DOMAIN and bool(LOCAL_OK.match(local)) and not local.startswith(".") and ".." not in local
+
+
+def from_address_of(value: Optional[str]) -> Optional[str]:
+    """The form's From address (a local part such as "pranshu", or the whole address) as the full address; None for contact@ or empty.
+    Raises ValueError when it is not an address on our domain."""
+    v = (value or "").strip().lower()
+    if not v:
+        return None
+    full = v if "@" in v else f"{v}@{DOMAIN}"
+    if not valid_from_address(full):
+        raise ValueError(f"The From address must be on {DOMAIN}, like pranshu@{DOMAIN} (letters, digits, dots, dashes).")
+    return None if full == FROM_ADDRESS else full
+# A "From name" is shown in the inbox before the subject; the address is always contact@. Printable words only: no address, no line break.
+FROM_NAME_OK = re.compile(r"^[^\r\n<>@\"\x00-\x1f]{2,80}$")
+
+
+def from_header(from_name: Optional[str], from_address: Optional[str] = None) -> str:
+    n = (from_name or "").strip()
+    addr = from_address if valid_from_address(from_address) else FROM_ADDRESS
+    return formataddr((n if n and FROM_NAME_OK.match(n) else FROM_NAME, addr))
+
+
+def personal(body: str, name: Optional[str]) -> str:
+    """The body for one person. Only an explicit {name} is replaced (by the first name, or "there" when none is known); a body without it is
+    sent exactly as written, so nobody ever sees an invented name."""
+    return body.replace("{name}", first_name(name)).strip() if "{name}" in body else body.strip()
+
+
 def build_message(subject: str, body: str, why: str, to: str, name: Optional[str], unsub_url: str,
-                  button_text: Optional[str] = None, button_url: Optional[str] = None) -> EmailMessage:
-    """A plain-text and HTML mail with the one-click unsubscribe headers. {name} in the body becomes the first name. The optional button sits
-    under the text (in the plain-text copy it is the words and the link)."""
-    text = body.replace("{name}", first_name(name)).strip()
+                  button_text: Optional[str] = None, button_url: Optional[str] = None, fmt: str = "html",
+                  from_name: Optional[str] = None, from_address: Optional[str] = None) -> EmailMessage:
+    """One mail. Three formats:
+    - "personal" (the default for new mails since 28 Nov 2026, for at most PERSONAL_MAX people): a mail from a person: text only, no
+      List-Unsubscribe headers, Reply-To the sender's own address, a two-line footer ("reply 'stop'"); a 'stop' reply is recorded in the Console.
+    The other two carry the one-click unsubscribe headers:
+    - "plain" (the default for new mails since 28 Nov 2026): text only, like a mail one person writes to another, which Gmail most often keeps in
+      Primary; links are written out, the button is a line "words: link", no HTML part and nothing to track;
+    - "html": the designed mail with the button, plus the same text as a plain copy."""
+    text = personal(body, name)
     if button_text and button_url:
         text += f"\n\n{button_text.strip()}: {button_url.strip()}"
-    foot = f"{why.strip()}\nUnsubscribe: {unsub_url}\n{DISCLAIMER}\nFinLit Ventures · {FROM_ADDRESS} · https://finlitventures.com"
+    sender = from_address if valid_from_address(from_address) else FROM_ADDRESS
     m = EmailMessage()
-    m["From"] = formataddr((FROM_NAME, FROM_ADDRESS))
+    m["From"] = from_header(from_name, sender)
     m["To"] = to
     m["Subject"] = subject.strip()
-    m["Reply-To"] = FROM_ADDRESS
+    m["Date"] = formatdate(localtime=False)
+    m["Reply-To"] = sender
     m["Message-ID"] = make_msgid(domain="finlitventures.com")
+    if fmt == "personal":
+        m.set_content(f"{text}\n\n{PERSONAL_FOOT}\n" if PERSONAL_FOOT else f"{text}\n")
+        return m
+    foot = f"{why.strip()}\nUnsubscribe: {unsub_url}\n{DISCLAIMER}\nFinLit Ventures · {FROM_ADDRESS} · https://finlitventures.com"
     m["List-Unsubscribe"] = f"<{unsub_url}>, <mailto:{FROM_ADDRESS}?subject={quote('unsubscribe')}>"
     m["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click"
     m.set_content(f"{text}\n\n--\n{foot}\n")
-    body_text = body.replace("{name}", first_name(name)).strip()
+    if fmt == "plain":
+        return m
+    body_text = personal(body, name)
     paras = "".join(f'<p style="margin:0 0 14px">{_html_para(p)}</p>' for p in re.split(r"\n\s*\n", body_text) if p.strip())
     if button_text and button_url:
         paras += (f'<p style="margin:22px 0 8px"><a href="{escape(button_url.strip())}" style="display:inline-block;background:#1F6F50;color:#ffffff;'
@@ -239,6 +387,29 @@ def build_message(subject: str, body: str, why: str, to: str, name: Optional[str
             f"</div></body></html>")
     m.add_alternative(html, subtype="html")
     return m
+
+
+CAMPAIGN_COLS = "subject, body, why, button_text, button_url, format, from_name, from_address"
+
+
+def message_for(k: Any, to: str, name: Optional[str], unsub: str, subject_prefix: str = "") -> EmailMessage:
+    """One stored mail (a mail_campaigns row with CAMPAIGN_COLS) for one person."""
+    return build_message(subject_prefix + k["subject"], k["body"], k["why"], to, name, unsub, k["button_text"], k["button_url"],
+                         k["format"] or "html", k["from_name"], k["from_address"])
+
+
+def preview_html(m: EmailMessage) -> str:
+    """The mail as a page for the Console: the HTML part, or for a plain mail its text as a mail app shows it. Only for the Console, never sent:
+    every address is wrapped in <!--email_off-->, because Cloudflare's Email Obfuscation rewrites addresses in HTML served through the site
+    (it showed "[email protected]" in the footer on 28 Nov 2026)."""
+    html = next((p.get_content() for p in m.walk() if p.get_content_type() == "text/html"), None)
+    if html is None:
+        text = next(p.get_content() for p in m.walk() if p.get_content_type() == "text/plain")
+        linked = LINK.sub(lambda x: '<a href="' + x.group(1) + '" style="color:#1a0dab">' + x.group(1) + "</a>", escape(text))
+        html = ('<!doctype html><html><body style="margin:0;padding:20px;background:#ffffff;color:#1d1d1b">'
+                '<div style="max-width:620px;white-space:pre-wrap;word-wrap:break-word;font:15px/1.55 Arial,Helvetica,sans-serif">'
+                f"{linked}</div></body></html>")
+    return re.sub(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}", lambda x: f"<!--email_off-->{x.group(0)}<!--/email_off-->", html)
 
 
 def unsub_url(settings: Any, contact_id: int) -> str:
@@ -271,15 +442,27 @@ async def drain(app) -> Dict[str, int]:
                 for r in rows:
                     async with store.pool.acquire() as conn:
                         c = await conn.fetchrow("SELECT email, name, status FROM mail_contacts WHERE id = $1", r["contact_id"])
-                        k = await conn.fetchrow("SELECT subject, body, why, button_text, button_url FROM mail_campaigns WHERE id = $1", r["campaign_id"])
+                        k = await conn.fetchrow(f"SELECT {CAMPAIGN_COLS} FROM mail_campaigns WHERE id = $1", r["campaign_id"])  # nosec B608 - a constant
                     if not c or not k or c["status"] != "active":
                         status, mid, err = "skipped", None, (f"address is {c['status']}" if c else "contact removed")
                     else:
                         try:
-                            msg = build_message(k["subject"], k["body"], k["why"], c["email"], c["name"], unsub_url(app.state.settings, r["contact_id"]), k["button_text"], k["button_url"])
+                            msg = message_for(k, c["email"], c["name"], unsub_url(app.state.settings, r["contact_id"]))
                             mid, status, err = await ses_send_raw(http, c["email"], msg.as_bytes()), "sent", None
                         except (SesError, httpx.HTTPError) as e:
                             status, mid, err = "failed", None, str(e)[:300]
+                            words, stop = plain_error(err)
+                            if stop or "slow down" in words:
+                                # An account problem (test mode, daily limit, wrong key, paused): this person and everyone after them stay queued, the
+                                # sender stops and the page says why, instead of failing every remaining person. Slowing down: wait, then carry on.
+                                async with store.pool.acquire() as conn:
+                                    await conn.execute("UPDATE mail_sends SET status = 'queued' WHERE status = 'sending'")
+                                if stop:
+                                    await store.redis.set(HALT_KEY, json.dumps({"reason": words, "error": err, "at": datetime.now(timezone.utc).isoformat()}))
+                                    done["halted"] = 1
+                                    return done
+                                await asyncio.sleep(2)
+                                break
                     async with store.pool.acquire() as conn:
                         await conn.execute("UPDATE mail_sends SET status = $2, message_id = $3, error = $4, sent_at = CASE WHEN $2 = 'sent' THEN now() END "
                                            "WHERE id = $1", r["id"], status, mid, err)
@@ -312,13 +495,92 @@ async def _run(app) -> None:
             await conn.execute("UPDATE mail_sends SET status = 'queued' WHERE status = 'sending'")
 
 
+# ------------------------------------------------------------------------------------------------ who gets a mail
+async def sync_members(conn) -> int:
+    """Every active FinLit member onto the mail list (source "FinLit members"), so a mail to members keeps the list's rules: one-click
+    unsubscribe, never twice, never after unsubscribing. An address already on the list (from an upload) keeps its row. Returns how many were added."""
+    return await conn.fetchval(
+        "WITH ins AS (INSERT INTO mail_contacts (email, name, source) SELECT DISTINCT ON (lower(u.email)) lower(u.email), u.name, $1 FROM users u "
+        "WHERE u.status = 'active' AND u.email LIKE '%_@_%.__%' ORDER BY lower(u.email), u.created_at ON CONFLICT (email) DO NOTHING RETURNING 1) "
+        "SELECT count(*) FROM ins", MEMBERS)
+
+
+# The people one send reaches: active list rows that are members (when chosen), come from a chosen list, or are among the addresses pasted into
+# "These addresses" (owner, 28 Nov 2026: "I can send the mail for like 5 to 6 persons"). m: members?, s: the lists, e: the pasted addresses.
+def audience_sql(m: str = "$1", s: str = "$2", e: str = "$3") -> str:
+    return (f"c.status = 'active' AND (({m}::bool AND c.email IN (SELECT lower(u.email) FROM users u WHERE u.status = 'active')) "  # nosec B608 - only placeholder names ($1..$5) go in; the values are parameters
+            f"OR c.source = ANY({s}::text[]) OR c.email = ANY({e}::text[]))")
+
+
+AUDIENCE = audience_sql()
+
+
+def hand_source(now: Optional[datetime] = None) -> str:
+    """The list name pasted addresses are kept under, e.g. "Added by hand, 28 Nov 2026"."""
+    d = now or datetime.now(timezone.utc)
+    return f"Added by hand, {d.day} {d.strftime('%b %Y')}"
+
+
+def pasted_split(emails: Iterable[str]) -> Dict[str, Any]:
+    """The pasted addresses through the import's own checks (valid, not a misspelt domain, once each); no guess at a correction."""
+    return clean({"email": e} for e in emails)
+
+
+async def add_pasted(conn, emails: List[str]) -> Dict[str, Any]:
+    """Put pasted addresses on the list (under today's "Added by hand" name; an address already there keeps its row and its status, so an
+    unsubscribed person stays unsubscribed). Returns the addresses to mail and every one left out, with its reason."""
+    c = pasted_split(emails)
+    async with httpx.AsyncClient(timeout=httpx.Timeout(8.0, connect=5.0)) as http:
+        nomx = set(await domains_without_mail(http, (e.split("@", 1)[1] for e in c["good"])))
+    no_server = [e for e in c["good"] if e.split("@", 1)[1] in nomx]
+    good = [e for e in c["good"] if e.split("@", 1)[1] not in nomx]
+    if good:
+        await conn.execute("INSERT INTO mail_contacts (email, name, source) SELECT e, NULL, $2 FROM unnest($1::text[]) AS e "
+                           "ON CONFLICT (email) DO NOTHING", good, hand_source())
+    gone = await conn.fetch("SELECT email FROM mail_contacts WHERE email = ANY($1::text[]) AND status <> 'active' ORDER BY email", good)
+    return {"emails": good, "invalid": c["invalid"], "typos": c["typos"], "noMailServer": no_server, "unsubscribed": [r["email"] for r in gone]}
+
+
+async def audience_count(conn, members: bool, sources: List[str], campaign: Optional[int] = None, emails: Optional[List[str]] = None) -> int:
+    """How many people a send to this audience reaches (leaving out those who already had `campaign`). Pasted addresses not on the list yet
+    count too (they are added when the mail is sent); each person counts once."""
+    pasted = list(pasted_split(emails or [])["good"])
+    q = f"SELECT count(*) FROM mail_contacts c WHERE {AUDIENCE}"  # nosec B608 - a constant; the values are parameters
+    args: List[Any] = [members, sources, pasted]
+    if campaign:
+        q += " AND NOT EXISTS (SELECT 1 FROM mail_sends s WHERE s.campaign_id = $4 AND s.contact_id = c.id)"
+        args.append(campaign)
+    n = await conn.fetchval(q, *args)
+    if pasted:
+        n += await conn.fetchval("SELECT count(*) FROM unnest($1::text[]) AS e WHERE NOT EXISTS (SELECT 1 FROM mail_contacts c WHERE c.email = e)", pasted)
+    return n
+
+
+async def halted(redis) -> Optional[Dict[str, Any]]:
+    raw = await redis.get(HALT_KEY)
+    if not raw:
+        return None
+    try:
+        return json.loads(raw)
+    except ValueError:
+        return {"reason": str(raw)}
+
+
 # ------------------------------------------------------------------------------------------------ routes
 @router.get("/admin/mail")
 async def summary(request: Request, _ctx=Depends(admin_ctx)):
     async with request.app.state.store.pool.acquire() as conn:
+        await sync_members(conn)
+        mem = await conn.fetchrow(
+            "SELECT (SELECT count(*) FROM users WHERE status = 'active') AS members, "
+            "(SELECT count(*) FROM users WHERE status = 'active' AND email_verified_at IS NULL) AS unconfirmed, "
+            "(SELECT count(*) FROM mail_contacts c WHERE c.status = 'active' AND c.email IN (SELECT lower(email) FROM users WHERE status = 'active')) AS mailable, "
+            "(SELECT count(*) FROM mail_contacts c WHERE c.status <> 'active' AND c.email IN (SELECT lower(email) FROM users WHERE status = 'active')) AS optedout")
+        lists = await conn.fetch("SELECT source, count(*) FILTER (WHERE status = 'active') AS n, count(*) FILTER (WHERE status <> 'active') AS out "
+                                 "FROM mail_contacts WHERE source <> $1 GROUP BY source ORDER BY min(created_at) DESC", MEMBERS)
         contacts = await conn.fetch("SELECT source, status, count(*) AS n FROM mail_contacts GROUP BY source, status ORDER BY source, status")
         camps = await conn.fetch(
-            "SELECT k.id, k.subject, k.body, k.why, k.button_text, k.button_url, k.created_at, k.updated_at, "
+            "SELECT k.id, k.subject, k.body, k.why, k.button_text, k.button_url, k.format, k.from_name, k.from_address, k.created_at, k.updated_at, "
             "(SELECT count(*) FROM mail_contacts c WHERE c.status = 'active' AND NOT EXISTS (SELECT 1 FROM mail_sends x WHERE x.campaign_id = k.id "
             "AND x.contact_id = c.id)) AS remaining, "
             "count(s.id) FILTER (WHERE s.status = 'queued' OR s.status = 'sending') AS queued, count(s.id) FILTER (WHERE s.status = 'sent') AS sent, "
@@ -328,12 +590,66 @@ async def summary(request: Request, _ctx=Depends(admin_ctx)):
                                   "GROUP BY campaign_id, error ORDER BY n DESC LIMIT 10")
         sending = await conn.fetchval("SELECT count(*) FROM mail_sends WHERE status = 'sending'")
         stuck = await conn.fetchval("SELECT count(*) FROM mail_sends WHERE status IN ('queued', 'sending')")
-    if stuck and not await request.app.state.store.redis.exists(SENDER_KEY):
+    redis = request.app.state.store.redis
+    halt = await halted(redis)
+    if stuck and not halt and not await redis.exists(SENDER_KEY):
         async with request.app.state.store.pool.acquire() as conn:
             await conn.execute("UPDATE mail_sends SET status = 'queued' WHERE status = 'sending'")
         start_sender(request.app)        # a restart left mail queued: carry on
-    return out({"ready": ses_config() is not None, "from": formataddr((FROM_NAME, FROM_ADDRESS)), "ratePerSecond": RATE_PER_SECOND, "sendingNow": bool(sending or stuck),
-                "contacts": [dict(r) for r in contacts], "campaigns": [dict(r) for r in camps], "errors": [dict(r) for r in errors]})
+    plain_errors = []
+    for r in errors:
+        words, stop = plain_error(r["error"])
+        plain_errors.append({**dict(r), "plain": words, "account": stop})
+    return out({"ready": ses_config() is not None, "from": formataddr((FROM_NAME, FROM_ADDRESS)), "ratePerSecond": RATE_PER_SECOND,
+                "sendingNow": bool((sending or stuck) and not halt), "halted": halt, "account": await ses_account(),
+                "members": dict(mem), "lists": [dict(r) for r in lists],
+                "contacts": [dict(r) for r in contacts], "campaigns": [dict(r) for r in camps], "errors": plain_errors})
+
+
+class AudienceIn(BaseModel):
+    members: bool = False
+    sources: List[str] = Field(default_factory=list, max_length=50)
+    emails: List[str] = Field(default_factory=list, max_length=MAX_BATCH)    # "These addresses", pasted
+
+
+@router.post("/admin/mail/audience")
+async def audience(request: Request, body: AudienceIn, campaign: Optional[int] = None, _ctx=Depends(admin_ctx)):
+    """How many people a send to this choice reaches now (members and lists overlap: each person counts once)."""
+    async with request.app.state.store.pool.acquire() as conn:
+        if body.members:
+            await sync_members(conn)
+        n = await audience_count(conn, body.members, [s for s in body.sources if s], campaign, body.emails)
+    return out({"n": n})
+
+
+class DraftIn(BaseModel):
+    subject: str = Field(default="", max_length=150)
+    body: str = Field(default="", max_length=20000)
+    why: str = Field(default="", max_length=300)
+    buttonText: Optional[str] = Field(default=None, max_length=60)
+    buttonUrl: Optional[str] = Field(default=None, max_length=500)
+    format: str = Field(default="personal", pattern="^(personal|plain|html)$")
+    fromName: Optional[str] = Field(default=None, max_length=80)
+    fromAddress: Optional[str] = Field(default=None, max_length=120)
+
+
+def admin_name(ctx: Any) -> Optional[str]:
+    """The name a test or preview fills {name} with: the signed-in admin's own (never an invented sample); none gives "there"."""
+    return (getattr(ctx, "name", None) or "").strip() or None
+
+
+@router.post("/admin/mail/preview")
+async def preview_draft(request: Request, body: DraftIn, ctx=Depends(admin_ctx)):
+    """The mail as it will look, from the form as it stands (nothing saved); {name} is the admin's own first name. Also names any advice words."""
+    bt, bu = (body.buttonText or "").strip() or None, (body.buttonUrl or "").strip() or None
+    try:
+        fa = from_address_of(body.fromAddress)
+    except ValueError:
+        fa = None
+    m = build_message(body.subject or "(no subject)", body.body or "", body.why or "", "preview@example.com", admin_name(ctx),
+                      f"{request.app.state.settings.public_site_url}/api/mail/unsubscribe?t=preview", bt if bu else None, bu if bt else None,
+                      body.format, body.fromName, fa)
+    return out({"html": preview_html(m), "from": m["From"], "adviceWords": wording_problems(body.subject, body.body, bt or "")})
 
 
 class ImportIn(BaseModel):
@@ -347,6 +663,8 @@ async def import_list(request: Request, body: ImportIn, _ctx=Depends(admin_ctx))
     source = body.source.strip()
     if len(source) < 3:
         return out({"detail": "Say where these people gave their address (for example the event name and month)."}, 422)
+    if source.lower() == MEMBERS.lower():
+        return out({"detail": f'"{MEMBERS}" is the name of the site\'s own members; give this list another name.'}, 422)
     try:
         data = base64.b64decode(body.data, validate=True)
     except ValueError:
@@ -380,11 +698,21 @@ class CampaignIn(BaseModel):
     why: str = Field(min_length=10, max_length=300)
     buttonText: Optional[str] = Field(default=None, max_length=60)
     buttonUrl: Optional[str] = Field(default=None, max_length=500)
+    format: str = Field(default="personal", pattern="^(personal|plain|html)$")      # a personal note unless the form chose another
+    fromName: Optional[str] = Field(default=None, max_length=80)
+    fromAddress: Optional[str] = Field(default=None, max_length=120)                # e.g. "pranshu" or pranshu@finlitventures.com; empty: contact@
 
 
 @router.post("/admin/mail/campaigns")
 async def save_campaign(request: Request, body: CampaignIn, id: Optional[int] = None, ctx=Depends(admin_ctx)):
     bt, bu = (body.buttonText or "").strip() or None, (body.buttonUrl or "").strip() or None
+    fn = (body.fromName or "").strip() or None
+    if fn and not FROM_NAME_OK.match(fn):
+        return out({"detail": "The From name can have 2 to 80 letters, without an @ sign, quotes or angle brackets."}, 422)
+    try:
+        fa = from_address_of(body.fromAddress)
+    except ValueError as e:
+        return out({"detail": str(e)}, 422)
     if bool(bt) != bool(bu):
         return out({"detail": "A button needs both its words and its link."}, 422)
     if bu and not re.match(r"^https://[^\s<>\"']+$", bu):
@@ -396,68 +724,156 @@ async def save_campaign(request: Request, body: CampaignIn, id: Optional[int] = 
         if id:
             if await conn.fetchval("SELECT count(*) FROM mail_sends WHERE campaign_id = $1", id):
                 return out({"detail": "This mail has already been sent to some people; make a new mail instead of changing it."}, 409)
-            row = await conn.fetchrow("UPDATE mail_campaigns SET subject = $2, body = $3, why = $4, button_text = $5, button_url = $6, updated_at = now() "
-                                      "WHERE id = $1 RETURNING id", id, body.subject, body.body, body.why, bt, bu)
+            row = await conn.fetchrow("UPDATE mail_campaigns SET subject = $2, body = $3, why = $4, button_text = $5, button_url = $6, format = $7, "
+                                      "from_name = $8, from_address = $9, updated_at = now() WHERE id = $1 RETURNING id", id, body.subject, body.body,
+                                      body.why, bt, bu, body.format, fn, fa)
         else:
-            row = await conn.fetchrow("INSERT INTO mail_campaigns (subject, body, why, button_text, button_url, created_by) VALUES ($1, $2, $3, $4, $5, $6) "
-                                      "RETURNING id", body.subject, body.body, body.why, bt, bu, ctx.user_id)
+            row = await conn.fetchrow("INSERT INTO mail_campaigns (subject, body, why, button_text, button_url, format, from_name, from_address, "
+                                      "created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id", body.subject, body.body, body.why, bt, bu,
+                                      body.format, fn, fa, ctx.user_id)
     return out({"id": row["id"]} if row else {"detail": "No such mail"}, 200 if row else 404)
 
 
 @router.get("/admin/mail/campaigns/{cid}/preview")
-async def preview(request: Request, cid: int, _ctx=Depends(admin_ctx)):
+async def preview(request: Request, cid: int, ctx=Depends(admin_ctx)):
     async with request.app.state.store.pool.acquire() as conn:
-        k = await conn.fetchrow("SELECT subject, body, why, button_text, button_url FROM mail_campaigns WHERE id = $1", cid)
+        k = await conn.fetchrow(f"SELECT {CAMPAIGN_COLS} FROM mail_campaigns WHERE id = $1", cid)  # nosec B608 - a constant
     if not k:
         return out({"detail": "No such mail"}, 404)
-    m = build_message(k["subject"], k["body"], k["why"], "preview@example.com", "Priya Sharma", f"{request.app.state.settings.public_site_url}/api/mail/unsubscribe?t=preview",
-                      k["button_text"], k["button_url"])
-    html = next(p for p in m.walk() if p.get_content_type() == "text/html").get_content()
-    return Response(content=html, media_type="text/html", headers={**NO_STORE, "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'"})
+    m = message_for(k, "preview@example.com", admin_name(ctx), f"{request.app.state.settings.public_site_url}/api/mail/unsubscribe?t=preview")
+    return Response(content=preview_html(m), media_type="text/html", headers={**NO_STORE, "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'"})
 
 
 class TestIn(BaseModel):
-    to: str = Field(max_length=254)
+    to: str = Field(max_length=1300)      # one address, or up to MAX_TESTS separated by commas, semicolons or spaces
+
+
+MAX_TESTS = 5
 
 
 @router.post("/admin/mail/campaigns/{cid}/test")
-async def send_test(request: Request, cid: int, body: TestIn, _ctx=Depends(admin_ctx)):
-    to = body.to.strip().lower()
-    if not EMAIL.match(to):
-        return out({"detail": "That is not an email address."}, 422)
+async def send_test(request: Request, cid: int, body: TestIn, ctx=Depends(admin_ctx)):
+    """A test, exactly as the people will get it, to one address or up to five (the admin and a few colleagues); each is marked [Test]. {name} is
+    the signed-in admin's own first name ("there" when none is set)."""
+    tos = list(dict.fromkeys(t.strip().strip("<>").lower() for t in re.split(r"[,;\s]+", body.to or "") if t.strip()))
+    if not tos:
+        return out({"detail": "Type the address to send the test to."}, 422)
+    if len(tos) > MAX_TESTS:
+        return out({"detail": f"A test goes to at most {MAX_TESTS} addresses."}, 422)
+    bad = [t for t in tos if not EMAIL.match(t)]
+    if bad:
+        return out({"detail": f"Not an email address: {', '.join(bad)}"}, 422)
     async with request.app.state.store.pool.acquire() as conn:
-        k = await conn.fetchrow("SELECT subject, body, why, button_text, button_url FROM mail_campaigns WHERE id = $1", cid)
+        k = await conn.fetchrow(f"SELECT {CAMPAIGN_COLS} FROM mail_campaigns WHERE id = $1", cid)  # nosec B608 - a constant
     if not k:
         return out({"detail": "No such mail"}, 404)
-    m = build_message("[Test] " + k["subject"], k["body"], k["why"], to, "Priya Sharma", f"{request.app.state.settings.public_site_url}/api/mail/unsubscribe?t=test",
-                      k["button_text"], k["button_url"])
-    try:
-        async with httpx.AsyncClient(timeout=httpx.Timeout(20.0, connect=10.0)) as http:
-            mid = await ses_send_raw(http, to, m.as_bytes())
-    except (SesError, httpx.HTTPError) as e:
-        return out({"detail": str(e)[:300]}, 502)
-    return out({"status": "sent", "messageId": mid})
+    sent: List[str] = []
+    failed: List[Dict[str, str]] = []
+    async with httpx.AsyncClient(timeout=httpx.Timeout(20.0, connect=10.0)) as http:
+        for to in tos:
+            m = message_for(k, to, admin_name(ctx), f"{request.app.state.settings.public_site_url}/api/mail/unsubscribe?t=test", "[Test] ")
+            try:
+                await ses_send_raw(http, to, m.as_bytes())
+                sent.append(to)
+            except (SesError, httpx.HTTPError) as e:
+                failed.append({"to": to, "detail": plain_error(str(e))[0], "ses": str(e)[:300]})
+    if not sent:
+        return out({"detail": failed[0]["detail"], "ses": failed[0]["ses"], "failed": failed}, 502)
+    return out({"status": "sent", "sent": sent, "failed": failed})
 
 
 class SendIn(BaseModel):
-    count: int = Field(ge=1, le=MAX_BATCH)
+    # Who: members and/or lists (the "Send an email" screen). `source` alone is the older one-list form, kept so a call written for it still works.
+    members: bool = False
+    sources: List[str] = Field(default_factory=list, max_length=50)
     source: Optional[str] = Field(default=None, max_length=160)
+    # "These addresses": pasted addresses, added to the list (as "Added by hand, <date>") with the import's checks, then sent to like the rest.
+    emails: List[str] = Field(default_factory=list, max_length=MAX_BATCH)
+    # How many now: everyone chosen when left out; a number only for "send in steps" (a new sender's warm-up), under More options.
+    count: Optional[int] = Field(default=None, ge=1, le=100000)
 
 
 @router.post("/admin/mail/campaigns/{cid}/send")
 async def send_batch(request: Request, cid: int, body: SendIn, _ctx=Depends(admin_ctx)):
-    """Queue the next `count` people who may be mailed and have not had this mail yet (optionally from one source), then start sending."""
+    """Queue everyone chosen who may be mailed and has not had this mail yet (or the next `count` of them), then start sending. A send clears an
+    earlier stop, so it is also how the team carries on once the account problem is fixed."""
     if not ses_config():
-        return out({"detail": "SES is not set up on the server."}, 503)
+        return out({"detail": plain_error("not set up")[0]}, 503)
+    sources = [s for s in ([*body.sources, body.source] if body.source else body.sources) if s]
+    members = body.members
+    left: Dict[str, Any] = {}
     async with request.app.state.store.pool.acquire() as conn:
-        if not await conn.fetchval("SELECT 1 FROM mail_campaigns WHERE id = $1", cid):
+        fmt = await conn.fetchval("SELECT format FROM mail_campaigns WHERE id = $1", cid)
+        if fmt is None:
             return out({"detail": "No such mail"}, 404)
+        if fmt == "personal":
+            # A personal note has no one-click unsubscribe header, which Gmail requires of bulk senders: small sends only.
+            had = await conn.fetchval("SELECT count(*) FROM mail_sends WHERE campaign_id = $1", cid)
+            more = await audience_count(conn, members, sources, cid, body.emails)
+            if body.count is not None:
+                more = min(more, body.count)
+            if had + more > PERSONAL_MAX:
+                return out({"detail": f"A personal note goes to at most {PERSONAL_MAX} people (this would be {had + more:,}). Choose Plain email for a "
+                                      "send this size: it keeps the one-click unsubscribe that Gmail requires of bulk senders."}, 422)
+        if members:
+            await sync_members(conn)
+        emails: List[str] = []
+        if body.emails:
+            left = await add_pasted(conn, body.emails)
+            emails = left.pop("emails")
+        if not members and not sources and not body.emails:
+            if body.count is None:
+                return out({"detail": "Choose who gets this mail: FinLit members, a list, or addresses under These addresses."}, 422)
+            where, args = "c.status = 'active'", []     # the older form without a source: everyone on the list
+        else:
+            where, args = audience_sql("$3", "$4", "$5"), [members, sources, emails]
         queued = await conn.fetchval(
-            "WITH ins AS (INSERT INTO mail_sends (campaign_id, contact_id) SELECT $1, c.id FROM mail_contacts c WHERE c.status = 'active' "
-            "AND ($3::text IS NULL OR c.source = $3) AND NOT EXISTS (SELECT 1 FROM mail_sends s WHERE s.campaign_id = $1 AND s.contact_id = c.id) "
-            "ORDER BY c.id LIMIT $2 ON CONFLICT DO NOTHING RETURNING 1) SELECT count(*) FROM ins", cid, body.count, body.source or None)
+            f"WITH ins AS (INSERT INTO mail_sends (campaign_id, contact_id) SELECT $1, c.id FROM mail_contacts c WHERE {where} "  # nosec B608 - constants
+            "AND NOT EXISTS (SELECT 1 FROM mail_sends s WHERE s.campaign_id = $1 AND s.contact_id = c.id) "
+            "ORDER BY c.id LIMIT $2 ON CONFLICT DO NOTHING RETURNING 1) SELECT count(*) FROM ins", cid, body.count, *args)
+    await request.app.state.store.redis.delete(HALT_KEY)
     start_sender(request.app)
-    return out({"queued": queued})
+    return out({"queued": queued, "leftOut": left} if body.emails else {"queued": queued})
+
+
+class StopIn(BaseModel):
+    email: str = Field(max_length=254)
+
+
+@router.post("/admin/mail/unsubscribe")
+async def record_stop(request: Request, body: StopIn, _ctx=Depends(admin_ctx)):
+    """Someone replied 'stop' to a personal note: they are never mailed again. An address not on the list yet is added as unsubscribed."""
+    e = body.email.strip().strip("<>").lower()
+    if not EMAIL.match(e):
+        return out({"detail": "That is not an email address."}, 422)
+    async with request.app.state.store.pool.acquire() as conn:
+        await conn.execute("INSERT INTO mail_contacts (email, source, status, unsubscribed_at) VALUES ($1, 'Unsubscribed by reply', 'unsubscribed', now()) "
+                           "ON CONFLICT (email) DO UPDATE SET status = 'unsubscribed', unsubscribed_at = coalesce(mail_contacts.unsubscribed_at, now())", e)
+        dropped = await conn.fetchval("WITH d AS (UPDATE mail_sends s SET status = 'skipped', error = 'address is unsubscribed' FROM mail_contacts c "
+                                      "WHERE s.contact_id = c.id AND c.email = $1 AND s.status = 'queued' RETURNING 1) SELECT count(*) FROM d", e)
+    return out({"status": "unsubscribed", "email": e, "droppedFromQueue": dropped})
+
+
+@router.post("/admin/mail/resume")
+async def resume(request: Request, _ctx=Depends(admin_ctx)):
+    """Carry on after a stop (test mode left, the daily limit reset, the key fixed): the queued mail goes again."""
+    await request.app.state.store.redis.delete(HALT_KEY)
+    _account_cache.update(at=0.0, v=None)
+    start_sender(request.app)
+    return out({"status": "sending"})
+
+
+@router.post("/admin/mail/campaigns/{cid}/retry")
+async def retry_failed(request: Request, cid: int, _ctx=Depends(admin_ctx)):
+    """Try the people this mail failed for again (for example after Amazon took the account out of test mode). Only failed rows; a person
+    who was sent the mail, or unsubscribed, is never mailed again."""
+    async with request.app.state.store.pool.acquire() as conn:
+        n = await conn.fetchval("WITH up AS (UPDATE mail_sends SET status = 'queued', error = NULL WHERE campaign_id = $1 AND status = 'failed' "
+                                "RETURNING 1) SELECT count(*) FROM up", cid)
+    await request.app.state.store.redis.delete(HALT_KEY)
+    _account_cache.update(at=0.0, v=None)
+    start_sender(request.app)
+    return out({"queued": n})
 
 
 async def _unsubscribe(request: Request, token: str) -> bool:

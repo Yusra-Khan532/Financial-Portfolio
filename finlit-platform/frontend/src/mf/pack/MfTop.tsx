@@ -9,7 +9,7 @@ import { Info } from "../../portfolio/shared";
 import { countOf } from "../../portfolio/shared/words";
 import type { MfTile, listBox, partsAverage } from "../../lib/mfTop";
 import type { MfView } from "./MfPack";
-import { ScoreHighLow } from "../ScoreHighLow";
+import { PartLine } from "../PartLine";
 import "./mf389.css";
 
 export function ListBox({ box, onUnits }: { box: ReturnType<typeof listBox>; onUnits: () => void }) {
@@ -59,15 +59,13 @@ export function MfCards({ score, tiles, colors, view, onView, partsOpen, onParts
     </section>);
 }
 
-/** The four Score parts, the plain average of the funds (Performance, Risk "higher = lower risk", Cost "higher = cheaper", Quality), each with a bar. */
+/** The four Score parts, the plain average of the funds (Performance, Risk, Cost, Quality), each with a bar and its "Higher is better: …" line (task #403). */
 export function MfParts({ parts, open }: { parts: ReturnType<typeof partsAverage>; open: boolean }) {
-  const hint: Record<string, string> = { risk: "higher = lower risk", cost: "higher = cheaper" };
   return <div className="px-parts" id="px-parts" hidden={!open}>
     <p className="px-pk">The four parts, average of your funds</p>
-    <div className="px-pg">{parts.map((p) => <div key={p.k} className="px-pt"><p>{p.label}{hint[p.k] && <small>{hint[p.k]}</small>}</p><b>{p.v ?? "–"}</b>
+    <div className="px-pg">{parts.map((p) => <div key={p.k} className="px-pt"><p>{p.label}<PartLine part={p.k} /></p><b>{p.v ?? "–"}</b>
       <span className="px-ptr" aria-hidden="true"><i style={{ width: `${p.v ?? 0}%` }} /></span></div>)}</div>
     <p className="px-pn">Each part is read against funds of the same category, 0 to 100. These are the plain averages of your funds; the score above weights them by value.</p>
-    <ScoreHighLow className="px-hl" />
   </div>;
 }
 

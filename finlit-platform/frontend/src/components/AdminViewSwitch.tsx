@@ -3,9 +3,10 @@
 // asked for again as the new view (lib/adminView adds the "view as" header; the server serves the request as that plan).
 import { useAuth } from "../lib/auth";
 import { getAdminView, setAdminView, type AdminView } from "../lib/adminView";
+import { planName } from "../lib/planNames";
 import "../styles/adminView.css";
 
-const LABEL: Record<AdminView, string> = { all: "Everything", basic: "Basic", silver: "Silver", gold: "Gold" };
+const LABEL: Record<AdminView, string> = { all: "Everything", free: planName("free"), mfetf: planName("mfetf"), equity: planName("equity"), combined: planName("combined"), gold: planName("gold"), platinum: planName("platinum") };   // task #410
 const go = (v: AdminView) => { setAdminView(v); window.location.reload(); };
 
 export function AdminViewSwitch({ className = "" }: { className?: string }) {

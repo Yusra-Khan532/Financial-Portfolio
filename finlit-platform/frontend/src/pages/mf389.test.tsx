@@ -31,7 +31,7 @@ import { foldSentence } from "../portfolio/pack/EqSteps385";
 import { KnowPop } from "../portfolio/pack/Round388";
 import { MF_PORTFOLIO_FAQ } from "../content/mfPortfolioFaqs";
 import { planName } from "../lib/planNames";
-import { PLAN_FOR_PORTFOLIO } from "../lib/planGates";
+import { PLAN_FOR_FUND_PORTFOLIO } from "../lib/planGates";
 
 globalThis.ResizeObserver ??= class { observe() {} unobserve() {} disconnect() {} } as never;
 const ln = (id: string, units: number, nav: number, boughtOn: string, pf: string): Line => ({ id, units, invested: Math.round(units * nav * 100) / 100, boughtOn, pf, side: "buy" });
@@ -98,7 +98,12 @@ describe("Top of the page (T1–T5, S1–S2)", () => {
     expect(partsAverage(hs).map((p) => [p.label, p.v])).toEqual([["Performance", 48], ["Risk", 64], ["Cost", 62], ["Quality", 71]]);
     render(<MfParts parts={partsAverage(hs)} open />);
     const p = document.querySelector(".px-parts")!;
-    expect(p.textContent).toMatch(/Riskhigher = lower risk64.*Costhigher = cheaper62/);
+    // task #403 (reworked): every part carries its own "Higher is better" line under its name
+    expect([...p.querySelectorAll(".px-pt")].map((t) => t.querySelector("p")!.textContent)).toEqual([
+      "PerformanceHigher is better: did better than similar funds", "RiskHigher is better: a calmer ride, smaller falls",
+      "CostHigher is better: lower costs", "QualityHigher is better: proven, large enough, soundly built"]);
+    expect(p.textContent).toMatch(/Risk.*smaller falls64.*Cost.*lower costs62/);
+    expect(p.textContent).not.toMatch(/High and low:/);
     expect(p.querySelector(".px-pn")!.textContent).toMatch(/These are the plain averages of your funds; the score above weights them by value\.$/);
     cleanup();
     render(<MfCards score={{ value: 59, label: "AVERAGE", valued: true, n: 2 }} tiles={mfTiles(hs, undefined, undefined)} colors={{ funds: "x", mix: "y", risk: "z" }} view="funds" onView={() => {}} partsOpen={false} onParts={() => {}} hasParts />);
@@ -177,7 +182,7 @@ describe("Your funds (F1, F2, T6, X8)", () => {
     for (const f of files) { const s = readFileSync(f, "utf8").split("\n").filter((l) => !/^\s*(\/\/|\*|\/\*\*)/.test(l)).join("\n"); expect([f, /Fund Health Score|\bHealth Score\b|Health parts/.test(s)]).toEqual([f, false]); }
   });
   it("X1: the questions box reads the plan name from the plan list", () => {
-    expect(MF_PORTFOLIO_FAQ.plan).toBe(planName(PLAN_FOR_PORTFOLIO));
+    expect(MF_PORTFOLIO_FAQ.plan).toBe(planName(PLAN_FOR_FUND_PORTFOLIO));   // task #410
     expect(readFileSync(resolve(__dirname, "../content/mfPortfolioFaqs.ts"), "utf8")).not.toMatch(/plan: "Silver"/);
   });
 });

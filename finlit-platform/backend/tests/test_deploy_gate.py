@@ -146,6 +146,25 @@ async def test_no_new_long_job_starts_while_a_deploy_waits_but_light_jobs_run():
 
 
 @pytest.mark.asyncio
+async def test_a_short_job_marked_exempt_runs_while_a_deploy_waits():
+    """27 Nov 2026: deploy after deploy on the night of 26 Nov kept every bulk job waiting, so the ready-made lists (about 80 s, database only) did not run
+    all night and still said 23 Nov on the 27th. A job marked deploy_hold_exempt goes on; the long ones still wait."""
+    sup, _ = make([bulk("presets", 10, deploy_hold_exempt=True), bulk("score", 20)])
+    sup.signals.redis = held_at(NOON)
+    await sup.step()
+    assert sup.runner.started == ["presets"]
+    st = await sup.state.load_all()
+    assert st["score"].state == "waiting" and st["score"].state_reason.startswith("waiting for a deploy")
+
+
+def test_the_lists_and_the_charts_are_exempt_and_the_long_jobs_are_not():
+    from finlit.jobs.registry import by_name
+    jobs = by_name()
+    assert jobs["presets"].deploy_hold_exempt and jobs["price-sections"].deploy_hold_exempt
+    assert not any(jobs[n].deploy_hold_exempt for n in ("ingest", "prism", "score", "candles", "technicals", "sectors"))
+
+
+@pytest.mark.asyncio
 async def test_long_jobs_start_as_soon_as_the_flag_is_gone():
     sup, clock = make([bulk("score", 10)])
     sup.signals.redis = held_at(NOON)

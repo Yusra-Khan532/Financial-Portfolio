@@ -3,7 +3,7 @@
 //    are in it now (GET /api/sector-next, counted on the server). Cards, one per state; those holding groups today have a gold edge and "N in it now".
 //  - PriceVsResults (addition 3): one row per group, the member's own first: the price side (state, stocks rising) beside its results groups this quarter
 //    (GET /api/results/quarter: industries[].vsMarket), and one fixed sentence read from the two.
-//  - InsideSector (addition 2): a picker, then the 12 strongest counted stocks of the group by 6-month return with their peer tag, FinLit Prism (stored scores only:
+//  - InsideSector (addition 2): a picker, then the 12 strongest counted stocks of the group by 6-month return with their peer label, FinLit Prism (stored scores only:
 //    GET /api/prism/scores reads, it never calculates, so it does not count against the daily Prism report limit) and trend words.
 import { useMemo, useState } from "react";
 import { Link } from "react-router";
@@ -11,7 +11,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ApiError, apiGet } from "../../../lib/api";
 import type { Board, GroupRow, StateCode } from "../../../lib/sectors";
 import { useSectorPage } from "../../../lib/sectors";
-import { OF_CODE, keyOf, risingOf, short } from "../../../lib/pulsePack";
+import { OF_CODE, allChip, keyOf, risingOf, short } from "../../../lib/pulsePack";
 import { usePrismScores } from "../../../lib/prismScores";
 import { useUI } from "../../../lib/ui";
 import { useWatchlist } from "../../../lib/watchlist";
@@ -108,7 +108,7 @@ export function PriceVsResults({ b, mine }: { b: Board; mine: Set<string> }) {
         : q.data?.locked ? <LockedBlock plan="silver" name="Platinum" title="The results side is part of the Platinum plan">{tw("The price side is open to everyone. Platinum adds how each industry's latest results compare with the typical listed company.")}</LockedBlock>
         : <>
           <div className="sx-fl" role="group" aria-label="Show"><span>Show</span>
-            {([["all", `All ${rows.length}`], ...(mine.size ? [["mine", tw("My industries")]] : []), ["weak-ahead", "Price weak, results ahead"], ["both-ahead", "Both ahead"], ["both-behind", "Both behind"], ["strong-behind", "Price strong, results behind"]] as [PvFilter, string][])
+            {([["all", allChip(rows.length)], ...(mine.size ? [["mine", tw("My industries")]] : []), ["weak-ahead", "Price weak, results ahead"], ["both-ahead", "Both ahead"], ["both-behind", "Both behind"], ["strong-behind", "Price strong, results behind"]] as [PvFilter, string][])
               .map(([k, label]) => <button key={k} type="button" aria-pressed={f === k} onClick={() => setF(k)}>{label}{k !== "all" && <small> {count(k)}</small>}</button>)}</div>
           <Scroll label={tw("price against results")}><table className="sp-tb sx-t">
             <thead><tr><th scope="col">{tw("Industry")}</th><th scope="col">Price</th><th scope="col">Results this quarter</th><th scope="col">Read together</th></tr></thead>

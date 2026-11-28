@@ -64,7 +64,7 @@ async def test_the_board_gives_every_groups_state_and_breadth_with_the_date():
                      "lastThrust": "C 10 Jul 2026", "box": "Ahead and gaining"}
     assert d["stateMeanings"]["Confirmed"] == "Most stocks trending up together"
     assert "Services" in d["tooFewStocksForAReading"] and "Sector Pulse" in out["source"]
-    assert any("leader flags is part of the Silver plan" in n for n in out["notes"])          # the Basic view's lock, said
+    assert any("leader flags is part of every paid plan" in n for n in out["notes"])          # the Basic view's lock, said
     sectors = (await run(live(), "get_sector_pulse", {}))["data"]                             # the default view: NSE's sectors
     assert sectors["show"] == "sectors" and {g["name"] for g in sectors["groups"]} >= {"Construction", "Information Technology"}
     assert next(g for g in sectors["groups"] if g["name"] == "Information Technology")["industries"] == ["IT - Hardware", "IT - Services", "IT - Software"]
@@ -194,8 +194,9 @@ def test_the_answer_links_the_sector_pages():
     assert T.label("get_sector_pulse", {}) == "Reading Sector Pulse" and T.label("get_sector_rotation", {}) == "Reading Sector Rotation"
 
 
-# Task #349 PR 5: adding the two tools changed the tool list once (deliberately). This is its hash now; it must be the same for every question.
-TOOLS_SHA256 = "64708a614c8466b6a1a19c71375fa0db4a2e0e8a948b0ed226e39050df7eafd9"
+# Task #349 PR 5: adding the two tools changed the tool list once (deliberately). Task #410 changed it once more (the sector tool says "on the paid plans",
+# not "on Silver"). Bulk & Block Deals (27 Nov 2026) added get_bulk_block_deals. This is its hash now; it must be the same for every question.
+TOOLS_SHA256 = "21da833e1f0c0ce63bfb92c42928562aa22fdd47c528f977e87109aaac98513f"
 
 
 def test_the_tool_list_is_one_fixed_list_with_the_sector_tools():

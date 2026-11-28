@@ -41,7 +41,7 @@ export function QuarterNote({ r }: { r: QResp | undefined }) {
   if (!q) return null;
   const upd = r!.updatedAt ? new Date(r!.updatedAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hour12: false }) : null;
   return <>
-    {r!.locked && <p className="sp-note">The growth figures, shares and verdicts are part of the Silver plan. <Link to="/plans">See plans</Link>.</p>}
+    {r!.locked && <p className="sp-note">The growth figures, shares and verdicts are part of every paid plan. <Link to="/plans">See plans</Link>.</p>}
     <p className="sp-note">Quarter ended {longDate(q.periodEnd)} ({q.fiscal}){upd ? ` · updated ${upd} IST` : ""} · figures in ₹ crore · "typical" is the middle company (the median), so a few extreme results cannot distort it.</p>
   </>;
 }

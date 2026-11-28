@@ -25,7 +25,7 @@ from . import MODEL_VERSION
 from .dashboard import summarize
 from .groups import GROUP_NAMES
 from .reasons import texts
-from .scorehist import part_word, part_words
+from .scorehist import part_scores, part_word, part_words
 from .sheets import PILLAR_NAMES, PILLARS, WEIGHTS
 
 router = APIRouter(prefix="/api/mf")
@@ -238,10 +238,11 @@ async def scores(request: Request, group: str = Query("", max_length=12), catego
         item = {"code": r["code"], "symbol": r["symbol"], "plan": r["plan"], "group": r["grp"]}
         if open_:
             item.update(final=r["final"], label=r["label"], status=r["status"], reason=r["reason"], pillars=part_words(r["perf"], r["risk"], r["cost"], r["quality"]),
+                        pillarScores=part_scores(r["perf"], r["risk"], r["cost"], r["quality"]),   # task #378: each part's figure (Gold, like the score)
                         rank=r["rank"], rankOf=r["rank_of"], rankScope=r["rank_scope"], percentile=None if r["percentile"] is None else int(r["percentile"]), flags=list(r["flags"] or []),
                         confidence=r["confidence"], category=r["category"])
         else:
-            item.update(final=None, label=None, status=None, reason=None, pillars=None, rank=None, rankOf=None, rankScope=None, percentile=None, flags=[], confidence=None, category=None)
+            item.update(final=None, label=None, status=None, reason=None, pillars=None, pillarScores=None, rank=None, rankOf=None, rankScope=None, percentile=None, flags=[], confidence=None, category=None)
         items.append(item)
     if syms:   # an ETF asked for with no row: say why (a symbol the exchange list does not know is left out)
         have_s = {i["symbol"] for i in items}
@@ -251,7 +252,7 @@ async def scores(request: Request, group: str = Query("", max_length=12), catego
                 known = {r["symbol"] for r in await conn.fetch("SELECT symbol FROM etf_funds WHERE symbol = ANY($1::text[])", gone)}
             for x in gone:
                 if x in known:
-                    items.append({"code": None, "symbol": x, "plan": "ETF", "group": None, "final": None, "label": None, "status": None, "pillars": None, "rank": None, "rankOf": None,
+                    items.append({"code": None, "symbol": x, "plan": "ETF", "group": None, "final": None, "label": None, "status": None, "pillars": None, "pillarScores": None, "rank": None, "rankOf": None,
                                   "rankScope": None, "percentile": None, "flags": [], "confidence": None, "category": None, "reason": NOT_SCORED["etf_not_offered"] if full else None, "notOffered": True})
     if ids:   # a scheme asked for with no row: say why (the page shows the reason, never a blank)
         have = {i["code"] for i in items}
@@ -274,7 +275,7 @@ async def scores(request: Request, group: str = Query("", max_length=12), catego
                 if s is None:
                     continue
                 if classify(s["category"] or "")[1] in ETF_SUBS:   # task #281: an ETF's AMFI code: the score is not given (not "IDCW" or "plan not stated")
-                    items.append({"code": c, "symbol": None, "plan": "ETF", "group": None, "final": None, "label": None, "status": None, "pillars": None, "rank": None,
+                    items.append({"code": c, "symbol": None, "plan": "ETF", "group": None, "final": None, "label": None, "status": None, "pillars": None, "pillarScores": None, "rank": None,
                                   "rankOf": None, "rankScope": None, "percentile": None, "flags": [], "confidence": None, "category": None,
                                   "reason": NOT_SCORED["etf_not_offered"] if full else None, "notOffered": True})
                     continue
@@ -285,13 +286,14 @@ async def scores(request: Request, group: str = Query("", max_length=12), catego
                           "inherited": {"code": g["g_code"], "name": g["g_name"], "label": INHERITED_LABEL, "why": INHERITED_WHY}}
                     if open_:
                         it.update(final=g["final"], label=g["label"], status=g["status"], reason=g["reason"], pillars=part_words(g["perf"], g["risk"], g["cost"], g["quality"]),
+                                  pillarScores=part_scores(g["perf"], g["risk"], g["cost"], g["quality"]),   # task #378: each part's figure (Gold, like the score)
                                   rank=g["rank"], rankOf=g["rank_of"], rankScope=g["rank_scope"], percentile=None if g["percentile"] is None else int(g["percentile"]),
                                   flags=list(g["flags"] or []), confidence=g["confidence"], category=g["category"])
                     else:
-                        it.update(final=None, label=None, status=None, reason=None, pillars=None, rank=None, rankOf=None, rankScope=None, percentile=None, flags=[], confidence=None, category=None)
+                        it.update(final=None, label=None, status=None, reason=None, pillars=None, pillarScores=None, rank=None, rankOf=None, rankScope=None, percentile=None, flags=[], confidence=None, category=None)
                     items.append(it)
                     continue
-                items.append({"code": c, "symbol": None, "plan": s["plan"], "group": None, "final": None, "label": None, "status": None, "pillars": None, "rank": None, "rankOf": None,
+                items.append({"code": c, "symbol": None, "plan": s["plan"], "group": None, "final": None, "label": None, "status": None, "pillars": None, "pillarScores": None, "rank": None, "rankOf": None,
                               "rankScope": None, "percentile": None, "flags": [], "confidence": None, "category": None,
                               "reason": (NOT_SCORED["inactive"] if not s["active"] else NOT_SCORED["idcw"] if s["option_class"] != "Growth" else NOT_SCORED["no_plan"] if s["plan"] not in ("Direct", "Regular") else NOT_SCORED["not_yet"]) if full else None})
     return _json({"locked": not full, "total": total if full else None, "runDate": run.isoformat() if run else None, "items": items, "planNote": PLAN_NOTE, "disclaimer": DISCLAIMER, "method": METHOD_URL, "model": MODEL_VERSION})

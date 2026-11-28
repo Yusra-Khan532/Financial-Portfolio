@@ -19,7 +19,7 @@ from test_mf import amfi_client
 
 TOOL_NAMES = ["search_stocks", "get_stock_quote", "get_batch_quotes", "get_company_profile", "get_financials", "get_ratios", "get_shareholding",
               "get_price_history", "get_finlit_score", "get_quarter_results", "get_results_calendar", "screen_stocks", "get_market_overview",
-              "get_fii_dii_flows", "get_ipo_calendar", "search_funds", "get_fund_details", "list_etfs", "get_etf", "get_data_freshness"]
+              "get_fii_dii_flows", "get_ipo_calendar", "get_bulk_block_deals", "search_funds", "get_fund_details", "list_etfs", "get_etf", "get_data_freshness"]
 
 
 @pytest.fixture
@@ -133,7 +133,7 @@ def test_the_tools_are_exactly_the_documented_set_and_read_only():
         assert t["inputSchema"]["type"] == "object" and t["inputSchema"]["additionalProperties"] is False and len(t["description"]) > 30
         for bad in ("add", "delete", "remove", "create", "update", "save", "write", "watchlist", "portfolio", "login", "set_"):
             assert bad not in t["name"], t["name"]
-    assert len(TOOLS) == len(BY_NAME) == 20
+    assert len(TOOLS) == len(BY_NAME) == 21
 
 
 def test_every_tool_has_a_schema_that_json_serialises():
@@ -192,7 +192,7 @@ async def test_batch_requests(app):  # noqa: F811
     async with new_client(app) as c:
         r = await c.post("/mcp", json=[rpc("ping", id_=1), rpc("notifications/initialized", id_=None), rpc("tools/list", id_="b"), rpc("nope", id_=3)])
         got = {x["id"]: x for x in r.json()}
-        assert r.status_code == 200 and set(got) == {1, "b", 3} and got[3]["error"]["code"] == -32601 and len(got["b"]["result"]["tools"]) == 20
+        assert r.status_code == 200 and set(got) == {1, "b", 3} and got[3]["error"]["code"] == -32601 and len(got["b"]["result"]["tools"]) == 21
         r = await c.post("/mcp", json=[rpc("notifications/initialized", id_=None)])
         assert r.status_code == 202
         r = await c.post("/mcp", json=[])
@@ -278,7 +278,7 @@ async def test_well_known_file(app):  # noqa: F811
     async with new_client(app) as c:
         r = await c.get("/.well-known/mcp.json")
         j = r.json()
-        assert r.status_code == 200 and j["endpoint"] == "http://test/mcp" and j["transport"] == "streamable-http" and j["tools"] == 20
+        assert r.status_code == 200 and j["endpoint"] == "http://test/mcp" and j["transport"] == "streamable-http" and j["tools"] == 21
         assert j["toolNames"] == TOOL_NAMES and j["authentication"] == "none" and j["readOnly"] is True
 
 
@@ -445,7 +445,7 @@ async def test_quarter_results_and_calendar_equal_the_results_route(app, seeded)
         d = got["data"]
         assert d["quarter"] == q and d["total"] == route["total"] and [r["symbol"] for r in d["rows"]] == [r["symbol"] for r in route["rows"]]
         assert [r["date"] for r in d["rows"]] == [r["date"] for r in route["rows"]] and d["summary"]["declared"] == route["summary"]["declared"]
-        assert all(r["revenue"] is None and r["netProfit"] is None for r in d["rows"]) and any("Silver" in n for n in got["notes"])   # withheld, as for a visitor
+        assert all(r["revenue"] is None and r["netProfit"] is None for r in d["rows"]) and any("paid-plan" in n for n in got["notes"])   # withheld, as for a visitor
         assert (await ok(c, "get_quarter_results", {"quarter": q, "limit": 1}))["data"]["returned"] == 1
         one_day = await ok(c, "get_quarter_results", {"date": seeded["when"].isoformat()}) if seeded["when"] <= date.today() else None
         if one_day:

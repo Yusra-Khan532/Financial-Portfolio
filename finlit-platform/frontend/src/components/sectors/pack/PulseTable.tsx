@@ -11,7 +11,7 @@ import { CoLogo } from "../../CoLogo";
 import { LockedBlock } from "../Parts";
 import type { Board, GroupRow, IndustryPage, RankedStock } from "../../../lib/sectors";
 import type { SectorHistory, StateKey } from "../../../lib/sectorHistory";
-import { COLOUR, MEANING, ORDER, WORD, groupsN, groupsSplit, bounceIndex, bouncedShort, byState, dayMon, fridayCards, fridays, howStrong, inTableFilter, isEarly, keyOf, risingOf, short, standoutCounts, statesAt, tableCards, type Card, type TableFilter } from "../../../lib/pulsePack";
+import { COLOUR, MEANING, ORDER, WORD, allChip, groupsN, groupsSplit, bounceIndex, bouncedShort, byState, dayMon, fridayCards, fridays, howStrong, inTableFilter, isEarly, keyOf, risingOf, short, sectorsIn, standoutCounts, statesAt, tableCards, type Card, type TableFilter } from "../../../lib/pulsePack";
 import { BoxChip, Cards, InsideLine, InsightCard, Scroll, Spark, StateChip, Swatch, Tip, Why, useAccount } from "./Common";
 import { AlertBell } from "./SectorAlert";
 import { coTitle, shortLabel, subLine, titleOf } from "../../../lib/companyLabel";
@@ -35,7 +35,7 @@ export function PulseTable({ b, h, mine }: { b: Board; h: SectorHistory | undefi
   const setCols = (c: "key" | "all") => { setColsRaw(c); try { localStorage.setItem(COLS_KEY, c); } catch { /* private window */ } };
   const groups = useMemo(() => byState(b.rows.filter((r) => inTableFilter(r, f, mine))), [b.rows, f, mine]);
   const n = (x: TableFilter) => b.rows.filter((r) => inTableFilter(r, x, mine)).length;
-  const filters: [TableFilter, string][] = [["all", `All ${b.rows.length}`], ["bounce", `Bouncing back · ${n("bounce")}`], ["sold_off", `Sold off · ${n("sold_off")}`], ["losing", `Losing steam · ${n("losing")}`],
+  const filters: [TableFilter, string][] = [["all", allChip(b.rows.length, sectorsIn(b))], ["bounce", `Bouncing back · ${n("bounce")}`], ["sold_off", `Sold off · ${n("sold_off")}`], ["losing", `Losing steam · ${n("losing")}`],
     ...(b.leader_flags != null ? [["standouts", `With standout stocks · ${n("standouts")}`] as [TableFilter, string]] : []), ...(mine.size ? [["yours", tw(`Your industries · ${n("yours")}`)] as [TableFilter, string]] : [])];
   const hist = (slug: string) => h?.groups.find((g) => g.slug === slug);
   return (

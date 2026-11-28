@@ -5,6 +5,7 @@
 //     same order, task #307) → Next seven weeks → What GMP said vs what actually listed (closed until opened) → Listed in the last 30 days (a table
 //     whose seven columns sort, with "All N since 2020 →" opening the second view with Status = Listed) → the as-of line.
 //   2 All IPOs since 2020 (?view=all plus its filter parameters): pages/IpoHistory.tsx, unchanged, with a one-line GMP summary.
+//   3 Bulk & block deals (?view=deals plus its filter parameters; /deals redirects here): pages/Deals.tsx, NSE's deals, each trade counted once.
 // Both views stay mounted, so each keeps its filters, sort and rows loaded; the page keeps each view's scroll position. /ipo/all redirects here.
 // Found while checking (the pack, 23 Nov): an issue 15 days or more past its close with no listing date is "not_listed" (backend ipoapi.settle): it
 // leaves Closed, listing soon (and its count) and shows as Not listed in the second view. The first view has no Status filter: it is already grouped
@@ -14,7 +15,7 @@ import { PageHeader } from "../components/PageHeader";
 import { CalendarSync } from "../components/CalendarSync";   // task #297: Add to Google Calendar
 import { TabGroup } from "../components/TabGroup";
 import { Link, useLocation, useSearchParams } from "react-router";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "../lib/icons";
 import { useDocTitle } from "../lib/title";
 import { issuePriceOf, listingGain, listingMove, minInvest, useIpos, type Ipo } from "../lib/ipo";
@@ -22,10 +23,11 @@ import { firstDir, gRange, listedRecently, LSORT_COLS, sectionOrder, shortName, 
 import { rowFromCalendar, useIpoHistory } from "../lib/ipoHistory";
 import { asOf, IpoDrawer } from "./IpoDrawer";
 import { IpoAllView } from "./IpoHistory";
-import { MINUS, nf } from "../lib/format";
+import { dateFormat, MINUS, nf } from "../lib/format";
 import { ChartHelp } from "../components/ChartHelp";
 import { ChartZoom } from "../components/ChartZoom";
 import { GmpRecord, GSTATE0, type GState } from "../components/ipo/GmpRecord";
+import { LockinCalendar } from "../components/ipo/LockinCalendar";
 import { Chips, Dd, Ico, OptList } from "../discovery/Toolbar";
 import "../discovery/discover.css";
 import "../styles/ipo-all.css";
@@ -33,22 +35,26 @@ import "../styles/ipo-all-compact.css";
 import "../styles/ipo-calendar.css";
 import "../styles/ipo-views.css";
 
+// the deals view is its own script, fetched the first time the view is opened (the IPO views do not wait for it)
+const DealsView = lazy(() => import("./Deals").then((m) => ({ default: m.DealsView })));
+
 const DAY = 86_400_000;
 const d0 = (iso: string) => new Date(iso + "T00:00:00").getTime();
-const short = (iso: string | null) => (iso ? new Date(iso + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short" }) : "—");
-const full = (iso: string | null) => (iso ? new Date(iso + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : MINUS);
+const short = (iso: string | null) => (iso ? dateFormat({ day: "numeric", month: "short" }).format(new Date(iso + "T00:00:00")) : "—");
+const full = (iso: string | null) => (iso ? dateFormat({ day: "numeric", month: "short", year: "numeric" }).format(new Date(iso + "T00:00:00")) : MINUS);
 const STATUS: Record<Ipo["status"], { label: string; colour: string }> = { open: { label: "Open now", colour: "var(--gain)" }, upcoming: { label: "Upcoming", colour: "var(--k1)" }, closed: { label: "Closed", colour: "var(--k4)" }, listed: { label: "Listed", colour: "var(--k7)" },
   not_listed: { label: "Not listed", colour: "var(--muted)" } };
 const LEGEND: Ipo["status"][] = ["open", "upcoming", "closed", "listed"];
 const money = (v: number) => "₹" + nf(v, v % 1 ? 2 : 0);
 const signedPct = (v: number) => (v > 0 ? "+" : v < 0 ? MINUS : "") + nf(Math.abs(v), 1) + "%";
 type BoardF = "all" | "mainboard" | "sme";
-type View = "now" | "all";
+type View = "now" | "all" | "deals";
 const BOARD_OPTS: [BoardF, string][] = [["all", "All boards"], ["mainboard", "Mainboard"], ["sme", "SME"]];
 /** "Showing: …" in the views bar, one line per view (the pack's words). */
-export const SHOWING: Record<View, string> = { now: "Open, upcoming, about to list, and listed in the last 30 days", all: "Every mainboard and SME issue: listing, subscription, GMP and return since" };
+export const SHOWING: Record<View, string> = { now: "Open, upcoming, about to list, and listed in the last 30 days", all: "Every mainboard and SME issue: listing, subscription, GMP and return since",
+  deals: "NSE's bulk, block and short-selling deals, each trade counted once" };
 /** The view the address asks for; otherwise Open and upcoming (rule 3). */
-export const viewOf = (p: URLSearchParams): View => (p.get("view") === "all" ? "all" : "now");
+export const viewOf = (p: URLSearchParams): View => (p.get("view") === "all" ? "all" : p.get("view") === "deals" ? "deals" : "now");
 
 /** A two-month strip: every issue is a bar from its opening to its closing day, so overlaps and quiet weeks are obvious. */
 function Strip({ rows }: { rows: Ipo[] }) {
@@ -132,6 +138,8 @@ export function IpoPage() {
   const loc = useLocation();
   const from = useMemo(() => ({ from: loc.pathname + loc.search }), [loc.pathname, loc.search]);
   const view = viewOf(params);
+  const [dealsSeen, setDealsSeen] = useState(view === "deals");          // the deals view mounts the first time it is opened, then stays
+  useEffect(() => { if (view === "deals") setDealsSeen(true); }, [view]);
   const [kind, setKindRaw] = useState<BoardF>("all");
   const [q, setQ] = useState("");
   const [open, setOpen] = useState<Ipo | null>(null);
@@ -172,7 +180,9 @@ export function IpoPage() {
   const go = (v: View, p?: Record<string, string>, at: "top" | "gmp" | null = null) => {
     jump.current = at;
     setParams((prev) => {
-      const n = p ? new URLSearchParams(p) : new URLSearchParams(prev);
+      // the deals view has its own filters (side, kind, period, q…): moving into or out of it starts from a clean address
+      const crossing = (v === "deals") !== (viewOf(prev) === "deals");
+      const n = p ? new URLSearchParams(p) : crossing ? new URLSearchParams() : new URLSearchParams(prev);
       n.set("view", v);
       return n;
     });
@@ -264,6 +274,7 @@ export function IpoPage() {
         <section className="card ipo-s p4-ts"><div className="card-h"><h3><span className="ci"><Icon name="calendar" /></span>Next seven weeks<ChartHelp id="ipo-timeline" /></h3><span className="s">Bar = application window</span></div>
           <Strip rows={rows.filter((r) => kind === "all" || r.kind === kind)} />
           <div className="clg">{LEGEND.map((s) => <span key={s}><i style={{ background: STATUS[s].colour }} />{STATUS[s].label}</span>)}</div></section>)}
+      <LockinCalendar />
       {rows.length > 0 && <div ref={gmpBox}><GmpRecord ipos={rows} s={gm} set={setGmP} open={gmOpen} setOpen={setGmOpen} onSee={seeRange} /></div>}
       {rows.length > 0 && (
         <section className="ipo-sec p4-sec" aria-label="Listed in the last 30 days">
@@ -291,6 +302,8 @@ export function IpoPage() {
         views={[
           { key: "now", label: "Open and upcoming", note: isLoading ? undefined : nf(liveN, 0), content: nowPane },
           { key: "all", label: "All IPOs since 2020", note: total != null ? nf(total, 0) : undefined, content: <IpoAllView extra={extra} onGmp={openGmpBlock} /> },
+          { key: "deals", label: "Bulk & block deals", content: dealsSeen ? <Suspense fallback={<div className="skeleton" style={{ height: 420 }} role="status" aria-label="Loading the deals" />}>
+            <DealsView active={view === "deals"} /></Suspense> : null },
         ]} />
       {open && <IpoDrawer ipo={{ ...open, name: titleCase(open.name) }} chip={STATUS[open.status]} onClose={closeDrawer} />}
     </div>

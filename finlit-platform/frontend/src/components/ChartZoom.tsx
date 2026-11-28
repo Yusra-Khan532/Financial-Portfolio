@@ -100,6 +100,28 @@ function lockScroll(): () => void {
   return () => { if (--locks === 0) document.body.style.overflow = savedOverflow; };
 }
 
+/** Developer file 49 (founder, 27 Nov 2026: "make sure to check everything"): the enlarged view sits at the end of the page, outside the section its
+ *  chart or table came from, so every style the company report scopes to its section (section.block …, .ow …, .vh …) missed it: the ratio key lost its
+ *  swatches, the shareholding charts showed plain grey buttons, the peer cards and the valuation history's side figures lost their layout, and legend
+ *  swatches changed colour. The view now holds the chart inside empty copies of its own ancestors up to its report section: the same tags and classes, no
+ *  ids or other attributes, drawn as display: contents (chartzoom.css), so the same rules match and nothing extra is drawn. Outside a report section
+ *  (every other page) nothing is copied and the view is as before. */
+export function scopeChain(from: HTMLElement | null): { outer: HTMLElement; inner: HTMLElement } | null {
+  const sec = from?.closest<HTMLElement>("section.block");
+  if (!from || !sec) return null;
+  const up: HTMLElement[] = [];
+  for (let a: HTMLElement | null = from; a; a = a === sec ? null : a.parentElement) up.push(a);
+  let outer: HTMLElement | null = null, inner: HTMLElement | null = null;
+  for (const a of up.reverse()) {
+    const c = document.createElement(/^(SECTION|ARTICLE|DIV|UL|OL|LI|ASIDE|FIGURE)$/.test(a.tagName) ? a.tagName.toLowerCase() : "div");   // never a link, button or closed details
+    if (typeof a.className === "string" && a.className) c.className = a.className;
+    c.setAttribute("data-cz-scope", "");
+    if (inner) inner.appendChild(c); else outer = c;
+    inner = c;
+  }
+  return outer && inner ? { outer, inner } : null;
+}
+
 /** The scale steps of the enlarged view (task #87): 50% to 300%, 100% is the size the page draws it at. */
 export const ZOOM_STEPS = [0.5, 0.67, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3];
 export const zoomStep = (z: number, dir: 1 | -1): number => {
@@ -127,10 +149,15 @@ function Zoomable({ label, children, className, kind }: { label: string; childre
   const close = useCallback(() => setOpen(false), []);
   const openIt = () => { setZ(1); setOpen(true); };
 
-  // One live copy of the chart: its DOM moves between the card and the dialog, so its React state is never lost.
+  // One live copy of the chart: its DOM moves between the card and the dialog, so its React state is never lost. In the company report it goes into
+  // copies of its own ancestors (scopeChain), so the report's section-scoped styles still reach it.
   useLayoutEffect(() => {
-    const to = open ? body.current : slot.current;
-    if (to && host && host.parentNode !== to) to.appendChild(host);
+    if (!host) return;
+    if (open && body.current) {
+      const chain = scopeChain(slot.current);
+      if (chain) { body.current.appendChild(chain.outer); chain.inner.appendChild(host); }
+      else if (host.parentNode !== body.current) body.current.appendChild(host);
+    } else if (!open && slot.current && host.parentNode !== slot.current) slot.current.appendChild(host);
   }, [open, host]);
   useEffect(() => () => { host?.remove(); }, [host]);
 

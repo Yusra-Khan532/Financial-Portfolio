@@ -178,12 +178,12 @@
 
 /* the working, in tabs */
 .dcx-detail{padding:0}
-.dcx-tabs{display:flex;gap:2px;padding:6px 10px 0;border-bottom:1px solid var(--border);overflow-x:auto;scrollbar-width:none}
-.dcx-tabs::-webkit-scrollbar{display:none}
-.dcx-tabs button{appearance:none;flex:none;border:0;background:none;cursor:pointer;padding:12px 12px 12px;border-bottom:2px solid transparent;margin-bottom:-1px;font:600 var(--fs-14) var(--sans);color:var(--muted);white-space:nowrap}
-.dcx-tabs button:hover{color:var(--text)}
-.dcx-tabs [aria-selected=true]{color:var(--text);border-bottom-color:var(--dcx-acc)}
-.dcx-tabs button:focus-visible{outline:2px solid var(--dcx-acc);outline-offset:-4px;border-radius:var(--r-ctl)}
+/* task #417 (the team's picture): each tab is its own boxed button, the open one filled with the site's action colour; no rule under the row; all five stay in view (they wrap, never scroll out of sight) */
+.dcx-tabs{display:flex;flex-wrap:wrap;gap:8px;padding:18px 20px 2px}
+.dcx-tabs button{appearance:none;flex:none;display:inline-flex;align-items:center;justify-content:center;min-height:var(--ui-ctl-h-sm);padding:0 16px;border:1px solid var(--border-strong);border-radius:var(--r-ctl);background:var(--s2);box-shadow:var(--ui-row-shadow);cursor:pointer;font:600 var(--fs-14)/1.2 var(--sans);color:var(--text);white-space:nowrap}
+.dcx-tabs button:hover{background:var(--s3)}
+.dcx-tabs [aria-selected=true],.dcx-tabs [aria-selected=true]:hover{background:var(--btn-bg);border-color:var(--btn-bg);color:var(--btn-fg)}
+.dcx-tabs button:focus-visible{outline:2px solid var(--dcx-acc);outline-offset:2px}
 .dcx-panel{padding:18px 20px 20px}
 .dcx-ch{display:flex;flex-wrap:wrap;align-items:center;gap:6px 18px;margin-bottom:8px;font:var(--fs-13) var(--sans);color:var(--muted)}
 .dcx-ch b{color:var(--text)}
@@ -259,10 +259,36 @@
 
 /* methodology and important notes (task #396) */
 .dcx-meth{padding:18px 22px}
-.dcx-meth h2{margin:0 0 10px;font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif);color:var(--text)}
+.dcx-meth h2{margin:0;font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif);color:var(--text)}
+/* task #412: a drop-down; the whole title row opens and closes it */
+.dcx-meth>summary{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:2px 16px;cursor:pointer;list-style:none;border-radius:var(--r-ctl)}
+.dcx-meth>summary::-webkit-details-marker{display:none}
+.dcx-meth>summary:focus-visible{outline:2px solid var(--dcx-acc);outline-offset:4px}
+.dcx-meth>summary h2{grid-column:1}
+.dcx-meth .dcx-ms{grid-column:1;font:var(--fs-13)/1.45 var(--sans);color:var(--muted)}
+.dcx-meth .dcx-mtg{grid-column:2;grid-row:1/span 2;display:inline-flex;align-items:center;gap:8px;min-height:36px;padding:0 14px;border:1px solid var(--border-strong);border-radius:var(--ui-r-pill);background:var(--s1);color:var(--text);font:600 var(--fs-13) var(--sans)}
+.dcx-meth>summary:hover .dcx-mtg{border-color:var(--dcx-acc)}
+.dcx-meth[open]>summary{margin-bottom:14px}
 .dcx-mg{display:grid;grid-template-columns:1fr 1fr;gap:4px 32px}
 .dcx-mg p{margin:0 0 10px;font:var(--fs-13)/1.65 var(--sans);color:var(--muted)}
 .dcx-mg b{color:var(--text)}
+/* task #425: the disclaimer under the calculator is a drop-down like the Methodology card (task #412) and the SIP disclaimer (#424).
+   The closed row keeps the "Disclaimer" title and "Information only, not investment advice." in view; the whole row opens it. */
+.dcx-dsc{padding:18px 22px}
+.dcx-dsc h2{margin:0;font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif);color:var(--text)}
+.dcx-dsc>summary{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:2px 16px;cursor:pointer;list-style:none;border-radius:var(--r-ctl)}
+.dcx-dsc>summary::-webkit-details-marker{display:none}
+.dcx-dsc>summary:focus-visible{outline:2px solid var(--dcx-acc);outline-offset:4px}
+.dcx-dsc>summary h2{grid-column:1}
+.dcx-dsc .dcx-dsc-l{grid-column:1;font:var(--fs-13)/1.45 var(--sans);color:var(--muted)}
+.dcx-dsc .dcx-dsc-tg{grid-column:2;grid-row:1/span 2;display:inline-flex;align-items:center;gap:8px;min-height:36px;padding:0 14px;border:1px solid var(--border-strong);border-radius:var(--ui-r-pill);background:var(--s1);color:var(--text);font:600 var(--fs-13) var(--sans)}
+.dcx-dsc>summary:hover .dcx-dsc-tg{border-color:var(--dcx-acc)}
+.dcx-dsc[open]>summary{margin-bottom:12px}
+.dcx-dsc-b{margin:0;padding:0 0 0 18px;max-width:100ch;display:grid;gap:6px}
+.dcx-dsc-b li{font:var(--fs-13)/1.6 var(--sans);color:var(--muted)}
+.dcx-dsc-b b{color:var(--text)}
+.dcx-dsc-f{margin:10px 0 0;font:var(--fs-13)/1.5 var(--sans)}
+@media (max-width:720px){.dcx-dsc{padding:16px 14px}.dcx-dsc .dcx-dsc-tg{min-height:44px;padding:0 12px}}
 /* summary strip: shows while the result card is off screen */
 .dcx-mini{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));z-index:120;display:flex;align-items:center;gap:14px;width:max-content;max-width:calc(100vw - 24px);padding:10px 12px 10px 16px;border-radius:var(--r-ctl);background:var(--pop-bg);color:#f4efe3;font:var(--fs-14) var(--sans);box-shadow:0 14px 32px -10px #000a;transform:translate(-50%,160%);transition:transform .2s;pointer-events:none}
 .dcx-mini.show{transform:translate(-50%,0);pointer-events:auto}
@@ -277,6 +303,7 @@
 }
 @media (max-width:860px){
   .dcx-ws{grid-template-columns:1fr}
+  .dcx-tabs button{min-height:var(--ui-ctl-h)}
   .dcx-rv{grid-template-columns:1fr}
   .dcx-mini{left:12px;right:12px;width:auto;bottom:calc(86px + env(safe-area-inset-bottom,0px));transform:translateY(200%);gap:12px}
   .dcx-mini.show{transform:none}
@@ -284,6 +311,7 @@
 }
 @media (max-width:560px){
   .dcx-in{padding:2px 14px 6px}
+  .dcx-tabs button{flex:1 1 auto}
   .dcx-res,.dcx-panel{padding:16px 14px}
   .dcx-v{font-size:var(--fs-32)}
   .dcx-fl{flex-wrap:wrap}
@@ -318,6 +346,7 @@
 /* the working fits beside the assumptions at 1024 px: tighter cells, headers may wrap */
 @media (max-width:1100px){
   .dcx-panel{padding:16px 14px 18px}
+  .dcx-tabs{padding:16px 14px 2px}
   .dcx-t th,.dcx-t td{padding:7px 8px}
   .dcx-t thead th{white-space:normal;vertical-align:bottom}
   .dcx-hm{border-spacing:2px;font-size:var(--fs-13)}
@@ -340,6 +369,15 @@
   .dcx-num input{height:42px;font-size:var(--fs-16)}
   .dcx-mg{grid-template-columns:1fr}
   .dcx-meth{padding:16px 14px}
+  .dcx-meth .dcx-mtg{min-height:44px;padding:0 12px}
   .dcx-bridge tr.sub th{padding-left:8px}
 }
 @media (prefers-reduced-motion:reduce){.dcx .dcx-codet{animation:none}.dcx-chev{transition:none}}
+/* task #416: the bear, base, bull table's boxes and plain figures share one centre. Cause: dcf.css loads after this file in the build and its
+   ".dcf th,.dcf td{text-align:left;vertical-align:top}" (same weight as .dcx-t) pinned every cell top-left, so the 30px boxes and the plain text sat
+   at different heights and the base row's figures started left of the boxes above and below. Scoped to this table only, one class heavier. */
+.dcx .dcx-sc th,.dcx .dcx-sc td{text-align:center;vertical-align:middle}
+.dcx .dcx-sc thead th{vertical-align:middle}   /* the headers too, also where they wrap to two lines (1100px and below) */
+.dcx .dcx-sc tfoot th{text-align:left}
+.dcx .dcx-sc input{text-align:center;vertical-align:middle}
+.dcx .dcx-sc .lk{width:auto;padding:0}

@@ -1142,6 +1142,9 @@ def build_parser() -> argparse.ArgumentParser:
     p_ip = sub.add_parser("refresh-ipo-prices", help="listed IPOs' listing-day prices and latest close from the NSE and BSE daily price files")
     p_ip.add_argument("--max-dates", type=int, default=60, help="listing dates read in this run")
     p_ip.add_argument("--max-minutes", type=float, default=10.0, help="start no new file after this many minutes")
+    p_dl = sub.add_parser("refresh-deals", help="NSE's bulk, block and short-selling deals: today's files, then the history one month further back a run")
+    p_dl.add_argument("--backfill-months", type=int, default=1, help="months of history read further back in this run (until two years are held)")
+    p_dl.add_argument("--max-minutes", type=float, default=8.0, help="start no new request after this many minutes")
     p_ig = sub.add_parser("refresh-ipo-gmp", help="each IPO's record and GMP from InvestorGain's IPO pages (one page at a time), then NSE's subscription by category")
     p_ig.add_argument("--limit", type=int, default=100, help="pages read in this run")
     p_ig.add_argument("--nse-limit", type=int, default=40, help="listed mainboard issues whose NSE book is asked for in this run")
@@ -1185,6 +1188,8 @@ def build_parser() -> argparse.ArgumentParser:
     p_ld.add_argument("--backfill-from", default=None, help="YYYY-MM-DD: also compute every 4th Friday back to this date, so the rank-history chart starts with points")
     p_ld.add_argument("--as-of", default=None, help="YYYY-MM-DD: the Friday to compute (default: the latest)")
     p_ld.add_argument("--if-stale", action="store_true", help="skip when the latest Friday is already done (a redeploy must not repeat the weekly run)")
+    sub.add_parser("backfill-watchlist-prices", help="task #408: fill the added price of watchlist entries saved without one, from the stored daily closes (idempotent)")
+    sub.add_parser("rebuild-peer-labels", help="one time (task #409): build the weekly peer-label record from the stored weekly readings with the two-run rule; does nothing once it has rows")
     p_sl = sub.add_parser("refresh-scores-live", help="within minutes of a company's results being stored: recalculate its FinLit Prism rating (queued by refresh-results), one at a time, bounded (docs/REALTIME-SCORES.md)")
     p_sl.add_argument("--limit", type=int, default=0, help="companies per run (default RT_PRISM_PER_RUN, 20)")
     p_sl.add_argument("--max-minutes", type=float, default=12.0)
@@ -1727,6 +1732,14 @@ async def main(argv: Optional[List[str]] = None, settings: Optional[Settings] = 
                 shard = (int(part), int(of))
             print(await prism.precompute(store, settings, limit=args.limit, max_minutes=args.max_minutes, days=args.days, shard=shard, stale_not_rated=args.stale_not_rated))
             return 0
+        if args.cmd == "backfill-watchlist-prices":
+            from . import watchprices
+            print(json.dumps(await watchprices.backfill(store)))
+            return 0
+        if args.cmd == "rebuild-peer-labels":
+            from . import peerlabels
+            print(json.dumps(await peerlabels.rebuild(store), default=str))
+            return 0
         if args.cmd in ("refresh-leadership", "backtest-leadership"):
             from datetime import date as _date
             from . import leadership
@@ -1883,6 +1896,9 @@ async def main(argv: Optional[List[str]] = None, settings: Optional[Settings] = 
             elif args.cmd == "refresh-ipo-prices":
                 from .ipobhav import refresh as refresh_ipo_prices
                 print(await refresh_ipo_prices(store, max_dates=args.max_dates, max_minutes=args.max_minutes))
+            elif args.cmd == "refresh-deals":
+                from .deals import refresh as refresh_deals
+                print(await refresh_deals(store, backfill_months=args.backfill_months, max_minutes=args.max_minutes))
             elif args.cmd == "refresh-ipo-gmp":
                 from .ipogmp import refresh as refresh_ipo_gmp
                 print(await refresh_ipo_gmp(store, limit=args.limit, max_minutes=args.max_minutes, nse_limit=args.nse_limit, pause_s=max(0.5, args.pause)))
@@ -1901,10 +1917,13 @@ async def main(argv: Optional[List[str]] = None, settings: Optional[Settings] = 
                 from . import eod_bhav
                 from .jobs.reasons import PARTIAL_EXIT
                 from .mf import record_run
-                day = _date.fromisoformat(args.date) if args.date else _dt.now(eod_bhav.IST).date()
-                res = await eod_bhav.load(store, day, only=[args.exchange] if args.exchange else None)
+                if args.date:
+                    runs = [await eod_bhav.load(store, _date.fromisoformat(args.date), only=[args.exchange] if args.exchange else None)]
+                else:      # 27 Nov 2026: the previous weekday too, when its files are missing (an evening the job missed), then today's in its hours
+                    runs = await eod_bhav.catch_up(store)
+                res = {"days": runs, "written": sum(r.get("written", 0) for r in runs)}
                 print(res)
-                failed = [x for x in ("NSE", "BSE") if (res.get(x) or {}).get("status") == "failed"]
+                failed = [f"{r['day']} {x}" for r in runs for x in ("NSE", "BSE") if (r.get(x) or {}).get("status") == "failed"]
                 # a file not published yet is the normal evening wait (the job asks again in 10 minutes; the "Closing prices" freshness line says when it is
                 # late); a refusal or a broken file is a fault: recorded partial, so the supervisor shows it degraded and the admins are told
                 await record_run(store, args.cmd, {"status": "partial" if failed else "ok", **({"why": f"{', '.join(failed)} file failed"} if failed else {}), **res})

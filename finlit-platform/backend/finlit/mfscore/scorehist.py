@@ -47,6 +47,12 @@ def part_words(performance: Any, risk: Any, cost: Any, quality: Any) -> Dict[str
     return {"performance": part_word(performance), "risk": part_word(risk), "cost": part_word(cost), "quality": part_word(quality)}
 
 
+def part_scores(performance: Any, risk: Any, cost: Any, quality: Any) -> Dict[str, Optional[float]]:
+    """Task #378: each part's own figure, 0 to 100 as the score job stored it (one decimal, as the fund page shows it), beside the words of part_words.
+    A part with no stored figure is None (the page says "Not scored"); never a made-up number. Sent only where the score itself may be seen (Gold)."""
+    return {"performance": _f(performance), "risk": _f(risk), "cost": _f(cost), "quality": _f(quality)}
+
+
 def _f(v: Any) -> Optional[float]:
     return None if v is None else round(float(v), 1)
 
@@ -129,7 +135,7 @@ async def fire_alerts(conn, week: date, keys: Iterable[str]) -> List[Dict[str, A
     alerts = await conn.fetch("""SELECT a.id, a.user_id, a.key, a.name, a.kind, a.points, a.channels, u.email, s.prefs FROM mf_score_alerts a JOIN users u ON u.id = a.user_id
                                  LEFT JOIN user_state s ON s.user_id = u.id
                                  WHERE a.status = 'active' AND a.key = ANY($1::text[]) AND a.key NOT LIKE 'etf:%' AND (a.last_week IS NULL OR a.last_week < $2)
-                                   AND u.status = 'active' AND u.plan = 'gold' AND (u.plan_until IS NULL OR u.plan_until > now())""", keys, week)
+                                   AND u.status = 'active' AND u.plan IN ('gold', 'platinum') AND (u.plan_until IS NULL OR u.plan_until > now())""", keys, week)
     if not alerts:
         return []
     rows = await conn.fetch("""SELECT key, week, run_date, final, label FROM (SELECT *, row_number() OVER (PARTITION BY key ORDER BY week DESC) AS rn FROM mf_score_history

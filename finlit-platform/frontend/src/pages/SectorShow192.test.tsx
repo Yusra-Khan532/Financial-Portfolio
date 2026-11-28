@@ -80,7 +80,7 @@ describe("Sector Pulse: Show: Sectors | Industries", () => {
     expect(pills.every((b) => b.classList.contains("sp-vbtn"))).toBe(true);                                      // styled like the View pills
     expect(pressed()).toEqual(["Sectors"]);
     expect(st.asked).toContain("board:sectors");
-    expect(document.body.textContent).toContain(`${SECTOR_NAMES.length} sectors, as NSE groups them`);
+    expect(document.body.textContent).toContain(`NSE's ${SECTOR_NAMES.length + 1} sectors: ${SECTOR_NAMES.length} with a reading, 1 too small for one`);   // task #436: the whole set, then how many are read
   });
   it("words every section for sectors: no 'industry' is left outside the switch and the yardstick", () => {
     at(<SectorPulsePage />, "/sectors");

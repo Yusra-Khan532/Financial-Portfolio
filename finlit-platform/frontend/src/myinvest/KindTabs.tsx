@@ -15,6 +15,7 @@ import { holdingShort } from "../lib/holdingName";
 import { andList, betaRangeWord, times } from "../portfolio/shared";
 import { Step, StepCtx, type StepDef } from "../portfolio/pack/EqSteps385";
 import { KeyFiguresSection } from "./KeyFigures277";
+import { SortBar, SortHead, sortedCol, useTableSort, type Col } from "./sort438";
 
 /** Task #391 PR B: the optional fields PR B's server adds (the page works with or without them). */
 type Opt391 = { bandKey?: string | null; noQuantity?: boolean };
@@ -83,8 +84,29 @@ export function EquityTab({ d }: { d: AllInvestments }) {
   const byMacro = Object.entries(s.reduce<Record<string, number>>((a, x) => { a[x.macro] = (a[x.macro] ?? 0) + 1; return a; }, {})).sort((a, b) => b[1] - a[1]);
   const also = s.filter((x) => x.alsoIn);
   const risky = [...s].filter((x) => x.beta != null).sort((a, b) => (b.beta! * b.of) - (a.beta! * a.of)).slice(0, 5);
-  const shown = all ? s : s.slice(0, TOP);
   const noQty = (x: { qty: number | null; price: number | null }) => d.cards.shares.valued && !((x.qty ?? 0) > 0 && (x.price ?? 0) > 0);
+  // task #438: each heading sorts the whole list, then "Show all" decides how many show
+  type Sh = AllInvestments["shares"][number];
+  const sort = useTableSort<Sh>("mi-eq-shares", [
+    { key: "share", label: "Share", text: "Share", type: "text", get: (x) => coName(x) },
+    { key: "macro", label: "Macro sector", text: "Macro sector", type: "text", get: (x) => x.macro },
+    { key: "size", label: "Size", text: "Size", type: "size", get: (x) => x.size },
+    ...(scored ? [{ key: "prism", label: model, text: model, type: "prism", get: (x) => x.score } as Col<Sh>] : []),
+    { key: "peer", label: "Against peers", text: "Against peers", type: "peer", get: (x) => x.peer },
+    { key: "1d", label: "1 day", text: "1 day", type: "num", r: true, get: (x) => x.chg1d },
+    { key: "1y", label: "1 year", text: "1 year", type: "num", r: true, get: (x) => x.chg1y },
+    ...(d.byValue ? [{ key: "value", label: "Value", text: "Value", type: "num", r: true, get: (x) => x.value } as Col<Sh>] : []),
+    { key: "of", label: "Of everything", text: "Of everything", type: "num", r: true, get: (x) => (noQty(x) ? null : x.of) },
+  ]);
+  const sorted = sort.sort(s), shown = all ? sorted : sorted.slice(0, TOP);
+  const alsoSort = useTableSort<Sh>("mi-eq-also", [
+    { key: "share", label: "Share", text: "Share", type: "text", get: (x) => coName(x) },
+    { key: "direct", label: "Direct", text: "Direct", type: "num", r: true, get: (x) => (noQty(x) ? null : x.of) },
+    { key: "funds", label: "Through funds", text: "Through funds", type: "num", r: true, get: (x) => x.alsoIn?.funds || null },
+    { key: "etfs", label: "Through ETFs", text: "Through ETFs", type: "num", r: true, get: (x) => x.alsoIn?.etfs || null },
+    { key: "all", label: "All together", text: "All together", type: "num", r: true, get: (x) => x.alsoIn?.all },
+    { key: "by", label: "Held by", text: "Held by", type: "text", get: (x) => x.alsoIn?.via[0] },
+  ]);
   const nNo = s.filter(noQty).length;
   const notes: Note[] = [
     { kind: (peers.Laggard ?? 0) > (peers.Leader ?? 0) ? "watch" : "insight", title: `${peers.Leader ?? 0} ${peers.Leader === 1 ? "leads" : "lead"} their peers, ${peers.Laggard ?? 0} ${peers.Laggard === 1 ? "lags" : "lag"}`, text: <>Against peers compares each company's past year of price with its own industry group. {peers["Not compared"] ? `${peers["Not compared"]} ${peers["Not compared"] === 1 ? "is" : "are"} not compared this week.` : ""}</> },
@@ -95,9 +117,10 @@ export function EquityTab({ d }: { d: AllInvestments }) {
     <>
       <KStep id="mi-eq-list" title="Your shares" line=""><section className="sp-sec mi-step">
         <SecHead id="mi-eq-list" n={1} title="Your shares" line={(scored ? `${s.length} shares from your Equity portfolio, read with ${model}.` : `${s.length} shares from your Equity portfolio. ${model} · see plans.`) + noQtyLine(nNo, s.length, "share")} info={["Each share on your Equity portfolio with its score, peers, moves and part of everything.", "Of everything is the share's direct part only; step 4 of All together adds what your funds and ETFs hold."]} />
+        <SortBar s={sort} />
         <HScroll label="Your shares" className="mi-freeze">
-          <table className="mi-tb">
-            <thead><tr><th scope="col">Share</th><th scope="col">Macro sector</th><th scope="col">Size</th>{scored && <th scope="col">{model}</th>}<th scope="col">Against peers</th><th scope="col" className="r">1 day</th><th scope="col" className="r">1 year</th>{d.byValue && <th scope="col" className="r">Value</th>}<th scope="col" className="r">Of everything</th></tr></thead>
+          <table className="mi-tb" {...sortedCol(sort)}>
+            <SortHead s={sort} />
             <tbody>{shown.map((x) => <tr key={x.symbol}><th scope="row"><Link to={`/stocks/${encodeURIComponent(x.symbol)}`}><b title={x.name ?? x.symbol}>{coName(x)}</b></Link><small>{coCode(x)}</small>{x.alsoIn && <span className="mi-tag">Also in funds/ETFs</span>}</th>
               <td>{x.macro}</td><td>{x.size ?? <span className="mi-muted">Not sized</span>}</td>{scored && <td><ScoreWord v={x.score} label={x.label} /></td>}<td><span className={"mi-peer p-" + x.peer.replace(/\s/g, "").toLowerCase()}>{x.peer}</span></td>
               <td className={"r " + tone(x.chg1d)}>{chg(x.chg1d, 2)}</td><td className={"r " + tone(x.chg1y)}>{chg(x.chg1y)}</td>{d.byValue && <td className="r">{x.value != null ? rupees(x.value) : "—"}</td>}<td className="r">{ofCell(x, noQty(x))}</td></tr>)}</tbody>
@@ -122,10 +145,10 @@ export function EquityTab({ d }: { d: AllInvestments }) {
         <p className="mi-small"><Link to="/holdings?view=risk">Open Risk analytics on the Equity portfolio →</Link></p></>} /></KStep>
       <KStep id="mi-eq-also" title="Also inside your funds and ETFs" line=""><section className="sp-sec mi-step">
         <SecHead id="mi-eq-also" n={4} title="Also inside your funds and ETFs" line="Shares you hold directly that a fund or ETF holds too: your real part of each, all ways added." info={["Each share you hold directly that also sits inside one of your funds or ETFs.", "All together adds the direct part and what comes through funds and ETFs."]} />
-        {also.length ? <HScroll label="Also inside your funds and ETFs"><table className="mi-tb">
-          <thead><tr><th scope="col">Share</th><th scope="col" className="r">Direct</th><th scope="col" className="r">Through funds</th><th scope="col" className="r">Through ETFs</th><th scope="col" className="r">All together</th><th scope="col">Held by</th></tr></thead>
-          <tbody>{also.map((x) => <tr key={x.symbol}><th scope="row"><b title={x.name ?? x.symbol}>{coName(x)}</b><small>{coCode(x)}</small></th><td className="r">{ofCell(x, noQty(x))}</td><td className="r">{x.alsoIn!.funds ? pctOf(x.alsoIn!.funds, 2) : "—"}</td><td className="r">{x.alsoIn!.etfs ? pctOf(x.alsoIn!.etfs, 2) : "—"}</td>
-            <td className="r"><b>{pctOf(x.alsoIn!.all, 2)}</b>{x.of > 0 ? <small> ({nf(x.alsoIn!.all / x.of, 2)}× direct)</small> : null}</td><td><span className="mi-chips">{x.alsoIn!.via.map((v) => <i key={v}>{v}</i>)}</span></td></tr>)}</tbody></table></HScroll>
+        {also.length ? <><SortBar s={alsoSort} /><HScroll label="Also inside your funds and ETFs"><table className="mi-tb" {...sortedCol(alsoSort)}>
+          <SortHead s={alsoSort} />
+          <tbody>{alsoSort.sort(also).map((x) => <tr key={x.symbol}><th scope="row"><b title={x.name ?? x.symbol}>{coName(x)}</b><small>{coCode(x)}</small></th><td className="r">{ofCell(x, noQty(x))}</td><td className="r">{x.alsoIn!.funds ? pctOf(x.alsoIn!.funds, 2) : "—"}</td><td className="r">{x.alsoIn!.etfs ? pctOf(x.alsoIn!.etfs, 2) : "—"}</td>
+            <td className="r"><b>{pctOf(x.alsoIn!.all, 2)}</b>{x.of > 0 ? <small> ({nf(x.alsoIn!.all / x.of, 2)}× direct)</small> : null}</td><td><span className="mi-chips">{x.alsoIn!.via.map((v) => <i key={v}>{v}</i>)}</span></td></tr>)}</tbody></table></HScroll></>
           : <p className="mi-small">None of your shares sits inside your funds or ETFs.</p>}
       </section></KStep>
       <GoLink to="/holdings" title="Open the full Equity portfolio" line="Scores, peers, diversification and risk analytics of each share" />
@@ -139,6 +162,17 @@ export function MfTab({ d }: { d: AllInvestments }) {
   const noQty = (x: { units: number | null; nav: number | null }) => card.valued && !((x.units ?? 0) > 0 && (x.nav ?? 0) > 0);
   const nNo = f.filter(noQty).length;
   const types = Object.entries(f.reduce<Record<string, string[]>>((a, x) => { if (x.type) (a[x.type] ??= []).push(x.short); return a; }, {})).filter(([, v]) => v.length > 1);
+  type Fd = AllInvestments["funds"][number];
+  const sort = useTableSort<Fd>("mi-mf-funds", [
+    { key: "fund", label: "Fund", text: "Fund", type: "text", get: (x) => x.short },
+    { key: "type", label: "Type", text: "Type", type: "text", get: (x) => x.type },
+    { key: "score", label: "Mutual Fund Score", text: "Mutual Fund Score", type: "prism", get: (x) => (d.plan === "gold" ? x.score : null) },
+    { key: "1y", label: "1 year", text: "1 year", type: "num", r: true, get: (x) => x.chg1y },
+    { key: "ter", label: "Cost a year", text: "Cost a year", type: "num", r: true, get: (x) => x.ter },
+    { key: "beta", label: "Moves with the Nifty 500", text: "Moves with the Nifty 500", type: "num", r: true, get: (x) => x.beta },
+    ...(d.byValue ? [{ key: "value", label: "Value", text: "Value", type: "num", r: true, get: (x) => x.value } as Col<Fd>] : []),
+    { key: "of", label: "Of everything", text: "Of everything", type: "num", r: true, get: (x) => (noQty(x) ? null : x.of) },
+  ]);
   const notes: Note[] = [
     card.overlap ? { kind: "insight", title: `${card.overlap.a} and ${card.overlap.b} overlap ${pctOf(card.overlap.pct, 0)}`, text: <>{card.overlap.n} companies sit in both; the overlap is the part of each fund's money in the same companies.</> } : { kind: "good", title: "No two funds hold the same companies", text: "Or there is only one fund with a loaded file." },
     d.plan === "gold" && f.some((x) => x.score != null) ? { kind: "insight", title: `Lowest Mutual Fund Score: ${[...f].filter((x) => x.score != null).sort((a, b) => a.score! - b.score!)[0].short}`, text: "Mutual Fund Score reads performance, risk, cost and quality against the fund's own category." } : { kind: "insight", title: "Mutual Fund Score is part of Gold", text: <>It reads each fund's performance, risk, cost and quality. <Link to="/plans">Compare plans</Link></> },
@@ -148,9 +182,10 @@ export function MfTab({ d }: { d: AllInvestments }) {
     <>
       <KStep id="mi-mf-list" title="Your funds" line=""><section className="sp-sec mi-step">
         <SecHead id="mi-mf-list" n={1} title="Your funds" line={`${f.length} funds from your MF portfolio.${noQtyLine(nNo, f.length, "fund", "units")}`} info={["Each fund on your MF portfolio with its type, Mutual Fund Score, 1-year change, cost and how much it moves with the Nifty 500.", "Mutual Fund Score carries the fund's own band word; 1.00× moves with the Nifty 500."]} />
-        <HScroll label="Your funds" className="mi-freeze"><table className="mi-tb">
-          <thead><tr><th scope="col">Fund</th><th scope="col">Type</th><th scope="col">Mutual Fund Score</th><th scope="col" className="r">1 year</th><th scope="col" className="r">Cost a year</th><th scope="col" className="r">Moves with the Nifty 500</th>{d.byValue && <th scope="col" className="r">Value</th>}<th scope="col" className="r">Of everything</th></tr></thead>
-          <tbody>{f.map((x) => { const tw = types.find(([t]) => t === x.type); return <tr key={x.code}><th scope="row"><Link to={`/funds/${x.code}`}><b>{x.short}</b></Link>{tw && <span className="mi-tag">{x.type} ×{tw[1].length}</span>}</th><td>{x.type ?? "—"}</td>
+        <SortBar s={sort} />
+        <HScroll label="Your funds" className="mi-freeze"><table className="mi-tb" {...sortedCol(sort)}>
+          <SortHead s={sort} />
+          <tbody>{sort.sort(f).map((x) => { const tw = types.find(([t]) => t === x.type); return <tr key={x.code}><th scope="row"><Link to={`/funds/${x.code}`}><b>{x.short}</b></Link>{tw && <span className="mi-tag">{x.type} ×{tw[1].length}</span>}</th><td>{x.type ?? "—"}</td>
             <td>{d.plan === "gold" ? <ScoreWord v={x.score} label={x.label} why={x.scoreWhy} /> : <span className="mi-muted">Gold</span>}</td><td className={"r " + tone(x.chg1y)}>{chg(x.chg1y)}</td><td className="r">{x.ter != null ? pctOf(x.ter, 2) : "—"}</td><td className="r">{x.beta == null ? "—" : times(x.beta)}</td>
             {d.byValue && <td className="r">{x.value != null ? rupees(x.value) : "—"}</td>}<td className="r">{ofCell(x, noQty(x))}</td></tr>; })}</tbody></table></HScroll>
         <Notes scope="mf" items={notes} />
@@ -189,10 +224,22 @@ function Inside({ d, kind, id, title }: { d: AllInvestments; kind: "funds" | "et
 // ------------------------------------------------------------------------------------------------ ETFs
 export function EtfTab({ d }: { d: AllInvestments }) {
   const e = d.etfs, rep = d.cards.etfs.repeats ?? [];
+  const noQty = (x: { qty: number | null; price: number | null }) => d.cards.etfs.valued && !((x.qty ?? 0) > 0 && (x.price ?? 0) > 0);
+  type Et = AllInvestments["etfs"][number];
+  const sort = useTableSort<Et>("mi-etfs", [
+    { key: "etf", label: "ETF", text: "ETF", type: "text", get: (x) => x.symbol },
+    { key: "tracks", label: "Tracks", text: "Tracks", type: "text", get: (x) => x.tracks ?? x.categoryLabel },
+    { key: "price", label: "Price", text: "Price", type: "num", r: true, get: (x) => x.price },
+    { key: "1d", label: "1 day", text: "1 day", type: "num", r: true, get: (x) => x.chg1d },
+    { key: "1y", label: "1 year", text: "1 year", type: "num", r: true, get: (x) => x.chg1y },
+    { key: "ter", label: "Cost a year", text: "Cost a year", type: "num", r: true, get: (x) => x.ter },
+    { key: "premium", label: "Price vs value", text: "Price vs value", type: "num", r: true, get: (x) => x.premium },
+    ...(d.byValue ? [{ key: "value", label: "Value", text: "Value", type: "num", r: true, get: (x) => x.value } as Col<Et>] : []),
+    { key: "of", label: "Of everything", text: "Of everything", type: "num", r: true, get: (x) => (noQty(x) ? null : x.of) },
+  ]);
   if (!e.length) return (
     <section className="sp-sec mi-step mi-empty-k" id="mi-etf-list"><h2>No ETFs yet</h2><p>Your ETF portfolio is empty, so the other tabs leave ETFs out. Add an ETF there and it is counted here after a refresh.</p><Link className="btn primary" to="/etf-portfolio">Add ETF</Link></section>);
   const far = [...e].filter((x) => x.premium != null).sort((a, b) => Math.abs(b.premium!) - Math.abs(a.premium!))[0];
-  const noQty = (x: { qty: number | null; price: number | null }) => d.cards.etfs.valued && !((x.qty ?? 0) > 0 && (x.price ?? 0) > 0);
   const nNo = e.filter(noQty).length;
   const h = d.health.etfs;
   const notes: Note[] = [
@@ -204,9 +251,10 @@ export function EtfTab({ d }: { d: AllInvestments }) {
     <>
       <KStep id="mi-etf-list" title="Your ETFs" line=""><section className="sp-sec mi-step">
         <SecHead id="mi-etf-list" n={1} title="Your ETFs" line={`${e.length} ETFs from your ETF portfolio.${noQtyLine(nNo, e.length, "ETF")}`} info={["Each ETF on your ETF portfolio: what it tracks, its price, moves, cost and price against value.", "Price against value in red at 1% or more."]} />
-        <HScroll label="Your ETFs" className="mi-freeze"><table className="mi-tb">
-          <thead><tr><th scope="col">ETF</th><th scope="col">Tracks</th><th scope="col" className="r">Price</th><th scope="col" className="r">1 day</th><th scope="col" className="r">1 year</th><th scope="col" className="r">Cost a year</th><th scope="col" className="r">Price vs value</th>{d.byValue && <th scope="col" className="r">Value</th>}<th scope="col" className="r">Of everything</th></tr></thead>
-          <tbody>{e.map((x) => <tr key={x.symbol}><th scope="row"><Link to={`/etfs/${encodeURIComponent(x.symbol)}`}><b>{x.symbol}</b></Link><small>{x.name}</small></th><td>{x.tracks ?? x.categoryLabel ?? "—"}{x.twice && <span className="mi-tag">Twice</span>}</td>
+        <SortBar s={sort} />
+        <HScroll label="Your ETFs" className="mi-freeze"><table className="mi-tb" {...sortedCol(sort)}>
+          <SortHead s={sort} />
+          <tbody>{sort.sort(e).map((x) => <tr key={x.symbol}><th scope="row"><Link to={`/etfs/${encodeURIComponent(x.symbol)}`}><b>{x.symbol}</b></Link><small>{x.name}</small></th><td>{x.tracks ?? x.categoryLabel ?? "—"}{x.twice && <span className="mi-tag">Twice</span>}</td>
             <td className="r">{x.price != null ? "₹" + nf(x.price, 2) : "—"}</td><td className={"r " + tone(x.chg1d)}>{chg(x.chg1d, 2)}</td><td className={"r " + tone(x.chg1y)}>{chg(x.chg1y)}</td><td className="r">{x.ter != null ? pctOf(x.ter, 2) : "—"}</td>
             <td className={"r" + (x.premium != null && Math.abs(x.premium) >= 1 ? " mi-down" : "")}>{chg(x.premium, 2)}</td>{d.byValue && <td className="r">{x.value != null ? rupees(x.value) : "—"}</td>}<td className="r">{ofCell(x, noQty(x))}</td></tr>)}</tbody></table></HScroll>
         <Notes scope="etf" items={notes} />

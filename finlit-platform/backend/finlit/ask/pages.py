@@ -922,7 +922,7 @@ async def get_finance_framework(gw: Gateway, a: Dict[str, Any]) -> Out:
 TOOLS: List[Tool] = [
     Tool("get_superinvestors", "Superinvestor portfolios", "FinLit's Superinvestor portfolios page: named investors (people and firms) who hold 1% or more of listed companies, "
          "from the companies' filings. Without `investor`: the list, largest first, with their top holdings and what changed. With `investor` (a name such as "
-         "Ashish Kacholia or Rakesh Jhunjhunwala): that investor's holdings in full. Silver and Gold.",
+         "Ashish Kacholia or Rakesh Jhunjhunwala): that investor's holdings in full. Paid plans.",
          {"investor": {"type": "string", "maxLength": 80, "description": "An investor's name, if the question is about one"},
           "limit": {"type": "integer", "minimum": 1, "maximum": 60, "default": 30, "description": "How many investors in the list"}}, get_superinvestors),
     Tool("get_india_economy", "India economy", "FinLit's India economy page: inflation (CPI, WPI, by spending group), GDP, IIP, jobs, the RBI's policy rates and decisions, "
@@ -1026,6 +1026,8 @@ def page_links(calls: Iterable[Tuple[str, Dict[str, Any]]]) -> List[Dict[str, st
             add("/results", "Results calendar")
         elif name == "get_ipo_calendar":
             add("/ipo", "IPO calendar")
+        elif name == "get_bulk_block_deals":
+            add("/ipo?view=deals", "Bulk & block deals")
         elif name == "get_my_portfolio":
             add("/holdings", "Your Equity portfolio")
         elif name == "get_my_funds":

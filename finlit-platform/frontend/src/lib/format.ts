@@ -2,8 +2,23 @@
 import { capBucket } from "./capBuckets";
 export const MINUS = "−";
 
-export const nf = (n: number, d = 2) =>
-  Math.abs(n).toLocaleString("en-IN", { minimumFractionDigits: d, maximumFractionDigits: d });
+// One formatter per number of decimals, made once: toLocaleString with options builds a new one on every call, which was a quarter of a second of
+// a phone's time on the All IPOs list (27 Nov 2026). The output is the same.
+const NF = new Map<number, Intl.NumberFormat>();
+export const nf = (n: number, d = 2) => {
+  let f = NF.get(d);
+  if (!f) { f = new Intl.NumberFormat("en-IN", { minimumFractionDigits: d, maximumFractionDigits: d }); NF.set(d, f); }
+  return f.format(Math.abs(n));
+};
+
+/** An en-IN date formatter for these options, made once and reused (same output as toLocaleDateString with them). */
+const DF = new Map<string, Intl.DateTimeFormat>();
+export const dateFormat = (opts: Intl.DateTimeFormatOptions) => {
+  const k = JSON.stringify(opts);
+  let f = DF.get(k);
+  if (!f) { f = new Intl.DateTimeFormat("en-IN", opts); DF.set(k, f); }
+  return f;
+};
 
 /** A text cell for a spreadsheet: one that starts like a formula (= + - @) is stored as plain text so Excel never runs it. Real numbers pass through. */
 export const csvText = (s: string) => (/^[=+\-@\t\r]/.test(s) && Number.isNaN(Number(s)) ? "'" + s : s);
@@ -30,7 +45,7 @@ export function fmtUnit(v: number | null | undefined, unit?: string | null): str
 
 export const dateIN = (iso: string, opts: Intl.DateTimeFormatOptions = { day: "numeric", month: "short", year: "numeric" }) => {
   const d = new Date(iso.length === 10 ? iso + "T00:00:00" : iso);
-  return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString("en-IN", opts);
+  return Number.isNaN(d.getTime()) ? iso : dateFormat(opts).format(d);
 };
 
 export const initials = (text: string) =>

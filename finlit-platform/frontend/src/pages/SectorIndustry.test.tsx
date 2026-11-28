@@ -50,7 +50,7 @@ describe("an industry page (pack 07)", () => {
   });
   it("for Basic the stock list and the not-counted names are locked in words; the counts stay", () => {
     at();
-    expect(screen.getByText("The stocks of each industry are part of the Silver plan")).toBeTruthy();
+    expect(screen.getByText("The stocks of each industry are part of every paid plan")).toBeTruthy();
     expect(document.body.textContent).toContain("Not counted: 105 Finance stocks");
   });
   it("Add to watch saves the industry for its alerts, and again removes it", () => {

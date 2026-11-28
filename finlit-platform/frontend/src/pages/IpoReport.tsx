@@ -1,9 +1,10 @@
 // One IPO in full (/ipo/:id): the headline figures, the issue in words, the timetable, subscription by investor category and the bids at each price,
 // how the issue was reserved and how much one could bid, the GMP log, issue details, the offer documents, figures and restated financials from the offer
-// document, what the money is for, and the anchor book. Every figure is from the named source or is arithmetic on them. Describes; never advises.
+// document, what the money is for, the anchor book, and the bulk and block deals since listing (marked near the lock-in ends). Every figure is from the named source or is arithmetic on them. Describes; never advises.
 import type { ReactNode } from "react";
 import { Link, useLocation, useParams } from "react-router";
 import { PageHeader } from "../components/PageHeader";
+import { DealsSinceListing } from "../components/ipo/DealsSinceListing";
 import { BookBars, DemandBars, Financials, GmpLine, Reservation } from "../components/ipo/ReportCharts";
 import { MINUS, nf } from "../lib/format";
 import { STATUS_LABEL, useIpoRecord, type IpoRecord } from "../lib/ipoHistory";
@@ -170,6 +171,8 @@ export function IpoReportPage() {
         <p className="ir-lead"><b>{nf(d.anchors.count, 0)}</b> anchor investors took <b>{nf(d.anchors.shares, 0)}</b> shares for <b>{crore(d.anchors.amountCr)}</b>{d.timetable.anchorBid ? ` on ${dateIn(d.timetable.anchorBid)}` : ""}.</p>
         <details className="ir-more"><summary>Every anchor investor</summary><ul className="ir-list">{d.anchors.investors.map((a) => <li key={a.name}><span>{a.name}</span><b>{nf(a.shares, 0)} shares{a.amountCr != null ? ` · ${crore(a.amountCr)}` : ""}</b></li>)}</ul></details>
       </section>}
+
+      {r.status === "listed" && r.nse && r.listingDate && <DealsSinceListing symbol={r.nse} listingDate={r.listingDate} timetable={d?.timetable} />}
 
       <p className="muted ir-foot">
         Sources: issue details, overall subscription, GMP and offer-document figures from <a href={r.url} target="_blank" rel="noopener noreferrer">InvestorGain</a>{r.nseBook ? "; subscription by category and bids at each price from NSE" : ""}{r.day1 ? `; listing-day open, range and close from ${r.day1.source ?? "the exchange"}'s daily price file` : ""}{r.status === "listed" ? "; the latest close from the exchange's daily prices" : ""}.

@@ -7,7 +7,10 @@
 //   - the pack's own theme button and its "preview" toast are gone (the site's header and theme switch are used); the tour follows the site's theme;
 //   - every listener, observer and element added outside the page is removed when the page unmounts (the returned function).
 // Every value written into the page goes through esc() first.
-import { AREAS, PLANS, CLIPS } from "./goliveData.js";
+import { AREAS, PLANS, CLIPS, COMBINED } from "./goliveData.js";
+
+/** Task #436: the one switch for the landing page's plan prices (false until payments open). */
+export const FL_PRICES_LIVE = false;
 
 /** @param {{ navigate: (to: string) => void, searchIndex: () => Promise<{ rows: [string, string][], sectors?: string[], sec?: number[], mc?: number[] }>, quote: (symbol: string) => Promise<{ price: number | null, changePct: number | null, priceDate: string | null } | null> }} opts
  *  @returns {() => void} */
@@ -37,21 +40,30 @@ var WARM={};function recWarm(names){names.forEach(function(n){var r=recOf(n);if(
 function exSmall(){return innerWidth<760}
 var ICO={"filter": "M3 5h18l-7 8v6l-4 2v-8z", "layers": "M12 3l9 4.5-9 4.5-9-4.5zM3 12l9 4.5 9-4.5M3 16.5l9 4.5 9-4.5", "sliders": "M4 7h9M17 7h3M4 17h3M11 17h9M15 5a2 2 0 110 4 2 2 0 010-4zM9 15a2 2 0 110 4 2 2 0 010-4z", "bookmark": "M6 3h12v18l-6-4-6 4z", "candles": "M4 7h4v9H4zM10 5h4v7h-4zM16 9h4v8h-4zM6 4v3M6 16v4M12 3v2M12 12v6M18 6v3M18 17v3", "grid": "M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z", "trophy": "M8 4h8v5a4 4 0 01-8 0zM8 6H4.5a3.5 3.5 0 003.5 4M16 6h3.5a3.5 3.5 0 01-3.5 4M12 13v5M8 21h8", "code": "M8 8l-4 4 4 4M16 8l4 4-4 4M13.5 5l-3 14", "list": "M9 6h11M9 12h11M9 18h11M4.5 6h.5M4.5 12h.5M4.5 18h.5", "percent": "M19 5L5 19M7 9a2 2 0 100-4 2 2 0 000 4zM17 19a2 2 0 100-4 2 2 0 000 4z", "compass": "M12 3a9 9 0 100 18 9 9 0 000-18zM15.5 8.5l-2 5-5 2 2-5z", "building": "M5 21V5l7-2v18M12 8h7v13M8 9h1M8 13h1M8 17h1M15 12h1M15 16h1M3 21h18", "bell": "M6 16v-5a6 6 0 0112 0v5l2 2H4zM10 20a2 2 0 004 0", "users": "M9 11a3.5 3.5 0 100-7 3.5 3.5 0 000 7zM2.5 20a6.5 6.5 0 0113 0M16 4.5a3.5 3.5 0 010 6.5M18 14a5.5 5.5 0 013.5 6", "refresh": "M20 11a8 8 0 00-14.5-4.5L4 8M4 4v4h4M4 13a8 8 0 0014.5 4.5L20 16M20 20v-4h-4", "venn": "M9 6.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM15 6.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11z", "pie": "M12 3v9h9a9 9 0 11-9-9zM15 3.5a8 8 0 015.5 5.5H15z", "chart": "M3 20h18M5 16l4-5 4 3 6-8", "scale": "M12 4v16M8 20h8M5 7h14M5 7l-3 6h6zM19 7l-3 6h6z", "gauge": "M4.5 17a8 8 0 1115 0M12 17l4-5", "database": "M12 3c4.4 0 8 1.3 8 3s-3.6 3-8 3-8-1.3-8-3 3.6-3 8-3zM4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3", "doc": "M6 3h9l4 4v14H6zM14 3v5h5M9 12h7M9 16h5", "flag": "M5 21V4h12l-2 4 2 4H5", "clock": "M12 3a9 9 0 100 18 9 9 0 000-18zM12 7v5l3 2", "slides": "M3 4h18v12H3zM12 16v4M8 20h8", "link": "M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7L11.5 6.8M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1.5-1.5", "eye": "M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6S2 12 2 12zM12 9.5a2.5 2.5 0 100 5 2.5 2.5 0 000-5z", "columns": "M4 4h5v16H4zM15 4h5v16h-5z", "calendar": "M4 6h16v14H4zM4 10h16M8 3v4M16 3v4", "scatter": "M4 4v16h16M8 15h.5M11 11h.5M14 13h.5M17 7h.5M9 9h.5", "plus": "M12 5v14M5 12h14", "spark": "M12 3l2 6 6 2-6 2-2 6-2-6-6-2 6-2z", "target": "M12 3a9 9 0 100 18 9 9 0 000-18zM12 7.5a4.5 4.5 0 100 9 4.5 4.5 0 000-9zM12 11.5v1", "shield": "M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z", "calc": "M6 3h12v18H6zM9 7h6M9 11h.5M12 11h.5M15 11h.5M9 15h.5M12 15h.5M15 15h.5", "rupee": "M7 4h10M7 8h10M9 4c4 0 5 2 5 4s-2 4-6 4l6 8", "stairs": "M3 20h5v-5h5v-5h5V5h3", "bolt": "M13 2L4 14h7l-1 8 9-12h-7z", "note": "M5 4h14v12l-4 4H5zM15 20v-4h4M8 9h8M8 13h5", "phone": "M8 2h8v20H8zM11 18h2", "quad": "M4 4h16v16H4zM12 4v16M4 12h16M16 8h.5", "globe": "M12 3a9 9 0 100 18 9 9 0 000-18zM3 12h18M12 3c2.5 2.5 3.5 5.5 3.5 9s-1 6.5-3.5 9c-2.5-2.5-3.5-5.5-3.5-9s1-6.5 3.5-9z", "mic": "M9 3h6v10a3 3 0 01-6 0zM5 11a7 7 0 0014 0M12 18v3", "news": "M4 5h13v14H6a2 2 0 01-2-2zM17 9h3v8a2 2 0 01-2 2M8 9h5M8 13h5", "book": "M5 4h10a3 3 0 013 3v13H8a3 3 0 01-3-3zM8 20V4", "chat": "M4 5h16v11H9l-5 4z", "cursor": "M5 3l14 7-6 1.5L10.5 18z", "plug": "M9 3v5M15 3v5M6 8h12v3a6 6 0 01-12 0zM12 17v4"};
 var PLAY='<svg viewBox="0 0 12 12" width="10" height="10" aria-hidden="true"><path d="M3.6 1.9v8.2L10.2 6z" fill="currentColor"/></svg>';
-function tileH(x){var hl=x[0].charAt(0)==='*',n=hl?x[0].slice(1):x[0];return '<li class="lp-tl'+(hl?' lp-hl':'')+'"><span class="lp-tl-i"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="'+(ICO[x[2]]||ICO.spark)+'"/></svg></span><span class="lp-tl-t"><b>'+esc(n)+'</b>'+(x[1]?'<small>'+esc(x[1]).replace(/\n/g,'<br>')+'</small>':'')+'</span></li>'}
-function exDetail(t){var free=t[2]==='Free';return '<header><h3>'+esc(t[1])+(t[8]?CROWN:'')+'</h3>'+tag(t[2])+'</header><p class="lp-ex-l">'+esc(t[3])+'</p>'+(t[9]?'<ul class="lp-tls">'+t[9].map(tileH).join('')+'</ul>':'<ul>'+t[4].map(function(p){var hl=p.charAt(0)==='*';if(hl)p=p.slice(1);var c=p.indexOf(': ');return '<li'+(hl?' class="lp-hl"':'')+'>'+CHK+'<span>'+(hl&&c>0?'<b>'+esc(p.slice(0,c))+'</b>'+esc(p.slice(c+1)):esc(p))+'</span></li>'}).join('')+'</ul>')+(t[5]?'<p class="lp-ex-s">'+esc(t[5])+'</p>':'')+'<a class="lp-ex-go" href="'+(free?t[6]:'/plans')+'">'+(free?'Open '+esc(t[1]):'See what '+esc(t[2])+' includes')+' →</a>'}
+function tileH(x){var hl=x[0].charAt(0)==='*',n=hl?x[0].slice(1):x[0];return '<li class="lp-tl"><span class="lp-tl-i"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="'+(ICO[x[2]]||ICO.spark)+'"/></svg></span><span class="lp-tl-t"><b>'+esc(n)+'</b>'+(x[1]?'<small>'+esc(x[1]).replace(/\n/g,'<br>')+'</small>':'')+'</span></li>'}
+function exDetail(t){var free=t[2]==='Free';return '<header><h3>'+esc(t[1])+(t[8]?CROWN:'')+'</h3>'+tag(t[2])+'</header><p class="lp-ex-l">'+esc(t[3])+'</p>'+(t[9]?'<ul class="lp-tls">'+t[9].map(tileH).join('')+'</ul>':'<ul>'+t[4].map(function(p){var hl=p.charAt(0)==='*';if(hl)p=p.slice(1);var c=p.indexOf(': ');return '<li>'+CHK+'<span>'+(hl&&c>0?'<b>'+esc(p.slice(0,c))+'</b>'+esc(p.slice(c+1)):esc(p))+'</span></li>'}).join('')+'</ul>')+(t[5]?'<p class="lp-ex-s">'+esc(t[5])+'</p>':'')+'<a class="lp-ex-go" href="'+(free?t[6]:'/plans')+'">'+(free?'Open '+esc(t[1]):'See what '+esc(t[2])+' includes')+' →</a>'}
 function ex(){var h=document.getElementById('lp-ex');if(!h)return;var sm=exSmall(),b=B[EX.a],t=b.tools[EX.t];h.classList.toggle('lp-ex-sm',sm);
  h.querySelector('.lp-ex-a').innerHTML=B.map(function(x,i){return '<button type="button" role="tab" data-area="'+i+'" aria-selected="'+(i===EX.a)+'"><span><b>'+esc(x.name)+'</b>'+(i===EX.a&&!sm?'<small>'+esc(x.line)+'</small>':'')+'</span><i>'+x.tools.length+'</i></button>'}).join('');
- h.querySelector('.lp-ex-t').innerHTML='<p class="lp-ex-k"><span>'+(sm?esc(b.line):esc(b.name)+' · '+b.tools.length+' tools')+'</span>'+'<span class="lp-ex-st">'+(sm?'':'<span><i></i>Start here</span>')+'<span>'+CROWN+'FinLit\u2019s own model</span></span>'+'</p>'+b.tools.map(function(x,i){var on=i===EX.t&&(!sm||EX.open);return '<button type="button" data-tool="'+i+'" aria-pressed="'+on+'"'+(sm?' aria-expanded="'+on+'"':'')+'>'+(i<2?'<i class="lp-dot"></i>':'<i class="lp-dot0"></i>')+'<span>'+esc(x[1])+(x[7]?' <u class="lp-new">New</u>':'')+(x[8]?CROWN:'')+'</span>'+iBtn(x[1])+'</button>'+(sm&&on?'<div class="lp-ex-di">'+exDetail(x)+'</div>':'')}).join('');
+ h.querySelector('.lp-ex-t').innerHTML='<p class="lp-ex-k"><span>'+(sm?esc(b.line):esc(b.name)+' · '+b.tools.length+' tools')+'</span>'+'<span class="lp-ex-st">'+'<span>'+CROWN+'FinLit\u2019s own model</span></span>'+'</p>'+b.tools.map(function(x,i){var on=i===EX.t&&(!sm||EX.open);return '<button type="button" data-tool="'+i+'" aria-pressed="'+on+'"'+(sm?' aria-expanded="'+on+'"':'')+'>'+'<span>'+esc(x[1])+(x[7]?' <u class="lp-new">New</u>':'')+(x[8]?CROWN:'')+'</span>'+iBtn(x[1])+'</button>'+(sm&&on?'<div class="lp-ex-di">'+exDetail(x)+'</div>':'')}).join('');
  h.querySelector('.lp-ex-d').innerHTML=sm?'':exDetail(t);if(window.recWarmOK)recWarm(b.tools.map(function(x){return x[1]}))}
 ex();
 /* plans: areas down the side, plans across the top; an area opens into its tools, a tool into its parts; add-ons are the last group */
-var CQ=PLANS,CS={open:{},det:{},plan:null,hl:null};
+/* task #411 (pack of 27 Nov 2026): the combined plan is the table's sixth column (plan 5), not a separate card. Its name, colour and price are
+   COMBINED's and its value in each row is the row's sixth value, both in ./goliveData.js; the shared PLANS object is never changed. /plans keeps the
+   separate card (opts.combinedCard), so it shows the five-column table as before. */
+/* task #436 (pack of 28 Nov 2026): prices are hidden on the landing page until payments open. One switch: FL_PRICES_LIVE. While it is false every paid
+   plan reads "Coming soon", the add-ons show no yearly price and the notes name no figure; setting it to true brings the prices back with no other change.
+   /plans keeps its prices (opts.pricesLive). */
+var LIVE=opts.pricesLive!=null?!!opts.pricesLive:FL_PRICES_LIVE;
+var CMB=!opts.combinedCard,CQ={P:PLANS.P.concat([[COMBINED.head[0],'',COMBINED.head[1],'',{y:COMBINED.y}]]),G:PLANS.G,n:PLANS.n,AP:LIVE?PLANS.AP:{},cnt:PLANS.cnt.slice()};
+CQ.cnt[5]=0;CQ.G.forEach(function(g){g.rows.forEach(function(r){if(r.v[5]!=='N'&&r.v[5]!=='A')CQ.cnt[5]++})});
+var CS={open:{},det:{},plan:null,hl:null},COLS=CMB?[0,3,4,1,2,5]:[0,3,4,1,2];
 var TICK='<svg class="lq-y" viewBox="0 0 20 20" width="18" height="18" role="img" aria-label="In the plan"><path d="M4.5 10.6l3.6 3.6 7.4-8.2" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>',NO='<i class="lq-no" role="img" aria-label="Not in the plan"></i>';
 var CHEV='<svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 7.5l5 5 5-5"/></svg>';
 var CROWN='<svg class="lp-crown" viewBox="0 0 24 24" width="15" height="15" role="img" aria-label="FinLit’s own model"><path d="M3 8.2l4.6 3.9L12 5l4.4 7.1L21 8.2 19.3 18H4.7z" fill="currentColor"/></svg>';
-var SHORT={1:'MF + ETF',2:'Equity'};
-var CQ_WHO={0:'Look up any listed company',3:'Every company, scored by FinLit Prism',4:'Gold, plus sectors and the deeper tools',1:'For people who invest through funds',2:'For checking the shares you own'};
-var CQ_SAY={0:'Free to start. No card needed.',3:'Everything in Free, plus {d} more tools.',4:'Everything in Gold, plus {d} more tools and higher limits.',1:'Everything in Free, plus {d} more tools for funds and ETFs.',2:'Everything in Free, plus {d} more tools for the shares you own.'};
+var SHORT={1:'MF + ETF',2:'Equity',5:'Combined'};
+var CQ_WHO={0:'Look up any listed company',3:'Every company, scored by FinLit Prism',4:'Gold, plus sectors and the deeper tools',1:'For people who invest through funds',2:'For checking the shares you own',5:'Equity Portfolio + Mutual Fund + ETF, plus five tools from Gold'};
+var CQ_SAY={0:'Free to start. No card needed.',3:'Everything in Free, plus {d} more tools.',4:'Everything in Gold, plus {d} more tools and higher limits.',1:'Everything in Free, plus {d} more tools for funds and ETFs.',2:'Everything in Free, plus {d} more tools for the shares you own.',5:'Both one-area plans in one, plus five tools from Gold: {d} more tools than Free.'};
 function cqVal(v,ao){var ap=ao&&CQ.AP&&CQ.AP[ao];return v==='Y'?TICK:v==='N'?(ao?'<span class="lq-ao2" title="Not in this plan. Buy it on its own as the '+esc(ao)+' add-on'+(ap?', '+esc(ap)+' a year':'')+'."><em class="lq-add">Add-on</em><small>'+(ap?esc(ap)+' a year':'buy on its own')+'</small></span>':NO):'<b class="lq-v">'+esc(v)+'</b>'}
 function cqHas(v){return v!=='N'&&v!=='A'}
 function cqN(g,k){var n=0;g.rows.forEach(function(r){if(cqHas(r.v[k]))n++});return n}
@@ -62,6 +74,7 @@ function cqLow(r){var k=[0,3,4].filter(function(x){return cqHas(r.v[x])})[0];ret
 function inr(n){return '\u20b9'+Math.round(n).toLocaleString('en-IN')}
 function cqPrice(k,cls){var p=CQ.P[k],q=p[4];
  if(!q)return '<div class="lq-pr free'+(cls||'')+'"><span class="lq-pm"><strong>\u20b90</strong></span></div>';
+ if(!LIVE)return '<div class="lq-pr lq-soon'+(cls||'')+'"><span class="lq-pm"><strong>Coming soon</strong></span><em class="lq-py"><span class="lq-y1">Yearly plan</span></em></div>';
  return '<div class="lq-pr'+(cls||'')+'"><span class="lq-pm"><strong>'+inr(q.y/12)+'</strong><i>/month</i></span><em class="lq-py"><span class="lq-y1">'+inr(q.y)+' + GST</span> <span class="lq-y2">billed yearly</span></em></div>'}
 /* cols: plan indexes, with 'gap' between the main plans and the one-area plans */
 function cqTable(cols){var wd=innerWidth>=1100,tpl=(wd?'minmax(360px,3fr) ':'minmax(240px,2.2fr) ')+cols.map(function(k){return k==='gap'?'16px':(wd?'minmax(0,1fr)':'minmax(90px,1fr)')}).join(' '),st=' style="grid-template-columns:'+tpl+'"';
@@ -69,7 +82,9 @@ function cqTable(cols){var wd=innerWidth>=1100,tpl=(wd?'minmax(360px,3fr) ':'min
  function each(fn){return cols.map(function(k,i){return k==='gap'?'<span class="lq-gap" aria-hidden="true"></span>':fn(k,cc(k,i))}).join('')}
  var gi=cols.indexOf('gap'),nMain=cols.filter(function(k){return k===0||k>2}).length,nOne=cols.filter(function(k){return k===1||k===2}).length;
  var h='<div class="lq-t"'+(CS.hl!=null?' data-hl="'+CS.hl+'"':'')+' role="table" aria-label="What each plan gives you">';
- h+='<div class="lq-r lq-head"'+st+'><div class="lq-lead">'+CQ.n+' tools in '+CQ.G.length+' areas</div>'+each(function(k,c){var p=CQ.P[k];return '<div class="lq-p'+c+'">'+(CS.hl===k?'<em class="lq-fit">Fits you</em>':'')+'<b><i style="background:'+p[2]+'"></i>'+esc(p[0])+'</b>'+cqPrice(k)+'<small>'+CQ.cnt[k]+' of '+CQ.n+' tools</small></div>'})+'</div>';
+ var bi=cols.indexOf(1);if(CMB&&bi>0){var c1=bi+2,c2=cols.length+2;h+='<div class="lq-r lq-band" aria-hidden="true"'+st+'><span class="lq-band-l">Compare plans<small>'+CQ.n+' tools in '+CQ.G.length+' areas</small></span><span class="lq-band-a" style="grid-column:2/'+c1+'">Standard plans<small>Everything grows with the plan</small></span><span class="lq-band-b" style="grid-column:'+c1+'/'+c2+'">Plans for one need<small>Pick by what you hold</small></span></div>'}
+ var KEY='<span>'+TICK+'In the plan</span><span><b>20 a week</b>With a limit</span><span>'+NO+'Not in the plan</span><span><em class="lq-add">Add-on</em>Buy just that tool</span>';
+ h+='<div class="lq-r lq-head"'+st+'>'+(CMB?'<div class="lq-lead lq-lead2"><p class="lq-lt">What each plan gives you</p><p class="lq-ls">'+(LIVE?'Yearly plans, shown per month. Prices before GST.':'Prices are coming soon. Start on Free today.')+'</p><p class="lq-key lq-key-in">'+KEY+'</p><span class="lq-lc">Tools by area <i aria-hidden="true">↓</i></span></div>':'<div class="lq-lead">'+CQ.n+' tools in '+CQ.G.length+' areas</div>')+each(function(k,c){var p=CQ.P[k];return '<div class="lq-p'+c+'">'+(CS.hl===k?'<em class="lq-fit">Fits you</em>':'')+'<b><i style="background:'+p[2]+'"></i>'+esc(p[0])+'</b>'+cqPrice(k)+(k===5?'<span class="lq-sub" title="Equity Portfolio + Mutual Fund + ETF, plus five tools from Gold"><em>'+(LIVE?inr(CQ.P[1][4].y+CQ.P[2][4].y-COMBINED.y)+' less than both':'Both plans in one')+'</em></span>':'')+'<small>'+CQ.cnt[k]+' of '+CQ.n+' tools</small></div>'})+'</div>';
  CQ.G.forEach(function(g){var open=!!CS.open[g.id];
   h+='<div class="lq-g'+(open?' on':'')+(g.addon?' lq-ao':'')+'"><button type="button" class="lq-r lq-gh"'+st+' data-cqg="'+g.id+'" aria-expanded="'+open+'"><span class="lq-gl"><span class="lq-ch">'+CHEV+'</span><span><b>'+esc(g.name)+'</b><small>'+(g.addon?g.rows.length+' add-ons · a yearly price each':g.rows.length+' tools · '+esc(g.line))+'</small></span></span>'+each(function(k,c){return '<span class="lq-s'+c+'">'+cqSum(g,k)+'</span>'})+'</button>';
   if(open){g.rows.forEach(function(r){var d=!!CS.det[r.n],has=r.subs.length>0,lab='<span class="lq-n"><b>'+esc(r.n)+(r.usp?CROWN:'')+(r.new?'<em class="lq-new">New</em>':'')+'</b><small>'+esc(r.k||r.line)+'</small></span>';
@@ -81,7 +96,7 @@ function cqTable(cols){var wd=innerWidth>=1100,tpl=(wd?'minmax(360px,3fr) ':'min
  return h+'</div>'}
 /* phone: one plan at a time, picked from a row that stays in view; the same groups underneath */
 function cqPhone(){var k=CS.plan==null?0:CS.plan,p=CQ.P[k],base=k===4?3:0,d=CQ.cnt[k]-CQ.cnt[base];
- var h='<div class="lp-pp" role="tablist" aria-label="Choose a plan to see">'+[0,3,4,1,2].map(function(x){return '<button type="button" role="tab" class="lp-pp-b" data-cqp="'+x+'" aria-selected="'+(x===k)+'">'+esc(SHORT[x]||CQ.P[x][0])+'</button>'}).join('')+'</div>';
+ var h='<div class="lp-pp" role="tablist" aria-label="Choose a plan to see">'+COLS.map(function(x){return '<button type="button" role="tab" class="lp-pp-b" data-cqp="'+x+'" aria-selected="'+(x===k)+'">'+esc(SHORT[x]||CQ.P[x][0])+'</button>'}).join('')+'</div>';
  h+='<div class="lq-pv'+(CS.hl===k?' lq-pv-hl':'')+'" style="--pc:'+p[2]+'">'+(CS.hl===k?'<em class="lq-fit">Fits you</em>':'')+'<div class="lq-pv-t"><b><i></i>'+esc(p[0])+'</b>'+cqPrice(k,' lq-pr-ph')+'</div><p class="lq-pv-w">'+CQ_WHO[k]+'</p><span class="lq-m" role="img" aria-label="'+CQ.cnt[k]+' of '+CQ.n+' tools"><i style="width:'+Math.round(CQ.cnt[k]/CQ.n*100)+'%"></i></span><p><b>'+CQ.cnt[k]+' of '+CQ.n+' tools.</b> '+CQ_SAY[k].replace('{n}',CQ.cnt[k]).replace('{d}',d)+'</p><a class="btn lg '+(k===0?'hh-go':'hh-ghost')+'" href="/login?mode=signup">'+(k===0?'Create free account':'Tell me when '+esc(p[0])+' opens')+'</a></div><div class="lq-pa">';
  CQ.G.forEach(function(g){var open=!!CS.open[g.id],n=cqN(g,k),t=g.rows.length;
   h+='<section class="lq-g'+(open?' on':'')+(g.addon?' lq-ao':'')+'"><button type="button" class="lq-pb" data-cqg="'+g.id+'" aria-expanded="'+open+'"><span class="lq-ch">'+CHEV+'</span><span class="lq-pb-n"><b>'+esc(g.name)+'</b>'+(g.addon?'<small>'+(t-n?(t-n)+' you can add to '+esc(p[0]):'All in '+esc(p[0]))+'</small>':'<span class="lq-m" aria-hidden="true"><i style="width:'+Math.round(n/t*100)+'%"></i></span>')+'</span>'+(g.addon?'':'<em><b>'+n+'</b> of '+t+'</em>')+'</button>';
@@ -89,9 +104,9 @@ function cqPhone(){var k=CS.plan==null?0:CS.plan,p=CQ.P[k],base=k===4?3:0,d=CQ.c
   h+='</section>'});
  return h+'</div>'}
 function cqMode(){return innerWidth>=1100?'wide':innerWidth>=760?'mid':'small'}
-/* 26 Nov: the combined plan (Equity Portfolio + Mutual Fund + ETF), shown under the plans table.
+/* 26 Nov: the combined plan (Equity Portfolio + Mutual Fund + ETF), shown under the plans table (since task #411 on /plans only: opts.combinedCard).
    Its price and the five extras it adds from Gold are set here; the tool count (Free, both plans and the extras) is worked out from the plan data. */
-var CQ_BUN={y:4499,extras:[['All my investments','Shares, funds and ETFs in one view'],['Full dashboard','Shares, funds and alerts on one screen'],['Watchlists','3 lists of 20 stocks'],['Discussion forums','Moderated threads by company'],['FinLit AI','60 questions a month']]};
+var CQ_BUN=COMBINED;   /* task #410: the combined plan's price and extras live in ./goliveData.js, read by /plans too */
 function cqBundle(){var a=CQ.P[2],b=CQ.P[1],g=CQ.P[3],names=CQ_BUN.extras.map(function(x){return x[0]}),has=function(v){return v&&v!=='N'},n=0;
  CQ.G.forEach(function(gr){gr.rows.forEach(function(r){if(has(r.v[0])||has(r.v[1])||has(r.v[2])||names.indexOf(r.n)>=0)n++})});
  var save=a[4].y+b[4].y-CQ_BUN.y,ok='<svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7"/></svg>';
@@ -106,9 +121,9 @@ function cqBundle(){var a=CQ.P[2],b=CQ.P[1],g=CQ.P[3],names=CQ_BUN.extras.map(fu
   +'<p class="lq-bun-up">Need Discover, the chart builder, DCF or Results? '+esc(g[0])+' has '+CQ.cnt[3]+' of '+CQ.n+' tools for '+inr(g[4].y)+' a year.</p>'
   +'</section>'}
 function cq(){var el=document.getElementById('lp-cq');if(!el)return;var m=cqMode(),allG=CQ.G.every(function(g){return CS.open[g.id]});
- el.className='lp-cq-'+m;el.innerHTML=(m==='wide'?cqTable([0,3,4,1,2]):m==='small'?cqPhone():cqTable([0,3,4,1,2]))+cqBundle()+'<details class="lq-notes"'+(CS.notes?' open':'')+'><summary><span class="lq-ch">'+CHEV+'</span><b>About these plans</b><small>One-area plans, do-it-yourself add-ons, prices and GST</small></summary><div class="lq-notes-b"><p class="lq-foot">A one-area plan is added to your Free account, so its column shows everything you get, Free included. Both one-area plans bought separately are ₹5,000 a year. The combined plan above has both for ₹4,499, plus All my investments, the full dashboard, watchlists, the forum and FinLit AI. Gold includes everything in it, and more.</p><p class="lq-room"><b>Do-it-yourself add-ons.</b> A tool marked <em class="lq-add">Add-on</em> is not in that plan, but you can buy just that tool and add it to your plan for the yearly price shown under it. Any plan can also add more room for ₹199 a year each: 25 more watchlist stocks, 25 more holdings, 25 more alerts a week, or 10 more baskets. If your add-ons would cost more than the next plan, we offer you the plan instead.</p><p class="lq-n2">Expected prices, before GST. Plans are yearly: the monthly figure is the yearly price spread over 12 months, and you pay for the year at once. Payments are not live yet: start on Free and ask for a plan from your account; the team switches it on and confirms by email. Features and limits can change. FinLit gives readings, not tips: it never tells you to buy or sell. FinLit Ventures is a technology company and is not registered with SEBI or AMFI as an adviser or research analyst.</p></div></details>';
+ el.className='lp-cq-'+m;el.innerHTML=(m==='small'?cqPhone():cqTable(COLS))+(CMB?'':cqBundle())+'<details class="lq-notes"'+(CS.notes?' open':'')+'><summary><span class="lq-ch">'+CHEV+'</span><b>About these plans</b><small>'+(LIVE?'One-area plans, do-it-yourself add-ons, prices and GST':'One-area plans, do-it-yourself add-ons and when plans open')+'</small></summary><div class="lq-notes-b"><p class="lq-foot">A one-area plan is added to your Free account, so its column shows everything you get, Free included. '+(LIVE?'Both one-area plans bought separately are '+inr(CQ.P[1][4].y+CQ.P[2][4].y)+' a year. The combined plan'+(CMB?'':' above')+' has both for '+inr(COMBINED.y)+', plus':'The combined plan has both, plus')+' All my investments, the full dashboard, watchlists, the forum and FinLit AI. Gold includes everything in it, and more.</p><p class="lq-room"><b>Do-it-yourself add-ons.</b> A tool marked <em class="lq-add">Add-on</em> is not in that plan, but you can buy just that tool and add it to your plan'+(LIVE?' for the yearly price shown under it. Any plan can also add more room for ₹199 a year each:':'. Any plan can also add more room:')+' 25 more watchlist stocks, 25 more holdings, 25 more alerts a week, or 10 more baskets. If your add-ons would cost more than the next plan, we offer you the plan instead.</p><p class="lq-n2">'+(LIVE?'Expected prices, before GST. Plans are yearly: the monthly figure is the yearly price spread over 12 months, and you pay for the year at once.':'Prices will be announced soon. Plans will be yearly.')+' Payments are not live yet: start on Free and ask for a plan from your account; the team switches it on and confirms by email. Features and limits can change. FinLit gives readings, not tips: it never tells you to buy or sell. FinLit Ventures is a technology company and is not registered with SEBI or AMFI as an adviser or research analyst.</p></div></details>';
  var ld=document.querySelector('.lp-cq-lede');if(ld)ld.textContent=m==='small'?'Tap a plan to see what it gives you. Open an area to see every tool in it.':'Open an area to see its tools. Open a tool to see its parts and limits.';
- var kb=document.querySelector('.lq-bar');if(kb)kb.hidden=false;
+ var kb=document.querySelector('.lq-bar');if(kb){kb.hidden=false;var kk=kb.querySelector('.lq-key');if(kk)kk.style.visibility=!CMB||m==='small'?'':'hidden'}
  document.querySelector('[data-cq=groups]').textContent=allG?'Close all areas':'Open all areas';
  var cn=document.querySelector('.lp-cq-n');if(cn){cn.textContent='';cn.hidden=true}
  var nd=el.querySelector('.lq-notes');if(nd)nd.addEventListener('toggle',function(){CS.notes=nd.open})}
@@ -120,7 +135,7 @@ cq();var cqM=cqMode();
  gos.forEach(function(b){var k=+b.dataset.goplan,p=CQ.P[k],q=p[4],lb=b.querySelector('b');if(!lb||!p)return;
   b.style.setProperty('--pc',p[2]);
   var x=document.createElement('span');x.className='lp-go-x';lb.parentNode.insertBefore(x,lb);x.appendChild(lb);
-  x.insertAdjacentHTML('beforeend','<span class="lp-go-s"><span class="lp-go-q" aria-hidden="true">See the plan that fits</span><span class="lp-go-p"><i></i><span>'+esc(p[0])+'</span>'+(q?'<em>'+inr(q.y/12)+'/month</em>':'')+'</span></span>');
+  x.insertAdjacentHTML('beforeend','<span class="lp-go-s"><span class="lp-go-q" aria-hidden="true">See the plan that fits</span><span class="lp-go-p"><i></i><span>'+esc(p[0])+'</span>'+(LIVE?(q?'<em>'+inr(q.y/12)+'/month</em>':''):(q?'<em>Price coming soon</em>':'<em>Free</em>'))+'</span></span>');
   function on(){if(!fine.matches)return;clearTimeout(tm);if(!saved){keep=CS.hl;saved=true}if(CS.hl!==k){CS.hl=k;cq()}}
   function off(){clearTimeout(tm);tm=setTimeout(function(){if(saved){saved=false;if(CS.hl!==keep){CS.hl=keep;cq()}}},90)}
   b.addEventListener('mouseenter',on);b.addEventListener('mouseleave',off);
@@ -202,7 +217,7 @@ on(document,'click',function(e){var t=e.target.closest&&e.target.closest('[data-
 })();
 /* product tour in the hero, and a recording behind the i button of every tool */
 (function(){
-var CH=[['Screener',0],['Company report',6],['FinLit Prism',9.8],['Sector Pulse',17.8],['Sector Rotation',24],['Mutual Fund Score',29],['Portfolio',36.8]];
+var CH=[['Screener',0],['Company report',6],['FinLit Prism',9.8],['Sector Pulse',17.8],['Sector Rotation',24],['Mutual Fund Score',29],['Portfolio',36.8]];   /* task #411: the hero has no chapter buttons now (no figcaption), so these draw only if a holder comes back */
 var fig=document.getElementById('lp-vid'),v=fig&&fig.querySelector('video'),cc=fig&&fig.querySelector('.lp-vid-c');
 if(v&&cc){cc.innerHTML=CH.map(function(c,i){return '<button type="button" data-ch="'+i+'">'+esc(c[0])+'</button>'}).join('');
  var bs=cc.querySelectorAll('button');function mark(){var t=v.currentTime,k=0;CH.forEach(function(c,i){if(t>=c[1])k=i});[].forEach.call(bs,function(b,i){b.setAttribute('aria-pressed',i===k)})}
@@ -252,13 +267,16 @@ function lit(feat,on){var sec=feat.closest('.hpz');var cb=sec.querySelector('[da
 })();
 /* ===== laptop: the hero fills the first screen, scaled up to use the space; the section bar comes in on scroll ===== */
 (function(){
- var mq=window.matchMedia('(min-width:1100px)'),hero=document.querySelector('main .hh .hh-top'),wrap=hero&&hero.querySelector(':scope>.wrap'),head=document.querySelector('header.top');
+ /* task #436: the hero fills the first screen from 761px (tablets too); the content is scaled up only on laptops (1100px and wider) */
+ var mq=window.matchMedia('(min-width:1100px)'),mf=window.matchMedia('(min-width:761px)'),hero=document.querySelector('main .hh .hh-top'),wrap=hero&&hero.querySelector(':scope>.wrap'),head=document.querySelector('header.top');
  if(!hero||!wrap)return;
  function fit(){wrap.style.zoom='';hero.classList.remove('lp-fill');
-  if(!mq.matches||/^#view-/.test(location.hash))return;
+  if(!mf.matches||/^#view-/.test(location.hash))return;
   hero.classList.add('lp-fill');
-  var h=head?head.offsetHeight:0,w0=wrap.offsetWidth,h0=wrap.offsetHeight,zw=(window.innerWidth*.94)/w0,zh=(window.innerHeight-h-48)/h0,z=Math.max(1,Math.min(zw,zh,1.5)*.9);
+  var h=head?head.offsetHeight:0;
   document.documentElement.style.setProperty('--lp-hdr',h+'px');
+  if(!mq.matches)return;
+  var w0=wrap.offsetWidth,h0=wrap.offsetHeight,zw=(window.innerWidth*.94)/w0,zh=(window.innerHeight-h-48)/h0,z=Math.max(1,Math.min(zw,zh,1.5)*.9);
   if(z>1.02)wrap.style.zoom=z.toFixed(3)}
  var t=0;on(window,'resize',function(){clearTimeout(t);t=setTimeout(fit,80)});
  on(window,'hashchange',function(){setTimeout(fit,30)});
@@ -273,9 +291,9 @@ function lit(feat,on){var sec=feat.closest('.hpz');var cb=sec.querySelector('[da
    f.addEventListener('mouseenter',function(){on(true)});f.addEventListener('mouseleave',function(){on(false)});
    f.addEventListener('focus',function(){on(true)});f.addEventListener('blur',function(){on(false)})})}
  var pz=document.getElementById('prism');
- wire(pz,function(i){return function(){return i===0?pz.querySelector('.lp-pz-a'):pz.querySelector('.lp-pz-b')}});
+ wire(pz,function(i){return function(){return i===0?pz.querySelector('.nx-fund'):pz.querySelector('.nx-tech')}});
  var mf=document.getElementById('mf-score'),keys=['performance','risk','cost','quality'];
- wire(mf,function(i){return function(){return mf.querySelector('.lp-hlb[data-hl='+keys[i]+']')}});
+ wire(mf,function(i){return function(){return mf.querySelector('.nx-mbar[data-hl='+keys[i]+']')}});
 })();
 
 

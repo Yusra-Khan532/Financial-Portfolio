@@ -44,7 +44,9 @@
    heights; the Schemes count, a count rather than a performance figure, is set apart with a raised surface and a firmer edge. */
 .mf-list .mf-sum { grid-auto-rows: 1fr; gap: 12px; }
 .mf-list .mf-sc, .mf-list .mf-sc.t-blue, .mf-list .mf-sc.t-green, .mf-list .mf-sc.t-amber, .mf-list .mf-sc.t-teal, .mf-list .mf-sc.t-grey { background: var(--s1); box-shadow: none; padding: 14px 16px; gap: 4px; }
-.mf-list .mf-sum > .mf-sc:first-child { background: var(--s2); border-color: var(--border-strong); }
+/* task #429 (team, 27 Nov 2026: "give all the boxes same colour as the first box"): every tile takes the Schemes tile's raised surface and firmer edge
+   (it was the first tile only). Tokens, so light and dark follow. */
+.mf-list .mf-sum > .mf-sc { background: var(--s2); border-color: var(--border-strong); }
 .mf-list .mf-sc span { font-size: var(--fs-12); line-height: var(--lh-12); }
 
 /* 13 (PR C): "Order by" list + three quick buttons, 36px. */
@@ -199,3 +201,10 @@
    the table card), as between the page header and the cards above it; the boxes used to touch (0px). */
 .mf-list .mf-main { display: flex; flex-direction: column; gap: 16px; }
 .mf-list .mf-main > * { margin-top: 0; margin-bottom: 0; }
+
+/* Task #430 (team, 27 Nov 2026: "no need of write up ... just the numbers ... for all the columns"): the cells hold their figure only (FundTable.tsx).
+   A Growth option's return shown on an IDCW row (task #281) is still told apart without words: in italics with a dotted underline, named on hover. */
+.mf-list .mf-table td .mf-grf > span:first-child { font-style: italic; text-decoration: underline dotted; text-underline-offset: 3px; }
+/* the words kept for screen readers (sr-only, absolutely placed) are anchored inside their cell, so they stay inside the table's scroll box and never
+   widen the page (without this the page scrolled sideways by up to 190px when the table was wider than the screen) */
+.mf-list .mf-table td .mf-rf, .mf-list .mf-table td .mfs-cell, .mf-list .mf-table td .mf-na-x { position: relative; }

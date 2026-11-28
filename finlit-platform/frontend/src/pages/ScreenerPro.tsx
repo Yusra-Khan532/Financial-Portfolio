@@ -373,6 +373,8 @@ export function ScreenerPro() {
   // Every group of filters with its count, up front (task #64, S-1): readers see how much they can filter without a click
   const numGroups = (data?.groups ?? []).map((g) => ({ ...g, n: g.metrics.filter((m) => !m.hidden).length })).filter((g) => g.n > 0);
   const nFilters = numGroups.reduce((a, g) => a + g.n, 0);
+  // task #415: the filters the dropdown list holds with their own range (shown, not locked); their range card is drawn only there
+  const inTopics = new Set(numGroups.flatMap((g) => g.metrics.filter((m) => !m.hidden && !m.locked).map((m) => m.key)));
   const asOfLine = dataLine(data?.pricesAt, data?.scoresAt);
   const sub = nActive === 0 ? `every listed company, ${sort.key === "market_cap" && sort.dir === "desc" ? "biggest first" : "sorted by " + (SHORT[sort.key] ?? byKey.get(sort.key)?.label ?? "name")} · of ${listed} listed`
     : `match all ${nActive} ${nActive === 1 ? "rule" : "rules"} · of ${listed} listed${onScreens.length ? ` · ${onScreens.length} ready-made ${onScreens.length === 1 ? "screen" : "screens"} on` : ""}${from ? ` · started from ${from}` : ""}`;
@@ -436,7 +438,8 @@ export function ScreenerPro() {
                   <button type="button" className="ssr-x" aria-label={`Turn off ${x.label}`} onClick={() => toggleScreen(x)}>×</button></div>
                   <p className="ssr-say">{x.says}. Its cut-offs stay on the server.</p></div>)}
                 {stepOf("model") && <p className="ssr-cnt">The screens on FinLit Prism keep <b>{nf(stepOf("model")!.after, 0)}</b> of {nf(stepOf("model")!.before, 0)}</p>}
-                {rules.map((k) => { const m = byKey.get(k); if (!m) return null; const rk = ruleKey(m), cur = byKey.get(rk) ?? m;
+                {/* task #415: a filter in the list below keeps its range card only in its dropdown; a card shows here only for a rule the list cannot hold */}
+                {rules.filter((k) => !inTopics.has(k)).map((k) => { const m = byKey.get(k); if (!m) return null; const rk = ruleKey(m), cur = byKey.get(rk) ?? m;
                   return <RuleCard key={k} m={m} cur={cur} r={F.ranges[rk] || {}} set={(r) => setRange(rk, r)} remove={() => removeRule(k)} ask={ask} hot={hot === k}
                     period={periodOf(m)} setPeriod={(p) => setPeriod((x) => ({ ...x, [m.key]: p }))} count={stepOf(rk)} />; })}
                 {ratios.map((r) => <div key={r.id} className="ssr-rule ssr-ratio" role="group" aria-label={`Custom ratio: ${r.name}`}><div className="ssr-rt"><b>{r.name}</b>
@@ -445,8 +448,9 @@ export function ScreenerPro() {
                   {stepOf(r.id) && <p className="ssr-cnt">keeps <b>{nf(stepOf(r.id)!.after, 0)}</b> of {nf(stepOf(r.id)!.before, 0)}</p>}</div>)}
                 <p className="srt-total"><b>{nf(nFilters, 0)} filters</b> in {numGroups.length} groups</p>
                 <RuleTopics groups={numGroups} q={find} has={(k) => rules.includes(k) || !!F.ranges[k]} show={showRule} hide={(m) => removeRule(m.key)} ask={ask}
+                  rangedKeys={Object.keys(F.ranges).map(baseOf)} focus={hot}
                   range={(m) => { const rk = ruleKey(m), cur = byKey.get(rk) ?? m;
-                    return <RuleCard m={m} cur={cur} r={F.ranges[rk] || {}} set={(r) => setRange(rk, r)} remove={() => removeRule(m.key)} ask={ask}
+                    return <RuleCard m={m} cur={cur} r={F.ranges[rk] || {}} set={(r) => setRange(rk, r)} remove={() => removeRule(m.key)} ask={ask} hot={hot === m.key}
                       period={periodOf(m)} setPeriod={(p) => setPeriod((x) => ({ ...x, [m.key]: p }))} count={stepOf(rk)} />; }} />
                 <button type="button" className="btn ssw-add" onClick={() => setPicker({ q: find })}>+ Add a rule</button>
                 <form className="ssw-typed" onSubmit={(e) => { e.preventDefault(); const r = parseRules(typed, (k) => byKey.has(k)); setTypedErr(r.errors); const ok = Object.entries(r.ranges).filter(([k]) => !byKey.get(k)?.locked);
@@ -539,7 +543,7 @@ export function ScreenerPro() {
                     </tbody></table></HScroll></TableZoom>
                   {res.data.capped ? (
                     <div className="pl-cap"><Icon name="lock" /><span><b>Showing the first {res.data.limit} of {nf(total, 0)} matches.</b> Silver shows every match and unlocks every filter.</span>
-                      <button className="btn primary" onClick={() => ask(PLAN_FOR_SCREENER, "See every match and use every filter with Silver.")}>Unlock with Silver</button></div>
+                      <button className="btn primary" onClick={() => ask(PLAN_FOR_SCREENER, "See every match and use every filter on a paid plan.")}>Unlock with Silver</button></div>
                   ) : total > PAGE && (
                     <div className="pm-pager ssw-pager"><span>Showing {nf(page * PAGE + 1, 0)}–{nf(Math.min(total, page * PAGE + PAGE), 0)} of {nf(total, 0)}</span><button className="btn" disabled={page === 0} onClick={() => setPage(page - 1)}>‹ Previous</button><button className="btn" disabled={(page + 1) * PAGE >= total} onClick={() => setPage(page + 1)}>Next {PAGE} ›</button></div>)}
                   {webgl && cloud && <div className="scr-3d">

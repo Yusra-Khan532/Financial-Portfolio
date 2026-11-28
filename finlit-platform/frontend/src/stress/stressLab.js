@@ -64,7 +64,8 @@ export function mountStressLab(root, E, D, opts) {
   function call(c, i) {
     var key = c.k + ':' + (typeof i === 'number' ? i : c.t), id = 'cd-' + (++CALLN), open = !!(S.callsOpen && S.callsOpen[key]);
     var one = String(c.d || '').replace(/<[^>]*>/g, ' ').replace(/[<>]/g, '').replace(/\s+/g, ' ').trim(), cut = one.search(/[.;:](\s|$)/);   // task #401: the first sentence, as plain text (no angle bracket left; escaped again below)
-    one = cut > 0 ? one.slice(0, cut + 1) : one;
+    one = (cut > 0 ? one.slice(0, cut + (one.charAt(cut) === '.' ? 1 : 0)) : one).replace(/[\s,;:]+$/, '');   // founder re-check 27 Nov: a snippet cut at ; or : ended in that mark
+    if (one && !/[.!?]$/.test(one)) one += '.';
     return '<div class="call ' + c.k + '"><span class="ic">' + svg(ICON[c.k]) + '</span><div class="tx"><span class="k">' + KIND[c.k] + '</span><b>' + c.t + '</b>' + (one ? '<span class="ln"' + (open ? ' hidden' : '') + '>' + esc(one) + '</span>' : '') + '</div>' +
       '<button type="button" class="cx" data-cx="' + esc(key) + '" aria-expanded="' + open + '" aria-controls="' + id + '" aria-label="' + (open ? 'Hide the detail' : 'Show the detail') + '">' + svg(open ? '<path d="M5 12.5l5-5 5 5"/>' : '<path d="M5 7.5l5 5 5-5"/>', 16) + '</button>' +
       '<span class="d" id="' + id + '"' + (open ? '' : ' hidden') + '>' + c.d + '</span></div>';
@@ -74,7 +75,7 @@ export function mountStressLab(root, E, D, opts) {
     if (!list.length) return '';
     var all = list.every(function (c, i) { return S.callsOpen && S.callsOpen[c.k + ':' + i]; });
     return '<div class="callsh"><span>What stands out</span>' + (list.length > 1 ? '<button type="button" class="btn sm" data-callall="1" aria-pressed="' + all + '">' + (all ? 'Close all' : 'Open all') + '</button>' : '') + '</div>' +
-      '<div class="callsg">' + list.map(call).join('') + '</div>';
+      '<div class="callsg n' + list.length + '">' + list.map(call).join('') + '</div>';   // QA 27 Nov: the count picks the layout (stresslab.css)
   }
   var LCLS = { 'Holds up well': 'g', 'Gains under this shock': 'g', 'Takes a clear hit': 'a', 'Hit hard': 'r', 'Debt cover at risk': 'r', 'Not comparable': 'n' };
   var LICON = { g: ICON.good, a: ICON.watch, r: ICON.warn, n: ICON.ins };
@@ -314,7 +315,7 @@ export function mountStressLab(root, E, D, opts) {
     return (e < 0 ? 'fall ' : 'rise ') + Math.abs(e).toFixed(1) + '%, from ' + rs(r.base.eps) + ' to ' + rs(r.stressed.eps);
   }
   var SURE = [
-    { k: 'pass_through', name: 'the share of cost rises passed on to customers', f: share, vals: function (v) { return [0.4, v, 0.8]; } },
+    { k: 'pass_through', name: 'the share of cost rises passed on to customers', f: share, vals: function (v) { return [Math.max(0, Math.min(0.4, v - 0.2)), v, Math.min(1, Math.max(0.8, v + 0.1))]; } },   // founder re-check 27 Nov: the estimate (86%) sat outside 40%-80%, so the options read 40% · 86% · 80%
     { k: 'demand_beta', name: 'how strongly its volumes follow demand', f: function (v) { return v.toFixed(2) + '×'; }, vals: function (v) { return [Math.max(0.2, v - 0.3), v, v + 0.3]; } },
     { k: 'crude_rm', name: 'the crude-linked share of materials', f: share, vals: function (v) { return [Math.max(0, v - 0.15), v, Math.min(0.95, v + 0.15)]; } },
     { k: 'floating_debt', name: 'the share of debt at floating rates', f: share, vals: function () { return [0.3, 0.6, 0.9]; } }
@@ -322,7 +323,7 @@ export function mountStressLab(root, E, D, opts) {
   function sureRows(co, sc) {
     return SURE.map(function (d) {
       var base = A.exposure[d.k];
-      var vals = d.vals(base).map(function (v) { return Math.round(v * 1000) / 1000; });
+      var vals = d.vals(base).map(function (v) { return Math.round(v * 1000) / 1000; }).sort(function (a, b) { return a - b; }).filter(function (v, i, a) { return i === 0 || v !== a[i - 1]; });   // lowest first, no repeats, so the options and the low/high wording always run in order
       var res = vals.map(function (v) { var p = {}; p[d.k] = v; var r = E.run(E.withExposure(co, p), sc); return r.change_pct.eps; });
       var lo = Math.min.apply(null, res), hi = Math.max.apply(null, res);
       return { d: d, base: base, vals: vals, res: res, width: hi - lo };
@@ -360,19 +361,20 @@ export function mountStressLab(root, E, D, opts) {
     var rows = sureRows(co, sc); if (!rows.length) return '';
     var top = rows[0], d = top.d, nxt = rows[1];
     var curV = co.exposure[d.k];
-    if (top.width < 1) return '<div class="sure"><div class="t"><b>How sure is this?</b> The result barely depends on the company settings here: ' + d.name + ' between ' + d.f(top.vals[0]) + ' and ' + d.f(top.vals[2]) + ' moves EPS by less than a point.</div></div>';
+    if (top.width < 1) return '<div class="sure"><div class="t"><b>How sure is this?</b> The result barely depends on the company settings here: ' + d.name + ' between ' + d.f(top.vals[0]) + ' and ' + d.f(top.vals[top.vals.length - 1]) + ' moves EPS by less than a point.</div></div>';
     var lo = Math.min.apply(null, top.res), hi = Math.max.apply(null, top.res), now = r.change_pct.eps;
     var mn = Math.min(lo, now), mx = Math.max(hi, now), pad = Math.max(2, (mx - mn) * 0.15); mn -= pad; mx += pad;
     var X = function (v) { return ((v - mn) / (mx - mn) * 100).toFixed(2) + '%'; };
     var lines = [-30, -10, 10].filter(function (v) { return v > mn && v < mx; }).map(function (v) { return '<span class="tick" style="left:' + X(v) + '"></span><span class="tl" style="left:' + X(v) + '">' + (v < 0 ? M : '+') + Math.abs(v) + '% line</span>'; }).join('');
+    var estI = top.vals.findIndex(function (v) { return Math.abs(v - top.base) < 1e-6; }); if (estI < 0) estI = 1;
     var btns = top.vals.map(function (v, i) {
       var on = Math.abs(curV - v) < 1e-6;
-      return '<button type="button" data-sure="' + d.k + '" data-v="' + v + '" aria-pressed="' + on + '">' + d.f(v) + (i === 1 ? ' estimated' : '') + '</button>';
+      return '<button type="button" data-sure="' + d.k + '" data-v="' + v + '" aria-pressed="' + on + '">' + d.f(v) + (i === estI ? ' estimated' : '') + '</button>';   // vals are sorted; the estimate is labelled wherever it sits
     }).join('');
-    var lessLine = nxt ? ' ' + cap(nxt.d.name) + ' matters less: ' + nxt.d.f(nxt.vals[0]) + ' gives ' + pct(nxt.res[0]) + ', ' + nxt.d.f(nxt.vals[2]) + ' gives ' + pct(nxt.res[2]) + '.' : '';
+    var lessLine = nxt ? ' ' + cap(nxt.d.name) + ' matters less: ' + nxt.d.f(nxt.vals[0]) + ' gives ' + pct(nxt.res[0]) + ', ' + nxt.d.f(nxt.vals[nxt.vals.length - 1]) + ' gives ' + pct(nxt.res[nxt.res.length - 1]) + '.' : '';
     var altLabel = top.res.map(function (v, i) { var p = {}; p[d.k] = top.vals[i]; return E.run(E.withExposure(co, p), sc).label; });
     return '<div class="sure"><div class="t"><b>How sure is this?</b>' + ib('The company settings are estimates. This shows the one that moves this result most, at a lower and a higher value, so the result reads as a range rather than one exact number.', 'lt', 'About how sure') +
-      ' The setting that moves it most is ' + d.name + ': at ' + d.f(top.vals[0]) + ' EPS moves ' + pct(top.res[0]) + ' (' + altLabel[0] + '), at ' + d.f(top.vals[2]) + ' it moves ' + pct(top.res[2]) + ' (' + altLabel[2] + ').' + lessLine +
+      ' The setting that moves it most is ' + d.name + ': at ' + d.f(top.vals[0]) + ' EPS moves ' + pct(top.res[0]) + ' (' + altLabel[0] + '), at ' + d.f(top.vals[top.vals.length - 1]) + ' it moves ' + pct(top.res[top.res.length - 1]) + ' (' + altLabel[altLabel.length - 1] + ').' + lessLine +
       (GOLD ? '<div style="margin-top:8px"><span class="seg sm" role="group" aria-label="Try another value">' + btns + '</span></div>' : '<p class="note" style="margin-top:8px">' + LOCKI + ' Trying other values comes with Gold.</p>') + '</div>' +
       '<div class="rangebar" aria-hidden="true"><span class="track"></span><span class="band" style="left:' + X(lo) + ';width:calc(' + X(hi) + ' - ' + X(lo) + ')"></span>' + lines +
       '<span class="mk" style="left:' + X(now) + '" title="This result: ' + pct(now) + '"></span><span class="bl" style="left:' + X(lo) + '">' + pct(lo) + '</span><span class="bl" style="left:' + X(hi) + '">' + pct(hi) + '</span></div></div>';
@@ -568,6 +570,20 @@ export function mountStressLab(root, E, D, opts) {
       tile('Rate rise that takes cover under 1.5×', bp.rate_bp === null ? 'None' : '+' + Math.round(bp.rate_bp).toLocaleString('en-IN') + ' bp', bp.rate_bp === null ? (netCash ? 'more cash than debt' : 'within the range tested') : 'from ' + xx(E.run(co, { crude: 0 }).base.interest_cover) + ' today') +
       '</div>';
   }
+  // QA 27 Nov: a click anywhere on an "Every scenario" row opens its shocks (the line above the table says "Pick a row to open it"), and picks it;
+  // clicking the picked, open row again closes it. Focus comes back to the same row after the redraw.
+  function pickRow(tr) {
+    var id = tr.getAttribute('data-pick');
+    if (tr.querySelector('[data-xr]')) {
+      var curId = S.scen === 'today' ? (S.todayCrude === 'eia' ? 'today_eia' : 'today') : S.scen;
+      S.rowsOpen = S.rowsOpen || {};
+      S.rowsOpen[id] = !(id === curId && S.rowsOpen[id]);
+    }
+    pick(id);
+    renderEvery(coA());
+    var again = root.querySelector('#every tr[data-pick="' + id + '"]');
+    if (again) again.focus();
+  }
   function renderEvery(co) {
     var ids = ALL_IDS.concat(S.scen === 'custom' ? ['custom'] : []);
     var curId = S.scen === 'today' ? (S.todayCrude === 'eia' ? 'today_eia' : 'today') : S.scen;
@@ -581,7 +597,7 @@ export function mountStressLab(root, E, D, opts) {
     }).join('');
     var worst = ids.map(function (id) { var sc = id === 'custom' ? S.custom : scenOf(id); return [id, E.run(co, sc).change_pct.eps]; }).filter(function (x) { return x[1] !== null; }).sort(function (a, b) { return a[1] - b[1]; })[0];
     $('every').innerHTML = '<h2>Every scenario at a glance' + ib('The same company under each scenario, with today’s settings. Pick a row to see it in full.', 'lt', 'About this table') + '</h2><p class="sub">Pick a row to open it.' + (worst ? ' The hardest for ' + esc(short(co)) + ' is ' + (worst[0] === 'custom' ? 'your custom shock' : '‘' + esc(SC[worst[0]].name) + '’') + ' (EPS ' + pct(worst[1]) + ').' : '') + '</p>' +
-      '<div class="tw"><table class="t"><thead><tr><th>Scenario</th><th class="r">EPS change</th><th class="r">EBITDA margin after</th><th class="r">Interest cover after</th>' + (SHOWV ? '<th class="r">Value move</th>' : '') + '<th class="r">Score</th><th>Label</th></tr></thead><tbody>' + body + '</tbody></table></div>';
+      '<div class="tw"><table class="t evt"><colgroup><col class="c-n"><col><col><col>' + (SHOWV ? '<col>' : '') + '<col class="c-s"><col class="c-l"></colgroup><thead><tr><th>Scenario</th><th class="r">EPS change</th><th class="r">EBITDA margin after</th><th class="r">Interest cover after</th>' + (SHOWV ? '<th class="r">Value move</th>' : '') + '<th class="r">Score</th><th>Label</th></tr></thead><tbody>' + body + '</tbody></table></div>';
   }
   function renderHist(cos) {
     var H = D.history || [], last = D.as_of || '2026-10-29', NO = { fall_pct: null, back: null };
@@ -592,20 +608,20 @@ export function mountStressLab(root, E, D, opts) {
     }
     // a company with prices from a later date was listed later; one with no prices at all has none on file
     var firstWith = function (c) { for (var i = 0; i < H.length; i++) if (H[i][c.symbol]) return i; return -1; };
-    var back = function (x) { return !fin(x.fall_pct) ? '–' : x.fall_pct === 0 ? 'No fall' : x.back ? dt(x.back) : 'Not yet, by ' + dt(last); };
+    var back = function (x, h) { return !fin(x.fall_pct) ? '–' : x.fall_pct === 0 ? 'No fall' : x.back ? dt(x.back) + (h && h.to && h.to <= last && x.back < h.to ? '<br>within the episode' : '') : 'Not yet, by ' + dt(last); };
     var rows = H.map(function (h, i) {
       var so = h.to > last, nf = h.nifty || NO, rng = dt(h.from).replace(/ \d{4}$/, '') + ' to ' + (so ? dt(last) : dt(h.to));
       var cells = cos.map(function (c) {
         var x = h[c.symbol], f = firstWith(c);
-        return x ? '<td class="r' + (x.fall_pct < 0 ? ' dn' : '') + '">' + pct(x.fall_pct) + '</td><td class="r"><small>' + back(x) + '</small></td>' : '<td class="r" colspan="2"><small>' + (f > i ? 'Listed later' : 'No prices on file') + '</small></td>';
+        return x ? '<td class="r' + (x.fall_pct < 0 ? ' dn' : '') + '">' + pct(x.fall_pct) + '</td><td class="r"><small>' + back(x, h) + '</small></td>' : '<td class="r" colspan="2"><small>' + (f > i ? 'Listed later' : 'No prices on file') + '</small></td>';
       }).join('');
-      return '<tr><td class="l">' + esc(String(h.episode || '').replace('2026 so far', '2026 oil spike, so far')) + '<br><small>' + rng + '</small></td><td class="r">' + pct(nf.fall_pct) + '</td><td class="r"><small>' + back(nf) + '</small></td>' + cells + '</tr>';
+      return '<tr><td class="l">' + esc(String(h.episode || '').replace('2026 so far', '2026 oil spike, so far')) + '<br><small>' + rng + '</small></td><td class="r">' + pct(nf.fall_pct) + '</td><td class="r"><small>' + back(nf, h) + '</small></td>' + cells + '</tr>';
     }).join('');
     var a = cos[0], less = [], more = [], faster = 0, both = 0;
     H.forEach(function (h) { var x = h[a.symbol]; if (!x || !fin(x.fall_pct) || !h.nifty || !fin(h.nifty.fall_pct)) return; var y = String(h.episode).slice(0, 4); (x.fall_pct > h.nifty.fall_pct ? less : more).push(y); if (x.back && h.nifty.back) { both++; if (x.back < h.nifty.back) faster++; } });
     var n = less.length + more.length;
     var line = esc(short(a)) + ' fell less than the Nifty 50 in ' + (less.length ? less.join(' and ') : 'none of these episodes') + (more.length ? ' and more in ' + more.join(', ').replace(/, (\d+)$/, ' and $1') : '') + '.' + (both && faster === both ? ' Each time both recovered, it was back at its high first.' : '');
-    $('hist').innerHTML = head + '<p class="sub">Largest fall from a closing high inside each episode, and when the price first closed back at that high</p>' +
+    $('hist').innerHTML = head + '<p class="sub">Each share’s own largest fall from a closing high inside the episode, and when it first closed back at that high; a share can be back before the episode ends, while the market is still falling</p>' +
       '<div class="tw"><table class="t"><thead><tr><th>Episode</th><th class="r">Nifty 50</th><th class="r">Back at its high</th>' + cos.map(function (c) { return '<th class="r">' + esc(short(c)) + '</th><th class="r">Back at its high</th>'; }).join('') + '</tr></thead><tbody>' + rows + '</tbody></table></div>' +
       (n ? '<div class="calls" style="margin-top:12px;grid-template-columns:1fr">' + call({ k: 'ins', t: (more.length >= less.length ? 'Fell more than the Nifty 50 in ' + more.length : 'Fell less than the Nifty 50 in ' + less.length) + ' of ' + n + ' episode' + (n > 1 ? 's' : ''), d: line + ' Past falls show how the shares behaved, not what happens next.' }) + '</div>'
          : '<p class="note">' + esc(short(a)) + ' and the Nifty 50 cannot be set side by side here: one of the two has no prices on file for these episodes.</p>');
@@ -986,12 +1002,12 @@ export function mountStressLab(root, E, D, opts) {
     else if (t.hasAttribute('data-reset')) { S.scen = 'today'; S.todayCrude = 'level'; S.custom = null; S.persistence = 'one_year'; S.stretch = {}; renderAll(); }
     else if (t.hasAttribute('data-sure')) { var k = t.getAttribute('data-sure'), v = +t.getAttribute('data-v'); if (Math.abs(v - A.exposure[k]) < 1e-6) delete S.edits[k]; else S.edits[k] = v; renderAll(); }
     else if (t.hasAttribute('data-unit')) { S.unit = t.getAttribute('data-unit'); renderResults(); }
-    else if (t.hasAttribute('data-pick')) pick(t.getAttribute('data-pick'));
+    else if (t.hasAttribute('data-pick')) pickRow(t);
     else if (t.hasAttribute('data-resetedits')) { S.edits = {}; renderAll(); }
     else if (t.hasAttribute('data-view')) { setView(t.getAttribute('data-view')); try { history.replaceState(null, '', t.getAttribute('data-view') === 'compare' ? '#compare' : '#one'); } catch (e) {} }
     else if (t.id === 'adj') { S.open = !(S.open || S.scen === 'custom'); if (!S.open && S.scen === 'custom') { S.scen = 'today'; } renderScen(); if (!S.open) renderResults(); }
   });
-  listen(root, 'keydown', function (ev) { var x = ev.target.closest && ev.target.closest('.ib'); if (x && (ev.key === 'Enter' || ev.key === ' ')) { ev.preventDefault(); toggleTip(x); return; } if (A_BAD) return; if ((ev.key === 'Enter' || ev.key === ' ') && ev.target.hasAttribute && ev.target.hasAttribute('data-pick')) { ev.preventDefault(); pick(ev.target.getAttribute('data-pick')); } });
+  listen(root, 'keydown', function (ev) { var x = ev.target.closest && ev.target.closest('.ib'); if (x && (ev.key === 'Enter' || ev.key === ' ')) { ev.preventDefault(); toggleTip(x); return; } if (A_BAD) return; if ((ev.key === 'Enter' || ev.key === ' ') && ev.target.hasAttribute && ev.target.hasAttribute('data-pick')) { ev.preventDefault(); pickRow(ev.target); } });
   listen(root, 'input', function (ev) {
     var t = ev.target;
     if (t.matches('.find input')) { findResults(t); return; }

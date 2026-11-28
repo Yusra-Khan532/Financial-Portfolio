@@ -89,6 +89,16 @@ export function singleMark(swings: { date: string | null; price: number; kind: s
   return { time: at, position: "belowBar", shape: "arrowUp", color: color.base, text: narrow ? x.kind : `${x.kind} ${rupees(x.price)}` };
 }
 
+/** Task #394 re-check (28 Nov): the empty bars kept right of the last candle, so a mark's words over one of the last candles ("Closed above · 27 Nov")
+ *  are not cut by the price axis. `bars` candles, `pad` empty bars on the left, the mark on candle `at` with `chars` characters, a plot `width` px wide.
+ *  Each character is taken as 7 px (the marks' 12 px text); the words are centred on their candle. 4 bars is the usual room. */
+export function rightRoom(bars: number, pad: number, at: number | null, chars: number, width: number): number {
+  if (at == null || at < 0 || chars <= 0 || width <= 0 || bars <= 0) return 4;
+  const half = (chars * 7) / 2 + 6, fromEnd = bars - 1 - at;
+  for (let r = 4; r <= 400; r++) { if ((fromEnd + r) * (width / (bars + pad + r)) >= half) return r; }
+  return 400;
+}
+
 /** The corporate-action letters on the chart and what each means (C4's key). */
 export const EVENT_KEY: [string, string][] = [["D", "Dividend"], ["B", "Bonus"], ["S", "Split"], ["Rt", "Rights issue"]];
 export const eventLetter = (type: string): string => (/dividend/i.test(type) ? "D" : /bonus/i.test(type) ? "B" : /split/i.test(type) ? "S" : /right/i.test(type) ? "Rt" : "");

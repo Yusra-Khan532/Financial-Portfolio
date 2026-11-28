@@ -1535,13 +1535,13 @@
   {
    "term": "Block Deal",
    "topic": "Ownership",
-   "meaning": "A single large trade between two parties executed through a separate trading window offered by the exchanges, subject to a minimum order size set by SEBI.",
+   "meaning": "A single large trade in the exchange's separate block-deal windows. Since 7 Dec 2025 (SEBI circular of 8 Oct 2025): 08:45 to 09:00, priced off the previous close, and 14:05 to 14:20, priced off a VWAP; within 3% either side of that price; at least ₹25 crore an order (₹10 crore before); delivery is compulsory.",
    "why": "Block deals often reveal large stake changes by promoters, funds or private equity investors, which can affect a stock's price.",
-   "how": "Exchanges publish block deal details, including the parties, quantity and price, the same day. For example, a private equity fund transferring a 3% stake worth ₹1,200 crore to mutual funds in one trade is a block deal.",
+   "how": "Exchanges publish block deals with the parties, quantity and price after the close. For example, a private equity fund selling a 3% stake worth ₹1,200 crore to mutual funds in one trade in the morning window is a block deal.",
    "formula": "",
    "id": "block-deal",
    "letter": "B",
-   "finlit": "",
+   "finlit": "FinLit's Bulk & Block Deals page lists NSE's block deals and marks the ones that fall just after an IPO's anchor lock-in ends.",
    "aliases": [],
    "change": "new"
   },
@@ -2000,13 +2000,13 @@
   {
    "term": "Bulk Deal",
    "topic": "Ownership",
-   "meaning": "A trade or set of trades by one client in a day in which the total quantity exceeds 0.5% of a company's listed shares, executed in the normal market and disclosed by the exchanges.",
+   "meaning": "Any client's trades in one share on one day that add up to more than 0.5% of the company's listed shares, in the normal market. The broker reports them the same day and the exchange publishes them after the close.",
    "why": "Bulk deal disclosures show which large investors are entering or exiting a stock.",
-   "how": "Check the exchanges' daily bulk deal lists for names, quantities and prices. For example, a fund trading 6 lakh shares of a company with 10 crore shares (0.6%) in a day creates a bulk deal.",
+   "how": "For example, a fund trading 6 lakh shares in a day of a company with 10 crore shares (0.6%) makes a bulk deal. A block deal is usually above 0.5% too, so the exchange often lists the same trade in both its bulk and block files.",
    "formula": "",
    "id": "bulk-deal",
    "letter": "B",
-   "finlit": "",
+   "finlit": "FinLit's Bulk & Block Deals page (IPOs, third view) lists NSE's bulk and block deals each evening, with the source and date, and counts a trade listed in both files once.",
    "aliases": [],
    "change": "new"
   },
@@ -17190,6 +17190,22 @@
     "Sharpe",
     "Return for each unit of price swing"
    ]
+  },
+  {
+   "term": "Short selling (reported)",
+   "topic": "Ownership",
+   "meaning": "Shares sold in the day without being held, as the exchange reports them from the brokers' disclosures: the share and the quantity, with no client name.",
+   "why": "It shows how much of a day's selling in a share was short selling, which later has to be bought back.",
+   "how": "NSE publishes the day's reported short sales after the close. The quantity can be read against the company's shares, as a percentage of equity.",
+   "formula": "",
+   "id": "short-selling-reported",
+   "letter": "S",
+   "finlit": "FinLit's Bulk & Block Deals page has a Short selling list beside the bulk and block deals.",
+   "aliases": [
+    "Short sale",
+    "Reported short selling"
+   ],
+   "change": "new"
   },
   {
    "term": "Short-Term Borrowings",

@@ -12,7 +12,7 @@ vi.mock("../lib/screener", async (orig) => ({ ...(await orig<typeof import("../l
 const admin = vi.hoisted(() => ({ on: true }));
 vi.mock("../lib/auth", async (orig) => ({ ...(await orig<typeof import("../lib/auth")>()), useAuth: () => ({ isAdmin: admin.on }) }));
 vi.mock("../lib/ui", () => ({
-  useUI: () => ({ has: (t: string) => ({ basic: 0, silver: 1, gold: 2 })[st.plan] >= ({ basic: 0, silver: 1, gold: 2 } as Record<string, number>)[t], upgrade: st.upgrade, toast: st.toast }),
+  useUI: () => ({ has: (t: string) => ({ basic: 0, silver: 1, gold: 2, mfetf: 1, equity: 1, combined: 1, platinum: 2 })[st.plan] >= ({ basic: 0, silver: 1, gold: 2, mfetf: 1, equity: 1, combined: 1, platinum: 2 } as Record<string, number>)[t], upgrade: st.upgrade, toast: st.toast }),
   TIER: { basic: { n: "Basic", ic: "sprout", tc: "--t-basic" }, gold: { n: "Gold", ic: "crown", tc: "--t-gold" }, silver: { n: "Silver", ic: "medal", tc: "--t-silver" } },
 }));
 import { AdvancedScoreScreener } from "./AdvancedScoreScreener";

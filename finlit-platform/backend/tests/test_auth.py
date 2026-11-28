@@ -78,7 +78,7 @@ async def signed_in(app, email="asha@example.com", plan=None):
 async def test_visitor_identity_and_plan(anon):
     r = await anon.get("/api/auth/me")
     body = r.json()
-    assert body["user"] is None and body["plan"] == "basic" and body["csrf"] is None
+    assert body["user"] is None and body["plan"] == "free" and body["tier"] == "basic" and body["csrf"] is None
     assert r.headers["cache-control"] == "no-store"
 
 
@@ -92,7 +92,7 @@ async def test_register_verify_login_logout(app, anon):
     assert (await anon.post("/api/auth/verify-email", json={"token": token}, headers=ORIGIN)).status_code == 200
     assert (await anon.post("/api/auth/verify-email", json={"token": token}, headers=ORIGIN)).status_code == 400  # single use
     r = await login(anon, "asha@example.com")
-    assert r.status_code == 200 and r.json()["user"]["plan"] == "basic"
+    assert r.status_code == 200 and r.json()["user"]["plan"] == "free"
     cookie = r.headers["set-cookie"]
     assert "fl_session=" in cookie and "HttpOnly" in cookie and "SameSite=lax" in cookie
     me = (await anon.get("/api/auth/me")).json()
@@ -281,13 +281,13 @@ async def test_plan_redaction_on_the_server(app, anon):
 
 async def test_plan_change_applies_immediately(app):
     c = await signed_in(app, "asha@example.com")
-    assert (await c.get("/api/auth/me")).json()["plan"] == "basic"
+    assert (await c.get("/api/auth/me")).json()["plan"] == "free"
     async with app.state.store.pool.acquire() as conn:
         uid = await conn.fetchval("SELECT id FROM users")
         await conn.execute("UPDATE users SET plan = 'gold', plan_until = now() - interval '1 day' WHERE id = $1", uid)
     from finlit.auth.service import forget_cached
     await forget_cached(app, str(uid))
-    assert (await c.get("/api/auth/me")).json()["plan"] == "basic"  # an expired plan counts as Basic
+    assert (await c.get("/api/auth/me")).json()["plan"] == "free"  # an expired plan counts as Free (task #410)
     await c.aclose()
 
 
@@ -443,26 +443,32 @@ async def test_the_retired_score_history_is_gone_and_data_health_is_admin_only(a
         await c.aclose()
 
 
-async def test_target_price_alert_fires_once_on_a_crossing(app, monkeypatch):
-    monkeypatch.setattr("finlit.mailpolicy.ALERT_EMAILS", True)   # the email path, kept for when alert emails are switched back on (mailpolicy.py)
+async def test_target_price_alert_fires_once_when_the_price_comes_near(app, monkeypatch):
+    """Task #408 (05-alerts): the older "crossed your target" check is now "Price near your target": within 5% either side, once per crossing,
+    re-armed only after the price moves more than 5% away, at most once a day per stock."""
     from finlit.alerts import check_alerts
     pool = app.state.store.pool
-    c = await signed_in(app, "b@example.com", plan="silver")
-    wl = {"lists": [{"id": "main", "name": "x", "symbols": ["RELIANCE"]}], "meta": {"RELIANCE": {"target": 1200, "added": 1}}}
+    c = await signed_in(app, "b@example.com", plan="equity")
+    wl = {"lists": [{"id": "main", "name": "x", "symbols": ["RELIANCE"], "alerts": {"target": True, "peer": "off", "filings": []}}], "meta": {"RELIANCE": {"target": 1200, "added": 1}}}
     assert (await c.put("/api/me/watchlist", json=wl)).status_code == 200
     async with pool.acquire() as conn:
-        await conn.execute("UPDATE scores SET price = 1100 WHERE symbol = 'RELIANCE'")
+        await conn.execute("DELETE FROM alert_state WHERE symbol = 'RELIANCE'")
+        await conn.execute("DELETE FROM auto_alert_sent WHERE kind = 'target_near'")
+        await conn.execute("UPDATE scores SET price = 1000 WHERE symbol = 'RELIANCE'")
     mailer = app.state.mailer
-    assert await check_alerts(pool, mailer, "http://test") == 0   # first look only records the side
+    assert await check_alerts(pool, mailer, "http://test") == 0   # 20% away: nothing
     async with pool.acquire() as conn:
-        await conn.execute("UPDATE scores SET price = 1250 WHERE symbol = 'RELIANCE'")
-    assert await check_alerts(pool, mailer, "http://test") == 1   # crossed upward
-    mail = await last_mail(app, "b@example.com")
-    assert "crossed your target" in mail["subject"] and "1,250.00" in mail["body"]
-    assert await check_alerts(pool, mailer, "http://test") == 0   # no repeat while it stays above
+        await conn.execute("UPDATE scores SET price = 1150 WHERE symbol = 'RELIANCE'")
+    assert await check_alerts(pool, mailer, "http://test") == 1   # 4.3% below the target: near
+    note = [n for n in (await c.get("/api/notifications")).json()["notifications"] if n["symbol"] == "RELIANCE"][0]
+    assert note["title"] == "RELIANCE is near your target" and note["body"] == "RELIANCE at ₹1,150.00 is 4.3% below your target of ₹1,200.00 (x)."
+    assert await check_alerts(pool, mailer, "http://test") == 0   # no repeat while it stays near
     async with pool.acquire() as conn:
-        await conn.execute("UPDATE scores SET price = 1100 WHERE symbol = 'RELIANCE'")
-    assert await check_alerts(pool, mailer, "http://test") == 0   # crossed back, but only one email a day per stock
+        await conn.execute("UPDATE scores SET price = 1000 WHERE symbol = 'RELIANCE'")
+    assert await check_alerts(pool, mailer, "http://test") == 0   # moved away: re-armed
+    async with pool.acquire() as conn:
+        await conn.execute("UPDATE scores SET price = 1190 WHERE symbol = 'RELIANCE'")
+    assert await check_alerts(pool, mailer, "http://test") == 0   # near again, but at most one a day per stock
     assert (await c.put("/api/me/prefs", json={"palette": "gold", "alerts": False})).status_code == 200
     await c.aclose()
 
@@ -719,7 +725,7 @@ async def test_admin_can_confirm_a_members_email_by_hand(app):
 
 async def test_session_response_lists_the_free_example_companies(app, anon):
     me = (await anon.get("/api/auth/me")).json()
-    assert "RELIANCE" in me["showcase"] and me["plan"] == "basic" and me["user"] is None
+    assert "RELIANCE" in me["showcase"] and me["plan"] == "free" and me["user"] is None
 
 
 async def test_login_with_plan_expiry(app):
@@ -734,7 +740,7 @@ async def test_login_with_plan_expiry(app):
     async with app.state.store.pool.acquire() as conn:
         await conn.execute("UPDATE users SET plan_until = now() - interval '1 day' WHERE email = 'dated@example.com'")
     r = await login(new_client(app), "dated@example.com")
-    assert r.status_code == 200 and r.json()["user"]["plan"] == "basic"
+    assert r.status_code == 200 and r.json()["user"]["plan"] == "free"
 
 
 
@@ -819,7 +825,7 @@ async def test_signup_takes_only_its_fields_and_the_server_sets_the_role(app, an
     assert r.status_code in (201, 202)
     async with app.state.store.pool.acquire() as conn:
         row = await conn.fetchrow("SELECT role, plan, mobile FROM users WHERE email = 'hack@example.com'")
-    assert (row["role"], row["plan"], row["mobile"]) == ("investor", "basic", "+919876543210")
+    assert (row["role"], row["plan"], row["mobile"]) == ("investor", "free", "+919876543210")
 
 
 async def test_signup_needs_a_valid_mobile(app, anon):

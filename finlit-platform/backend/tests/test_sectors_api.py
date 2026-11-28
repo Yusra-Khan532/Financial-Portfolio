@@ -94,6 +94,12 @@ async def test_a_board_slug_with_no_page_file_is_a_503_that_says_so(anon, out): 
     assert r.status_code == 503 and "missing from the current data set" in r.json()["reason"]
 
 
+async def _no_record(app) -> None:
+    async with app.state.store.pool.acquire() as conn:
+        await conn.execute("DELETE FROM peer_label_week")
+        await conn.execute("DELETE FROM peer_label_run")
+
+
 # ------------------------------------------------------------------------------------------------ plans over HTTP
 async def test_basic_visitor_sees_states_and_breadth_but_not_tables_flags_or_cards(anon, out):  # noqa: F811
     b = (await anon.get("/api/sectors")).json()
@@ -108,6 +114,7 @@ async def test_basic_visitor_sees_states_and_breadth_but_not_tables_flags_or_car
 
 
 async def test_silver_sees_ranked_tables_and_flags_gold_sees_peer_labels_and_stock_cards(app, out):  # noqa: F811
+    await _no_record(app)    # task #409: these check the sector build's own label (the record's is in test_peerlabels_409)
     silver = await signed_in(app, "s@example.com", plan="silver")
     p = (await silver.get("/api/sectors/ferrous-metals")).json()
     assert p["plan"] == "silver" and p["stocks"][0]["symbol"] == "KIRLFER" and p["stocks"][0]["peer_label"] is None and p["not_counted"] and p["locked"] == {"peer_label": "gold"}
@@ -122,6 +129,7 @@ async def test_silver_sees_ranked_tables_and_flags_gold_sees_peer_labels_and_sto
 
 
 async def test_an_administrator_below_gold_still_sees_everything(app, out):  # noqa: F811
+    await _no_record(app)    # task #409: these check the sector build's own label (the record's is in test_peerlabels_409)
     admin = await admin_client(app, "boss@example.com")
     async with app.state.store.pool.acquire() as conn:
         await conn.execute("UPDATE users SET plan = 'basic' WHERE lower(email) = 'boss@example.com'")

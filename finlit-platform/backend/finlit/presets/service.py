@@ -36,6 +36,22 @@ def nse_industries() -> Dict[str, str]:
     return _NSE
 
 
+async def _record_labels(store, reading) -> Optional[Dict[str, Optional[str]]]:
+    """symbol -> the weekly record's label in words, for the companies of the sector reading; None when the record has no rows yet (the sector
+    build's labels then stay) or cannot be read. Read after the weekly run has committed: the record only ever holds whole runs."""
+    if not reading or not reading.get("by"):
+        return None
+    try:
+        from .. import peerlabels
+        async with store.pool.acquire() as conn:
+            if not await peerlabels.has_rows(conn):
+                return None
+            return await peerlabels.label_words(conn, list(reading["by"]))
+    except Exception:
+        log.warning("the weekly peer-label record was not read for the sector screens; the sector build's labels are used tonight", exc_info=True)
+        return None
+
+
 async def build_frame(store, persist: bool = False, now: Optional[datetime] = None) -> engine.Frame:
     now = now or datetime.now(timezone.utc)
     expected = expected_session(now)
@@ -56,6 +72,7 @@ async def build_frame(store, persist: bool = False, now: Optional[datetime] = No
     for sym, f in (await _recent_results(store, as_of)).items():
         prism.setdefault(sym, {}).update(f)
     reading = sectorread.load()          # task #243 (pack v4): the Sector reading, from the live Sector Pulse and Rotation release (the job runs on weekend nights)
+    sectorread.apply_labels(reading, await _record_labels(store, reading))   # task #409: the peer label from the weekly record, as on every page
     sectorread.mark(prism, reading)
     clean = ind_mod.derive(zip(table.symbols, table.industry), overrides)
     nse = nse_industries()
@@ -376,7 +393,7 @@ async def refresh_presets(store, settings=None) -> dict:
         await conn.execute("DELETE FROM preset_results WHERE registry <> $1", REGISTRY_VERSION)
     if fr.not_traded_off:        # F8: the companies left off a list for no trade in the last five sessions, counted here and named in the log
         log.info("ready-made lists: %d companies left off for no trade in the last %d sessions: %s", len(fr.not_traded_off), listday.NO_TRADE_SESSIONS, sorted(fr.not_traded_off)[:50])
-    summary = {"asOf": fr.as_of.isoformat(), "listDayFromCandles": fr.market.day is not None, "coverage": fr.market.loaded, "busiest": fr.market.busiest, "notTradedLeftOff": len(fr.not_traded_off), "results": done, "failed": failed, "themeTagged": len(fr.tags), "themeLabelsUnmatched": theme_map.unmatched_labels(fr.t.sector_label),
+    summary = {"asOf": fr.as_of.isoformat(), "listDayFromCandles": fr.market.day is not None, "coverage": fr.market.loaded, "closesSig": fr.market.sig, "busiest": fr.market.busiest, "notTradedLeftOff": len(fr.not_traded_off), "results": done, "failed": failed, "themeTagged": len(fr.tags), "themeLabelsUnmatched": theme_map.unmatched_labels(fr.t.sector_label),
             "benchReady": bench_ready, "momentum": len(fr.momentum), "growth": len(fr.growth), "inPlay": len(fr.theme_eval.in_play) if fr.theme_eval else 0, **pattern_note, **history_note}
     try:        # the night's summary (counts and notes only) for the self-check page: why a pattern run was held, how many companies were left out, ...
         async with store.pool.acquire() as conn:

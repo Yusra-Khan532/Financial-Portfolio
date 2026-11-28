@@ -72,6 +72,7 @@ const Account = lazy(() => import("./pages/Account").then((m) => ({ default: m.A
 const Dashboard = lazy(() => import("./pages/Dashboard").then((m) => ({ default: m.Dashboard })));
 const Console = lazy(() => import("./pages/Console").then((m) => ({ default: m.Console })));
 const IpoPage = lazy(() => import("./pages/Ipo").then((m) => ({ default: m.IpoPage })));
+const DealsRedirect = lazy(() => import("./pages/Deals").then((m) => ({ default: m.DealsRedirect })));   // /deals -> /ipo?view=deals
 const IpoAllRedirect = lazy(() => import("./pages/IpoHistory").then((m) => ({ default: m.IpoAllRedirect })));   // task #329: /ipo/all -> /ipo?view=all
 const IpoReportPage = lazy(() => import("./pages/IpoReport").then((m) => ({ default: m.IpoReportPage })));
 const StatusPage = lazy(() => import("./pages/Status").then((m) => ({ default: m.StatusPage })));
@@ -120,6 +121,8 @@ export default function App() {
             {/* task #283: the Basic stock screener is retired with its score; an old link (any query string) opens the Advanced stock screener. The server answers 301 too (finlit/seo.py REDIRECTS). */}
             <Route path="score-screener" element={<Navigate to="/advanced-score-screener" replace />} />
             <Route path="advanced-score-screener" element={<AdvancedScoreScreener />} />
+            {/* task #394 re-check (28 Nov): "/screener/advanced" (typed in the founder's check) opens the Advanced stock screener, not "page not found" */}
+            <Route path="screener/advanced" element={<Navigate to="/advanced-score-screener" replace />} />
             <Route path="premium" element={<PremiumHub />} />
             <Route path="premium/markets" element={<MarketsPage />} />
             {/* Task #317 (developer file 23): Company financials is off the site; its old address goes to the Company report (a 301 on the server). */}
@@ -169,6 +172,7 @@ export default function App() {
             <Route path="forum/*" element={<ForumPage />} />
             <Route path="ipo" element={<IpoPage />} />
             <Route path="ipo/all" element={<IpoAllRedirect />} />
+            <Route path="deals" element={<DealsRedirect />} />
             <Route path="ipo/:id" element={<IpoReportPage />} />
             <Route path="status" element={<StatusPage />} />
             <Route path="concalls" element={<ConcallMonitorPage />} />

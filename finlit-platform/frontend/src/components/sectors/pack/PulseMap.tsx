@@ -15,7 +15,7 @@ import { ApiError, apiGet } from "../../../lib/api";
 import type { Board, GroupRow, StateCode } from "../../../lib/sectors";
 import type { IndustryMap } from "../../../lib/sectorExtra";
 import type { SectorHistory, StateKey } from "../../../lib/sectorHistory";
-import { COLOUR, MEANING, OF_CODE, WORD, belowHigh, dayMon, groupsN, keyOf, risingOf, short } from "../../../lib/pulsePack";
+import { COLOUR, MEANING, OF_CODE, WORD, allSectors, belowHigh, dayMon, groupsN, ofSectors, keyOf, risingOf, short } from "../../../lib/pulsePack";
 import { gl, sq, tw, wordsShow } from "../../../lib/groupWords";
 import { BoxChip, Cards, Scroll, Section, StateChip } from "./Common";
 import { placeLabels } from "./PulseSimple";
@@ -142,8 +142,8 @@ export function MoodWeeks({ h }: { h: SectorHistory }) {
   const cur = on >= 0 && on < ends.length ? col(on) : [], prev = on > 0 ? col(on - 1) : null;
   const line: ReactNode = cur.length ? <>{cur.map((l, i) => { const d = prev ? l.n - prev[i].n : null; return <span key={l.key}><i className="sx-dot" style={{ background: l.colour }} aria-hidden="true" /> {l.label} <b>{l.n}</b>{d == null ? "" : d === 0 ? " (no change)" : <span className={d > 0 ? "sx-d-up" : "sx-d-dn"}> ({d > 0 ? "▲" : "▼"}{Math.abs(d)})</span>}</span>; })}</> : null;
   return (
-    <Section id="sp-mood" title="The market's mood, week by week" help={`The market's mood. At every weekly close each of the ${groupsN(total)} has one state. Each column stacks how many were in each state, so it always adds up to ${total}. Point at or press a column to read it.`}
-      sub={`All ${groupsN(total)} at each weekly close: each colour is how many were in that state. Read it like weather for the whole market.`}>
+    <Section id="sp-mood" title="The market's mood, week by week" help={`The market's mood. At every weekly close each of ${wordsShow() === "sectors" ? ofSectors(total) : `the ${groupsN(total)}`} has one state. Each column stacks how many were in each state, so it always adds up to ${total}. Point at or press a column to read it.`}
+      sub={`${allSectors(total)} at each weekly close: each colour is how many were in that state. Read it like weather for the whole market.`}>
       <div className="sx-mh">
         <div className="sx-seg" role="group" aria-label="Detail"><button type="button" aria-pressed={!all} onClick={() => setAll(false)}>Simple: 3 groups</button><button type="button" aria-pressed={all} onClick={() => setAll(true)}>All 6 states</button></div>
         <ul className="sx-lg">{layers.map((l) => <li key={l.key}><i style={{ background: l.colour }} aria-hidden="true" />{l.label}</li>)}</ul>

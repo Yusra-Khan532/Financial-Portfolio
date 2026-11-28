@@ -28,7 +28,7 @@ export type CallList = {
   /** task #306 */ offset?: number; facets?: Facets | null; have?: Record<Has, number> | null; days?: Record<string, number>;
 };
 export type Transcript = { symbol: string; link: string; title?: string | null; filed: string; pages: string[]; why?: string; source?: string };
-export type Summary = { text: string; source: "transcript" | "presentation"; link: string; written: string | null; cached: boolean; limit: number; used: number; left: number; resets: string; disclaimer: string };
+export type Summary = { text: string; source: "transcript" | "presentation"; link: string; written: string | null; cached: boolean; rewritten?: boolean; limit: number; used: number; left: number; resets: string; disclaimer: string };
 
 export const PAGE = 30;
 
@@ -80,7 +80,12 @@ export const timeText = (label: string | null) => (label ? label.replace(/^0/, "
 export const filedDay = (iso: string) => new Date(iso + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 
 /** The summary's text as lines: '**Heading**' lines and '- point' lines (with **bold** words inside). */
-export function summaryBlocks(text: string): ({ h: string } | { li: string })[] {
-  return (text || "").split(/\n+/).map((l) => l.trim()).filter(Boolean).map((l) =>
-    /^\*\*[^*]+\*\*:?$/.test(l) ? { h: l.replace(/\*\*/g, "").replace(/:$/, "") } : { li: l.replace(/^[-•*]\s*/, "") });
+/** The summary as headings and points. Task #432: "## " a heading the model chose, "### " a subheading (`sub`), "- " a point; a summary kept in
+ *  the old form ("**Heading**" lines) still reads the same way. */
+export function summaryBlocks(text: string): ({ h: string; sub?: boolean } | { li: string })[] {
+  return (text || "").split(/\n+/).map((l) => l.trim()).filter(Boolean).map((l) => {
+    const m = /^(#{2,4})\s+(.+)$/.exec(l);
+    if (m) return m[1].length >= 3 ? { h: m[2].replace(/\*\*/g, "").replace(/:$/, ""), sub: true } : { h: m[2].replace(/\*\*/g, "").replace(/:$/, "") };
+    return /^\*\*[^*]+\*\*:?$/.test(l) ? { h: l.replace(/\*\*/g, "").replace(/:$/, "") } : { li: l.replace(/^[-•*]\s*/, "") };
+  });
 }

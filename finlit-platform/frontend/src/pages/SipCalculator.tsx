@@ -17,6 +17,8 @@ import {
 } from "../lib/sip";
 import "../styles/sip.css";
 import { ChartZoom, useZoomHeight } from "../components/ChartZoom";
+import { useOpenPref } from "../components/DcfIntro";
+import { useAuthMaybe } from "../lib/auth";
 
 const reduced = () => typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
@@ -195,8 +197,29 @@ function GrowthChart({ s, band }: { s: SipState; band: Band }) {
 }
 
 // ------------------------------------------------------------------------------------------------------------- page
-const TABS = [["table", "Year by year"], ["goal", "Goal planner"], ["wait", "Cost of waiting"], ["tax", "After tax"], ["how", "How it is worked out"]] as const;
+const TABS = [["table", "Year by year"], ["goal", "Goal planner"], ["wait", "Cost of waiting"], ["tax", "After tax"]] as const;  // task #413: the "How it is worked out" tab was removed
 type TabKey = (typeof TABS)[number][0];
+
+// Task #424: the disclaimer under the calculator is a drop-down, built like the DCF page's Methodology card (task #412).
+// The closed row still reads as a disclaimer: the "Disclaimer" title and its first sentence stay visible; the rest opens below it.
+// The wording is unchanged, word for word: lead + " " + rest is the whole disclaimer. Open or closed is remembered per member.
+export const SIP_DISCLAIMER_LEAD = "Information only, not investment advice.";
+export const SIP_DISCLAIMER_REST = "A SIP calculator assumes the same return every month; real funds go up and down, and past returns do not guarantee future returns. Mutual fund investments are subject to market risks; read all scheme-related documents carefully.";
+
+function Disclaimer() {
+  const member = useAuthMaybe()?.user?.id ?? null;
+  const { open, set } = useOpenPref("finlit.sip.disc", member);
+  return (
+    <details className="sip-dsc" open={open} onToggle={(e) => { const v = (e.currentTarget as HTMLDetailsElement).open; if (v !== open) set(v); }}>
+      <summary>
+        <h2 className="sip-dsc-t">Disclaimer</h2>
+        <span className="sip-dsc-l">{SIP_DISCLAIMER_LEAD}</span>
+        <span className="sip-dsc-tg" aria-hidden="true">{open ? "Hide" : "Show"}<span className={"sip-dsc-chev" + (open ? " up" : "")} /></span>
+      </summary>
+      <p className="sip-dsc-b">{SIP_DISCLAIMER_REST}</p>
+    </details>
+  );
+}
 
 export function SipCalculator() {
   useDocTitle("SIP calculator", "SIP calculator: the future value of a monthly investment, with step-up, lump sum, inflation, a goal planner, the cost of waiting and an after-tax estimate. Every step shown.");
@@ -305,11 +328,10 @@ export function SipCalculator() {
             {tab === "goal" && <GoalPlanner s={s} />}
             {tab === "wait" && <Waiting s={s} />}
             {tab === "tax" && <TaxPane s={s} />}
-            {tab === "how" && <HowItWorks s={s} />}
           </div>
         </section>
 
-        <p className="sip-disc">Information only, not investment advice. A SIP calculator assumes the same return every month; real funds go up and down, and past returns do not guarantee future returns. Mutual fund investments are subject to market risks; read all scheme-related documents carefully.</p>
+        <Disclaimer />
       </div>
     </div>
   );
@@ -409,31 +431,6 @@ function TaxPane({ s }: { s: SipState }) {
         </div>
         <p className="sip-hint">Each instalment is its own purchase: held more than 12 months it is long-term, otherwise short-term. Assumes everything is sold in one financial year, no other gains that year, and no surcharge. Debt funds are taxed at your slab rate and are not modelled. Tax rules change; check the current rules or ask a tax adviser.</p>
       </details>
-    </div>
-  );
-}
-
-function HowItWorks({ s }: { s: SipState }) {
-  const r = project(toInput(s));
-  const plain = s.stepKind === "none" && !s.lumpSum && s.timing === "end" && s.compounding === "monthly" && !s.months;
-  return (
-    <div className="sip-how">
-      <div className="sip-formula" aria-label="FV equals P times the quantity one plus i to the power n minus one, divided by i">
-        <span>FV</span><span>=</span><span>P</span><span>×</span>
-        <span className="frac"><span>(1 + i)<sup>n</sup> − 1</span><span>i</span></span>
-      </div>
-      <dl className="sip-vars">
-        <div><dt>P</dt><dd>monthly SIP: {rupees(s.monthly)}</dd></div>
-        <div><dt>i</dt><dd>monthly rate: {s.compounding === "monthly" ? `${s.annualReturn} ÷ 1200 = ` : ""}{nf(r.i, 6)}</dd></div>
-        <div><dt>n</dt><dd>number of instalments: {s.months ? `12 × ${s.years} + ${s.months}` : `12 × ${s.years}`} = {r.n}</dd></div>
-        <div><dt>FV</dt><dd>{plain ? <>{rupees(s.monthly)} × ((1 + {nf(r.i, 6)})<sup>{r.n}</sup> − 1) ÷ {nf(r.i, 6)} = <b>{rupees(r.value)}</b></> : <>worked out month by month with your options: <b>{rupees(r.value)}</b></>}</dd></div>
-      </dl>
-      <ul className="sip-how-l">
-        <li>Total invested = P × n{s.stepKind !== "none" || s.lumpSum ? " (with the step-up and the one-time amount added)" : ""} = {rupees(r.invested)}. Wealth gained = FV − total invested = {rupees(r.gain)}.</li>
-        <li>{s.timing === "end" ? "Instalments at the end of each month (the formula above)." : "Instalments at the start of each month: the formula above × (1 + i)."}</li>
-        <li>Every figure is calculated to full precision and rounded to the rupee only on screen. With no options, the month-by-month result equals the formula exactly.</li>
-        <li>Today's money divides the value by (1 + inflation) for every year: {rupees(r.value)} ÷ (1 + {s.inflation}%)<sup>{nf(r.n / 12, r.n % 12 ? 2 : 0)}</sup> = {rupees(realValue(r.value, s.inflation, r.n))}.</li>
-      </ul>
     </div>
   );
 }

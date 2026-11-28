@@ -119,6 +119,13 @@ git_sync() {
     mkdir -p "$SRC"
     env "${env_git[@]}" git clone --depth 1 --branch "$REPO_BRANCH" "$REPO_URL" "$SRC" || die "git clone failed (network, wrong branch, or a private repository without GIT_TOKEN)."
   fi
+  # auto-deploy.sh deploys the branch's newest GREEN commit, which can be a little behind the branch's head (27 Nov 2026): DEPLOY_SHA names it exactly.
+  if [ -n "${DEPLOY_SHA:-}" ] && [ "$(git -C "$SRC" rev-parse HEAD)" != "$DEPLOY_SHA" ]; then
+    printf '%s' "$DEPLOY_SHA" | grep -Eq '^[0-9a-f]{40}$' || die "DEPLOY_SHA '$DEPLOY_SHA' is not a full commit id."
+    say "Fetching commit $DEPLOY_SHA (the newest one with green checks)"
+    env "${env_git[@]}" git -C "$SRC" fetch --depth 1 origin "$DEPLOY_SHA" || die "git fetch of commit $DEPLOY_SHA failed."
+    git -C "$SRC" reset --hard "$DEPLOY_SHA" >/dev/null
+  fi
   [ -f "$PROJ/Dockerfile" ] || die "$PROJ/Dockerfile not found. Is REPO_SUBDIR ('$REPO_SUBDIR') the folder that holds the Dockerfile?"
   [ -f "$PROJ/deploy/aws/docker-compose.aws.yml" ] || die "deploy/aws/docker-compose.aws.yml is missing in $PROJ: is the branch up to date?"
   info "code is at commit $(git -C "$SRC" rev-parse --short HEAD): $(git -C "$SRC" log -1 --format=%s | cut -c1-70)"

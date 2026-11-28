@@ -20,8 +20,9 @@ The slug is checked against the board (a fixed list), the symbol against NSE's c
 from __future__ import annotations
 
 import hashlib
+import logging
 import time
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple
 
 import orjson
 from fastapi import APIRouter, Request, Response
@@ -50,6 +51,7 @@ public_board, public_industry, public_rotation = _pub.public_board, _pub.public_
 public_rotation_group, public_stock_sector = _pub.public_rotation_group, _pub.public_stock_sector
 
 router = APIRouter()
+log = logging.getLogger("finlit.sector_api")
 PRIVATE_CACHE = "private, max-age=300, must-revalidate"      # the answer depends on the plan (Cookie), so no shared cache may keep it
 NO_STORE = "no-store"
 
@@ -244,16 +246,8 @@ def _nse_classes() -> Dict[str, Any]:
     return _NSE_FULL
 
 
-@router.get("/api/sectors/membership")
-async def sector_membership(request: Request, symbols: str = "", show: Optional[str] = None) -> Response:
-    """Which Sector Pulse group each of the given shares belongs to ("How your industries are doing", the final pages pack, 13 Nov 2026): {symbol: {slug, name}} for the ones
-    in a group with a reading; the others are left out (no NSE industry, or a group with too few stocks). Names only, open to every plan, at most 200 symbols."""
-    started = time.perf_counter()
-    rel = _base(sd.live_release(), show)
-    board = sd.read_json(rel / "sectors" / "_board.json") if rel else None
-    if not board:
-        return _no_board(request, started, show)
-    want = [s.strip().upper() for s in symbols.split(",") if s.strip()][:200]
+def _group_maps(board: Dict[str, Any]) -> Tuple[Dict[str, Dict[str, str]], Dict[str, Dict[str, str]]]:
+    """NSE industry -> its Sector Pulse group, and NSE sector -> its group (a sector-kind row), from the board."""
     by_ind: Dict[str, Dict[str, str]] = {}
     by_sec: Dict[str, Dict[str, str]] = {}
     for r in board.get("rows", []):
@@ -264,6 +258,36 @@ async def sector_membership(request: Request, symbols: str = "", show: Optional[
             by_sec[str(r.get("name") or "")] = ref
         for ind in r.get("industries") or []:
             by_ind[str(ind)] = ref
+    return by_ind, by_sec
+
+
+def group_of(symbol: str) -> Optional[Dict[str, str]]:
+    """The Sector Pulse industry group one company belongs to ({slug, name}), as /api/sectors/membership answers it for the default view; None when it has none
+    or the board is not loaded. Used by the company page's crawler HTML (search growth, Phase 1) to link the company to its group."""
+    rel = sd.live_release()
+    board = sd.read_json(rel / "sectors" / "_board.json") if rel else None
+    sym = symbol.strip().upper()
+    if not board or not sd.SYMBOL.match(sym):
+        return None
+    cls = _nse_classes().get(sym)
+    if not cls:
+        return None
+    by_ind, by_sec = _group_maps(board)
+    ind, sec = cls
+    return by_ind.get(ind) or (by_sec.get(sec) if sec else None)
+
+
+@router.get("/api/sectors/membership")
+async def sector_membership(request: Request, symbols: str = "", show: Optional[str] = None) -> Response:
+    """Which Sector Pulse group each of the given shares belongs to ("How your industries are doing", the final pages pack, 13 Nov 2026): {symbol: {slug, name}} for the ones
+    in a group with a reading; the others are left out (no NSE industry, or a group with too few stocks). Names only, open to every plan, at most 200 symbols."""
+    started = time.perf_counter()
+    rel = _base(sd.live_release(), show)
+    board = sd.read_json(rel / "sectors" / "_board.json") if rel else None
+    if not board:
+        return _no_board(request, started, show)
+    want = [s.strip().upper() for s in symbols.split(",") if s.strip()][:200]
+    by_ind, by_sec = _group_maps(board)
     cls = _nse_classes()
     out: Dict[str, Dict[str, str]] = {}
     for sym in want:
@@ -367,7 +391,25 @@ async def industry(slug: str, request: Request, top: Optional[int] = None, show:
     if not page:
         reason = "Sector data is not loaded yet: this industry's page is missing from the current data set. It is rebuilt at the next nightly run."
         return _reply(request, {"available": False, "status": "not_loaded", "reason": reason, "detail": reason}, started, status=503, cache=NO_STORE)
-    return _reply(request, redact_sector_industry(public_industry(page, top_stocks=top), await _plan(request)), started)
+    return _reply(request, redact_sector_industry(await _record_peer_labels(request, public_industry(page, top_stocks=top)), await _plan(request)), started)
+
+
+async def _record_peer_labels(request: Request, page: Dict[str, Any]) -> Dict[str, Any]:
+    """Task #409: each stock's peer label on an industry page is the weekly record's latest label (the one the company report, the watchlist and the
+    screener show), not the sector build's own. Nothing changes while the record has no rows, or when it cannot be read (logged)."""
+    stocks = page.get("stocks") if isinstance(page, dict) else None
+    if not isinstance(stocks, list) or not stocks:
+        return page
+    try:
+        from . import peerlabels
+        async with request.app.state.store.pool.acquire() as conn:
+            if not await peerlabels.has_rows(conn):
+                return page
+            words = await peerlabels.label_words(conn, [str(s.get("symbol") or "").upper() for s in stocks if isinstance(s, dict)])
+    except Exception:
+        log.warning("industry page: the weekly peer-label record was not read; the sector build's labels are shown", exc_info=True)
+        return page
+    return {**page, "stocks": [({**s, "peer_label": words.get(str(s.get("symbol") or "").upper())} if isinstance(s, dict) and "peer_label" in s else s) for s in stocks]}
 
 
 @router.get("/api/technicals/{symbol}/sector")

@@ -133,9 +133,11 @@ a { color: inherit; }
 .top { position: sticky; top: 0; z-index: 40; background: var(--header); border-bottom: 1px solid var(--border); padding-top: env(safe-area-inset-top, 0px); }
 .top .wrap { display: flex; align-items: center; gap: 12px; height: 62px; }
 .logo { display: inline-flex; align-items: center; text-decoration: none; flex: none; line-height: 0; }
-/* Logo from the brand image (temporary until the SVG arrives): dark-background version by default, light version in the light header */
-.lg-mark { display: block; height: 52px; aspect-ratio: 320 / 156; background: url("/brand/finlit-ventures-wordmark-on-dark.png") center / contain no-repeat; }   /* task #400: the FinLit Ventures logo; "VENTURES" is left out at header size, where it would be about 6px tall */
-:root[data-theme="light"] .top .lg-mark { background-image: url("/brand/finlit-ventures-wordmark-on-light.png"); }
+/* The FinLit Ventures logo with no background (owner, 28 Nov 2026): the light site shows Fin, the person, the first steps and VENTURES in black; the dark site
+   shows them in white; the gold L, stairs, i, t and rules and the teal bars and arrow stay the same. The footer is dark in both themes, so it always takes the
+   white version. Made by scripts/make-logo-versions.py; proportions 1758 x 1065. */
+.lg-mark { display: block; height: 52px; aspect-ratio: 1758 / 1065; background: url("/brand/finlit-ventures-logo-light.webp") center / contain no-repeat; }
+:root[data-theme="dark"] .lg-mark, footer .lg-mark { background-image: url("/brand/finlit-ventures-logo-dark.webp"); }
 .fcta .lg-mark { height: 64px; }
 .topnav { display: flex; gap: 2px; margin-left: 8px; }
 .topnav a { text-decoration: none; font-size: var(--fs-14); font-weight: 500; color: var(--muted); padding: 8px 10px; border-radius: var(--r-ctl); transition: color .15s, background-color .15s; white-space: nowrap; }
@@ -361,6 +363,8 @@ h2 { font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif); m
 .legend { display: flex; gap: 6px 18px; flex-wrap: wrap; font-size: var(--fs-13); color: var(--muted); margin-top: 14px; align-items: center; }
 .legend i { display: inline-block; width: 10px; height: 10px; border-radius: var(--ui-r-mark); margin-right: 7px; vertical-align: -1px; }
 .legend i.ln { height: 3px; border-radius: var(--ui-r-pill); vertical-align: 3px; width: 16px; }
+/* developer file 42: the price chart's candles say how long one candle is, under the chart */
+.pc-note { font-size: var(--fs-12); margin: 8px 0 0; }
 .tools { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; align-items: center; }
 .stats { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 18px; }
 .stat { padding: 9px 14px; border-radius: var(--r-ctl); background: var(--s2); border: 1px solid var(--border); }

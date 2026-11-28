@@ -1,0 +1,7 @@
+/* Console > Visitors (components/admin/VisitorsAdmin.tsx). On a phone the report's tables fit the screen: headings and page addresses wrap,
+   numbers stay on one line, and the cells are tighter, so no column is hidden behind a sideways scroll. */
+@media (max-width: 640px) {
+  .vis .qtt td, .vis .qtt th { padding: 8px 6px; white-space: normal; }
+  .vis .qtt td.n { white-space: nowrap; }
+  .vis .qtt .vis-path { word-break: break-all; }
+}

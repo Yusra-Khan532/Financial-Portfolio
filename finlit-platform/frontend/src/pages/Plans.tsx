@@ -1,111 +1,50 @@
-import { Icon } from "../lib/icons";
-import { useEffect, useState } from "react";
-import { Link, useLocation } from "react-router";
-import { RANK, TIER, useUI, type Plan } from "../lib/ui";
+// Task #410 (owner, 27 Nov 2026): /plans shows the plans on sale exactly as the landing page does, from the same data (landing/goliveData.js: PLANS,
+// COMBINED) through the same table code (landing/golive.js): every plan, price, tool, part and limit, the combined plan, the add-ons and "About these
+// plans", with one plan at a time on a phone. Nothing on this page is a copied number. Payments are not live yet, so the buttons say what happens today:
+// a visitor creates a free account; a member asks for a plan from the account page and the team switches it on.
+import { useEffect } from "react";
+import { Link, useNavigate } from "react-router";
 import { useAuth } from "../lib/auth";
-import { DEMO } from "../lib/demo";
+import { planName } from "../lib/planNames";
+import { planOffers, rupees } from "../lib/planOffer";
 import { useDocTitle } from "../lib/title";
-import { planTarget } from "../lib/planTarget";
-import { FeatureInfo } from "../components/FeatureDemo";
+import { GoLiveCompare } from "../landing/GoLiveMarkup";
+import { initGoLive } from "../landing/golive";
+import "../landing/golive.css";
+import "../styles/plans410.css";
 
-const PLANS: { k: Plan; tag: string; desc: string; price: string; per: string; cta: string; inc: string; feat?: boolean; f: [string, string][] }[] = [
-  { k: "basic", tag: "Free", desc: "Look up any listed company and run a simple screen. No card needed.", price: "Free", per: "no card needed", cta: "Create a free account", inc: "What you get",
-    f: [["Starter stock screener", "14 filters: size, returns, P/E, ROE, margin, growth, debt, sector and index. Shows the first 25 matches. 3 saved screens"], ["Compare two companies", "Side by side, with charts, a spider view and valuation"], ["Glossary", "440+ finance terms in plain words, with formulas"], ["Latest quarter and trends", "The newest quarter against the last quarter and last year"], ["Company overview", "What the business does, its products and market data"], ["Financial statements", "Profit and loss, balance sheet and cash flow, 5 to 10 years"], ["Key ratios and their history", "Margins and returns over the years, plus valuation, efficiency and debt"], ["Shareholding pattern", "Promoters, institutions and public, quarter by quarter"], ["Peer comparison", "How a company stacks up against others in its industry"], ["Price chart", "Price, volume and the 50-day average"], ["Alerts", "3 alerts on price, volume and a few technical triggers"], ["Results, IPO and news calendars", "Result dates, open and upcoming IPOs, and company filings"]] },
-  { k: "silver", tag: "Full screener + tools", desc: "Adds the full screener, watchlists and the portfolio scorecard.", price: "Soon", per: "payments not live yet", cta: "Get Silver", inc: "Everything in Basic, plus",
-    f: [["Full screener: 190+ filters", "Valuation, profitability, growth, quarterly results, financial health, ownership, red flags, trend and more. Every match, ready-made screens, 20 saved screens and CSV download"], ["Watchlists", "3 lists and 30 stocks in total, with notes and target prices. Group by industry and size"], ["More comparison", "Quality and risk, growth and technical tabs, plus build your own"], ["Downloads", "PDF research note, an offline HTML copy, and CSV of data and screener results"], ["Portfolio scorecard", "Add up to 30 shares by name (typed, pasted or from a broker Excel/CSV). See your sector and size mix (FinLit Prism for every share comes with Gold). It does not use quantities or prices, so there is no profit and loss"], ["More alerts", "30 alerts, including P/E and ROE triggers"]] },
-  { k: "gold", tag: "Most depth", desc: "More depth for people who check companies often: FinLit Prism, model filters, full ratio history and technical signals.", price: "Soon", per: "payments not live yet", cta: "Get Gold", inc: "Everything in Silver, plus", feat: true,
-    f: [["FinLit Prism", "An advanced financial-health rating of any listed company: four financial-health parts and two technical views"], ["Advanced stock screener", "Filter every listed company by its Prism score, the four parts and the two technical views"], ["DCF calculator", "Intrinsic value per share with margin of safety, any listed company's cash flow and debt loaded for you, sensitivity grids, reverse DCF and saved scenarios"], ["Revenue and profit forecasting", "Estimates of revenue and profit from the company's own history and its sector, with weights you can set or our model"], ["FinLit model filters in the screener", "On top of the 190+ filters: score, band, each of the five pillars and score movement, plus Gold screens"], ["Mutual Fund Score", "A 0 to 100 health score for every mutual fund from its past NAVs, costs and holdings, with its reasons. Describes; not advice"], ["Full ratio history", "Every ratio with its multi-year history, and valuation history"], ["Technical analysis", "Indicators such as RSI and the 200-day average, with trend and momentum"], ["Compare up to 4 companies", "Pillar spider chart and a full side-by-side view"], ["Bigger watchlists", "Up to 50 lists and 1,000 stocks, grouped by FinLit band and style, with a list of what needs a second look"], ["Revenue by segment", "Reported business segments, with growth"], ["Gold dashboards", "Market events & index"], ["Bigger limits", "Up to 300 alerts, 100 saved screens and 500 shares in the portfolio scorecard"], ["Equity research report (planned, later)", "A written report on a company. Only after the licence and approvals it needs are in place"]] },
-];
-const fIcon = (t: string) => /prism/i.test(t) ? "layers" : /screener|filter/i.test(t) ? "table" : /overview|company/i.test(t) ? "building" : /statement/i.test(t) ? "notes" : /ratio/i.test(t) ? "gauge" : /peer/i.test(t) ? "layers" : /chart|technical|momentum/i.test(t) ? "line" : /scor|scorecard/i.test(t) ? "quality" : /parameter|trend/i.test(t) ? "growth" : /watchlist|portfolio/i.test(t) ? "wallet" : /export|download/i.test(t) ? "table" : /bucket/i.test(t) ? "layers" : /revenue|segment/i.test(t) ? "pie" : /priority|access/i.test(t) ? "crown" : "check";
-function PlanArt({ k }: { k: Plan }) {
-  return (
-    <svg className="pl-art" viewBox="0 0 300 96" aria-hidden="true" role="presentation">
-      <defs><linearGradient id={`pa${k}`} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="var(--tc)" stopOpacity=".5" /><stop offset="1" stopColor="var(--tc)" stopOpacity="0" /></linearGradient></defs>
-      {k === "basic" && <g>{[0, 1, 2, 3].map((i) => <g key={i}><rect x="14" y={12 + i * 21} width="272" height="15" rx="5" fill="var(--tc)" opacity={0.1 + (i % 2) * 0.08} /><rect x="22" y={16 + i * 21} width={60 + i * 14} height="7" rx="3" fill="var(--tc)" opacity=".7" /><rect x="190" y={16 + i * 21} width="30" height="7" rx="3" fill="var(--tc)" opacity=".4" /><rect x="238" y={16 + i * 21} width={28 - i * 4} height="7" rx="3" fill="var(--gain)" opacity=".8" /></g>)}</g>}
-      {k === "silver" && <g><circle cx="52" cy="48" r="32" fill="none" stroke="var(--s3)" strokeWidth="9" /><circle className="ring-in" cx="52" cy="48" r="32" fill="none" stroke="var(--tc)" strokeWidth="9" strokeLinecap="round" strokeDasharray="120 300" transform="rotate(-90 52 48)" /><text x="52" y="54" textAnchor="middle" fontSize="20" fontFamily="Newsreader, serif" fill="var(--text)">51</text>{[["--p-quality", 56], ["--p-growth", 44], ["--p-profit", 51], ["--p-balance", 75], ["--p-tech", 31]].map(([c, w], i) => <g key={c as string}><rect x="110" y={14 + i * 16} width="170" height="8" rx="4" fill="var(--s3)" /><rect className="bar-in" style={{ animationDelay: `${i * 100}ms` }} x="110" y={14 + i * 16} width={(w as number) * 1.7} height="8" rx="4" fill={`var(${c})`} /></g>)}</g>}
-      {k === "gold" && <g><path d="M10 80 50 62 90 68 130 38 170 46 210 22 250 30 290 10V96H10z" fill={`url(#pa${k})`} /><path className="draw" d="M10 80 50 62 90 68 130 38 170 46 210 22 250 30 290 10" fill="none" stroke="var(--tc)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" /><path d="M214 84a24 24 0 0 1 48 0" fill="none" stroke="var(--s3)" strokeWidth="6" strokeLinecap="round" /><path d="M214 84a24 24 0 0 1 20-23.7" fill="none" stroke="var(--info)" strokeWidth="6" strokeLinecap="round" /></g>}
-    </svg>
-  );
-}
-const CMP: [string, string | null, number?][] = [
-  ["Free for everyone (Basic)", null], ["Financial statements", "Profit and loss, balance sheet, cash flow", 0], ["Key ratios, peers and shareholding", "Valuation, returns, margins, debt and who owns the company", 0], ["Starter screener", "14 filters, sector, size and index. First 25 matches, 3 saved screens", 0],
-  ["Compare two companies", "Overview, financials, spider chart and valuation", 0], ["Glossary of finance terms", "440+ terms with formulas", 0], ["Results, IPO and news calendars", "Dates, open issues and company filings", 0], ["Price chart, volume and 50-day average", "", 0], ["Alerts", "Basic 3, Silver 30, Gold 300. Some triggers start at Silver", 0], ["FII & DII flows, India economy and commodity prices", "", 0],
-  ["Silver: scores and tools", null], ["Full screener: 190+ filters", "Valuation, quarterly results, ownership, red flags, trend and more. Every match, 20 saved screens, download", 1],
-  ["Watchlists with notes and targets", "Silver: 3 lists, 30 stocks", 1], ["Portfolio scorecard", "Add shares by name. Sector spread; FinLit Prism and its band mix on Gold. No profit and loss", 1], ["Downloads: PDF note, offline copy, CSV", "", 1],
-  ["Gold: more depth", null], ["Superinvestor portfolios", "Tracked investors under every name they file with: latest moves, stocks they agree on, FinLit's view of each stock. The list of named holders is free", 2], ["FinLit Prism", "Financial-health rating of any listed company: four financial-health parts and two technical views", 2], ["Advanced stock screener", "Filter by Prism score, parts and technical views", 2], ["Revenue and profit forecasting", "Estimates from the company's own history and its sector", 2], ["FinLit model filters in the screener", "Filter by score, band, the five pillars and score movement", 2], ["Mutual Fund Score", "0 to 100 health score of every mutual fund, with reasons", 2], ["Full ratio history", "Every ratio over several years, and valuation history", 2], ["Technical analysis and momentum", "RSI, 200-day average, trend", 2], ["Compare up to four companies", "", 2],
-  ["Gold dashboards", "Market events & index", 2], ["DCF calculator", "Intrinsic value, sensitivity, reverse DCF", 2], ["Bigger watchlists", "Up to 50 lists and 1,000 stocks, grouped by band and style", 2], ["Bigger limits", "100 saved screens, 500 shares in the scorecard", 2],
-  ["Planned, not built yet", null], ["Equity research report (coming soon)", "Subject to the required licence and approvals", 9],
-];
-
-/** `landing`: the version on the home page: the three cards show their first 8 features, and the full plan-by-plan table is a dropdown that starts closed. */
-export function PlansBand({ id, h1 = false, landing = false }: { id?: string; h1?: boolean; landing?: boolean }) {
-  const H = h1 ? "h1" : "h2";
-  const { plan, upgrade } = useUI();
-  const { user } = useAuth();
-  const loc = useLocation();
-  const [target, setTarget] = useState<Plan | null>(null);
-  const [all, setAll] = useState(!landing);           // the plan-by-plan table; on the home page it opens from a button
-  const openAll = () => { setAll(true); window.setTimeout(() => document.getElementById("plans-all")?.scrollIntoView({ behavior: "smooth", block: "start" }), 60); };
-  // /plans#gold or /plans?plan=gold: scroll to that plan, focus it and highlight it.
-  useEffect(() => {
-    const k = landing ? null : planTarget(loc.hash, loc.search);
-    setTarget(k);
-    if (!k) return;
-    const el = document.getElementById(`plan-${k}`);
-    if (!el) return;
-    const reduce = typeof matchMedia !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const t = window.setTimeout(() => { el.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" }); el.focus({ preventScroll: true }); }, 80);
-    return () => window.clearTimeout(t);
-  }, [landing, loc.hash, loc.search]);
-  const cta = (k: Plan, label: string) => DEMO ? (plan === k ? "Previewing " + TIER[k].n : label) : plan === k && (user || k === "basic") ? (user ? "Your plan" : "Included for everyone") : k === "basic" ? "Create a free account" : user ? `Request ${TIER[k].n}` : label;
-  const go = (k: Plan) => { if (!DEMO && k === "basic") return; upgrade(k); if (DEMO) window.scrollTo({ top: 0, behavior: "smooth" }); };
-  return (
-    <section className="band plans" id={id} aria-labelledby="plansTitle">
-      <div className="wrap">
-        <div className="plans-h">
-          <div className="eyebrow" style={{ marginBottom: 12 }}>FinLit plans</div>
-          <H id="plansTitle" className={h1 ? "ui-title ui-title--marketing" : "ui-h2--marketing"}>Start free. Add more <em>when you need it</em></H>
-          <p>Basic is free with no card; Silver adds the full screener and watchlists; Gold adds Prism and more. Payments are not live yet: ask for a plan from your account.</p>
-        </div>
-        {!landing && <>
-        <div className="trust">{[["check", "Basic is free, no card"], ["spark", "A score helps you compare. It is not advice"], ["quality", "Every report shows when it was last updated"], ["users", "Plans are switched on by our team for now"]].map(([i, t]) => <span key={t}><Icon name={i} />{t}</span>)}</div>
-        <div className="who">{([["sprout", "I am new to this", "Statements, ratios and a starter screener for any listed company. Free.", "basic"], ["quality", "I want the tools", "The full screener, watchlists and the portfolio scorecard.", "silver"], ["crown", "I check companies often", "FinLit Prism, model filters, full ratio history and technical signals.", "gold"]] as const).map(([ic, t, d, k]) => (
-          <button key={k} className="who-c" style={{ "--tc": `var(${TIER[k].tc})` } as React.CSSProperties} onClick={() => { if (DEMO) upgrade(k); else document.getElementById(`plan-${k}`)?.scrollIntoView({ behavior: "smooth", block: "center" }); }}>
-            <span className="who-i"><Icon name={ic} /></span><b>{t}</b><span>{d}</span><em>{TIER[k].n} plan <Icon name="arrow" /></em>
-          </button>))}</div>
-        </>}
-        {(
-        <div className={"pgrid" + (landing ? " pgrid-l" : "")}>
-          {PLANS.map((p) => (
-            <div key={p.k} id={`plan-${p.k}`} data-cur={DEMO ? "Previewing" : "Your plan"} tabIndex={-1} className={`plan ${p.feat ? "feat" : ""} ${target === p.k ? "target" : ""} ${plan === p.k && (DEMO || user || p.k === "basic") ? "current" : ""}`} style={{ "--tc": `var(${TIER[p.k].tc})` } as React.CSSProperties}>
-              <PlanArt k={p.k} />
-              <div className="plan-top"><div className="plan-name"><span className="pi"><Icon name={TIER[p.k].ic} /></span>{TIER[p.k].n}</div><span className="ribbon">{p.tag}</span></div>
-              <p className="plan-desc">{p.desc}</p>
-              <div className="price"><b>{p.price}</b><span>{p.per}</span></div>
-              {!DEMO && p.k === "basic" && !user ? <Link className="btn" to="/login?mode=signup">{cta(p.k, p.cta)} <Icon name="arrow" /></Link>
-                : <button className="btn" disabled={!DEMO && plan === p.k && (!!user || p.k === "basic")} onClick={() => go(p.k)}>{cta(p.k, p.cta)} <Icon name="arrow" /></button>}
-              <div className="inc">{p.inc}<span className="inc-n">{p.f.length} features</span></div>
-              <ul>{(landing ? p.f.slice(0, 8) : p.f).map(([a, b]) => <li key={a}><span className="ck"><Icon name={fIcon(a)} /></span><span><b><FeatureInfo feature={a} label={a} /></b><span className="d">{b}</span></span></li>)}</ul>
-              {landing && <div className="plan-foot"><span>{p.f.length > 8 ? `+${p.f.length - 8} more in the full table` : "All features shown"}</span><button type="button" className="plan-all" onClick={openAll}>{p.f.length > 8 ? `See all ${p.f.length} features` : "Compare every feature"} <Icon name="arrow" /></button></div>}
-            </div>
-          ))}
-        </div>
-        )}
-        {<>
-        <div className="cmp-h" id="plans-all">{landing ? <button type="button" className="cmp-toggle" aria-expanded={all} aria-controls="plans-table" onClick={() => setAll((o) => !o)}><h3>Every feature, plan by plan</h3><span>{all ? "Hide" : "Show"} <Icon name="arrow" /></span></button> : <h3>Every feature, plan by plan</h3>}{DEMO && <p>Pick a plan to preview it on a stock page.</p>}</div>
-        <div className="cmp" id="plans-table" hidden={!all}><div className="cmp-scroll"><table>
-          <thead><tr><th>Feature</th>{PLANS.map((p) => <th key={p.k} className={"th-" + p.k + (plan === p.k ? " cur" : "")} style={{ "--tc": `var(${TIER[p.k].tc})` } as React.CSSProperties}><span className="th-i"><Icon name={TIER[p.k].ic} /></span><b>{TIER[p.k].n}</b><small>{p.k === "basic" ? "Free" : "Price to come"}</small></th>)}</tr></thead>
-          <tbody>{CMP.map(([n, d, need]) => d === null ? <tr className="grp" key={n}><td colSpan={4}>{n}</td></tr> :
-            <tr key={n}><td><span className="cf"><span className="cf-i"><Icon name={fIcon(n)} /></span><span><b><FeatureInfo feature={n} label={n.replace(" (coming soon)", "")} />{n.endsWith("(coming soon)") && <span className="soon-tag">Coming soon</span>}</b>{d ? <small>{d}</small> : null}</span></span></td>{PLANS.map((p) => RANK[p.k] >= (need ?? 0) ? <td key={p.k} className={"c-" + p.k}><span className="yes ck" role="img" aria-label="Included"><Icon name="check" /></span></td> : <td key={p.k} className={"c-" + p.k}><span className="x-no" role="img" aria-label="Not included">✕</span></td>)}</tr>)}</tbody>
-        </table></div></div>
-        <p className="plans-note">Features and limits can change. {DEMO ? "Use “Preview” to see a stock page as each plan." : "Ask for a plan from your account and we will confirm it by email."} Scores and tools here are for information only and are not investment advice.</p>
-        </>}
-      </div>
-    </section>
-  );
+/** The page's description for search engines and link previews, from the plan data. Exported for tests. */
+export function plansDescription(): string {
+  const paid = planOffers().filter((o) => o.yearly);
+  return `FinLit plans: Free to start. ${paid.map((o) => `${o.name} ${rupees(o.yearly)} a year`).join(", ")}. Prices before GST. Payments are not live yet. Information only, not investment advice.`;
 }
 
 export function PlansPage() {
-  useDocTitle("Plans", "FinLit plans: Basic is free. Silver adds the full screener and watchlists. Gold adds FinLit Prism, model filters, full ratio history and technical signals. Payments are not live yet.");
-  return <PlansBand h1 />;
+  useDocTitle("Plans and prices", plansDescription());
+  const navigate = useNavigate();
+  const { user, planKey } = useAuth();
+  // the landing page's plan table, filled from the same data; the company check and the recordings are not on this page, so their parts do nothing
+  useEffect(() => initGoLive({
+    navigate: (to: string) => { void navigate(to); },
+    searchIndex: () => Promise.resolve({ rows: [] }),
+    quote: () => Promise.resolve(null),
+    // task #411: the landing page moved the combined plan into its table; /plans keeps its own layout (five columns, the combined plan's card)
+    combinedCard: true,
+    // task #436 hides prices on the landing page only; /plans keeps showing them
+    pricesLive: true,
+  }), [navigate]);
+  return (
+    <div className="pl410">
+      <GoLiveCompare heading={<><h1 className="ui-title ui-title--marketing" id="plans-title">Plans and prices. <em>Start free.</em></h1>
+        <p className="pl410-lede">Free to start; Mutual Fund + ETF and Equity Portfolio open one area each; Gold and Platinum open everything.</p></>} />
+      <section className="sec pl410-now" aria-label="Your plan">
+        <div className="wrap">
+          {user
+            ? <p><b>Your plan: {planName(planKey)}.</b> Payments are not live yet: <Link to="/account/plan">ask for a plan from your account</Link> and the FinLit team switches it on and confirms by email.</p>
+            : <p><b>Start on Free, no card needed.</b> Payments are not live yet: <Link to="/login?mode=signup">create a free account</Link>, then ask for a plan from your account; the FinLit team switches it on and confirms by email.</p>}
+          <p className="pl410-fine">Prices are yearly and before GST; the monthly figure is the yearly price spread over 12 months. Features and limits can change. Information only, not investment advice.</p>
+        </div>
+      </section>
+    </div>
+  );
 }

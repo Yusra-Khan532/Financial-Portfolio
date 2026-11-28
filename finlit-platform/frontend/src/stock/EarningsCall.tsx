@@ -20,9 +20,9 @@ export function EarningsCallSection({ symbol, name }: { symbol: string; name: st
   const latest = list?.calls[0];
   const show = (qid?: string) => { opener.current = document.activeElement as HTMLElement | null; setOpen({ qid }); };
   return (
-    <section className="block ec-sec" style={{ "--sc": "var(--gold-deep)" } as React.CSSProperties}>
-      <SectionHead id="earnings-call" no="Earnings call" icon="notes" tier="gold" title="What management said on the latest call"
-        sub="Ten fixed questions about the company's most recent earnings call, answered from its transcript, with the quote behind every sentence." color="--gold-deep" />
+    <section className="block ec-sec">
+      <SectionHead id="earnings-call" no="Earnings call" icon="notes" tier="gold"
+        sub="Ten fixed questions about the company's most recent earnings call, answered from its transcript, with the quote behind every sentence." />
       <div className="card ec-card">
         {q.isLoading ? <div className="ec-skel" role="status" aria-label="Loading the earnings call"><i /><i /><i /></div>
           : q.isError ? <div className="ec-state" role="alert"><p>Earnings calls could not be loaded right now.</p><button type="button" className="btn" onClick={() => q.refetch()}>Try again</button></div>

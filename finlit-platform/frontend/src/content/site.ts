@@ -3,7 +3,7 @@
 export const COMPANY = {
   name: "FinLit Ventures",
   tagline: "Invest with clarity, not noise.",
-  email: "finlit.start@gmail.com", // replace with the company email at launch
+  email: "contact@finlitventures.com", // the owner, 27 Nov 2026 (routed by Cloudflare Email Routing); internal alerts still go to the team's Gmail
   linkedin: "https://www.linkedin.com/company/finlitventures/",
   disclaimer:
     "FinLit Ventures is a technology company and is not registered with SEBI or AMFI. Research shown here is for information only and is not investment advice.",
@@ -134,7 +134,7 @@ export const ASSISTANT: Record<string, AssistantNode> = {
     options: [{ label: "View Performance", action: nav("/portfolio") }] },
   about: { answer: "FinLit Ventures does investment research, portfolio reviews and financial planning conversations, mostly around Indian stocks, mutual funds and ETFs.", backLabel: "Back to Main Menu",
     options: [{ label: "About FinLit", action: nav("/about") }, { label: "Meet the Founder", action: nav("/about") }] },
-  pricing: { answer: `Session prices will be announced soon. Send an enquiry from the services page and we will share the details. The website plans (Basic, Silver, Gold) are separate and are on the Plans page.`, backLabel: "Back to Main Menu",
+  pricing: { answer: `Session prices will be announced soon. Send an enquiry from the services page and we will share the details. The website plans (Free, Mutual Fund + ETF, Equity Portfolio, the combined plan, Gold and Platinum) are separate and are on the Plans page.`, backLabel: "Back to Main Menu",
     options: [{ label: "View Services & Pricing", action: nav("/services") }, { label: "Enquire", action: enq() }] },
   contact: { answer: "Use the contact form and tell us which service you are interested in. We usually reply within one working day.", backLabel: "Back to Main Menu",
     options: [{ label: "Open Contact Form", action: nav("/contact") }, { label: "Explore Services", action: menu("services") }] },

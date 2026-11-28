@@ -253,7 +253,7 @@ async def test_basic_has_no_written_answers_only_the_listed_questions(app):
     m = await signed_in(app, "b0@example.com")
     r, _ = await ask(m)
     d = r.json()["detail"]
-    assert r.status_code == 403 and d["status"] == "plan_required" and d["plan"] == "silver" and "Silver plan (50 a month)" in d["detail"] and "Gold plan (100" in d["detail"]
+    assert r.status_code == 403 and d["status"] == "plan_required" and d["plan"] == "silver" and "every paid plan (50 a month" in d["detail"] and "100 a month on Gold and Platinum" in d["detail"]
     assert client.calls == []                                                    # nothing reached the model
     q = (await m.get("/api/ask/quota")).json()
     assert q["enabled"] and (q["limit"], q["used"], q["left"]) == (0, 0, 0)
@@ -339,7 +339,7 @@ async def test_a_repeated_summary_of_the_same_card_comes_from_the_cache_and_basi
     b = await signed_in(app, "sumb@example.com")
     r, _ = await summary(b)
     d = r.json()["detail"]
-    assert r.status_code == 403 and d["status"] == "plan_required" and "Silver and Gold plans (10 a month)" in d["detail"]
+    assert r.status_code == 403 and d["status"] == "plan_required" and "every paid plan (10 a month)" in d["detail"]
     assert (await b.get("/api/ask/quota")).json()["summary"]["limit"] == 0
 
 

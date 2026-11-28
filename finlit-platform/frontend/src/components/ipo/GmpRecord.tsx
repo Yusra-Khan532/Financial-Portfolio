@@ -7,7 +7,7 @@
 // (`onSee`); a link to an IPO report carries the view it was opened from, so the report's back link returns there.
 import { memo, useCallback, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
-import { MINUS, nf } from "../../lib/format";
+import { dateFormat, MINUS, nf } from "../../lib/format";
 import { useGmpRecord, type GmpPoint, type Ipo } from "../../lib/ipo";
 import { GF0, GR, GS, GV, GY, GZ, gCat, gPass, gRange, gTally, isCap, share, shortName, type GBoard, type GCat, type GFilters, type GRangeKey } from "../../lib/ipoCalendar";
 import { Dd, Ico, OptList } from "../../discovery/Toolbar";
@@ -22,7 +22,7 @@ export const GSTATE0: GState = { ...GF0, view: "range", zoom: "most", shown: 50,
 const pct = (v: number | null | undefined, d = 1) => (v == null ? MINUS : `${v > 0 ? "+" : v < 0 ? MINUS : ""}${nf(Math.abs(v), d)}%`);
 const pts = (v: number | null) => (v == null ? "—" : `${v > 0.05 ? "+" : v < -0.05 ? MINUS : ""}${nf(Math.abs(v), 1)} pts`);
 const tone = (v: number) => (v > 0 ? "up" : v < 0 ? "down" : "");
-const day = (iso: string | null) => (iso ? new Date(iso + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : MINUS);
+const day = (iso: string | null) => (iso ? dateFormat({ day: "numeric", month: "short", year: "numeric" }).format(new Date(iso + "T00:00:00")) : MINUS);
 const rup = (v: number) => "₹" + nf(v, v % 1 ? 2 : 0);
 const C: Record<GCat, string> = { beat: "var(--gv-beat)", short: "var(--gv-short)", band: "var(--gv-band)", cap: "var(--gv-cap)" };
 const pl = (n: number, one: string, many: string) => `${nf(n, 0)} ${n === 1 ? one : many}`;

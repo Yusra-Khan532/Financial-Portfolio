@@ -1,7 +1,7 @@
 // The scheme table: sortable columns, the columns you chose, a tick box to add a scheme to the comparison. Wide tables scroll inside their own box.
 import { Link } from "react-router";
 import { HScroll } from "../components/HScroll";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { PHONE_ROWS, useIsPhone } from "../components/PhoneFold";
 import { useInfoPop } from "../components/Info";
 import {
@@ -14,6 +14,7 @@ import { tintOf } from "../lib/mfSummary";
 import { useUI } from "../lib/ui";
 import { useScores, type ScoreItem } from "../lib/mfScore";
 import { isEtfCategory, ScoreCell } from "./ScoreCell";
+import "../styles/fundRows426.css";   // task #426: the frozen Scheme column (full row height, solid, snaps to column edges while the table slides)
 
 const shortAmc = (a: string) => a.replace(/\s*mutual fund\s*$/i, "");
 const MARK = { pass: "✓", fail: "✗", unknown: "–" } as const;
@@ -37,19 +38,20 @@ function ChecklistCell({ r, peers }: { r: FundRow; peers?: Record<string, PeerSt
     <button type="button" className={"mf-chk" + (c.of && c.pass / c.of >= 0.6 ? " hi" : "")} aria-label={label}
       onMouseEnter={(e) => show(g, e.currentTarget)} onMouseLeave={() => show(null)} onFocus={(e) => show(g, e.currentTarget)} onBlur={() => show(null)}
       onClick={(e) => { e.stopPropagation(); show(g, e.currentTarget); }}>
-      <span className="mf-meter" aria-hidden="true">{lines.map((l) => <i key={l.key} className={l.state} />)}</span>
-      <span className="mf-chk-n"><b>{c.pass}</b>/{c.of}</span>
+      <span className="mf-chk-n"><b>{c.pass}</b>/{c.of}</span>{/* task #430: the figure only (five marks sat beside it); each check is in the box on hover, focus or tap */}
     </button>
   );
 }
 
-/** A thin bar under a return, its length against the largest figure of that column on the page (green up, red down): a quick visual scale, nothing more. */
-const Bar = ({ v, max }: { v: number | null | undefined; max: number }) =>
-  v == null || !max ? null : <i className={"mf-rbar " + (v < 0 ? "neg" : "pos")} style={{ width: `${Math.max(4, Math.min(100, (Math.abs(v) / max) * 100))}%` }} aria-hidden="true" />;
+/** Task #430 (team, 27 Nov 2026: "there is no need of write up in this we just need the numbers to show nothing else and this is applicable for all the
+ *  columns"): every cell shows its figure only. The words that sat under a figure (a return's band, "Insufficient history", "Growth option's returns
+ *  (before payouts)", a fund size's band, a cost level, the score's word) and the thin bars are gone from the cells; each one's words are in that cell's
+ *  hover text and its screen-reader label instead, and "How to read this table" explains them. */
+const tipOf = (...parts: (string | null | undefined | false)[]) => parts.filter(Boolean).join(". ") || undefined;
 type Scale = Partial<Record<ColId, number>>;
 type Scores = { map: Map<number | null, ScoreItem>; locked: boolean; loading: boolean };
 
-function cell(c: ColDef, r: FundRow, peers?: Record<string, PeerStats>, scale: Scale = {}, scores?: Scores) {
+function cell(c: ColDef, r: FundRow, peers?: Record<string, PeerStats>, scores?: Scores) {
   const why = noReturnsText(r.noReturns);
   switch (c.id) {
     case "amc": return shortAmc(r.amc);
@@ -58,42 +60,40 @@ function cell(c: ColDef, r: FundRow, peers?: Record<string, PeerStats>, scale: S
     case "option": return r.option || "—";
     case "nav": return r.nav == null ? <span className="mf-na" aria-label="No NAV">—</span> : <span title={navFull(r.nav)}>{navText(r.nav)}</span>;
     case "navDate": return r.navDate ? dateIN(r.navDate, { day: "numeric", month: "short", year: "2-digit" }) : "—";
-    case "change": return <span className="mf-rf"><Fig v={r.change} why={r.active ? "The previous NAV is not on file yet." : why} />{r.change == null && <small>{r.active ? "no previous NAV" : "stopped"}</small>}</span>;
+    case "change": return <span className="mf-rf"><Fig v={r.change} why={r.active ? "No previous NAV: it is not on file yet." : tipOf("Stopped", why)} /></span>;
     case "r1y": case "r3y": case "r5y": {
       const years = c.id === "r1y" ? 1 : c.id === "r3y" ? 3 : 5;
       const own = r[c.id] ?? null;
       const g = own == null ? growthFigure(r, c.id) : null;   // task #281: an IDCW row shows its Growth option's return, labelled; never as its own
-      if (g != null && r.growthReturns) {
+      if (g != null && r.growthReturns) {   // task #281: never shown as the IDCW option's own figure: in italics, dotted underline, named on hover and to screen readers
         return <span className="mf-rf mf-grf" title={`${GROWTH_RETURNS_LABEL}: ${r.growthReturns.name} (${r.plan}, Growth). This option's own NAV change is not shown because payouts would make it wrong.`}>
-          <Fig v={g} why="" /><Bar v={g} max={scale[c.id] ?? 0} /><small className="mf-gr">{GROWTH_RETURNS_LABEL}</small></span>;
+          <Fig v={g} why="" /><span className="sr-only"> {GROWTH_RETURNS_LABEL}</span></span>;
       }
       const v = own;
-      const short = v == null ? shortWhy(r.noReturns, "Insufficient history") : "";
       const band = returnBand(c.id, v);
-      return <span className="mf-rf"><Fig v={v} why={why || `Younger than ${years} year${years > 1 ? "s" : ""}, or no NAV near the start date.`} /><Bar v={v} max={scale[c.id] ?? 0} />{short && <small>{short}</small>}
-        {band && <small className={"mf-band b" + band.step} title="A screening band, not a performance standard: equity, debt and hybrid funds need different yardsticks.">{band.label}</small>}</span>;
+      return <span className="mf-rf" title={v == null ? undefined : tipOf(band && `Band: ${band.label} (a screening band, not a performance standard; compare a fund with its own category)`)}>
+        <Fig v={v} why={tipOf(shortWhy(r.noReturns, "Insufficient history"), why || `Younger than ${years} year${years > 1 ? "s" : ""}, or no NAV near the start date.`)} /></span>;
     }
     case "sip3y": case "sip5y": {
       const years = c.id === "sip3y" ? 3 : 5;
       const v = r[c.id] ?? null;
-      return <span className="mf-rf"><Fig v={v} why={why || `Needs a month-end NAV for each of the last ${years * 12} months; younger schemes, and month-ends not loaded yet, have none.`} />
-        <Bar v={v} max={scale[c.id] ?? 0} />{v == null && <small>{shortWhy(r.noReturns, "Insufficient history")}</small>}</span>;
+      return <span className="mf-rf"><Fig v={v} why={tipOf(shortWhy(r.noReturns, "Insufficient history"), why || `Needs a month-end NAV for each of the last ${years * 12} months; younger schemes, and month-ends not loaded yet, have none.`)} /></span>;
     }
     case "aum": {
       if (r.aum == null) return <span className="mf-na" title="Fund size is not in AMFI's latest quarterly AUM report or the fund house's month-end portfolio file loaded." aria-label="No fund size">—</span>;
       const when = r.aumAsOf ? dateIN(r.aumAsOf, { month: "short", year: "numeric" }) : "";
       const src = r.aumKind === "m" ? `Net assets at the end of ${when}, all plans together (fund house's portfolio file)` : `Average for the quarter to ${when}, all plans together (AMFI)`;
       const size = aumBucket(r.aum);
-      return <span className="mf-aum" title={src}>{aumText(r.aum)}{size && <small className={"mf-size s" + size.step} title={`${size.range}. Size says how big the fund is, not how good it is.`}><i aria-hidden="true" />{size.label}</small>}</span>;
+      return <span className="mf-aum" title={tipOf(src, size && `Size: ${size.label} (${size.range}); size says how big the fund is, not how good it is`)}>{aumText(r.aum)}</span>;
     }
     case "ter": return r.ter == null
       ? <span className="mf-na" title="This plan is not in AMFI's latest expense ratio (TER) file." aria-label="No expense ratio">—</span>
       : (() => {
         const cost = costLevel(r.ter, r.checklist ? peers?.[r.checklist.peer]?.ter : null);
-        return <span className="mf-aum" title={`Total expense ratio of the ${r.plan} plan, percent a year${r.terDate ? `, as of ${dateIN(r.terDate)}` : ""} (AMFI)`}>{terText(r.ter)}
-          {cost && <small className={"mf-band c" + cost.step} title="Against the median of the same category and plan: low is 20% or more under it, high is 20% or more over it.">{cost.label} for category</small>}</span>;
+        return <span className="mf-aum" title={tipOf(`Total expense ratio of the ${r.plan} plan, percent a year${r.terDate ? `, as of ${dateIN(r.terDate)}` : ""} (AMFI)`,
+          cost && `${cost.label} for category: against the median of the same category and plan (low is 20% or more under it, high is 20% or more over it)`)}>{terText(r.ter)}</span>;
       })();
-    case "score": return <ScoreCell item={scores?.map.get(r.code)} locked={!!scores?.locked} loading={!!scores?.loading} etf={isEtfCategory(r.category)} why={r.optionClass !== "Growth" ? "Not scored: IDCW and other options show the score of the Growth option of the same plan, and this fund has none scored." : !r.active ? "Not scored: stopped publishing NAVs." : "Not scored yet."} />;
+    case "score": return <ScoreCell item={scores?.map.get(r.code)} locked={!!scores?.locked} loading={!!scores?.loading} etf={isEtfCategory(r.category)} bare why={r.optionClass !== "Growth" ? "Not scored: IDCW and other options show the score of the Growth option of the same plan, and this fund has none scored." : !r.active ? "Not scored: stopped publishing NAVs." : "Not scored yet."} />;
     case "checklist": return <ChecklistCell r={r} peers={peers} />;
   }
 }
@@ -106,6 +106,37 @@ function shortWhy(code: FundRow["noReturns"], young: string): string {
     case "no_history": return "history loading";
     default: return young;
   }
+}
+
+/** Task #426 (team, 27 Nov 2026: "when we slide left to see other columns then all boxes are going into each other"). While the table slides, a column
+ *  half under the frozen Scheme column left a strip of its figures beside it ("…7", "…2"). The sideways scroll now stops only where a column starts
+ *  right at the frozen column's edge (CSS scroll snap, styles/mf341.css), so no column is ever half hidden. This sets the frozen column's width as the
+ *  snap offset (--mf-fz), and pads the end of the scroll box so the last stop is also a column edge (the box can scroll exactly that far).
+ *  Exported for the test. */
+export function snapPad(starts: number[], max: number): number {
+  if (max <= 0) return 0;
+  const s = starts.find((x) => x >= max - 1);
+  return s == null ? 0 : Math.max(0, Math.ceil(s - max));
+}
+function useSnapColumns(tref: React.RefObject<HTMLTableElement | null>, rows: unknown, cols: unknown) {
+  useEffect(() => {
+    const t = tref.current, sc = t?.parentElement;
+    if (!t || !sc || typeof ResizeObserver === "undefined") return;
+    const fit = () => {
+      const heads = [...t.querySelectorAll<HTMLElement>("thead tr:last-child > th")];
+      if (heads.length < 2) return;
+      const fz = heads[0].getBoundingClientRect().width;
+      sc.style.setProperty("--mf-fz", `${fz}px`);
+      sc.style.paddingRight = "0px";
+      const starts = heads.slice(1).map((c) => c.offsetLeft - fz).sort((a, b) => a - b);
+      const pad = snapPad(starts, sc.scrollWidth - sc.clientWidth);
+      if (pad) sc.style.paddingRight = `${pad}px`;
+    };
+    fit();
+    const ro = new ResizeObserver(fit);
+    ro.observe(t); ro.observe(sc);
+    return () => ro.disconnect();
+  }, [tref, rows, cols]);   // the columns and the rows decide the widths
 }
 
 export function FundTable({ rows, cols, q, onSort, picked, onPick, peers, wish }: {
@@ -132,6 +163,8 @@ export function FundTable({ rows, cols, q, onSort, picked, onPick, peers, wish }
   };
   const cls = (c: ColDef) => (c.num ? "num" : "txt") + (c.group ? ` mf-retcol mf-g-${c.group}` : "") + ` mf-c-${c.id}`;
   // task #310 part E (05-phone.md, fix 6): on a phone the list shows its first 5 schemes and a Show all button; desktop shows every row
+  const tref = useRef<HTMLTableElement>(null);
+  useSnapColumns(tref, rows, cols);
   const phone = useIsPhone();
   const [all, setAll] = useState(false);
   useEffect(() => { setAll(false); }, [rows]);
@@ -140,7 +173,7 @@ export function FundTable({ rows, cols, q, onSort, picked, onPick, peers, wish }
   return (
     <>
     <HScroll label="schemes table" controls={false} tall>{/* task #341: the header stays in view while the list scrolls down (styles/frozen.css) */}
-      <table className="mf-table">
+      <table className="mf-table" ref={tref}>
         <caption className="sr-only">Mutual fund schemes. Use the column buttons to sort.</caption>
         <thead>
           {runs.some((r) => r.group) && (
@@ -157,6 +190,9 @@ export function FundTable({ rows, cols, q, onSort, picked, onPick, peers, wish }
           {shown.map((r) => (
             <tr key={r.code} className={r.active ? "" : "mf-stopped"}>
               <th scope="row" className="mf-name">
+                {/* task #426: the cell stays a table cell (it was display:flex, so it was only as tall as its own text and its row's lines did not meet);
+                    the tick, the star and the name sit side by side in this box instead */}
+                <span className="mf-namein">
                 <span className="mf-rowacts">{/* task #375: the compare tick and, under it, the wishlist star */}
                 <label className="mf-pickbox" title={picked.includes(r.code) ? "Remove from comparison" : "Add to comparison"}>
                   <input type="checkbox" checked={picked.includes(r.code)} onChange={() => onPick(r.code, r.name)} aria-label={`Compare ${r.name}`} />
@@ -171,8 +207,9 @@ export function FundTable({ rows, cols, q, onSort, picked, onPick, peers, wish }
                   <small><span className="mf-house">{shortAmc(r.amc)}</span><PlanChip plan={r.plan} option={r.option} category={r.category} />{!r.active && <span className="chip ghost">Stopped publishing</span>}</small>
                   {r.nav != null && <small className="mf-navm">NAV <span className="mono" title={navFull(r.nav)}>{navText(r.nav)}</span></small>}
                 </span>
+                </span>
               </th>
-              {defs.map((c) => <td key={c.id} className={cls(c) + (tint(c, r) ? " mf-tinted" : "")} style={tint(c, r)}>{cell(c, r, peers, scale, scores)}</td>)}
+              {defs.map((c) => <td key={c.id} className={cls(c) + (tint(c, r) ? " mf-tinted" : "")} style={tint(c, r)}>{cell(c, r, peers, scores)}</td>)}
             </tr>))}
         </tbody>
       </table>

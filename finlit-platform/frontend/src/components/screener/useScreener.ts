@@ -102,11 +102,11 @@ export function useScreener(mode: Mode) {
   const toggleAll = () => setPicked((p) => (allOnPage ? p.filter((s) => !pageSyms.includes(s)) : [...new Set([...p, ...pageSyms])]));
 
   const addWatch = (s: string) => {
-    if (!silver) { upgrade(PLAN_FOR_WATCHLIST, "Watchlists come with the Silver plan."); return; }
+    if (!silver) { upgrade(PLAN_FOR_WATCHLIST, "Watchlists come with the Equity Portfolio, combined, Gold and Platinum plans."); return; }
     if (watch.has(s)) { watch.remove(s); toast(`${s} removed from your watchlist.`); } else { watch.add(s); toast(`${s} added to your watchlist.`); }
   };
   const addSelected = () => {
-    if (!silver) { upgrade(PLAN_FOR_WATCHLIST, "Watchlists come with the Silver plan."); return; }
+    if (!silver) { upgrade(PLAN_FOR_WATCHLIST, "Watchlists come with the Equity Portfolio, combined, Gold and Platinum plans."); return; }
     const fresh = sel.filter((s) => !watch.has(s));
     fresh.forEach((s) => watch.add(s));
     toast(fresh.length ? `${fresh.length} ${fresh.length === 1 ? "company" : "companies"} added to your watchlist.` : "These companies are already on your watchlist.");

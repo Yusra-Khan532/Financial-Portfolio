@@ -8,10 +8,10 @@ import { useQuery } from "@tanstack/react-query";
 import { ApiError, apiGet } from "../../../lib/api";
 import { usePrismScores } from "../../../lib/prismScores";
 import { useGold } from "../../../lib/premium";
-import { BOX, keyOf, short } from "../../../lib/pulsePack";
+import { BOX, allChip, allSectors, keyOf, short } from "../../../lib/pulsePack";
 import type { RotationMap, RotationRow } from "../../../lib/rotation";
 import type { GroupRow, IndustryPage, RankedStock } from "../../../lib/sectors";
-import { BOXES, BOX_HELP, boxCounts, lastMonth, meansForYou, pc, rotationHeadline, rotationTodayCards, sixMonths, yourRotationCards, gw, type Box } from "../../../lib/rotationPack";
+import { BOXES, BOX_HELP, boxCounts, lastMonth, meansForYou, pc, rotationHeadline, rotationTodayCards, sixMonths, yourRotationCards, type Box } from "../../../lib/rotationPack";
 import {
   READ_SENTENCE, RES_FILTERS, headlineTone, inInside, inResFilter, insideStart, insideTop, pickTwo, readTogether, resultsFor,
   sharesFor, weeksText, type InsideFilter, type MemberShares, type ReadKey, type ResFilter, type ResultsGroup, type Source, type WhatNext,
@@ -70,7 +70,7 @@ export function TodayNew({ m, mine, pulse }: { m: RotationMap; mine: Set<string>
       <p className="sp-sub">{rw("Which industries are leading, which are fading, and what changed this week.")}</p>
       <p className="sp-lead"><b className={"sx-hl sx-hl-" + tone}>{h.lead}</b>{h.rest}</p>
       <p className="sp-note">{h.line}</p>
-      <p className="sp-cap">All {gw(m.rows.length)} by box</p>
+      <p className="sp-cap">{allSectors(m.rows.length)} by box</p>
       <div className="rp-strip" role="img" aria-label={counts.map((c) => `${BOX[c.box].word} ${c.now}`).join(", ")}>{counts.map((c) => <i key={c.box} style={{ flex: c.now, background: BOX_COLOUR[c.box] }} />)}</div>
       <div className="sx-tiles" style={{ ["--n" as string]: counts.length }}>{counts.map((c) => { const d = c.now - c.last; return (
         <div key={c.box} className="sx-tile"><b>{c.now}</b>
@@ -170,10 +170,10 @@ export function PriceResults({ m, mine, sectors }: { m: RotationMap; mine: Set<s
         <p className="sp-sub">{rw("Each industry's box today beside how its companies' latest quarter compares with the market. They do not always agree.")}</p></div></div>
       {q.isLoading ? <div className="sx-skel" style={{ height: 120 }} role="status" aria-label="Loading the results groups" />
         : q.isError ? <p className="sp-empty">The results groups could not be loaded just now, so this check is blank. Please try again shortly.</p>
-        : locked ? <p className="sp-empty">The results figures of each group are part of the Silver plan, as on the Results page. <Link to="/results?view=industries">Open Results</Link></p>
+        : locked ? <p className="sp-empty">The results figures of each group are part of every paid plan, as on the Results page. <Link to="/results?view=industries">Open Results</Link></p>
         : <>
           <div className="sx-fl" role="group" aria-label="Filter"><span>Show</span>{RES_FILTERS.filter(([k]) => k !== "mine" || mine.size).map(([k, l]) =>
-            <button key={k} type="button" aria-pressed={f === k} onClick={() => setF(k)}>{k === "all" ? `All ${rows.length}` : k === "mine" ? (sectors ? "My sectors" : "My groups") : l}</button>)}</div>
+            <button key={k} type="button" aria-pressed={f === k} onClick={() => setF(k)}>{k === "all" ? allChip(rows.length) : k === "mine" ? (sectors ? "My sectors" : "My groups") : l}</button>)}</div>
           {mk && <p className="sx-cap">Market{q.data?.quarter?.fiscal ? `, ${q.data.quarter.fiscal}` : ""}: typical revenue growth {sig(mk.medianRevenueYoY)}, typical profit growth {sig(mk.medianProfitYoY)} on a year ago. “Typical” is the middle company.</p>}
           <Scroll label="price against results"><table className="sp-tb sx-t">
             <thead><tr><th scope="col">{one}</th><th scope="col">Price: its box today</th><th scope="col">Results: {sectors ? "its industries" : "its group"} against the market</th><th scope="col">Read together</th></tr></thead>
@@ -245,7 +245,7 @@ export function Inside({ m, held, watched, mine, pulse, sectors, syms }: { m: Ro
       </div>
       {q.isLoading ? <div className="sx-skel" style={{ height: 160 }} role="status" aria-label={`Loading the stocks of this ${one}`} />
         : q.isError ? <p className="sp-empty">{`The stocks of this ${one} could not be loaded just now. Please try again shortly.`}</p>
-        : q.data && q.data.stocks == null ? <p className="sp-empty">{`The stocks of each ${one} are part of the Silver plan; the Leader / Laggard tags and FinLit Prism are part of Gold.`} <Link to="/pricing">See the plans</Link></p>
+        : q.data && q.data.stocks == null ? <p className="sp-empty">{`The stocks of each ${one} are part of every paid plan; the Leader / Laggard tags and FinLit Prism are part of Gold and Platinum.`} <Link to="/pricing">See the plans</Link></p>
         : !t.top.length ? <p className="sp-empty">{`No counted stock with a 6-month return in this ${one} right now.`}</p> : <>
           <div className="sx-fl" role="group" aria-label="Filter"><span>Show</span>
             {([["all", `All ${t.top.length}`], ["leaders", "Leaders"], ["prism", "Prism: Healthy or Strong"]] as [InsideFilter, string][]).filter(([k]) => k === "all" || gold).map(([k, l]) =>

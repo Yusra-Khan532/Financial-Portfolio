@@ -1,7 +1,7 @@
 // Section 02, "What's going well and what to watch": every red flag, watch item and strength in one place (it replaces the two blocks that repeated each other: Scorecard notes and Key findings), each linking to the section it comes from.
 // Red flags and watch items from the profit-and-loss checks (lib/plFlags) and the scorecard notes; strengths from the scorecard notes. They describe
 // what the figures did and are not a recommendation. Same Silver plan as the scorecard notes they repeat.
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import type { Financials, Summary } from "../lib/api";
 import { plInsights } from "../lib/plFlags";
 import { earningsIntel, type Intel, type ModuleKey } from "../lib/earningsIntel";
@@ -76,15 +76,22 @@ export function findingsOf(s: Summary, f: Financials | undefined, lender: boolea
 
 const jump = (id: string) => (e: React.MouseEvent) => { e.preventDefault(); document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" }); };
 
-function Col({ kind, tag, icon, items, empty }: { kind: "f" | "w" | "s"; tag: string; icon: string; items: Item[]; empty: string }) {
+/** How many findings a column shows before its "Show N more" drop-down (founder, 26 Nov 2026: "too long, add a drop and show only 2/3"). */
+export const KF_FIRST = 3;
+
+export function FindingsColumn({ kind, tag, icon, items, empty }: { kind: "f" | "w" | "s"; tag: string; icon: string; items: Item[]; empty: string }) {
+  const [all, setAll] = useState(false);
+  const shown = all ? items : items.slice(0, KF_FIRST), rest = items.length - KF_FIRST;
   return (
     <div className={"kf-col" + (items.length ? "" : " empty")}>
       <h3><span className={"ins-dot " + kind} aria-hidden="true"><Icon name={icon} /></span>{tag}<span className="kf-n">{items.length}</span></h3>
       {/* task #216 (README 3.3): each finding is a drop-down: kind and title in the summary; the explanation and "See the section" inside */}
-      {items.length ? items.map((i) => (
+      {items.length ? shown.map((i) => (
         <details className={"ins kf-it xdd " + kind} key={i.key}><summary><span className="ins-tag">{i.tag ?? tag}</span><b>{i.title}</b><DropChev /></summary>
           <p>{i.text}</p><a href={"#" + i.to} onClick={jump(i.to)}>See the section ↓</a></details>
       )) : <p className="kf-none">{empty}</p>}
+      {rest > 0 && <button type="button" className={"kf-more" + (all ? " open" : "")} aria-expanded={all} onClick={() => setAll(!all)}>
+        {all ? "Show fewer" : `Show ${rest} more`}<DropChev /></button>}
     </div>);
 }
 
@@ -97,13 +104,13 @@ export function KeyFindings({ s, f, lender }: { s: Summary; f?: Financials; lend
   if (!total) return null;
   const counts: HeadCount[] = [{ n: k.flags.length, label: k.flags.length === 1 ? "red flag" : "red flags", tone: "red" }, { n: k.watch.length, label: "to watch", tone: "amb" }, { n: k.good.length, label: k.good.length === 1 ? "positive" : "positives", tone: "pos" }];
   return (
-    <section className="block" style={{ "--sc": "var(--gold-deep)" } as React.CSSProperties}>
-      <SectionHead id="notes" no="03 · What's going well and what to watch" icon="notes" tier={PLAN_FOR_REPORT_EXTRAS} title="What's going well and what to watch" sub="Plain-language findings from the statements, ratios and price history, in one list." color="--gold-deep" counts={counts} />
+    <section className="block">
+      <SectionHead id="notes" no="Strengths & watch-outs" icon="notes" tier={PLAN_FOR_REPORT_EXTRAS} sub="Plain-language findings from the statements, ratios and price history, in one list." counts={counts} />
       <Gate tier={PLAN_FOR_REPORT_EXTRAS} title="See the full scorecard notes" points={["Red flags, items to watch and strengths together", "Each links to its section", "Updated with every result"]}>
         <div className="kf-g card acc kf-box">
-          <Col kind="f" tag="Red flag" icon="alert" items={k.flags} empty="No red flags from the profit and loss checks." />
-          <Col kind="w" tag="Watch" icon="info" items={k.watch} empty="Nothing to watch right now." />
-          <Col kind="s" tag="Strength" icon="check" items={k.good} empty="Nothing stands out yet." />
+          <FindingsColumn kind="f" tag="Red flag" icon="alert" items={k.flags} empty="No red flags from the profit and loss checks." />
+          <FindingsColumn kind="w" tag="Watch" icon="info" items={k.watch} empty="Nothing to watch right now." />
+          <FindingsColumn kind="s" tag="Strength" icon="check" items={k.good} empty="Nothing stands out yet." />
         </div>
       </Gate>
     </section>

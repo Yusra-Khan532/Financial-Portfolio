@@ -25,7 +25,7 @@ export function BoardNote({ board, compact = false }: { board?: string; compact?
   const { data: me } = useForumMe();
   if (!me) return null;
   const on = (board || me.board) as keyof typeof BOARD_NAME | null;
-  if (!me.signedIn) return <p className="fo-board" role="note"><b>Each plan has its own board.</b> Basic, Silver and Gold members talk among their own plan. <Link to={`/login?next=${encodeURIComponent(here())}`}>Sign in</Link> (free) to see yours.</p>;
+  if (!me.signedIn) return <p className="fo-board" role="note"><b>Each plan has its own board.</b> Members talk with others on a plan at their own level. <Link to={`/login?next=${encodeURIComponent(here())}`}>Sign in</Link> (free) to see yours.</p>;
   if (!on) return null;
   const name = BOARD_NAME[on];
   if (compact && !(board && board !== me.board)) return <p className="fo-board fo-board-sm" role="note" data-board={on}><b>{name} board</b> · seen by {name} members only</p>;
@@ -147,6 +147,12 @@ type Sort = keyof typeof SORT_LABEL;
 
 /** Discussions of one company (or of every company), with sort, title search, paging and "Start a discussion".
  *  State lives in the address (sort, q, page) unless `local` is set (the company report keeps its own address clean). */
+/** Developer file 44 (founder, 27 Nov 2026: Community discussions showed three empty boxes). The lists wait for the sign-in check (/api/forum/me) before
+ *  asking for discussions; when that check fails they used to stay grey for good. Now they say so and offer Try again. */
+export function MeFailed({ q }: { q: ReturnType<typeof useForumMe> }) {
+  return <div className="fo-err" role="alert">The discussions could not be loaded: the sign-in check did not answer ({msg(q.error)}). <button type="button" className="btn" onClick={() => q.refetch()}>Try again</button></div>;
+}
+
 export function ThreadList({ symbol, board = "", onOpen, linkTo = (t) => `/forum/t/${t.id}`, local = false, per = 20, startLabel = "Start a discussion", onCount }: {
   symbol?: string; board?: string; onOpen?: (id: number) => void; linkTo?: (t: Post) => string; local?: boolean; per?: number; startLabel?: string; onCount?: (n: number) => void;
 }) {
@@ -158,7 +164,7 @@ export function ThreadList({ symbol, board = "", onOpen, linkTo = (t) => `/forum
     const n = new URLSearchParams(sp); v && !(k === "sort" && v === "active") ? n.set(k, v) : n.delete(k); if (k !== "page") n.delete("page"); setSp(n, { replace: true });
   };
   const [text, setText] = useState(cur.q), [compose, setCompose] = useState(false);
-  const qc = useQueryClient(), { data: me } = useForumMe();
+  const qc = useQueryClient(), meQ = useForumMe(), me = meQ.data;
   const list = useQuery<Page<{ threads: Post[] }>>({
     queryKey: ["forum", "threads", symbol || "", cur.sort, cur.q, cur.page, board, per],
     queryFn: () => apiGet(`/api/forum/threads?sort=${cur.sort}&page=${cur.page}&per=${per}${symbol ? `&symbol=${encodeURIComponent(symbol)}` : ""}${cur.q ? `&q=${encodeURIComponent(cur.q)}` : ""}${board ? `&board=${board}` : ""}`),
@@ -168,6 +174,7 @@ export function ThreadList({ symbol, board = "", onOpen, linkTo = (t) => `/forum
   const total = list.data && !cur.q ? list.data.total : null;
   useEffect(() => { if (total != null) onCount?.(total); }, [total, onCount]);
   if (me && !me.signedIn) return <BoardNote />;
+  if (!me && meQ.isError) return <MeFailed q={meQ} />;
   return (
     <div className="fo-tl">
       {/* task #168: choosing a public name (or the paused-posting note) is its own block above the toolbar; inside the search-and-sort row it pushed the search box

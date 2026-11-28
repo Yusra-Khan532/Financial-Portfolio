@@ -62,8 +62,9 @@ import { isAway } from "./PlFlagsLayer";
 // (top: the results bar just above section 05; bottom: the bottom of section 05; vh: the screen's height)
 describe("the alert belongs to section 05, from its start to its end", () => {
   const vh = 800;
-  it("is shown once section 05 has come up into the top 70% of the screen, and while the reader is inside it", () => {
-    expect(isAway(500, 1900, vh)).toBe(false);          // the section's start is in view
+  it("is shown once the section has come up into the top 35% of the screen, and while the reader is inside it (founder, 26 Nov 2026: not over the section above)", () => {
+    expect(isAway(250, 1650, vh)).toBe(false);          // the section's start is in the top third
+    expect(isAway(500, 1900, vh)).toBe(true);           // half-way down the screen: the section above still fills the top half
     expect(isAway(-900, 600, vh)).toBe(false);          // the middle of a long section 05
     expect(isAway(700, 2000, vh)).toBe(true);           // only just below the fold: not reached yet
   });

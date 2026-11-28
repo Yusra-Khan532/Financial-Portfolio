@@ -22,17 +22,17 @@ const EV: Events = {
   dividendsByFY: { periods: ["FY25", "FY26"], dps: [5.5, 6], dpsUnadjusted: [5.5, 6], basis: "Declared for each financial year" },
 };
 
-describe("17 Dividends (README 3.17; task #222, 19 Nov pack S1: two views, the filings are their own section 18)", () => {
-  it("is one tab group of 2 views: Dividend history · What it would pay you; no Exchange announcements tab; the KPI tiles stay above it", () => {
+describe("Dividends (README 3.17; task #222: the filings are their own section; developer file 41: the corporate actions timeline of the old Chart lab is a third view)", () => {
+  it("is one tab group of 3 views: Dividend history · What it would pay you · Bonus and splits; no Exchange announcements tab; the KPI tiles stay above it", () => {
     const { container } = render(<MemoryRouter><DividendsSection e={EV} price={1200} /></MemoryRouter>);
-    expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(["1Dividend history", "2What it would pay you"]);
+    expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(["1Dividend history", "2What it would pay you", "3Bonus and splits"]);
     expect(screen.getByRole("tablist").getAttribute("aria-label")).toBe("Dividends");
-    expect(container.querySelector(".ctabs-h b")!.textContent).toBe("2 views");
+    expect(container.querySelector(".ctabs-h b")!.textContent).toBe("3 views");
     expect(container.querySelector(".dvk")!.compareDocumentPosition(container.querySelector(".ctabs")!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(container.querySelector("#announcements")).toBeNull();
-    expect([...container.querySelectorAll(".ct-next-k")].map((x) => x.textContent)).toEqual(["Next view · 1 of 2", "Back to the first view · 2 of 2"]);
+    expect([...container.querySelectorAll(".ct-next-k")].map((x) => x.textContent)).toEqual(["Next view · 1 of 3", "Next view · 2 of 3", "Back to the first view · 3 of 3"]);
     const line = container.querySelector(".nf-x")!;
-    expect(line.textContent).toBe("Board decisions, record dates and other dividend notices are listed in 18 News and filings.");
+    expect(line.textContent).toBe("Board decisions, record dates and other dividend notices are listed in 16 News and filings.");   // its number from the report's order
     expect(line.querySelector("a")!.getAttribute("href")).toBe("#news");
   });
   it("the sections bar waits for the hidden panel to open before it scrolls (no jump to the top of a hidden box)", () => {
@@ -60,17 +60,12 @@ describe("11, 12 and 16 (README 3.11, 3.12, 3.16)", () => {
 });
 
 describe("i buttons (README 1.4)", () => {
-  it("the 9 new i buttons carry the pack's texts word for word", () => {
-    expect(Object.keys(NEW_I)).toEqual(["Size", "Style", "Income", "Momentum", "Where it fits", "Shareholders", "Promoter shares pledged", "Shares outstanding", "Shares under lock-in"]);
-    expect(NEW_I.Size).toBe("FinLit’s fixed size bands: large above ₹75,000 Cr, mid ₹25,000–75,000 Cr, small ₹10,000–25,000 Cr, micro below ₹10,000 Cr.");
+  it("the new i buttons carry the pack's texts word for word (the four of Ownership's filing facts; Gold insights' five went with it, developer file 41)", () => {
+    expect(Object.keys(NEW_I)).toEqual(["Shareholders", "Promoter shares pledged", "Shares outstanding", "Shares under lock-in"]);
     expect(NEW_I["Shares under lock-in"]).toBe("Shares that cannot be sold yet, usually after an IPO or a preferential issue.");
-    expect(newInfo("Momentum")).toEqual({ key: "i216-momentum", label: "Momentum", what: "Oversold, neutral or overbought, from the 14-day RSI." });
+    expect(newInfo("Shareholders")).toEqual({ key: "i216-shareholders", label: "Shareholders", what: "How many shareholders the company has, from its latest shareholding filing." });
+    expect(newInfo("Momentum")).toBeNull();
     expect(newInfo("P/E")).toBeNull();   // the site's own i buttons keep their own texts
-  });
-  it("15's Size, Style, Income, Momentum and Where it fits show them", () => {
-    const s = src("Sections3.tsx");
-    expect(s).toContain('<span className="label">{k}<Info g={newInfo(k)} /></span>');
-    expect(s).toContain('<span className="label">Where it fits<Info g={newInfo("Where it fits")} /></span>');
   });
   it("the key-figure tiles keep their i button inside, top right, and their notes wrap", () => {
     const r = css("report216.css");

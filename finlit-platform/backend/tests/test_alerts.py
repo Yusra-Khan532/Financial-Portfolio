@@ -77,7 +77,7 @@ async def test_validation_limits_and_ownership(app):
     # task #283 PR D: the retired score takes no new alert on any plan; FinLit Prism's score is a Gold alert
     assert (await basic.post("/api/alerts", json=body(metric="overall", value=70))).json()["detail"]["status"] == "retired_metric"
     locked = (await basic.post("/api/alerts", json=body(metric="prism_final", value=65))).json()["detail"]
-    assert locked["status"] == "plan_required" and locked["plan"] == "gold" and "part of the Gold plan" in locked["detail"]
+    assert locked["status"] == "plan_required" and locked["plan"] == "gold" and "part of the Gold and Platinum plans" in locked["detail"]
     assert (await basic.post("/api/alerts", json=body(op="below", metric="volume_x", value=3))).json()["detail"]["status"] == "bad_metric"
     assert (await basic.post("/api/alerts", json=body(channels=["app", "sms"]))).json()["detail"]["status"] == "bad_channel"
     assert (await basic.post("/api/alerts", json=body(symbol="NOPE123"))).json()["detail"]["status"] == "unknown_stock"

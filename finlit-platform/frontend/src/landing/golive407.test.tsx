@@ -82,16 +82,19 @@ describe("task #407: the interactive parts on the site's data", () => {
     const navigate = vi.fn(), quote = vi.fn(async (s: string) => ({ price: s === "INFY" ? 1183 : 400, changePct: 0.82, priceDate: "2026-11-26" }));
     const { container } = render(<GoLiveMarkup tour={TOUR} />);
     let stop = () => {};
-    act(() => { stop = initGoLive({ navigate, searchIndex: async () => index, quote }); });
+    // task #436: prices are hidden on the landing page (FL_PRICES_LIVE); these tests draw the table with prices on, as the switch brings them back
+    act(() => { stop = initGoLive({ navigate, searchIndex: async () => index, quote, pricesLive: true }); });
     return { container, navigate, quote, stop: () => stop() };
   };
-  it("draws the six areas, the tour's seven chapters and the plan table with every plan and its monthly price", () => {
+  // task #411 (pack of 27 Nov 2026): the tour's chapter buttons and the separate combined-plan card are gone from the landing page; the combined
+  // plan is the table's sixth column (its own tests are in the task #411 block below)
+  it("draws the six areas, the tour without chapter buttons and the plan table with every plan and its monthly price", () => {
     const { container, stop } = start();
     expect(container.querySelectorAll(".lp-ex-a button")).toHaveLength(6);
-    expect([...container.querySelectorAll(".lp-vid-c button")].map((b) => b.textContent)).toEqual(["Screener", "Company report", "FinLit Prism", "Sector Pulse", "Sector Rotation", "Mutual Fund Score", "Portfolio"]);
+    expect(container.querySelectorAll(".lp-vid-c button")).toHaveLength(0);
     const cq = container.querySelector("#lp-cq")!.textContent!;
-    for (const t of ["Free", "Gold", "Platinum", "Mutual Fund + ETF", "Equity Portfolio", "₹458", "₹833", "₹142", "₹275", "40 tools in 6 areas", "Payments open soon. Start on Free today."]) expect(cq, t).toContain(t);
-    expect(container.querySelector(".lq-bun")!.textContent).toMatch(/₹375/);
+    for (const t of ["Free", "Gold", "Platinum", "Mutual Fund + ETF", "Equity Portfolio", "Combined", "₹458", "₹833", "₹142", "₹275", "₹375", "40 tools in 6 areas", "Payments open soon. Start on Free today."]) expect(cq, t).toContain(t);
+    expect(container.querySelector(".lq-bun")).toBeNull();
     stop();
   });
   it("an area opens its tools; an area of the plan table opens its rows; Open all areas opens all six", () => {

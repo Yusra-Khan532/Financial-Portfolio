@@ -1,7 +1,7 @@
 import type { PageFaq } from "./pageFaqs";
-import { LIMITS } from "../lib/auth";
-import { PLAN_LIST, planName } from "../lib/planNames";
-import { PLAN_FOR_PORTFOLIO } from "../lib/planGates";
+import { LIMITS, tierOf } from "../lib/auth";
+import { planName, plansOpening } from "../lib/planNames";
+import { PLAN_FOR_FUND_PORTFOLIO } from "../lib/planGates";
 
 /** Task #390 (developer file 39 v4, C1): the member's own limit, "Your plan holds up to 15 ETFs.", with the number from `limit` in
  *  /api/me/etf-portfolio (the page passes it in with setEtfLimit once the list has loaded). Without it (a visitor, or a plan without the page: task #390
@@ -10,15 +10,15 @@ let shownLimit: number | null = null;
 export const setEtfLimit = (n: number | null) => { shownLimit = n; };
 export function etfLimitLine(n: number | null = shownLimit): string {
   if (n != null) return `Your plan holds up to ${n} ETFs.`;
-  const from = PLAN_LIST.findIndex((p) => p.id === PLAN_FOR_PORTFOLIO), by = new Map<number, string[]>();
-  for (const p of PLAN_LIST.slice(Math.max(0, from))) { const k = LIMITS[p.id].etf_holdings; by.set(k, [...(by.get(k) ?? []), p.name]); }
+  const by = new Map<number, string[]>();
+  for (const p of plansOpening(PLAN_FOR_FUND_PORTFOLIO)) { const k = LIMITS[tierOf(p.id)].etf_holdings; by.set(k, [...(by.get(k) ?? []), p.name]); }   // task #410
   const and = (xs: string[]) => (xs.length <= 1 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`);
   return [...by].map(([k, names]) => `${and(names)} ${names.length === 1 ? "holds" : "hold"} up to ${k} ETFs.`).join(" ");
 }
 
 /** The ETF portfolio's seven questions (task #183 part 3, the 15 Nov pack 03 §5), in the pack's words. */
 export const ETF_PORTFOLIO_FAQ: PageFaq = {
-  id: "etf-portfolio", title: "ETF portfolio", section: "Your workspace", routes: ["/etf-portfolio"], plan: planName(PLAN_FOR_PORTFOLIO),   // task #390 (fault 1): read from the plan list, never a fixed name
+  id: "etf-portfolio", title: "ETF portfolio", section: "Your workspace", routes: ["/etf-portfolio"], plan: planName(PLAN_FOR_FUND_PORTFOLIO),   // task #390 (fault 1): read from the plan list, never a fixed name
   items: [
     { q: "How do I add my ETFs?", get a() { return "Search by name, NSE symbol or ISIN, or import a broker file. Each ETF is read by its ISIN; a row without one is matched on the NSE symbol and shown for you to confirm. \"Clear portfolio\" removes them all, with 10 seconds to undo. Add quantities to count each ETF by its value; until every ETF has a quantity, each counts the same. " + etfLimitLine(); } },   // read when shown, from the plan list and limits
     { q: "Why does an ETF trade above or below its NAV?", a: "Its price is set by buyers and sellers on the exchange; its NAV is the value of what it holds. When demand runs ahead of new units being made, as with some overseas ETFs, the price can sit well above the NAV. An ETF that holds shares abroad publishes its NAV a day behind its price; the page says so under the figure." },

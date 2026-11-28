@@ -28,7 +28,7 @@ def test_every_shown_key_has_a_complete_entry():
 
 
 def test_terms_complete_and_unique():
-    assert len(TERMS) == 1260         # 448 + the 812 new terms of the team's 1,000-term glossary (task #381)
+    assert len(TERMS) == 1261         # 448 + the 812 new terms of the team's 1,000-term glossary (task #381) + Short selling (reported), 27 Nov 2026
     for t in TERMS.values():
         assert t["meaning"] and t["why"] and t["how"] and t["topic"], t["term"]
 

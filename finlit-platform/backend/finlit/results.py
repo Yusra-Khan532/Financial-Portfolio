@@ -964,11 +964,11 @@ async def _answer(request: Request, quarter: str, q: str, sector: str, cap: str,
     plan = ctx.plan if ctx.authed else "basic"
     silver = has(plan, "silver")
     if (sort in NUMERIC_SORTS or flagged) and not silver:
-        raise fail(403, "plan_required", "Sorting and filtering by results figures is part of the Silver plan.", plan="silver")
+        raise fail(403, "plan_required", "Sorting and filtering by results figures is part of every paid plan.", plan="silver")
     if growth is not None and growth.active and not silver:
-        raise fail(403, "plan_required", "Filtering by growth is part of the Silver plan.", plan="silver")
+        raise fail(403, "plan_required", "Filtering by growth is part of every paid plan.", plan="silver")
     if price is not None and price.active and not silver:
-        raise fail(403, "plan_required", "Filtering by price position is part of the Silver plan.", plan="silver")
+        raise fail(403, "plan_required", "Filtering by price position is part of every paid plan.", plan="silver")
     store = request.app.state.store
     today = today_ist()
     rng = parse_range(on, frm, to, today, future=status in ("due", "upcoming"))
@@ -1005,7 +1005,7 @@ def by_verdict(rows: List[dict], verdict: str, silver: bool):
     """Task #330 (developer file 28): the Companies view's verdict chips (All · Strong · Good · In line · Weak · Poor · Loss). The counts are of the rows the
     other filters leave, before the chip, so every chip says how many it would show; the chip then keeps one verdict. A verdict is a figure: Silver."""
     if verdict and not silver:
-        raise fail(403, "plan_required", "Filtering by verdict is part of the Silver plan.", plan="silver")
+        raise fail(403, "plan_required", "Filtering by verdict is part of every paid plan.", plan="silver")
     counts = verdict_counts(rows) if silver else None
     return ([r for r in rows if r.get("verdict") == verdict] if verdict else rows), counts
 
@@ -1068,7 +1068,7 @@ async def quarter_export(request: Request, quarter: str = Query("", max_length=7
         raise fail(400, "bad_request", "Unknown sort.")
     ctx = await current(request)
     if not has(ctx.plan if ctx.authed else "basic", "silver"):
-        raise fail(403, "plan_required", "Downloading the quarter's results is part of the Silver plan.", plan="silver")
+        raise fail(403, "plan_required", "Downloading the quarter's results is part of every paid plan.", plan="silver")
     _, _, _, entry, rows, _, today, _, _ = await _answer(request, quarter, q, sector, cap, index, scope, flagged, status, sort, dir, on, from_, to, growth, price, industry)
     rows, _ = by_verdict(rows, verdict, True)
     return _dump({"quarter": entry.quarter if entry else None, "today": today.isoformat(), "rows": rows[:EXPORT_ROWS]})

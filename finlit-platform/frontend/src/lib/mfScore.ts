@@ -18,20 +18,17 @@ export function scoreFootLine(day: string | null, kind?: string | null, text?: s
 export const MF_SCORE_NOTE = "Describes the fund's health from its past NAVs, costs and holdings; not a recommendation.";
 export const MF_SCORE_COMPLIANCE = `${MF_SCORE_NOTE} Information only, not investment advice.`;
 export const MF_METHOD_URL = "/methodology/mf-score";
-/** Task #403: what a high and a low part mean, shown under the part bars wherever the score card shows them (one wording everywhere).
+/** Task #403 (reworked 27 Nov 2026: one line on each part, not one note under all four): what a high figure means on each of the Score's parts.
  *  Every part is read against funds of the same category, and higher is better on all four: on Risk and Cost a high figure means LOWER risk and LOWER costs. */
 export const PART_HIGH: Record<string, string> = {
   performance: "did better than similar funds",
-  risk: "lower risk: a calmer ride, smaller falls",
+  risk: "a calmer ride, smaller falls",
   cost: "lower costs",
-  quality: "proven, large enough and soundly built",
+  quality: "proven, large enough, soundly built",
 };
-export const HIGH_LOW_LEAD = "High and low:";
-export const HIGH_LOW_TAIL = "every part is read against funds of the same category, and higher is better on all four; low means the opposite.";
-const HIGH_LOW_ORDER = [["performance", "Performance"], ["risk", "Risk"], ["cost", "Cost"], ["quality", "Quality"]] as const;
-/** The whole note as one line of text (for tests and plain-text places). */
-export const highLowText = (): string => `${HIGH_LOW_LEAD} ${HIGH_LOW_TAIL} ${HIGH_LOW_ORDER.map(([k, n]) => `High ${n} = ${PART_HIGH[k]}`).join(" · ")}.`;
-export { HIGH_LOW_ORDER };
+export const PART_LEAD = "Higher is better:";
+/** The part's line ("Higher is better: lower costs"), or null for a key that is not one of the four parts. */
+export const partLine = (key: string): string | null => (PART_HIGH[key] ? `${PART_LEAD} ${PART_HIGH[key]}` : null);
 
 export const PILLAR_HELP: Record<string, string> = {
   performance: "Did the fund beat funds like it, over how long, and month after month?",
@@ -47,6 +44,14 @@ export type ScoreMetric = { id: string; label: string; pillar: string; state: Sc
 export type ScorePillar = { key: "performance" | "risk" | "cost" | "quality"; name: string; reading?: string | null; points?: number | null; allNotApplicable?: boolean };
 /** A part in words (the site never shows the weights): 70 or more Strong, 50 to 69 Fair, under 50 Weak. */
 export const partWord = (v: number | null | undefined) => (v == null ? "Not scored" : v >= 70 ? "Strong" : v >= 50 ? "Fair" : "Weak");
+/** Task #378 (team, 25 Nov 2026: "still the scores are not seen"): what a P R C Q chip says on hover, focus or tap, and to a screen reader: the part's name,
+ *  its own figure out of 100 (as stored by the score job, one decimal as on the fund page) and its word, e.g. "Performance 42.0 / 100 · Weak". A part with
+ *  no figure says so and never shows a made-up number. */
+export function partTip(name: string, word: string | null | undefined, points: number | null | undefined): string {
+  const w = word || partWord(points);
+  if (points != null && Number.isFinite(points)) return `${name} ${scoreText(points)} / 100 · ${w}`;
+  return w === "Not scored" ? `${name} · Not scored` : `${name} · ${w} · figure not available`;
+}
 /** A part word as a colour band, and as a FIXED position for charts (the charts show the word, never a figure). */
 export const wordBand = (w: string | null | undefined): ScoreBand => (w === "Strong" ? "hi" : w === "Fair" ? "mid" : w === "Weak" ? "lo" : "na");
 export const WORD_POS: Record<string, number> = { Strong: 85, Fair: 60, Weak: 30 };
@@ -63,7 +68,7 @@ export type FundScore = {
   disclaimer: string; method: string; model: string;
 };
 export type ScoreItem = { code: number | null; symbol: string | null; plan: string; group: string | null; final: number | null; label: string | null; status: string | null; reason: string | null;
-  pillars: Record<string, string | null> | null; rank: number | null; rankOf: number | null; flags: string[]; confidence: number | null;
+  pillars: Record<string, string | null> | null; pillarScores?: Record<string, number | null> | null; rank: number | null; rankOf: number | null; flags: string[]; confidence: number | null;
   inherited?: { code: number; name: string; label: string; why: string } | null };   // task #281: an IDCW row's score is its same-plan Growth option's
 export type ScoreList = { locked: boolean; items: ScoreItem[]; total: number | null };
 /** One sub-category of the Funds dashboard: median of the scored Direct-plan funds, how many, and the counts in the three colour bands. */

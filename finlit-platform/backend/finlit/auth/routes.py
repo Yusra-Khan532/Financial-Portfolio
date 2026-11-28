@@ -27,7 +27,7 @@ from .. import wake
 from ..config import Settings
 from ..security import client_ip
 from . import crypto, mailer as mail
-from .entitlements import LIMITS, PLANS, has
+from .entitlements import KEY_RANK, LIMITS, PAID_KEYS, PLANS, has, in_area, part_of, plan_key
 from .service import ANON, Ctx, audit, cookie_name, create_session, current, forget_cached, revoke_all
 
 SYMBOL = re.compile(r"^[A-Z0-9&_.\-]{1,24}$")
@@ -108,9 +108,18 @@ async def admin_ctx(request: Request, ctx: Ctx = Depends(secure_ctx)) -> Ctx:
     return ctx
 
 
+
 def need_plan(ctx: Ctx, tier: str) -> None:
     if not has(ctx.plan, tier):
-        raise fail(403, "plan_required", f"This is part of the {tier.title()} plan.", plan=tier)
+        raise fail(403, "plan_required", f"This is part of {part_of(tier)}.", plan=tier)
+
+
+def need_area(ctx: Ctx, area: str) -> None:
+    """Task #410: the shares you own ("eq": equity portfolio, watchlists) open on Equity Portfolio, the combined plan, Gold and Platinum; the fund and
+    ETF tools ("mf") on Mutual Fund + ETF, the combined plan, Gold and Platinum (goliveData)."""
+    if not in_area(ctx, area):
+        name = "Equity Portfolio" if area == "eq" else "Mutual Fund + ETF"
+        raise fail(403, "plan_required", f"This is part of the {name}, combined, Gold and Platinum plans.", plan="equity" if area == "eq" else "mfetf")
 
 
 # ------------------------------------------------------------------ models
@@ -169,7 +178,8 @@ class PasswordIn(BaseModel):
 
 
 class PlanRequestIn(BaseModel):
-    plan: Literal["silver", "gold"]
+    # task #410: a plan of the new list; "silver" (a browser that has not reloaded since) is read as Gold, the smallest full plan that includes it
+    plan: Literal["mfetf", "equity", "combined", "gold", "platinum", "silver"]
     note: Optional[str] = Field(default=None, max_length=300)
 
 
@@ -177,13 +187,34 @@ class WMeta(BaseModel):
     note: Optional[str] = Field(default=None, max_length=200)
     target: Optional[float] = Field(default=None, ge=0, le=10_000_000)
     added: int = Field(default=0, ge=0)
+    # task #408: the last traded price when the stock was added ("Since added"); filled once on the server for older entries (finlit/watchprices.py)
+    addedPrice: Optional[float] = Field(default=None, gt=0, le=10_000_000)
+    # task #408: "Tell me when the price is within 5% of my target" (Details); absent means on (finlit/targetalerts.py)
+    nearAlert: Optional[bool] = None
+
+
+WATCH_FILING_KINDS = ("order", "capacity", "partnership", "mna", "fundraise", "rating", "management", "legal")   # Discover's eight kinds (filingalerts.KINDS)
+
+
+class WListAlerts(BaseModel):
+    """Task #408, "Alerts for this list": the list's three groups. target: Price near your target (finlit/targetalerts.py); peer: Peer label changes
+    (finlit/labelalerts.py); filings: the kinds of the list's Discover filing alert (the alert itself is a discover_filing row, finlit/filingalerts.py)."""
+    target: bool = True
+    peer: Literal["any", "laggard", "leader", "off"] = "any"
+    filings: List[Literal["order", "capacity", "partnership", "mna", "fundraise", "rating", "management", "legal"]] = Field(default_factory=list, max_length=8)
+
+    @field_validator("filings")
+    @classmethod
+    def filings_once(cls, v: List[str]) -> List[str]:
+        return [k for k in WATCH_FILING_KINDS if k in v]
 
 
 class WList(BaseModel):
     id: str = Field(pattern=r"^[a-z0-9]{1,16}$")
     name: str = Field(min_length=1, max_length=28)
     symbols: List[str] = Field(max_length=1000)
-    labelAlert: Optional[Literal["any", "laggard", "leader"]] = None   # the Watchlists page's "Tell me when a label changes" (finlit/labelalerts.py)
+    labelAlert: Optional[Literal["any", "laggard", "leader"]] = None   # the older "Tell me when a label changes" choice, still read when `alerts` is absent (finlit/labelalerts.py)
+    alerts: Optional[WListAlerts] = None   # task #408: Alerts for this list; absent = the page's defaults (target on, any peer-label change)
 
     @field_validator("symbols")
     @classmethod
@@ -365,7 +396,7 @@ class PrefsIn(BaseModel):
 
 # ------------------------------------------------------------------ helpers
 def public_user(row: Any) -> Dict[str, Any]:
-    return {"id": str(row["id"]), "email": row["email"], "name": row["name"], "role": row["role"], "plan": row["plan"],
+    return {"id": str(row["id"]), "email": row["email"], "name": row["name"], "role": row["role"], "plan": plan_key(row["plan"]),
             "verified": row["email_verified_at"] is not None, "mfa": row["totp_enabled_at"] is not None}
 
 
@@ -635,7 +666,7 @@ async def login(request: Request, response: Response, body: SignIn):
     set_session_cookie(request, response, raw, u["role"])
     response.headers.update(NO_STORE)
     await audit(pool, str(u["id"]), "login", None, ip, mfa=mfa_ok)
-    plan = u["plan"] if not (u["plan_until"] and u["plan_until"] < datetime.now(timezone.utc)) else "basic"
+    plan = plan_key(u["plan"]) if not (u["plan_until"] and u["plan_until"] < datetime.now(timezone.utc)) else "free"
     user = {**public_user(u), "plan": plan, "mfaOk": mfa_ok}
     return {"user": user, "csrf": csrf, "mfaSetupRequired": u["role"] == "admin" and not u["totp_enabled_at"] and request.app.state.settings.admin_require_mfa}
 
@@ -784,7 +815,7 @@ def limits_for(plan: str) -> Dict[str, int]:
 async def me(request: Request):
     ctx = await current(request)
     from ..lab.access import features_of   # here, not at the top: lab.access imports this module
-    body = {"user": ctx.public() if ctx.authed else None, "plan": ctx.plan, "limits": limits_for(ctx.plan), "csrf": ctx.csrf if ctx.authed else None,
+    body = {"user": ctx.public() if ctx.authed else None, "plan": ctx.plan_key, "tier": ctx.plan, "limits": limits_for(ctx.plan), "csrf": ctx.csrf if ctx.authed else None,
             "showcase": sorted(request.app.state.settings.showcase_symbols),  # the free example companies: their reports are sent in full to everyone
             "prismReportsPerDay": prism_reports_per_day(ctx),
             "features": await features_of(request.app.state.store.pool, ctx)}   # admin-granted features (Trading Lab), whatever the plan
@@ -964,7 +995,7 @@ async def save_state(request: Request, ctx: Ctx, column: str, value: Any) -> Non
 
 @router.put("/me/watchlist")
 async def put_watchlist(request: Request, body: WatchlistIn, ctx: Ctx = Depends(secure_ctx)):
-    need_plan(ctx, "silver")
+    need_area(ctx, "eq")
     lim = limits_for(ctx.plan)
     if len(body.lists) > lim["watchlist_lists"]:
         raise fail(403, "plan_limit", f"Your plan includes {lim['watchlist_lists']} lists.", plan="gold")
@@ -974,9 +1005,17 @@ async def put_watchlist(request: Request, body: WatchlistIn, ctx: Ctx = Depends(
     ids = [lst.id for lst in body.lists]
     if len(set(ids)) != len(ids):
         raise fail(422, "duplicate_list")
-    meta = {k: v.model_dump() for k, v in body.meta.items() if SYMBOL.match(k)}
+    meta = {k: v.model_dump(exclude_none=True) for k, v in body.meta.items() if SYMBOL.match(k)}
     # task #375: the stock lists are saved without touching the fund wishlist kept beside them (watchlist.funds, saved by PUT /me/fund-wishlist)
     async with request.app.state.store.pool.acquire() as conn:
+        # task #408: an added price the server filled in (finlit/watchprices.py) is kept when a browser saves an older copy of the same entry without it
+        held = await conn.fetchval("SELECT watchlist -> 'meta' FROM user_state WHERE user_id = $1", ctx.user_id)
+        held = (json.loads(held) if isinstance(held, str) else held) or {}
+        if isinstance(held, dict):
+            for k, m in meta.items():
+                old = held.get(k)
+                if "addedPrice" not in m and isinstance(old, dict) and old.get("addedPrice") and old.get("added") == m.get("added"):
+                    m["addedPrice"] = old["addedPrice"]
         await conn.execute("INSERT INTO user_state (user_id, watchlist) VALUES ($1, $2::jsonb) ON CONFLICT (user_id) DO UPDATE SET "
                            "watchlist = EXCLUDED.watchlist || jsonb_build_object('funds', COALESCE(user_state.watchlist -> 'funds', '[]'::jsonb)), updated_at = now()",
                            ctx.user_id, json.dumps({"lists": [lst.model_dump(exclude_none=True) for lst in body.lists], "meta": meta}))
@@ -999,7 +1038,7 @@ async def put_fund_wishlist(request: Request, body: FundWishIn, ctx: Ctx = Depen
 
 @router.put("/me/portfolio")
 async def put_portfolio(request: Request, body: PortfolioIn, ctx: Ctx = Depends(secure_ctx)):
-    need_plan(ctx, "silver")
+    need_area(ctx, "eq")
     cap = limits_for(ctx.plan)["holdings"]
     shares = len({h.symbol for h in body.holdings})          # task #217: the limit counts shares; each buy of a share is its own row (at most 500 rows)
     if shares > cap:
@@ -1029,7 +1068,7 @@ def _clear_key(user_id: str) -> str:
 @router.post("/me/portfolio/clear")
 async def clear_portfolio(request: Request, ctx: Ctx = Depends(secure_ctx)):
     """Empty the member's equity portfolio, holding what was there for the Undo window. Watchlists, alerts and the other portfolios are not touched."""
-    need_plan(ctx, "silver")
+    need_area(ctx, "eq")
     pool, redis = request.app.state.store.pool, request.app.state.store.redis
     async with pool.acquire() as conn:
         row = await conn.fetchrow("SELECT portfolio FROM user_state WHERE user_id = $1", ctx.user_id)
@@ -1044,7 +1083,7 @@ async def clear_portfolio(request: Request, ctx: Ctx = Depends(secure_ctx)):
 @router.post("/me/portfolio/undo-clear")
 async def undo_clear_portfolio(request: Request, ctx: Ctx = Depends(secure_ctx)):
     """Put back exactly what Clear portfolio removed, while the Undo window is open; after it the clear is final."""
-    need_plan(ctx, "silver")
+    need_area(ctx, "eq")
     redis = request.app.state.store.redis
     held = await redis.getdel(_clear_key(ctx.user_id))
     if held is None:
@@ -1074,7 +1113,9 @@ async def put_prefs(request: Request, body: PrefsIn, ctx: Ctx = Depends(secure_c
 @router.post("/me/plan-request", status_code=201)
 async def plan_request(request: Request, body: PlanRequestIn, ctx: Ctx = Depends(secure_ctx)):
     pool = request.app.state.store.pool
-    if has(ctx.plan, body.plan):
+    if body.plan == "silver":
+        body.plan = "gold"
+    if ctx.plan_key == body.plan or KEY_RANK.get(ctx.plan_key, 0) > KEY_RANK[body.plan] or (ctx.plan_key == "combined" and body.plan in ("mfetf", "equity")):
         raise fail(409, "already_included", "Your plan already includes this.")
     await limit(request, "planreq", ctx.user_id, 5, 86400)
     async with pool.acquire() as conn:
@@ -1087,7 +1128,7 @@ async def plan_request(request: Request, body: PlanRequestIn, ctx: Ctx = Depends
 
 # ------------------------------------------------------------------ administrators
 class AdminUserPatch(BaseModel):
-    plan: Optional[Literal["basic", "silver", "gold"]] = None
+    plan: Optional[Literal["free", "mfetf", "equity", "combined", "gold", "platinum"]] = None      # task #410: the new plans
     plan_days: Optional[int] = Field(default=None, ge=1, le=3650)
     role: Optional[Literal["investor", "admin"]] = None
     status: Optional[Literal["active", "disabled"]] = None
@@ -1102,7 +1143,7 @@ async def admin_users(request: Request, q: str = Query("", max_length=80), page:
                                 "count(*) OVER () AS total FROM users WHERE $1 = '%%' OR lower(email) LIKE $1 OR lower(coalesce(name, '')) LIKE $1 "
                                 "ORDER BY created_at DESC LIMIT 25 OFFSET $2", like if q.strip() else "%%", (page - 1) * 25)
     return {"total": rows[0]["total"] if rows else 0, "page": page, "users": [{
-        "id": str(r["id"]), "email": r["email"], "name": r["name"], "role": r["role"], "plan": r["plan"],
+        "id": str(r["id"]), "email": r["email"], "name": r["name"], "role": r["role"], "plan": plan_key(r["plan"]),
         "planUntil": r["plan_until"].isoformat() if r["plan_until"] else None, "status": r["status"], "verified": r["email_verified_at"] is not None,
         "mfa": r["totp_enabled_at"] is not None, "createdAt": r["created_at"].isoformat(),
         "lastLoginAt": r["last_login_at"].isoformat() if r["last_login_at"] else None} for r in rows]}
@@ -1119,7 +1160,7 @@ async def admin_patch(request: Request, uid: str, body: AdminUserPatch, ctx: Ctx
     if body.plan is not None:
         args.append(body.plan)
         sets.append(f"plan = ${len(args)}")
-        until = datetime.now(timezone.utc) + timedelta(days=body.plan_days) if body.plan_days and body.plan != "basic" else None
+        until = datetime.now(timezone.utc) + timedelta(days=body.plan_days) if body.plan_days and body.plan != "free" else None
         args.append(until)
         sets.append(f"plan_until = ${len(args)}")
     if body.role is not None:
@@ -1134,7 +1175,7 @@ async def admin_patch(request: Request, uid: str, body: AdminUserPatch, ctx: Ctx
         raise fail(422, "nothing_to_change")
     async with pool.acquire() as conn:
         done = await conn.fetchval(f"UPDATE users SET {', '.join(sets)} WHERE id = $1 RETURNING id", *args)  # nosec B608 - fragments are fixed strings
-        if body.plan in ("silver", "gold"):
+        if body.plan in PAID_KEYS:
             await conn.execute("UPDATE plan_requests SET status = 'granted', resolved_at = now() WHERE user_id = $1 AND status = 'open' AND plan = $2", uid, body.plan)
     if done is None:
         raise fail(404, "not_found")

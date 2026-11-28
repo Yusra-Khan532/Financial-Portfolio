@@ -33,17 +33,25 @@ const rec: IpoRecord = {
   },
 };
 const st = { rec: rec as IpoRecord | undefined };
+const dl: { rows: import("../lib/deals").Deal[] } = { rows: [] };
+vi.mock("../lib/deals", async (orig) => ({ ...(await orig<typeof import("../lib/deals")>()),
+  useIpoDeals: () => ({ data: undefined, isLoading: true, isError: false }),
+  useStockDeals: (symbol: string, since: string) => ({ isLoading: false, isError: false, data: { symbol, since, rows: dl.rows, trades: dl.rows.length, latestClose: null, latestCloseAt: null, note: "",
+    buyCr: dl.rows.filter((r) => r.side === "buy").reduce((a, r) => a + (r.valueCr ?? 0), 0), sellCr: dl.rows.filter((r) => r.side === "sell").reduce((a, r) => a + (r.valueCr ?? 0), 0), netCr: 0,
+    coverage: { first_day: "2026-10-01", last_day: "2026-11-27", exchanges: ["NSE"], byKind: {}, lastUpdated: null, historyDone: true } } }),
+}));
 vi.mock("../lib/ipoHistory", async (orig) => ({ ...(await orig<typeof import("../lib/ipoHistory")>()),
   useIpoRecord: () => ({ data: st.rec, isLoading: false, isError: !st.rec }),
   useIpoHistory: () => ({ data: { items: [base], asOf: "2026-11-21", updatedAt: null, sources, note: "" } as IpoHistory, isLoading: false, isError: false }) }));
 vi.mock("../lib/ipo", async (orig) => ({ ...(await orig<typeof import("../lib/ipo")>()), useGmpRecord: () => ({ data: undefined, isLoading: false, isError: false }) }));
 import { backTo, inWords, IpoReportPage } from "./IpoReport";
+import { lockIns, nearLockIns, windowEnd } from "../components/ipo/DealsSinceListing";
 import { IpoAllRedirect, IpoAllView } from "./IpoHistory";
 
 const Where = () => { const l = useLocation(); return <output data-testid="at">{l.pathname + l.search}</output>; };
 const at = (path: string, state?: unknown) => render(<MemoryRouter initialEntries={[{ pathname: path.split("?")[0], search: path.includes("?") ? "?" + path.split("?")[1] : "", state }]}>
   <Routes><Route path="/ipo" element={<><IpoAllView /><Where /></>} /><Route path="/ipo/all" element={<IpoAllRedirect />} /><Route path="/ipo/:id" element={<IpoReportPage />} /></Routes></MemoryRouter>);
-afterEach(() => { cleanup(); st.rec = rec; });
+afterEach(() => { cleanup(); st.rec = rec; dl.rows = []; });
 const ADVICE = /\b(buy|sell|apply|subscribe|recommend|should|good listing|best|gain)\b/i;
 
 describe("the IPO report", () => {
@@ -120,5 +128,33 @@ describe("the all-IPOs view of the IPOs page (task #329)", () => {
     expect(screen.getAllByRole("link", { name: "BLS Polymers" })[0].getAttribute("href")).toBe("/ipo/1849");
     expect(document.body.textContent).toContain("+65.3%");
     expect(document.body.textContent).not.toMatch(ADVICE);
+  });
+});
+
+describe("Deals since listing on the IPO report (bulk & block deals)", () => {
+  const D = (o: Partial<import("../lib/deals").Deal>): import("../lib/deals").Deal => ({ id: 1, exchange: "NSE", kind: "block", day: "2026-12-01", symbol: "BLSPOLY", name: "BLS Polymers", client: "PINE OAK GLOBAL FUND",
+    clientKey: "PINE OAK GLOBAL FUND", side: "sell", qty: 600000, price: 230, valueCr: 13.8, remarks: null, alsoBlock: false, alsoBulk: false, source: "nse-archive", pctEquity: 0.97, dayClose: 231,
+    closeNow: 231, closeAt: null, sinceDealPct: 0.43, sinceNote: null, ...o });
+  it("the lock-in ends: anchors from the timetable, pre-issue shareholders 6 months and 1 year from allotment", () => {
+    expect(lockIns({ anchorLockin30: "2026-11-28", anchorLockin90: "2027-01-27", allotment: "2026-10-30" }).map((l) => [l.key, l.date]))
+      .toEqual([["a30", "2026-11-28"], ["a90", "2027-01-27"], ["p6", "2027-04-30"], ["p12", "2027-10-30"]]);
+    expect(windowEnd("2026-11-28")).toBe("2026-12-04");          // a Saturday: Mon 30 Nov to Fri 4 Dec are the five trading days
+    expect(windowEnd("2026-11-30")).toBe("2026-12-04");
+  });
+  it("says how many deals came in the five trading days after a lock-in ended, and how much was sold; a twin counts once", () => {
+    const rows = [D({}), D({ id: 2, kind: "bulk", alsoBlock: true }), D({ id: 3, day: "2026-12-10", valueCr: 5 }), D({ id: 4, side: "buy", day: "2026-12-02", valueCr: 2, client: "X FUND", clientKey: "X FUND" })];
+    const n = nearLockIns(rows, lockIns({ anchorLockin30: "2026-11-28", allotment: "2026-10-30" }), "2026-12-15");
+    expect(n.length).toBe(1);
+    expect(n[0].text).toBe("2 block deals in the 5 trading days after the 30-day anchor lock-in (50% of the anchor shares) ended on 28 Nov 2026 (₹13.80 Cr sold, ₹2.00 Cr bought).");
+  });
+  it("the report shows the block for a listed issue, with the marked deal and the lock-ins ahead", () => {
+    dl.rows = [D({})];
+    vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(new Date("2026-12-15T12:00:00Z"));
+    try { at("/ipo/1849"); } finally { vi.useRealTimers(); }
+    const sec = screen.getByRole("region", { name: "Deals since listing" });
+    expect(sec.textContent).toContain("1 bulk and block trade since listing on 3 Nov 2026: ₹13.80 Cr sold.");
+    expect(sec.textContent).toContain("1 block deal in the 5 trading days after the 30-day anchor lock-in (50% of the anchor shares) ended on 28 Nov 2026 (₹13.80 Cr sold).");
+    expect(sec.textContent).toContain("after 30-day anchor lock-in ended");
+    expect(sec.textContent).toContain("Source: NSE's bulk and block deal files");
   });
 });

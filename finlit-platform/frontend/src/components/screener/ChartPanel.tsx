@@ -12,7 +12,7 @@ import "../../styles/chartpanel.css";
 import { DISC_EVENTS, type DiscEvent, type DiscLatest } from "../../lib/presets";
 import { themePath } from "../../discovery/model";
 import { dateIN } from "../../lib/format";
-import { EVENT_KEY, axisPrice, behindNote, changeTo, datedWeeks, eventLetter, factValue, factsHeading, levelTitle, legendHead, lineLabel, listClose, singleMark, todayIST, volumeLine, weekOf, weeklyEmas, type Bar } from "./chartPanelParts";
+import { EVENT_KEY, axisPrice, rightRoom, behindNote, changeTo, datedWeeks, eventLetter, factValue, factsHeading, levelTitle, legendHead, lineLabel, listClose, singleMark, todayIST, volumeLine, weekOf, weeklyEmas, type Bar } from "./chartPanelParts";
 
 /** The chart that opens from a row of the stock screeners, built to the 11 Nov design: candles, bars or a line, daily or weekly, volume in its own pane, an Indicators menu
  *  (EMA 9/20/50/200, SMA 10/20/50, volume average, highest volume in 3 months, strength against NIFTY 500, events, the pattern), Compare, Measure and a reset.
@@ -132,12 +132,15 @@ export function ChartPanel({ row, onClose, onStep, extra, inline = false, onChar
   useEffect(() => { try { localStorage.setItem(KEY, JSON.stringify({ ...opt, log })); } catch { /* private window */ } }, [opt, log]);
   const touch = (n: Ind) => { setInd(n); try { sessionStorage.setItem(IND_KEY, JSON.stringify(n)); } catch { /* private window */ } };
   const theme = useThemeKey();
-  // W2 (task #394): 3Y and 5Y come as weekly candles. When the server says it can send them daily (dailyAvailable), D asks for ?grain=daily; weekly stays the default there.
-  const [longDaily, setLongDaily] = useState(false);
+  // W2 (task #394): 3Y and 5Y are stored as weekly candles. Task #394 re-check (28 Nov): on D, 3Y stays on daily candles: the chart asks for
+  // ?grain=daily whenever D is chosen on 3Y (the founder: "when I click 3Y it switches to 1W"), whatever the stored flag says (it read false for
+  // companies whose candles do cover 3Y). The server answers with the weekly 3Y when the candles really do not reach back; then W shows, with the note.
+  const wantDaily = opt.range === "3Y" && !opt.weekly;
   const qRange = usePrice(row.symbol, opt.range);
-  const dailyAvail = qRange.data?.grain === "weekly" && qRange.data?.dailyAvailable === true;
-  const qDaily = usePrice(row.symbol, opt.range, dailyAvail && longDaily, "daily");
-  const q = dailyAvail && longDaily ? qDaily : qRange;
+  const qDaily = usePrice(row.symbol, opt.range, wantDaily, "daily");
+  const noDaily = !!qDaily.data && !qDaily.isPlaceholderData && qDaily.data.grain !== "daily";   // asked for daily, the candles do not cover 3Y: the weekly 3Y it is
+  const q = wantDaily && !noDaily ? qDaily : qRange;
+  const dailyAvail = opt.range === "3Y" && !noDaily;
   const q6 = usePrice(row.symbol, "6M");
   const peers = useSection<Peers>(row.symbol, "peers", menu === "cmp" || cmp.peers.length > 0).data;
   const box = useRef<HTMLDivElement>(null), host = useRef<HTMLDivElement>(null), chart = useRef<IChartApi | null>(null), main = useRef<ISeriesApi<SeriesType> | null>(null);
@@ -256,6 +259,7 @@ export function ChartPanel({ row, onClose, onStep, extra, inline = false, onChar
     }
     type Mk = { time: Time; position: "aboveBar" | "belowBar"; color: string; shape: "circle" | "arrowUp" | "arrowDown"; text: string };
     const marks: Mk[] = evs.map((x) => ({ time: T(x.d), position: "aboveBar" as const, color: pal.gold, shape: "circle" as const, text: x.txt }));
+    let tail: { at: number; chars: number } | null = null;     // the single mark, when it has words (rightRoom)
     const dr = ind.draw ? row.draw : undefined;
     if (dr) {
       if (dr.level != null) m.createPriceLine({ price: dr.level, color: pal.gold, lineWidth: 1, lineStyle: LineStyle.Dashed, axisLabelVisible: true, title: levelTitle(dr) });   // C4
@@ -271,7 +275,7 @@ export function ChartPanel({ row, onClose, onStep, extra, inline = false, onChar
       }
       else {      // C2: a single mark ("Close above" on Fresh close above a base, "Base low" on the bases) is drawn too, above or below its candle
         const one = singleMark(dr.swings, bars, el.clientWidth > 0 && el.clientWidth < 520, { level: pal.gold, base: BASE_COLOR });
-        if (one) marks.push({ ...one, time: T(one.time) });
+        if (one) { marks.push({ ...one, time: T(one.time) }); tail = { at: bars.findIndex((b) => b.t === one.time), chars: one.text.length }; }
       }
       if (dr.bar) marks.push({ time: T(snap(dr.bar) as string), position: "belowBar", color: pal.gold, shape: "arrowUp", text: "" });
     }
@@ -279,7 +283,8 @@ export function ChartPanel({ row, onClose, onStep, extra, inline = false, onChar
     const fit = () => {
       c.timeScale().fitContent();
       const pad = Math.max(2, Math.ceil(bars.length * 0.04));     // room left of the first bar, so the first label on the time axis ("2022") is not cut off
-      c.timeScale().setVisibleLogicalRange({ from: -pad, to: bars.length - 1 + 4 });
+      const room = rightRoom(bars.length, pad, tail?.at ?? null, tail?.chars ?? 0, el.clientWidth - 64);   // the plot is the box less the price axis; a mark's words over the last candles stay inside
+      c.timeScale().setVisibleLogicalRange({ from: -pad, to: bars.length - 1 + room });
     };
     fit();
     // C7: the chart refits when its box gets wider or narrower (the window or the panel is resized), so its left never stays empty
@@ -345,11 +350,14 @@ export function ChartPanel({ row, onClose, onStep, extra, inline = false, onChar
   const note = behindNote(lastDaily, row.listDay, row.priceOn);      // F6
   const keyOn = EVENT_KEY.filter(([k]) => evs.some((x) => x.txt === k));    // C4: the key lists the letters drawn on the chart
   const prep = (q.failureReason as { status?: number } | null)?.status === 202 || (q.error as { status?: number } | null)?.status === 202;   // F7
+  // Task #394 re-check (28 Nov, Thomas Cook): a company whose report is not built yet waits in the build queue; when many are being prepared the server
+  // answers 429 ("busy") and the chart asks again for a few minutes. Say so, instead of "Loading the chart…" all that time.
+  const busy = (q.failureReason as { status?: number } | null)?.status === 429 || (q.error as { status?: number } | null)?.status === 429;
   // the range's change runs from the first candle of the range as the server sends it, whatever D or W shows (QA 26 Nov 2026: 6M read +33.01% on D
   // and +28.13% on W, because the first weekly bar closes at the end of the range's first week)
   const first = daily[0] ?? bars[0], chg = lastBar && first ? (lastBar.c / first.c - 1) * 100 : null;
   const tog = (k: keyof Ind) => touch({ ...ind, [k]: !ind[k] });
-  const reset = () => { touch(defaultIndicators(row.screen)); setCmp({ nifty: false, peers: [] }); setLog(false); setLongDaily(false); setOpt((o) => ({ ...o, mode: "candles", weekly: false })); setMeasure({ on: false, a: null, out: null }); chart.current?.timeScale().fitContent(); };
+  const reset = () => { touch(defaultIndicators(row.screen)); setCmp({ nifty: false, peers: [] }); setLog(false); setOpt((o) => ({ ...o, mode: "candles", weekly: false })); setMeasure({ on: false, a: null, out: null }); chart.current?.timeScale().fitContent(); };
   const peerList = (peers?.symbols ?? []).filter((p) => p !== row.symbol).slice(0, 8);
   const pct = (v: number | null) => v == null ? null : <span className={v >= 0 ? "up" : "dn"}>{v >= 0 ? "+" : ""}{num(v)}%</span>;
   return (
@@ -361,26 +369,30 @@ export function ChartPanel({ row, onClose, onStep, extra, inline = false, onChar
         {!inline && <button type="button" className="cp-x" onClick={onClose} aria-label="Close chart">×</button>}
       </header>
       <div className="cp-p">{lc ? <><b>₹{num(lc.price)}</b><small className="cp-asof" title={`The list's official close of ${candleDay(lc.day)}, the same day as the list`}>{candleDay(lc.day)} close</small></>
+        : !lastBar && row.priceOn != null && row.listDay ? <><b>₹{num(row.priceOn)}</b><small className="cp-asof" title={`The list's official close of ${candleDay(row.listDay)}`}>{candleDay(row.listDay)} close</small></>
         : <><b>₹{num(lastBar?.c ?? row.price)}</b>{!lastBar && row.price != null && <small className="cp-asof" title="The price in the list; the chart's close shows when it has loaded">list price</small>}{lastBar && <small className="cp-asof" title="The chart's last candle. The list beside it shows the latest close, which can be newer while this chart is refreshed.">close of {candleDay(lastBar.t)}</small>}</>}
         {r1 != null && <span title={lc ? `Change over the month to ${candleDay(lc.day)}` : "Change over the last month"}>1M {pct(r1)}</span>}{r3 != null && <span title={lc ? `Change over the 3 months to ${candleDay(lc.day)}` : "Change over the last 3 months"}>3M {pct(r3)}</span>}
         {chg != null && opt.range !== "1M" && <span className="cp-rng" title={`Change over the chart range (${opt.range})`}>{opt.range} {pct(chg)}</span>}
+        {/* task #394 re-check (28 Nov): on 1M the range's figure is the 1M one already shown; an invisible copy keeps the header the same width, so it
+            wraps the same way and the buttons below do not jump 37px between 1M and the other ranges */}
+        {chg != null && opt.range === "1M" && <span className="cp-rng cp-ghost" aria-hidden="true" data-t={`1M ${chg >= 0 ? "+" : ""}${num(chg)}%`} />}
         {model && <ScoreChip className="cp-badge" v={scoreView(prismMap[row.symbol])} />}</div>
       {note && <p className="cp-note" role="note"><b>{note[0]}</b> {note[1]}</p>}
       {!!row.facts?.filter(([, v]) => v != null).length && <div className="cp-fbox" aria-label="What the chart shows"><b>{factsHeading(row.factsAsOf)}</b>
         <dl className="cp-facts">{row.facts.filter(([, v]) => v != null).map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{factValue(k, v)}</dd></div>)}</dl></div>}
       <div className="cp-bar" role="group" aria-label="Chart range and tools">
         <span className="cp-seg" role="group" aria-label="Daily or weekly">
-          <button type="button" className={!weekly ? "on" : ""} aria-pressed={!weekly} disabled={!canDaily && !dailyAvail} title={canDaily || dailyAvail ? "Daily candles" : "3 and 5 years are shown as weekly candles"} onClick={() => { if (dailyAvail) setLongDaily(true); setOpt((o) => ({ ...o, weekly: false })); }}>D</button>
-          <button type="button" className={weekly ? "on" : ""} aria-pressed={weekly} onClick={() => { setLongDaily(false); setOpt((o) => ({ ...o, weekly: true })); }} title="Weekly candles">W</button></span>
+          <button type="button" className={!weekly ? "on" : ""} aria-pressed={!weekly} disabled={!canDaily && !dailyAvail} title={canDaily || dailyAvail ? "Daily candles" : opt.range === "3Y" ? "This company's daily candles do not reach back three years" : "5Y and MAX are shown as weekly candles"} onClick={() => setOpt((o) => ({ ...o, weekly: false }))}>D</button>
+          <button type="button" className={weekly ? "on" : ""} aria-pressed={weekly} onClick={() => setOpt((o) => ({ ...o, weekly: true }))} title="Weekly candles">W</button></span>
         <span className="cp-seg" role="group" aria-label="Chart type">
           {(["candles", "bars", "line"] as Mode[]).map((m) => <button type="button" key={m} className={mode === m ? "on" : ""} aria-pressed={mode === m} disabled={m !== "line" && bars.length > 0 && !hasOHL} onClick={() => setOpt((o) => ({ ...o, mode: m }))}>{m[0].toUpperCase() + m.slice(1)}</button>)}</span>
         <span className="cp-seg" role="group" aria-label="Range">
-          {RANGES.map((r) => <button type="button" key={r} className={opt.range === r ? "on" : ""} aria-pressed={opt.range === r} onClick={() => { setLongDaily(false); setOpt((o) => ({ ...o, range: r })); }}>{r}</button>)}</span>
+          {RANGES.map((r) => <button type="button" key={r} className={opt.range === r ? "on" : ""} aria-pressed={opt.range === r} onClick={() => setOpt((o) => ({ ...o, range: r }))}>{r}</button>)}</span>
       </div>
       <div className="cp-bar" role="group" aria-label="Lines, compare and measure">
         <span className="cp-menu"><button type="button" className={"cp-dd" + (menu === "ind" ? " on" : "")} aria-haspopup="true" aria-expanded={menu === "ind"} onClick={() => setMenu(menu === "ind" ? null : "ind")}>Indicators ▾</button>
           {menu === "ind" && <div className="cp-pop" role="group" aria-label="Indicators">
-            {LINES.map((L) => { const lock = L.k === "ema200" && hasLock("ema200"); return <label key={L.k} className={lock ? "lk" : ""}><input type="checkbox" checked={ind[L.k] && !lock} disabled={lock} onChange={() => tog(L.k)} /><i style={{ background: L.color }} />{lineLabel(L.src, L.n, weekly)}{lock ? " (Silver)" : ""}</label>; })}
+            {LINES.map((L) => { const lock = L.k === "ema200" && hasLock("ema200"); return <label key={L.k} className={lock ? "lk" : ""}><input type="checkbox" checked={ind[L.k] && !lock} disabled={lock} onChange={() => tog(L.k)} /><i style={{ background: L.color }} />{lineLabel(L.src, L.n, weekly)}{lock ? " (paid plans)" : ""}</label>; })}
             <hr />
             <label><input type="checkbox" checked={ind.volAvg} onChange={() => tog("volAvg")} />Volume average (20)</label>
             <label><input type="checkbox" checked={ind.hiVol} onChange={() => tog("hiVol")} /><i style={{ background: "#2563eb" }} />Highest volume in 3 months</label>
@@ -398,12 +410,12 @@ export function ChartPanel({ row, onClose, onStep, extra, inline = false, onChar
         <button type="button" className={measure.on ? "on" : ""} aria-pressed={measure.on} onClick={() => setMeasure((m) => ({ on: !m.on, a: null, out: m.on ? null : "Click the start point" }))}>Measure</button>
         <button type="button" onClick={reset} aria-label="Reset the chart" title="Reset the chart">↺</button>
       </div>
-      {!canDaily && <p className="cp-wk">3Y, 5Y and MAX show weekly candles; the averages on them are weekly.</p>}
+      {!canDaily && <p className="cp-wk">{opt.range === "3Y" && !opt.weekly ? "3Y shows weekly candles for this company: its daily candles do not reach back three years. The averages on them are weekly." : opt.range === "3Y" ? "Weekly candles; the averages on them are weekly. D shows 3Y on daily candles." : "5Y and MAX show weekly candles; the averages on them are weekly."}</p>}
       {measure.out && <div className="cp-meas" role="status">{measure.out}</div>}
       <div className="cp-leg" aria-live="off">{legend.length ? legend.map((l, i) => <div key={i}>{l}</div>) : " "}</div>
       <div className="cp-c" ref={host}>
-        {q.isLoading && <p className="cp-m">{prep ? "Preparing this company's chart…" : "Loading the chart…"}</p>}
-        {!q.isLoading && !bars.length && <p className="cp-m">{q.isError ? (prep ? "Preparing this company's chart. It is taking longer than usual." : "The chart could not be loaded.") : "No price history yet for this company."}{q.isError && <button type="button" className="btn" onClick={() => q.refetch()}>Try again</button>}</p>}
+        {q.isLoading && <p className="cp-m">{prep ? "Preparing this company's chart…" : busy ? "Many company charts are being prepared right now. This one is next in line and opens here on its own." : "Loading the chart…"}</p>}
+        {!q.isLoading && !bars.length && <p className="cp-m">{q.isError ? (prep ? "Preparing this company's chart. It is taking longer than usual." : busy ? "Many company charts are being prepared right now, so this one is not ready yet. Please try again in a minute." : "The chart could not be loaded.") : "No price history yet for this company."}{q.isError && <button type="button" className="btn" onClick={() => q.refetch()}>Try again</button>}</p>}
       </div>
       {keyOn.length > 0 && <div className="cp-key" aria-label="Marks on the chart">{keyOn.map(([k, w]) => <span key={k}><i>{k}</i>{w}</span>)}</div>}
       {model === "prism" && prismParts(prismMap[row.symbol]).length > 0 && <ul className="cp-score cp-pz" aria-label="FinLit Prism scores">{prismParts(prismMap[row.symbol]).map((p) => <li key={p.key} className={"pb-" + p.band}><small>{p.label}</small><b>{p.text}</b><em>{p.word ?? (p.value == null ? "Not available" : p.key === "risk" ? "Higher means lower risk" : "Higher is better")}</em></li>)}</ul>}

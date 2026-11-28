@@ -25,11 +25,12 @@ from pydantic import BaseModel, Field
 from ..auth.routes import NO_STORE, Ctx, fail, read_limit, secure_ctx
 from ..auth.service import current
 from ..auth.routes import limits_for
+from ..auth.entitlements import part_of
 from .api import BASIC_ROWS, DEFAULT_COLUMNS
 from .catalog import BY_KEY, CATALOG, GROUP_LABEL, allowed, offered
 from .data import Table, get_table
 from .qaliases import ALIAS, definition, display_names
-from .ql import MAX_CHARS, MAX_CONDITIONS, TIER_NAME, Analysis, Problem, analyze, canonical, count_conditions, fmt_in, metrics_in, reading
+from .ql import MAX_CHARS, MAX_CONDITIONS, Analysis, Problem, analyze, canonical, count_conditions, fmt_in, metrics_in, reading
 from .qeval import data_warnings, run
 
 router = APIRouter(prefix="/api/screener")
@@ -131,8 +132,8 @@ def _prepare(t: Table, body: RunIn, plan: str):
         elif BY_KEY[k].group == "model" and not offered(plan, "model"):   # task #283: the retired score is offered to no plan
             errors.append(_problem("plan_score", "That column is not offered: queries use the FinLit Prism score and its parts."))
         elif not allowed(plan, BY_KEY[k].tier):
-            tier = TIER_NAME[BY_KEY[k].tier]
-            errors.append({**_problem("plan_locked", f"The column {BY_KEY[k].label} is part of the {tier} plan."), "plan": BY_KEY[k].tier})
+            tier = part_of(BY_KEY[k].tier)
+            errors.append({**_problem("plan_locked", f"The column {BY_KEY[k].label} is part of {tier}."), "plan": BY_KEY[k].tier})
         elif k not in cols:
             cols.append(k)
     sort = body.sort or Sort()
@@ -141,7 +142,7 @@ def _prepare(t: Table, body: RunIn, plan: str):
     elif sort.key in BY_KEY and BY_KEY[sort.key].group == "model" and not offered(plan, "model"):
         errors.append(_problem("plan_score", "That sort is not offered: queries use the FinLit Prism score and its parts."))
     elif sort.key in BY_KEY and not allowed(plan, BY_KEY[sort.key].tier):
-        errors.append({**_problem("plan_locked", f"Sorting by {BY_KEY[sort.key].label} is part of the {TIER_NAME[BY_KEY[sort.key].tier]} plan."), "plan": BY_KEY[sort.key].tier})
+        errors.append({**_problem("plan_locked", f"Sorting by {BY_KEY[sort.key].label} is part of {part_of(BY_KEY[sort.key].tier)}."), "plan": BY_KEY[sort.key].tier})
     if body.recent and t.latest_quarter() is None:
         errors.append(_problem("recent_unavailable", "We can't tell which quarter is the latest yet, so 'only recent results' is off for now."))
     return a, cols, sort, errors, warnings
@@ -189,7 +190,7 @@ async def export(request: Request, body: RunIn):
     await read_limit(request, ctx, "ql_export", EXPORT_VISITOR, EXPORT_MEMBER, EXPORT_WINDOW)
     plan = plan_of(ctx)
     if not allowed(plan, "silver"):
-        raise fail(403, "plan_required", "Downloading results is part of the Silver plan.", plan="silver")
+        raise fail(403, "plan_required", "Downloading results is part of every paid plan.", plan="silver")
     t = await _table(request)
     a, cols, sort, errors, _ = _prepare(t, body, plan)
     if errors or not a.ok:
@@ -298,7 +299,7 @@ def _check_columns(cols: List[str], plan: str) -> List[str]:
         if k not in BY_KEY:
             raise fail(422, "bad_column", f"We don't have a column called '{k}'.")
         if not allowed(plan, BY_KEY[k].tier):
-            raise fail(403, "plan_required", f"The column {BY_KEY[k].label} is part of the {TIER_NAME[BY_KEY[k].tier]} plan.", plan=BY_KEY[k].tier)
+            raise fail(403, "plan_required", f"The column {BY_KEY[k].label} is part of {part_of(BY_KEY[k].tier)}.", plan=BY_KEY[k].tier)
         if k not in out:
             out.append(k)
     return out

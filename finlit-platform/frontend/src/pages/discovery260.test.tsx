@@ -321,8 +321,10 @@ describe("#260: the rev 4 filter box, the columns and the company panel", () => 
   });
   it("twelve columns (task #303: Short-term trend after Prism); filings as two chips then a dashed '+N more' with the rest in its hover text; sizes on the shared scale", async () => {
     await show("/discover/companies");
-    expect([...document.querySelectorAll(".dsc-tb thead th .dsc-sb")].map((b) => b.textContent)).toEqual(["Company", "Sector · industry", "Theme · stage", "Filings, 90 days", "Prism",
-      "Short-term trend", "Long-term trend", "3 months", "1 year", "Below 52-wk high", "Market cap", "Industry: Rotation · Pulse"]);
+    // developer file 53: under a group a column keeps a short name ("Short term" under "FinLit's reading"); its full name is its hover text
+    expect([...document.querySelectorAll(".dsc-tb thead th .dsc-sb")].map((b) => b.textContent)).toEqual(["Company", "Sector · industry", "Theme · stage", "Last 90 days", "Prism",
+      "Short term", "Long term", "3 months", "1 year", "Below 52-wk high", "Market cap", "Rotation · Pulse"]);
+    expect([...document.querySelectorAll(".dsc-tb thead th .dsc-sb")].map((b) => b.getAttribute("title")).filter(Boolean)).toEqual(["Filings, 90 days", "Short-term trend", "Long-term trend", "Industry: Rotation · Pulse"]);
     const forge = [...document.querySelectorAll(".dsc-tb tbody tr")].find((r) => /Forge Co/.test(r.textContent || ""))!;
     const chips = [...forge.querySelectorAll(".dsc-ev")].map((e) => e.textContent);
     expect(chips).toEqual(["1 order", "1 capacity", "+2 more"]);

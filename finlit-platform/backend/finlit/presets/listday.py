@@ -54,6 +54,7 @@ class Market:
     untraded: Dict[str, Optional[str]] = field(default_factory=dict)   # F8: symbol -> the last day it traded (None: never in the candles read)
     loaded: int = 0                                                 # companies with a candle on the list day
     busiest: int = 0                                                # companies on the busiest day of the window
+    sig: Optional[str] = None                                       # closes_sig of the list day at the build (has_work: a close rewritten since)
 
     @property
     def complete(self) -> bool:
@@ -131,6 +132,19 @@ def untraded_of(closes: Dict[str, DayClose], older: Dict[str, Optional[str]], se
     return out
 
 
+# Task #394 re-check (28 Nov 2026): the list day's candles are written twice. The first close of a company (Dhan's, taken while the day's closes
+# arrive) is later replaced by the exchange's official close (eod_bhav): Hikal 230.86 then 231.85, Sportking 249.03 then 248.90, with a new volume.
+# The lists were built on the first and kept it, so the list's close, its figures ("0.1% below the level", "4.0x its 50-day average") and the
+# chart's last candle disagreed. A fingerprint of the day's closes and volumes is saved with each build; when it changes, the lists are built again.
+SIG_SQL = ("SELECT md5(coalesce(string_agg(symbol || ':' || close::text || ':' || coalesce(volume::text, ''), ',' ORDER BY symbol), '')) "
+           "FROM daily_candles WHERE day = $1")
+
+
+async def closes_sig(conn, day: date) -> str:
+    """The fingerprint of every company's close and volume on `day` in the candle store (one indexed read of about 3,000 rows)."""
+    return await conn.fetchval(SIG_SQL, day)
+
+
 async def newest_day(conn, expected: date) -> Optional[date]:
     """The list day the candles support now (the same rule as load): the newest session on or before `expected`, or None."""
     return (await newest(conn, expected))[0]
@@ -158,6 +172,7 @@ async def load(store, symbols: Sequence[str], expected: date) -> Market:
             day = list_day(sess, expected)
             if day is None:
                 return Market()
+            sig = await closes_sig(conn, day)
             rows = await conn.fetch("SELECT symbol, day, close, volume FROM daily_candles WHERE day > $1 AND day <= $2 ORDER BY symbol, day", lo, day)
             closes = closes_from_rows(rows, day)
             wanted = {s.upper() for s in symbols}
@@ -176,7 +191,7 @@ async def load(store, symbols: Sequence[str], expected: date) -> Market:
     if untraded:
         log.info("ready-made lists: %d companies with no trade in the last %d sessions to %s are left off: %s", len(untraded), NO_TRADE_SESSIONS, day,
                  sorted(untraded.items())[:50])
-    return Market(day=day, sessions=sessions, closes=closes, untraded=untraded, loaded=counts.get(day, 0), busiest=max(counts.values(), default=0))
+    return Market(day=day, sessions=sessions, closes=closes, untraded=untraded, loaded=counts.get(day, 0), busiest=max(counts.values(), default=0), sig=sig)
 
 
 async def has_work(store, now=None) -> bool:
@@ -191,10 +206,14 @@ async def has_work(store, now=None) -> bool:
         counts = {r["day"]: r["n"] for r in await conn.fetch("SELECT day, count(*) AS n FROM daily_candles WHERE day > $1 AND day <= $2 GROUP BY day", lo, expected)}
         built = await conn.fetchval("SELECT value->>'asOf' FROM preset_meta WHERE key = 'last_run'")
         had = await conn.fetchval("SELECT value->>'coverage' FROM preset_meta WHERE key = 'last_run'")
-    day = list_day(sessions_from_counts(counts, expected), expected)
+        had_sig = await conn.fetchval("SELECT value->>'closesSig' FROM preset_meta WHERE key = 'last_run'")
+        day = list_day(sessions_from_counts(counts, expected), expected)
+        now_sig = await closes_sig(conn, day) if day is not None and had_sig and built and built[:10] == day.isoformat() else None
     if day is None:
         return False
     if not built or built < day.isoformat():
+        return True
+    if now_sig is not None and now_sig != had_sig:      # the same day, its closes rewritten since the build (the official close replaced the first)
         return True
     # 26 Nov 2026 (the founder: work with whatever closes are loaded, and keep updating): the same day, built while its closes were still arriving,
     # is built again once clearly more of them are in (at least GROWTH_MIN companies and GROWTH_SHARE more than at the build)

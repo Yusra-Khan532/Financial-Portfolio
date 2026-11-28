@@ -1,7 +1,7 @@
 // Reverse valuation (task #69): "What must happen for today's price to be justified?" Pick a company, choose what to solve for (revenue growth, final margin, exit multiple or the
 // implied return), set the other assumptions, and read the headline answer, how it compares with the company's own history, the miss scenarios and a growth x margin grid.
 // Every number is worked out in the browser by lib/reverseVal.ts from the company's reported figures, with every assumption on screen. Describes what the price assumes; not a forecast, not a rating.
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router";
 import { PageHeader } from "../components/PageHeader";
@@ -98,15 +98,15 @@ const METHOD = ["Revenue grows at the rate you set (or fades towards a long-run 
 // Seven buttons under the header that scroll to the page's sections. Nothing is hidden or moved: a button only scrolls. The bar sticks under the
 // site header, and the section in view is marked. A section that is not on the page yet (no company chosen, or no price solution) has its button
 // greyed out, saying why.
-type NavItem = { id: string; label: string; icon: string; sel: string; need: "company" | "solved"; about: string };
+type NavItem = { id: string; label: string; short: string; icon: string; sel: string; need: "company" | "solved"; about: string };
 const NAV: NavItem[] = [
-  { id: "as", label: "Assumptions", icon: "pencil", sel: ".rv-as", need: "company", about: "Choose what to solve for and set growth, margin, exit multiple, discount rate and the other inputs. Each field shows the company's own history beside it." },
-  { id: "res", label: "Required Growth", icon: "growth", sel: ".rv-res", need: "company", about: "The answer: the revenue growth (or margin, multiple or return, if you solve for that) today's price needs, then how it compares with the company's own record and the implied return." },
-  { id: "miss", label: "Miss Scenarios", icon: "decline", sel: ".rv-miss", need: "solved", about: "How the value per share and the return change if growth, margin, the exit multiple or the discount rate comes in below (or above) what the price needs." },
-  { id: "torn", label: "Price Drivers", icon: "bars", sel: ".rv-torn", need: "solved", about: "Which assumption the value depends on most: one shock at a time, ranked by how far it moves the value per share." },
-  { id: "ev", label: "Weighted Outcome", icon: "balance", sel: ".rv-ev", need: "solved", about: "A value per share weighted by how likely you think each case is. The weights are yours; the tool does not know the odds." },
-  { id: "gr", label: "Sensitivity Grid", icon: "grid", sel: ".rv-gr", need: "solved", about: "Value per share for each pair of revenue growth and final EBITDA margin, with the cell the price needs outlined." },
-  { id: "dr", label: "Save & Export", icon: "download", sel: ".rv-dr", need: "company", about: "Every assumption with its source and date, a link that opens this exact view, and the working as a CSV." },
+  { id: "as", label: "Assumptions", short: "Inputs", icon: "pencil", sel: ".rv-as", need: "company", about: "Choose what to solve for and set growth, margin, exit multiple, discount rate and the other inputs. Each field shows the company's own history beside it." },
+  { id: "res", label: "Required Growth", short: "Required", icon: "growth", sel: ".rv-res", need: "company", about: "The answer: the revenue growth (or margin, multiple or return, if you solve for that) today's price needs, then how it compares with the company's own record and the implied return." },
+  { id: "miss", label: "Miss Scenarios", short: "Misses", icon: "decline", sel: ".rv-miss", need: "solved", about: "How the value per share and the return change if growth, margin, the exit multiple or the discount rate comes in below (or above) what the price needs." },
+  { id: "torn", label: "Price Drivers", short: "Drivers", icon: "bars", sel: ".rv-torn", need: "solved", about: "Which assumption the value depends on most: one shock at a time, ranked by how far it moves the value per share." },
+  { id: "ev", label: "Weighted Outcome", short: "Weighted", icon: "balance", sel: ".rv-ev", need: "solved", about: "A value per share weighted by how likely you think each case is. The weights are yours; the tool does not know the odds." },
+  { id: "gr", label: "Sensitivity Grid", short: "Grid", icon: "grid", sel: ".rv-gr", need: "solved", about: "Value per share for each pair of revenue growth and final EBITDA margin, with the cell the price needs outlined." },
+  { id: "dr", label: "Save & Export", short: "Export", icon: "download", sel: ".rv-dr", need: "company", about: "Every assumption with its source and date, a link that opens this exact view, and the working as a CSV." },
 ];
 const NAV_TOP = 64;   // the site header's height: the bar sticks just under it
 const reduced = () => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -115,6 +115,23 @@ export function SectionNav({ company, solved, why }: { company: boolean; solved:
   const bar = useRef<HTMLElement>(null), row = useRef<HTMLDivElement>(null), lock = useRef(0), chosen = useRef<string | null>(null);
   const [on, setOn] = useState<string | null>(null);
   const [edge, setEdge] = useState({ l: false, r: false });
+  // QA 27 Nov: on a laptop (with the side panel open) the seven buttons did not fit and the bar scrolled sideways. Off a phone the bar now fits itself:
+  // full labels with icons when they fit, then without icons, then short labels (the full name stays in the button's accessible name and tooltip).
+  // A phone (760px and narrower) keeps the full labels and scrolls sideways.
+  const [fit, setFit] = useState<0 | 1 | 2>(0);
+  useLayoutEffect(() => {
+    const el = row.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const measure = () => {
+      if (typeof matchMedia === "function" && matchMedia("(max-width: 760px)").matches) { el.dataset.fit = "0"; setFit(0); return; }
+      for (const lv of [0, 1, 2] as const) { el.dataset.fit = String(lv); if (el.scrollWidth <= el.clientWidth + 1) { setFit(lv); return; } }
+      setFit(2);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
   const ok = (n: NavItem) => (n.need === "company" ? company : solved);
   const off = (n: NavItem) => (ok(n) ? null : n.need === "company" || !company ? "Choose a company first." : why);
   const offset = () => NAV_TOP + (bar.current?.offsetHeight ?? 56) + 12;
@@ -158,11 +175,11 @@ export function SectionNav({ company, solved, why }: { company: boolean; solved:
   };
   return (
     <nav ref={bar} className="rv-sn" aria-label="Sections of this page">
-      <div ref={row} className={"rv-sn-row" + (edge.l ? " fl" : "") + (edge.r ? " fr" : "")} onScroll={edges}>
+      <div ref={row} className={"rv-sn-row" + (edge.l ? " fl" : "") + (edge.r ? " fr" : "")} data-fit={fit} onScroll={edges}>
         {NAV.map((n) => { const why0 = off(n); return (
           <div key={n.id} className={"rv-sni" + (on === n.id ? " on" : "") + (why0 ? " off" : "")} data-id={n.id}>
             <button type="button" className="rv-snb" data-target={".rv " + n.sel} aria-current={on === n.id ? "true" : undefined} aria-disabled={why0 ? true : undefined}
-              title={why0 ?? `Go to ${n.label}`} onClick={() => (why0 ? undefined : go(n))}><Icon name={n.icon} /><span>{n.label}</span></button>
+              title={why0 ?? `Go to ${n.label}`} aria-label={n.label} onClick={() => (why0 ? undefined : go(n))}><Icon name={n.icon} /><span className="rv-snl">{n.label}</span><span className="rv-sns" aria-hidden="true">{n.short}</span></button>
             <Info g={{ key: "rvsn-" + n.id, label: n.label, what: n.about, note: why0 ?? undefined } as Glossary} />
           </div>); })}
       </div>
@@ -352,7 +369,7 @@ export function ReverseValuationPage() {
                       <div className="tw rv-mt"><table><colgroup><col className="c-s" /><col /><col /><col />{side === "miss" && <col />}</colgroup>
                         <thead><tr><th scope="col">Scenario</th><th scope="col" className="r"><span className="rv-th">Value per share<Tip k="vps" /></span></th><th scope="col" className="r"><span className="rv-th">Against today<Tip k="against" /></span></th><th scope="col" className="r"><span className="rv-th">Implied return<Tip k="irr" /></span></th>{side === "miss" && <th scope="col" className="r"><span className="rv-th">Years to recover<Tip k="recover" /></span></th>}</tr></thead>
                         <tbody>{[...list, ...(mineRow ? [mineRow] : [])].map((m, i, all) => { const fam = family(m.key), first = i === 0 || family(all[i - 1].key) !== fam, tip = first ? FAM_TIP[fam] : undefined;
-                          return <tr key={m.key} className={first && i > 0 ? "rv-g1" : undefined}><th scope="row"><span className="rv-sc"><span className={"rv-mk " + FAM_MARK[fam]} aria-hidden="true">{fam === "up" || (m.downside ?? 0) > 0 ? "▲" : fam === "combined" ? "▼▼" : "▼"}</span><span className="rv-sn2"><b>{m.label}{tip && <Tip k={tip} />}</b><small>{m.change || "—"}</small></span></span></th>
+                          return <tr key={m.key} className={first && i > 0 ? "rv-g1" : undefined}><th scope="row"><span className="rv-sc"><span className={"rv-mk " + FAM_MARK[fam]} aria-hidden="true">{fam === "up" || (m.downside ?? 0) > 0 ? "▲" : fam === "combined" ? "▼▼" : "▼"}</span><span className="rv-sn2"><b>{m.label}{tip && <Tip k={tip} />}</b><small>{m.change ? m.change.split(", ").map((c, ci, all) => <Fragment key={ci}><span className="rv-chg">{c}</span>{ci < all.length - 1 ? ", " : ""}</Fragment>) : "—"}</small></span></span></th>
                             <td className="r">{pen(m.fair)}</td><td className={"r " + ((m.downside ?? 0) < 0 ? "neg" : "pos")}>{signed(m.downside)}</td><td className="r">{m.irr == null ? "—" : `${f1(m.irr)}%`}</td>{side === "miss" && <td className="r">{m.recover == null ? "—" : `${f1(m.recover)} yrs`}</td>}</tr>; })}</tbody></table></div>
                       <details className="rv-own-d"><summary><span>Try your own scenario</span><small>Set your own change to each assumption</small></summary>
                         <div className="rv-own">{([["dg", "Growth change (points)"], ["dm", "Margin change (points)"], ["mult", "Exit multiple change (%)"], ["dr", "Discount rate change (points)"]] as const).map(([k, l]) => <label key={k}><span>{l}</span><input inputMode="decimal" value={mine[k]} onChange={(e) => setMine((o) => ({ ...o, [k]: e.target.value }))} placeholder="0" /></label>)}</div>
@@ -393,7 +410,7 @@ export function ReverseValuationPage() {
                           const detail = x == null ? `Growth ${f1(g)}%, margin ${f1(m)}%: no value` : `Growth ${f1(g)}%, margin ${f1(m)}%: ${rs(x, 0)} a share, ${signed((rel - 1) * 100)} against today's price`;
                           return <td key={m} tabIndex={0} title={detail} aria-label={detail} onClick={() => setCell({ ri, ci })} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setCell({ ri, ci }); } }}
                             className={(ri === 2 && ci === 2 ? "mid " : "") + (x == null ? "" : rel >= 1.05 ? "hi" : rel <= 0.95 ? "lo" : "eq") + (x != null && x >= price && ((grid[ri - 1]?.[ci] ?? Infinity) < price || (grid[ri]?.[ci - 1] ?? Infinity) < price) ? " edge" : "") + (cell?.ri === ri && cell?.ci === ci ? " sel" : "")} data-l={lv}>{x == null ? "—" : nf(x, 0)}{ri === 2 && ci === 2 ? <span className="sr-only"> (the price needs this)</span> : null}</td>; })}</tr>)}</tbody></table></div>
-                      <div className="rv-lg"><span>Below price</span><i className="rv-lgb" aria-hidden="true" /><span>Above price</span><span className="rv-lgo"><i aria-hidden="true" />Outlined: the combination the price needs</span></div>
+                      <div className="rv-lg"><span>Below price</span><i className="rv-lgb" aria-hidden="true" /><span>Above price</span><span className="rv-lgo"><i aria-hidden="true" />Solid outline: the combination the price needs</span><span className="rv-lgo rv-lge"><i aria-hidden="true" />Dashed outline: where the value first reaches today's price</span></div>
                       <p className="rv-cell" aria-live="polite">{cell && grid[cell.ri] ? (() => { const x = grid[cell.ri][cell.ci], g = gridRows[cell.ri], m = gridCols[cell.ci]; return x == null ? `Growth ${f1(g)}%, margin ${f1(m)}%: no value.` : `Growth ${f1(g)}% and margin ${f1(m)}%: ${rs(x, 0)} a share, ${signed((x / price - 1) * 100)} against today's ${rs(price, 0)}.`; })() : "Hover over a cell, or tap it, for its detail."}</p>
                     </section>
                   </>

@@ -2,6 +2,10 @@
 // AREAS: the six areas and their tools ("Six areas. 40 tools."); each tool is [icon, name, plan, line, parts, note, path, isNew, ownModel, tiles].
 // PLANS: the plan comparison (plans P = [name, price text, colour, -, {y: yearly price}], groups G with rows and parts, tool counts cnt, total n,
 // add-on prices AP). CLIPS: the short recording of each tool. Change prices and plan contents here only; the page reads them from this file.
+// Task #411 (pack of 27 Nov 2026): every row's and part's v holds one value per plan in P's order, then a sixth value for the combined plan
+// (COMBINED below), which the landing page's table shows as its sixth column. The pack's rule: the better of the two one-area plans, plus five tools
+// from Gold (All my investments, the full Dashboard, 3 watchlists, Discussion forums, FinLit AI 60 questions a month): 27 of 40 tools. The founder is
+// to confirm these values before go-live.
 export const AREAS = [
  {
   "id": "discover",
@@ -1591,7 +1595,8 @@ export const PLANS = {
       "N",
       "No custom ratios",
       "Full",
-      "Full"
+      "Full",
+      "No custom ratios"
      ],
      "ao": "",
      "subs": [
@@ -1601,6 +1606,7 @@ export const PLANS = {
        "v": [
         "N",
         "N",
+        "Y",
         "Y",
         "Y",
         "Y"
@@ -1615,6 +1621,7 @@ export const PLANS = {
         "N",
         "Y",
         "Y",
+        "Y",
         "Y"
        ],
        "ao": ""
@@ -1627,7 +1634,8 @@ export const PLANS = {
         "N",
         "N",
         "Y",
-        "Y"
+        "Y",
+        "N"
        ],
        "ao": ""
       }
@@ -1644,6 +1652,7 @@ export const PLANS = {
       "N",
       "Y",
       "Y",
+      "Y",
       "Y"
      ],
      "ao": "",
@@ -1654,6 +1663,7 @@ export const PLANS = {
        "v": [
         "N",
         "N",
+        "Y",
         "Y",
         "Y",
         "Y"
@@ -1668,6 +1678,7 @@ export const PLANS = {
         "N",
         "Y",
         "Y",
+        "Y",
         "Y"
        ],
        "ao": ""
@@ -1678,6 +1689,7 @@ export const PLANS = {
        "v": [
         "N",
         "N",
+        "Y",
         "Y",
         "Y",
         "Y"
@@ -1696,7 +1708,8 @@ export const PLANS = {
       "200+ ratios",
       "200+ ratios · 15 baskets",
       "Custom ratios · 15 baskets",
-      "Custom ratios · 30 baskets"
+      "Custom ratios · 30 baskets",
+      "200+ ratios · 15 baskets"
      ],
      "ao": "",
      "subs": [
@@ -1704,6 +1717,7 @@ export const PLANS = {
        "n": "Rules from 200+ ratios",
        "line": "Type a rule such as Market cap > 500 AND P/E < 15",
        "v": [
+        "Y",
         "Y",
         "Y",
         "Y",
@@ -1720,7 +1734,8 @@ export const PLANS = {
         "N",
         "N",
         "Y",
-        "Y"
+        "Y",
+        "N"
        ],
        "ao": ""
       },
@@ -1732,7 +1747,8 @@ export const PLANS = {
         "N",
         "15",
         "15",
-        "30"
+        "30",
+        "15"
        ],
        "ao": ""
       }
@@ -1749,7 +1765,8 @@ export const PLANS = {
       "N",
       "N",
       "Y",
-      "Y"
+      "Y",
+      "N"
      ],
      "ao": "",
      "subs": []
@@ -1763,6 +1780,7 @@ export const PLANS = {
      "v": [
       "N",
       "N",
+      "Y",
       "Y",
       "Y",
       "Y"
@@ -1781,6 +1799,7 @@ export const PLANS = {
       "Y",
       "Browse",
       "Y",
+      "Y",
       "Y"
      ],
      "ao": "",
@@ -1789,6 +1808,7 @@ export const PLANS = {
        "n": "Browse funds and ETFs",
        "line": "Every scheme with its returns, cost and size",
        "v": [
+        "Y",
         "Y",
         "Y",
         "Y",
@@ -1804,6 +1824,7 @@ export const PLANS = {
         "N",
         "Y",
         "N",
+        "Y",
         "Y",
         "Y"
        ],
@@ -1821,6 +1842,7 @@ export const PLANS = {
       "N",
       "Y",
       "N",
+      "Y",
       "Y",
       "Y"
      ],
@@ -1845,7 +1867,8 @@ export const PLANS = {
       "Core sections",
       "No sector sections",
       "No sector sections",
-      "All sections"
+      "All sections",
+      "No sector sections"
      ],
      "ao": "Full company report",
      "subs": [
@@ -1853,6 +1876,7 @@ export const PLANS = {
        "n": "Core sections",
        "line": "Overview, financial statements and key ratios",
        "v": [
+        "Y",
         "Y",
         "Y",
         "Y",
@@ -1869,6 +1893,7 @@ export const PLANS = {
         "N",
         "Y",
         "Y",
+        "Y",
         "Y"
        ],
        "ao": "Full company report"
@@ -1879,6 +1904,7 @@ export const PLANS = {
        "v": [
         "N",
         "N",
+        "Y",
         "Y",
         "Y",
         "Y"
@@ -1893,7 +1919,8 @@ export const PLANS = {
         "N",
         "N",
         "N",
-        "Y"
+        "Y",
+        "N"
        ],
        "ao": "Sector Pulse and Rotation"
       }
@@ -1910,7 +1937,8 @@ export const PLANS = {
       "N",
       "10 a day",
       "10 a day",
-      "20 a day"
+      "20 a day",
+      "10 a day"
      ],
      "ao": "",
      "subs": [
@@ -1922,7 +1950,8 @@ export const PLANS = {
         "N",
         "10",
         "10",
-        "20"
+        "20",
+        "10"
        ],
        "ao": ""
       },
@@ -1932,6 +1961,7 @@ export const PLANS = {
        "v": [
         "N",
         "N",
+        "Y",
         "Y",
         "Y",
         "Y"
@@ -1947,6 +1977,7 @@ export const PLANS = {
      "new": false,
      "usp": false,
      "v": [
+      "Y",
       "Y",
       "Y",
       "Y",
@@ -1967,7 +1998,8 @@ export const PLANS = {
       "2 at once",
       "2 at once",
       "Up to 4",
-      "Up to 8"
+      "Up to 8",
+      "2 at once"
      ],
      "ao": "",
      "subs": []
@@ -1983,7 +2015,8 @@ export const PLANS = {
       "N",
       "N",
       "Y",
-      "Y"
+      "Y",
+      "N"
      ],
      "ao": "Charts Pro",
      "subs": [
@@ -1995,7 +2028,8 @@ export const PLANS = {
         "N",
         "N",
         "Up to 9",
-        "Unlimited"
+        "Unlimited",
+        "N"
        ],
        "ao": ""
       }
@@ -2012,7 +2046,8 @@ export const PLANS = {
       "N",
       "N",
       "N",
-      "Y"
+      "Y",
+      "N"
      ],
      "ao": "Charts Pro",
      "subs": []
@@ -2035,7 +2070,8 @@ export const PLANS = {
       "N",
       "N",
       "Y",
-      "Y"
+      "Y",
+      "N"
      ],
      "ao": "Investment calculators",
      "subs": []
@@ -2051,7 +2087,8 @@ export const PLANS = {
       "N",
       "N",
       "N",
-      "Y"
+      "Y",
+      "N"
      ],
      "ao": "Investment calculators",
      "subs": []
@@ -2067,7 +2104,8 @@ export const PLANS = {
       "N",
       "N",
       "N",
-      "Y"
+      "Y",
+      "N"
      ],
      "ao": "Profit and revenue forecast",
      "subs": []
@@ -2079,6 +2117,7 @@ export const PLANS = {
      "new": false,
      "usp": false,
      "v": [
+      "Y",
       "Y",
       "Y",
       "Y",
@@ -2099,6 +2138,7 @@ export const PLANS = {
       "Y",
       "Y",
       "Y",
+      "Y",
       "Y"
      ],
      "ao": "",
@@ -2115,7 +2155,8 @@ export const PLANS = {
       "N",
       "N",
       "N",
-      "Y"
+      "Y",
+      "N"
      ],
      "ao": "Stress Lab",
      "subs": []
@@ -2138,6 +2179,7 @@ export const PLANS = {
       "N",
       "N",
       "Y",
+      "Y",
       "Y"
      ],
      "ao": "",
@@ -2154,7 +2196,8 @@ export const PLANS = {
       "N",
       "50 stocks",
       "50 stocks",
-      "150 stocks"
+      "150 stocks",
+      "50 stocks"
      ],
      "ao": "Full equity portfolio",
      "subs": [
@@ -2166,7 +2209,8 @@ export const PLANS = {
         "N",
         "50",
         "50",
-        "150"
+        "150",
+        "50"
        ],
        "ao": ""
       },
@@ -2176,6 +2220,7 @@ export const PLANS = {
        "v": [
         "N",
         "N",
+        "Y",
         "Y",
         "Y",
         "Y"
@@ -2188,6 +2233,7 @@ export const PLANS = {
        "v": [
         "N",
         "N",
+        "Y",
         "Y",
         "Y",
         "Y"
@@ -2207,6 +2253,7 @@ export const PLANS = {
       "30 funds",
       "N",
       "30 funds",
+      "30 funds",
       "30 funds"
      ],
      "ao": "",
@@ -2222,6 +2269,7 @@ export const PLANS = {
       "N",
       "Y",
       "N",
+      "Y",
       "Y",
       "Y"
      ],
@@ -2239,7 +2287,8 @@ export const PLANS = {
       "N",
       "1 list",
       "4 lists",
-      "8 lists"
+      "8 lists",
+      "3 lists"
      ],
      "ao": "",
      "subs": [
@@ -2251,7 +2300,8 @@ export const PLANS = {
         "N",
         "1",
         "4",
-        "8"
+        "8",
+        "3"
        ],
        "ao": ""
       },
@@ -2263,7 +2313,8 @@ export const PLANS = {
         "N",
         "20",
         "20",
-        "40"
+        "40",
+        "20"
        ],
        "ao": ""
       }
@@ -2280,7 +2331,8 @@ export const PLANS = {
       "5 a month",
       "20 a week",
       "20 a week",
-      "40 a week"
+      "40 a week",
+      "20 a week"
      ],
      "ao": "",
      "subs": []
@@ -2303,6 +2355,7 @@ export const PLANS = {
       "Funds only",
       "Equity only",
       "Full",
+      "Full",
       "Full"
      ],
      "ao": "",
@@ -2319,7 +2372,8 @@ export const PLANS = {
       "N",
       "N",
       "N",
-      "Y"
+      "Y",
+      "N"
      ],
      "ao": "Sector Pulse and Rotation",
      "subs": [
@@ -2331,7 +2385,8 @@ export const PLANS = {
         "N",
         "N",
         "N",
-        "Y"
+        "Y",
+        "N"
        ],
        "ao": "Sector Pulse and Rotation"
       },
@@ -2343,7 +2398,8 @@ export const PLANS = {
         "N",
         "N",
         "N",
-        "Y"
+        "Y",
+        "N"
        ],
        "ao": "Sector Pulse and Rotation"
       }
@@ -2360,7 +2416,8 @@ export const PLANS = {
       "N",
       "N",
       "N",
-      "Y"
+      "Y",
+      "N"
      ],
      "ao": "Sector Pulse and Rotation",
      "subs": []
@@ -2376,7 +2433,8 @@ export const PLANS = {
       "N",
       "N",
       "Y",
-      "Y"
+      "Y",
+      "N"
      ],
      "ao": "",
      "subs": []
@@ -2388,6 +2446,7 @@ export const PLANS = {
      "new": false,
      "usp": false,
      "v": [
+      "Y",
       "Y",
       "Y",
       "Y",
@@ -2408,7 +2467,8 @@ export const PLANS = {
       "N",
       "N",
       "Industry-benchmarked",
-      "Plus industry view"
+      "Plus industry view",
+      "N"
      ],
      "ao": "Results analysis",
      "subs": [
@@ -2420,7 +2480,8 @@ export const PLANS = {
         "N",
         "N",
         "Y",
-        "Y"
+        "Y",
+        "N"
        ],
        "ao": "Results analysis"
       },
@@ -2432,7 +2493,8 @@ export const PLANS = {
         "N",
         "N",
         "Y",
-        "Y"
+        "Y",
+        "N"
        ],
        "ao": "Results analysis"
       },
@@ -2444,7 +2506,8 @@ export const PLANS = {
         "N",
         "N",
         "N",
-        "Y"
+        "Y",
+        "N"
        ],
        "ao": ""
       }
@@ -2457,6 +2520,7 @@ export const PLANS = {
      "new": true,
      "usp": false,
      "v": [
+      "Y",
       "Y",
       "Y",
       "Y",
@@ -2477,6 +2541,7 @@ export const PLANS = {
       "Y",
       "Y",
       "Y",
+      "Y",
       "Y"
      ],
      "ao": "",
@@ -2489,6 +2554,7 @@ export const PLANS = {
      "new": false,
      "usp": false,
      "v": [
+      "Y",
       "Y",
       "Y",
       "Y",
@@ -2516,6 +2582,7 @@ export const PLANS = {
       "Y",
       "Y",
       "Y",
+      "Y",
       "Y"
      ],
      "ao": "",
@@ -2528,6 +2595,7 @@ export const PLANS = {
      "new": false,
      "usp": false,
      "v": [
+      "Y",
       "Y",
       "Y",
       "Y",
@@ -2548,6 +2616,7 @@ export const PLANS = {
       "N",
       "N",
       "Y",
+      "Y",
       "Y"
      ],
      "ao": "",
@@ -2564,7 +2633,8 @@ export const PLANS = {
       "N",
       "N",
       "100 questions a month",
-      "300 questions a month"
+      "300 questions a month",
+      "60 questions a month"
      ],
      "ao": "",
      "subs": []
@@ -2580,7 +2650,8 @@ export const PLANS = {
       "N",
       "N",
       "Y",
-      "Y"
+      "Y",
+      "N"
      ],
      "ao": "",
      "subs": []
@@ -2596,7 +2667,8 @@ export const PLANS = {
       "N",
       "N",
       "Y",
-      "Y"
+      "Y",
+      "N"
      ],
      "ao": "",
      "subs": []
@@ -2624,6 +2696,14 @@ export const PLANS = {
   "More room": "₹199 each"
  }
 };
+
+/* Task #410: the combined plan (Equity Portfolio + Mutual Fund + ETF), shown under the plans table on the landing page and on /plans: its yearly
+   price and the five extras it adds from Gold (moved here from golive.js, so both pages read one source). */
+// Task #411: `head` is the name and colour of its column in the landing page's table, written like PLANS.P's names and colours.
+export const COMBINED = {head:[
+ 'Combined',
+ '#8a5a1c'
+],y:4499,extras:[['All my investments','Shares, funds and ETFs in one view'],['Full dashboard','Shares, funds and alerts on one screen'],['Watchlists','3 lists of 20 stocks'],['Discussion forums','Moderated threads by company'],['FinLit AI','60 questions a month']]};
 
 export const CLIPS = {
  "Stock screener": "/landing/golive/clips/stock-screener.mp4",

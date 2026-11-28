@@ -1,7 +1,0 @@
-/* Task #403: the "High and low" note under the Mutual Fund Score's part bars (mf/ScoreHighLow.tsx). Small, always visible, on the site's tokens. */
-.mfs-hl { margin: 12px 0 0; font-size: var(--fs-13); line-height: 1.5; color: var(--muted); max-width: 86ch; overflow-wrap: break-word; }
-.mfs-hl b { color: var(--text); font-weight: var(--ui-fw-semibold, 600); }
-.mfs-hl .mfs-hl-i { white-space: normal; }
-.mfs-hl .mfs-hl-i i { font-style: normal; }
-/* the landing page's sample card: the note runs under both the ring and the parts */
-.hpz-fbody > .mfs-hl.hmf-hl { grid-column: 1 / -1; margin-top: 4px; text-align: left; }

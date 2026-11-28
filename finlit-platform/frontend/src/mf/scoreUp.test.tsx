@@ -15,7 +15,7 @@ vi.mock("../lib/api", async (orig) => ({
   apiSend: vi.fn(async () => ({})),
 }));
 vi.mock("../lib/ui", () => ({
-  useUI: () => ({ has: (t: string) => ({ basic: 0, silver: 1, gold: 2 })[st.plan] >= ({ basic: 0, silver: 1, gold: 2 } as Record<string, number>)[t], upgrade: vi.fn(), toast: vi.fn() }),
+  useUI: () => ({ has: (t: string) => ({ basic: 0, silver: 1, gold: 2, mfetf: 1, equity: 1, combined: 1, platinum: 2 })[st.plan] >= ({ basic: 0, silver: 1, gold: 2, mfetf: 1, equity: 1, combined: 1, platinum: 2 } as Record<string, number>)[t], upgrade: vi.fn(), toast: vi.fn() }),
   TIER: { gold: { n: "Gold", tc: "--gold", ic: "star" }, silver: { n: "Silver", tc: "--silver", ic: "star" } },
 }));
 import { HistoryChart, ScoreHistoryCard } from "./ScoreHistory";
@@ -297,18 +297,22 @@ describe("part words", () => {
   });
 });
 
-describe("task #403: the score card says what high and low mean", () => {
-  it("a rated fund's card shows the High and low note under its four part bars, always visible (not only a tooltip)", async () => {
+describe("task #403: each part of the score card says what higher means", () => {
+  it("a rated fund's card shows a 'Higher is better' line on each of its four parts, always visible (not only a tooltip), and no combined note", async () => {
     st.routes = { "/api/mf/45678/score": { locked: false, group: "EQ-FLEXI", groupName: "Flexi Cap", status: "RATED", final: 59, label: "Average", disclaimer: "", method: "", model: "", months: 74,
       peers: { kind: "grp", n: 36, text: "" }, rank: 14, rankOf: 36,
       pillars: [{ key: "performance", name: "Performance", reading: "Weak", points: 40.3 }, { key: "risk", name: "Risk", reading: "Strong", points: 86.5 },
         { key: "cost", name: "Cost", reading: "Strong", points: 71.5 }, { key: "quality", name: "Quality", reading: "Weak", points: 41 }],
       reasons: { strengths: [], watchouts: [], gaps: [], notApplicable: [], substitutions: [] }, metrics: [], flags: [] } };
     wrap(<FundScoreCard code={45678} />, "/funds/45678");
-    const note = await screen.findByTestId("score-high-low");
-    expect(note.previousElementSibling!.className).toBe("mfs-pillars");
-    expect(note.textContent).toMatch(/^High and low: every part is read against funds of the same category, and higher is better on all four; low means the opposite\./);
-    expect(note.textContent).toMatch(/High Risk = lower risk: a calmer ride, smaller falls · High Cost = lower costs/);
-    expect(note.textContent).not.toMatch(BANNED);
+    const lines = await screen.findAllByTestId("part-line");
+    expect(lines.map((l) => [l.closest("li")!.querySelector(".mfs-pn")!.textContent, l.textContent])).toEqual([
+      ["Performance", "Higher is better: did better than similar funds"],
+      ["Risk", "Higher is better: a calmer ride, smaller falls"],
+      ["Cost", "Higher is better: lower costs"],
+      ["Quality", "Higher is better: proven, large enough, soundly built"],
+    ]);
+    for (const l of lines) { expect(l.closest("ul")!.className).toBe("mfs-pillars"); expect(l.textContent).not.toMatch(BANNED); }
+    expect(screen.queryByText(/High and low:/)).toBeNull();
   });
 });

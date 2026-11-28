@@ -133,13 +133,19 @@
 .sip-rule-in label { display: inline-flex; gap: 6px; align-items: center; }
 .sip-page .sip-rule-in input[type="number"] { width: 84px; height: 32px; padding: 0 8px; border-radius: var(--r-ctl); text-align: right; font: 600 var(--fs-13) var(--mono); }
 
-.sip-how { display: grid; gap: 18px; }
-.sip-formula { display: inline-flex; align-items: center; gap: 12px; justify-self: start; padding: 18px 26px; border-radius: var(--r-card); border: 1px solid color-mix(in srgb, var(--gold) 45%, transparent); background: var(--s2); font: 500 var(--fs-20) var(--serif); }
-.sip-formula .frac { display: inline-grid; text-align: center; } .sip-formula .frac span:first-child { padding: 0 6px 4px; border-bottom: 1.5px solid var(--text); } .sip-formula .frac span:last-child { padding-top: 4px; }
-.sip-vars { margin: 0; display: grid; gap: 8px; } .sip-vars div { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 12px; align-items: baseline; }
-.sip-vars dt { font: 600 var(--fs-16) var(--serif); color: var(--gold); } .sip-vars dd { margin: 0; font: 500 var(--fs-14) var(--mono); color: var(--text); overflow-wrap: anywhere; }
-.sip-how-l { margin: 0; padding-left: 18px; display: grid; gap: 6px; color: var(--muted); font-size: var(--fs-14); line-height: 1.55; max-width: 90ch; }
-.sip-disc { margin: 4px 0 0; font-size: var(--fs-13); color: var(--faint); max-width: 100ch; line-height: 1.55; }
+/* task #424: the disclaimer is a drop-down (like the DCF page's Methodology card, task #412). The closed row keeps the
+   "Disclaimer" title and the first sentence ("Information only, not investment advice.") in view; the whole row opens it. */
+.sip-dsc { margin: 4px 0 0; padding: 14px 20px; background: var(--s1); border: 1px solid var(--border); border-radius: var(--r-card); }
+.sip-dsc > summary { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 2px 16px; cursor: pointer; list-style: none; border-radius: var(--r-ctl); }
+.sip-dsc > summary::-webkit-details-marker { display: none; }
+.sip-dsc > summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 4px; }
+.sip-dsc-t { grid-column: 1; margin: 0; font: 600 var(--fs-14)/1.4 var(--serif); color: var(--text); }   /* serif like every page heading (:root main h2) */
+.sip-dsc-l { grid-column: 1; font: var(--fs-13)/1.5 var(--sans); color: var(--muted); }
+.sip-dsc-tg { grid-column: 2; grid-row: 1 / span 2; display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 14px; border: 1px solid var(--border-strong); border-radius: var(--ui-r-pill); background: var(--s1); color: var(--text); font: 600 var(--fs-13) var(--sans); }
+.sip-dsc > summary:hover .sip-dsc-tg { border-color: var(--gold); }
+.sip-dsc-chev { width: 7px; height: 7px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: translateY(-2px) rotate(45deg); transition: transform .16s ease; }
+.sip-dsc-chev.up { transform: translateY(1px) rotate(-135deg); }
+.sip-dsc-b { margin: 8px 0 0; font-size: var(--fs-13); color: var(--muted); max-width: 100ch; line-height: 1.55; }
 
 @keyframes sip-in { from { opacity: 0; transform: translateY(4px); } }
 @keyframes sip-rise { from { opacity: 0; transform: scaleY(.6); } }
@@ -152,12 +158,13 @@
   .sip-goal { grid-template-columns: minmax(0, 1fr); }
   .sip-wrow { grid-template-columns: minmax(0, 1fr); gap: 6px; } .sip-wrow b { text-align: left; }
   .sip-page .sip-box input:not([type="checkbox"]):not([type="radio"]):not([type="range"]) { width: 96px; font-size: var(--fs-16); }
-  .sip-formula { font-size: var(--fs-18); padding: 14px 16px; }
   .sip-tip { min-width: 160px; }
+  .sip-dsc { padding: 14px 16px; }
+  .sip-dsc-tg { min-height: 44px; padding: 0 12px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .sip-a, .sip-wrow em, .sip-pane, .sip-opts { animation: none !important; }
-  .sip-d-inv, .sip-tog span, .sip-tog span::after { transition: none; }
+  .sip-d-inv, .sip-tog span, .sip-tog span::after, .sip-dsc-chev { transition: none; }
 }
 .sip-page .sip-t td:first-child, .sip-page .sip-t th:first-child { background-color: transparent; position: static; } .sip-page .sip-t th:first-child { background: var(--s2); }
 /* Task #167: the ring in the enlarged dialog, as large as the room allows (SipCalculator Donut) */

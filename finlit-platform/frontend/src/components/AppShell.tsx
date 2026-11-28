@@ -8,7 +8,7 @@ import { useWatchlist } from "../lib/watchlist";
 import { usePortfolio } from "../lib/portfolio";
 import { DEMO } from "../lib/demo";
 import { useAlerts, useNotices } from "../lib/alerts";
-import { DASHBOARD, MENU, isNew, menuMatch, offeredTo, type NavItem } from "../lib/nav";
+import { DASHBOARD, MENU, isHere, isNew, menuMatch, offeredTo, type NavItem } from "../lib/nav";
 import { useIsGold } from "../lib/planGate";
 import { isBool, loadUi, removeUi, saveUi } from "../lib/persist";
 import { useMarkShell } from "../lib/shellPresence";
@@ -16,11 +16,12 @@ import { HelpActions } from "./PageFeedback";
 import { SideRail } from "./SideRail";
 import { SheetTools } from "./SheetTools";
 import { hasLab } from "../lib/lab";
+import { memberPlanName } from "../lib/planNames";
 
 /** Task #310 part D: the menu is on screen from 860px (below it, a sheet); from 860 to 1100px it starts as the rail. */
 export const DESKTOP_Q = "(min-width: 861px)", NARROW_Q = "(max-width: 1099px)";
 
-type Item = { to: string; label: string; icon: string; badge?: string; end?: boolean; gold?: boolean; sub?: boolean; fresh?: boolean; desc?: string };
+type Item = { to: string; label: string; icon: string; badge?: string; end?: boolean; not?: string; gold?: boolean; sub?: boolean; fresh?: boolean; desc?: string };
 type Group = { id: string; title: string; line: string; short: string; icon: string; items: Item[] };
 
 /** The "i" beside a menu row (task #285; group headings and the Dashboard since the #282 rework): opens its note under the row, one note in the menu at a
@@ -35,7 +36,7 @@ function InfoButton({ k, label, target, info, setInfo, title }: { k: string; lab
 /** The left rail for every product page: where you are, what you follow, and what else the platform offers, in the order people use it. */
 export function AppShell() {
   const { pathname } = useLocation();
-  const { user, isAdmin, features } = useAuth();
+  const { user, isAdmin, features, planKey } = useAuth();
   const { plan } = useUI();
   const gold = useIsGold();
   const wl = useWatchlist();
@@ -109,7 +110,7 @@ export function AppShell() {
     "/alerts": unread ? `${unread} new` : live ? String(live) : undefined,
     "/my-investments": "NEW",   // task #137: a new page
   };
-  const toItem = (n: NavItem): Item => ({ to: n.to, label: n.label, icon: n.icon, end: n.end, gold: n.gold, badge: badges[n.to], fresh: isNew(n), desc: n.sub });
+  const toItem = (n: NavItem): Item => ({ to: n.to, label: n.label, icon: n.icon, end: n.end, not: n.not, gold: n.gold, badge: badges[n.to], fresh: isNew(n), desc: n.sub });
   // task #282: one list (lib/nav MENU) for the side menu, the rail, the pop-outs, the top bar and Find a page; Dashboard sits above the groups
   const dash: Item = toItem(DASHBOARD);
   const groups: Group[] = ([
@@ -126,7 +127,7 @@ export function AppShell() {
 
   // task #310 part D: the company report (/stocks/…) is in the left menu now; it belongs to "Company report" (/research) in Analyse a company
   const reportOf = (to: string) => to === "/research" && pathname.startsWith("/stocks/");
-  const here = (g: Group) => g.items.some((i) => reportOf(i.to) || (i.end ? pathname === i.to : pathname === i.to || pathname.startsWith(i.to + "/")));
+  const here = (g: Group) => g.items.some((i) => reportOf(i.to) || isHere(pathname, { ...i, sub: "" }));
   // open when the page you are on is inside it, otherwise what you chose; the one-page Overview group and the first visit start open for Find stocks
   // remembered by the group's id (task #282: find, company, markets, funds and learn keep their ids; the renamed groups start as on a first visit)
   // the page's own group opens on arrival (and becomes the remembered one); after that the member's choice rules, one group at a time
@@ -201,6 +202,9 @@ export function AppShell() {
                   const common = { "aria-label": collapsed ? i.label : undefined, onMouseEnter: (e: React.MouseEvent<HTMLAnchorElement>) => showTip(e.currentTarget, i.label), onFocus: (e: React.FocusEvent<HTMLAnchorElement>) => showTip(e.currentTarget, i.label), onMouseLeave: () => setTip(null), onBlur: () => setTip(null) };
                   const body = <><span className="side-ic"><Icon name={i.icon} /></span><span className="side-l"><span className="side-lt">{i.label}</span>{i.gold && <em className="gtag" title="Gold plan" aria-label="Gold plan">Gold</em>}{i.fresh && <em className="side-new" title="A new page">New</em>}</span>{i.badge && <span className="side-b">{i.badge}</span>}</>;
                   // task #310 part D: on a company report, "Company report" is the current page (a NavLink would not mark it: its address is /research)
+                  // task #411 (bug 2): an item with a sibling page of its own (`not`: Sector Pulse and Sector Rotation) is marked by lib/nav's isHere, so
+                  // only the page you are on is lit; a NavLink would also mark /sectors on /sectors/rotation
+                  if (i.not && !reportOf(i.to)) { const on = isHere(pathname, { ...i, sub: "" }); return <Link to={i.to} className={cls(on)} aria-current={on ? "page" : undefined} {...common}>{body}</Link>; }
                   return reportOf(i.to) ? <Link to={i.to} className={cls(true)} aria-current="page" {...common}>{body}</Link>
                     : <NavLink to={i.to} end={i.end ?? false} className={({ isActive }) => cls(isActive)} {...common}>{body}</NavLink>;
                 })()}
@@ -216,7 +220,7 @@ export function AppShell() {
         </nav>
         <div className="side-foot">
           <div className="side-plan" style={{ "--tc": `var(${TIER[plan].tc})` } as React.CSSProperties}>
-            <span className={"tier " + plan}><Icon name={TIER[plan].ic} />{TIER[plan].n}</span>
+            <span className={"tier " + plan}><Icon name={TIER[plan].ic} />{memberPlanName(planKey, plan)}</span>
             {plan !== "gold" ? <><p>{plan === "basic" ? "Unlock watchlists, the full screener and more." : "Gold adds FinLit Prism and deeper analysis."}</p><Link className="btn primary" to={user ? "/account/plan?want=" + (plan === "basic" ? "silver" : "gold") : "/plans"}>{plan === "basic" ? "See Silver" : "See Gold"}</Link></> : <p>Everything is unlocked.</p>}
           </div>
           {/* task #310 part D: Help and feedback at the foot of the menu (the floating dock is gone) */}

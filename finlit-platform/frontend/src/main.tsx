@@ -3,10 +3,13 @@ import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import App from "./App";
+import { apiGet } from "./lib/api";
+import { filtersFromParams, listPath, summaryPath } from "./lib/deals";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { UIProvider } from "./lib/ui";
 import { AuthProvider } from "./lib/auth";
 import { StateSync } from "./lib/sync";
+import { VisitCounter } from "./lib/visits";
 import { SplashDone } from "./lib/splash";
 import "@fontsource-variable/inter/wght.css";
 import "@fontsource-variable/source-serif-4/wght.css";
@@ -55,6 +58,23 @@ purgeLegacy(["finlit-side", "finlit-side-groups", "finlit-dash-open", "finlit-et
 
 const client = new QueryClient({ defaultOptions: { queries: { refetchOnWindowFocus: false } } });
 
+// The IPO pages' data starts downloading with the main script instead of after the IPO page's own script has arrived (that waited about 1.7 s on a
+// desktop and 3.4 s on a phone, 27 Nov 2026). Same keys and requests as lib/ipo.ts (useIpos) and lib/ipoHistory.ts (useIpoHistory), so the page
+// picks these up; if one fails, the page asks again as before.
+{
+  const path = window.location.pathname.slice(import.meta.env.BASE_URL.replace(/\/$/, "").length) || "/";
+  if (/^\/ipo(\/all)?\/?$/.test(path)) {
+    void client.prefetchQuery({ queryKey: ["ipo-history"], queryFn: () => apiGet("/api/ipos/history"), staleTime: 600_000 });
+    void client.prefetchQuery({ queryKey: ["ipos", false], queryFn: () => apiGet<{ ipos: unknown[] }>("/api/ipos").then((d) => d.ipos), staleTime: 120_000 });
+  }
+  // Bulk & block deals (/ipo?view=deals, /deals): the list and the summary for the filters in the address, under the keys lib/deals.ts uses
+  if (/^\/(ipo\/?|deals\/?)$/.test(path) && (path.startsWith("/deals") || new URLSearchParams(window.location.search).get("view") === "deals")) {
+    const f = filtersFromParams(new URLSearchParams(window.location.search));
+    void client.prefetchQuery({ queryKey: ["deals", listPath(f)], queryFn: () => apiGet(listPath(f)), staleTime: 300_000 });
+    if (!f.client) void client.prefetchQuery({ queryKey: ["deals-summary", summaryPath(f)], queryFn: () => apiGet(summaryPath(f)), staleTime: 300_000 });
+  }
+}
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <QueryClientProvider client={client}>
@@ -63,6 +83,7 @@ createRoot(document.getElementById("root")!).render(
         <AuthProvider>
           <UIProvider>
             <StateSync />
+            <VisitCounter />
             <SplashDone />
             <App />
           </UIProvider>

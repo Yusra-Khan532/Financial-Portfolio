@@ -67,7 +67,7 @@ const LINES: [string, string][] = [
   ["pages/MfScreener.tsx", "Filter every mutual fund and ETF by category, fund house, size, returns, cost, risk and portfolio."],
   ["pages/FundHeadToHead.tsx", "Two funds of one category, head to head on returns, risk, consistency and cost over 1–10 years."],
   ["pages/FundInsights.tsx", "Where India's fund money sits and where it moved last month, from AMFI's monthly report."],
-  ["lib/watchlistPack.ts", "The companies you follow: how they are doing, against their peers, and what to look at next."],
+  ["lib/watchlistPack.ts", "The companies you follow: what moved, what is near your target, and what is new."],
   ["pages/Dcf.tsx", "A company's intrinsic value from its projected cash flows, with every step shown and checked."],
   ["pages/ReverseValuation.tsx", "The growth, margin, exit multiple or return today's price assumes. It describes; it does not predict."],
   ["pages/Outlook.tsx", "Revenue and profit by year, with a 1-, 3- or 5-year estimate from past growth; not a prediction."],
@@ -94,12 +94,12 @@ const LINES: [string, string][] = [
   ["pages/Faqs.tsx", "questions across {PAGE_FAQS.length} pages; each page also lists its own at the bottom."],
   ["pages/Research.tsx", "Prism score, statements, ratios, ownership and peers for"],
   ["pages/Services.tsx", "From your first investment to a portfolio review. Not sure which fits? Book a first session."],
-  ["pages/About.tsx", "Stock research, portfolio reviews and planning. If we cannot explain it plainly, we do not share it."],
+  ["pages/About.tsx", "FinLit is an Indian stock and mutual fund research platform: company filings explained in plain English."],   // search growth M1 (27 Nov 2026): the first sentence says what FinLit is
   ["pages/ConnectAI.tsx", "A free, read-only connection that lets AI assistants look up FinLit's Indian market data."],
   ["pages/LeadershipLabel.tsx", "How a stock's last 12 months compare with similar companies. It looks back; it does not predict."],
   ["pages/Contact.tsx", "Tell us what you need. A person reads every message; we usually reply within one working day."],
   ["pages/Blog.tsx", "Explainers, myth-busters and thought pieces on investing, in plain language; never a recommendation."],
-  ["pages/Plans.tsx", "Basic is free with no card; Silver adds the full screener and watchlists; Gold adds Prism and more."],
+  ["pages/Plans.tsx", "Free to start; Mutual Fund + ETF and Equity Portfolio open one area each; Gold and Platinum open everything."],   // task #410
 ];
 
 describe("page headers are boxed again (founder, 22 Nov 2026)", () => {

@@ -18,6 +18,7 @@ import { MI_STEPS, coLabel, movesAsMuchNifty, riskSays, riskWord, sectorsCaption
 import { holdingName, holdingShort } from "../lib/holdingName";
 import { MiStep } from "./Steps391";
 import { I } from "./parts";
+import { HeldKey, SortBar, SortHead, heldTips, sortedCol, useHeldTip, useTableSort, type Col } from "./sort438";
 import "../portfolio/pack/eq385.css";   // task #391: the things-to-know pop-up's quiet card list (scoped .eq; the pop-up carries it)
 
 /** The seven stops of All together, as the section bar and the All sections menu list them (task #391: Key figures inside stop 1, What changed stop 5). */
@@ -58,14 +59,29 @@ function Money({ d, money, kinds, toTab, openQty }: { d: AllInvestments; money: 
     {m.part ? <small className="mi-sub">{m.part} by {m.part === 1 ? "its" : "their"} lots with a buy price</small> : null}</> : "—");
   const gl = (m: KindMoney | undefined) => (m && m.full ? <><b className={tone(m.gain)}>{m.gain >= 0 ? "+" : "−"}{rupees(Math.abs(m.gain))}</b><small className={"mi-sub " + tone(m.gain)}>{chg((m.gain / m.invested) * 100)}</small></> : "—");
   const val = (k: Kind) => (d.byValue ? rupees(d.cards[k].value ?? 0) : null);
+  // task #438: every heading sorts; "(Open its tab)" does not, and the All together row (tfoot) always stays last
+  const full = (k: Kind) => (money?.[k]?.full ? money[k] : null);
+  const sort = useTableSort<Kind>("mi-money", [
+    { key: "kind", label: "Kind", text: "Kind", type: "text", get: (k) => KIND_NAME[k] },
+    { key: "holdings", label: "Holdings", text: "Holdings", type: "num", r: true, get: (k) => d.cards[k].count },
+    { key: "invested", label: "Invested", text: "Invested", type: "num", r: true, get: (k) => full(k)?.invested },
+    { key: "value", label: "Value now", text: "Value now", type: "num", r: true, get: (k) => (d.byValue ? d.cards[k].value ?? 0 : null) },
+    { key: "gain", label: "Gain / loss", text: "Gain / loss", type: "num", r: true, get: (k) => full(k)?.gain },
+    { key: "share", label: "Share of everything", text: "Share of everything", type: "num", r: true, get: (k) => d.cards[k].share },
+    { key: "1y", label: "1 year", text: "1 year", type: "num", r: true, get: (k) => d.cards[k].chg1y },
+    { key: "beta", label: "Beta vs Nifty 500", text: "Beta vs Nifty 500", type: "num", r: true, get: (k) => d.cards[k].beta },
+    { key: "largest", label: "Largest holding", text: "Largest holding", type: "text", get: (k) => (d.cards[k].firstIs === "largest" ? largestName(d, d.cards[k].first[0]) : null) },
+    { key: "open", type: "none", ariaLabel: "Open its tab" },
+  ]);
   return (
     <section className="sp-sec mi-step">
       <SecHead id="mi-money" n={1} title="Where your money sits" line={splitLine(d)} info={["How everything splits between shares, mutual funds and ETFs.", "With quantities, each kind's share is its value over the total; without them each kind counts the same."]} />
       <Stack big label="Share of everything" segs={kinds.map((k) => ({ key: k, label: KIND_NAME[k], v: d.cards[k].share, cls: "k-" + k }))} keyed={false} />
+      <SortBar s={sort} />
       <HScroll label="Where your money sits">
-        <table className="mi-tb">
-          <thead><tr><th scope="col">Kind</th><th scope="col" className="r">Holdings</th><th scope="col" className="r">Invested</th><th scope="col" className="r">Value now</th><th scope="col" className="r">Gain / loss</th><th scope="col" className="r">Share of everything</th><th scope="col" className="r">1 year</th><th scope="col" className="r">Beta vs Nifty 500</th><th scope="col">Largest holding</th><th scope="col" aria-label="Open its tab" /></tr></thead>
-          <tbody>{kinds.map((k) => { const c = d.cards[k]; return (
+        <table className="mi-tb" {...sortedCol(sort)}>
+          <SortHead s={sort} />
+          <tbody>{sort.sort(kinds).map((k) => { const c = d.cards[k]; return (
             <tr key={k}><th scope="row"><i className={"mi-dot k-" + k} aria-hidden="true" />{KIND_NAME[k]}</th><td className="r">{c.count}</td><td className="r">{inv(money?.[k])}</td>
               <td className="r">{d.byValue ? val(k) : <button type="button" className="mi-link" onClick={openQty}>Add quantities</button>}</td><td className="r">{gl(money?.[k])}</td>
               <td className="r"><b>{pctOf(c.share)}</b></td><td className={"r " + tone(c.chg1y)}>{chg(c.chg1y)}</td><td className="r">{betaTxt(c.beta)}</td>
@@ -98,14 +114,22 @@ function MadeOf({ d }: { d: AllInvestments }) {
     m.notLoaded.length ? { kind: "watch", title: `${pctOf(nl)} is not looked through yet`, text: `No monthly portfolio file is loaded yet for ${joinWords(m.notLoaded.map((x) => x.name))}. That part counts in "File not loaded yet" until the file arrives.` }
       : { kind: "good", title: "Every fund and ETF is looked through", text: `Each one's latest monthly file is loaded${m.byType.length ? `; ${joinWords(m.byType.map((x) => x.name))} ${m.byType.length === 1 ? "is" : "are"} counted by ${m.byType.length === 1 ? "its" : "their"} type (gold, silver, debt or abroad), which fixes what ${m.byType.length === 1 ? "it holds" : "they hold"}` : ""}.` },
   ];
+  const sort = useTableSort<typeof rows[number]>("mi-made", [
+    { key: "asset", label: "Asset", text: "Asset", type: "text", get: (x) => x.label },
+    { key: "shares", label: "From shares", text: "From shares", type: "num", r: true, get: (x) => x.shares || null },
+    { key: "funds", label: "From mutual funds", text: "From mutual funds", type: "num", r: true, get: (x) => x.funds || null },
+    { key: "etfs", label: "From ETFs", text: "From ETFs", type: "num", r: true, get: (x) => x.etfs || null },
+    { key: "all", label: "All together", text: "All together", type: "num", r: true, get: (x) => x.all },
+  ]);
   return (
     <section className="sp-sec mi-step">
       <SecHead id="mi-made" n={2} title="What it is made of" line={<>Each fund's and ETF's latest file, added to your shares. {splitLine(d)}</>} info={["Where everything sits once your funds and ETFs are looked through: Indian shares, shares abroad, gold and silver, debt and cash.", "Read across: where each kind's part sits. The last column adds them up."]} know={{ scope: "made", items: notes }} />
       <Stack big label="What it is made of" segs={rows.map((x) => ({ key: x.key, label: x.label, v: x.all, cls: MIX_CLS[x.key] }))} keyed={false} />
+      <SortBar s={sort} />
       <HScroll label="What it is made of">
-        <table className="mi-tb">
-          <thead><tr><th scope="col">Asset</th><th scope="col" className="r">From shares</th><th scope="col" className="r">From mutual funds</th><th scope="col" className="r">From ETFs</th><th scope="col" className="r">All together</th></tr></thead>
-          <tbody>{rows.map((x) => <tr key={x.key}><th scope="row"><i className={"mi-dot " + MIX_CLS[x.key]} aria-hidden="true" />{x.label}</th>{(["shares", "funds", "etfs"] as const).map((k) => <td key={k} className="r">{x[k] ? pctOf(x[k]) : "—"}</td>)}<td className="r"><b>{pctOf(x.all)}</b></td></tr>)}</tbody>
+        <table className="mi-tb" {...sortedCol(sort)}>
+          <SortHead s={sort} />
+          <tbody>{sort.sort(rows).map((x) => <tr key={x.key}><th scope="row"><i className={"mi-dot " + MIX_CLS[x.key]} aria-hidden="true" />{x.label}</th>{(["shares", "funds", "etfs"] as const).map((k) => <td key={k} className="r">{x[k] ? pctOf(x[k]) : "—"}</td>)}<td className="r"><b>{pctOf(x.all)}</b></td></tr>)}</tbody>
         </table>
       </HScroll>
       {m.each.length > 0 && <details className="mi-dd"><summary>How each fund and ETF splits<span className="mi-chev" aria-hidden="true" /></summary>
@@ -153,27 +177,43 @@ function Sectors({ d }: { d: AllInvestments }) {
 // ------------------------------------------------------------------------------------------------ step 4
 function Every({ d, filter, setFilter }: { d: AllInvestments; filter: EveryFilter; setFilter: (f: EveryFilter) => void }) {
   const [all, setAll] = useState(false);
-  const rows = filterCompanies(d.companies, filter), filtered = countFilters(filter) > 0, shown = all || filtered ? rows : rows.slice(0, TOP);
+  const model = SCORE_NAME, scored = d.plan === "gold";
+  // task #438: filters and search decide which rows count, the sort orders all of them, then "Show all" decides how many show
+  const cols: Col<Company>[] = [
+    { key: "company", label: "Company", text: "Company", type: "text", get: (c) => coLabel(c) },
+    { key: "all", label: "All together", text: "All together", type: "num", get: (c) => c.all },
+    { key: "held", label: "Held", text: "Held", type: "held", get: (c) => c.held.join("") },
+    { key: "direct", label: "Direct", text: "Direct", type: "num", r: true, get: (c) => c.direct || null },
+    { key: "funds", label: "Through funds", text: "Through funds", type: "num", r: true, get: (c) => c.funds || null },
+    { key: "etfs", label: "Through ETFs", text: "Through ETFs", type: "num", r: true, get: (c) => c.etfs || null },
+    { key: "size", label: "Size", text: "Size", type: "size", get: (c) => (c.abroad ? null : c.size) },
+    ...(scored ? [{ key: "prism", label: model, text: model, type: "prism", get: (c) => (c.abroad ? null : c.score) } as Col<Company>] : []),
+    { key: "peer", label: "Against peers", text: "Against peers", type: "peer", get: (c) => c.peer },
+  ];
+  const sort = useTableSort("mi-every", cols), tip = useHeldTip();
+  const fundNames = d.funds.map((f) => f.short), etfNames = d.etfs.map((e) => e.symbol);
+  const rows = sort.sort(filterCompanies(d.companies, filter)), filtered = countFilters(filter) > 0, shown = all || filtered ? rows : rows.slice(0, TOP);
   const set = (f: EveryFilter) => { setFilter(f); setAll(false); window.setTimeout(() => document.getElementById("mi-every-t")?.scrollIntoView?.({ block: "nearest" }), 30); };
   const max = Math.max(0.01, ...d.companies.map((c) => c.all));
-  const model = SCORE_NAME, scored = d.plan === "gold";
   return (
     <section className="sp-sec mi-step">
       <SecHead id="mi-every" n={4} title="Every company you own, counted once" line={<>{d.filters.all} companies: your {d.counts.shares} shares and every equity line of each fund's and ETF's file. The share is of everything you have. {d.byValue ? "" : "Each kind counts the same until you add quantities."}</>}
         info={["Every company you own, once, with what you hold directly, through funds and through ETFs added up.", "All together is your real share of the company; Held shows the ways: D direct, F through a fund, E through an ETF."]} />
       {/* task #277 (change 18): one row of filters across every company, which stays up while the table is scrolled; task #391 (Update 25 Nov, row 3):
           it stops just under the section bar, which stays, so the row no longer repeats the bar's views and sections */}
-      <FilterRow rows={d.companies} f={filter} set={set} plan={d.plan === "gold" ? "gold" : "silver"} />
+      <FilterRow rows={d.companies} f={filter} set={set} plan={d.plan === "gold" ? "gold" : "silver"} sort={sort} />
       <div id="mi-every-t" className="mi7-anchor" />
+      <HeldKey />
+      <SortBar s={sort} />
       <HScroll label="Every company you own" className="mi-freeze">
-        <table className="mi-tb mi-co">
-          <thead><tr><th scope="col">Company</th><th scope="col">All together</th><th scope="col">Held</th><th scope="col" className="r">Direct</th><th scope="col" className="r">Through funds</th><th scope="col" className="r">Through ETFs</th><th scope="col">Size</th>{scored && <th scope="col">{model}</th>}<th scope="col">Against peers</th></tr></thead>
+        <table className="mi-tb mi-co" {...sortedCol(sort)} {...tip.handlers}>
+          <SortHead s={sort} />
           <tbody>{!shown.length && <tr><td colSpan={scored ? 9 : 8} className="mi7-none">No company matches these filters. <button type="button" className="mi7-lnk" onClick={() => set(NO_FILTER)}>Clear filters</button></td></tr>}{shown.map((c) => (
             <tr key={(c.symbol ?? "") + c.name}>
               {/* task #391 (Sections 1, fault 10): the company's name first, its share code under it */}
               <th scope="row">{c.symbol ? <Link to={`/stocks/${encodeURIComponent(c.symbol)}`}><b title={holdingName(c.name) || c.symbol}>{coLabel(c)}</b></Link> : <b title={holdingName(c.name)}>{coLabel(c)}</b>}<small>{c.symbol && coLabel(c) !== c.symbol ? `${c.symbol} · ` : ""}{c.macro}</small>{c.via.length > 0 && <small className="mi-via">{c.via.join(" · ")}</small>}</th>
               <td className="mi-allc"><span className="mi-mini"><i style={{ width: `${(c.all / max) * 100}%` }} /></span><b>{pctOf(c.all, 2)}</b></td>
-              <td><span className="mi-held">{(["D", "F", "E"] as const).map((m) => <i key={m} aria-hidden={c.held.includes(m) ? undefined : true} className={c.held.includes(m) ? "on m" + m : ""} title={{ D: "Direct", F: "Through a fund", E: "Through an ETF" }[m]}>{m}</i>)}</span></td>
+              <td>{(() => { const h = heldTips(c, fundNames, etfNames, (v) => pctOf(v, 2)); return <span className="mi-held" role="img" aria-label={h.label}>{(["D", "F", "E"] as const).map((m) => <i key={m} ref={tip.reg(h.tip[m])} data-tip="" aria-hidden={c.held.includes(m) ? undefined : true} className={c.held.includes(m) ? "on m" + m : ""} title={{ D: "Direct", F: "Through a fund", E: "Through an ETF" }[m]}>{m}</i>)}</span>; })()}</td>
               <td className="r">{c.direct ? pctOf(c.direct, 2) : "—"}</td><td className="r">{c.funds ? pctOf(c.funds, 2) : "—"}</td><td className="r">{c.etfs ? pctOf(c.etfs, 2) : "—"}</td>
               <td>{c.abroad ? <span className="mi-muted">Listed abroad</span> : c.size ?? <span className="mi-muted">Not sized</span>}</td>
               {scored && <td>{c.abroad ? <span className="mi-muted">Not rated: listed abroad</span> : <ScoreWord v={c.score} label={c.label} />}</td>}
@@ -181,6 +221,7 @@ function Every({ d, filter, setFilter }: { d: AllInvestments; filter: EveryFilte
             </tr>))}</tbody>
         </table>
       </HScroll>
+      {tip.el}
       {!filtered && <ShowAll n={rows.length} shown={shown.length} noun="companies" onClick={() => setAll(true)} />}
       <p className="mi-small">Holdings inside a fund or ETF can have changed since its fund house published the file{d.sources.filesTo ? ` (${d.sources.filesFrom === d.sources.filesTo ? d.sources.filesTo : `${d.sources.filesFrom} to ${d.sources.filesTo}`})` : ""}.</p>
     </section>
@@ -245,6 +286,14 @@ function RiskStep({ d }: { d: AllInvestments; money?: MoneyAll }) {
     { kind: "insight", title: band ? `Together: ${band.toLowerCase()} to the Nifty 500` : "Together: no beta yet", text: r.beta != null ? `It ${movesAsMuchNifty(r.beta)}: in past weeks, when the Nifty 500 moved 1%, everything together tended to move about ${nf(r.beta, 2)}%. ${lead(r)}`.trim() : r.why ?? "Not enough prices for a beta yet." },
     { kind: "watch", title: "Beta is not a floor", text: "Beta describes how things moved with the market in the past. A single company, a fund house or a sector can fall on its own news, whatever the beta says." },
   ];
+  const sort = useTableSort<Kind>("mi-risk", [
+    { key: "kind", label: "Kind", text: "Kind", type: "text", get: (k) => KIND_NAME[k] },
+    { key: "money", label: "Share of money", text: "Share of money", type: "num", r: true, get: (k) => r.parts.find((x) => x.kind === k)?.money },
+    { key: "beta", label: "Beta vs Nifty 500", text: "Beta vs Nifty 500", type: "num", r: true, get: (k) => r.kinds[k]?.beta },
+    { key: "risk", label: "Share of the market risk", text: "Share of the market risk", type: "num", get: (k) => r.parts.find((x) => x.kind === k)?.riskShare },
+    { key: "swing", label: "Swing a year", text: "Swing a year", type: "num", r: true, get: (k) => r.kinds[k]?.swing },
+    { key: "fall", label: "Worst fall from a high", text: "Worst fall from a high", type: "num", r: true, get: (k) => r.kinds[k]?.worstFall },
+  ]);
   return (
     <section className="sp-sec mi-step">
       <SecHead id="mi-risk" n={7} title="How risky it is, all together" line="Against the Nifty 500, over the past year." info={["How sensitive everything is to the market: each kind's beta against the Nifty 500, and beta together.", "Beta together = the sum of each kind's share of money × its beta. A kind's share of the market risk = its share × its beta ÷ beta together."]}
@@ -257,11 +306,11 @@ function RiskStep({ d }: { d: AllInvestments; money?: MoneyAll }) {
             {w ? <span className="mi-chip">{w}</span> : null}
             <p className="mi-small">{x?.beta != null ? `${betaWindowTxt(x.betaWindow)}. ` : ""}{x?.swing != null ? `Swings ${pctOf(x.swing)} a year` : x?.why ?? "No swing figure yet"}</p></article>); })}
       </div>
+      <SortBar s={sort} />
       <HScroll label="How risky it is">
-        <table className="mi-tb">
-          <thead><tr><th scope="col">Kind</th><th scope="col" className="r">Share of money</th><th scope="col" className="r">Beta vs Nifty 500</th><th scope="col">Share of the market risk</th>
-            <th scope="col" className="r">Swing a year</th><th scope="col" className="r">Worst fall from a high</th></tr></thead>
-          <tbody>{kinds.map((k) => { const p = r.parts.find((x) => x.kind === k), x = r.kinds[k]; return (
+        <table className="mi-tb" {...sortedCol(sort)}>
+          <SortHead s={sort} />
+          <tbody>{sort.sort(kinds).map((k) => { const p = r.parts.find((x) => x.kind === k), x = r.kinds[k]; return (
             <tr key={k} className={p?.red ? "hot" : ""}><th scope="row"><i className={"mi-dot k-" + k} aria-hidden="true" />{KIND_NAME[k]}</th><td className="r">{pctOf(p?.money)}</td><td className="r">{betaTxt(x?.beta)}</td>
               <td className="mi-rs">{p?.riskShare != null ? <><span className="mi-rsb"><i className={"r k-" + k} style={{ width: `${(p.riskShare / max) * 100}%` }} /><i className="m" style={{ width: `${((p.money ?? 0) / max) * 100}%` }} /></span><small><b className={p.red ? "mi-down" : ""}>{pctOf(p.riskShare)}</b> of the risk · {pctOf(p.money)} of the money</small></> : <span className="mi-muted">—</span>}</td>
               <td className="r">{x?.swing != null ? pctOf(x.swing) : "—"}</td><td className="r mi-down">{x?.worstFall != null ? pctOf(x.worstFall) : "—"}</td></tr>); })}</tbody>

@@ -26,7 +26,7 @@ const order = (c: HTMLElement) => [...c.querySelectorAll(".aiq-t tbody tr")].map
 describe("the key read (v2)", () => {
   it("Reliance: the frame, the lead with bold blue comparison, the sub-line, an amber In line badge, the two score tiles and the fact tiles", () => {
     const { container: c } = draw(read("RELIANCE"));
-    expect(c.querySelector("#aiq .aiq-eye")!.textContent).toBe("Key read for this quarter");
+    expect(c.querySelector("#aiq .aiq-eye")).toBeNull();   // developer file 47: no eyebrow over the card's title
     expect(c.querySelector(".aiq-lead")!.textContent).toBe("Reliance grew about as fast as the typical Petroleum Products company.");
     expect(c.querySelector(".aiq-lead b")!.textContent).toBe("about as fast as");
     expect(c.querySelector(".aiq-sub")!.textContent).toBe("Petroleum Products · 22 of 22 companies have declared · revenue and net profit, Sep 2026 quarter against a year ago");
@@ -68,7 +68,7 @@ describe("the key read (v2)", () => {
   });
   it("a Basic reader gets the counts and the Silver lock; a company without a comparable group says why", () => {
     const { container: c } = draw({ ...read("RELIANCE"), state: "locked" });
-    expect(c.querySelector(".sx-lock")!.textContent).toContain("part of the Silver plan");
+    expect(c.querySelector(".sx-lock")!.textContent).toContain("part of every paid plan");
     expect(c.querySelector(".sx-lock")!.textContent).toContain("22 of 22 companies in Petroleum Products have declared");
     expect(c.querySelector(".aiq-kp")).toBeNull();
     cleanup();

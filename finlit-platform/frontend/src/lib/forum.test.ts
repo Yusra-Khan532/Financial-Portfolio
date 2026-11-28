@@ -30,7 +30,7 @@ describe("boards by plan", () => {
   it("has one board per plan, in plan order, with plain names", async () => {
     const { PLANS, BOARD_NAME } = await import("./forum");
     expect(PLANS).toEqual(["basic", "silver", "gold"]);
-    expect(PLANS.map((p) => BOARD_NAME[p])).toEqual(["Basic", "Silver", "Gold"]);
+    expect(PLANS.map((p) => BOARD_NAME[p])).toEqual(["Free", "Paid plans", "Gold and Platinum"]);   // task #410: boards by access tier, named for the new plans
   });
 });
 

@@ -98,11 +98,11 @@ function Legend({ stopped, facts }: { stopped: number | null; facts?: { source?:
           <NoteCard title="Returns" short={<>1 year is the total change in NAV; 3 and 5 years are yearly rates. SIP returns assume the same amount invested at each month-end.</>}>
           <p><b>1 year</b> is the total change in NAV over the year; <b>3 years</b> and <b>5 years</b> are yearly rates (<GTerm id="cagr-compound-annual-growth-rate">CAGR</GTerm>), not totals.
             <b> SIP returns</b> are the yearly rate (XIRR) of putting the same amount in every month for the last 3 or 5 years: one instalment at the last NAV of each month, everything valued at the latest NAV. A scheme without a month-end NAV for every one of those months shows a dash.
-            Returns are worked out for <GTerm id="growth-option">Growth</GTerm> options only (<GTerm id="idcw-income-distribution-cum-capital-withdrawal">IDCW</GTerm> payouts change the NAV). Compare <GTerm id="direct-plan">Direct</GTerm> with Direct and <GTerm id="regular-plan">Regular</GTerm> with Regular.</p>
+            Returns are worked out for <GTerm id="growth-option">Growth</GTerm> options only (<GTerm id="idcw-income-distribution-cum-capital-withdrawal">IDCW</GTerm> payouts change the NAV); an IDCW row shows its same-plan Growth option's return <i>in italics with a dotted underline</i>, named on hover or tap. Compare <GTerm id="direct-plan">Direct</GTerm> with Direct and <GTerm id="regular-plan">Regular</GTerm> with Regular.</p>
         </NoteCard>
-          <NoteCard title="Return and cost bands" short="The small word under a return or an expense ratio places it in a band. Compare a fund with its own category.">
-          <p><b>Return and cost bands.</b> The small word under a return places it in a band: for 1 year, Negative, 0–8%, 8–15% or Above 15%; for 3 and 5 years (yearly rates), Below 8%, 8–12%, 12–15% or Above 15%. Under an expense ratio it says Low, Moderate or High against the median of the same category and plan (20% or more under or over it).
-            These are screening bands, not performance standards: equity, debt and hybrid funds need different yardsticks, so compare a fund with its own category. Funds younger than the period show <b>Insufficient history</b> rather than being left out. A fund's benchmark return is not shown yet because AMFI does not put it in the NAV files.</p>
+          <NoteCard title="Return and cost bands" short="Hover or tap a return or an expense ratio to see its band. Compare a fund with its own category.">
+          <p><b>Return and cost bands.</b> The table shows figures only; hover or tap a return to see its band: for 1 year, Negative, 0–8%, 8–15% or Above 15%; for 3 and 5 years (yearly rates), Below 8%, 8–12%, 12–15% or Above 15%. For an expense ratio the band is Low, Moderate or High against the median of the same category and plan (20% or more under or over it).
+            These are screening bands, not performance standards: equity, debt and hybrid funds need different yardsticks, so compare a fund with its own category. Funds younger than the period show a dash (hover or tap it: <b>Insufficient history</b>) rather than being left out. A fund's benchmark return is not shown yet because AMFI does not put it in the NAV files.</p>
         </NoteCard>
           <NoteCard title="ELSS" short="ELSS units are locked in for three years. The 80C tax deduction applies under the old tax regime only.">
           <p>ELSS: up to ₹1.5 lakh a year put into ELSS can be deducted under Section 80C in the old tax regime; at the 30% slab plus 4% cess that saves up to ₹46,800 of tax. The new tax regime has no 80C deduction. ELSS units are locked in for three years.</p>
@@ -113,14 +113,14 @@ function Legend({ stopped, facts }: { stopped: number | null; facts?: { source?:
           <NoteCard title="Mutual Fund Score" short="The fund's score, 0 to 100, from its NAV history, costs and holdings. It describes the past; it is not a forecast.">
           <p><b>Mutual Fund Score</b> (Gold) rates each fund from 0 to 100, with its label. {MF_SCORE_COMPLIANCE} <Link to={MF_METHOD_URL}>What the score means</Link>.</p>
         </NoteCard>
-          <NoteCard title="The 5-check checklist" short="Five plain checks against funds of the same category and plan. Each filled mark is one check passed.">
+          <NoteCard title="The 5-check checklist" short="Five plain checks against funds of the same category and plan. Hover or tap the figure to see each check.">
           <p>Five plain checks, each against the active Growth options of the same category and plan:</p>
           <ol>{CHECKS.map((c) => <li key={c.key}><b>{c.label}</b>: {c.rule}.</li>)}</ol>
           <p>“3/5” means three checks passed out of five that could be worked out. A check counts only when the scheme has the figure and at least 3 schemes of its category have it too. It sums up past figures; it is not a rating, a ranking or a recommendation, and no star ratings are shown. A dash (—) anywhere means no figure; hover or tap it for the reason.</p>
         </NoteCard>
           <NoteCard title="Fund size bands" short="Very large, Large, Medium, Small and Very small, by assets under management. Size is not a measure of quality.">
           <div className="mf-bands">
-            <p>The word under the fund size is only a way to read scale: a very small fund can be young or niche, a very large one is harder to move quickly. Size is not a measure of quality.</p>
+            <p>The size band (hover or tap a fund size) is only a way to read scale: a very small fund can be young or niche, a very large one is harder to move quickly. Size is not a measure of quality.</p>
             <table><caption className="sr-only">Fund size bands in rupees crore</caption>
               <thead><tr><th scope="col">Fund size</th><th scope="col">Label</th></tr></thead>
               <tbody>{AUM_BUCKETS.map((b, i) => <tr key={b.label}><td>{b.range}</td><td><span className={"mf-size s" + (i + 1)}><i aria-hidden="true" />{b.label}</span></td></tr>)}</tbody></table>

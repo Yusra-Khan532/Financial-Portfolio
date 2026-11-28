@@ -10,7 +10,9 @@ exchange's closes), return since IPO = (latest close - issue price) / issue pric
 
 from __future__ import annotations
 
+import asyncio
 import json
+import logging
 import re
 import time
 from datetime import date, datetime, timedelta, timezone
@@ -22,6 +24,7 @@ from fastapi.responses import Response
 from .ipogmp import SOURCE_NAME, SOURCE_URL, verdict
 
 router = APIRouter()
+log = logging.getLogger("finlit.ipoapi")
 IST = timezone(timedelta(hours=5, minutes=30))
 QUOTE_FALLBACK_DAYS = 365   # the nightly quote stands in for our daily closes only this long after listing (it is not split-adjusted)
 # Days after the bidding closed with no listing date: the issue leaves "Closed, listing soon" and is shown as "Not listed" (task #329, developer file 29:
@@ -148,15 +151,12 @@ COVERAGE_SQL = """SELECT count(*) FILTER (WHERE listed) AS listed, count(*) FILT
     count(*) FILTER (WHERE last_px IS NOT NULL) AS "lastClose", count(*) FILTER (WHERE bse_ticker IS NOT NULL) AS "bseTickers",
     count(*) FILTER (WHERE ca_checked_at IS NOT NULL AND nse IS NOT NULL) AS "caCheckedNse", count(*) FILTER (WHERE ca_checked_at IS NOT NULL AND nse IS NULL) AS "caCheckedBse",
     count(*) FILTER (WHERE ca_factor IS NOT NULL AND nse IS NULL) AS "caFactorBse", count(*) FILTER (WHERE nse_book IS NOT NULL) AS "nseBooks" FROM ipo_gmp"""
-_history: Dict[str, Any] = {"t": 0.0, "body": None}
+_history: Dict[str, Any] = {"t": 0.0, "body": None, "task": None}
 
 
-@router.get("/api/ipos/history")
-async def history(request: Request) -> Response:
-    """Public. Every IPO on record as a light row, newest first. Built at most once every five minutes per process (about 1,600 rows, two lookups each)."""
-    if _history["body"] is not None and time.monotonic() - _history["t"] < HISTORY_TTL_S:
-        return Response(_history["body"], media_type="application/json", headers={"Cache-Control": "public, max-age=600"})
-    async with request.app.state.store.pool.acquire() as conn:
+async def _build_history(store) -> str:
+    """The list as the JSON text it is sent as (about 1,600 rows)."""
+    async with store.pool.acquire() as conn:
         rs = [dict(x) for x in await conn.fetch(ROWS_SQL, None)]
         newest = await conn.fetchval("SELECT max(fetched_at) FROM ipo_gmp")
         cov = dict(await conn.fetchrow(COVERAGE_SQL))
@@ -165,9 +165,30 @@ async def history(request: Request) -> Response:
     today = _today()
     body = {"items": [row(x, today) for x in rs], "coverage": cov, "asOf": today.isoformat(), "updatedAt": newest.isoformat() if newest else None, "sources": SOURCES,
             "note": "GMP (grey market premium) is an informal, unofficial grey-market price, as InvestorGain recorded it; it is not an exchange figure."}
-    text = json.dumps(body, default=str)
-    _history.update(t=time.monotonic(), body=text)
-    return Response(text, media_type="application/json", headers={"Cache-Control": "public, max-age=600"})
+    return json.dumps(body, default=str)
+
+
+async def _refresh_history(store) -> None:
+    try:
+        _history.update(t=time.monotonic(), body=await _build_history(store))
+    except Exception:
+        log.warning("all-IPOs list not rebuilt; the previous copy is kept", exc_info=True)
+    finally:
+        _history["task"] = None
+
+
+@router.get("/api/ipos/history")
+async def history(request: Request) -> Response:
+    """Public. Every IPO on record as a light row, newest first. Sent from the copy in memory: once it is older than five minutes, it is rebuilt in the
+    background and the current copy is sent meanwhile, so a visitor never waits for a rebuild (3-6 s under load, 27 Nov 2026) except right after the
+    server starts. The data jobs run every 30 minutes, so the copy is never far behind."""
+    headers = {"Cache-Control": "public, max-age=600"}
+    store = request.app.state.store
+    if _history["body"] is None:
+        _history.update(t=time.monotonic(), body=await _build_history(store))
+    elif time.monotonic() - _history["t"] >= HISTORY_TTL_S and not _history.get("task"):
+        _history["task"] = asyncio.create_task(_refresh_history(store))
+    return Response(_history["body"], media_type="application/json", headers=headers)
 
 
 @router.get("/api/ipos/record/{ig_id}")

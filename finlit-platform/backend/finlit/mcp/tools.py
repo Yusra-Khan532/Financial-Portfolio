@@ -285,7 +285,7 @@ def _results_params(a: Dict[str, Any], limit: int) -> Dict[str, Any]:
 def _results_out(b: Dict[str, Any], path: str, extra_notes: Optional[List[str]] = None) -> Out:
     notes = list(extra_notes or [])
     if b.get("locked"):
-        notes.append("Growth and margin figures for these results are a Silver feature on the website, so rows here carry dates, names and status only; figures are null because they are withheld, not because they are zero.")
+        notes.append("Growth and margin figures for these results are a paid-plan feature on the website, so rows here carry dates, names and status only; figures are null because they are withheld, not because they are zero.")
     if not b.get("quarter"):
         notes.append("No quarter with declarations is loaded yet.")
     rows = [{k: r.get(k) for k in ("symbol", "name", "sector", "cap", "date", "status", "periodEnd", "hasNumbers", "revenue", "netProfit", "revenueYoY", "profitYoY") if k in r} for r in b.get("rows", [])]
@@ -380,6 +380,26 @@ async def get_ipo_calendar(gw: Gateway, a: Dict[str, Any]) -> Out:
         notes.append("No issues are listed for that status.")
     return Out({"status": a["status"], "returned": len(rows), "ipos": rows}, as_of=_today_ist().isoformat(), source="FinLit Ventures IPO list (entered by FinLit from issue documents)",
                routes=["/api/ipos"], notes=notes)
+
+
+async def get_bulk_block_deals(gw: Gateway, a: Dict[str, Any]) -> Out:
+    """NSE's bulk, block and short-selling deals (finlit/dealsapi.py): one share's deals, or the market's largest over a period."""
+    sym = (a.get("symbol") or "").strip().upper()
+    keep = ("day", "kind", "symbol", "name", "client", "side", "qty", "price", "valueCr", "pctEquity", "alsoBlock", "alsoBulk", "closeNow", "sinceDealPct")
+    if sym:
+        b = await gw.json(f"/api/deals/stock/{sym}", subject=f"The deals in {sym}")
+        rows = [{k: r.get(k) for k in keep} for r in (b.get("rows") or [])][: a["limit"]]
+        body = {"symbol": sym, "trades": b.get("trades"), "buyCr": b.get("buyCr"), "sellCr": b.get("sellCr"), "netCr": b.get("netCr"), "returned": len(rows), "deals": rows}
+    else:
+        b = await gw.json("/api/deals", {"days": a["days"], "kind": a["kind"], "sort": "value", "size": a["limit"]}, subject="Bulk and block deals")
+        rows = [{k: r.get(k) for k in keep} for r in (b.get("rows") or [])]
+        body = {"period": b.get("period"), "totals": b.get("totals"), "returned": len(rows), "deals": rows}
+    cov = b.get("coverage") or {}
+    notes = ["A block deal that NSE also lists as a bulk deal is counted once (alsoBlock marks the bulk copy). Values are in rupees crore.",
+             f"Deals held from {cov.get('first_day')} to {cov.get('last_day')}." if cov.get("first_day") else "No deals are held yet.",
+             "These describe what was traded and by whom; they are not a signal or a recommendation."]
+    return Out(body, as_of=cov.get("last_day"), source="NSE bulk and block deal files and short-selling reports, as shown on FinLit",
+               routes=[f"/api/deals/stock/{sym}" if sym else "/api/deals"], notes=notes)
 
 
 async def search_funds(gw: Gateway, a: Dict[str, Any]) -> Out:
@@ -499,6 +519,9 @@ def build_tools() -> List[Tool]:
              {"days": {"type": "integer", "minimum": 1, "maximum": 90, "default": 10, "description": "How many recent sessions"}}, get_fii_dii_flows),
         Tool("get_ipo_calendar", "IPO calendar", "Upcoming, open, closed and listed public issues with price band, dates and issue size.",
              {"status": {"type": "string", "enum": ["upcoming", "open", "closed", "listed", "all"], "default": "all", "description": "Which issues"}, "limit": lim(20, 50)}, get_ipo_calendar),
+        Tool("get_bulk_block_deals", "Bulk and block deals", "NSE's bulk, block and short-selling deals: one share's deals (give symbol), or the largest deals in the market over the last N days. Each trade counted once.",
+             {"symbol": _sym_prop(" (optional)"), "days": {"type": "integer", "minimum": 1, "maximum": 365, "default": 7, "description": "Period for the market-wide list"},
+              "kind": {"type": "string", "enum": ["all", "bulk", "block", "short"], "default": "all", "description": "Which deals"}, "limit": lim(20, 50)}, get_bulk_block_deals),
         Tool("search_funds", "Search mutual funds", "Find mutual fund schemes by name. Returns code, fund house, category, NAV and returns.",
              {"query": {"type": "string", "maxLength": 60, "description": "Part of a scheme name"}, "limit": lim(10, 25)}, search_funds, ["query"]),
         Tool("get_fund_details", "Mutual fund details", "One scheme in full: NAV, returns, fees, size, and the facts FinLit shows. Use the code from search_funds.",

@@ -24,7 +24,7 @@ from ..auth.routes import NO_STORE, Ctx, fail, limit, secure_ctx
 from . import MODEL_VERSION, scorehist
 from .api import DISCLAIMER, METHOD_URL, PRIVATE, _json, _sub_label, may_see, resolve_mf
 from .groups import GROUP_NAMES
-from .scorehist import PILLAR_NAME, part_word, part_words
+from .scorehist import PILLAR_NAME, part_scores, part_word, part_words
 
 router = APIRouter(prefix="/api/mf")
 CACHE_SECONDS = 600
@@ -71,6 +71,7 @@ def item_of(r: Dict[str, Any]) -> Dict[str, Any]:
     return {"key": r["key"], "kind": r["kind"], "code": r["code"], "symbol": r["symbol"], "name": r["name"] or r["symbol"] or r["key"], "amc": r["amc"], "plan": r["plan"],
             "group": r["grp"], "sub": r["sub"], "categoryLabel": _sub_label(r["category"]) if r["kind"] == "mf" else "Exchange-traded fund", "final": r["final"], "label": r["label"],
             "status": r["status"], "reason": r["reason"], "pillars": part_words(r["perf"], r["risk"], r["cost"], r["quality"]),
+            "pillarScores": part_scores(r["perf"], r["risk"], r["cost"], r["quality"]),   # task #378: each part's figure beside its word (Gold only, like the score)
             "rank": r["rank"], "rankOf": r["rank_of"], "aumCr": None if r["aum_lakh"] is None else round(r["aum_lakh"] / 100.0, 1), "ageYears": r["age_years"],
             "ter": r["ter"], "r1y": r["r1y"], "r3y": r["r3y"], "r5y": r["r5y"], "fullData": r["confidence"] is not None and r["confidence"] >= 0.999,
             "flags": list(r["flags"] or [])}

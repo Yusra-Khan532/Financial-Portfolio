@@ -109,8 +109,8 @@ describe("#303: the frame", () => {
 describe("#303: the company table", () => {
   it("Short-term trend shows after Prism, in the five words, sorts as the long-term trend does, and has its i", async () => {
     await show("/discover/companies");
-    expect(heads().slice(4, 7)).toEqual(["Prism", "Short-term trend", "Long-term trend"]);
-    const col = heads().indexOf("Short-term trend");
+    expect(heads().slice(4, 7)).toEqual(["Prism", "Short term", "Long term"]);             // developer file 53: short names under "FinLit's reading"
+    const col = heads().indexOf("Short term");
     const cell = (s: string) => document.querySelector(`tr[data-dsc-row="${s}"]`)!.children[col].textContent;
     expect(cell("FORGE")).toBe("Strong uptrend"); expect(cell("RADAR")).toBe("Downtrend"); expect(cell("SOLARX")).toBe("Not rated");
     fireEvent.click(document.querySelectorAll<HTMLButtonElement>(".dsc-tb thead .dsc-sb")[col]);
@@ -127,7 +127,7 @@ describe("#303: the company table", () => {
     UNI.rows.forEach((r) => { (r as { prism_st: string | null }).prism_st = null; });
     try {
       await show("/discover/companies");
-      const col = heads().indexOf("Short-term trend");
+      const col = heads().indexOf("Short term");
       expect(document.querySelector('tr[data-dsc-row="FORGE"]')!.children[col].textContent).toBe("Gold");
     } finally { UNI.rows[0].prism_st = "Uptrend"; UNI.rows[1].prism_st = "Downtrend"; UNI.rows[3].prism_st = "Strong uptrend"; }
   });
@@ -153,7 +153,7 @@ describe("#303: the company table", () => {
     expect(localStorage.getItem(colsKey(7))!.split(",")).not.toContain("mc");
     expect(ddBtn(/^Columns/).querySelector(".dbx-ddv")!.textContent).toBe("10");           // Company and nine of the eleven
     cleanup(); await show("/discover/themes/defence-and-aerospace");                         // another list, a new visit: the choice stays
-    expect(heads()).not.toContain("Market cap"); expect(heads()).toContain("Short-term trend");
+    expect(heads()).not.toContain("Market cap"); expect(heads()).toContain("Short term");
     fireEvent.click(within(dd(/^Columns/)).getByRole("checkbox", { name: "Market cap" }));
     expect(heads()).toContain("Market cap");
   });
@@ -237,8 +237,11 @@ describe("#303: What changed", () => {
     expect(fmtLocal(addMonthsLocal(RECORD_FROM, 1))).toBe("19 Dec 2026");
     expect([3, 6, 12].map((m) => fmtLocal(addMonthsLocal(RECORD_FROM, m)))).toEqual(["19 Feb 2027", "19 May 2027", "19 Nov 2027"]);
     await show("/discover/changes");
+    // developer file 53: the four dates are one row (they were the same in each of the six groups' rows)
+    expect(document.querySelectorAll(".dsc-rec tbody tr")).toHaveLength(1);
     const row = document.querySelector(".dsc-rec tbody tr")!;
-    expect([...row.querySelectorAll("td")].slice(1, 5).map((t) => t.textContent)).toEqual(["from 19 Dec 2026", "19 Feb 2027", "19 May 2027", "19 Nov 2027"]);
+    expect(row.querySelector("th")!.textContent).toBe("First shown on");
+    expect([...row.querySelectorAll("td")].map((t) => t.textContent)).toEqual(["19 Dec 2026", "19 Feb 2027", "19 May 2027", "19 Nov 2027"]);
   });
   it("the record table's and the stage table's first column are not shaded or pinned by the site-wide td:first-child rule", () => {
     const css = readFileSync(join(__dirname, "..", "discovery", "discover.css"), "utf8");

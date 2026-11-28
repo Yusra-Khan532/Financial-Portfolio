@@ -10,8 +10,9 @@ import { OwnFacts } from "./OwnFacts";
 import { OwnInsightCards } from "./OwnInsightCards";
 import { OwnMoves } from "./OwnMoves";
 import { OwnersToday } from "./OwnersToday";
+import { OwnDeals } from "./OwnDeals";
 
-const HEAD = { id: "ownership", no: "12 · Ownership", icon: "pie", tier: "basic" as const, title: "Who owns the company", color: "--p-balance" };
+const HEAD = { id: "ownership", no: "Ownership", icon: "pie", tier: "basic" as const };
 
 /** The series the section draws: the stored shareholding (every filing the provider has, so every year is selectable), else the insights' own 21 filings. */
 export function seriesOf(o?: Ownership, ins?: OwnInsights): OwnSeries | null {
@@ -20,8 +21,9 @@ export function seriesOf(o?: Ownership, ins?: OwnInsights): OwnSeries | null {
   return null;
 }
 
-/** Section 10. `ins` is the stored ownership insights (never the premium endpoint); `insWhy` is the reason when they cannot be had. */
-export function OwnershipSection({ o, ins, insWhy }: { o?: Ownership; ins?: OwnInsights; insWhy?: string | null }) {
+/** Section 10. `ins` is the stored ownership insights (never the premium endpoint); `insWhy` is the reason when they cannot be had. `symbol` (the
+ *  report's share) adds the tab "Bulk & block deals": NSE's deals in the share, dots on its price chart (pages/Deals.tsx has every share). */
+export function OwnershipSection({ o, ins, insWhy, symbol }: { o?: Ownership; ins?: OwnInsights; insWhy?: string | null; symbol?: string }) {
   const [pick, setPick] = useState<number | null>(null);
   const [q, setQ] = useState(CMP_OPTIONS[1].q);
   const series = seriesOf(o, ins);
@@ -37,7 +39,7 @@ export function OwnershipSection({ o, ins, insWhy }: { o?: Ownership; ins?: OwnI
   const stale = !!ins?.as_of && ins.as_of !== periods[latest];
   const cur = parsePeriod(when);
   return (
-    <section className="block ow" style={{ "--sc": "var(--p-balance)" } as React.CSSProperties}>
+    <section className="block ow">
       <SectionHead {...HEAD} sub={`Shareholding pattern, ${periods[latest]}`} />
       {years.length > 0 && (
         <OwnershipYearPicker years={years.map((y) => y.year)} selected={cur?.year ?? null} onPick={(y) => { const f = years.find((z) => z.year === y); if (f) setPick(f.index); }}
@@ -53,6 +55,7 @@ export function OwnershipSection({ o, ins, insWhy }: { o?: Ownership; ins?: OwnI
         { key: "changed", label: "What changed", content: <OwnInsightCards ins={ins} why={insWhy} stale={stale} /> },
         { key: "pattern", label: "Pattern over time", content: <OwnCharts series={series} /> },
         { key: "facts", label: "Filing facts & top holders", content: <OwnFacts ins={stale ? undefined : ins} /> },
+        ...(symbol ? [{ key: "deals", label: "Bulk & block deals", content: <OwnDeals symbol={symbol} /> }] : []),
       ]} />
       <p className="ow-foot">pts = percentage points of the company. From quarterly shareholding filings. Information only, not advice.</p>
     </section>

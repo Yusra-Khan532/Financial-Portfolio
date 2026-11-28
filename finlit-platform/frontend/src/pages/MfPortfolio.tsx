@@ -5,7 +5,7 @@ import { Link, useSearchParams } from "react-router";
 import { Gate } from "../components/Gate";
 import { Icon } from "../lib/icons";
 import { useDocTitle } from "../lib/title";
-import { TIER, useUI } from "../lib/ui";
+import { useUI } from "../lib/ui";
 import { limitsFor } from "../lib/auth";
 import { ClearPortfolio } from "../components/ClearPortfolio";
 import { statementFromFile, FIELD_LABEL, type Statement } from "../lib/mfStatement";
@@ -67,8 +67,10 @@ import "../styles/sectors-pack.css";
 import "../styles/industry-pack.css";
 import "../mf/pack/mf-pack.css";
 import "../mf/pack/spacing389.css";   // task #389 (file 40 v4, Part D): the page's spacing, after the pack CSS
-import { PLAN_FOR_PORTFOLIO, PLAN_FOR_PRISM } from "../lib/planGates";
+import { PLAN_FOR_FUND_PORTFOLIO, PLAN_FOR_PRISM } from "../lib/planGates";
 import { PageTabs } from "../components/PageTabs";
+import { memberPlanName } from "../lib/planNames";
+import { planKeyOf } from "../lib/auth";
 
 const errText = (e: unknown) => ((e as { body?: { detail?: string } })?.body?.detail) || (e instanceof Error ? e.message : "Something went wrong. Please try again.");
 
@@ -197,7 +199,7 @@ const savePlace = (who: string | number | null | undefined, view: MfView, step: 
 export function MfPortfolioPage() {
   useDocTitle("MF portfolio", "How healthy your mutual funds are, what sits inside them, how alike they are, and how risky they are together.");
   const { plan, has, toast } = useUI();
-  const silver = has(PLAN_FOR_PORTFOLIO);
+  const silver = has(PLAN_FOR_FUND_PORTFOLIO);
   const [params, setParams] = useSearchParams();
   // task #235 (pack C1): one tab per platform; ?pf= picks one, All platforms adds them up
   const qAll = useMfPortfolio(silver), w = useMfWrites();
@@ -343,11 +345,11 @@ export function MfPortfolioPage() {
     // task #389 (developer file 40 v4, D1 / SHARED.md SP1): `pfx`, as on the Equity and ETF pages, so the page has their width (with funds and without);
     // A2: VisitFolds keeps Key figures (and the bottom's two folds) open for the rest of the visit once opened, closed on every new visit
     <KnowPop.Provider value={true}><VisitFolds><div className="wrap ipo mp sp mfp pfx">
-      <Gate tier={PLAN_FOR_PORTFOLIO} title="Track your mutual funds" points={["How healthy each fund is: the Mutual Fund Score and its four parts", "What sits inside your funds, and how alike they are", "Each fund against its own benchmark, and the list together", "Import your CAS PDF, or Excel / CSV statements, read by ISIN"]}>
+      <Gate tier={PLAN_FOR_FUND_PORTFOLIO} title="Track your mutual funds" points={["How healthy each fund is: the Mutual Fund Score and its four parts", "What sits inside your funds, and how alike they are", "Each fund against its own benchmark, and the list together", "Import your CAS PDF, or Excel / CSV statements, read by ISIN"]}>
         {/* task #275 (change 2): the compact top: title, plan, as-of and the add box in one row; the money box that says what it covers, and Your portfolios */}
         <header className="ptk-head card" id="mfp-top">
           <div className="ptk-t1">
-            <div className="ptk-ht"><h1 className="ui-title">MF portfolio</h1><p className="ptk-plan mfp-plan"><span>{TIER[plan].n}</span></p>
+            <div className="ptk-ht"><h1 className="ui-title">MF portfolio</h1><p className="ptk-plan mfp-plan"><span>{memberPlanName(planKeyOf(), plan)}</span></p>
               <Tip text="How healthy your mutual funds are, what sits inside them, how alike they are, and how risky they are together." how="Start with names; add units when you want the figures to follow your money. Each fund is read by its ISIN, which names the exact plan and option." label="About the MF portfolio" />
               {d?.dataDate && <span className="ptk-asof">NAVs at close · {dm(d.dataDate)}</span>}</div>
             <AddBox placeholder="Add a fund by name or ISIN" noun={["fund", "funds"]} useResults={useFundGroupResults} full={full} fullWhy={`Your plan holds ${limit} funds. Remove one to add another.`}
