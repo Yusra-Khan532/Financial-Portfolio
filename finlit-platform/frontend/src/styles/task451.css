@@ -1,0 +1,4 @@
+/* Task #451 (team, 28 Nov 2026): on the Mutual Fund Screener an IDCW row's stand-in figures (its same-plan Growth option's returns and score) no longer
+   carry a line of words under them; they are in italics with a dotted underline, named on hover and to screen readers. Scoped to the screener table. */
+.mfs-table td .mfs-grf451 { display: inline; font-style: italic; text-decoration: underline dotted; text-underline-offset: 3px; cursor: help; }
+.mfs-table td .mfs-pv.mfs-pv-inh { font-style: italic; text-decoration: underline dotted; text-underline-offset: 4px; text-decoration-thickness: 1px; }
