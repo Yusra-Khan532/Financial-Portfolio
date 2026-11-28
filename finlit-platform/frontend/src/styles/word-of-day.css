@@ -69,8 +69,6 @@
 .wod-bulb { flex: none; width: 20px; height: 20px; margin-top: 0; color: var(--gold-2); }
 .wod-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
 .wod-bm svg { width: 16px; height: 16px; flex: none; }
-:root .wod-gl { color: var(--gain); font-weight: var(--ui-fw-semibold); text-decoration: none; }
-:root .wod-gl:hover { text-decoration: underline; }
 .wod-note { margin: 0; padding-top: 12px; border-top: 1px solid var(--border); font-size: var(--fs-13); line-height: var(--lh-13); color: var(--muted); }
 :root .wod-note a { color: var(--gain); font-weight: var(--ui-fw-semibold); }
 
