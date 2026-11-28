@@ -344,8 +344,8 @@ async def test_personal_note_saves_its_address_caps_the_send_and_a_stop_reply_is
     assert (k["format"], k["from_address"]) == ("personal", "pranshu@finlitventures.com")
     assert (await admin.post(f"/api/admin/mail/campaigns/{cid}/test", json={"to": "boss@example.com"})).json()["status"] == "sent"
     raw = sent[-1][1].decode()
-    # #1057 (founder, 28 Nov 2026): a Personal note carries no footer, so no "Reply 'stop'" line either; a 'stop' reply is recorded with Unsubscribe (below)
     assert "From: Pranshu from FinLit Ventures <pranshu@finlitventures.com>" in raw and "List-Unsubscribe" not in raw and "Reply 'stop'" not in raw
+    assert raw.endswith("Hi there,\n\nPlease share your feedback.\n")  # the text as written, no footer (#1057)
     pv = (await admin.post("/api/admin/mail/preview", json={**draft, "format": "personal"})).json()
     assert pv["from"] == "Pranshu from FinLit Ventures <pranshu@finlitventures.com>"
 

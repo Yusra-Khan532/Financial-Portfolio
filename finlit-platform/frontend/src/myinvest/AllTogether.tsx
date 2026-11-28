@@ -201,7 +201,7 @@ function Every({ d, filter, setFilter }: { d: AllInvestments; filter: EveryFilte
         info={["Every company you own, once, with what you hold directly, through funds and through ETFs added up.", "All together is your real share of the company; Held shows the ways: D direct, F through a fund, E through an ETF."]} />
       {/* task #277 (change 18): one row of filters across every company, which stays up while the table is scrolled; task #391 (Update 25 Nov, row 3):
           it stops just under the section bar, which stays, so the row no longer repeats the bar's views and sections */}
-      <FilterRow rows={d.companies} f={filter} set={set} plan={d.plan === "gold" ? "gold" : "silver"} />
+      <FilterRow rows={d.companies} f={filter} set={set} plan={d.plan === "gold" ? "gold" : "silver"} sort={sort} />
       <div id="mi-every-t" className="mi7-anchor" />
       <HeldKey />
       <SortBar s={sort} />

@@ -105,24 +105,57 @@ export function useTableSort<T>(id: string, cols: Col<T>[]): TableSort<T> {
 }
 
 const AR = {
-  none: <svg viewBox="0 0 12 14" width="12" height="14" fill="currentColor" aria-hidden="true" focusable="false"><path d="M6 1 10 5.5H2z" /><path d="M6 13 2 8.5h8z" /></svg>,
-  asc: <svg viewBox="0 0 12 14" width="12" height="14" fill="currentColor" aria-hidden="true" focusable="false"><path d="M6 2 10.5 7.5h-9z" /><rect x="5" y="7" width="2" height="5" rx="1" /></svg>,
-  desc: <svg viewBox="0 0 12 14" width="12" height="14" fill="currentColor" aria-hidden="true" focusable="false"><path d="M6 12 1.5 6.5h9z" /><rect x="5" y="2" width="2" height="5" rx="1" /></svg>,
+  none: <svg viewBox="0 0 12 14" width="9" height="12" fill="currentColor" aria-hidden="true" focusable="false"><path d="M6 1 10 5.5H2z" /><path d="M6 13 2 8.5h8z" /></svg>,
+  asc: <svg viewBox="0 0 12 14" width="9" height="12" fill="currentColor" aria-hidden="true" focusable="false"><path d="M6 2 10.5 7.5h-9z" /><rect x="5" y="7" width="2" height="5" rx="1" /></svg>,
+  desc: <svg viewBox="0 0 12 14" width="9" height="12" fill="currentColor" aria-hidden="true" focusable="false"><path d="M6 12 1.5 6.5h9z" /><rect x="5" y="2" width="2" height="5" rx="1" /></svg>,
 };
+/** Task #438 rework (founder's check of 28 Nov 2026: the arrows added ~160px across "Where your money sits" and clipped "Open tab →"): a 9×12 arrow
+ *  inside the heading's own end padding (styles/sort438.css), so a heading grows by 2px instead of 18px. */
+export const SortArrow = ({ d }: { d: Dir | null }) => <span className="fl-sort-ar">{d ? AR[d] : AR.none}</span>;
+/** A heading's tooltip: what pressing it does next. */
+export function sortTitle(type: SortType, text: string, d: Dir | null): string {
+  return d ? `Sorted ${labelFor(type, d)}. Press to ${d === firstDir(type) ? "reverse" : "go back to FinLit’s order"}.` : `Sort by ${text}, ${labelFor(type, firstDir(type))}`;
+}
+/** The direction a column is sorted in, or null. */
+export const dirOf = <T,>(s: TableSort<T>, key: string): Dir | null => (s.state?.key === key ? s.state.dir : null);
 
 /** The heading row: each data heading's words inside a real button with the arrow pair; "(Open its tab)" and other empty headings stay as they were. */
 export function SortHead<T>({ s }: { s: TableSort<T> }) {
   return (
     <thead><tr>{s.cols.map((c) => {
       if (c.type === "none") return <th key={c.key} scope="col" className={c.r ? "r" : undefined} aria-label={c.ariaLabel}>{c.label}</th>;
-      const d = s.state?.key === c.key ? s.state.dir : null;
-      const title = d ? `Sorted ${labelFor(c.type, d)}. Press to ${d === firstDir(c.type) ? "reverse" : "go back to FinLit’s order"}.` : `Sort by ${c.text}, ${labelFor(c.type, firstDir(c.type))}`;
+      const d = dirOf(s, c.key), title = sortTitle(c.type, c.text, d);
       return (
         <th key={c.key} scope="col" className={(c.r ? "r " : "") + "fl-sortable" + (c.r ? " fl-r" : "")} aria-sort={d === "asc" ? "ascending" : d === "desc" ? "descending" : "none"}>
-          <button type="button" className="fl-sort" title={title} onClick={() => s.click(c.key)}><span className="fl-sort-t">{c.label}</span><span className="fl-sort-ar">{d ? AR[d] : AR.none}</span></button>
+          <button type="button" className="fl-sort" title={title} onClick={() => s.click(c.key)}><span className="fl-sort-t">{c.label}</span><SortArrow d={d} /></button>
         </th>);
     })}</tr></thead>
   );
+}
+
+/** The column names carried by the filter row while it is stuck over a long table (EveryFilters' FilterRow): the same sort buttons as the heading row,
+ *  each placed over its column (`l`, `w` in px from the row's left; `i` the heading's index). Task #438 rework (founder, 28 Nov 2026: mid-list "there's
+ *  no way to see or change the sort"): pressing one sorts exactly as the real heading does; the sorted one is underlined and tinted. */
+export function PinnedSortCols<T>({ s, cols }: { s: TableSort<T>; cols: { i: number; t: string; l: number; w: number; r: boolean }[] }) {
+  return (
+    <div className="mi7-fcols fl-pinhead" role="group" aria-label="Sort the table by a column">
+      {cols.map((p) => {
+        const c = s.cols[p.i], style = { left: p.l, width: p.w };
+        if (!c || c.type === "none") return <span key={p.i} aria-hidden="true" style={{ ...style, textAlign: p.r ? "right" : "left" }}>{p.t}</span>;
+        const d = dirOf(s, c.key);
+        return (
+          <button key={p.i} type="button" className={"fl-pin" + (p.r ? " fl-r" : "") + (d ? " on" : "")} style={style} title={sortTitle(c.type, c.text, d)}
+            aria-label={`${c.text}${d ? `, sorted ${labelFor(c.type, d)}` : ""}`} onClick={() => s.click(c.key)}>
+            <span className="fl-sort-t">{c.label}</span><SortArrow d={d} />
+          </button>);
+      })}
+    </div>
+  );
+}
+/** The sort, small, in the stuck filter row (the line above the table has scrolled away): what it is sorted by, and Reset. */
+export function PinnedSortChip<T>({ s }: { s: TableSort<T> }) {
+  if (!s.col || !s.state) return null;
+  return <span className="fl-pin-chip"><span>Sorted by <b>{s.col.text}</b><span className="fl-pin-dir">, {labelFor(s.col.type, s.state.dir)}</span></span><button type="button" className="fl-sort-reset" onClick={s.reset}>Reset</button></span>;
 }
 
 /** The line above the table: the hint when unsorted, the chip with Reset when sorted, and the polite announcement. */
