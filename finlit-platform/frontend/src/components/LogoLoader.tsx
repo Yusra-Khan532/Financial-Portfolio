@@ -2,20 +2,16 @@
 //  <FinLitLogo/>   the logo as a still picture (the website header)
 //  <LogoLoader/>   the same logo building itself: the staircase draws, F and n appear, the person walks onto the first step and climbs to his place in
 //                  the "i", then L, i and t appear, the bars rise and the growth arrow sweeps up (about 3 s of a 3.6 s loop)
-// Owner, 28 Nov 2026: the logo exactly as given, everywhere: the whole artwork with its dark green panel, black band and "VENTURES", in its own
-// colours and proportions in both themes (LOGO_VIEWBOX is the artwork's frame).
 // Pure CSS on inline SVG (src/styles/logo-loader.css, linked from index.html and bundled by Vite with a content hash in its file name, so a visitor can never
-// get an old copy of it next to new markup; the same logo also shows before any script has run). Colours are the artwork's
-// (white letters, yellow, teal on dark green), in both themes. Reduced motion: the finished logo, still. The loader markup is checked against the splash in index.html by a test.
-import { LOGO_ARROW, LOGO_BAR1, LOGO_BAR2, LOGO_BAR3, LOGO_F, LOGO_HEAD, LOGO_IDOT, LOGO_ISTEM, LOGO_N, LOGO_PANEL, LOGO_PERSON, LOGO_STAIRSL_GOLD, LOGO_STAIRL_WHITE, LOGO_T, LOGO_VENTURES, LOGO_VIEWBOX, LOGO_VRULES } from "./logoPaths";
+// get an old copy of it next to new markup; the same logo also shows before any script has run). Colours follow the theme
+// (dark or white letters, yellow, teal). Reduced motion: the finished logo, still. The loader markup is checked against the splash in index.html by a test.
+import { LOGO_ARROW, LOGO_BAR1, LOGO_BAR2, LOGO_BAR3, LOGO_F, LOGO_HEAD, LOGO_IDOT, LOGO_ISTEM, LOGO_N, LOGO_PERSON, LOGO_STAIRSL_GOLD, LOGO_STAIRL_WHITE, LOGO_T, LOGO_VIEWBOX } from "./logoPaths";
 
 export function LogoMark({ play = false, className = "" }: { play?: boolean; className?: string }) {
   return (
     <svg className={("ll " + (play ? "ll-play " : "") + className).trim()} viewBox={LOGO_VIEWBOX} aria-hidden="true" focusable="false">
       <defs><linearGradient id="ll-grad" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#1DBD9E" /><stop offset="1" stopColor="#0E7A62" /></linearGradient></defs>
       <g className="ll-all">
-        <rect className="ll-frame" x={LOGO_VIEWBOX.split(" ")[0]} y={LOGO_VIEWBOX.split(" ")[1]} width={LOGO_VIEWBOX.split(" ")[2]} height={LOGO_VIEWBOX.split(" ")[3]} />
-        <rect className="ll-panel" x={LOGO_PANEL.x} y={LOGO_PANEL.y} width={LOGO_PANEL.w} height={LOGO_PANEL.h} />
         <g className="ll-stairs"><path className="ll-gold" d={LOGO_STAIRSL_GOLD} /><path className="ll-ink" d={LOGO_STAIRL_WHITE} /></g>
         <path className="ll-ink ll-F" d={LOGO_F} />
         <path className="ll-ink ll-n" d={LOGO_N} />
@@ -25,7 +21,6 @@ export function LogoMark({ play = false, className = "" }: { play?: boolean; cla
         <path className="ll-grad ll-b2" d={LOGO_BAR2} />
         <path className="ll-grad ll-b3" d={LOGO_BAR3} />
         <path className="ll-grad ll-arrow" d={LOGO_ARROW} />
-        <g className="ll-v"><path className="ll-gold" d={LOGO_VRULES} /><path className="ll-ink" d={LOGO_VENTURES} /></g>
         <g className="ll-person"><circle className="ll-ink" cx={LOGO_HEAD.cx} cy={LOGO_HEAD.cy} r={LOGO_HEAD.r} /><path className="ll-ink" d={LOGO_PERSON} /></g>
       </g>
     </svg>

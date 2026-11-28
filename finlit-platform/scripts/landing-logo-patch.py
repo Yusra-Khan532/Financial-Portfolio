@@ -1,4 +1,4 @@
-# Used once on 28 Nov 2026 (owner: the whole logo, with VENTURES, everywhere) on the 71 landing pictures that #1016 had given the cut-down wordmark.
+# Used on 28 Nov 2026 (owner: the logo with no background, black Fin on light, white on dark) on the 71 landing pictures that #1016 had given the cut-down wordmark.
 # Run from frontend/public: python3 ../../scripts/landing-logo-patch.py brand/finlit-ventures-logo.png <old wordmark-on-light.png> <list of files>
 """Finds the cut-down wordmark in the header corner of each landing picture by template matching (several sizes) and puts the whole
 FinLit Ventures logo (with VENTURES, its own proportions) in its place on the header's background."""
@@ -7,7 +7,8 @@ import cv2
 import numpy as np
 from PIL import Image
 
-LOGO = Image.open(sys.argv[1]).convert("RGB")
+LOGO = Image.open(sys.argv[1]).convert("RGBA")                  # the light version (black Fin); the dark version is beside it
+LOGO_DARK = Image.open(sys.argv[1].replace("-light", "-dark")).convert("RGBA")
 def template(path, bg):
     wm = Image.open(path).convert("RGBA")
     alpha = np.asarray(wm)[..., 3]
@@ -39,8 +40,9 @@ def patch(path):
     bg = tuple(int(v) for v in np.median(strip.reshape(-1, 3), axis=0))
     out = im.copy()
     out.paste(bg, (max(0, x - pad), max(0, y - pad), x + w + pad, y + h + pad))
-    nh = round(h * 1.1); nw = round(nh * LOGO.width / LOGO.height)
-    out.paste(LOGO.resize((nw, nh), Image.LANCZOS), (x, round(y + h / 2 - nh / 2)))
+    nh = round(h * 1.15); nw = round(nh * LOGO.width / LOGO.height)
+    logo = LOGO_DARK if sum(bg) / 3 < 110 else LOGO                     # white Fin on a dark header, black Fin on a light one (owner, 28 Nov 2026)
+    out = out.convert("RGBA"); out.alpha_composite(logo.resize((nw, nh), Image.LANCZOS), (x, max(0, round(y + h / 2 - nh / 2)))); out = out.convert("RGB")
     return out, score, (x, y, w, h)
 
 if __name__ == "__main__":

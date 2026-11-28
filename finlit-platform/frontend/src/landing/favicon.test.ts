@@ -28,11 +28,12 @@ describe("tab icon: the FinLit logo", () => {
     expect(sizes).toEqual([16, 32, 48]);
   });
 
-  it("every icon is made from the whole square artwork, only scaled, and no unused size is shipped", () => {
+  it("every icon is the logo with no background (black Fin and VENTURES; white in a dark browser), only scaled, and no unused size is shipped", () => {
     const py = read("scripts/make-favicons.py");
-    expect(py).toContain('SRC = "../scripts/assets/finlit-ventures-logo-2000.webp"');
-    expect(py).toContain("art.resize((n, n)");                        // the whole square, no crop
-    expect(py).not.toMatch(/\.crop\(|rounded_rectangle/);
+    expect(py).toContain('"../scripts/assets/finlit-ventures-logo-light.png"');
+    expect(py).toContain('"../scripts/assets/finlit-ventures-logo-dark.png"');
+    expect(html).toContain('type="image/svg+xml" sizes="any" href="%BASE_URL%favicon-theme.svg"');
+    expect(read("public/favicon-theme.svg")).toContain("prefers-color-scheme: dark");
     expect(readFileSync(resolve(FE, "public/favicon-48.png")).length).toBeGreaterThan(1000);
     expect(existsSync(resolve(FE, "public/favicon-64.png"))).toBe(false);
   });
