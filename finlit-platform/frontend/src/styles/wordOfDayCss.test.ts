@@ -45,3 +45,24 @@ describe("Word of the Day formula: pills sized to their words, a division drawn 
     expect(rules.find((r) => r.sel === ".wod-fx-bar")!.body).toMatch(/align-self:\s*stretch[\s\S]*border-top:\s*2px solid var\(--text\)/);
   });
 });
+
+describe("Word of the Day formula is centred in its box (task #441, the team's marked screenshot of 28 Nov)", () => {
+  const body = (sel: string) => rules.filter((r) => r.sel === sel).map((r) => r.body).join(";");
+  it("each row, and the part after '=' when it moves under the name, centre their pieces", () => {
+    expect(body(".wod-fx-row")).toMatch(/justify-content:\s*center/);
+    expect(body(".wod-fx-rhs")).toMatch(/justify-content:\s*center/);
+    for (const r of rules.filter((x) => /\.wod-fx-(row|rhs)\b/.test(x.sel))) expect(r.body, r.sel).not.toMatch(/justify-content:\s*(flex-start|start|left|space-between)/);
+  });
+  it("a clause shown as written and each line of a fraction are centred, with balanced lines; a pill's own text stays centred", () => {
+    expect(body(".wod-fx-text")).toMatch(/text-align:\s*center/);
+    expect(body(".wod-fx-text")).toMatch(/text-wrap:\s*balance/);
+    expect(body(".wod-fx-fn")).toMatch(/text-align:\s*center/);
+    expect(body(".wod-fx-pill")).toMatch(/text-align:\s*center/);
+    for (const sel of [".wod-fx-pill", ".wod-fx-fn"]) expect(body(sel), sel).toMatch(/text-wrap:\s*balance/);
+    expect(body(".wod-fx-frac")).toMatch(/align-items:\s*center/);
+  });
+  it("the box keeps its column, and nothing in it gets a fixed width that could overflow a 390 px phone", () => {
+    expect(body(".wod-fx")).toMatch(/flex-direction:\s*column/);
+    for (const r of rules.filter((x) => /\.wod-fx/.test(x.sel))) expect(r.body, r.sel).not.toMatch(/(?<![-\w])width:\s*\d+px/);
+  });
+});

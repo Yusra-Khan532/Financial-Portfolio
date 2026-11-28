@@ -50,19 +50,22 @@
 
 /* The formula box: "ROE =" then the parts as pills, joined by the operators. Each pill is as wide as its words (up to the box); a division is a
    written fraction: the top part over a line over the bottom part. (Task #315's equal-share rule squeezed a long part to a third of the line, so
-   "(CPI now − CPI a year ago)" wrapped over four lines beside a wide "100".) */
+   "(CPI now − CPI a year ago)" wrapped over four lines beside a wide "100".)
+   Task #441: the formula sits in the middle of its box, every line of it: the row, the part after "=" when it moves under the name, and a
+   clause shown as written; a part that wraps (a pill, a fraction's top or bottom, a written clause) balances its lines, so a centred
+   line never ends on a lone "− 1" or "years)". */
 .wod-fx { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; border-radius: var(--r-ctl); background: var(--gain-soft); border: 1px solid var(--border); }
-.wod-fx-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
+.wod-fx-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px 10px; }
 .wod-fx-lhs { font: var(--ui-fw-bold) var(--fs-16)/var(--lh-16) var(--font-sans); color: var(--text); white-space: nowrap; }
-.wod-fx-rhs { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; max-width: 100%; }   /* everything after "=": moves under the name as one piece when it does not fit beside it */
+.wod-fx-rhs { display: inline-flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px 10px; max-width: 100%; }   /* everything after "=": moves under the name as one piece when it does not fit beside it */
 .wod-fx-part { display: inline-flex; align-items: center; gap: 10px; max-width: 100%; }
 .wod-fx-op { font: var(--ui-fw-semibold) var(--fs-16)/1 var(--font-sans); color: var(--muted); }
 /* A pill keeps whole words: its text wraps only at spaces, and only a word wider than the whole box may break, rather than spill out of the panel. */
-.wod-fx-pill { display: inline-block; max-width: 100%; padding: 6px 12px; border-radius: var(--r-ctl); background: var(--s1); border: 1px solid var(--border); font: var(--ui-fw-semibold) var(--fs-14)/var(--lh-14) var(--font-sans); color: var(--text); text-align: center; word-break: normal; overflow-wrap: break-word; }
+.wod-fx-pill { display: inline-block; max-width: 100%; padding: 6px 12px; border-radius: var(--r-ctl); background: var(--s1); border: 1px solid var(--border); font: var(--ui-fw-semibold) var(--fs-14)/var(--lh-14) var(--font-sans); color: var(--text); text-align: center; text-wrap: balance; word-break: normal; overflow-wrap: break-word; }
 .wod-fx-frac { display: inline-flex; flex-direction: column; align-items: center; gap: 4px; max-width: 100%; }
-.wod-fx-fn { max-width: 100%; padding: 0 6px; font: var(--ui-fw-semibold) var(--fs-16)/var(--lh-16) var(--font-sans); color: var(--text); text-align: center; word-break: normal; overflow-wrap: break-word; }
+.wod-fx-fn { max-width: 100%; padding: 0 6px; font: var(--ui-fw-semibold) var(--fs-16)/var(--lh-16) var(--font-sans); color: var(--text); text-align: center; text-wrap: balance; word-break: normal; overflow-wrap: break-word; }
 .wod-fx-bar { align-self: stretch; height: 0; border-top: 2px solid var(--text); }
-.wod-fx-text { margin: 0; font: var(--ui-fw-medium) var(--fs-14)/var(--lh-14) var(--font-sans); color: var(--text); overflow-wrap: break-word; }
+.wod-fx-text { margin: 0; font: var(--ui-fw-medium) var(--fs-14)/var(--lh-14) var(--font-sans); color: var(--text); text-align: center; text-wrap: balance; overflow-wrap: break-word; }
 
 .wod-why { display: flex; gap: 10px; margin: 0; color: var(--text); }
 .wod-why b { font-weight: var(--ui-fw-bold); }
