@@ -132,6 +132,19 @@ async def _record_failure(store: Store, symbol: str, statement: str, status: str
         pass
 
 
+async def _exchange_candles(store: Store, bundle: dict, symbol: str) -> None:
+    """The exchange's own daily candles (NSE first) in place of the provider's daily series, when they are stored (candles.apply). Every build that
+    writes a report's charts goes through here: the full load (ingest_one) and, since 28 Nov 2026 (task #394 re-check), the on-demand first paint
+    (ingest_essential) and its rest (ingest_rest). Before, a report rebuilt because somebody opened it drew its 1M-MAX charts from the provider's
+    series (BSE-sized volume, a different close: Hikal 231.85 and 27,834 shares on 27 Nov against the exchange's 230.86 and 3,31,721), while the
+    lists and the 3Y daily chart read the candles."""
+    try:
+        from . import candles
+        await candles.apply(store, bundle, symbol)
+    except Exception:
+        log.exception("exchange candles skipped for %s", symbol)
+
+
 async def ingest_one(client: FinEdgeClient, store: Store, symbol: str, statement: str = "consolidated", slim: bool = False, low: bool = False) -> dict:
     """Load one company. `slim` keeps only its score and screener figures (about 5 KB) and not its report or prices (about 100 KB): how the bulk
     scoring covers every listed company inside a small database. The report is built in full when somebody opens the company."""
@@ -141,11 +154,7 @@ async def ingest_one(client: FinEdgeClient, store: Store, symbol: str, statement
     try:
         bundle = await client.fetch_bundle(symbol, statement, low=low)
         if not slim:   # task #325 (file 26, 5.5): the exchange's own daily candles (NSE first) in place of the provider's series, when they are stored: see candles.py
-            try:
-                from . import candles
-                await candles.apply(store, bundle, symbol)
-            except Exception:
-                log.exception("exchange candles skipped for %s", symbol)
+            await _exchange_candles(store, bundle, symbol)
         sections = await _build_sections(client, store, symbol, bundle, company, slim=slim)
         checks = sections["summary"]["dataQuality"]["checks"]
         row = snapshot.score_row(sections)
@@ -206,6 +215,7 @@ async def ingest_essential(client: FinEdgeClient, store: Store, symbol: str, sta
         except Exception:   # nosec B110
             pass
         bundle = await client.fetch_bundle(symbol, statement, only=ESSENTIAL_KEYS, on_part=on_part)
+        await _exchange_candles(store, bundle, symbol)
         sections = await _build_sections(client, store, symbol, bundle, company)
         checks = sections["summary"]["dataQuality"]["checks"]
         meta = sections["summary"]["meta"]
@@ -244,6 +254,7 @@ async def ingest_rest(client: FinEdgeClient, store: Store, symbol: str, statemen
     company = await store.company(symbol)
     try:
         await client.fetch_rest(bundle)
+        await _exchange_candles(store, bundle, symbol)      # the rest may bring the provider's daily series back: the candles go over it again
         sections = await _build_sections(client, store, symbol, bundle, company, supplement=False)
         checks = sections["summary"]["dataQuality"]["checks"]
         await store.save_snapshot(symbol, statement, sections, snapshot.score_row(sections), sections["price"]["daily"])
