@@ -303,7 +303,9 @@ def _html_para(p: str) -> str:
 FORMATS = ("personal", "plain", "html")
 # "Personal note" (founder, 28 Nov 2026: a plain-text test still landed in Gmail's Promotions): a mail from a person, for small sends only.
 PERSONAL_MAX = 500
-PERSONAL_FOOT = "Rather not hear from us? Reply 'stop' and we won't write again.\n\nInformation only, not investment advice."
+# Personal note: no footer at all, exactly as the founder writes it (founder, 28 Nov 2026: "remove these lines ... just send as a normal mail").
+# A "stop" reply is recorded with "Unsubscribe an address" in the Console.
+PERSONAL_FOOT = ""
 DOMAIN = FROM_ADDRESS.split("@", 1)[1]
 LOCAL_OK = re.compile(r"^[a-z0-9._-]{1,40}$")
 
@@ -363,7 +365,7 @@ def build_message(subject: str, body: str, why: str, to: str, name: Optional[str
     m["Reply-To"] = sender
     m["Message-ID"] = make_msgid(domain="finlitventures.com")
     if fmt == "personal":
-        m.set_content(f"{text}\n\n{PERSONAL_FOOT}\n")
+        m.set_content(f"{text}\n\n{PERSONAL_FOOT}\n" if PERSONAL_FOOT else f"{text}\n")
         return m
     foot = f"{why.strip()}\nUnsubscribe: {unsub_url}\n{DISCLAIMER}\nFinLit Ventures · {FROM_ADDRESS} · https://finlitventures.com"
     m["List-Unsubscribe"] = f"<{unsub_url}>, <mailto:{FROM_ADDRESS}?subject={quote('unsubscribe')}>"

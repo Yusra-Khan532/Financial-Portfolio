@@ -272,7 +272,7 @@ function Composer({ d, me, onSent, start, onClose }: { d: Summary; me: string; o
           <fieldset className="mla-to mla-fmt">
             <legend>Kind of email</legend>
             <label className="mla-check"><input type="radio" name="mla-fmt" checked={f.format === "personal"} onChange={() => setF({ ...f, format: "personal" })} />
-              <span><b>Personal note</b><small className="faint">Reads like a mail from a person (no unsubscribe header, short footer). The best chance of Gmail's Primary tab for small sends (up to {nf(PERSONAL_MAX)} people). Gmail still decides per person.</small></span></label>
+              <span><b>Personal note</b><small className="faint">Reads like a mail from a person: exactly your text, no unsubscribe header and no footer. The best chance of Gmail's Primary tab for small sends (up to {nf(PERSONAL_MAX)} people). Gmail still decides per person.</small></span></label>
             <label className="mla-check"><input type="radio" name="mla-fmt" checked={f.format === "plain"} onChange={() => setF({ ...f, format: "plain" })} />
               <span><b>Plain email</b><small className="faint">Text only, with the one-click unsubscribe link and footer: for big sends (Gmail requires one-click unsubscribe from bulk senders). Links are written out.</small></span></label>
             <label className="mla-check"><input type="radio" name="mla-fmt" checked={f.format === "html"} onChange={() => setF({ ...f, format: "html" })} />
