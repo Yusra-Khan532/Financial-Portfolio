@@ -133,9 +133,9 @@ a { color: inherit; }
 .top { position: sticky; top: 0; z-index: 40; background: var(--header); border-bottom: 1px solid var(--border); padding-top: env(safe-area-inset-top, 0px); }
 .top .wrap { display: flex; align-items: center; gap: 12px; height: 62px; }
 .logo { display: inline-flex; align-items: center; text-decoration: none; flex: none; line-height: 0; }
-/* Logo from the brand image (temporary until the SVG arrives): dark-background version by default, light version in the light header */
-.lg-mark { display: block; height: 52px; aspect-ratio: 320 / 156; background: url("/brand/finlit-ventures-wordmark-on-dark.png") center / contain no-repeat; }   /* task #400: the FinLit Ventures logo; "VENTURES" is left out at header size, where it would be about 6px tall */
-:root[data-theme="light"] .top .lg-mark { background-image: url("/brand/finlit-ventures-wordmark-on-light.png"); }
+/* The FinLit Ventures logo exactly as the team's artwork (owner, 28 Nov 2026: "strictly change this logo to every place"): the whole logo with
+   "VENTURES", its dark green panel and black band, its own colours and proportions (1791 x 1140), the same in light and dark. */
+.lg-mark { display: block; height: 52px; aspect-ratio: 1791 / 1140; background: url("/brand/finlit-ventures-logo.webp") center / contain no-repeat; }
 .fcta .lg-mark { height: 64px; }
 .topnav { display: flex; gap: 2px; margin-left: 8px; }
 .topnav a { text-decoration: none; font-size: var(--fs-14); font-weight: 500; color: var(--muted); padding: 8px 10px; border-radius: var(--r-ctl); transition: color .15s, background-color .15s; white-space: nowrap; }

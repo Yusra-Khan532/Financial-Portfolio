@@ -33,7 +33,10 @@ describe("task #400: no old FinLit logo anywhere on the site", () => {
     const hits = src.filter((p) => OLD.test(readFileSync(p, "utf8")));
     expect(hits).toEqual([]);
     for (const f of ["public/brand/finlit-logo.png", "public/brand/finlit-logo-on-light.png", "public/brand/finlit-logo-on-dark.png", "public/favicon.svg"]) expect(existsSync(resolve(FE, f))).toBe(false);
-    for (const f of ["wordmark-on-light", "wordmark-on-dark", "logo-on-light", "logo-on-dark"]) expect(existsSync(resolve(FE, `public/brand/finlit-ventures-${f}.png`))).toBe(true);
+    for (const f of ["logo-on-light", "logo-on-dark"]) expect(existsSync(resolve(FE, `public/brand/finlit-ventures-${f}.png`))).toBe(true);   // the tour's end card (record-home-tour.mjs)
+    // owner, 28 Nov 2026: the logo is shown whole, with VENTURES, as the artwork; the cut-down wordmarks without VENTURES are gone
+    for (const f of ["wordmark-on-light", "wordmark-on-dark"]) expect(existsSync(resolve(FE, `public/brand/finlit-ventures-${f}.png`))).toBe(false);
+    expect(existsSync(resolve(FE, "public/brand/finlit-ventures-logo.webp"))).toBe(true);
   });
 
   it("the loading animation (and the first-load splash) is traced from the new artwork: white person and head, no old gold hair", () => {

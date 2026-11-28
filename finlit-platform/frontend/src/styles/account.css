@@ -95,7 +95,6 @@ ul.dv a { text-decoration: none; color: var(--text); display: grid; } ul.dv a sm
 :root[data-density="compact"] .block { margin-top: 28px; }
 :root[data-density="compact"] .dgrid { gap: 10px; }
 :root[data-density="compact"] body { font-size: var(--fs-14); }
-:root[data-theme="light"] .login .clg-mark { background-image: url("/brand/finlit-ventures-wordmark-on-light.png"); }
 .av-btn .av.sm { line-height: 1; padding: 0; }
 
 /* ---- chart lab ---- */

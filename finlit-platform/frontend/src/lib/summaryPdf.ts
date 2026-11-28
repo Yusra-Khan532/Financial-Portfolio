@@ -104,7 +104,7 @@ export function summaryPdf(s: PdfSummary, logo?: Logo | null): Uint8Array {
     ops = []; pages.push(ops);
     // header: the logo (or the name), what this is, a gold rule
     if (logo) {
-      const h = 30, w = (logo.width / logo.height) * h;
+      const h = 36, w = (logo.width / logo.height) * h;   // the whole logo with VENTURES (owner, 28 Nov 2026), above the gold rule at H - 80
       ops.push(`q ${w.toFixed(2)} 0 0 ${h} ${M} ${H - 40 - h} cm /Im1 Do Q`);
     } else text(M, H - 62, "FinLit Ventures", 16, true, GREEN);
     const tag = "AI summary  \x95  Concall Monitor";
