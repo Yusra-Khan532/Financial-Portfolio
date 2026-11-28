@@ -19,7 +19,7 @@ vi.mock("../lib/ui", () => ({ useUI: () => ({ has: (p: string) => (p === "gold" 
 vi.mock("../components/Gate", () => ({ Gate: ({ children }: { children: React.ReactNode }) => <>{children}</> }));
 import { MyInvestmentsPage } from "../pages/MyInvestments";
 import { EquityTab, EtfTab, MfTab } from "./KindTabs";
-import { compareValues, heldValue, nextState, parseNumber, sortData, STORE, valueOf } from "./sort438";
+import { compareValues, heldValue, nextState, parseNumber, PinnedSortChip, PinnedSortCols, sortData, STORE, useTableSort, valueOf, type Col } from "./sort438";
 
 vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} });
 Element.prototype.scrollIntoView = vi.fn();
@@ -317,6 +317,65 @@ describe("the other tables", () => {
   });
 });
 
+// Task #438 rework: the founder's signed-in check of 28 Nov 2026 found two faults (workspace task 438).
+describe("rework 1: mid-list, the pinned column names sort like the heading row", () => {
+  type R = { n: string; v: number | null };
+  const COLS: Col<R>[] = [{ key: "n", label: "Company", text: "Company", type: "text", get: (r) => r.n }, { key: "v", label: "Value", text: "Value", type: "num", r: true, get: (r) => r.v },
+    { key: "open", type: "none", label: "(Open its tab)" }];
+  const ROWS: R[] = [{ n: "B", v: 2 }, { n: "A", v: null }, { n: "C", v: 9 }];
+  const PIN = COLS.map((_, i) => ({ i, t: ["Company", "Value", "(Open its tab)"][i], l: i * 100, w: 100, r: i === 1 }));
+  function Harness() {
+    const s = useTableSort<R>("pin-test", COLS);
+    return <div><PinnedSortChip s={s} /><PinnedSortCols s={s} cols={PIN} /><ol>{s.sort(ROWS).map((r) => <li key={r.n}>{r.n}</li>)}</ol></div>;
+  }
+  const order = () => [...document.querySelectorAll("li")].map((l) => l.textContent).join("");
+  it("each pinned name is a sort button with the arrow; pressing it sorts, reverses and goes back exactly like the heading", () => {
+    wrap(<Harness />);
+    const group = screen.getByRole("group", { name: "Sort the table by a column" });
+    const value = within(group).getByRole("button", { name: "Value" });
+    expect(value.querySelector(".fl-sort-ar svg")).toBeTruthy();
+    expect(within(group).queryByRole("button", { name: /Open its tab/ })).toBeNull();         // "(Open its tab)" is not a sort button there either
+    fireEvent.click(value);
+    expect(order()).toBe("CBA");                                                               // high to low, the blank last
+    const on = within(group).getByRole("button", { name: "Value, sorted high to low" });
+    expect(on.className).toContain("on");
+    expect(on.style.left).toBe("100px"); expect(on.style.width).toBe("100px");                // over its own column
+    fireEvent.click(on); expect(order()).toBe("BCA");                                          // reversed, the blank still last
+    fireEvent.click(within(group).getByRole("button", { name: /^Value, sorted low to high/ })); expect(order()).toBe("BAC");   // FinLit's order again
+  });
+  it("the stuck row shows 'Sorted by …' with Reset while the line above the table has scrolled away", () => {
+    wrap(<Harness />);
+    expect(document.querySelector(".fl-pin-chip")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Company" }));
+    expect(document.querySelector(".fl-pin-chip")!.textContent).toBe("Sorted by Company, A to ZReset");
+    fireEvent.click(screen.getByRole("button", { name: "Reset" }));
+    expect(document.querySelector(".fl-pin-chip")).toBeNull(); expect(order()).toBe("BAC");
+  });
+  it("Every company passes its sort to the filter row, which uses the sort buttons when it carries the column names", () => {
+    expect(readFileSync(join(__dirname, "AllTogether.tsx"), "utf8")).toMatch(/<FilterRow [^>]*sort=\{sort\} \/>/);
+    const fr = readFileSync(join(__dirname, "EveryFilters.tsx"), "utf8");
+    expect(fr).toMatch(/sort \? <PinnedSortCols s=\{sort\} cols=\{cols\} \/>/);
+    expect(fr).toMatch(/stuck && sort && <PinnedSortChip s=\{sort\} \/>/);
+  });
+});
+
+describe("rework 2: the arrows add 2px to a heading, not 18px", () => {
+  const css = readFileSync(join(__dirname, "..", "styles", "sort438.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+  it("a 9×12 arrow inside the heading's own end padding (10px → 12px), not after the words (it was a 12px arrow and a 6px gap)", () => {
+    expect(css).toMatch(/th\.fl-sortable \.fl-sort-ar \{[^}]*width: 9px; height: 12px;/);
+    expect(css).toMatch(/th\.fl-sortable \.fl-sort \{ position: relative; gap: 0; padding-inline-end: 12px; \}/);
+    expect(css).toMatch(/th\.fl-sortable \.fl-sort-ar \{ position: absolute; right: 2px; top: 50%; margin-top: -6px; \}/);
+    const src = readFileSync(join(__dirname, "sort438.tsx"), "utf8");
+    expect(src).not.toMatch(/width="12" height="14"/);
+    expect((src.match(/width="9" height="12"/g) || []).length).toBe(3);
+    // the arrow (right 2px + 9px wide = 11px) fits in the 12px end padding; the heading is 12 - 10 = 2px wider than the table's 8px 10px padding
+    expect(2 + 9).toBeLessThanOrEqual(12);
+  });
+  it("the arrows stay visible (no hover-only rule): touch screens have no hover", () => {
+    expect(css).not.toMatch(/\.fl-sort-ar[^{]*\{[^}]*(display: none|visibility: hidden|opacity: 0[;\s])/);
+  });
+});
+
 describe("03 no side effects", () => {
   const css = readFileSync(join(__dirname, "..", "styles", "sort438.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
   it("the CSS has no tag, :root, body or html rules of its own: every selector targets only what the feature adds", () => {
@@ -331,7 +390,8 @@ describe("03 no side effects", () => {
     const walk = (dir: string) => { for (const f of readdirSync(dir)) { const p = join(dir, f); if (statSync(p).isDirectory()) walk(p); else if (/\.tsx?$/.test(f) && !/\.test\./.test(f)) files.push(p); } };
     walk(join(__dirname, ".."));
     const users = files.filter((f) => /from "\.\/sort438"|from "\.\.\/myinvest\/sort438"/.test(readFileSync(f, "utf8"))).map((f) => f.split("/src/")[1]).sort();
-    expect(users).toEqual(["myinvest/AllTogether.tsx", "myinvest/KindTabs.tsx"]);
+    // EveryFilters.tsx: the filter row's stuck column names over Every company are the same sort buttons (task #438 rework, 28 Nov 2026)
+    expect(users).toEqual(["myinvest/AllTogether.tsx", "myinvest/EveryFilters.tsx", "myinvest/KindTabs.tsx"]);
   });
   it("row contents never change, only their order; filters' counts and the Show all button stay as before", async () => {
     const t = await everyCo(); showAll();

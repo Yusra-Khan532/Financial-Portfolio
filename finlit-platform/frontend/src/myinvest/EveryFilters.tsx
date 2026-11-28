@@ -6,6 +6,7 @@
 // portfolio and views (`lead`) and Sections ▾ (the open view's sections, "You are here", All sections). Styles: styles/mi7.css (mi7-f*).
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { Company } from "../lib/myInvest";
+import { PinnedSortChip, PinnedSortCols, type TableSort } from "./sort438";
 
 export type EveryFilter = { q: string; held: string[]; size: string[]; prism: string[]; peer: string[] };
 export const NO_FILTER: EveryFilter = { q: "", held: [], size: [], prism: [], peer: [] };
@@ -63,9 +64,10 @@ function Facet({ k, title, rows, f, set, plan }: { k: FacetKey; title: string; r
 }
 
 /** The filter row, with the sticky band it becomes while the table is scrolled; `lead` (portfolio and views) and `sections` show only while it is stuck. */
-export function FilterRow({ rows, f, set, plan, lead, sections }: { rows: Company[]; f: EveryFilter; set: (f: EveryFilter) => void; plan: "gold" | "silver"; lead?: ReactNode; sections?: ReactNode }) {
+/** `sort` (task #438 rework): the table's sort; the column names carried while stuck become its sort buttons, and the stuck row shows "Sorted by … Reset". */
+export function FilterRow({ rows, f, set, plan, lead, sections, sort }: { rows: Company[]; f: EveryFilter; set: (f: EveryFilter) => void; plan: "gold" | "silver"; lead?: ReactNode; sections?: ReactNode; sort?: TableSort<Company> }) {
   const sentinel = useRef<HTMLDivElement>(null), row = useRef<HTMLDivElement>(null), [stuck, setStuck] = useState(false), [findOpen, setFindOpen] = useState(false);
-  const [past, setPast] = useState(false), [cols, setCols] = useState<{ t: string; l: number; w: number; r: boolean }[]>([]);
+  const [past, setPast] = useState(false), [cols, setCols] = useState<{ i: number; t: string; l: number; w: number; r: boolean }[]>([]);
   useEffect(() => {
     // the row is up (stuck under the site header) once the line just above it has scrolled past it
     let t = 0;
@@ -81,7 +83,7 @@ export function FilterRow({ rows, f, set, plan, lead, sections }: { rows: Compan
       const head = tbl?.tHead?.rows[0];
       if (up && b && tr && head && tr.top < b.bottom) {
         const box = tbl!.parentElement!.getBoundingClientRect();
-        setCols([...head.cells].map((c) => { const r = c.getBoundingClientRect(); return { t: (c.textContent || "").trim(), l: Math.round(Math.max(r.left, box.left) - b.left), w: Math.round(Math.min(r.right, box.right) - Math.max(r.left, box.left)), r: getComputedStyle(c).textAlign === "right" }; }).filter((c) => c.w > 8));
+        setCols([...head.cells].map((c, i) => { const r = c.getBoundingClientRect(); return { i, t: (c.textContent || "").trim(), l: Math.round(Math.max(r.left, box.left) - b.left), w: Math.round(Math.min(r.right, box.right) - Math.max(r.left, box.left)), r: getComputedStyle(c).textAlign === "right" || c.classList.contains("r") }; }).filter((c) => c.w > 8));
       } else setCols([]);
     }); };
     on(); addEventListener("scroll", on, { passive: true }); addEventListener("resize", on); document.addEventListener("scroll", on, { passive: true, capture: true });   // capture: the table's own sideways scroll
@@ -101,8 +103,10 @@ export function FilterRow({ rows, f, set, plan, lead, sections }: { rows: Compan
       <Facet k="size" title="Size" rows={rows} f={f} set={set} plan={plan} />
       {plan === "gold" && <Facet k="prism" title={modelWord} rows={rows} f={f} set={set} plan={plan} />}
       <Facet k="peer" title="Against peers" rows={rows} f={f} set={set} plan={plan} />
+      {stuck && sort && <PinnedSortChip s={sort} />}
       <span className="mi7-fcount" aria-live="polite">{n ? `Showing ${shown} of ${rows.length}` : `${rows.length} companies`}</span>
-      {stuck && cols.length > 0 && <div className="mi7-fcols" aria-hidden="true">{cols.map((c, i) => <span key={i} style={{ left: c.l, width: c.w, textAlign: c.r ? "right" : "left" }}>{c.t}</span>)}</div>}
+      {stuck && cols.length > 0 && (sort ? <PinnedSortCols s={sort} cols={cols} />
+        : <div className="mi7-fcols" aria-hidden="true">{cols.map((c) => <span key={c.i} style={{ left: c.l, width: c.w, textAlign: c.r ? "right" : "left" }}>{c.t}</span>)}</div>)}
     </div>
     {n > 0 && <div className="mi7-chips" role="group" aria-label="Filters on">
       {f.q.trim() && <span className="mi7-chip">“{f.q.trim()}”<button type="button" aria-label={`Remove “${f.q.trim()}”`} onClick={() => set({ ...f, q: "" })}>×</button></span>}
