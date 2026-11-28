@@ -8,7 +8,7 @@ Certain (from the code, `backend/finlit/flows_sources.py`, `flows.py`, `docs/FLO
 
 * **FII/FPI** comes from NSDL's FPI Monitor daily-trends tables. NSDL's own date form (`Reports/Archive.aspx`, "To Date") returns every reporting day of a month, so the job loaded history month by month back to Jan 2010 (`step_fpi`, `FIRST = 2010-01-01`).
 * **DII** comes from a different NSDL page, `Users/DIIGenerateReport.aspx` (`Rep=L` latest, `Rep=A` one day via the "Enter Date" form). The code records that NSDL began publishing this report on **1 June 2026** (`DII_START`). `step_dii` only asks for days from `DII_START` on. There is therefore no DII row before that date in our database, by design. It is not a join, rounding, cut-off or upsert bug that hides DII rows that exist.
-* The exchanges' own FII/DII cash report (`nseindia.com/api/fiidiiTradeReact`, job `flows-nse`) serves only the latest session, so even when it answers it adds one day at a time. NSE and BSE sit behind bot protection that the project does not bypass.
+* The exchanges' own FII/DII cash report (`nseindia.in/api/fiidiiTradeReact`, the `nse` step of the `flows` job; the separate `flows-nse` job was retired 28 Nov 2026, docs/JOBS.md 4c) serves only the latest session, so even when it answers it adds one day at a time. NSE and BSE sit behind bot protection that the project does not bypass.
 
 Bugs found and fixed while reading the pipeline (they could hide or corrupt rows that do exist):
 
