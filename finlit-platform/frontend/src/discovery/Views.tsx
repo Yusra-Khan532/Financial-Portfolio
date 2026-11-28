@@ -7,7 +7,7 @@ import { StateChip } from "../components/sectors/Parts";
 import { stateParts } from "../lib/sectors";
 import { I, type InfoKey } from "./Info";
 import { useDsc } from "./ctx";
-import { CompanyTable, Evs, Locked, Prism, Stage, Trend } from "./CompanyTable";
+import { CompanyTable, Evs, Locked, Prism, Stage, Trend, useStickyHead } from "./CompanyTable";
 import { feedFor } from "./bucket";
 import { Dd, Ico } from "./Toolbar";
 import { ARROW, BASE, BRIEF_CARDS, CORNERS, EVENTS, RECORD_FROM, addMonthsLocal, fmtLocal, STAGES, STAGE_CLASS, VIEW_PATH, daysOld, evBiz, eventPath, filterRows, fmtDate, useFeed, industryPath, macroPath, pct,
@@ -225,8 +225,11 @@ export function EventsView() {
       <div className="n">0<small>companies so far</small></div><div className="dsc-ex dsc-wrap">No full company brief with these items is published yet. They appear here, each with its page, as briefs are published.</div></Link>)}</div></div></details>
     <details className="dw-acc" data-k="record"><summary className="dw-acch"><span className="dw-acct">How each group has done since companies joined it</span><I k="record" /><span className="dsc-flg teal">Starts on launch</span>
       <span className="dw-accs">First figures from {at(1)}</span><i className="dw-accc" aria-hidden="true">▾</i></summary>
-    <div className="dw-accb"><div className="dsc-tw"><table className="dsc-rec"><thead><tr><th scope="col">Group</th><th scope="col" className="r">1 month later</th><th scope="col" className="r">3 months</th><th scope="col" className="r">6 months</th><th scope="col" className="r">12 months</th><th scope="col" className="r">Nifty 500, same days</th></tr></thead>
-      <tbody>{rec.map((g) => <tr key={g}><td>{g}</td><td className="r dsc-na">from {at(1)}</td><td className="r dsc-na">{at(3)}</td><td className="r dsc-na">{at(6)}</td><td className="r dsc-na">{at(12)}</td><td className="r dsc-na">same dates</td></tr>)}</tbody></table></div>
+    {/* developer file 53 ("see if everything makes sense"): before the first figure, the table repeated the same four dates in every one of its six rows and
+        "same dates" in the last column; the dates are one row now, and the groups one line under it */}
+    <div className="dw-accb"><div className="dsc-tw"><table className="dsc-rec"><thead><tr><th scope="col">Figures</th><th scope="col" className="r dsc-gs">1 month later</th><th scope="col" className="r">3 months</th><th scope="col" className="r">6 months</th><th scope="col" className="r">12 months</th></tr></thead>
+      <tbody><tr><th scope="row">First shown on</th><td className="r dsc-gs">{at(1)}</td><td className="r">{at(3)}</td><td className="r">{at(6)}</td><td className="r">{at(12)}</td></tr></tbody></table></div>
+    <p className="dsc-foot">Shown for each group ({rec.slice(0, -1).join(", ")}, and each theme), each against the Nifty 500 over the same days.</p>
     <p className="dsc-foot">The record starts on {fmtDate(RECORD_FROM)}: each figure shows once its date has passed.</p></div></details>
   </>;
 }
@@ -305,6 +308,9 @@ function ThemeMap({ lvl, macs }: { lvl: "mac" | "sct"; macs: [string, DRow[]][] 
   const [mode, setMode] = useState<"n" | "p">("n");
   const counts = new Map(count(c.d.rows, (r) => r.th));
   const cols = [...b.themes.filter((t) => !t.broad && counts.get(t.name)).sort((a, x) => (counts.get(x.name) || 0) - (counts.get(a.name) || 0)).slice(0, 10), ...b.themes.filter((t) => t.broad)];
+  const spec = cols.filter((t) => !t.broad), broad = cols.filter((t) => t.broad), shown = new Set(cols.map((t) => t.name));
+  const others = b.themes.filter((t) => !shown.has(t.name) && counts.get(t.name));
+  const mapBox = useStickyHead();
   const groups: [string, DRow[], string][] = lvl === "mac" ? macs.map(([m, r]) => [m, r, macroPath(m)])
     : macs.flatMap(([m, r]) => count(r, (x) => x.sct).map(([sc]) => [sc, r.filter((x) => x.sct === sc), sectorPath(m, sc)] as [string, DRow[], string]));
   const word = lvl === "mac" ? "macro sector" : "sector";
@@ -313,13 +319,24 @@ function ThemeMap({ lvl, macs }: { lvl: "mac" | "sct"; macs: [string, DRow[]][] 
     <div className="dsc-toolbar"><p>Where each {word}’s companies sit across the largest themes. Click a number to list those companies.</p>
       <span className="dw-heatk" aria-hidden="true">Fewer{[1, 2, 3, 4, 5, 6].map((l) => <i key={l} data-l={l} />)}More</span>
       <div className="dsc-seg" role="group" aria-label="Show"><button type="button" aria-pressed={mode === "n"} onClick={() => setMode("n")}>Companies</button><button type="button" aria-pressed={mode === "p"} onClick={() => setMode("p")}>% of the {word}</button></div></div>
-    <div className="dsc-tw dsc-stick dw-map"><table className="dsc-map"><thead><tr><th scope="col">{lvl === "mac" ? "Macro sector" : "Sector"}</th>{cols.map((t) => <th key={t.name} scope="col" title={t.label}>{t.short}</th>)}<th scope="col">All</th></tr></thead>
-      <tbody>{groups.map(([g, rows, to]) => <tr key={g}><th scope="row" className="rowh"><Link to={to}>{g}</Link></th>
-        {cols.map((t) => {
+    {/* developer file 53 (founder, 27 Nov 2026: "proper segregation/separation in the tables, and see if everything makes sense"): a header row names the
+        column groups (the largest themes, the broad groups, the total), with a divider where each starts; "Other themes" counts the companies in the themes
+        not shown, so every row adds up to All (Industrials' cells summed to 271 of its 277) */}
+    <div className="dsc-tw dsc-stick dw-map" ref={mapBox}><table className="dsc-map"><thead>
+      <tr className="dsc-grp"><th scope="col" className="rowh" /><th scope="colgroup" colSpan={spec.length + 1} className="dsc-gs"><span>The {spec.length} largest themes, then the rest</span></th>{broad.length > 0 && <th scope="colgroup" colSpan={broad.length} className="dsc-gs"><span>Broad groups</span></th>}<th scope="col" className="dsc-gs" /></tr>
+      <tr className="dsc-cols"><th scope="col">{lvl === "mac" ? "Macro sector" : "Sector"}</th>{spec.map((t, j) => <th key={t.name} scope="col" title={t.label} className={j === 0 ? "dsc-gs" : undefined}>{t.short}</th>)}<th scope="col" className="oth" title={`Every other theme: ${others.map((t) => t.label).join(", ")}`}>Other themes</th>{broad.map((t, j) => <th key={t.name} scope="col" title={t.label} className={j === 0 ? "dsc-gs" : undefined}>{t.short}</th>)}<th scope="col" className="dsc-gs tot">All</th></tr></thead>
+      <tbody>{groups.map(([g, rows, to]) => {
+        const cell = (t: { name: string; label: string }, cls?: string) => {
           const n = rows.filter((r) => r.th === t.name).length, v = mode === "n" ? n : pctOf(n, rows.length);
-          return <td key={t.name}>{n ? <button type="button" className="dw-hc" data-l={heatStep(v, mode)}
+          return <td key={t.name} className={cls}>{n ? <button type="button" className="dw-hc" data-l={heatStep(v, mode)}
             aria-label={`${n} ${g} companies in ${t.label}`} onClick={() => c.go(to, { cell: t.name })}>{v}{mode === "p" ? "%" : ""}</button> : <span className="dsc-na" aria-label="none">·</span>}</td>;
-        })}<td className="tot">{rows.length}</td></tr>)}</tbody></table></div>
+        };
+        const on = rows.filter((r) => !shown.has(r.th)).length, ov = mode === "n" ? on : pctOf(on, rows.length);
+        return <tr key={g}><th scope="row" className="rowh"><Link to={to}>{g}</Link></th>
+          {spec.map((t, j) => cell(t, j === 0 ? "dsc-gs" : undefined))}
+          <td className="oth">{on ? <span className="dw-ho" aria-label={`${on} ${g} companies in the other themes`}>{ov}{mode === "p" ? "%" : ""}</span> : <span className="dsc-na" aria-label="none">·</span>}</td>
+          {broad.map((t, j) => cell(t, j === 0 ? "dsc-gs" : undefined))}<td className="dsc-gs tot">{rows.length}</td></tr>;
+      })}</tbody></table></div>
   </>;
 }
 /** One industry row: the columns of SPEC §7 (Industry with "sector · macro sector", Companies, Largest specific theme, 3-month median, Long-term uptrend,
@@ -328,18 +345,22 @@ function IndRow({ ind, rows, sub = true, cls }: { ind: string; rows: DRow[]; sub
   const c = useDsc(), st = stat(rows), ro = indReading(rows), theme = (t: string) => c.d.board?.themes.find((x) => x.name === t);
   const ts = count(rows, (r) => r.th), tt = ts.find(([x]) => !theme(x)?.broad);
   return <tr className={cls}><td className="indc"><Link className="rowa" to={industryPath(ind)}>{ind}</Link>{sub && ro?.sct ? <small>{ro.sct} · {ro.mac}</small> : null}</td>
-    <td className="r num">{rows.length}</td>
+    <td className="r num dsc-gs">{rows.length}</td>
     <td>{tt ? <><Link className="dsc-tl" to={themePath(tt[0])}>{theme(tt[0])?.short ?? tt[0]}</Link> <span className="dsc-na">{tt[1]}</span></> : <span className="dsc-na">Broad groups only</span>}</td>
-    <td className={"r num " + tone(st.m3)}>{pct(st.m3)}</td>
+    <td className={"r num dsc-gs " + tone(st.m3)}>{pct(st.m3)}</td>
     <td className="r num">{c.prismOpen ? `${st.up} of ${st.n}` : <Locked />}</td>
-    <td className="rotc"><RotChip cc={ro?.cc ?? null} cn={ro?.cn} />{ro && <RankLine r={ro} ind={ind} />}</td>
+    <td className="rotc dsc-gs"><RotChip cc={ro?.cc ?? null} cn={ro?.cn} />{ro && <RankLine r={ro} ind={ind} />}</td>
     <td><PulseChip name={ro?.pulse ?? null} /></td></tr>;
 }
-const IND_HEAD = (first: string) => <tr><th scope="col">{first}</th><th scope="col" className="r">Companies</th><th scope="col">Largest specific theme <I k="largest" /></th>
-  <th scope="col" className="r">3-month median <I k="median" /></th><th scope="col" className="r">Long-term uptrend <I k="uptrend" /></th>
-  <th scope="col">Sector Rotation <I k="corner" /></th><th scope="col">Sector Pulse <I k="pulse" /></th></tr>;
+/** Developer file 53: the industries table's columns in three named groups over the column names, a divider where each starts (as in the company table). */
+export const IND_GROUPS = ["Its companies in Discover", "Their price moves", "The industry's readings"];
+const IND_HEAD = (first: string) => <>
+  <tr className="dsc-grp"><th scope="col" className="indc" />{IND_GROUPS.map((g) => <th key={g} scope="colgroup" colSpan={2} className="dsc-gs"><span>{g}</span></th>)}</tr>
+  <tr className="dsc-cols"><th scope="col">{first}</th><th scope="col" className="r dsc-gs">Companies</th><th scope="col">Largest specific theme <I k="largest" /></th>
+  <th scope="col" className="r dsc-gs">3-month median <I k="median" /></th><th scope="col" className="r">Long-term uptrend <I k="uptrend" /></th>
+  <th scope="col" className="dsc-gs">Sector Rotation <I k="corner" /></th><th scope="col">Sector Pulse <I k="pulse" /></th></tr></>;
 function IndustriesTable({ rows }: { rows: DRow[] }) {
-  const c = useDsc();
+  const c = useDsc(), box = useStickyHead();
   const [sort, setSort] = useState<ISort>("n");
   const inds = useMemo(() => { const m = new Map<string, DRow[]>(); rows.forEach((r) => { if (r.ind) m.set(r.ind, [...(m.get(r.ind) ?? []), r]); }); return [...m.entries()]; }, [rows]);
   const key: Record<ISort, (x: [string, DRow[]]) => number> = {
@@ -350,7 +371,7 @@ function IndustriesTable({ rows }: { rows: DRow[] }) {
     <div className="dsc-toolbar"><p>{list.length} of NSE’s 59 industries have a company in Discover <I k="inds" />.</p>
       <label>Sort by <select value={sort} onChange={(e) => setSort(e.target.value as ISort)}><option value="n">Most companies</option><option value="m3">Best 3-month median</option>
         <option value="up" disabled={!c.prismOpen}>{c.prismOpen ? "Most in a long-term uptrend" : "Most in a long-term uptrend (Gold)"}</option><option value="rk">Sector Rotation rank</option></select></label></div>
-    <div className="dsc-tw dsc-stick"><table className="dsc-ind"><thead>{IND_HEAD("Industry")}</thead><tbody>{list.map(([i, r]) => <IndRow key={i} ind={i} rows={r} />)}</tbody></table></div>
+    <div className="dsc-tw dsc-stick" ref={box}><table className="dsc-ind"><thead>{IND_HEAD("Industry")}</thead><tbody>{list.map(([i, r]) => <IndRow key={i} ind={i} rows={r} />)}</tbody></table></div>
     <ReadingsNote />
   </>;
 }
@@ -362,7 +383,7 @@ export function MacroPage({ m, sc }: { m: string; sc?: string }) {
   const name = sc ?? m, s = stat(rows), tl = count(rows, (r) => r.th);
   const inds = count(rows, (r) => r.ind), secs = count(rows, (r) => r.sct);
   const theme = (t: string) => c.d.board?.themes.find((x) => x.name === t);
-  const S = c.T(""), cell = S.cell;
+  const S = c.T(""), cell = S.cell, box = useStickyHead();
   const lead = sc ? `${s.n} ${s.n === 1 ? "company" : "companies"} in ${inds.length} ${inds.length === 1 ? "industry" : "industries"}, placed in ${tl.length} ${tl.length === 1 ? "theme" : "themes"}.`
     : `${s.n} ${s.n === 1 ? "company" : "companies"} in ${secs.length} ${secs.length === 1 ? "sector" : "sectors"} and ${inds.length} ${inds.length === 1 ? "industry" : "industries"}, placed in ${tl.length} ${tl.length === 1 ? "theme" : "themes"}.`;
   const indRows = (list: DRow[]) => count(list, (r) => r.ind).map(([i]) => [i, list.filter((r) => r.ind === i)] as [string, DRow[]]);
@@ -371,11 +392,11 @@ export function MacroPage({ m, sc }: { m: string; sc?: string }) {
     <div className="dsc-dh"><div><p className="dsc-kind">{sc ? "Sector" : "Macro sector"} · NSE</p><h2>{name}</h2><p>{lead}</p></div><div className="dsc-dha"><Jump /></div></div>
     <FourKpis rows={rows} />
     <div className="dsc-panel dsc-mb"><h3>{sc ? "Industries in this sector" : "Sectors and industries"}</h3>
-      <div className="dsc-tw dsc-stick"><table className="dsc-ind"><thead>{IND_HEAD(sc ? "Industry" : "Sector › industry")}</thead>
+      <div className="dsc-tw dsc-stick" ref={box}><table className="dsc-ind"><thead>{IND_HEAD(sc ? "Industry" : "Sector › industry")}</thead>
         <tbody>{sc ? indRows(rows).map(([i, r]) => <IndRow key={i} ind={i} rows={r} sub={false} />)
           : secs.map(([sct]) => { const sr = rows.filter((r) => r.sct === sct), st = stat(sr); return [
             <tr key={"s-" + sct} className="dsc-secrow"><td className="indc"><Link className="rowa" to={sectorPath(m, sct)}>{sct}</Link><small>{((n) => `${n} ${n === 1 ? "industry" : "industries"}`)(new Set(sr.map((r) => r.ind).filter(Boolean)).size)}</small></td>
-              <td className="r num">{sr.length}</td><td /><td className={"r num " + tone(st.m3)}>{pct(st.m3)}</td><td className="r num">{c.prismOpen ? `${st.up} of ${st.n}` : <Locked />}</td><td /><td /></tr>,
+              <td className="r num dsc-gs">{sr.length}</td><td /><td className={"r num dsc-gs " + tone(st.m3)}>{pct(st.m3)}</td><td className="r num">{c.prismOpen ? `${st.up} of ${st.n}` : <Locked />}</td><td className="dsc-gs" /><td /></tr>,
             ...indRows(sr).map(([i, r]) => <IndRow key={i} ind={i} rows={r} sub={false} cls="dsc-indrow" />)]; })}</tbody></table></div>
       <ReadingsNote /></div>
     <div className="dsc-panel dsc-mb"><h3>Themes in this {sc ? "sector" : "macro sector"} <I k="themesin" /></h3>

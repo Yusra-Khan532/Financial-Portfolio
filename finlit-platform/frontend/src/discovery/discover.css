@@ -749,6 +749,37 @@ tr.dbx-d > td { padding: 2px 16px 20px; background: var(--dsc-teal-b); }
   .dbx-dg { grid-template-columns: 1fr; gap: 4px; padding: 12px; }
 }
 
+/* ---- Developer file 53 (founder, 27 Nov 2026, 7:36 pm: "in the tables on the Discover page we need proper segregation/separation, and see if everything
+   makes sense"). The company table (All companies and every theme, event, sector and industry list) and the Sectors grid had one header row and no column
+   dividers, so twelve columns ran together; the rows' lines were at 55% strength. ---- */
+/* the group row: a small gold label over its columns, underlined across them; the column names stay pinned under it at its measured height (--hr1) */
+.dsc-tw thead tr.dsc-grp th { padding: 7px 8px 3px; border-bottom: 0; font-size: var(--fs-12); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--gold); white-space: nowrap; vertical-align: bottom; }
+.dsc-tw thead tr.dsc-grp th:not(:empty):not(.co):not(.rowh) { box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--gold) 45%, transparent); }
+.dsc-stick thead tr.dsc-cols th { top: var(--hr1, 26px); }
+/* a group's name starts at its first column and stays in view beside the pinned first column while the table scrolls sideways (on a phone the Sectors
+   grid's "largest themes" spans eleven columns; centred, its name sat off screen) */
+.dsc-tw thead tr.dsc-grp th > span { position: sticky; left: calc(var(--c1w, 0px) + 8px); display: inline-block; }
+.dsc-map thead tr.dsc-grp th { text-align: left !important; padding-left: 8px !important; }
+/* a divider where each group starts, down the header and the rows */
+.dsc-tw th.dsc-gs, .dsc-tw td.dsc-gs { border-left: 1px solid var(--border-strong); }
+/* rows: full-strength lines, every other row lightly shaded, the row under the pointer marked, so a row can be followed across the columns */
+.dsc-tb tbody td { border-bottom-color: var(--border); }
+.dsc-tb tbody tr.dsc-z > td, .dsc-tb tbody tr.dsc-z > td.co { background: color-mix(in srgb, var(--s2) 50%, var(--s1)); }
+.dsc-tb tbody tr:not(.dsc-det):hover > td, .dsc-tb tbody tr:not(.dsc-det):hover > td.co { background: color-mix(in srgb, var(--gold) 7%, var(--s1)); }
+.dsc-tb tbody tr.dsc-open > td, .dsc-tb tbody tr.dsc-open > td.co { background: var(--s2); }
+/* a company's name on one or two lines, not three */
+@media (min-width: 1100px) { .dsc-tb td.co { min-width: 210px; } }
+/* the Columns menu names its groups */
+.dbx-cg { margin: 8px 0 2px; font-size: var(--fs-12); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.dbx-cg:first-child { margin-top: 0; }
+/* the Sectors grid: the largest themes, "Other themes" (so a row adds up to All), the broad groups and the total, each group after a divider */
+.dsc-map td.oth, .dsc-map th.oth { color: var(--muted); }
+.dsc-map th.oth { font-style: italic; }
+.dsc-map .dw-ho { display: inline-grid; place-items: center; min-width: 36px; height: 28px; padding: 0 7px; border: 1px dashed var(--border-strong); border-radius: var(--r-ctl); font-variant-numeric: tabular-nums; }
+.dsc-map th.tot, .dsc-map td.tot { background: color-mix(in srgb, var(--s2) 50%, var(--s1)); }
+.dsc-map tbody tr:hover > td, .dsc-map tbody tr:hover > th.rowh { background: color-mix(in srgb, var(--gold) 7%, var(--s1)); }
+/* What changed's record: one row of dates */
+.dsc-rec tbody th { text-align: left; font-weight: 600; color: var(--text); }
 /* Task #431 (team, 27 Nov 2026): "What's Inside & How to Use?" as a drop-down at the start of Discover, below the header, closed at first.
    The same look as the Mutual funds list's "How to read this table" (styles/task376.css): one row with the title, a short line and Show/Hide. */
 .dsc-howto { margin: 0 0 16px; border: 1px solid var(--border); border-radius: var(--r-card, var(--r-ctl)); background: var(--s1); }

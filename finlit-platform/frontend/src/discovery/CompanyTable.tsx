@@ -55,11 +55,25 @@ export function Locked() {
   return <Link to="/pricing" className="dsc-lock" title="FinLit Prism and the technical views are part of Gold">Gold</Link>;
 }
 
-type Col = { k: string; l: string; i?: InfoKey; cls?: string };
-const COLS: Col[] = [{ k: "co", l: "Company" }, { k: "cls", l: "Sector · industry", i: "sector", cls: "w-cls" }, { k: "th", l: "Theme · stage", i: "stage", cls: "w-th" },
-  { k: "ev", l: "Filings, 90 days", i: "filings", cls: "w-ev" }, { k: "pr", l: "Prism", i: "prism" }, { k: "st", l: "Short-term trend", i: "st", cls: "w-lt" },
-  { k: "lt", l: "Long-term trend", i: "lt", cls: "w-lt" }, { k: "r3m", l: "3 months", i: "r3m", cls: "r" }, { k: "r1y", l: "1 year", i: "r1y", cls: "r" },
-  { k: "hi", l: "Below 52-wk high", i: "high", cls: "r" }, { k: "mc", l: "Market cap", i: "mc", cls: "r" }, { k: "cn", l: "Industry: Rotation · Pulse", i: "corner", cls: "w-cn" }];
+/** Developer file 53 (founder, 27 Nov 2026, 7:36 pm: "in the tables on the Discover page we need proper segregation/separation"): the twelve columns ran
+ *  side by side with nothing to show which belong together. Each column now has a group (`g`), named in a header row above the column names, with a
+ *  divider where a group starts, down the header and the rows; under a group a column keeps a short name (`h`: "Short term" under "FinLit's reading"),
+ *  and the Columns menu and the sort keep the full one (`l`). */
+type Col = { k: string; l: string; h?: string; g: string; i?: InfoKey; cls?: string };
+const COLS: Col[] = [{ k: "co", l: "Company", g: "co" }, { k: "cls", l: "Sector · industry", g: "where", i: "sector", cls: "w-cls" }, { k: "th", l: "Theme · stage", g: "where", i: "stage", cls: "w-th" },
+  { k: "ev", l: "Filings, 90 days", h: "Last 90 days", g: "filed", i: "filings", cls: "w-ev" }, { k: "pr", l: "Prism", g: "read", i: "prism" }, { k: "st", l: "Short-term trend", h: "Short term", g: "read", i: "st", cls: "w-lt" },
+  { k: "lt", l: "Long-term trend", h: "Long term", g: "read", i: "lt", cls: "w-lt" }, { k: "r3m", l: "3 months", g: "price", i: "r3m", cls: "r" }, { k: "r1y", l: "1 year", g: "price", i: "r1y", cls: "r" },
+  { k: "hi", l: "Below 52-wk high", g: "price", i: "high", cls: "r" }, { k: "mc", l: "Market cap", g: "price", i: "mc", cls: "r" }, { k: "cn", l: "Industry: Rotation · Pulse", h: "Rotation · Pulse", g: "ind", i: "corner", cls: "w-cn" }];
+/** The groups, in the columns' order. */
+export const COL_GROUPS: Record<string, string> = { co: "", where: "Where it is placed", filed: "Filings", read: "FinLit's reading", price: "Price and size", ind: "Its industry" };
+/** The header's group row: one cell a run of shown columns of the same group (a hidden column shortens its group's span; a group with none goes). */
+export function groupSpans(keys: string[]): { g: string; n: number }[] {
+  const out: { g: string; n: number }[] = [];
+  for (const k of keys) { const g = COLS.find((x) => x.k === k)?.g ?? k; const last = out[out.length - 1]; if (last && last.g === g) last.n++; else out.push({ g, n: 1 }); }
+  return out;
+}
+/** The first shown column of every group but the company's: it draws the group's divider. */
+export const groupStarts = (keys: string[]): Set<string> => { const s = new Set<string>(); let prev = ""; for (const k of keys) { const g = COLS.find((x) => x.k === k)?.g ?? k; if (g !== prev && g !== "co") s.add(k); prev = g; } return s; };
 const GOLD_VIEWS = new Set(["uptrend", "prism"]);
 /** Task #303: the Sort dropdown's words; a sort keeps its own default direction (names A–Z, figures high first). */
 const SORT_NAME: Record<string, string> = { pr: "FinLit Prism", ev: "Most filings, 90 days", st: "Short-term trend", lt: "Long-term trend", r3m: "3-month move", r1y: "1-year move",
@@ -77,6 +91,7 @@ export function CompanyTable({ title, base, defaultSort = "pr", event, hideCls }
   const vis = all.slice(page * S.per, (page + 1) * S.per);
   const fixed = (k: string) => (hideTh && k === "th") || (hideCls && k === "cls");
   const cols = COLS.filter((x) => x.k === "co" || (!fixed(x.k) && c.cols.has(x.k)));
+  const starts = groupStarts(cols.map((x) => x.k));
   useEffect(() => { if (S.page !== page) set({ page }); }); // eslint-disable-line react-hooks/exhaustive-deps
 
   const cnt = (p: Partial<TState>) => filterRows(base, { ...S, ...p }, c.onList).length;
@@ -133,15 +148,16 @@ export function CompanyTable({ title, base, defaultSort = "pr", event, hideCls }
           <Dd label={sName(S.sort) + (S.dir === 1 && !ASC.has(S.sort) ? " (low first)" : "")} title="Sort by" right>{(close) => <OptList title="Sort by"
             items={sortKeys.map((k) => ({ v: k, t: sName(k), sel: S.sort === k }))} onPick={(v) => { set({ sort: v, dir: ASC.has(v) ? 1 : -1, page: 0 }); close(); }} />}</Dd></div>
         <Dd label="Columns" icon={Ico.cols} value={cols.length - 1 < shown.length ? String(cols.length) : ""} right>{() => <>
-          {shown.map((x) => <Sw key={x.k} label={x.l} on={c.cols.has(x.k)} onChange={(v) => c.setCol(x.k, v)} />)}
+          {shown.map((x, j) => <Fragment key={x.k}>{(j === 0 || shown[j - 1].g !== x.g) && COL_GROUPS[x.g] ? <p className="dbx-cg">{COL_GROUPS[x.g]}</p> : null}<Sw label={x.l} on={c.cols.has(x.k)} onChange={(v) => c.setCol(x.k, v)} /></Fragment>)}
           <p className="dbx-pn">Company is always shown. Your choice is kept for every Discover list.</p></>}</Dd>
       </div>
     </div>
     <StickyTable>
-      <thead><tr>{cols.map((x) => (
-        <th key={x.k} scope="col" className={[x.k === "co" ? "co" : "", x.cls ?? ""].join(" ").trim() || undefined} aria-sort={S.sort === x.k ? (S.dir < 0 ? "descending" : "ascending") : "none"}>
-          <button type="button" className="dsc-sb" onClick={() => sortBy(x.k)}>{x.l}</button>{x.i ? <I k={x.i} /> : null}</th>))}</tr></thead>
-      <tbody>{vis.length ? vis.map((r) => <RowGroup key={r.s} r={r} cols={cols.map((x) => x.k)} hideTh={hideTh} />)
+      <thead><tr className="dsc-grp">{groupSpans(cols.map((x) => x.k)).map((x, j) => <th key={x.g + j} scope="colgroup" colSpan={x.n} className={x.g === "co" ? "co" : "dsc-gs"}>{COL_GROUPS[x.g] ? <span>{COL_GROUPS[x.g]}</span> : null}</th>)}</tr>
+        <tr className="dsc-cols">{cols.map((x) => (
+        <th key={x.k} scope="col" className={[x.k === "co" ? "co" : "", x.cls ?? "", starts.has(x.k) ? "dsc-gs" : ""].join(" ").trim() || undefined} aria-sort={S.sort === x.k ? (S.dir < 0 ? "descending" : "ascending") : "none"}>
+          <button type="button" className="dsc-sb" title={x.h ? x.l : undefined} onClick={() => sortBy(x.k)}>{x.h ?? x.l}</button>{x.i ? <I k={x.i} /> : null}</th>))}</tr></thead>
+      <tbody>{vis.length ? vis.map((r, i) => <RowGroup key={r.s} r={r} cols={cols.map((x) => x.k)} hideTh={hideTh} starts={starts} odd={i % 2 === 1} />)
         : <tr><td colSpan={cols.length} className="dsc-empty">No company matches these filters. Remove one or two above.</td></tr>}</tbody>
     </StickyTable>
     <div className="dsc-pager"><span>{all.length ? `${(page * S.per + 1).toLocaleString("en-IN")}–${Math.min(all.length, (page + 1) * S.per).toLocaleString("en-IN")} of ${all.length.toLocaleString("en-IN")}` : ""}</span>
@@ -166,19 +182,27 @@ export function MyNames({ S, set, mine }: { S: TState; set: (p: Partial<TState>)
 /** The table scrolls inside its box; its header row stays at the top and the Company column on the left (SHARED §5). The header's real height is
  *  measured (ResizeObserver) so nothing slides under it. */
 function StickyTable({ children }: { children: ReactNode }) {
-  const box = useRef<HTMLDivElement>(null);
-  useLayoutEffect(() => {
-    const el = box.current, th = el?.querySelector("thead tr");
-    if (!el || !th || typeof ResizeObserver === "undefined") return;
-    const ro = new ResizeObserver(() => { el.style.setProperty("--hr1", `${(th as HTMLElement).offsetHeight}px`); el.style.setProperty("--boxw", `${el.clientWidth}px`); });
-    ro.observe(th); ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
+  const box = useStickyHead();
   return <div className="dsc-tw dsc-stick dw-stick" ref={box}><table className="dsc-tb">{children}</table></div>;
 }
+/** A sticky table box: measures its first header row (developer file 53: the column groups) as --hr1, so the column names stay pinned under it; its
+ *  width as --boxw; and its pinned first column as --c1w, so a group's name stays in view beside it while any of the group's columns is. */
+export function useStickyHead() {
+  const box = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const el = box.current, th = el?.querySelector("thead tr"), c1 = th?.querySelector("th");
+    if (!el || !th || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => { el.style.setProperty("--hr1", `${(th as HTMLElement).offsetHeight}px`); el.style.setProperty("--boxw", `${el.clientWidth}px`);
+      if (c1) el.style.setProperty("--c1w", `${(c1 as HTMLElement).offsetWidth}px`); });
+    ro.observe(th); ro.observe(el); if (c1) ro.observe(c1);
+    return () => ro.disconnect();
+  }, []);
+  return box;
+}
 
-function RowGroup({ r, cols, hideTh }: { r: DRow; cols: string[]; hideTh: boolean }) {
+function RowGroup({ r, cols, hideTh, starts, odd }: { r: DRow; cols: string[]; hideTh: boolean; starts: Set<string>; odd: boolean }) {
   const c = useDsc(), o = c.open.has(r.s), theme = c.d.board?.themes.find((t) => t.name === r.th);
+  const gc = (k: string, cls = "") => [cls, starts.has(k) ? "dsc-gs" : ""].join(" ").trim() || undefined;   // a group's first column draws its divider
   const cells: Record<string, ReactNode> = {
     co: <td className="co"><div className="dsc-cow">
       <button type="button" className="dsc-cv" aria-expanded={o} aria-label={`Details for ${r.n}`} onClick={() => c.toggleOpen(r.s)}>
@@ -186,21 +210,21 @@ function RowGroup({ r, cols, hideTh }: { r: DRow; cols: string[]; hideTh: boolea
       <div><button type="button" className="dsc-nm" onClick={() => c.toggleOpen(r.s)}>{short(r.n)}</button>
         {c.isHeld(r.s) && <span className="dsc-tag pf">Portfolio</span>}{c.isWatched(r.s) && <span className="dsc-tag wl">Watchlist</span>}
         <small>{codeOf(r.s)}</small></div></div></td>,
-    cls: <td className="dsc-clsc" title={[r.mac, r.sct, r.ind].filter(Boolean).join(" › ") || undefined}>{r.sct ? <b>{r.sct}</b> : null}
+    cls: <td className={gc("cls", "dsc-clsc")} title={[r.mac, r.sct, r.ind].filter(Boolean).join(" › ") || undefined}>{r.sct ? <b>{r.sct}</b> : null}
       {r.ind ? <Link to={industryPath(r.ind)}>{r.ind}</Link> : <span className="dsc-na">Not classified</span>}</td>,
-    th: <td className="dsc-thc"><b>{theme?.short ?? r.th}</b><Stage st={r.st} /></td>,
-    ev: <td><Evs r={r} /></td>,
-    pr: <td><Prism r={r} locked={!c.prismOpen && r.pr == null} /></td>,
-    st: <td><Trend lt={r.st2} locked={!c.prismOpen && !r.st2} /></td>,
-    lt: <td><Trend lt={r.lt} locked={!c.prismOpen && !r.lt} />{hideTh && <><br /><Stage st={r.st} /></>}</td>,
-    r3m: <td className={"r num " + tone(r.r3m)}>{pct(r.r3m)}</td>,
-    r1y: <td className={"r num " + tone(r.r1y)}>{pct(r.r1y)}</td>,
-    hi: <td className="r num">{r.hi == null ? "−" : r.hi <= 0.05 ? "at the high" : r.hi.toFixed(1) + "%"}</td>,
-    mc: <td className="r num">{crore(r.mc)}<small className="dsc-sz">{r.sz ? SIZES[r.sz] : r.mc == null ? "Not known" : ""}</small></td>,
-    cn: <td className="dsc-cnc"><RotChip cc={r.cc} cn={r.cn} />{r.pulse ? <PulseChip name={r.pulse} /> : null}</td>,
+    th: <td className={gc("th", "dsc-thc")}><b>{theme?.short ?? r.th}</b><Stage st={r.st} /></td>,
+    ev: <td className={gc("ev")}><Evs r={r} /></td>,
+    pr: <td className={gc("pr")}><Prism r={r} locked={!c.prismOpen && r.pr == null} /></td>,
+    st: <td className={gc("st")}><Trend lt={r.st2} locked={!c.prismOpen && !r.st2} /></td>,
+    lt: <td className={gc("lt")}><Trend lt={r.lt} locked={!c.prismOpen && !r.lt} />{hideTh && <><br /><Stage st={r.st} /></>}</td>,
+    r3m: <td className={gc("r3m", "r num " + tone(r.r3m))}>{pct(r.r3m)}</td>,
+    r1y: <td className={gc("r1y", "r num " + tone(r.r1y))}>{pct(r.r1y)}</td>,
+    hi: <td className={gc("hi", "r num")}>{r.hi == null ? "−" : r.hi <= 0.05 ? "at the high" : r.hi.toFixed(1) + "%"}</td>,
+    mc: <td className={gc("mc", "r num")}>{crore(r.mc)}<small className="dsc-sz">{r.sz ? SIZES[r.sz] : r.mc == null ? "Not known" : ""}</small></td>,
+    cn: <td className={gc("cn", "dsc-cnc")}><RotChip cc={r.cc} cn={r.cn} />{r.pulse ? <PulseChip name={r.pulse} /> : null}</td>,
   };
   return <>
-    <tr className={o ? "dsc-open" : undefined} data-dsc-row={r.s}>{cols.map((k) => <Fragment key={k}>{cells[k]}</Fragment>)}</tr>
+    <tr className={[o ? "dsc-open" : "", odd ? "dsc-z" : ""].join(" ").trim() || undefined} data-dsc-row={r.s}>{cols.map((k) => <Fragment key={k}>{cells[k]}</Fragment>)}</tr>
     {o && <tr className="dsc-det"><td colSpan={cols.length}><Panel r={r} /></td></tr>}
   </>;
 }
