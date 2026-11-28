@@ -240,7 +240,6 @@ LIMIT_POLICY: Dict[str, str] = {
     "logos": "measured: about 132 s against a 30-minute limit; the early warning watches it",
     "macro": "measured: about 50 s against a 20-minute limit; the early warning watches it",
     "macro-outlook": "database: scores 35 sectors from tables already held, no provider calls; measured about 5 s",
-    "flows-nse": "fixed: one request for the latest session; measured about 3 s",
     "flows": "measured: about 20 s against a 20-minute limit; the early warning watches it",
     "history-probe": "measured: a read-only count per source; the early warning watches it",
     "dhan-check": "fixed: a handful of calls that prove the credentials; limit 5 minutes",
@@ -458,12 +457,13 @@ def build_jobs(env: Optional[Mapping[str, str]] = None) -> List[Job]:
         Job("global-cues", ("refresh-global-cues",), priority=21, max_runtime_min=5, weight_mb=60, windows=(W("MORNING", 6), W("AFTER_CLOSE", 6)),
             sla=Sla("hours", 30), what="Trading Lab Global cues: US yields, Fed funds, dollar index, EUR/JPY/CNY and WTI/Brent crude from FRED's public download (docs/GLOBAL-MARKETS.md)"),
         Job("macro-outlook", ("refresh-macro-outlook",), priority=22, max_runtime_min=10, weight_mb=100, windows=(W("AFTER_CLOSE", 8, (19, 40)), W("MORNING", 8)),
-            interval_min=360, probe="macro-outlook", min_gap_min=20, prerequisites=("macro", "flows-nse", "flows"), sla=Sla("hours", 30), owns=("macro_outlook",),
+            interval_min=360, probe="macro-outlook", min_gap_min=20, prerequisites=("macro", "flows"), sla=Sla("hours", 30), owns=("macro_outlook",),
             what="Macro & Sector Outlook: sector scores from the stored macro, flows and commodity series (database only; also when new data arrives)"),
-        Job("flows-nse", ("refresh-flows", "--only", "nse"), priority=19, max_runtime_min=10, weight_mb=100, windows=(W("AFTER_CLOSE", 1.5, (19, 10)), W("MORNING", 6)),
-            sla=Sla("hours", 30), owns=("flows",), what="the exchange's own FII/DII figures for the latest session"),
+        # flows-nse (the exchange's same-day FII/DII report on its own) was retired by the owner's written decision of 28 Nov 2026: NSE's Akamai refuses
+        # AWS and Cloudflare, so it failed every run. The `flows` job below keeps asking NSE on every run (its `nse` step: the same-day figure whenever
+        # NSE answers) and NSDL gives the official figures every day; a refused NSE step leaves `flows` "partial", which is a success. docs/JOBS.md.
         Job("flows", ("refresh-flows",), priority=21, max_runtime_min=20, weight_mb=100, windows=(W("AFTER_CLOSE", 1.5, (19, 10)), W("MORNING", 6)),
-            sla=Sla("hours", 30), owns=("flows",), what="FII/DII flows (NSDL, NSE archive files)"),
+            sla=Sla("hours", 30), owns=("flows",), what="FII/DII flows: NSDL (official, every day), NSE's same-day report whenever NSE answers, NSE archive files"),
         Job("history-probe", ("history-probe",), priority=85, max_runtime_min=15, weight_mb=100, windows=(W("NIGHT", 144),), sla=Sla("hours", 400),
             what="read-only count of yearly statements per source"),
         Job("dhan-check", ("dhan-check",), priority=85, max_runtime_min=5, weight_mb=60, windows=(W("NIGHT", 144), W("MORNING", 144)), sla=Sla("hours", 400),

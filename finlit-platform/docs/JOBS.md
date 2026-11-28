@@ -138,7 +138,7 @@ SLA kinds: `hours` a success within N hours; `active` N hours counted only from 
 | rebuild-metrics, short-history, history-probe, dhan-check, universe (Sunday) | bulk/light | 71-85 | 8-17 d | weekly NIGHT |
 | indices, coverage, integrity, logos | light | 60-80 | 30 h (logos 60 h) | NIGHT, MORNING |
 | **macro-outlook** (`refresh-macro-outlook`) | light | 22 | 30 h | AFTER_CLOSE from 19:40, MORNING; also every 6 h and as soon as a probe sees changed macro, commodity or company tables; after macro, flows-nse and flows; database only, never calls a source; never switchable off (docs/MACRO-OUTLOOK.md); dataset `macro_outlook` in the status |
-| macro, flows-nse, flows | light | 19-21 | 30 h | AFTER_CLOSE from 19:10; flows twice; MORNING |
+| macro, flows | light | 19-21 | 30 h | AFTER_CLOSE from 19:10; flows twice; MORNING (`flows-nse` retired 28 Nov 2026, see 4c) |
 | macro: Brent step | light | | | Inside the macro job: Brent crude daily from the U.S. EIA (series RBRTE) when `EIA_API_KEY` is set in `/opt/finlit/.env.aws`; without it the dashboard tile says "Brent: source key not set" (nothing is invented). No free public 10-year G-sec feed is wired in yet: that tile shows a dash and its reason. |
 | instruments, mf, facts, industry, etf (funds) | light | 22-26 | 30 h (mf 26, etf 80) | MORNING / AFTER_CLOSE from 21:10 / NIGHT (facts: NIGHT too since #281, so it runs before score-mf); etf weekdays |
 | drain-queue, commodities | ondemand | - | - | always on (scheduler.sh) |
@@ -158,6 +158,19 @@ Market data changes only on weekdays and the sector build is heavy (about 2 h 30
 **The sector job comes first in its hours (owner's written exception, 21 Nov 2026: "Saturday night till Sunday morning the sector job is given priority; other jobs can be stopped at that time").** On 21 Nov its build (about 1 h 50 min on the server: NSE download 7 min, plan 3 min, four score parts of 25 to 28 min, merge) had 3 of 4 parts done when its 90-minute slice ended at 00:31; it then went to the back of the queue and `score` took the long-job lane for the rest of the night. Now (`Job.first_in`, `Plan.first` in `jobs/supervisor.py`), inside these hours and while the sector job is due or running: it goes first and is never sent to the back after a slice; no other bulk or audit job starts ("waiting: the sectors job has this time to itself"); one already running is paused (recorded as "paused for the sectors job", never counted as a failure; resumable jobs continue where they stopped); light jobs (alerts, results, quotes) keep running beside it. When the build has finished (or is waiting out a retry after a failure), everything runs as usual. Tests: `tests/test_jobs_sector_first.py`.
 
 How nothing else is affected otherwise: one bulk job at a time and the memory gate stay as they are (it waits for 450 MB + the 100 MB kept for the website); every other bulk job outranks it; a run stops at 90 minutes and the next continues, so a job that falls due goes first; the hours are checked before everything else in `jobs/due.py` (`evaluate`), so a retry after a failure, the continuation of a stopped run, a freshness force or a breached SLA never start it on a weekday; if a build fails, the last good Sector Pulse and Rotation keep serving with their date. Freshness: the board's data date is fresh up to 9 days old (a Friday board until the next weekend's run), late from 10 (one weekend missed), stale after 13 (two missed). The pages say "Updated every weekend, to the close of <Friday>". **Stop rule (owner):** if in two weekends it cannot finish inside these hours, or any other job slips because of it, it is switched back off and reported. It is on by default (no server step: it switches on when this code reaches the jobs container, through the usual gated jobs move); `SECTORS_JOB=off` in `/opt/finlit/.env.aws` switches it off (the setting is read when the jobs container is next recreated). Tests: `tests/test_jobs_registry.py` (the hours, the retry and continuation, the priority), `tests/test_jobs_freshness.py` (the weekly judgement).
+
+
+## 4c. flows-nse retired (owner's written decision, 28 Nov 2026)
+
+The owner wrote, 28 Nov 2026: "use NSDL as the one source for FII/DII and retire `flows-nse`".
+- **Why:** NSE serves its site from www.nseindia.in, and its Akamai refuses AWS and Cloudflare (FinLit's relay) for the FII/DII API and even its
+  home page. It lets a request through only now and then, so `flows-nse` failed 52 runs in a row from 25 Nov.
+- **What replaces it:** nothing is lost.
+  - The `flows` job keeps its `nse` step. Every run (after the close from 19:10 IST, again in the AFTER_CLOSE window, and in the MORNING window)
+    asks NSE for the same-day report, and saves it whenever NSE answers. On 28 Nov at 20:43 IST it stored 27 Nov this way.
+  - NSDL's official figures come every day.
+  - A refused NSE step leaves `flows` "partial", which exits as a success: no failure alert, and the other steps' data stays.
+- `macro-outlook` now waits for `macro` and `flows` only. The `flows` freshness check watches `flows` only.
 
 ## 5. Data-freshness invariants (a job can "succeed" and still leave stale data)
 

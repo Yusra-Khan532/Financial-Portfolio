@@ -11,9 +11,9 @@ filter still shows it) and every total counts the trade once. The rule is one fu
 
 Sources, in the order a run reads them:
     1. today's archive files  nsearchives.nseindia.com/content/equities/bulk.csv and block.csv (no cookie needed)
-    2. the snapshot           www.nseindia.com/api/snapshot-capital-market-largedeal: short selling, and a cross-check of 1 (it stands in for 1 when
+    2. the snapshot           www.nseindia.in/api/snapshot-capital-market-largedeal: short selling, and a cross-check of 1 (it stands in for 1 when
                               the archive does not answer)
-    3. the history            www.nseindia.com/api/historical/{bulk-deals,block-deals,short-selling}?from=&to=, a month a request, stepping back
+    3. the history            www.nseindia.in/api/historical/{bulk-deals,block-deals,short-selling}?from=&to=, a month a request, stepping back
                               one month a run until two years are held (the cookie flow of finlit/iponse.py; FinLit's relay when NSE refuses)
 
 Pure parsing plus fetch helpers, as in finlit/ipobhav.py and finlit/ipocorp.py. One request a second; after 5 refusals a run stops asking and the
@@ -35,20 +35,20 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple
 log = logging.getLogger("finlit.deals")
 
 IST = timezone(timedelta(hours=5, minutes=30))
-NSE_HOME = "https://www.nseindia.com/"
+NSE_HOME = "https://www.nseindia.in/"   # NSE moved its site and APIs to .in (28 Nov 2026); .com is refused from AWS and Cloudflare
 ARCHIVE = {"bulk": "https://nsearchives.nseindia.com/content/equities/bulk.csv", "block": "https://nsearchives.nseindia.com/content/equities/block.csv"}
-SNAPSHOT = "https://www.nseindia.com/api/snapshot-capital-market-largedeal"
-HISTORICAL = {"bulk": "https://www.nseindia.com/api/historical/bulk-deals", "block": "https://www.nseindia.com/api/historical/block-deals",
-              "short": "https://www.nseindia.com/api/historical/short-selling"}
+SNAPSHOT = "https://www.nseindia.in/api/snapshot-capital-market-largedeal"
+HISTORICAL = {"bulk": "https://www.nseindia.in/api/historical/bulk-deals", "block": "https://www.nseindia.in/api/historical/block-deals",
+              "short": "https://www.nseindia.in/api/historical/short-selling"}
 BROWSER = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-           "Accept": "application/json, text/plain, text/csv, */*", "Referer": "https://www.nseindia.com/report-detail/display-bulk-and-block-deals"}
+           "Accept": "application/json, text/plain, text/csv, */*", "Referer": "https://www.nseindia.in/report-detail/display-bulk-and-block-deals"}
 KINDS = ("bulk", "block", "short")
 HISTORY_DAYS = 730                 # two years held, then the backfill stops
 MAX_REFUSALS = 5                   # refusals in one run before it stops asking (the next run tries again)
 META_LAST = "deals:last"
 META_BACKFILL = "deals:backfill"
 SOURCE_NAME = "NSE"
-SOURCE_URL = "https://www.nseindia.com/report-detail/display-bulk-and-block-deals"
+SOURCE_URL = "https://www.nseindia.in/report-detail/display-bulk-and-block-deals"
 
 
 # ------------------------------------------------------------------------------------------------ parsing
@@ -272,7 +272,7 @@ class Nse:
         """The body as text, or None when neither NSE nor the relay gave a usable answer."""
         if self.stopped:
             return None
-        api = url.startswith("https://www.nseindia.com/api/")
+        api = url.startswith(("https://www.nseindia.in/api/", "https://www.nseindia.com/api/"))
         for attempt in range(2):
             if api and not self.warm:
                 await self._warm()

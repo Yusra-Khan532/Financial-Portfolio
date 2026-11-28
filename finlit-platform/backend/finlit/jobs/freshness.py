@@ -429,7 +429,7 @@ def evaluate_facts(f: Dict[str, Any], now: datetime, credentials: Optional[List[
     ds.append(judge_calendar(int(f.get("results_upcoming") or 0), f.get("calendars_ran"), now))
     ipo = judge_age("ipo_calendar", "IPO calendar", ["calendars"], f.get("ipo_updated"), now, 30.0, 96.0)
     ds.append(ipo)
-    flows = judge_session("flows", "FII / DII flows", ["flows", "flows-nse"], f.get("flows_newest"), exp, now, 3.0, 16.0)
+    flows = judge_session("flows", "FII / DII flows", ["flows"], f.get("flows_newest"), exp, now, 3.0, 16.0)
     ds.append(flows)
     ds.append(judge_age("macro_outlook", "Macro & Sector Outlook", ["macro-outlook"], f.get("macro_outlook_run"), now, 30.0, 54.0, "last successful scoring run"))
     ds.append(judge_nav(f.get("mf_nav"), now))

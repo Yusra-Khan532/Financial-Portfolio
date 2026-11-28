@@ -186,7 +186,7 @@ def fake_sites(down=False):
             return httpx.Response(503)
         state["gets" if req.method == "GET" else "posts"].append(str(req.url))
         u = req.url
-        if u.host == "www.nseindia.com":
+        if u.host == "www.nseindia.in":                                  # NSE serves the report from .in since Nov 2026
             return httpx.Response(200, text=text("nse_fiidii_2026-10-23.json")) if u.path == "/api/fiidiiTradeReact" else httpx.Response(403)
         assert req.headers["user-agent"].startswith("FinLit-data/1.0 (+https://finlitventures.com)")
         if u.host == "archives.nseindia.com":

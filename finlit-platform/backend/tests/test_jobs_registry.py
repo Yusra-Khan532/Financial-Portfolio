@@ -105,7 +105,7 @@ def test_every_old_time_slot_is_covered_by_the_same_job_at_or_before_that_time()
         ("calendars", FRI, (10, 5), 1.0), ("calendars", SAT, (6, 45), 12), ("calendars", FRI, (23, 30), 2),
         ("listing", FRI, (15, 50), 5), ("listing", FRI, (19, 10), 3), ("listing", SAT, (19, 10), 3),
         ("technicals", FRI, (18, 30), 24, True), ("technicals", FRI, (21, 10), 3, True), ("technicals", SAT, (6, 45), 12, True),
-        ("flows-nse", FRI, (19, 10), 24), ("flows", FRI, (19, 10), 24), ("flows", FRI, (21, 10), 2), ("macro", FRI, (19, 10), 24), ("industry", FRI, (19, 10), 24),
+        ("flows", FRI, (19, 10), 24), ("flows", FRI, (21, 10), 2), ("macro", FRI, (19, 10), 24), ("industry", FRI, (19, 10), 24),
         ("mf", FRI, (21, 10), 24), ("mf", FRI, (23, 30), 2.5), ("facts", FRI, (21, 10), 24), ("etf", FRI, (21, 10), 24), ("etf", FRI, (23, 30), 2.5),
         ("instruments", SAT, (6, 45), 24), ("screens", FRI, (6, 45), 24),
         ("alerts-daily", FRI, (19, 10), 24), ("digest", SUN, (19, 10), 24 * 7),

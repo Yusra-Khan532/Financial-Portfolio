@@ -305,6 +305,40 @@ class NseDay:
     problems: List[str] = field(default_factory=list)
 
 
+def nse_csv_to_json(text: str) -> Optional[str]:
+    """NSE's FII/DII report as the CSV its page downloads (api/fiidiiTradeReact?csv=true, 28 Nov 2026: the one form NSE still answers to FinLit's
+    relay), in the JSON shape parse_nse reads: [{category, date, buyValue, sellValue, netValue}]. Header cells carry line breaks and units
+    ("BUY VALUE \n(Rs Crores)"), the file may start with a byte-order mark, numbers may have commas and categories footnote marks ("DII **").
+    None when it is not that report (an error page, an empty file)."""
+    import csv
+    import io
+    import json
+    import re
+    t = (text or "").lstrip("\ufeff")
+    if not t.strip() or t.lstrip()[:1] in ("<", "{", "["):
+        return None
+    rows = list(csv.reader(io.StringIO(t)))
+    if not rows:
+        return None
+    norm = [re.sub(r"[^a-z]", "", h.lower()) for h in rows[0]]
+
+    def col(*keys):
+        return next((i for i, h in enumerate(norm) if any(h.startswith(k) for k in keys)), None)
+    ci, di, bi, si, ni = col("category"), col("date"), col("buy"), col("sell"), col("net")
+    if None in (ci, di, bi, si, ni):
+        return None
+    out = []
+    for r in rows[1:]:
+        if len(r) <= max(ci, di, bi, si, ni):
+            continue
+        cat = re.sub(r"[^A-Za-z/]", "", r[ci]).upper()
+        if not (cat.startswith("FII") or cat.startswith("DII")):
+            continue
+        out.append({"category": "FII/FPI" if cat.startswith("FII") else "DII", "date": r[di].strip(), "buyValue": r[bi].strip(),
+                    "sellValue": r[si].strip(), "netValue": r[ni].strip()})
+    return json.dumps(out) if out else None
+
+
 def parse_nse(text: str) -> List[NseDay]:
     """NSE's FII/DII report (api/fiidiiTradeReact): [{category 'DII' | 'FII/FPI', date '23-Oct-2026', buyValue, sellValue, netValue}], Rs crore, cash market.
     A day missing either class is skipped; a net that is not purchases minus sales is returned with a problem and never saved."""
