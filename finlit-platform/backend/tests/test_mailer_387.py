@@ -113,7 +113,9 @@ async def test_upload_write_test_send_and_unsubscribe(app, monkeypatch):  # noqa
     assert (await admin.post("/api/admin/mail/campaigns", json={**mail, "buttonUrl": ""})).status_code == 422                       # words and link together
     cid = (await admin.post("/api/admin/mail/campaigns", json=mail)).json()["id"]
     pv = (await admin.get(f"/api/admin/mail/campaigns/{cid}/preview")).text
-    assert "Hi Priya," in pv and 'href="https://finlitventures.com/signup"' in pv and ">Create your free account</a>" in pv
+    # 28 Nov 2026: {name} in a preview or a test is the signed-in admin's own name (Asha here), never an invented sample; a new mail is plain
+    # text, so the button is the line "words: link".
+    assert "Hi Asha," in pv and "Priya" not in pv and 'Create your free account: <a href="https://finlitventures.com/signup"' in pv
 
     assert (await admin.post(f"/api/admin/mail/campaigns/{cid}/test", json={"to": "owner@example.com"})).json()["status"] == "sent"
     assert sent[-1][0] == "owner@example.com" and b"Subject: [Test] Thanks for joining" in sent[-1][1]
@@ -138,6 +140,8 @@ async def test_upload_write_test_send_and_unsubscribe(app, monkeypatch):  # noqa
     assert [t for t, _ in sent] == ["priya@a.in"]
     s = (await admin.get("/api/admin/mail")).json()
     camp = next(c for c in s["campaigns"] if c["id"] == cid)
-    assert (camp["sent"], camp["skipped"], camp["queued"], camp["remaining"]) == (1, 1, 0, 0) and s["ready"] is True
-    assert (await admin.post(f"/api/admin/mail/campaigns/{cid}/send", json={"count": 500})).json()["queued"] == 0
+    # Since 28 Nov 2026 loading the page also puts the site's members on the list (source "FinLit members": the member and the admin here), so
+    # they are the 2 left; the hackathon list itself has nobody left.
+    assert (camp["sent"], camp["skipped"], camp["queued"], camp["remaining"]) == (1, 1, 0, 2) and s["ready"] is True
+    assert (await admin.post(f"/api/admin/mail/campaigns/{cid}/send", json={"count": 500, "source": "XYZ Hackathon, Oct 2026"})).json()["queued"] == 0
     assert (await admin.post("/api/admin/mail/campaigns", params={"id": cid}, json=mail)).status_code == 409   # a sent mail is not edited
