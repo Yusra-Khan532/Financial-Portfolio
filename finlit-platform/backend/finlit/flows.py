@@ -34,8 +34,10 @@ router = APIRouter(prefix="/api/flows")
 admin = APIRouter(prefix="/api/admin/flows")
 
 NSDL = "https://www.fpi.nsdl.co.in/web"
-NSE_HOME = "https://www.nseindia.com/"
-NSE_FIIDII = "https://www.nseindia.com/api/fiidiiTradeReact"
+# 28 Nov 2026: NSE serves its site and APIs from www.nseindia.in (www.nseindia.com redirects there, and NSE refuses both AWS and Cloudflare at .com).
+# fiidiiTradeReact is the combined NSE, BSE and MSEI report (what the page shows); the cookie is taken from the same host.
+NSE_HOME = "https://www.nseindia.in/"
+NSE_FIIDII = "https://www.nseindia.in/api/fiidiiTradeReact"
 NSE_OI = "https://archives.nseindia.com/content/nsccl/fao_participant_oi_{:%d%m%Y}.csv"
 USER_AGENT = "FinLit-data/1.0 (+https://finlitventures.com)"
 PAUSE = 1.0                                   # seconds between two requests to NSDL (a month of history is one request)
@@ -255,7 +257,7 @@ class Sources:
     async def nse_json(self) -> str:
         """NSE's report API wants the cookie its home page sets, and a browser-style agent (it refuses plain scripts)."""
         hdr = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
-               "Accept": "application/json, text/plain, */*", "Referer": "https://www.nseindia.com/reports/fii-dii"}
+               "Accept": "application/json, text/plain, */*", "Referer": "https://www.nseindia.in/reports/fii-dii"}
         for attempt in range(3):
             self.calls += 2
             try:
@@ -748,7 +750,7 @@ def notes_for(rows: List[Row], issues: List[str], runs: Dict[str, dict], oi: Opt
                     "note": f"{n_dii} sessions" + (f" from {first_dii.isoformat()}" if first_dii else "") + ". NSDL began publishing this report on 1 June 2026, so there is no earlier DII history from a permitted source. "
                             "Days before it are empty, and totals that span them show no DII figure rather than a part-sum." + run_note("dii")})
     if man:
-        out.append({"id": "manual", "label": "Entered by FinLit from the exchange's published FII/DII report", "url": "https://www.nseindia.com/reports/fii-dii",
+        out.append({"id": "manual", "label": "Entered by FinLit from the exchange's published FII/DII report", "url": "https://www.nseindia.in/reports/fii-dii",
                     "covers": "Days an administrator typed in; they take the place of NSDL's figure for that side and day", "status": "ok", "lastDate": max(r.d for r in man).isoformat(),
                     "note": f"{len(man)} day(s). Definitions can differ slightly from NSDL's (the exchanges report their own trade data)."})
     if oi:
@@ -762,12 +764,12 @@ def notes_for(rows: List[Row], issues: List[str], runs: Dict[str, dict], oi: Opt
     nse = [r for r in rows if "nse" in (r.fsrc, r.dsrc)]
     if nse:
         st, ld = source_status(max(r.d for r in nse), today, runs.get("nse"))
-        out.append({"id": "nse-cash", "label": "NSE: FII/DII trading activity (cash market)", "url": "https://www.nseindia.com/reports/fii-dii", "covers": "The exchange's own daily FII and DII cash-market report, provisional",
+        out.append({"id": "nse-cash", "label": "NSE: FII/DII trading activity (cash market)", "url": "https://www.nseindia.in/reports/fii-dii", "covers": "The exchange's own daily FII and DII cash-market report, provisional",
                     "status": st, "lastDate": ld,
                     "note": f"{len(nse)} session(s) read from the exchange's report; these are the figures news sites quote for the day, and they take the place of NSDL's settlement-date figure for that day. "
                             "The exchange publishes only the latest session, so older days stay as NSDL has them." + run_note("nse")})
     else:
-        out.append({"id": "nse-cash", "label": "NSE and BSE: FII/DII trading activity (cash market)", "url": "https://www.nseindia.com/reports/fii-dii", "covers": "The exchanges' own daily FII and DII cash-market report",
+        out.append({"id": "nse-cash", "label": "NSE and BSE: FII/DII trading activity (cash market)", "url": "https://www.nseindia.in/reports/fii-dii", "covers": "The exchanges' own daily FII and DII cash-market report",
                     "status": "unavailable", "lastDate": None,
                     "note": "The exchange's report could not be read yet; NSDL's figures above are used meanwhile." + run_note("nse")})
     if closes:
