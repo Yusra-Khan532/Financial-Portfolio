@@ -31,6 +31,8 @@ import "../../portfolio/pack/eq385.css";   // the pop-up's quiet card list (scop
 import type { Card } from "../../lib/pulsePack";
 import { SectionHead } from "../Sections";
 import { coTitle, shortLabel } from "../../lib/companyLabel";
+import { IndustryNumbers, sizeReading, useIndustryNumbers } from "./IndustryNumbers";
+import { TabGroup } from "../../components/TabGroup";
 
 const sp = (x: number | null | undefined, dp = 1, unit = "%") => (x == null ? "–" : `${x >= 0 ? "+" : "−"}${Math.abs(x).toFixed(dp)}${unit}`);
 const size = (cr: number | null | undefined) => capBucket(cr ?? null)?.label.replace(" cap", "") ?? "–";
@@ -48,30 +50,38 @@ export function WhereStands({ symbol, name }: { symbol: string; name: string }) 
   const align = prism ? trendAlignment(prism.shortTerm?.score, prism.longTerm?.score)?.label ?? null : null;
   const h = headline(short1, ind, key ? WORD[key] : null, sec, rot, null);   // developer file 47: the peers' rank is 13's, not repeated here
   const sixRank = sec?.rank_6m != null && sec.ranked_6m ? `${ordinal(sec.rank_6m)} of ${sec.ranked_6m}` : null;
+  const nums = useIndustryNumbers(symbol, g), size4 = sizeReading(nums.shares);
+  const above9 = page?.breadth?.above_9 ?? g?.breadth?.above_9 ?? null;
   return (
     <section className="block sp ws" aria-label={`${short1}'s industry`} data-testid="where-stands">
-      <SectionHead id="sector" no="Industry" icon="layers" tier="gold" sub={ind ? `${ind} against the other industries, and where ${short1} ranks inside it.` : `Its industry against the others, and where ${short1} ranks inside it.`} />
+      <SectionHead id="sector" no="Industry" icon="layers" tier="gold" sub={ind ? `${ind} against the other industries, ${short1}'s place inside it, and the industry in numbers.` : `Its industry against the others, ${short1}'s place inside it, and the industry in numbers.`} />
+      {/* developer file 52 (founder, 27 Nov 2026, 5:22 pm: "improve section 14 top box"): the lead, then the four readings as one row of four, each opening
+          its tab below ("Open ↓"); "3 things to know" sits in the box; the company's own chart is one line under it, pointing to 03 (it stood alone on a
+          second row). The four tabs hold what was one long column. */}
       <div className="sp-sec ws-head">
-        {h && <p className="ws-lead"><b>{h.lead}</b>{h.rest}</p>}
-        <div className="ws-strip ws-reads">
-          {key && <div className="ws-pill">Industry now <StateChip k={key} /><Tip text={STATE_HELP[key]} label="About the industry's state" /></div>}
-          {rot?.corner && rot.corner !== "middle" && <div className="ws-pill">Against other industries <BoxChip corner={rot.corner} /><Tip text={BOX_HELP[rot.corner]} label={`About “${rot.corner_name}”`} /></div>}
-          {sixRank && !locked && <div className="ws-pill">Inside its industry <b className={"ws-q q" + (sec?.quarter ?? 0)}>{sixRank}</b></div>}
-          {/* developer file 43: the chart tab is gone (03 Price & technicals draws the price), so this reading points there */}
-          {align && <div className="ws-pill">Its own chart <b className="ws-own">{align}</b><a className="ws-go" href="#price" onClick={toPrice}>{sectionNo("price")} Price &amp; technicals ↑</a></div>}
-        </div>
+        <div className="ws-headtop">{h && <p className="ws-lead"><b>{h.lead}</b>{h.rest}</p>}{g && !locked && sec && <Know scope="ws-industry" items={industryCards(short1, ind ?? "", sec, page, rot, key ?? keyOf(g))} />}</div>
+        {g && <div className="ws-glance">
+          <a className="ws-cell" href="#ws-now" onClick={toTab("ws-now")}><span className="ws-k">Industry now</span><span className="ws-v">{key ? <StateChip k={key} /> : "–"}</span><span className="ws-l">{above9 == null ? "Its stocks' breadth" : `${Math.round(above9)} of 100 stocks above their short trend`}</span><span className="ws-open">Open ↓</span></a>
+          <a className="ws-cell" href="#ws-rot" onClick={toTab("ws-rot")}><span className="ws-k">Against other industries</span><span className="ws-v">{rot?.corner && rot.corner !== "middle" ? <BoxChip corner={rot.corner} /> : <b className="ws-q">{rot?.corner === "middle" ? "Near the middle" : "No reading yet"}</b>}</span><span className="ws-l">{rot?.rank != null && rot.ranked ? `${ordinal(rot.rank)} strongest of ${rot.ranked} industries` : "The last few months"}</span><span className="ws-open">Open ↓</span></a>
+          <a className="ws-cell" href="#ws-in" onClick={toTab("ws-in")}><span className="ws-k">Inside its industry</span><span className="ws-v">{sixRank && !locked ? <b className={"ws-q q" + (sec?.quarter ?? 0)}>{sixRank}</b> : <b className="ws-q">{locked ? "Gold plan" : "–"}</b>}</span><span className="ws-l">{!locked && sec?.return_6m_pct != null ? `6-month return ${sp(sec.return_6m_pct)}` : "Its 6-month rank in the industry"}</span><span className="ws-open">Open ↓</span></a>
+          <a className="ws-cell" href="#ws-num" onClick={toTab("ws-num")}><span className="ws-k">In numbers</span><span className="ws-v">{size4 ? <b className="ws-q">{size4.chip}</b> : <b className="ws-q">{nums.status === "loading" ? "…" : "–"}</b>}</span><span className="ws-l">{size4 ? size4.line : "Against a typical company"}</span><span className="ws-open">Open ↓</span></a>
+        </div>}
+        {align && <p className="ws-ownline">Its own chart: <b className="ws-own">{align}</b> <a className="ws-go" href="#price" onClick={toPrice}>{sectionNo("price")} Price &amp; technicals ↑</a></p>}
       </div>
       <div id="ws-panel">
         {secQ.isError && <p className="sp-note" role="status" data-testid="sector-blank">{failureText(secQ.error)}</p>}
-        {!secQ.isError && (!g ? <p className="sp-note">{sec?.note ?? "NSE has not given this stock an industry yet, so there is no industry reading to show."}</p> : <IndustryTab name={short1} symbol={symbol} sec={sec!} locked={locked} page={page} rot={rot} />)}
+        {!secQ.isError && (!g ? <p className="sp-note">{sec?.note ?? "NSE has not given this stock an industry yet, so there is no industry reading to show."}</p> : <IndustryTabs name={short1} symbol={symbol} sec={sec!} locked={locked} page={page} rot={rot} />)}
       </div>
-      <p className="sp-note ws-foot">Describes past prices and breadth; not a recommendation. Information only, not investment advice.</p>
+      <p className="sp-note ws-foot">Describes past prices, breadth and the screener's figures; not a recommendation. Information only, not investment advice.</p>
     </section>
   );
 }
 
 /** Developer file 43: the "Its own chart" reading's link to 03 Price & technicals; on a phone it opens that section's row first, as the section bar does. */
 const toPrice = (e: React.MouseEvent) => { e.preventDefault(); revealAndScroll(document.getElementById("price"), (x) => x.scrollIntoView({ behavior: "smooth", block: "start" })); };
+/** Developer file 52: a top-box reading opens its tab (TabGroup opens a hidden panel when a link points into it, before this runs) and scrolls to it,
+ *  without changing the page's address. */
+const toTab = (id: string) => (e: React.MouseEvent) => { e.preventDefault(); requestAnimationFrame(() => { const panels = document.getElementById(id)?.closest(".ct-panels"); (panels?.previousElementSibling ?? panels)?.scrollIntoView({ behavior: "smooth", block: "start" }); }); };   // to the tab bar
 
 /** Developer file 43 (founder, 27 Nov 2026: "the three boxes, can we add them as 3 dots like we did in the equity portfolio page, to reduce the length of the
  *  page"): a tab's notes as the equity portfolio shows its things to know: a pill with one dot a note in its kind's colour ("●●● 3 things to know") at the
@@ -81,8 +91,9 @@ function Know({ items, scope }: { items: Card[]; scope: string }) {
   return <div className="ws-know"><KnowButton items={items} scope={scope} inline /></div>;
 }
 
-// ------------------------------------------------------------------------------------------------ Its industry
-function IndustryTab({ name, symbol, sec, locked, page, rot }: { name: string; symbol: string; sec: NonNullable<ReturnType<typeof useStockSector>["data"]>; locked: boolean; page: IndustryPage | null; rot: ReturnType<typeof useRotationCard>["data"] }) {
+// ------------------------------------------------------------------------------------------------ the four tabs (developer file 52)
+type Sec = NonNullable<ReturnType<typeof useStockSector>["data"]>;
+function IndustryTabs({ name, symbol, sec, locked, page, rot }: { name: string; symbol: string; sec: Sec; locked: boolean; page: IndustryPage | null; rot: ReturnType<typeof useRotationCard>["data"] }) {
   const g = sec.group!, k = keyOf(g), ind = short(g.name);
   const f = page ?? g;   // the industry page is open to every plan and carries the breadth figures; the stock's own sector answer leaves them out below Gold
   const hist = page?.history, ser = hist ? hist.above_20.slice(-126) : [];
@@ -90,42 +101,48 @@ function IndustryTab({ name, symbol, sec, locked, page, rot }: { name: string; s
   const d = ser.map((v, i) => (v == null ? "" : `${i && ser[i - 1] != null ? "L" : "M"}${xs[i].toFixed(1)},${y(v).toFixed(1)}`)).join("");
   const stocks = (page?.stocks ?? null) as RankedStock[] | null, max = stocks ? Math.max(1, ...stocks.map((x) => Math.abs(x.return_6m_pct ?? 0))) : 1;
   const row = (lab: string, help: string, v: string) => <div className="ws-row"><span>{lab}<Tip text={help} label={`About “${lab}”`} /></span><b>{v}</b></div>;
-  return (<>
-    <Know scope="ws-industry" items={locked ? [] : industryCards(name, ind, sec, page, rot, k)} />
-    <div className="ws-two">
-      <div className="sp-sec ws-box">
-        <p className="ws-cap">Sector Pulse · the last few days</p>
-        <p className="ws-chiprow"><StateChip k={k} /><Tip text={STATE_HELP[k]} label="About the industry's state" /></p>
-        {page?.summary && <p className="ws-txt">{page.summary}</p>}
-        {d && <><svg viewBox={`0 0 ${W} ${H}`} className="ws-spark" role="img" aria-label={`Stocks above their medium trend over 6 months, now ${Math.round(ser[ser.length - 1] ?? 0)} of 100`}><line x1="4" x2={W - 4} y1={y(50)} y2={y(50)} className="ws-mid" /><path d={`${d}L${W - 4},${H}L4,${H}Z`} className="ws-area" /><path d={d} className="ws-line" fill="none" /></svg>
-          <small className="ws-small">Stocks above their medium trend, out of 100, last 6 months · dashed line = 50</small></>}
-        {row("Stocks above their short trend", "Short trend. How many of the industry's stocks are above their average price of the last few weeks. It reacts first, so it moves a lot.", f.breadth?.above_9 == null ? "–" : `${Math.round(f.breadth.above_9)} of 100`)}
-        {row("Industry below its 1-year high", "Below its 1-year high. How far the industry (all its stocks averaged equally) is from its highest point of the past year. 0% means it is at the top.", f.index_vs_52w_high == null ? "–" : `${Math.abs(f.index_vs_52w_high).toFixed(1)}%`)}
-        {row("Stocks that held up at the last low", "Held up at the low. When the industry last made a low, how many of its stocks did NOT make a new low with it. A low number means the fall hit almost everyone, which is what a crash looks like.", f.held_up == null ? (f.higher_low_note ? "–" : "No recent low") : `${Math.round(f.held_up)} of 100`)}
-        {row("Stocks counted", "Stocks counted. Only actively traded, established stocks are counted, so a few rarely traded names cannot swing the reading.", f.stocks_counted == null ? "–" : `${f.stocks_counted} of ${f.stocks_listed}`)}
-        <Link className="sp-link" to={`/sectors/${g.slug}`}>Open the {ind} page →</Link>
-      </div>
-      <div className="sp-sec ws-box">
-        <p className="ws-cap">Sector Rotation · the last few months</p>
-        {rot && rot.corner && rot.corner !== "middle" ? <>
-          <p className="ws-chiprow"><BoxChip corner={rot.corner} /><Tip text={BOX_HELP[rot.corner]} label={`About “${rot.corner_name}”`} /></p>
-          <p className="ws-txt">{rotationLine(ind, rot)}</p>
-          {row("Rank", `Rank. The industry's place among the ${rot.ranked ?? "ranked"} ranked industries this week, by how it has done against the average industry. 1 is the strongest.`, rot.rank == null ? "Not ranked yet" : `${rot.rank} of ${rot.ranked}${rot.rank_change_1w ? ` ${rot.rank_change_1w > 0 ? "▲" : "▼"}${Math.abs(rot.rank_change_1w)}` : ""}`)}
-          {row("6 months, against the average industry", "6 months. How many percentage points better (+) or worse (−) the industry did than the average industry over the last six months.", sp(rot.strength_pts, 1, " pts"))}
-          {row("Last month, against the average", "1 month. How many percentage points better (+) or worse (−) the industry's stocks did than the average industry over the last month.", sp(rot.change_pts, 1, " pts"))}
-          {row("Weeks in this box", "Weeks in this box. How long the industry has stayed in its current box. Long stays show a steady trend.", String(rot.weeks_in_corner))}
-          {rot.this_week_reading_name && rot.this_week_reading_name !== rot.corner_name && <Cards items={[{ kind: "watch", title: "May change box next week", text: `This week's reading is ${rot.this_week_reading_name}. The box changes only if the next weekly reading agrees.` }]} />}
-          <Link className="sp-link" to="/sector-rotation">Open Sector Rotation →</Link>
-        </> : <p className="sp-note">{rot?.note ?? "No rotation reading for this industry yet: it has too few counted stocks, or this week's files are not in."}</p>}
-      </div>
-    </div>
-    {locked ? <LockedBlock plan="gold" title="Where the stock ranks inside its industry is part of the Gold plan">Open to everyone: the industry's state and its place against other industries. Gold adds this stock's 6-month rank among its industry's counted stocks.</LockedBlock>
-      : <div className="sp-sec">
-        <h3 className="ws-h3">Inside its industry: 6-month return<Tip text={`Inside its industry. Where ${name}'s 6-month return falls among the actively traded stocks of its NSE industry.`} /></h3>
-        {stocks ? <IndustryList stocks={stocks} symbol={symbol} name={name} ind={ind} max={max} /> : null}
+  const now = (
+    <div className="sp-sec ws-box ws-wide" id="ws-now">
+      <p className="ws-cap">Sector Pulse · the last few days</p>
+      <p className="ws-chiprow"><StateChip k={k} /><Tip text={STATE_HELP[k]} label="About the industry's state" /></p>
+      {page?.summary && <p className="ws-txt">{page.summary}</p>}
+      {d && <><svg viewBox={`0 0 ${W} ${H}`} className="ws-spark" role="img" aria-label={`Stocks above their medium trend over 6 months, now ${Math.round(ser[ser.length - 1] ?? 0)} of 100`}><line x1="4" x2={W - 4} y1={y(50)} y2={y(50)} className="ws-mid" /><path d={`${d}L${W - 4},${H}L4,${H}Z`} className="ws-area" /><path d={d} className="ws-line" fill="none" /></svg>
+        <small className="ws-small">Stocks above their medium trend, out of 100, last 6 months · dashed line = 50</small></>}
+      {row("Stocks above their short trend", "Short trend. How many of the industry's stocks are above their average price of the last few weeks. It reacts first, so it moves a lot.", f.breadth?.above_9 == null ? "–" : `${Math.round(f.breadth.above_9)} of 100`)}
+      {row("Industry below its 1-year high", "Below its 1-year high. How far the industry (all its stocks averaged equally) is from its highest point of the past year. 0% means it is at the top.", f.index_vs_52w_high == null ? "–" : `${Math.abs(f.index_vs_52w_high).toFixed(1)}%`)}
+      {row("Stocks that held up at the last low", "Held up at the low. When the industry last made a low, how many of its stocks did NOT make a new low with it. A low number means the fall hit almost everyone, which is what a crash looks like.", f.held_up == null ? (f.higher_low_note ? "–" : "No recent low") : `${Math.round(f.held_up)} of 100`)}
+      {row("Stocks counted", "Stocks counted. Only actively traded, established stocks are counted, so a few rarely traded names cannot swing the reading.", f.stocks_counted == null ? "–" : `${f.stocks_counted} of ${f.stocks_listed}`)}
+      <Link className="sp-link" to={`/sectors/${g.slug}`}>Open the {ind} page →</Link>
+    </div>);
+  const vs = (
+    <div className="sp-sec ws-box ws-wide" id="ws-rot">
+      <p className="ws-cap">Sector Rotation · the last few months</p>
+      {rot && rot.corner && rot.corner !== "middle" ? <>
+        <p className="ws-chiprow"><BoxChip corner={rot.corner} /><Tip text={BOX_HELP[rot.corner]} label={`About “${rot.corner_name}”`} /></p>
+        <p className="ws-txt">{rotationLine(ind, rot)}</p>
+        {row("Rank", `Rank. The industry's place among the ${rot.ranked ?? "ranked"} ranked industries this week, by how it has done against the average industry. 1 is the strongest.`, rot.rank == null ? "Not ranked yet" : `${rot.rank} of ${rot.ranked}${rot.rank_change_1w ? ` ${rot.rank_change_1w > 0 ? "▲" : "▼"}${Math.abs(rot.rank_change_1w)}` : ""}`)}
+        {row("6 months, against the average industry", "6 months. How many percentage points better (+) or worse (−) the industry did than the average industry over the last six months.", sp(rot.strength_pts, 1, " pts"))}
+        {row("Last month, against the average", "1 month. How many percentage points better (+) or worse (−) the industry's stocks did than the average industry over the last month.", sp(rot.change_pts, 1, " pts"))}
+        {row("Weeks in this box", "Weeks in this box. How long the industry has stayed in its current box. Long stays show a steady trend.", String(rot.weeks_in_corner))}
+        {rot.this_week_reading_name && rot.this_week_reading_name !== rot.corner_name && <Cards items={[{ kind: "watch", title: "May change box next week", text: `This week's reading is ${rot.this_week_reading_name}. The box changes only if the next weekly reading agrees.` }]} />}
+        <Link className="sp-link" to="/sector-rotation">Open Sector Rotation →</Link>
+      </> : <p className="sp-note">{rot?.note ?? "No rotation reading for this industry yet: it has too few counted stocks, or this week's files are not in."}</p>}
+    </div>);
+  const inside = (
+    <div id="ws-in">
+      {locked ? <LockedBlock plan="gold" title="Where the stock ranks inside its industry is part of the Gold plan">Open to everyone: the industry's state, its place against other industries and the industry in numbers. Gold adds this stock's 6-month rank among its industry's counted stocks.</LockedBlock>
+        : <div className="sp-sec">
+          <h3 className="ws-h3">Inside its industry: 6-month return<Tip text={`Inside its industry. Where ${name}'s 6-month return falls among the actively traded stocks of its NSE industry.`} /></h3>
+          {stocks ? <IndustryList stocks={stocks} symbol={symbol} name={name} ind={ind} max={max} /> : null}
           {!stocks && (sec.in_group === false ? <p className="sp-note">{sec.note ?? `${name} is not counted in its industry's breadth, so it has no rank inside it.`}</p> : <p className="sp-note">The industry's stock list is loading.</p>)}
-      </div>}
-  </>);
+        </div>}
+    </div>);
+  return <TabGroup label="Industry analysis" hint="Industry now shown here" views={[
+    { key: "now", label: "Industry now", content: now },
+    { key: "rot", label: "Against other industries", content: vs },
+    { key: "in", label: "Inside its industry", content: inside },
+    { key: "num", label: "In numbers", content: <div id="ws-num"><IndustryNumbers symbol={symbol} name={name} g={g} /></div> },
+  ]} />;
 }
 
 /** "Inside its industry: 6-month return" (task #222, 19 Nov pack B2; developer file 43, founder 27 Nov 2026: "reduce the size, use a drop-down or whatever

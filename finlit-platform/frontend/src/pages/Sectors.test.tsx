@@ -22,6 +22,7 @@ vi.mock("../lib/title", () => ({ useDocTitle: () => undefined }));
 vi.mock("../lib/auth", async (orig) => ({ ...(await orig<typeof import("../lib/auth")>()), useAuth: () => ({ user: null }) }));   // developer file 43: Where it stands' notes pill keys its open cards by member
 vi.mock("../lib/planScore", async (orig) => ({ ...(await orig<typeof import("../lib/planScore")>()), usePlanModel: () => null, usePlanPrism: () => ({}) }));
 vi.mock("../lib/api", async (orig) => ({ ...(await orig<typeof import("../lib/api")>()), usePrice: () => ({ data: undefined }) }));
+vi.mock("../stock/pack/IndustryNumbers", () => ({ IndustryNumbers: () => null, useIndustryNumbers: () => ({ status: "loading", shares: null, res: null, error: null, retry: () => undefined, asOf: null }), sizeReading: () => null }));   // developer files 51 and 52: In numbers has its own tests (stock/report51*.test.tsx)
 import { LearnSectorSignalsPage } from "./LearnSectorSignals";
 import { WhereStands } from "../stock/pack/WhereStands";
 
@@ -78,10 +79,20 @@ describe("stock page section", () => {
   it("writes where the stock ranks inside its industry, from the sector JSON", () => {
     where();
     const t = screen.getByTestId("where-stands").textContent ?? "";
-    expect(t).toContain("where Sambhv Steel Tubes ranks inside it");   // developer file 47: 14 is Industry, one heading and its line expect(t).toContain("20th of 105");
+    expect(t).toContain("Sambhv Steel Tubes's place inside it, and the industry in numbers");   // developer files 47 and 52: 14 is Industry, one heading and its line expect(t).toContain("20th of 105");
     expect(t).toContain("Inside its industry: 6-month return"); expect(t).toContain("Sector Pulse · the last few days");
     expect(screen.getByRole("link", { name: /Open the .* page/ }).getAttribute("href")).toBe("/sectors/industrial-products");
     expect(t).toContain("not a recommendation");
+  });
+  it("developer file 52: four tabs, and a top box whose four readings open them", () => {
+    where();
+    expect(screen.getAllByRole("tab").map((x) => x.textContent?.replace(/^\d+/, "").replace(/•$/, "").trim())).toEqual(expect.arrayContaining(["Industry now", "Against other industries", "Inside its industry", "In numbers"]));
+    const cells = [...screen.getByTestId("where-stands").querySelectorAll("a.ws-cell")];
+    expect(cells.map((a) => a.getAttribute("href"))).toEqual(["#ws-now", "#ws-rot", "#ws-in", "#ws-num"]);
+    expect(cells.map((a) => a.querySelector(".ws-k")!.textContent)).toEqual(["Industry now", "Against other industries", "Inside its industry", "In numbers"]);
+    expect(cells[2].textContent).toContain("20th of 105");
+    expect(document.getElementById("ws-now")!.closest("[data-ct-panel]")!.hasAttribute("hidden")).toBe(false);
+    expect(document.getElementById("ws-in")!.closest("[data-ct-panel]")!.hasAttribute("hidden")).toBe(true);
   });
   it("below Gold: the industry's state and what Gold adds, no rank", () => {
     // below Gold the stock's sector answer leaves out the breadth figures: they come from the industry page, which every plan sees

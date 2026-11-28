@@ -102,6 +102,14 @@
 .dtc .dtc-check { font: 400 var(--fs-14)/1.5 var(--sans); color: var(--text); margin: 10px 0 0; max-width: none; }
 .dtc-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border); }
 .dtc-acts .dth-btn { min-height: 36px; }
+/* developer file 50 (founder, 27 Nov 2026: "highlight this"): "See the theme in Discover" is the card's main button, filled in the card's own gold (its
+   "From Discover" mark), not the site's action green, which the report keeps for up and down (developer file 45). The text is the card's surface colour:
+   near-white on the dark light-theme gold (6.2:1), near-black on the light dark-theme gold (8.4:1). The arrow steps right on hover. */
+.dtc .dtc-acts a.dth-btn.dth-go { background: var(--gold); border-color: var(--gold); color: var(--s1); font-weight: 600; box-shadow: 0 1px 0 color-mix(in srgb, var(--gold) 40%, transparent); }
+.dtc .dtc-acts a.dth-btn.dth-go:hover { background: color-mix(in srgb, var(--gold) 86%, var(--text)); border-color: color-mix(in srgb, var(--gold) 86%, var(--text)); color: var(--s1); }
+.dtc .dtc-acts a.dth-btn.dth-go svg { transition: transform .15s ease; }
+.dtc .dtc-acts a.dth-btn.dth-go:hover svg { transform: translateX(3px); }
+@media (prefers-reduced-motion: reduce) { .dtc .dtc-acts a.dth-btn.dth-go svg { transition: none; } .dtc .dtc-acts a.dth-btn.dth-go:hover svg { transform: none; } }
 @media (max-width: 560px) { .dtc { padding: 14px; } .dtc-h > span:last-child:not(.dth-ck) { margin-left: 0; } .dtc-acts .dth-fine { flex-basis: 100%; margin-left: 0; } }
 /* Task #310 G: the "Main theme" gold chip on the violet Discover band read 3.5:1 in dark; --gold-2 is the lighter gold step */
 :root[data-theme="dark"] .dtx-main > em { color: var(--gold-2); }
