@@ -16,6 +16,7 @@ import { rangeOf, toggleIn, useStockSearch, withRange, withScore, type SQ, type 
 import { RangeFilter } from "./RangeFilter";
 import "../../styles/task358.css";   // task #358: the section headings and the score sliders
 import "../../styles/task372.css";   // task #372: section headings above the group titles, the score group's crown
+import "../../styles/task455.css";   // task #455: the section headings in green, as on every other filter panel
 import { ScoreFilters, scoreOn } from "./ScoreFilter";
 
 

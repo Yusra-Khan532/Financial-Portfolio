@@ -1,0 +1,5 @@
+/* Task #455 (team, 28 Nov 2026), Mutual Fund Screener filter panel: "make these headings green and this shall be across all filters".
+   The four section headings (Quick shortlist, Start here · what and how, Risk, returns and cost, Narrow down) take the same green as the
+   group headings of the other filter panels: Mutual Funds (fundType427.css) and the Stock screener (task364.css) both use var(--gain).
+   Only the colour changes; size and weight stay as task #372 set them, and the filter titles under them keep the text colour. */
+.mfs-panel .mfs-sec { color: var(--gain); }
