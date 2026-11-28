@@ -508,7 +508,7 @@ async def sync_members(conn) -> int:
 # The people one send reaches: active list rows that are members (when chosen), come from a chosen list, or are among the addresses pasted into
 # "These addresses" (owner, 28 Nov 2026: "I can send the mail for like 5 to 6 persons"). m: members?, s: the lists, e: the pasted addresses.
 def audience_sql(m: str = "$1", s: str = "$2", e: str = "$3") -> str:
-    return (f"c.status = 'active' AND (({m}::bool AND c.email IN (SELECT lower(u.email) FROM users u WHERE u.status = 'active')) "
+    return (f"c.status = 'active' AND (({m}::bool AND c.email IN (SELECT lower(u.email) FROM users u WHERE u.status = 'active')) "  # nosec B608 - only placeholder names ($1..$5) go in; the values are parameters
             f"OR c.source = ANY({s}::text[]) OR c.email = ANY({e}::text[]))")
 
 
