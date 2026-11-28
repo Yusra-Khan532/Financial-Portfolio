@@ -82,23 +82,23 @@ export function PulseGuide({ stocks, groups, inPanel = false }: { stocks: number
     <Fold inPanel={inPanel} sub="Four steps, what each state means, and what the reading leaves out · 2 min read">
       <p className="sp-guide-intro">{tw("Sector Pulse asks one question every weekend: in each industry, are most stocks going up or down? It reads the week up to Friday's close and counts how many of the")} {stocks.toLocaleString("en-IN")} actively traded stocks in each of the {groups} are above their trend, and gives each one a state. <b>Simple</b> tells the story; <b>Full table</b> shows every number.</p>
       <div className="sp-guide-two">
-        <div><h3 className="sp-guide-k">Use it in four steps</h3>
+        <div><h3 className="sp-guide-k" aria-level={2}>Use it in four steps</h3>
           <Steps items={[
             <><b>Check the market.</b> The <b>Market backdrop</b>{tw(", at the top of the page, says whether the whole market is in an uptrend. An industry bounce means more when it is.")}</>,
             <><b>Read today.</b> <b>Today in one minute</b> gives what changed this week. <b>The cycle</b> {tw("shows the four stages and how many industries sit in each.")}</>,
             <><b>{tw("Find an industry's state and count.")}</b> In <b>All … by state</b>, "21 of 41" means 21 of its 41 counted stocks are above their medium-term trend; past halfway, most are rising.</>,
             <><b>Bring it to your shares.</b> <b>{tw("How your industries are doing")}</b> {tw("covers the industries your shares sit in.")} <b>Standout stocks</b> {tw("lists stocks at a 1-year high inside weak industries. Open any industry for a year of its readings.")}</>,
           ]} /></div>
-        <div><h3 className="sp-guide-k">What each state means</h3>
+        <div><h3 className="sp-guide-k" aria-level={2}>What each state means</h3>
           <table className="sp-guide-t"><thead><tr><th scope="col">State</th><th scope="col">When</th></tr></thead>
             <tbody>{ORDER.map((k) => <tr key={k}><td><i className="sp-sw" style={{ background: COLOUR[k] }} aria-hidden="true" /><b>{WORD[k]}</b></td><td>{MEANING[k]}</td></tr>)}</tbody></table>
           <p className="sp-guide-tags"><span className="sp-tag sp-early">Early sign</span> Still Sold off, but most of its stocks are already above their short trend: a bounce may be forming. <Wallet /> {tw("An industry one of your shares belongs to.")}</p>
         </div>
       </div>
       <div className="sp-guide-two sp-guide-low">
-        <div><h3 className="sp-guide-k">Check it against history</h3>
+        <div><h3 className="sp-guide-k" aria-level={2}>Check it against history</h3>
           <p><b>The market's mood, day by day</b> and <b>{tw("Six months of every industry")}</b> (Full table) show how long each state lasted and how often bounces faded. <b>Momentum and strength</b> {tw("sets this page next to Sector Rotation: a bounce in an industry that was already beating others has more behind it.")}</p></div>
-        <div><h3 className="sp-guide-k">Keep in mind</h3>
+        <div><h3 className="sp-guide-k" aria-level={2}>Keep in mind</h3>
           <ul className="sp-guide-ul">
             <li>The cycle is a map, not a timetable: many bounces fade before the next stage.</li>
             <li>{tw("The state changes more slowly than the count, so an industry can have many stocks rising and still read Sold off.")}</li>

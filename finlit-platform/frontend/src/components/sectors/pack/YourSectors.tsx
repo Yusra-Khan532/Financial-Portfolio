@@ -194,7 +194,7 @@ export function YourShort({ b, h, held, by, labels, labelOf, wlSet }: { b: Board
               <div key={m}>{!one && <p className="sx-yr-mean">{m}</p>}
                 {list.map((g) => { const st = stayLine(timeInState(h, g.row.slug), usual[g.key]), up = risingOf(g.row); return (
                   <div key={g.row.slug} className="sx-yr-row">
-                    <span><Link className="sp-ind" to={gl(g.row.slug)}>{short(g.row.name)}</Link>{st && <small>{st.text}{st.long && <i className="sx-long" title="Longer than its usual stay" aria-label="longer than its usual stay" />}</small>}</span>
+                    <span><Link className="sp-ind" to={gl(g.row.slug)}>{short(g.row.name)}</Link>{st && <small>{st.text}{st.long && <i className="sx-long" role="img" title="Longer than its usual stay" aria-label="longer than its usual stay" />}</small>}</span>
                     <span><BoxChip corner={g.row.rotation?.corner} />{g.row.rotation?.rank != null && <small className="sp-rank">rank {g.row.rotation.rank} of {g.row.rotation.ranked}</small>}</span>
                     <span><b>{up ?? "–"} of {g.row.stocks_counted} rising</b>{by === "value" && total > 0 && <small>{pct((g.value / total) * 100)} of your portfolio</small>}</span>
                     <span><PeerPills syms={g.shares.map((s) => ({ symbol: s.symbol, wl: wlSet.has(s.symbol) }))} labels={labels} groupName={short(g.row.name)} /></span>

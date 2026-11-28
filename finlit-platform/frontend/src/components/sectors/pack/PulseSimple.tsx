@@ -9,17 +9,18 @@ import { CoLogo } from "../../CoLogo";
 import { LockedBlock } from "../Parts";
 import { useSectorHistory, type SectorHistory, type StateKey } from "../../../lib/sectorHistory";
 import { useIndustryMap } from "../../../lib/sectorExtra";
-import type { Board, GroupRow } from "../../../lib/sectors";
+import type { Board, CornerCode, GroupRow } from "../../../lib/sectors";
 import {
-  BOX, BOX_ORDER, COLOUR, MEANING, ORDER, WORD, allChip, allSectors, groupsN, groupsSplit, sectorsIn, belowHigh, dayMon, bouncedAgo, byState, headline, howStrong, isEarly, keyOf, matrix, matrixCards, meansForYou, newHigh, risingOf, short, statesAt, todayThree, yourCards, yourOrder,
+  BOX, BOX_ORDER, COLOUR, MEANING, ORDER, WORD, allChip, allSectors, groupsN, groupsSplit, sectorsIn, belowHigh, dayMon, bouncedAgo, byState, headline, isEarly, keyOf, matrix, matrixCards, meansForYou, risingOf, short, statesAt, todayThree, yourCards, yourOrder,
   type Holding,
 } from "../../../lib/pulsePack";
-import { Wallet, BoxChip, Cards, InsideLine, QuietList, InsightCard, Scroll, Section, Spark, StateChip, Swatch, Tip, useAccount, useShowAll } from "./Common";
+import { Wallet, BoxChip, Cards, InsideLine, QuietList, Scroll, Section, Spark, StateChip, Swatch, Tip, useAccount, useShowAll } from "./Common";
 import { coTitle, shortLabel } from "../../../lib/companyLabel";
 import { SxFold } from "./PulseLayout";
 import { MySectorsAlert, YourShort, usePeerLabels } from "./YourSectors";
 import type { HeldShare } from "../../../lib/yourSectors";
 import { AlertBell } from "./SectorAlert";
+import { StandoutTable } from "./StandoutTable";
 import { HoverCard, useHover } from "./PulseMap";
 import { useWatchlist } from "../../../lib/watchlist";
 import { gl, sq, tw, wordsShow } from "../../../lib/groupWords";
@@ -153,9 +154,9 @@ export function YourIndustries({ b, h, symbols, signedIn, heldShares = [] }: { b
             {!table && <YourShort b={b} h={h} held={srcShares} by={count} labels={labels} labelOf={(k) => WORD[k]} wlSet={wlOnly} />}
             <p className="sx-tbl-toggle"><button type="button" className="sx-tlink" aria-expanded={table} onClick={() => setTable(!table)}>{table ? "Back to the short view ▴" : "See every column, as a table ▾"}</button></p>
             {table && <><Scroll label={tw("your industries")}><table className="sp-tb sp-yours">
-              <thead><tr><th scope="col">{tw("Industry and your shares")}</th><th scope="col">Its state today<Tip text={tw("The industry's state at the latest close: sold off, bouncing back, rising together or losing steam.")} /></th>
-                <th scope="col">{tw("Against other industries")}<Tip text="Its Sector Rotation box and rank: how it has done against the average group over 6 months and over the last month." /></th>
-                <th scope="col">Stocks rising · last 6 months<Tip text="The line: out of every 100 of its counted stocks, how many were above their medium trend each day for 6 months. Dashed: half." /></th><th scope="col">What it means for you</th>
+              <thead><tr><th scope="col">{tw("Industry and your shares")}</th><th scope="col">Its state today<Tip label="About “Its state today”" text={tw("The industry's state at the latest close: sold off, bouncing back, rising together or losing steam.")} /></th>
+                <th scope="col">{tw("Against other industries")}<Tip label={`About “${tw("Against other industries")}”`} text="Its Sector Rotation box and rank: how it has done against the average group over 6 months and over the last month." /></th>
+                <th scope="col">Stocks rising · last 6 months<Tip label="About “Stocks rising · last 6 months”" text="The line: out of every 100 of its counted stocks, how many were above their medium trend each day for 6 months. Dashed: half." /></th><th scope="col">What it means for you</th>
                 <th scope="col" className="sx-alh">Alert</th></tr></thead>
               <tbody>{tableRows.map((r) => {
                 const m = meansForYou(r), syms = held.filter((x) => x.slug === r.slug).map((x) => ({ symbol: x.symbol, wl: !own.has(x.symbol) })), up = risingOf(r);
@@ -204,38 +205,57 @@ function StateGroup({ k, rows: all, mine, every }: { k: StateKey; rows: GroupRow
   return (
     <div className={"sp-grp sp-grp-" + k}>
       <div className="sp-grp-h"><StateChip k={k} help /><p>{MEANING[k]}</p><b>{all.length}</b></div>
-      <table className="sp-tb sp-grp-t">
-        <thead><tr><th scope="col">{tw("Industry")}</th><th scope="col">Stocks rising<Tip text={tw("Out of the industry's counted stocks, how many are above their medium trend. The bar fills up as more of them rise; past halfway, most are rising.")} /></th>
-          <th scope="col" className="r">{bounce ? "Bounced" : "Below 1-yr high"}<Tip text={bounce ? "When most of its stocks turned up together, in trading days." : tw("How far the industry (its stocks averaged equally) is below its highest point of the past year.")} /></th></tr></thead>
+      <table className="sp-tb sp-grp-t sx-incards">
+        <thead><tr><th scope="col">{tw("Industry")}</th><th scope="col">Stocks rising<Tip label="About “Stocks rising”" text={tw("Out of the industry's counted stocks, how many are above their medium trend. The bar fills up as more of them rise; past halfway, most are rising.")} /></th>
+          <th scope="col" className="r">{bounce ? "Bounced" : "Below 1-yr high"}<Tip label={`About “${bounce ? "Bounced" : "Below 1-yr high"}”`} text={bounce ? "When most of its stocks turned up together, in trading days." : tw("How far the industry (its stocks averaged equally) is below its highest point of the past year.")} /></th></tr></thead>
         <tbody>{rows.map((r) => { const up = risingOf(r) ?? 0; return (
-          <tr key={r.slug} className={mine.has(r.slug) ? "sx-mine" : undefined}><td><Link className="sp-ind" to={gl(r.slug)}>{short(r.name)}</Link>{mine.has(r.slug) && <Wallet />}{isEarly(r) && <span className="sp-tag sp-early">Early sign</span>}</td>
-            <td><span className="sp-barw"><span className="sp-bar"><i style={{ width: `${Math.min(100, (r.breadth.above_20 ?? 0))}%`, background: COLOUR[k] }} /></span><b>{up} of {r.stocks_counted}</b></span></td>
-            <td className="r">{bounce ? bouncedAgo(r) ?? "–" : belowHigh(r.index_vs_52w_high) ?? "–"}</td></tr>); })}</tbody>
+          <tr key={r.slug} className={mine.has(r.slug) ? "sx-mine" : undefined}><td><Link className="sp-ind" to={gl(r.slug)}>{short(r.name)}</Link>{mine.has(r.slug) && <>{"\u2060"}<Wallet /></>}{isEarly(r) && <span className="sp-tag sp-early">Early sign</span>}</td>
+            <td data-label="Stocks rising"><span className="sp-barw"><span className="sp-bar"><i style={{ width: `${Math.min(100, (r.breadth.above_20 ?? 0))}%`, background: COLOUR[k] }} /></span><b>{up} of {r.stocks_counted}</b></span></td>
+            <td className="r" data-label={bounce ? "Bounced" : "Below 1-yr high"}>{bounce ? bouncedAgo(r) ?? "–" : belowHigh(r.index_vs_52w_high) ?? "–"}</td></tr>); })}</tbody>
       </table>
       {!every && button}
     </div>
   );
 }
 export function ByState({ b, mine }: { b: Board; mine: Set<string> }) {
-  // task #333 (file 30): the state groups flow into two balanced columns (second pass 4), with a filter All · My sectors (polish 7)
-  const [only, setOnly] = useState(false);
+  // task #448 (02 §3 By state): a lead sentence above the state tabs; one state at a time, opening on the largest; Show All · My sectors on the tabs' row; How to
+  // read a row folded into a title-row button; the early-sign note is a thing to know (a pill in the title row)
+  const [only, setOnly] = useState(false), [how, setHow] = useState(false);
   const g = byState(b.rows.filter((r) => !only || mine.has(r.slug)));
+  const all = byState(b.rows);
   const fin = b.rows.find((r) => keyOf(r) === "crash" || keyOf(r) === "bouncing") ?? b.rows[0];
   const early = g.flatMap((x) => x.rows).filter(isEarly);          // in the group's own order (most stocks rising first)
   const order = [...g.filter((x) => x.key !== "sold_off" && x.key !== "no_signal"), ...g.filter((x) => x.key === "sold_off" || x.key === "no_signal")];
+  const biggest = [...g].sort((a, c) => c.rows.length - a.rows.length)[0]?.key;
+  const [tab, setTab] = useState<StateKey | null>(null);
+  const cur = tab && g.some((x) => x.key === tab) ? tab : biggest;
+  const ns = tw("industries"), lead = stateLead(all, ns);
   return (
-    <Section id="sp-bystate" title={`${allSectors(b.rows.length, sectorsIn(b))}, by state`} help="All groups, by state. Every group with a reading, grouped by its state today. Inside each state the freshest bounce or the most stocks rising comes first; the bar is how many of its counted stocks are above their medium trend." sub={tw("Grouped by state. Inside each group, the freshest bounce or the most stocks rising comes first. Select an industry to open its page.")}>
-      {fin && <div className="sp-howrow"><b>How to read a row:</b><span className="sp-howex">{short(fin.name)}<span className="sp-bar"><i style={{ width: `${fin.breadth.above_20}%`, background: COLOUR[keyOf(fin)] }} /></span><b>{risingOf(fin)} of {fin.stocks_counted}</b></span>
+    <Section id="sp-bystate" title={`${allSectors(b.rows.length, sectorsIn(b))}, by state`} help="All groups, by state. Every group with a reading, grouped by its state today. Inside each state the freshest bounce or the most stocks rising comes first; the bar is how many of its counted stocks are above their medium trend." sub={tw("Grouped by state. Inside each industry, the freshest bounce or the most stocks rising comes first. Select an industry to open its page.")}
+      right={fin ? <button type="button" className="sx-whyb" aria-expanded={how} aria-controls="sp-howrow" onClick={() => setHow(!how)}>How to read a row {how ? "▴" : "▾"}</button> : undefined}>
+      {how && fin && <div className="sp-howrow" id="sp-howrow"><b>How to read a row:</b><span className="sp-howex">{short(fin.name)}<span className="sp-bar"><i style={{ width: `${fin.breadth.above_20}%`, background: COLOUR[keyOf(fin)] }} /></span><b>{risingOf(fin)} of {fin.stocks_counted}</b></span>
         <p>means {risingOf(fin)} of the {fin.stocks_counted} counted {short(fin.name).toLowerCase()} stocks are above their medium-term trend. The bar fills up as more of them rise; past halfway, most are rising.</p></div>}
-      {mine.size > 0 && <div className="sx-fl" role="group" aria-label="Show"><span>Show</span>
-        <button type="button" aria-pressed={!only} onClick={() => setOnly(false)}>{allChip(b.rows.length)}</button>
-        <button type="button" aria-pressed={only} onClick={() => setOnly(true)}><Wallet small />{tw("My industries")} <small>{b.rows.filter((r) => mine.has(r.slug)).length}</small></button></div>}
-      <div className="sx-cols">
-        {order.map((x) => <StateGroup key={x.key} k={x.key} rows={x.rows} mine={mine} every={only} />)}
-        {early.length >= 2 && <InsightCard c={{ kind: "insight", title: `Why are ${short(early[0].name)} and ${short(early[1].name)} here, with so many stocks rising?`, text: tw("An industry moves to Bouncing back only when most of its stocks turn up together, quickly. Industries marked EARLY SIGN have been climbing slowly instead: most of their stocks are already above their short trend. Worth watching.") }} />}
+      {lead && <p className="sx-yr-lead"><b>{lead.b}</b>{lead.rest}</p>}
+      <div className="sx-stabrow">
+        <div className="sx-fl sx-stabs" role="group" aria-label="State">{order.map((x) => <button key={x.key} type="button" aria-pressed={cur === x.key} onClick={() => setTab(x.key)}><i className="sx-dot" style={{ background: COLOUR[x.key] }} aria-hidden="true" />{WORD[x.key]} <small>{x.rows.length}</small></button>)}</div>
+        {mine.size > 0 && <div className="sx-fl" role="group" aria-label="Show"><span>Show</span>
+          <button type="button" aria-pressed={!only} onClick={() => setOnly(false)}>{allChip(b.rows.length)}</button>
+          <button type="button" aria-pressed={only} onClick={() => setOnly(true)}><Wallet small />{tw("My industries")} <small>{b.rows.filter((r) => mine.has(r.slug)).length}</small></button></div>}
       </div>
+      {g.filter((x) => x.key === cur).map((x) => <StateGroup key={x.key} k={x.key} rows={x.rows} mine={mine} every={only} />)}
+      {early.length >= 2 && <Cards items={[{ kind: "insight", title: `Why are ${short(early[0].name)} and ${short(early[1].name)} here, with so many stocks rising?`, text: tw("An industry moves to Bouncing back only when most of its stocks turn up together, quickly. Industries marked EARLY SIGN have been climbing slowly instead: most of their stocks are already above their short trend. Worth watching.") }]} />}
     </Section>
   );
+}
+/** "16 sectors are sold off. 2 are bouncing back after a crash and 1 is losing steam." (05 §7), the largest state first. */
+export function stateLead(groups: { key: StateKey; rows: unknown[] }[], ns: string): { b: string; rest: string } | null {
+  const list = groups.filter((x) => x.rows.length).sort((a, c) => c.rows.length - a.rows.length);
+  if (!list.length) return null;
+  const word = (k: StateKey) => (k === "no_signal" ? "show no clear signal" : WORD[k].toLowerCase());
+  const [h, ...t] = list, one = ns.replace(/ies$/, "y").replace(/s$/, "");
+  const bits = t.map((x) => `${x.rows.length} ${x.rows.length === 1 ? (x.key === "no_signal" ? "shows" : "is") : (x.key === "no_signal" ? "show" : "are")} ${x.key === "no_signal" ? "no clear signal" : WORD[x.key].toLowerCase()}`);
+  return { b: `${h.rows.length} ${h.rows.length === 1 ? one : ns} ${h.rows.length === 1 ? (h.key === "no_signal" ? "shows" : "is") : (h.key === "no_signal" ? "show" : "are")} ${h.key === "no_signal" ? "no clear signal" : word(h.key)}.`,
+    rest: bits.length ? ` ${bits.length > 1 ? bits.slice(0, -1).join(", ") + " and " + bits[bits.length - 1] : bits[0]}.` : "" };
 }
 
 // ------------------------------------------------------------------------------------------------ Industry map
@@ -258,20 +278,82 @@ export function placeLabels(dots: LabelIn[], box: { left: number; right: number;
 }
 
 // ------------------------------------------------------------------------------------------------ Momentum and strength, side by side
+/** Task #448 (02 §4 Against other sectors): which list a sector falls in. Strong: rising together or bouncing back, and Ahead on Sector Rotation; weak: sold off or
+ *  losing steam, and Behind; every other sector with a box reads differently on each page. A sector with no box yet is left out. */
+export type MxList = "strong" | "mixed" | "weak";
+export function mxList(r: GroupRow): MxList | null {
+  const c = r.rotation?.corner;
+  if (!c || c === "middle") return null;
+  const k = keyOf(r), ahead = c === "ahead_gaining" || c === "ahead_slowing";
+  if ((k === "rising" || k === "bouncing" || k === "crash") && ahead) return "strong";
+  if ((k === "sold_off" || k === "losing") && !ahead) return "weak";
+  return "mixed";
+}
+/** The group a sector shares with others in its list: "Sold off · Behind and slipping", or "Ahead over 6 months, sold off now". */
+export function mxGroup(r: GroupRow, list: MxList): string {
+  const c = r.rotation!.corner as Exclude<CornerCode, "middle">, k = keyOf(r);
+  if (list !== "mixed") return `${WORD[k]} · ${BOX[c].word}`;
+  return `${c.startsWith("ahead") ? "Ahead" : "Behind"} over 6 months, ${k === "no_signal" ? "with no clear signal" : WORD[k].toLowerCase()} now`;
+}
+const MX_OPEN = new Set<string>();   // the groups opened, kept while the member stays on the page
+const MX_CARDS: { k: MxList; title: string; line: string; tone: string }[] = [
+  { k: "strong", title: "Strong on both pages", line: "Its stocks are turning up now, and it has beaten other sectors over 6 months.", tone: "good" },
+  { k: "mixed", title: "The two pages disagree", line: "Strong on one page, weak on the other.", tone: "watch" },
+  { k: "weak", title: "Weak on both pages", line: "Most of its stocks are not rising, and it has trailed other sectors over 6 months.", tone: "bad" },
+];
 export function Momentum({ b, mine }: { b: Board; mine: Set<string> }) {
-  const mx = matrix(b.rows), cards = matrixCards(b.rows), slugOf = (name: string) => b.rows.find((r) => r.name === name)?.slug ?? "";
+  const [view, setView] = useState<"lists" | "grid">("lists"), [, bump] = useState(0);
+  const ns = tw("industries"), withBox = b.rows.filter((r) => mxList(r));
+  const of = (k: MxList) => withBox.filter((r) => mxList(r) === k).sort((a, c) => (a.rotation?.rank ?? 99) - (c.rotation?.rank ?? 99));
+  const strong = of("strong"), weak = of("weak"), mixed = of("mixed");
+  const yoursWeak = weak.filter((r) => mine.has(r.slug)).length;
+  const lead = { b: strong.length ? `${strong.length} ${strong.length === 1 ? tw("industry is") : `${ns} are`} strong on both pages.` : tw("No industry is strong on both pages."),
+    rest: ` ${weak.length} ${weak.length === 1 ? tw("industry is") : `${ns} are`} weak on both${weak.length && mine.size ? ` (${yoursWeak === weak.length ? (weak.length === 1 ? "it is yours" : "all of them yours") : `${yoursWeak} of them yours`})` : ""}, and ${mixed.length} read${mixed.length === 1 ? "s" : ""} differently on each.` };
+  const toggle = (id: string) => { if (MX_OPEN.has(id)) MX_OPEN.delete(id); else MX_OPEN.add(id); bump((x) => x + 1); };
   return (
-    <Section id="sp-momentum" title="Momentum and strength, side by side" help={tw("Rows: the state from Sector Pulse (are the industry's stocks turning up right now?). Columns: the box from Sector Rotation (has the industry been beating other industries?). An industry with no rotation box yet is left out.")}
-      sub={tw("Rows: are the industry's stocks turning up right now (Sector Pulse)? Columns: has the industry been beating other industries (Sector Rotation)?")}
+    <Section id="sp-momentum" title="Momentum and strength, side by side" help={tw("Each industry on both pages: is its state on Sector Pulse strong (rising together or bouncing back) or weak (sold off or losing steam), and is its box on Sector Rotation ahead of or behind the average group over 6 months? An industry with no box yet is left out.")}
+      sub={<>{tw("Each industry, on both pages. Are its stocks turning up now (Sector Pulse)? Has it beaten other industries over 6 months (Sector Rotation)?")}{mine.size > 0 && <> <span className="sx-nowrap"><Wallet spoken /> marks {tw("your industries")}.</span></>}</>}
       why={tw("A bounce in an industry that was already strong has more behind it than a bounce in one that keeps losing ground. Where both views agree, the picture is clearer.")}>
-      <Cards items={cards.slice(0, 1)} />{/* task #333: one callout */}
+      <Cards items={matrixCards(b.rows).slice(0, 1)} />{/* task #333: one thing to know, now a pill in the title row */}
+      <p className="sx-yr-lead"><b>{lead.b}</b>{lead.rest}</p>
+      <div className="sx-fl" role="group" aria-label="Show as"><span>Show as</span>
+        <button type="button" aria-pressed={view === "lists"} onClick={() => setView("lists")}>Three lists</button><button type="button" aria-pressed={view === "grid"} onClick={() => setView("grid")}>Grid</button></div>
+      {view === "grid" ? <MomentumGrid b={b} mine={mine} /> : (
+        <div className="sx-mx3">{MX_CARDS.map((card) => {
+          const rows = of(card.k), groups = new Map<string, GroupRow[]>();
+          for (const r of rows) { const g = mxGroup(r, card.k); groups.set(g, [...(groups.get(g) ?? []), r]); }
+          return (
+            <section key={card.k} className={"sx-mx3-card sx-mx3-" + card.tone} aria-labelledby={`sx-mx3-${card.k}`}>
+              <h3 id={`sx-mx3-${card.k}`} className="sx-mx3-t">{card.title} <span className="sx-cnt">{rows.length}</span></h3>
+              <p className="sx-mx3-line">{card.line.replace("sectors", ns)}</p>
+              {!rows.length ? <p className="sp-empty">None right now.</p> : [...groups.entries()].map(([g, list]) => {
+                const id = `${card.k}:${g}`, open = MX_OPEN.has(id), m = list.filter((r) => mine.has(r.slug)).length;
+                const tip = m === 0 ? "" : m === list.length ? (list.length === 1 ? tw("Includes your industry") : tw("Includes only your industries")) : tw(`Includes ${m} of your ${m === 1 ? "industry" : "industries"}`);
+                return (
+                  <div key={g} className="sx-dd">
+                    <button type="button" className="sx-dd-h" aria-expanded={open} aria-controls={`sx-dd-${card.k}-${slugify(g)}`} onClick={() => toggle(id)}>
+                      <span className="sx-dd-w">{g}</span>{m > 0 && <Wallet title={tip} />}<span className="sx-cnt">{list.length}</span><span className="sx-dd-ar" aria-hidden="true">▾</span></button>
+                    {open && <ul id={`sx-dd-${card.k}-${slugify(g)}`} className="sx-dd-l">{list.map((r) => <li key={r.slug}><Link className="sx-l-row" to={gl(r.slug)}><span>{short(r.name)}</span>{mine.has(r.slug) && <Wallet />}<span className="sx-l-ar" aria-hidden="true">›</span></Link></li>)}</ul>}
+                  </div>);
+              })}
+            </section>);
+        })}</div>)}
+    </Section>
+  );
+}
+const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+/** The site's grid, as it was (Show as: Grid). */
+function MomentumGrid({ b, mine }: { b: Board; mine: Set<string> }) {
+  const mx = matrix(b.rows), slugOf = (name: string) => b.rows.find((r) => r.name === name)?.slug ?? "";
+  return (
+    <>
       <Scroll label="momentum and strength"><div className="sp-mx sx-mx">
         <div className="sp-mx-c sp-mx-corner">{tw("Stocks turning up? ↓ · Beating other industries? →")}</div>
-        {BOX_ORDER.map((c) => <div key={c} className={"sp-mx-c sp-mx-col sp-box-" + BOX[c].tone}><b aria-hidden="true">{BOX[c].arrow}</b> {BOX[c].word}<Tip text={tw("A Sector Rotation box: how the industry has done against the average group over 6 months and over the last month.")} /></div>)}
+        {BOX_ORDER.map((c) => <div key={c} className={"sp-mx-c sp-mx-col sp-box-" + BOX[c].tone}><b aria-hidden="true">{BOX[c].arrow}</b> {BOX[c].word}<Tip label={`About “${BOX[c].word}”`} text={tw("A Sector Rotation box: how the industry has done against the average group over 6 months and over the last month.")} /></div>)}
         {mx.states.map((k) => <>
           <div key={k} className="sp-mx-c sp-mx-row"><StateChip k={k} help /></div>
           {BOX_ORDER.map((c) => { const cell = mx.cells[k + ":" + c]; return (
-            <div key={k + c} className={"sp-mx-c sp-mx-cell" + (cell.mark ? " sp-mx-" + cell.mark : "") + (cell.names.length ? "" : " sp-mx-none")}>
+            <div key={k + c} data-label={BOX[c].word} className={"sp-mx-c sp-mx-cell" + (cell.mark ? " sp-mx-" + cell.mark : "") + (cell.names.length ? "" : " sp-mx-none")}>
               {cell.mark && <p className="sp-mx-mark">{cell.mark === "strongest" ? "Strongest mix" : "Weakest mix"}</p>}
               {/* task #333 (second pass 5): each name is its own chip, the member's own bold with a gold edge, and the cell says how many it holds */}
               {cell.names.length ? <><b className="sx-mxn" aria-label={`${cell.names.length} in this cell`}>{cell.names.length}</b>
@@ -280,37 +362,20 @@ export function Momentum({ b, mine }: { b: Board; mine: Set<string> }) {
         </>)}
       </div></Scroll>
       {mine.size > 0 && <p className="sp-note"><Wallet spoken /> marks {tw("your industries")}. The number is how many are in the cell.</p>}{/* task #448 (04 §1): the wallet, not bold with a gold edge */}
-    </Section>
+    </>
   );
 }
 
 // ------------------------------------------------------------------------------------------------ Standout stocks in weak industries
 export function Standouts({ b, mine = new Set<string>() }: { b: Board; mine?: Set<string> }) {
-  const [all, setAll] = useState(false), [pick, setPick] = useState<"all" | "Strong" | "Early" | "mine">("all");   // task #333 (polish 7): All · Strong · Early · In my sectors
-  const every = b.leader_flags;
-  const f = every?.filter((x) => pick === "all" || (pick === "mine" ? mine.has(x.group_slug) : howStrong(x) === pick)) ?? null;
-  const count = (k: "Strong" | "Early" | "mine") => (every ?? []).filter((x) => (k === "mine" ? mine.has(x.group_slug) : howStrong(x) === k)).length;
+  const every = b.leader_flags;   // task #333 (polish 7): All · Strong · Early · In my sectors; task #448: every column sorts (StandoutTable)
   return (
     <Section id="sp-standouts" title={tw("Standout stocks in weak industries")} help={tw("Standout stocks. Stocks at a new 1-year high while their industry is still well below its own high. They are holding up better than their neighbours.")}
       sub={tw("Stocks at a new 1-year high while their own industry is still well below its high.")}
       why={tw("When most of an industry is down, a stock that keeps making new highs is showing strength of its own. It is a place to start your research, not a signal to act on.")}>
-      {f == null ? <LockedBlock plan="silver" name="Platinum" title="The standout stocks are part of the Platinum plan">{tw("The industry states and the stocks rising are open to everyone. Platinum lists every stock at a new 1-year high inside a weak industry, with how far its industry is below its own high.")}</LockedBlock>
-        : !every?.length ? <p className="sp-empty">{tw("No stock is at a new 1-year high inside a weak industry today.")}</p>
-        : <>
-          <div className="sx-fl" role="group" aria-label="Show"><span>Show</span>
-            <button type="button" aria-pressed={pick === "all"} onClick={() => setPick("all")}>All <small>{every.length}</small></button>
-            <button type="button" aria-pressed={pick === "Strong"} onClick={() => setPick("Strong")}>Strong <small>{count("Strong")}</small></button>
-            <button type="button" aria-pressed={pick === "Early"} onClick={() => setPick("Early")}>Early <small>{count("Early")}</small></button>
-            {mine.size > 0 && <button type="button" aria-pressed={pick === "mine"} onClick={() => setPick("mine")}>{tw("In my industries")} <small>{count("mine")}</small></button>}</div>
-          {!f!.length && <p className="sp-empty">No standout stock matches this filter.</p>}
-          <Scroll label="standout stocks"><table className="sp-tb sp-stand">
-            <thead><tr><th scope="col">Stock</th><th scope="col">{tw("Its industry")}</th><th scope="col">How strong<Tip text={tw("Strong: the industry is far below its own high, so the stock stands out the most. Early: the industry is a little less far below its high.")} /></th><th scope="col">New high</th><th scope="col">{tw("Its industry is")}</th></tr></thead>
-            <tbody>{(all || pick !== "all" ? f! : f!.slice(0, 8)).map((x) => { const r = b.rows.find((g) => g.slug === x.group_slug), s = howStrong(x); return (
-              <tr key={x.symbol + x.group_slug}><td><Link to={`/stocks/${x.symbol}`} className="sp-sym big"><CoLogo symbol={x.symbol} size={26} inline /><b title={coTitle(x)}>{shortLabel(x)}</b></Link></td><td>{short(x.group)}</td>
-                <td><span className="sp-chipw"><span className={"sp-chip " + (s === "Strong" ? "sp-st-bouncing" : "sp-st-sold_off")}>{s}</span><Tip text={s === "Strong" ? tw("Strong: its industry is far below its own 1-year high, so this stock stands out the most.") : tw("Early: its industry is a little less far below its own 1-year high.")} label={`About “${s}”`} /></span></td><td className="sp-good">{newHigh(x)}</td><td>{r?.index_vs_52w_high != null ? `${belowHigh(r.index_vs_52w_high)} its high` : "–"}</td></tr>); })}</tbody>
-          </table></Scroll>
-          {pick === "all" && f!.length > 8 && <button type="button" className="sp-morebtn" aria-expanded={all} onClick={() => setAll(!all)}>{all ? "Show fewer ▴" : `Show the other ${f!.length - 8} standout stocks ▾`}</button>}
-        </>}
+      {every == null ? <LockedBlock plan="silver" name="Platinum" title="The standout stocks are part of the Platinum plan">{tw("The industry states and the stocks rising are open to everyone. Platinum lists every stock at a new 1-year high inside a weak industry, with how far its industry is below its own high.")}</LockedBlock>
+        : !every.length ? <p className="sp-empty">{tw("No stock is at a new 1-year high inside a weak industry today.")}</p>
+        : <StandoutTable b={b} mine={mine} first={8} />}
     </Section>
   );
 }

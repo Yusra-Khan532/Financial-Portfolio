@@ -30,7 +30,7 @@ export function PackHead({ title, desc, meta, side, view, onView, industries, fi
       </div>
       <div className="sp-head-bar">
         <PageTabs set="sectors" keep={keep} className="sp-tabs" />{/* task #310 part D: sibling pages are the shared page tabs (ui-tabs) */}
-        {show && onShow && <div className="sp-view sp-show-sw" role="group" aria-label="Show sectors or industries"><span>Show<Tip text="Sectors: NSE's 22 sectors, each read as one group. Industries: NSE's industries, with the small ones of a sector read together as one sector group. Both are measured against the same average industry." /></span>
+        {show && onShow && <div className="sp-view sp-show-sw" role="group" aria-label="Show sectors or industries"><span>Show<Tip label="About “Show”" text="Sectors: NSE's 22 sectors, each read as one group. Industries: NSE's industries, with the small ones of a sector read together as one sector group. Both are measured against the same average industry." /></span>
           {(["sectors", "industries"] as const).map((v) => <button key={v} type="button" className={"sp-vbtn" + (show === v ? " on" : "")} aria-pressed={show === v} onClick={() => onShow(v)}>{v === "sectors" ? "Sectors" : "Industries"}</button>)}
         </div>}
         <div className="sp-view" role="group" aria-label="View"><span>View</span>
@@ -84,7 +84,7 @@ export function Backdrop({ pct, above }: { pct: number | null; above: boolean | 
   if (pct == null) return <aside className="sp-side"><p className="sp-side-k">Market backdrop</p><p className="sp-side-x">The Nifty 50 reading is not in this data set yet.</p></aside>;
   return (
     <aside className={"sp-side" + (above === false ? " dn" : "")} aria-label="Market backdrop">
-      <p className="sp-side-k">Market backdrop<Tip text="Market backdrop. Whether the Nifty 50 is above or below its long-term average price. Above it, the market as a whole is in an uptrend." /></p>
+      <p className="sp-side-k">Market backdrop<Tip label="About “Market backdrop”" text="Market backdrop. Whether the Nifty 50 is above or below its long-term average price. Above it, the market as a whole is in an uptrend." /></p>
       <p className="sp-side-v"><b>{pct > 0 ? "+" : pct < 0 ? "−" : ""}{Math.abs(pct).toFixed(1)}%</b> Nifty 50 {pct >= 0 ? "above" : "below"} its long-term average</p>
       <p className="sp-side-x">{above === false ? tw("The market as a whole is in a downtrend. Read each industry against it.") : tw("The market as a whole is in an uptrend. Read each industry against it.")}</p>
     </aside>

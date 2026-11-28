@@ -36,11 +36,13 @@ describe("task #448, the wallet mark (04 §1)", () => {
   it("a member with shares: the key line under the facts, and a 20 px wallet after each of their groups, spoken and titled 'In your portfolio'", async () => {
     st.holdings = SHARES;
     at();
+    // task #448 (02 §3): one state at a time, opening on the largest (Sold off); "My industries" shows the member's own
+    const mineBtn = await waitFor(() => within(screen.getAllByRole("group", { name: "Show" })[0]).getByRole("button", { name: /My industries/ }));
+    fireEvent.click(mineBtn);
     await waitFor(() => expect(document.querySelectorAll(".sp-grp-t .sp-wal").length).toBeGreaterThan(0));
     const key = document.querySelector(".sx-walkey")!;
     expect(key.textContent).toBe(" marks an industry or a stock you hold shares in");
     expect(within(key as HTMLElement).getByRole("img", { name: "The wallet mark" })).toBeTruthy();   // mid-sentence it is "the wallet mark"
-    fireEvent.click(within(screen.getAllByRole("group", { name: "Show" })[0]).getByRole("button", { name: /My industries/ }));   // every one of the member's groups
     const marks = [...document.querySelectorAll(".sp-grp-t .sp-wal")];
     expect(marks.every((m) => m.getAttribute("role") === "img" && m.getAttribute("aria-label") === "In your portfolio" && m.getAttribute("title") === "In your portfolio")).toBe(true);
     const rows = marks.map((m) => m.closest("tr")!.querySelector("a.sp-ind")!.textContent);

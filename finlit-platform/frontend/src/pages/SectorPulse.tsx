@@ -1,7 +1,8 @@
 // Sector Pulse (/sectors) as the "FinLit final pages" pack draws it (founder, 13 Nov 2026; docs/design/finlit-final-pages/05 and 06): the pack's header with the Market
 // backdrop, a Simple view and a Full table view (in the address: ?view=full). Every number is the server's (GET /api/sectors, /api/sector-history, /api/sector-map); what a
 // plan does not include arrives null with its reason and is said in words. Describes price and breadth data; never advice. Styles: styles/sectors-pack.css.
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
+import { useEvenGaps } from "../lib/evenGaps";
 import { useSearchParams } from "react-router";
 import { useDocTitle } from "../lib/title";
 import { allSectors, groupsParen, groupsSplit, sectorsLine } from "../lib/pulsePack";
@@ -45,6 +46,8 @@ const WEEKDAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 export function SectorPulsePage() {
   useDocTitle(TITLE, tw(DESC));
+  const rootRef = useRef<HTMLDivElement>(null);
+  useEvenGaps(rootRef);                                     // task #448 (03 §1): the same gap between every pair of columns
   const [params, setParams] = useSearchParams();
   const view: View = params.get("view") === "full" ? "full" : "simple";
   const setView = (v: View) => { const p = new URLSearchParams(params); if (v === "full") p.set("view", "full"); else p.delete("view"); setParams(p, { replace: true }); };
@@ -108,7 +111,7 @@ export function SectorPulsePage() {
     { key: "words", label: "Words on this page", content: <WordsList /> },
   ] : [];
   return (
-    <div className={"wrap sx sp sx-new" + (view === "full" ? " sx-full" : "")} data-testid="sector-pulse">
+    <div ref={rootRef} className={"wrap sx sp sx-new" + (view === "full" ? " sx-full" : "")} data-testid="sector-pulse">
       <PackHead page="pulse" title={TITLE} desc={tw(HEAD_DESC)} meta={meta} view={view} onView={setView} industries={b?.rows ?? []} show={show} onShow={setShow}
         side={null} more={b ? <MoreMenu ask={askMenu} onAsked={() => setAskMenu(null)} items={menuItems} /> : null} />
       {pending && show === "industries" && <p className="sp-note sp-pending">{pending}</p>}
@@ -144,7 +147,7 @@ export function SectorPulsePage() {
           <SxBox id="sx-full" store="finlit-sx-box-full" label={allLabel} sub="3 ways to look · press one" ttk={<FullCards b={b} h={h} />} tabs={[
             { key: "every", label: "Every number", content: <PulseTable b={b} h={h} mine={mine} /> },
             ...(h ? [{ key: "six", label: "Six months, week by week", content: <SixMonths h={h} /> }] : []),
-            { key: "standouts", label: `Standout stocks${b.leader_flags ? ` (${b.leader_flags.length})` : ""}`, content: <StandoutsFull b={b} /> },
+            { key: "standouts", label: `Standout stocks${b.leader_flags ? ` (${b.leader_flags.length})` : ""}`, content: <StandoutsFull b={b} mine={mine} /> },
           ]} />
         </WhyFold.Provider></TtkMode.Provider>
       )}

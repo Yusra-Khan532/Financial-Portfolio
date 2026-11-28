@@ -28,6 +28,8 @@ describe("The map: filters (polish 4, final 6)", () => {
     wrap(<SectorMap m={M} b={B} mine={new Set([M.rows[0].slug])} />);
     const f = screen.getByRole("group", { name: "Show on the map" });
     expect(within(f).getAllByRole("button").map((b) => b.textContent!.replace("✓", ""))).toEqual(["Bouncing back after a crash 1", "Bouncing back 1", "Rising together 1", "No clear signal 0", "Losing steam 1", "Sold off 2", "Only my industries", "Names"]);
+    expect(f.querySelector(".sx-mapkey")!.textContent).toBe("Ringed dot: in your portfolio");     // task #448 (02 §3 Map): the ring is explained beside the toggles
+    expect(screen.getByTestId("map-chart").getAttribute("role")).toBe("group");
     expect(dots()).toHaveLength(6);
     fireEvent.click(within(f).getByRole("button", { name: /Sold off/ }));
     expect(dots()).toHaveLength(4);
@@ -45,6 +47,7 @@ describe("The map: filters (polish 4, final 6)", () => {
 describe("The map: playback (addition 4)", () => {
   it("opens on the latest close; the slider moves every dot to that week, colours it by its reading then and hides the names", async () => {
     wrap(<SectorMap m={M} b={B} mine={new Set()} />);
+    expect(document.querySelector(".sx-mapkey")).toBeNull();                                           // no shares: no ring, no key
     const slider = await screen.findByRole("slider");
     expect((slider as HTMLInputElement).value).toBe("2");
     expect(screen.getByText("6 Nov 2026")).toBeTruthy();
@@ -84,18 +87,26 @@ describe("The hover card (second pass 1)", () => {
   });
 });
 
-describe("The market's mood, week by week (polish 3)", () => {
-  it("one column per weekly close; Simple: 3 groups by default, All 6 states on the switch; a pressed column's counts and change show under the chart", () => {
+describe("The market's mood, week by week (task #448, 02 §3 Over time: one chart, one slider)", () => {
+  it("a lead from the latest and four-weeks-ago closes; one column per weekly close as a single slider; the readout follows the picked week", () => {
     wrap(<MoodWeeks h={H} />);
     expect(screen.getByRole("heading", { level: 2 }).textContent).toMatch(/^The market's mood, week by week/);
-    expect(document.querySelectorAll(".sx-col")).toHaveLength(H.week_ends!.length);
-    expect(document.querySelectorAll(".sx-lg li")).toHaveLength(3);
-    fireEvent.click(screen.getByRole("button", { name: "All 6 states" }));
-    expect(document.querySelectorAll(".sx-lg li")).toHaveLength(6);
-    const cols = document.querySelectorAll(".sx-col");
-    fireEvent.click(cols[3]);
-    expect(cols[3].getAttribute("aria-pressed")).toBe("true");
-    expect(document.querySelector(".sx-mr")!.textContent).toContain("In brackets: the change on the week before.");
+    const ends = H.week_ends!, n = ends.length;
+    const at = (j: number, ks: string[]) => H.groups.filter((g) => g.states[ends[j]] && ks.includes(g.states[ends[j]] as string)).length;
+    const up = at(n - 1, ["rising", "bouncing", "crash"]), down = at(n - 1, ["losing", "sold_off"]);
+    expect(document.querySelector(".sx-yr-lead")!.textContent).toContain(`This week ${up} ${up === 1 ? "is" : "are"} rising or bouncing back and ${down} ${down === 1 ? "is" : "are"} losing steam or sold off; four weeks ago it was ${at(n - 5, ["rising", "bouncing", "crash"])} and ${at(n - 5, ["losing", "sold_off"])}.`);
+    expect([...document.querySelectorAll(".sx-moodkey li")].map((l) => l.textContent)).toEqual(["Rising or bouncing back (above the line)", "Losing steam or sold off (below the line)", "The rest: no clear signal"]);
+    expect(document.querySelectorAll(".sx-mood-up")).toHaveLength(n);
+    const slider = screen.getByRole("slider", { name: "The market's mood, week by week" });
+    expect(slider.getAttribute("aria-valuenow")).toBe(String(n - 1));                 // opens on the latest week
+    expect(screen.queryAllByRole("button").filter((b) => b.closest(".sx-moodbox"))).toHaveLength(0);   // the weeks are not separate buttons
+    fireEvent.keyDown(slider, { key: "ArrowLeft" });
+    expect(slider.getAttribute("aria-valuenow")).toBe(String(n - 2));
+    expect(slider.getAttribute("aria-valuetext")).toMatch(/^\d+ [A-Z][a-z]{2}: \d+ rising or bouncing back, \d+ no clear signal, \d+ losing steam or sold off$/);
+    fireEvent.keyDown(slider, { key: "Home" });
+    expect(slider.getAttribute("aria-valuenow")).toBe("0");
+    expect(document.querySelector(".sx-mood-read")!.textContent).toMatch(/· \d+ rising or bouncing back · \d+ no clear signal · \d+ losing steam or sold off$/);
+    expect(document.body.textContent).not.toMatch(/\b19 sectors\b/);
   });
 });
 

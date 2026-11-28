@@ -11,7 +11,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ApiError, apiGet } from "../../../lib/api";
 import type { Board, GroupRow, StateCode } from "../../../lib/sectors";
 import { useSectorPage } from "../../../lib/sectors";
-import { OF_CODE, allChip, keyOf, risingOf, short } from "../../../lib/pulsePack";
+import { COLOUR, OF_CODE, WORD, allChip, keyOf, risingOf, short } from "../../../lib/pulsePack";
 import { usePrismScores } from "../../../lib/prismScores";
 import { useUI } from "../../../lib/ui";
 import { useWatchlist } from "../../../lib/watchlist";
@@ -19,8 +19,8 @@ import { gl, sq, tw, wordsShow } from "../../../lib/groupWords";
 import { LockedBlock } from "../Parts";
 import { Wallet, Scroll, Section, StateChip } from "./Common";
 import { AlertBell } from "./SectorAlert";
+import { SectorListBox, TechChip, risingOnBoth } from "./InsideParts";
 
-const n0 = (v: number) => v.toLocaleString("en-IN");
 const pct = (v: number | null | undefined) => (v == null ? "–" : `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toFixed(1)}%`);
 
 // ------------------------------------------------------------------------------------------------ What happened next
@@ -39,23 +39,41 @@ export function WhatNext() {
       sub={d ? tw(`Counted at every weekly close from ${dmy(d.window_from)} to ${dmy(d.window_to)}, ${d.groups} ${d.groups === 1 ? "industry" : "industries"}. It shows what did happen, not what will.`) : undefined}>
       {q.isLoading ? <div className="sx-skel" style={{ height: 160 }} role="status" aria-label="Loading what happened next" />
         : !d ? <p className="sp-empty">{q.error?.message ?? "What happened next is not available right now."}</p>
-        : <div className="sx-nx">{d.rows.map((r) => {
-          const k = OF_CODE[r.state] ?? "no_signal", most = Math.max(1, ...r.next.map((x) => x.n));
-          return (
-            <article key={r.state} className={"sx-nxc" + (r.now ? " sx-nxnow" : "")} aria-label={`When a group was ${k}`}>
-              <header><StateChip k={k} />{r.now > 0 && <span className="sx-nxtag">{r.now} in it now</span>}</header>
-              <dl className="sx-nxs">
-                <div><dt>Times entered</dt><dd>{n0(r.entered)}</dd></div>
-                <div><dt>Typical stay</dt><dd>{weeksWord(r.typical_weeks)}</dd></div>
-                <div><dt>Stays that ended</dt><dd>{n0(r.ended)}</dd></div>
-              </dl>
-              <p className="sx-nxk">Where it went next</p>
-              {r.next.length ? <ul className="sx-nxl">{r.next.map((x) => (
-                <li key={x.state}><span className="sx-nxw"><StateChip k={OF_CODE[x.state] ?? "no_signal"} /></span><span className="sx-nb" aria-hidden="true"><i style={{ width: `${(x.n / most) * 100}%` }} /></span><b>{x.n}</b><small>of {r.ended}</small></li>))}</ul>
-                : <p className="sp-note">No stay that began in the window has ended yet.</p>}
-            </article>);
-        })}</div>}
+        : <NextByState d={d} />}
     </Section>
+  );
+}
+
+/** Task #448 (02 §4 What happened next): "times" in words: "once", "17 times". */
+const times = (n: number) => (n === 1 ? "once" : `${n} times`);
+/** The one sentence under the tabs (05 §7): "Sold off: a sector moved into it 72 times over this period. It usually stayed about 2 weeks. Of the 56 that left, it
+ *  went to Losing steam 17 times, Bouncing back 12 times and Bouncing back after a crash 11 times." The top three places; the Industries view says "a group". */
+export function nextSentence(r: NextRow, sectors: boolean): { head: string; moved: string; stay: string | null; left: string | null; first: string | null; rest: string[] } {
+  const next = [...r.next].sort((a, c) => c.n - a.n).slice(0, 3);
+  const words = next.map((x) => ({ w: WORD[OF_CODE[x.state] ?? "no_signal"], t: times(x.n) }));
+  return { head: WORD[OF_CODE[r.state] ?? "no_signal"], moved: `${sectors ? "a sector" : "a group"} moved into it`,
+    stay: r.typical_weeks != null ? `about ${Math.max(1, Math.round(r.typical_weeks))} ${Math.max(1, Math.round(r.typical_weeks)) === 1 ? "week" : "weeks"}` : null,
+    left: r.ended ? `Of the ${r.ended} that left, it went to ` : null, first: words[0] ? `${words[0].w}` : null,
+    rest: words.map((x, i) => (i === 0 ? ` ${x.t}` : `${x.w} ${x.t}`)) };
+}
+function NextByState({ d }: { d: NextData }) {
+  const sectors = wordsShow() === "sectors";
+  const byNow = [...d.rows].sort((a, c) => c.now - a.now);
+  const [pick, setPick] = useState<StateCode>(byNow[0]?.state);
+  const r = d.rows.find((x) => x.state === pick) ?? byNow[0];
+  if (!r) return <p className="sp-empty">No state has a history yet.</p>;
+  const most = Math.max(1, ...r.next.map((x) => x.n)), t = nextSentence(r, sectors);
+  return (
+    <div className="sx-nx1">
+      <div className="sx-fl sx-stabs" role="group" aria-label="State">{d.rows.map((x) => { const kk = OF_CODE[x.state] ?? "no_signal"; return (
+        <button key={x.state} type="button" aria-pressed={x.state === r.state} onClick={() => setPick(x.state)}><i className="sx-dot" style={{ background: COLOUR[kk] }} aria-hidden="true" />{WORD[kk]} <small>{x.now} now</small></button>); })}</div>
+      <p className="sx-nx-sent"><b>{t.head}</b>: {t.moved} <b>{r.entered}</b> {r.entered === 1 ? "time" : "times"} over this period.{t.stay && <> It usually stayed <b>{t.stay}</b>.</>}
+        {t.left && t.first && <> {t.left}<b>{t.first}</b>{t.rest[0]}{t.rest.length > 1 && <>{t.rest.length === 2 ? " and " : ", "}{t.rest[1]}</>}{t.rest.length > 2 && <> and {t.rest[2]}</>}.</>}</p>
+      <p className="sx-nxk">Where it went next</p>
+      {r.next.length ? <ul className="sx-nxl sx-nxl2">{[...r.next].sort((a, c) => c.n - a.n).map((x) => (
+        <li key={x.state}><span className="sx-nxw"><span className="sx-nx-ar" aria-hidden="true">→</span><StateChip k={OF_CODE[x.state] ?? "no_signal"} /></span><span className="sx-nb" aria-hidden="true"><i style={{ width: `${(x.n / most) * 100}%`, background: COLOUR[OF_CODE[x.state] ?? "no_signal"] }} /></span><b>{x.n}</b></li>))}</ul>
+        : <p className="sp-note">No stay that began in the window has ended yet.</p>}
+    </div>
   );
 }
 
@@ -110,29 +128,48 @@ export function PriceVsResults({ b, mine }: { b: Board; mine: Set<string> }) {
           <div className="sx-fl" role="group" aria-label="Show"><span>Show</span>
             {([["all", allChip(rows.length)], ...(mine.size ? [["mine", tw("My industries")]] : []), ["weak-ahead", "Price weak, results ahead"], ["both-ahead", "Both ahead"], ["both-behind", "Both behind"], ["strong-behind", "Price strong, results behind"]] as [PvFilter, string][])
               .map(([k, label]) => <button key={k} type="button" aria-pressed={f === k} onClick={() => setF(k)}>{k === "mine" && <Wallet small />}{label}{k !== "all" && <> <small>{count(k)}</small></>}</button>)}</div>
-          <Scroll label={tw("price against results")}><table className="sp-tb sx-t">
-            <thead><tr><th scope="col">{tw("Industry")}</th><th scope="col">Price</th><th scope="col">Results this quarter</th><th scope="col">Read together</th></tr></thead>
+          <Scroll label={tw("price against results")}><table className="sp-tb sx-t sx-incards sx-cards1">
+            <thead><tr><th scope="col">{tw("Industry")}</th><th scope="col">Price</th><th scope="col" className="sx-div">Results this quarter</th><th scope="col" className="sx-div">Read together</th></tr></thead>
             <tbody>{shown.map(({ r, g, read }) => (
               <tr key={r.slug} className={mine.has(r.slug) ? "sx-mine" : undefined}>
-                <td><Link className="sp-ind" to={gl(r.slug)}>{short(r.name)}</Link>{mine.has(r.slug) && <Wallet />}</td>
-                <td><StateChip k={keyOf(r)} /><span className="sx-sm">{Math.round(r.breadth?.above_20 ?? 0)} of 100 stocks rising</span></td>
-                <td>{g.shown.length ? <ul className="sx-inds">{g.shown.map(({ g: x, label }) => <li key={x.name}>{label} {x.vsMarket ? <i className={"sx-vs sx-vs-" + x.vsMarket.toLowerCase().replace(" ", "")}>{x.vsMarket}</i> : <span>no reading yet</span>}
+                <td><Link className="sp-ind" to={gl(r.slug)}>{short(r.name)}</Link>{mine.has(r.slug) && <>{"\u2060"}<Wallet /></>}</td>
+                <td data-label="Price"><StateChip k={keyOf(r)} /><span className="sx-sm">{Math.round(r.breadth?.above_20 ?? 0)} of 100 stocks rising</span></td>
+                <td className="sx-div" data-label="Results this quarter">{g.shown.length >= 2 ? <ResultsSummary list={g.shown} more={g.more} />
+                  : g.shown.length ? <ul className="sx-inds">{g.shown.map(({ g: x, label }) => <li key={x.name}>{label} {x.vsMarket ? <i className={"sx-vs sx-vs-" + x.vsMarket.toLowerCase().replace(" ", "")}>{x.vsMarket}</i> : <span>no reading yet</span>}
                   {x.medianRevenueYoY != null && <span> · revenue {pct(x.medianRevenueYoY)}, profit {pct(x.medianProfitYoY)}</span>}</li>)}
                   {g.more > 0 && <li className="sx-more">and {g.more} more</li>}</ul> : <span className="sp-nil">No results group</span>}</td>
-                <td>{read ? <span className={"sx-rd sx-rd-" + read.tone}>{read.text}</span> : <span className="sp-nil">Results not in yet</span>}</td>
+                <td className="sx-div" data-label="Read together">{read ? <span className={"sx-rd sx-rd-" + read.tone}>{read.text}</span> : <span className="sp-nil">Results not in yet</span>}</td>
               </tr>))}
               {!shown.length && <tr><td colSpan={4}>{tw("No industry matches this filter.")}</td></tr>}</tbody>
           </table></Scroll>
-          {f === "all" && list.length > 6 && <button type="button" className="sp-showall" aria-expanded={all} onClick={() => setAll(!all)}>{all ? "Show fewer ▴" : `Show all ${list.length} ▾`}</button>}
+          {f === "all" && list.length > 6 && <button type="button" className="sp-showall" aria-expanded={all} onClick={() => setAll(!all)}>{all ? "Show fewer ▴" : <><span className="sx-wide">Show all {list.length} ▾</span><span className="sx-narrow">Show the other {list.length - 5} ▾</span></>}</button>}
           <p className="sp-note">Price weak means Sold off or Losing steam. The sentence is read from the two sides as they stand; it is not a reason to act.</p>
         </>}
     </Section>
   );
 }
 
+/** Task #448 (02 §4 Against results): with two or more industries the cell is one summary line ("1 Ahead · 1 In line · 1 Behind"), and the industries open
+ *  below it from "3 industries ▾" ("3 parts ▾" in the Industries view, where they are the parts of a sector group). */
+function ResultsSummary({ list, more }: { list: { g: ResultsGroup; label: string }[]; more: number }) {
+  const [open, setOpen] = useState(false), id = "sx-rs-" + list.map((x) => x.g.name).join("-").replace(/[^a-zA-Z0-9]+/g, "-").slice(0, 40);
+  const n = (v: string) => list.filter((x) => x.g.vsMarket === v).length;
+  const word = wordsShow() === "sectors" ? (list.length === 1 ? "industry" : "industries") : (list.length === 1 ? "part" : "parts");
+  return (
+    <div className="sx-rsum">
+      <span className="sx-rsum-l">{(["Ahead", "In line", "Behind"] as const).filter((v) => n(v)).map((v) => <i key={v} className={"sx-vs sx-vs-" + v.toLowerCase().replace(" ", "")}>{n(v)} {v}</i>)}
+        {list.every((x) => !x.g.vsMarket) && <span className="sp-nil">no reading yet</span>}</span>
+      <button type="button" className="sx-tlink" aria-expanded={open} aria-controls={id} onClick={() => setOpen(!open)}>{list.length} {word} {open ? "▴" : "▾"}</button>
+      {open && <ul className="sx-inds" id={id}>{list.map(({ g: x, label }) => <li key={x.name}>{label} {x.vsMarket ? <i className={"sx-vs sx-vs-" + x.vsMarket.toLowerCase().replace(" ", "")}>{x.vsMarket}</i> : <span>no reading yet</span>}
+        {x.medianRevenueYoY != null && <span> · revenue {pct(x.medianRevenueYoY)}, profit {pct(x.medianProfitYoY)}</span>}</li>)}
+        {more > 0 && <li className="sx-more">and {more} more</li>}</ul>}
+    </div>
+  );
+}
+
 // ------------------------------------------------------------------------------------------------ Inside a sector
 type Membership = { groups: Record<string, { slug: string }> };
-type InFilter = "all" | "leaders" | "prism";
+type InFilter = "all" | "leaders" | "prism" | "tech";
 export function InsideSector({ b, mine, symbols }: { b: Board; mine: Set<string>; symbols: string[] }) {
   const sectorsView = wordsShow() === "sectors", unit = sectorsView ? "sector" : "industry";
   const { plan } = useUI();
@@ -152,15 +189,19 @@ export function InsideSector({ b, mine, symbols }: { b: Board; mine: Set<string>
   const [f, setF] = useState<InFilter>("all"), [all, setAll] = useState(false);
   const labels = { leaders: (counted ?? []).filter((s) => s.peer_label === "Leader").length, inline: (counted ?? []).filter((s) => s.peer_label === "In line").length, laggards: (counted ?? []).filter((s) => s.peer_label === "Laggard").length };
   const scoreOf = (sym: string) => { const v = prism[sym]; return v && v !== "error" ? v : null; };
-  const list = top.filter((s) => f === "all" || (f === "leaders" ? s.peer_label === "Leader" : /^(healthy|strong)$/i.test(scoreOf(s.symbol)?.label ?? "")));
+  const both = (sym: string) => { const v = scoreOf(sym); return risingOnBoth(v?.shortTerm, v?.longTerm); };
+  const nBoth = top.filter((s) => both(s.symbol)).length;          // 04 §3: counted over the whole list of 12, not only the rows showing
+  const list = top.filter((s) => f === "all" || (f === "leaders" ? s.peer_label === "Leader" : f === "tech" ? both(s.symbol) : /^(healthy|strong)$/i.test(scoreOf(s.symbol)?.label ?? "")));
+  // 04 §3: pressing "Technical: rising on both" turns on All, opens Show all, then hides the other rows; pressing it again closes what it opened.
+  const tech = () => { if (f === "tech") { setF("all"); setAll(false); } else { setF("tech"); setAll(true); } };
   const shown = f !== "all" || all ? list : list.slice(0, 5);
   const held = new Set(symbols);
   return (
     <Section id="sx-inside" title={tw("Inside an industry: its strongest stocks, with FinLit Prism")} help={tw("Inside an industry. Pick one to see its 12 strongest counted stocks over 6 months, how each compares with its peers, its FinLit Prism rating and its trends.")}
       sub={tw(`Pick ${sectorsView ? "a sector" : "an industry"} to see its 12 strongest stocks over 6 months, how each compares with its peers, and its FinLit Prism rating. A list to start research from, not a recommendation.`)}>
       <div className="sx-inh">
-        <label>{sectorsView ? "Sector" : "Industry"}<select value={slug} onChange={(e) => { setPicked(e.target.value); setAll(false); setF("all"); }}>
-          {b.rows.map((r) => <option key={r.slug} value={r.slug}>{short(r.name)}{mine.has(r.slug) ? " (yours)" : ""}</option>)}</select></label>
+        <SectorListBox label={sectorsView ? "Sector" : "Industry"} value={slug} items={b.rows.map((r) => ({ value: r.slug, label: short(r.name), mine: mine.has(r.slug) }))}
+          onChange={(v) => { setPicked(v); setAll(false); setF("all"); }} />
         {row && <span className="sx-inst"><StateChip k={keyOf(row)} /></span>}
         {row && <span className="sx-peers"><b>{row.stocks_counted}</b> counted stocks{counted && labels.leaders + labels.inline + labels.laggards > 0 ? <> · <b>{labels.leaders}</b> Leaders · <b>{labels.inline}</b> In line · <b>{labels.laggards}</b> Laggards</> : null}</span>}
         {row && <AlertBell slug={row.slug} name={short(row.name)} />}
@@ -170,23 +211,24 @@ export function InsideSector({ b, mine, symbols }: { b: Board; mine: Set<string>
         : !top.length ? <p className="sp-empty">{tw("No counted stock of this industry has a 6-month return yet.")}</p>
         : <>
           <div className="sx-fl" role="group" aria-label="Show"><span>Show</span>
-            <button type="button" aria-pressed={f === "all"} onClick={() => setF("all")}>All {top.length}</button>
+            <button type="button" aria-pressed={f === "all"} onClick={() => { if (f === "tech") setAll(false); setF("all"); }}>All {top.length}</button>
             <button type="button" aria-pressed={f === "leaders"} onClick={() => setF("leaders")}>Leaders</button>
-            {gold && <button type="button" aria-pressed={f === "prism"} onClick={() => setF("prism")}>Prism: Healthy or Strong</button>}</div>
-          <Scroll label={tw("the industry's strongest stocks")}><table className="sp-tb sx-t">
-            <thead><tr><th scope="col">Stock</th><th scope="col" className="num">6-month return</th><th scope="col">Against its peers</th><th scope="col">FinLit Prism</th><th scope="col">Short-term trend</th><th scope="col">Long-term trend</th></tr></thead>
+            {gold && <button type="button" aria-pressed={f === "prism"} onClick={() => setF("prism")}>Prism: Healthy or Strong</button>}
+            {gold && <button type="button" aria-pressed={f === "tech"} aria-disabled={nBoth === 0 || undefined} onClick={() => { if (nBoth > 0) tech(); }}>Technical: rising on both <span className="ct">{nBoth}</span></button>}</div>
+          <Scroll label={tw("the industry's strongest stocks")}><table className="sp-tb sx-t sx-incards">
+            <thead><tr><th scope="col">Stock</th><th scope="col" className="num">6-month return</th><th scope="col">Against its peers</th><th scope="col">FinLit Prism</th><th scope="col">Short-term technical</th><th scope="col">Long-term technical</th></tr></thead>
             <tbody>{shown.map((s) => { const sc = scoreOf(s.symbol); return (
               <tr key={s.symbol} className={held.has(s.symbol) ? "sx-mine" : undefined}>
                 <td><Link className="sx-stk" to={`/stocks/${s.symbol}`}><b>{s.symbol}{held.has(s.symbol) && <Wallet />}</b><small>{s.name}</small></Link></td>
-                <td className={"num " + ((s.return_6m_pct ?? 0) >= 0 ? "sp-good" : "sp-red")}>{pct(s.return_6m_pct)}</td>
-                <td>{s.peer_label ? <span className={"sx-peer sx-peer-" + s.peer_label.toLowerCase().replace(/\s+/g, "")}>{s.peer_label}</span> : p.data?.locked?.peer_label ? <span className="sp-nil">Gold</span> : "–"}</td>
-                <td>{!gold ? <span className="sp-nil">Gold</span> : sc?.rated ? <span className={"sx-prism sx-prism-" + (sc.label ?? "").toLowerCase()}>{sc.label} <b>{Math.round(sc.final ?? 0)}</b></span> : prism[s.symbol] === undefined ? "…" : <span className="sp-nil">Not rated yet</span>}</td>
-                <td>{gold ? sc?.shortTerm?.word ?? "–" : <span className="sp-nil">Gold</span>}</td>
-                <td>{gold ? sc?.longTerm?.word ?? "–" : <span className="sp-nil">Gold</span>}</td>
+                <td data-label="6-month return" className={"num " + ((s.return_6m_pct ?? 0) >= 0 ? "sp-good" : "sp-red")}>{pct(s.return_6m_pct)}</td>
+                <td data-label="Against its peers">{s.peer_label ? <span className={"sx-peer sx-peer-" + s.peer_label.toLowerCase().replace(/\s+/g, "")}>{s.peer_label}</span> : p.data?.locked?.peer_label ? <span className="sp-nil">Gold</span> : "–"}</td>
+                <td data-label="FinLit Prism">{!gold ? <span className="sp-nil">Gold</span> : sc?.rated ? <span className={"sx-prism sx-prism-" + (sc.label ?? "").toLowerCase()}>{sc.label} <b>{Math.round(sc.final ?? 0)}</b></span> : prism[s.symbol] === undefined ? "…" : <span className="sp-nil">Not rated yet</span>}</td>
+                <td data-label="Short-term technical">{gold ? <TechChip t={sc?.shortTerm} term="Short" /> : <span className="sp-nil">Gold</span>}</td>
+                <td data-label="Long-term technical">{gold ? <TechChip t={sc?.longTerm} term="Long" /> : <span className="sp-nil">Gold</span>}</td>
               </tr>); })}
               {!shown.length && <tr><td colSpan={6}>No stock matches this filter.</td></tr>}</tbody>
           </table></Scroll>
-          {f === "all" && list.length > 5 && <button type="button" className="sp-showall" aria-expanded={all} onClick={() => setAll(!all)}>{all ? "Show fewer ▴" : `Show all ${list.length} ▾`}</button>}
+          {f === "all" && list.length > 5 && <button type="button" className="sp-showall" aria-expanded={all} onClick={() => setAll(!all)}>{all ? "Show fewer ▴" : <><span className="sx-wide">Show all {list.length} ▾</span><span className="sx-narrow">Show the other {list.length - 5} ▾</span></>}</button>}
           <p className="sp-note">{tw(`Strongest ${top.length} of its ${row?.stocks_counted ?? counted.length} counted stocks by 6-month return. Leader / In line / Laggard compares a stock with its peers. Open a stock for its full report.`)}</p>
         </>}
     </Section>
