@@ -300,8 +300,7 @@ def test_personal_note_reads_like_a_mail_from_a_person():
     assert m["From"] == "Pranshu from FinLit Ventures <pranshu@finlitventures.com>" and m["Reply-To"] == "pranshu@finlitventures.com"
     assert m["Message-ID"] and m["Date"]
     text = m.get_content()
-    assert text == ("Hi there,\n\nPlease share your feedback: https://forms.gle/x\n\n"
-                    "Rather not hear from us? Reply 'stop' and we won't write again.\n\nInformation only, not investment advice.\n")
+    assert text == "Hi there,\n\nPlease share your feedback: https://forms.gle/x\n"          # no footer: exactly what was written
     assert "--" not in text and "Unsubscribe:" not in text and "Why we write." not in text and UNSUB not in text
     assert mailer.raw_sender(m.as_bytes()) == "pranshu@finlitventures.com"                           # SES is asked to send from it
     # only an address on our own domain; anything else falls back to contact@

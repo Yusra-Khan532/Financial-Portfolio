@@ -204,7 +204,7 @@ describe("Console > Email: Send an email", () => {
     const radios = screen.getAllByRole("radio").filter((r) => (r as HTMLInputElement).name === "mla-fmt").map((r) => r.parentElement!.textContent ?? "");
     expect(radios.map((t) => t.split(/Reads|Text|Styled/)[0])).toEqual(["Personal note", "Plain email", "Designed email with a button"]);   // the order
     expect((screen.getByRole("radio", { name: /Personal note/ }) as HTMLInputElement).checked).toBe(true);
-    expect(screen.getByText(/Reads like a mail from a person \(no unsubscribe header, short footer\)\. The best chance of Gmail's Primary tab for small sends/)).toBeTruthy();
+    expect(screen.getByText(/Reads like a mail from a person: exactly your text, no unsubscribe header and no footer\. The best chance of Gmail's Primary tab for small sends/)).toBeTruthy();
     expect((screen.getByRole("radio", { name: /Designed email with a button/ }) as HTMLInputElement).checked).toBe(false);
     expect(screen.getByText(/Gmail decides the tab for each person, so Primary is likely, not guaranteed/)).toBeTruthy();
     expect(screen.getByText("Add a link line")).toBeTruthy();                                       // text only: the button is a line
