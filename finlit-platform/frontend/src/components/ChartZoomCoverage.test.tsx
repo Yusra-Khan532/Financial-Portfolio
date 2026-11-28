@@ -22,6 +22,7 @@ const ZOOM = [
   "components/lab/GlobalCues.tsx",    // Trading Lab > Order Flow > Global cues: a small line per cue
   "components/lab/StockZones.tsx",    // Trading Lab > Order Flow > Stock zones: the candles with their zones and levels
   "components/lab/TradingJournal.tsx", // Trading Lab > Order Flow > Trading journal: the cumulative P&L curve and the daily P&L calendar
+  "components/lab/MarketMood.tsx",    // Trading Lab > Order Flow > Market mood: the 30-day tone chart
   // company page
   "charts/MiniBars.tsx", "charts/PriceChart.tsx", "charts/IntradayChart.tsx", "charts/FinChart.tsx", "charts/LineChart.tsx", "charts/RoeLines.tsx", "charts/Waterfall.tsx", "charts/Radar.tsx", "charts/OutlookChart.tsx",
   "stock/Sections.tsx", "stock/Sections2.tsx", "stock/Sections3.tsx", "stock/MoreCharts.tsx", "stock/SegmentMix.tsx", "stock/ProfitReality.tsx", "stock/RevenueCash.tsx",

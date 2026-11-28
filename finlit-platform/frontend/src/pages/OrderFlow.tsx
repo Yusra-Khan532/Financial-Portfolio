@@ -21,6 +21,7 @@ import { OptionPulse } from "../components/lab/OptionPulse";
 import { GlobalCues } from "../components/lab/GlobalCues";
 import { StockZones } from "../components/lab/StockZones";
 import { TradingJournal } from "../components/lab/TradingJournal";
+import { MarketMood } from "../components/lab/MarketMood";
 import { BucketPop, Candles, DirectionPop, SectorPop, StockPop, TipLayer, tiltHandlers, useTip } from "../components/lab/FlowTips";
 import "../styles/portfolio-disc.css";
 import "../styles/tradinglab.css";
@@ -32,6 +33,7 @@ export const FLOW_TABS = [
   { id: "money", name: "Money Flow", ready: true },
   { id: "options", name: "Option Pulse", ready: true },
   { id: "global", name: "Global cues", ready: true },
+  { id: "mood", name: "Market mood", ready: true },
   { id: "zones", name: "Stock zones", ready: true },
   { id: "journal", name: "Trading journal", ready: true },
 ];
@@ -643,6 +645,7 @@ function Flow({ view }: { view: string }) {
   if (view === "global") return <TipLayer><GlobalCues /></TipLayer>;      // its own data (FRED series and the international ETFs on NSE)
   if (view === "zones") return <TipLayer><StockZones /></TipLayer>;       // its own data (5-minute candles of one stock)
   if (view === "journal") return <TipLayer><TradingJournal /></TipLayer>; // the member's own trades
+  if (view === "mood") return <TipLayer><MarketMood /></TipLayer>;        // its own data (scored news and headlines)
   return <FlowSnapshotView view={view} />;
 }
 
