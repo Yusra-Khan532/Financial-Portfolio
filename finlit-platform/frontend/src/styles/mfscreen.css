@@ -247,7 +247,10 @@
 @media (max-width: 640px) { .mfs-table th.mfs-n { width: 200px; min-width: 190px; max-width: 220px; } }   /* a phone keeps room for the figures beside the pinned Fund column */
 /* task #350: the header a step raised from the rows; a fund ticked for compare reads as selected (its row tinted, the pinned name cell too) */
 .mfs-table thead th, .mfs-table thead th.mfs-n { background: var(--s2); }
-.mfs-table tbody tr.is-picked > * { background: var(--gold-soft); }
+/* task #462 (the same cause as the ETF screener): the see-through gold tint sits over the solid row colour, so the pinned Fund cell of a
+   ticked row stays opaque and the figures scrolled under it no longer show through */
+.mfs-table tbody tr.is-picked > * { background: linear-gradient(var(--gold-soft), var(--gold-soft)), linear-gradient(var(--s1), var(--s1)), var(--bg); }
+.mfs-table tbody tr.is-picked:hover > * { background: linear-gradient(var(--gold-soft), var(--gold-soft)), linear-gradient(var(--s2), var(--s2)), var(--bg); }
 .mfs-table tbody tr.is-picked > th.mfs-n { box-shadow: inset 3px 0 0 var(--gold), inset -1px 0 0 var(--border-strong); }
 
 /* task #353: one 16px gap between the boxes of the results column (count, active filters, result at a glance, table, pages, notes); was 10/14/18/14 */

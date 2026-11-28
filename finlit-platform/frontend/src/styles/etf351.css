@@ -56,7 +56,11 @@
 .etf-list .etf-table th:not(.etf-first), .etf-list .etf-table td { border-left: 1px solid var(--border); }
 .etf-list .etf-first { min-width: 260px; max-width: 300px; box-shadow: inset -1px 0 0 var(--border-strong); }
 .etf-list .etf-table .etf-name a { font-weight: 600; }
-.etf-list .etf-table tbody tr.is-picked > * { background: var(--gold-soft); }
+/* task #462: the compare tint is a see-through gold, so it is laid over the solid row colour; the pinned ETF cell stays opaque and the
+   figures scrolled under it no longer show through when its box is ticked (the same for a hovered row) */
+.etf-list .etf-table tbody tr.is-picked > * { background: linear-gradient(var(--gold-soft), var(--gold-soft)), linear-gradient(var(--s1), var(--s1)), var(--bg); }
+.etf-list .etf-table tbody tr:hover > th.etf-first { background: linear-gradient(var(--s2), var(--s2)), var(--bg); }
+.etf-list .etf-table tbody tr.is-picked:hover > * { background: linear-gradient(var(--gold-soft), var(--gold-soft)), linear-gradient(var(--s2), var(--s2)), var(--bg); }
 .etf-list .etf-table tbody tr.is-picked > th.etf-first { box-shadow: inset 3px 0 0 var(--gold), inset -1px 0 0 var(--border-strong); }
 .etf-list .etf-pager { margin: 12px 0; }
 .etf-list .etf-pager .btn { min-height: 34px; min-width: 32px; }
