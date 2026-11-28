@@ -8,9 +8,11 @@
 .fgx-meta { color: var(--faint); font: 500 var(--fs-13) var(--sans); }
 .fgx-badge { padding: 2px 9px; border-radius: var(--ui-r-pill); font: 600 var(--fs-12) var(--sans); color: var(--text); background: var(--gold-soft); border: 1px solid var(--gold); white-space: nowrap; }
 .fgx-chev { flex: none; color: var(--muted); transition: transform .2s; } .is-open > .fgx-h .fgx-chev { transform: rotate(180deg); }
-.fgx-hb:focus-visible, .fgx-qr:focus-visible, .fgx-chip:focus-visible, .fgx-mm input:focus-visible, .fgx-find:focus-within, .fgx-row:focus-within, .fgx-pb:focus-visible, .fgx-kpi:focus-visible, .fgx-link:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.fgx-hb:focus-visible, .fgx-qr:focus-visible, .fgx-chip:focus-visible, .fgx-mm input:focus-visible, .fgx-find:focus-within, .fgx-pb:focus-visible, .fgx-kpi:focus-visible, .fgx-link:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .fgx-body { display: grid; gap: 8px; padding: 2px 2px 16px; } .fgx-body[hidden] { display: none; }
 .fgx-hint { margin: 0 0 4px; color: var(--muted); font-size: var(--fs-13); line-height: 1.45; }
+/* #456: a list row's ring only for keyboard focus (a mouse click left a ring that stayed), and drawn inside the row so the scrolling list never cuts it off. */
+.fgx-row:has(input:focus-visible) { outline: 2px solid var(--gold); outline-offset: -2px; }
 .fgx-row { display: flex; align-items: center; gap: 10px; min-height: 36px; padding: 4px 6px; border-radius: var(--r-ctl); font-size: var(--fs-14); cursor: pointer; }
 .fgx-row:hover { background: var(--s2); } .fgx-row.is-on .fgx-lab { font-weight: 600; } .fgx-row.is-off { opacity: .55; cursor: not-allowed; }
 .fgx-row input[type="checkbox"] { accent-color: var(--gold); width: 17px; height: 17px; flex: none; margin: 0; }
