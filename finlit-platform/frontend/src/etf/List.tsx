@@ -19,6 +19,7 @@ import "../styles/etf351.css";
 import "../styles/task354.css";   // task #354: the Hide filters outline
 import "../styles/task360.css";   // task #360: the toolbar stays in place; hidden filters leave a slim Show filters column
 import "../styles/task363.css";   // task #363: the folded Show filters fits its words
+import "../styles/task465.css";   // task #465: the Filters header fits the panel, nothing cut off
 import "../styles/etfvs.css";
 
 const COLS_KEY = "etf-cols";   // versioned by lib/persist: a different version or unknown column ids fall back to the default
@@ -121,9 +122,10 @@ export function EtfListPage() {
       <div className="etf-side-h">
         <span className="etf-side-t" id="etf-filters-h">Filters</span>{nOn > 0 && <span className="etf-fs-n">{nOn} on</span>}
         {small ? <button type="button" className="btn sm etf-reset" onClick={() => setDrawer(false)} aria-label="Close the filters">Close</button>
-          : <>{/* task #359: Hide filters sits in the Filters box; Reset all is a link beside the title */}
-            {nOn > 0 && <button type="button" className="fgx-link etf-resetl" onClick={resetFilters}>Reset all</button>}
-            <button type="button" className="btn sm etf-hidef" aria-expanded="true" aria-controls="etf-filters" onClick={() => setFOpen(false)}><Icon name="panel" />Hide filters</button></>}
+          : <>{/* task #359: Hide filters sits in the Filters box. Task #465: it stays on the title row and Reset all takes its own row under
+                 the title (all four did not fit the 280px panel: Reset all broke over two lines and Hide filters was cut off) */}
+            <button type="button" className="btn sm etf-hidef" aria-expanded="true" aria-controls="etf-filters" onClick={() => setFOpen(false)}><Icon name="panel" />Hide filters</button>
+            {nOn > 0 && <button type="button" className="fgx-link etf-resetl" onClick={resetFilters}>Reset all</button>}</>}
       </div>
       <FSec id="type" title="Type" help={HELP.type} on={state.asset.length} {...sec("type")}>
         <ul className="fgx-list etf-opts" aria-label="Type">{(data?.groups ?? []).filter((g) => g.count || state.asset.includes(g.key)).map((g) => (
