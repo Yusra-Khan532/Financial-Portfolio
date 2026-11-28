@@ -53,6 +53,9 @@
 .etf-list .etf-table tbody th, .etf-list .etf-table tbody td { height: 62px; padding: 10px 14px; }
 .etf-list .etf-table .num, .etf-list .etf-table thead .num, .etf-list .etf-table .etf-c-category { text-align: center; }
 .etf-list .etf-table .etf-sort { text-align: inherit; }
+/* task #464: these columns are centred, so a blank's dash sits centred over its reason ("Price break, 18 Dec 2023", "Pays out", "Under 5 years"),
+   in line with the figures above and below it, not pushed to the right edge of the reason */
+.etf-list .etf-table td.num > .etf-blank:has(.etf-bwhy), .etf-list .etf-table td.etf-c-category > .etf-blank:has(.etf-bwhy) { align-items: center; }
 .etf-list .etf-table th:not(.etf-first), .etf-list .etf-table td { border-left: 1px solid var(--border); }
 .etf-list .etf-first { min-width: 260px; max-width: 300px; box-shadow: inset -1px 0 0 var(--border-strong); }
 .etf-list .etf-table .etf-name a { font-weight: 600; }
